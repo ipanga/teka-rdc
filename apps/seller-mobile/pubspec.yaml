@@ -1,0 +1,34 @@
+name: seller_mobile
+description: Teka RDC - Vendeur
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+  go_router: ^14.8.1
+  dio: ^5.8.0+1
+  shared_preferences: ^2.5.3
+  google_fonts: ^6.2.1
+  flutter_secure_storage: ^10.0.0
+  pin_code_fields: ^9.1.0
+  image_picker: ^1.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  riverpod_generator: ^2.6.3
+  build_runner: ^2.4.15
+
+flutter:
+  uses-material-design: true
+  generate: true

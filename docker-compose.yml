@@ -1,0 +1,87 @@
+services:
+  # === Redis ===
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # === API (NestJS) ===
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "5050:5050"
+    env_file:
+      - .env.development
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5050/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # === Buyer Web (Next.js) ===
+  buyer-web:
+    build:
+      context: .
+      dockerfile: apps/buyer-web/Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080/api
+    depends_on:
+      - api
+
+  # === Seller Web (Next.js) ===
+  seller-web:
+    build:
+      context: .
+      dockerfile: apps/seller-web/Dockerfile
+    ports:
+      - "5100:5100"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080/api
+    depends_on:
+      - api
+
+  # === Admin Web (Next.js) ===
+  admin-web:
+    build:
+      context: .
+      dockerfile: apps/admin-web/Dockerfile
+    ports:
+      - "5200:5200"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080/api
+    depends_on:
+      - api
+
+  # === NGINX Reverse Proxy ===
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+      - buyer-web
+      - seller-web
+      - admin-web
+
+volumes:
+  redis_data:

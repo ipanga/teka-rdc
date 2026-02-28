@@ -1,0 +1,26 @@
+{
+  "name": "teka-rdc",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Teka RDC — E-commerce marketplace for DR Congo",
+  "scripts": {
+    "dev:api": "pnpm --filter api dev",
+    "dev:buyer-web": "pnpm --filter buyer-web dev",
+    "dev:seller-web": "pnpm --filter seller-web dev",
+    "dev:admin-web": "pnpm --filter admin-web dev",
+    "dev:web": "pnpm --parallel --filter '*-web' dev",
+    "build": "pnpm --filter @teka/shared build && pnpm --filter './apps/*' build",
+    "lint": "pnpm --recursive lint",
+    "type-check": "pnpm --recursive type-check",
+    "test": "pnpm --recursive test",
+    "db:migrate": "pnpm --filter api prisma:migrate",
+    "db:push": "pnpm --filter api prisma:push",
+    "db:seed": "pnpm --filter api prisma:seed",
+    "db:studio": "pnpm --filter api prisma:studio",
+    "clean": "pnpm --recursive exec rm -rf node_modules dist .next .turbo"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

@@ -1,0 +1,15 @@
+node_modules
+.git
+.gitignore
+*.md
+!README.md
+.env.*
+!.env.example
+.next
+dist
+coverage
+.turbo
+.claude
+docs
+apps/buyer-mobile
+apps/seller-mobile

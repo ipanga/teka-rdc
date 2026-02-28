@@ -1,0 +1,813 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  BUYER
+  SELLER
+  DRIVER
+  ADMIN
+  SUPPORT
+  FINANCE
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  PENDING_VERIFICATION
+}
+
+enum SellerApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ProductCondition {
+  NEW
+  USED
+}
+
+enum ProductStatus {
+  DRAFT
+  PENDING_REVIEW
+  ACTIVE
+  REJECTED
+  ARCHIVED
+}
+
+enum AttributeType {
+  TEXT
+  SELECT
+  MULTISELECT
+  NUMERIC
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  RETURNED
+}
+
+enum PaymentMethod {
+  MOBILE_MONEY
+  COD
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum TransactionType {
+  PAYMENT
+  REFUND
+  PAYOUT
+}
+
+enum TransactionProvider {
+  FLEXPAY
+  COD
+  MANUAL
+}
+
+enum PayoutStatus {
+  REQUESTED
+  APPROVED
+  PROCESSING
+  COMPLETED
+  REJECTED
+}
+
+enum ReviewStatus {
+  ACTIVE
+  HIDDEN
+}
+
+enum BannerStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  EXPIRED
+  ARCHIVED
+}
+
+enum PromotionType {
+  PROMOTION
+  FLASH_DEAL
+}
+
+enum PromotionStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum ContentPageStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum NotificationBroadcastStatus {
+  DRAFT
+  SENDING
+  SENT
+  FAILED
+}
+
+model User {
+  id           String     @id @default(uuid()) @db.Uuid
+  phone        String     @unique
+  email        String?    @unique
+  passwordHash String?
+  firstName    String?
+  lastName     String?
+  role         UserRole   @default(BUYER)
+  status       UserStatus @default(PENDING_VERIFICATION)
+  avatar       String?
+  locale       String     @default("fr")
+
+  // Verification
+  phoneVerified Boolean @default(false)
+  emailVerified Boolean @default(false)
+
+  // Timestamps & soft delete
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  lastLoginAt DateTime?
+
+  // Relations
+  sellerProfile   SellerProfile?  @relation("UserSellerProfile")
+  approvedSellers SellerProfile[] @relation("SellerApprover")
+  addresses       Address[]
+  refreshTokens   RefreshToken[]
+  products        Product[]       @relation("SellerProducts")
+  cart            Cart?
+  buyerOrders     Order[]         @relation("BuyerOrders")
+  sellerOrders    Order[]         @relation("SellerOrders")
+  approvedPayouts Payout[]        @relation("PayoutApprover")
+  reviews              Review[]       @relation("BuyerReviews")
+  wishlistItems        Wishlist[]     @relation("UserWishlist")
+  buyerConversations   Conversation[] @relation("BuyerConversations")
+  sellerConversations  Conversation[] @relation("SellerConversations")
+  sentMessages         Message[]      @relation("SentMessages")
+
+  // Phase 7 relations
+  createdBanners       Banner[]                @relation("BannerCreatedBy")
+  sellerPromotions     Promotion[]             @relation("SellerPromotions")
+  createdPromotions    Promotion[]             @relation("PromotionCreatedBy")
+  approvedPromotions   Promotion[]             @relation("PromotionApprovedBy")
+  editedContentPages   ContentPage[]           @relation("ContentPageEditor")
+  editedSettings       SystemSetting[]         @relation("SettingEditor")
+  createdBroadcasts    NotificationBroadcast[] @relation("BroadcastCreatedBy")
+
+  @@index([phone])
+  @@index([email])
+  @@index([role])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model SellerProfile {
+  id                String                  @id @default(uuid()) @db.Uuid
+  userId            String                  @unique @db.Uuid
+  businessName      String
+  businessType      String // 'individual' | 'company'
+  idNumber          String
+  idType            String // 'national_id' | 'passport' | 'rccm'
+  phone             String
+  location          String
+  description       String?
+  applicationStatus SellerApplicationStatus @default(PENDING)
+  rejectionReason   String?
+  approvedAt        DateTime?
+  approvedById      String?                 @db.Uuid
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  deletedAt         DateTime?
+
+  walletBalanceCDF BigInt @default(0)
+  avgRating        Float  @default(0)
+  totalReviews     Int    @default(0)
+
+  user       User  @relation("UserSellerProfile", fields: [userId], references: [id])
+  approvedBy User? @relation("SellerApprover", fields: [approvedById], references: [id])
+  earnings   SellerEarning[]
+  payouts    Payout[]
+
+  @@index([userId])
+  @@index([applicationStatus])
+  @@index([deletedAt])
+  @@map("seller_profiles")
+}
+
+model Address {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @db.Uuid
+  label          String?
+  province       String
+  town           String
+  neighborhood   String // commune
+  avenue         String?
+  reference      String? // landmark
+  recipientName  String?
+  recipientPhone String?
+  isDefault      Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  user   User    @relation(fields: [userId], references: [id])
+  orders Order[]
+
+  @@index([userId])
+  @@index([userId, isDefault])
+  @@index([deletedAt])
+  @@map("addresses")
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid()) @db.Uuid // this is the jti
+  userId     String    @db.Uuid
+  tokenHash  String
+  deviceInfo String?
+  ipAddress  String?
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model Category {
+  id               String    @id @default(uuid()) @db.Uuid
+  name             Json      // { fr: string, en?: string }
+  description      Json?     // { fr: string, en?: string }
+  parentCategoryId String?   @db.Uuid
+  emoji            String?
+  sortOrder        Int       @default(0)
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  parentCategory    Category?           @relation("CategoryTree", fields: [parentCategoryId], references: [id])
+  subcategories     Category[]          @relation("CategoryTree")
+  products          Product[]
+  attributes        ProductAttribute[]
+  commissionSetting CommissionSetting?
+  promotions        Promotion[]
+
+  @@index([parentCategoryId])
+  @@index([isActive])
+  @@index([sortOrder])
+  @@index([deletedAt])
+  @@map("categories")
+}
+
+model Product {
+  id              String           @id @default(uuid()) @db.Uuid
+  title           Json             // { fr: string, en?: string }
+  description     Json             // { fr: string, en?: string }
+  categoryId      String           @db.Uuid
+  sellerId        String           @db.Uuid
+  priceCDF        BigInt           // centimes (1 CDF = 100 centimes)
+  priceUSD        BigInt?          // cents (1 USD = 100 cents)
+  quantity        Int              @default(0)
+  condition       ProductCondition @default(NEW)
+  status          ProductStatus    @default(DRAFT)
+  rejectionReason String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+
+  avgRating    Float @default(0)
+  totalReviews Int   @default(0)
+
+  category       Category              @relation(fields: [categoryId], references: [id])
+  seller         User                  @relation("SellerProducts", fields: [sellerId], references: [id])
+  images         ProductImage[]
+  specifications ProductSpecification[]
+  cartItems      CartItem[]
+  orderItems     OrderItem[]
+  reviews        Review[]
+  wishlistEntries Wishlist[]
+  promotions     Promotion[]
+
+  @@index([categoryId])
+  @@index([sellerId])
+  @@index([status])
+  @@index([condition])
+  @@index([priceCDF])
+  @@index([avgRating])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@index([categoryId, status, createdAt])
+  @@index([status, priceCDF])
+  @@index([status, avgRating])
+  @@map("products")
+}
+
+model ProductImage {
+  id           String   @id @default(uuid()) @db.Uuid
+  productId    String   @db.Uuid
+  cloudinaryId String
+  url          String
+  thumbnailUrl String
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([displayOrder])
+  @@map("product_images")
+}
+
+model ProductAttribute {
+  id         String        @id @default(uuid()) @db.Uuid
+  categoryId String        @db.Uuid
+  name       Json          // { fr: string, en?: string }
+  type       AttributeType @default(TEXT)
+  options    Json?         // string[] for SELECT/MULTISELECT types
+  isRequired Boolean       @default(false)
+  sortOrder  Int           @default(0)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  category       Category               @relation(fields: [categoryId], references: [id])
+  specifications ProductSpecification[]
+
+  @@index([categoryId])
+  @@map("product_attributes")
+}
+
+model ProductSpecification {
+  id          String   @id @default(uuid()) @db.Uuid
+  productId   String   @db.Uuid
+  attributeId String   @db.Uuid
+  value       String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  product   Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attribute ProductAttribute @relation(fields: [attributeId], references: [id])
+
+  @@unique([productId, attributeId])
+  @@index([productId])
+  @@index([attributeId])
+  @@map("product_specifications")
+}
+
+model Cart {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id])
+  items CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String   @id @default(uuid()) @db.Uuid
+  cartId    String   @db.Uuid
+  productId String   @db.Uuid
+  quantity  Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([cartId, productId])
+  @@index([cartId])
+  @@index([productId])
+  @@map("cart_items")
+}
+
+model DeliveryZone {
+  id        String   @id @default(uuid()) @db.Uuid
+  fromTown  String
+  toTown    String
+  feeCDF    BigInt
+  feeUSD    BigInt?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([fromTown, toTown])
+  @@index([fromTown])
+  @@index([toTown])
+  @@index([isActive])
+  @@map("delivery_zones")
+}
+
+model Order {
+  id                String        @id @default(uuid()) @db.Uuid
+  orderNumber       String        @unique
+  checkoutGroupId   String        @db.Uuid
+  buyerId           String        @db.Uuid
+  sellerId          String        @db.Uuid
+  status            OrderStatus   @default(PENDING)
+  paymentMethod     PaymentMethod
+  paymentStatus     PaymentStatus @default(PENDING)
+  deliveryAddressId String        @db.Uuid
+  deliveryFeeCDF    BigInt        @default(0)
+  deliveryFeeUSD    BigInt?
+  subtotalCDF       BigInt
+  subtotalUSD       BigInt?
+  totalCDF          BigInt
+  totalUSD          BigInt?
+  idempotencyKey    String?       @unique
+  buyerNote         String?
+  cancellationReason String?
+  cancelledBy       String?       @db.Uuid
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  deletedAt         DateTime?
+
+  buyer           User             @relation("BuyerOrders", fields: [buyerId], references: [id])
+  seller          User             @relation("SellerOrders", fields: [sellerId], references: [id])
+  deliveryAddress Address          @relation(fields: [deliveryAddressId], references: [id])
+  items           OrderItem[]
+  statusLogs      OrderStatusLog[]
+  transactions    Transaction[]
+  earning         SellerEarning?
+  reviews         Review[]
+
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([checkoutGroupId])
+  @@index([orderNumber])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@index([buyerId, createdAt])
+  @@index([sellerId, status])
+  @@index([sellerId, createdAt])
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id           String  @id @default(uuid()) @db.Uuid
+  orderId      String  @db.Uuid
+  productId    String  @db.Uuid
+  quantity     Int
+  unitPriceCDF BigInt
+  unitPriceUSD BigInt?
+  totalCDF     BigInt
+  totalUSD     BigInt?
+  productTitle Json    // snapshot: { fr: string, en?: string }
+  productImage String? // thumbnail URL snapshot
+  createdAt    DateTime @default(now())
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model OrderStatusLog {
+  id         String       @id @default(uuid()) @db.Uuid
+  orderId    String       @db.Uuid
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  changedBy  String?      @db.Uuid
+  note       String?
+  createdAt  DateTime     @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([createdAt])
+  @@map("order_status_logs")
+}
+
+model Transaction {
+  id                String              @id @default(uuid()) @db.Uuid
+  orderId           String              @db.Uuid
+  type              TransactionType
+  provider          TransactionProvider
+  amountCDF         BigInt
+  amountUSD         BigInt?
+  currency          String              @default("CDF")
+  status            PaymentStatus       @default(PENDING)
+  externalReference String?             @unique
+  idempotencyKey    String?             @unique
+  metadata          Json?
+  failureReason     String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@index([status])
+  @@index([externalReference])
+  @@index([type])
+  @@index([createdAt])
+  @@index([orderId, status])
+  @@map("transactions")
+}
+
+model SellerEarning {
+  id              String   @id @default(uuid()) @db.Uuid
+  sellerProfileId String   @db.Uuid
+  orderId         String   @unique @db.Uuid
+  grossAmountCDF  BigInt
+  commissionCDF   BigInt
+  netAmountCDF    BigInt
+  commissionRate  Decimal  @db.Decimal(5, 4)
+  isPaid          Boolean  @default(false)
+  payoutId        String?  @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  sellerProfile SellerProfile @relation(fields: [sellerProfileId], references: [id])
+  order         Order         @relation(fields: [orderId], references: [id])
+  payout        Payout?       @relation(fields: [payoutId], references: [id])
+
+  @@index([sellerProfileId])
+  @@index([isPaid])
+  @@index([payoutId])
+  @@index([createdAt])
+  @@map("seller_earnings")
+}
+
+model Payout {
+  id                String       @id @default(uuid()) @db.Uuid
+  sellerProfileId   String       @db.Uuid
+  amountCDF         BigInt
+  currency          String       @default("CDF")
+  status            PayoutStatus @default(REQUESTED)
+  payoutMethod      String
+  payoutPhone       String
+  externalReference String?
+  rejectionReason   String?
+  processedAt       DateTime?
+  requestedAt       DateTime     @default(now())
+  approvedAt        DateTime?
+  approvedById      String?      @db.Uuid
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  sellerProfile SellerProfile   @relation(fields: [sellerProfileId], references: [id])
+  approvedBy    User?           @relation("PayoutApprover", fields: [approvedById], references: [id])
+  earnings      SellerEarning[]
+
+  @@index([sellerProfileId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("payouts")
+}
+
+model CommissionSetting {
+  id         String   @id @default(uuid()) @db.Uuid
+  categoryId String?  @unique @db.Uuid
+  rate       Decimal  @db.Decimal(5, 4)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  category Category? @relation(fields: [categoryId], references: [id])
+
+  @@index([categoryId])
+  @@index([isActive])
+  @@map("commission_settings")
+}
+
+model Review {
+  id        String       @id @default(uuid()) @db.Uuid
+  productId String       @db.Uuid
+  buyerId   String       @db.Uuid
+  orderId   String       @db.Uuid
+  rating    Int
+  text      String?
+  status    ReviewStatus @default(ACTIVE)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  deletedAt DateTime?
+
+  product Product @relation(fields: [productId], references: [id])
+  buyer   User    @relation("BuyerReviews", fields: [buyerId], references: [id])
+  order   Order   @relation(fields: [orderId], references: [id])
+
+  @@unique([buyerId, productId])
+  @@index([productId])
+  @@index([buyerId])
+  @@index([orderId])
+  @@index([rating])
+  @@index([status])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@index([productId, status])
+  @@map("reviews")
+}
+
+model Wishlist {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  productId String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  user    User    @relation("UserWishlist", fields: [userId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+  @@map("wishlists")
+}
+
+model Conversation {
+  id            String    @id @default(uuid()) @db.Uuid
+  buyerId       String    @db.Uuid
+  sellerId      String    @db.Uuid
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  buyer    User      @relation("BuyerConversations", fields: [buyerId], references: [id])
+  seller   User      @relation("SellerConversations", fields: [sellerId], references: [id])
+  messages Message[]
+
+  @@unique([buyerId, sellerId])
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([lastMessageAt])
+  @@map("conversations")
+}
+
+model Message {
+  id             String    @id @default(uuid()) @db.Uuid
+  conversationId String    @db.Uuid
+  senderId       String    @db.Uuid
+  content        String
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("SentMessages", fields: [senderId], references: [id])
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@index([readAt])
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+model Banner {
+  id          String       @id @default(uuid()) @db.Uuid
+  title       Json         // { fr: string, en?: string }
+  subtitle    Json?        // { fr: string, en?: string }
+  imageUrl    String
+  linkUrl     String?
+  linkType    String?      // 'product' | 'category' | 'promotion' | 'url'
+  linkTarget  String?
+  status      BannerStatus @default(DRAFT)
+  sortOrder   Int          @default(0)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdById String       @db.Uuid
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+
+  createdBy User @relation("BannerCreatedBy", fields: [createdById], references: [id])
+
+  @@index([status])
+  @@index([sortOrder])
+  @@index([startsAt])
+  @@index([endsAt])
+  @@index([deletedAt])
+  @@map("banners")
+}
+
+model Promotion {
+  id              String          @id @default(uuid()) @db.Uuid
+  type            PromotionType   @default(PROMOTION)
+  title           Json            // { fr: string, en?: string }
+  description     Json?           // { fr: string, en?: string }
+  discountPercent Int?
+  discountCDF     BigInt?
+  status          PromotionStatus @default(DRAFT)
+  startsAt        DateTime
+  endsAt          DateTime
+  productId       String?         @db.Uuid
+  categoryId      String?         @db.Uuid
+  sellerId        String?         @db.Uuid
+  createdById     String          @db.Uuid
+  approvedById    String?         @db.Uuid
+  approvedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+
+  product    Product?  @relation(fields: [productId], references: [id])
+  category   Category? @relation(fields: [categoryId], references: [id])
+  seller     User?     @relation("SellerPromotions", fields: [sellerId], references: [id])
+  createdBy  User      @relation("PromotionCreatedBy", fields: [createdById], references: [id])
+  approvedBy User?     @relation("PromotionApprovedBy", fields: [approvedById], references: [id])
+
+  @@index([type])
+  @@index([status])
+  @@index([productId])
+  @@index([categoryId])
+  @@index([sellerId])
+  @@index([startsAt])
+  @@index([endsAt])
+  @@index([deletedAt])
+  @@map("promotions")
+}
+
+model ContentPage {
+  id          String            @id @default(uuid()) @db.Uuid
+  slug        String            @unique
+  title       Json              // { fr: string, en?: string }
+  content     Json              // { fr: string, en?: string }
+  status      ContentPageStatus @default(DRAFT)
+  sortOrder   Int               @default(0)
+  updatedById String?           @db.Uuid
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  updatedBy User? @relation("ContentPageEditor", fields: [updatedById], references: [id])
+
+  @@index([slug])
+  @@index([status])
+  @@map("content_pages")
+}
+
+model SystemSetting {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  value       String
+  type        String   @default("boolean") // 'boolean' | 'string' | 'number' | 'json'
+  label       Json?    // { fr: string, en?: string }
+  updatedById String?  @db.Uuid
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  updatedBy User? @relation("SettingEditor", fields: [updatedById], references: [id])
+
+  @@index([key])
+  @@map("system_settings")
+}
+
+model NotificationBroadcast {
+  id             String                      @id @default(uuid()) @db.Uuid
+  title          String
+  message        String
+  segment        String
+  status         NotificationBroadcastStatus @default(DRAFT)
+  recipientCount Int                         @default(0)
+  sentCount      Int                         @default(0)
+  failedCount    Int                         @default(0)
+  scheduledAt    DateTime?
+  sentAt         DateTime?
+  createdById    String                      @db.Uuid
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
+
+  createdBy User @relation("BroadcastCreatedBy", fields: [createdById], references: [id])
+
+  @@index([status])
+  @@index([segment])
+  @@index([createdAt])
+  @@map("notification_broadcasts")
+}
