@@ -11,12 +11,14 @@ import { AdminStatsService } from './admin-stats.service';
 import { AdminStatsController } from './admin-stats.controller';
 import { AdminReviewsService } from './admin-reviews.service';
 import { AdminReviewsController } from './admin-reviews.controller';
+import { AdminCitiesController } from './admin-cities.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { DeliveryZonesModule } from '../delivery-zones/delivery-zones.module';
+import { CitiesModule } from '../cities/cities.module';
 
 @Module({
-  imports: [PrismaModule, DeliveryZonesModule],
-  controllers: [AdminUsersController, AdminSellersController, AdminProductsController, AdminDeliveryZonesController, AdminOrdersController, AdminStatsController, AdminReviewsController],
+  imports: [PrismaModule, DeliveryZonesModule, CitiesModule],
+  controllers: [AdminUsersController, AdminSellersController, AdminProductsController, AdminDeliveryZonesController, AdminOrdersController, AdminStatsController, AdminReviewsController, AdminCitiesController],
   providers: [AdminUsersService, AdminProductsService, AdminOrdersService, AdminStatsService, AdminReviewsService],
 })
 export class AdminModule {}

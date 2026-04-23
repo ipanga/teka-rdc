@@ -74,19 +74,45 @@ export class AddressesService {
   }
 
   async getTowns() {
-    return {
-      'Haut-Katanga': ['Lubumbashi', 'Likasi', 'Kipushi', 'Kasumbalesa', 'Kambove'],
-      'Lualaba': ['Kolwezi', 'Dilolo', 'Fungurume'],
-    };
+    // Return cities grouped by province from the database
+    const cities = await this.prisma.city.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+
+    const result: Record<string, { id: string; name: unknown }[]> = {};
+    for (const city of cities) {
+      if (!result[city.province]) {
+        result[city.province] = [];
+      }
+      result[city.province].push({ id: city.id, name: city.name });
+    }
+    return result;
   }
 
   async getNeighborhoods(town: string) {
-    const neighborhoods: Record<string, string[]> = {
-      'Lubumbashi': ['Lubumbashi', 'Kampemba', 'Kamalondo', 'Kenya', 'Katuba', 'Rwashi', 'Annexe'],
-      'Likasi': ['Likasi', 'Panda', 'Kikula'],
-      'Kolwezi': ['Kolwezi', 'Dilala', 'Manika'],
-    };
-    return neighborhoods[town] || [];
+    // Try to find city by French name and return its communes
+    const city = await this.prisma.city.findFirst({
+      where: {
+        isActive: true,
+        OR: [
+          { name: { path: ['fr'], equals: town } },
+          { name: { path: ['en'], equals: town } },
+        ],
+      },
+    });
+
+    if (!city) return [];
+
+    const communes = await this.prisma.commune.findMany({
+      where: { cityId: city.id },
+      orderBy: { sortOrder: 'asc' },
+    });
+
+    return communes.map(c => {
+      const name = c.name as { fr: string; en?: string };
+      return name.fr;
+    });
   }
 
   private async findOneOrFail(userId: string, addressId: string) {

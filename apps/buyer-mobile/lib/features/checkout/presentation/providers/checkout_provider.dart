@@ -122,6 +122,27 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     state = state.copyWith(selectedAddress: address, clearError: true);
   }
 
+  /// Create a new address via API, reload addresses, and select the new one.
+  Future<bool> createAddress(Map<String, dynamic> data) async {
+    state = state.copyWith(clearError: true);
+    try {
+      final newAddress = await _repository.createAddress(data);
+      // Reload all addresses
+      final addresses = await _repository.getAddresses();
+      state = state.copyWith(
+        addresses: addresses,
+        selectedAddress: newAddress,
+      );
+      return true;
+    } on DioException catch (e) {
+      state = state.copyWith(error: _extractErrorMessage(e));
+      return false;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
+    }
+  }
+
   void selectPaymentMethod(String method) {
     state = state.copyWith(
       paymentMethod: method,

@@ -9,6 +9,9 @@ import '../../../../core/utils/price_formatter.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
+import '../../../city/data/city_repository.dart';
+import '../../../city/data/models/city_model.dart';
+import '../../../city/data/models/commune_model.dart';
 import '../../data/models/checkout_model.dart';
 import '../providers/checkout_provider.dart';
 
@@ -120,6 +123,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           l10n: l10n,
           onSelect: (address) =>
               ref.read(checkoutProvider.notifier).selectAddress(address),
+          onAddAddress: () => _showAddAddressSheet(context, l10n),
         );
       case CheckoutStep.payment:
         return _PaymentStep(
@@ -168,6 +172,25 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       case CheckoutStep.success:
         return const SizedBox.shrink();
     }
+  }
+
+  void _showAddAddressSheet(BuildContext context, AppLocalizations l10n) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _AddAddressSheet(
+        l10n: l10n,
+        cityRepository: ref.read(cityRepositoryProvider),
+        onSave: (data) async {
+          final success =
+              await ref.read(checkoutProvider.notifier).createAddress(data);
+          return success;
+        },
+      ),
+    );
   }
 
   Widget _buildBottomBar(CheckoutState checkoutState, AppLocalizations l10n) {
@@ -327,6 +350,7 @@ class _AddressStep extends StatelessWidget {
   final bool isLoading;
   final AppLocalizations l10n;
   final ValueChanged<AddressModel> onSelect;
+  final VoidCallback onAddAddress;
 
   const _AddressStep({
     required this.addresses,
@@ -334,6 +358,7 @@ class _AddressStep extends StatelessWidget {
     required this.isLoading,
     required this.l10n,
     required this.onSelect,
+    required this.onAddAddress,
   });
 
   @override
@@ -363,6 +388,16 @@ class _AddressStep extends StatelessWidget {
                       color: TekaColors.mutedForeground,
                     ),
                 textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: onAddAddress,
+                icon: const Icon(Icons.add_location_alt_outlined),
+                label: Text(l10n.addAddress),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: TekaColors.tekaRed,
+                  side: const BorderSide(color: TekaColors.tekaRed),
+                ),
               ),
             ],
           ),
@@ -479,6 +514,19 @@ class _AddressStep extends StatelessWidget {
             ),
           );
         }),
+
+        // Add new address button
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: onAddAddress,
+          icon: const Icon(Icons.add_location_alt_outlined, size: 18),
+          label: Text(l10n.addAddress),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: TekaColors.tekaRed,
+            side: const BorderSide(color: TekaColors.tekaRed),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+          ),
+        ),
       ],
     );
   }
@@ -1154,6 +1202,429 @@ class _SummarySection extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Bottom sheet for creating a new address with city/commune dropdowns.
+class _AddAddressSheet extends StatefulWidget {
+  final AppLocalizations l10n;
+  final CityRepository cityRepository;
+  final Future<bool> Function(Map<String, dynamic> data) onSave;
+
+  const _AddAddressSheet({
+    required this.l10n,
+    required this.cityRepository,
+    required this.onSave,
+  });
+
+  @override
+  State<_AddAddressSheet> createState() => _AddAddressSheetState();
+}
+
+class _AddAddressSheetState extends State<_AddAddressSheet> {
+  List<CityModel> _cities = [];
+  List<CommuneModel> _communes = [];
+  bool _isLoadingCities = true;
+  bool _isLoadingCommunes = false;
+  bool _isSaving = false;
+
+  CityModel? _selectedCity;
+  CommuneModel? _selectedCommune;
+
+  final _avenueController = TextEditingController();
+  final _referenceController = TextEditingController();
+  final _recipientNameController = TextEditingController();
+  final _recipientPhoneController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCities();
+  }
+
+  @override
+  void dispose() {
+    _avenueController.dispose();
+    _referenceController.dispose();
+    _recipientNameController.dispose();
+    _recipientPhoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadCities() async {
+    try {
+      final cities = await widget.cityRepository.getCities();
+      if (mounted) {
+        setState(() {
+          _cities = cities.where((c) => c.isActive).toList()
+            ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+          _isLoadingCities = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingCities = false);
+    }
+  }
+
+  Future<void> _loadCommunes(String cityId) async {
+    setState(() {
+      _isLoadingCommunes = true;
+      _communes = [];
+      _selectedCommune = null;
+    });
+    try {
+      final communes = await widget.cityRepository.getCommunes(cityId);
+      if (mounted) {
+        setState(() {
+          _communes = communes;
+          _isLoadingCommunes = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _isLoadingCommunes = false);
+    }
+  }
+
+  Future<void> _save() async {
+    if (_selectedCity == null || _selectedCommune == null) return;
+
+    setState(() => _isSaving = true);
+
+    final data = <String, dynamic>{
+      'province': _selectedCity!.province,
+      'town': _selectedCity!.name['fr'] ?? '',
+      'neighborhood': _selectedCommune!.name['fr'] ?? '',
+      'cityId': _selectedCity!.id,
+      'communeId': _selectedCommune!.id,
+    };
+    if (_avenueController.text.trim().isNotEmpty) {
+      data['avenue'] = _avenueController.text.trim();
+    }
+    if (_referenceController.text.trim().isNotEmpty) {
+      data['details'] = _referenceController.text.trim();
+    }
+    if (_recipientNameController.text.trim().isNotEmpty) {
+      data['recipientName'] = _recipientNameController.text.trim();
+    }
+    if (_recipientPhoneController.text.trim().isNotEmpty) {
+      data['phone'] = _recipientPhoneController.text.trim();
+    }
+
+    final success = await widget.onSave(data);
+    if (mounted) {
+      setState(() => _isSaving = false);
+      if (success) {
+        Navigator.of(context).pop();
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = widget.l10n;
+    final locale = Localizations.localeOf(context).languageCode;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        top: 16,
+        bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Handle
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: TekaColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            Text(
+              l10n.newAddress,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: TekaColors.foreground,
+                  ),
+            ),
+            const SizedBox(height: 16),
+
+            // City dropdown
+            Text(
+              '${l10n.cityLabel} *',
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: TekaColors.foreground,
+              ),
+            ),
+            const SizedBox(height: 6),
+            if (_isLoadingCities)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: TekaColors.border),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedCity?.id,
+                    hint: Text(
+                      l10n.cityPlaceholder,
+                      style: const TextStyle(
+                        color: TekaColors.mutedForeground,
+                        fontSize: 14,
+                      ),
+                    ),
+                    isExpanded: true,
+                    items: _cities
+                        .map((city) => DropdownMenuItem(
+                              value: city.id,
+                              child: Text(
+                                '${city.getLocalizedName(locale)} (${city.province})',
+                                style: const TextStyle(fontSize: 14),
+                              ),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      final city = _cities.firstWhere((c) => c.id == value);
+                      setState(() => _selectedCity = city);
+                      _loadCommunes(value);
+                    },
+                  ),
+                ),
+              ),
+            const SizedBox(height: 12),
+
+            // Commune dropdown
+            if (_selectedCity != null) ...[
+              Text(
+                '${l10n.communeLabel} *',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: TekaColors.foreground,
+                ),
+              ),
+              const SizedBox(height: 6),
+              if (_isLoadingCommunes)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Center(
+                    child: SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: TekaColors.border),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _selectedCommune?.id,
+                      hint: Text(
+                        l10n.communePlaceholder,
+                        style: const TextStyle(
+                          color: TekaColors.mutedForeground,
+                          fontSize: 14,
+                        ),
+                      ),
+                      isExpanded: true,
+                      items: _communes
+                          .map((commune) => DropdownMenuItem(
+                                value: commune.id,
+                                child: Text(
+                                  commune.getLocalizedName(locale),
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        final commune =
+                            _communes.firstWhere((c) => c.id == value);
+                        setState(() => _selectedCommune = commune);
+                      },
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 12),
+            ],
+
+            // Avenue
+            TextField(
+              controller: _avenueController,
+              decoration: InputDecoration(
+                labelText: l10n.avenueLabel,
+                hintText: l10n.avenueHint,
+                prefixIcon: const Icon(Icons.signpost_outlined, size: 20),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: TekaColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: TekaColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: TekaColors.tekaRed),
+                ),
+                contentPadding: const EdgeInsets.all(12),
+              ),
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+
+            // Reference
+            TextField(
+              controller: _referenceController,
+              decoration: InputDecoration(
+                labelText: l10n.referenceLabel,
+                hintText: l10n.referenceHint,
+                prefixIcon: const Icon(Icons.place_outlined, size: 20),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: TekaColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: TekaColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: TekaColors.tekaRed),
+                ),
+                contentPadding: const EdgeInsets.all(12),
+              ),
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+
+            // Recipient name
+            TextField(
+              controller: _recipientNameController,
+              textCapitalization: TextCapitalization.words,
+              decoration: InputDecoration(
+                labelText: l10n.recipientNameLabel,
+                hintText: l10n.recipientNameHint,
+                prefixIcon: const Icon(Icons.person_outline, size: 20),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: TekaColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: TekaColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: TekaColors.tekaRed),
+                ),
+                contentPadding: const EdgeInsets.all(12),
+              ),
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+
+            // Recipient phone
+            TextField(
+              controller: _recipientPhoneController,
+              keyboardType: TextInputType.phone,
+              decoration: InputDecoration(
+                labelText: l10n.recipientPhoneLabel,
+                hintText: l10n.recipientPhoneHint,
+                prefixIcon: const Icon(Icons.phone_outlined, size: 20),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: TekaColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: TekaColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: TekaColors.tekaRed),
+                ),
+                contentPadding: const EdgeInsets.all(12),
+              ),
+              style: const TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 20),
+
+            // Save button
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: const BorderSide(color: TekaColors.border),
+                    ),
+                    child: Text(l10n.cancel),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: (_selectedCity != null &&
+                            _selectedCommune != null &&
+                            !_isSaving)
+                        ? _save
+                        : null,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: TekaColors.tekaRed,
+                      disabledBackgroundColor: TekaColors.muted,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(l10n.saveAddress),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
       ),
     );
   }

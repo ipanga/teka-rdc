@@ -27,8 +27,10 @@ async function bootstrap() {
   app.enableCors({
     origin: process.env.CORS_ORIGINS?.split(',') || [
       'http://localhost:5000',
+      'http://localhost:5001',
       'http://localhost:5100',
       'http://localhost:5200',
+      'http://localhost:8080',
     ],
     credentials: true,
   });

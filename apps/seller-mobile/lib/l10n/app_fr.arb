@@ -257,5 +257,10 @@
   "promotionNoPromotions": "Aucune promotion",
   "promotionCreateFirst": "Creez votre premiere promotion pour augmenter vos ventes",
   "promotionRejectionReason": "Raison du refus",
-  "promotionSubmitForApproval": "Soumettre pour approbation"
+  "promotionSubmitForApproval": "Soumettre pour approbation",
+
+  "productAttributes": "Caractéristiques du produit",
+  "selectOption": "Sélectionnez...",
+  "requiredField": "Ce champ est obligatoire",
+  "noAttributes": "Aucune caractéristique pour cette catégorie"
 }

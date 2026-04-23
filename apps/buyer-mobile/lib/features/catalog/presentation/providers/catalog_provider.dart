@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../city/presentation/providers/city_provider.dart';
 import '../../data/catalog_repository.dart';
 import '../../data/models/category_model.dart';
 import '../../data/models/product_model.dart';
@@ -22,12 +23,14 @@ class BrowseProductsParams {
   final String? search;
   final String? condition;
   final String? sortBy;
+  final String? cityId;
 
   const BrowseProductsParams({
     this.categoryId,
     this.search,
     this.condition,
     this.sortBy,
+    this.cityId,
   });
 
   @override
@@ -38,30 +41,35 @@ class BrowseProductsParams {
           categoryId == other.categoryId &&
           search == other.search &&
           condition == other.condition &&
-          sortBy == other.sortBy;
+          sortBy == other.sortBy &&
+          cityId == other.cityId;
 
   @override
   int get hashCode =>
       categoryId.hashCode ^
       search.hashCode ^
       condition.hashCode ^
-      sortBy.hashCode;
+      sortBy.hashCode ^
+      cityId.hashCode;
 
   BrowseProductsParams copyWith({
     String? categoryId,
     String? search,
     String? condition,
     String? sortBy,
+    String? cityId,
     bool clearCategoryId = false,
     bool clearSearch = false,
     bool clearCondition = false,
     bool clearSortBy = false,
+    bool clearCityId = false,
   }) {
     return BrowseProductsParams(
       categoryId: clearCategoryId ? null : (categoryId ?? this.categoryId),
       search: clearSearch ? null : (search ?? this.search),
       condition: clearCondition ? null : (condition ?? this.condition),
       sortBy: clearSortBy ? null : (sortBy ?? this.sortBy),
+      cityId: clearCityId ? null : (cityId ?? this.cityId),
     );
   }
 }
@@ -118,6 +126,7 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
         search: _params.search,
         condition: _params.condition,
         sortBy: _params.sortBy,
+        cityId: _params.cityId,
       );
       state = state.copyWith(
         products: result.data,
@@ -147,6 +156,7 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
         search: _params.search,
         condition: _params.condition,
         sortBy: _params.sortBy,
+        cityId: _params.cityId,
         cursor: state.pagination?.nextCursor,
       );
       state = state.copyWith(
@@ -216,18 +226,22 @@ final productDetailProvider =
 
 final popularProductsProvider = FutureProvider<List<BrowseProductModel>>((ref) async {
   final repository = ref.read(catalogRepositoryProvider);
+  final cityId = ref.watch(cityProvider).selectedCity?.id;
   final result = await repository.browseProducts(
     sortBy: 'popular',
     limit: 10,
+    cityId: cityId,
   );
   return result.data;
 });
 
 final newestProductsProvider = FutureProvider<List<BrowseProductModel>>((ref) async {
   final repository = ref.read(catalogRepositoryProvider);
+  final cityId = ref.watch(cityProvider).selectedCity?.id;
   final result = await repository.browseProducts(
     sortBy: 'newest',
     limit: 20,
+    cityId: cityId,
   );
   return result.data;
 });

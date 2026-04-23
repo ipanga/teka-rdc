@@ -1,4 +1,4 @@
-import { IsOptional, IsDateString, IsUUID } from 'class-validator';
+import { IsOptional, IsDateString, Matches } from 'class-validator';
 
 export class ReportQueryDto {
   @IsOptional()
@@ -10,6 +10,6 @@ export class ReportQueryDto {
   dateTo?: string;
 
   @IsOptional()
-  @IsUUID('4', { message: 'ID vendeur invalide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'ID vendeur invalide' })
   sellerId?: string;
 }

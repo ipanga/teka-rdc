@@ -5,13 +5,10 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { RedisService } from '../redis/redis.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CreateAttributeDto } from './dto/create-attribute.dto';
 import { AttributeType } from '@prisma/client';
-
-const BROWSE_CATEGORIES_CACHE_KEY = 'browse:categories';
 
 @Injectable()
 export class CategoriesService {
@@ -19,7 +16,6 @@ export class CategoriesService {
 
   constructor(
     private prisma: PrismaService,
-    private redis: RedisService,
   ) {}
 
   /**
@@ -120,12 +116,7 @@ export class CategoriesService {
       },
     });
 
-    // Invalidate browse categories cache
-    try {
-      await this.redis.del(BROWSE_CATEGORIES_CACHE_KEY);
-    } catch (err) {
-      this.logger.warn('Redis cache invalidation failed for categories', err);
-    }
+
 
     return category;
   }
@@ -185,12 +176,7 @@ export class CategoriesService {
       },
     });
 
-    // Invalidate browse categories cache
-    try {
-      await this.redis.del(BROWSE_CATEGORIES_CACHE_KEY);
-    } catch (err) {
-      this.logger.warn('Redis cache invalidation failed for categories', err);
-    }
+
 
     return updated;
   }
@@ -234,12 +220,7 @@ export class CategoriesService {
       data: { deletedAt: now },
     });
 
-    // Invalidate browse categories cache
-    try {
-      await this.redis.del(BROWSE_CATEGORIES_CACHE_KEY);
-    } catch (err) {
-      this.logger.warn('Redis cache invalidation failed for categories', err);
-    }
+
 
     return { message: 'Catégorie supprimée avec succès' };
   }

@@ -44,6 +44,22 @@ class CheckoutRepository {
         .map((e) => AddressModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+
+  Future<AddressModel> createAddress(Map<String, dynamic> data) async {
+    final response = await _dio.post('/v1/addresses', data: data);
+    final responseData = response.data;
+
+    final Map<String, dynamic> resultJson;
+    if (responseData is Map && responseData['data'] != null) {
+      resultJson = responseData['data'] as Map<String, dynamic>;
+    } else if (responseData is Map) {
+      resultJson = Map<String, dynamic>.from(responseData);
+    } else {
+      throw Exception('Invalid create address response');
+    }
+
+    return AddressModel.fromJson(resultJson);
+  }
 }
 
 final checkoutRepositoryProvider = Provider<CheckoutRepository>((ref) {

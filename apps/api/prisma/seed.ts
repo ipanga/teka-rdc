@@ -2,6 +2,20 @@ import { PrismaClient, AttributeType, ProductCondition, ProductStatus, OrderStat
 
 const prisma = new PrismaClient();
 
+function generateProductSlug(frenchTitle: string, productId: string): string {
+  const base = frenchTitle
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .substring(0, 80);
+  const shortId = productId.replace(/-/g, '').substring(0, 6);
+  return `${base}-${shortId}`;
+}
+
 async function main() {
   console.log('Seeding database...');
 
@@ -117,6 +131,81 @@ async function main() {
   });
 
   // ============================================================
+  // CITIES & COMMUNES
+  // ============================================================
+
+  console.log('Seeding cities and communes...');
+
+  const cityId = (n: number) => `01000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
+  const communeId = (n: number) => `02000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
+
+  const cities = [
+    { n: 1, fr: 'Lubumbashi', en: 'Lubumbashi', province: 'Haut-Katanga', isActive: true },
+    { n: 2, fr: 'Kolwezi', en: 'Kolwezi', province: 'Lualaba', isActive: true },
+    { n: 3, fr: 'Kinshasa', en: 'Kinshasa', province: 'Kinshasa', isActive: false },
+    { n: 4, fr: 'Likasi', en: 'Likasi', province: 'Haut-Katanga', isActive: false },
+    { n: 5, fr: 'Goma', en: 'Goma', province: 'Nord-Kivu', isActive: false },
+    { n: 6, fr: 'Bukavu', en: 'Bukavu', province: 'Sud-Kivu', isActive: false },
+    { n: 7, fr: 'Kisangani', en: 'Kisangani', province: 'Tshopo', isActive: false },
+    { n: 8, fr: 'Mbuji-Mayi', en: 'Mbuji-Mayi', province: 'Kasaï-Oriental', isActive: false },
+  ];
+
+  for (const city of cities) {
+    await prisma.city.upsert({
+      where: { id: cityId(city.n) },
+      update: { isActive: city.isActive },
+      create: {
+        id: cityId(city.n),
+        name: { fr: city.fr, en: city.en } as any,
+        province: city.province,
+        isActive: city.isActive,
+        sortOrder: city.n,
+      },
+    });
+  }
+
+  const LUBUMBASHI_CITY_ID = cityId(1);
+  const KOLWEZI_CITY_ID = cityId(2);
+
+  const communes = [
+    // Lubumbashi communes
+    { n: 1, cityN: 1, fr: 'Lubumbashi', en: 'Lubumbashi' },
+    { n: 2, cityN: 1, fr: 'Kampemba', en: 'Kampemba' },
+    { n: 3, cityN: 1, fr: 'Kenya', en: 'Kenya' },
+    { n: 4, cityN: 1, fr: 'Katuba', en: 'Katuba' },
+    { n: 5, cityN: 1, fr: 'Ruashi', en: 'Ruashi' },
+    { n: 6, cityN: 1, fr: 'Annexe', en: 'Annexe' },
+    // Kolwezi communes
+    { n: 7, cityN: 2, fr: 'Dilala', en: 'Dilala' },
+    { n: 8, cityN: 2, fr: 'Manika', en: 'Manika' },
+  ];
+
+  for (const commune of communes) {
+    await prisma.commune.upsert({
+      where: { id: communeId(commune.n) },
+      update: {},
+      create: {
+        id: communeId(commune.n),
+        cityId: cityId(commune.cityN),
+        name: { fr: commune.fr, en: commune.en } as any,
+        sortOrder: commune.n,
+      },
+    });
+  }
+
+  console.log(`Seeded ${cities.length} cities + ${communes.length} communes`);
+
+  // Update seller profiles with cityId
+  await prisma.sellerProfile.updateMany({
+    where: { userId: seller1.id },
+    data: { cityId: LUBUMBASHI_CITY_ID },
+  });
+  await prisma.sellerProfile.updateMany({
+    where: { userId: seller2.id },
+    data: { cityId: LUBUMBASHI_CITY_ID },
+  });
+
+  // ============================================================
   // ADDRESSES
   // ============================================================
 
@@ -131,6 +220,8 @@ async function main() {
       province: 'Haut-Katanga',
       town: 'Lubumbashi',
       neighborhood: 'Kampemba',
+      cityId: LUBUMBASHI_CITY_ID,
+      communeId: communeId(2), // Kampemba
       avenue: 'Avenue Kasavubu, n\u00b042',
       reference: 'En face de la station Total',
       isDefault: true,
@@ -148,6 +239,8 @@ async function main() {
       province: 'Haut-Katanga',
       town: 'Lubumbashi',
       neighborhood: 'Kenya',
+      cityId: LUBUMBASHI_CITY_ID,
+      communeId: communeId(3), // Kenya
       avenue: 'Avenue Mobutu, n\u00b015',
       reference: '\u00c0 c\u00f4t\u00e9 du march\u00e9 Kenya',
       isDefault: true,
@@ -165,6 +258,8 @@ async function main() {
       province: 'Haut-Katanga',
       town: 'Lubumbashi',
       neighborhood: 'Lubumbashi',
+      cityId: LUBUMBASHI_CITY_ID,
+      communeId: communeId(1), // Lubumbashi
       avenue: 'Avenue Lumumba, n\u00b078',
       reference: 'En face de la Poste',
       isDefault: true,
@@ -366,6 +461,300 @@ async function main() {
   }
 
   console.log(`Seeded ${attributes.length} product attributes`);
+
+  // ============================================================
+  // NEW 8 MAIN CATEGORIES (deactivate old ones, create new)
+  // ============================================================
+
+  console.log('Seeding new category structure...');
+
+  // Soft-deactivate old 15 main categories (products keep their FK, just won't appear in active browse)
+  for (const cat of mainCategories) {
+    await prisma.category.update({
+      where: { id: catId(cat.n) },
+      data: { isActive: false },
+    }).catch(() => {}); // Skip if not found
+  }
+  for (const sub of subcategories) {
+    await prisma.category.update({
+      where: { id: catId(sub.n) },
+      data: { isActive: false },
+    }).catch(() => {}); // Skip if not found
+  }
+
+  // New category ID range: 11000000-...
+  const newCatId = (n: number) => `11000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
+  const newAttrId = (n: number) => `12000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
+
+  const newMainCategories = [
+    { n: 1, emoji: '🍎', fr: 'Alimentation & Épicerie', en: 'Food & Groceries' },
+    { n: 2, emoji: '📱', fr: 'Téléphones & Électronique', en: 'Phones & Electronics' },
+    { n: 3, emoji: '👗', fr: 'Mode & Habillement', en: 'Fashion & Apparel' },
+    { n: 4, emoji: '🏠', fr: 'Maison & Intérieur', en: 'Home & Living' },
+    { n: 5, emoji: '🚗', fr: 'Auto & Moto', en: 'Auto & Moto' },
+    { n: 6, emoji: '💊', fr: 'Santé & Beauté', en: 'Health & Beauty' },
+    { n: 7, emoji: '🔨', fr: 'Construction & Outillage', en: 'Construction & Tools' },
+    { n: 8, emoji: '👶', fr: 'Bébé & Enfants', en: 'Baby & Kids' },
+  ];
+
+  const newCreatedMainCats: Record<number, string> = {};
+  for (const cat of newMainCategories) {
+    const id = newCatId(cat.n);
+    await prisma.category.upsert({
+      where: { id },
+      update: { isActive: true },
+      create: {
+        id,
+        name: { fr: cat.fr, en: cat.en } as any,
+        emoji: cat.emoji,
+        sortOrder: cat.n,
+        isActive: true,
+      },
+    });
+    newCreatedMainCats[cat.n] = id;
+  }
+
+  // New subcategories
+  const newSubcategories = [
+    // 1. Food & Groceries
+    { n: 101, parent: 1, fr: 'Boissons', en: 'Beverages' },
+    { n: 102, parent: 1, fr: 'Épicerie & Condiments', en: 'Groceries & Condiments' },
+    { n: 103, parent: 1, fr: 'Fruits & Légumes', en: 'Fruits & Vegetables' },
+    { n: 104, parent: 1, fr: 'Snacks & Confiserie', en: 'Snacks & Confectionery' },
+    { n: 105, parent: 1, fr: 'Produits Laitiers', en: 'Dairy Products' },
+    // 2. Phones & Electronics
+    { n: 201, parent: 2, fr: 'Smartphones', en: 'Smartphones' },
+    { n: 202, parent: 2, fr: 'Tablettes', en: 'Tablets' },
+    { n: 203, parent: 2, fr: 'Accessoires Téléphone', en: 'Phone Accessories' },
+    { n: 204, parent: 2, fr: 'Ordinateurs Portables', en: 'Laptops' },
+    { n: 205, parent: 2, fr: 'Ordinateurs de Bureau', en: 'Desktop Computers' },
+    { n: 206, parent: 2, fr: 'Accessoires Informatique', en: 'Computer Accessories' },
+    { n: 207, parent: 2, fr: 'Téléviseurs & Écrans', en: 'TVs & Monitors' },
+    { n: 208, parent: 2, fr: 'Audio & Hi-Fi', en: 'Audio & Hi-Fi' },
+    { n: 209, parent: 2, fr: 'Électroménager', en: 'Home Appliances' },
+    { n: 210, parent: 2, fr: 'Consoles & Jeux Vidéo', en: 'Consoles & Video Games' },
+    // 3. Fashion & Apparel
+    { n: 301, parent: 3, fr: 'Vêtements Femme', en: "Women's Clothing" },
+    { n: 302, parent: 3, fr: 'Vêtements Homme', en: "Men's Clothing" },
+    { n: 303, parent: 3, fr: 'Chaussures Femme', en: "Women's Shoes" },
+    { n: 304, parent: 3, fr: 'Chaussures Homme', en: "Men's Shoes" },
+    { n: 305, parent: 3, fr: 'Sacs & Accessoires', en: 'Bags & Accessories' },
+    { n: 306, parent: 3, fr: 'Bijoux & Montres', en: 'Jewelry & Watches' },
+    { n: 307, parent: 3, fr: 'Tissus & Pagnes', en: 'Fabrics & Wax Prints' },
+    // 4. Home & Living
+    { n: 401, parent: 4, fr: 'Meubles', en: 'Furniture' },
+    { n: 402, parent: 4, fr: 'Literie & Linge de Maison', en: 'Bedding & Home Linen' },
+    { n: 403, parent: 4, fr: 'Cuisine & Vaisselle', en: 'Kitchen & Dinnerware' },
+    { n: 404, parent: 4, fr: 'Décoration', en: 'Decoration' },
+    { n: 405, parent: 4, fr: 'Éclairage', en: 'Lighting' },
+    // 5. Auto & Moto
+    { n: 501, parent: 5, fr: 'Pièces Auto', en: 'Car Parts' },
+    { n: 502, parent: 5, fr: 'Accessoires Auto', en: 'Car Accessories' },
+    { n: 503, parent: 5, fr: 'Motos & Vélos', en: 'Motorcycles & Bicycles' },
+    { n: 504, parent: 5, fr: 'Pneus & Jantes', en: 'Tires & Rims' },
+    { n: 505, parent: 5, fr: 'Huiles & Lubrifiants', en: 'Oils & Lubricants' },
+    // 6. Health & Beauty
+    { n: 601, parent: 6, fr: 'Soins du Visage', en: 'Face Care' },
+    { n: 602, parent: 6, fr: 'Soins Capillaires', en: 'Hair Care' },
+    { n: 603, parent: 6, fr: 'Parfums & Déodorants', en: 'Perfumes & Deodorants' },
+    { n: 604, parent: 6, fr: 'Maquillage', en: 'Makeup' },
+    { n: 605, parent: 6, fr: 'Hygiène & Santé', en: 'Hygiene & Health' },
+    // 7. Construction & Tools
+    { n: 701, parent: 7, fr: 'Outils à Main', en: 'Hand Tools' },
+    { n: 702, parent: 7, fr: 'Outils Électriques', en: 'Power Tools' },
+    { n: 703, parent: 7, fr: 'Matériaux de Construction', en: 'Building Materials' },
+    { n: 704, parent: 7, fr: 'Peinture & Finitions', en: 'Paint & Finishes' },
+    { n: 705, parent: 7, fr: 'Plomberie & Électricité', en: 'Plumbing & Electrical' },
+    // 8. Baby & Kids
+    { n: 801, parent: 8, fr: 'Vêtements Bébé', en: 'Baby Clothing' },
+    { n: 802, parent: 8, fr: 'Vêtements Enfants', en: "Children's Clothing" },
+    { n: 803, parent: 8, fr: 'Puériculture', en: 'Baby Care' },
+    { n: 804, parent: 8, fr: 'Jouets & Jeux', en: 'Toys & Games' },
+    { n: 805, parent: 8, fr: 'Fournitures Scolaires', en: 'School Supplies' },
+  ];
+
+  const newCreatedSubCats: Record<number, string> = {};
+  for (const sub of newSubcategories) {
+    const id = newCatId(sub.n);
+    const parentId = newCreatedMainCats[sub.parent];
+    await prisma.category.upsert({
+      where: { id },
+      update: { isActive: true },
+      create: {
+        id,
+        name: { fr: sub.fr, en: sub.en } as any,
+        parentCategoryId: parentId,
+        sortOrder: sub.n % 100,
+        isActive: true,
+      },
+    });
+    newCreatedSubCats[sub.n] = id;
+  }
+
+  console.log(`Seeded ${newMainCategories.length} new main categories + ${newSubcategories.length} subcategories`);
+
+  // ============================================================
+  // NEW PRODUCT ATTRIBUTES (rich libraries per subcategory)
+  // ============================================================
+
+  console.log('Seeding new product attributes with rich options...');
+
+  interface NewAttrDef {
+    n: number;
+    categoryId: string;
+    fr: string;
+    en: string;
+    type: AttributeType;
+    options?: string[];
+    isRequired?: boolean;
+  }
+
+  const newAttributes: NewAttrDef[] = [
+    // === Phones & Electronics ===
+    // Smartphones (201)
+    { n: 1, categoryId: newCreatedSubCats[201], fr: 'Marque', en: 'Brand', type: AttributeType.SELECT, options: ['Samsung', 'Apple', 'Tecno', 'Infinix', 'Xiaomi', 'Huawei', 'Nokia', 'Oppo', 'Realme', 'Vivo', 'OnePlus', 'Google', 'Motorola', 'Itel'], isRequired: true },
+    { n: 2, categoryId: newCreatedSubCats[201], fr: 'Mémoire interne', en: 'Internal Storage', type: AttributeType.SELECT, options: ['16Go', '32Go', '64Go', '128Go', '256Go', '512Go', '1To'], isRequired: true },
+    { n: 3, categoryId: newCreatedSubCats[201], fr: 'RAM', en: 'RAM', type: AttributeType.SELECT, options: ['1Go', '2Go', '3Go', '4Go', '6Go', '8Go', '12Go', '16Go'] },
+    { n: 4, categoryId: newCreatedSubCats[201], fr: 'Couleur', en: 'Color', type: AttributeType.TEXT },
+    { n: 5, categoryId: newCreatedSubCats[201], fr: 'Taille écran', en: 'Screen Size', type: AttributeType.SELECT, options: ['5.0"', '5.5"', '6.0"', '6.1"', '6.4"', '6.5"', '6.6"', '6.7"', '6.8"'] },
+
+    // Tablets (202)
+    { n: 10, categoryId: newCreatedSubCats[202], fr: 'Marque', en: 'Brand', type: AttributeType.SELECT, options: ['Samsung', 'Apple', 'Huawei', 'Lenovo', 'Xiaomi', 'Amazon'], isRequired: true },
+    { n: 11, categoryId: newCreatedSubCats[202], fr: 'Mémoire interne', en: 'Internal Storage', type: AttributeType.SELECT, options: ['32Go', '64Go', '128Go', '256Go', '512Go'] },
+    { n: 12, categoryId: newCreatedSubCats[202], fr: 'Taille écran', en: 'Screen Size', type: AttributeType.SELECT, options: ['7"', '8"', '10.1"', '10.9"', '11"', '12.4"', '12.9"'] },
+
+    // Laptops (204)
+    { n: 20, categoryId: newCreatedSubCats[204], fr: 'Marque', en: 'Brand', type: AttributeType.SELECT, options: ['HP', 'Dell', 'Lenovo', 'Apple', 'Asus', 'Acer', 'MSI', 'Toshiba', 'Microsoft'], isRequired: true },
+    { n: 21, categoryId: newCreatedSubCats[204], fr: 'Processeur', en: 'Processor', type: AttributeType.SELECT, options: ['Intel Core i3', 'Intel Core i5', 'Intel Core i7', 'Intel Core i9', 'AMD Ryzen 3', 'AMD Ryzen 5', 'AMD Ryzen 7', 'Apple M1', 'Apple M2', 'Apple M3'] },
+    { n: 22, categoryId: newCreatedSubCats[204], fr: 'RAM', en: 'RAM', type: AttributeType.SELECT, options: ['4Go', '8Go', '16Go', '32Go', '64Go'], isRequired: true },
+    { n: 23, categoryId: newCreatedSubCats[204], fr: 'Stockage', en: 'Storage', type: AttributeType.SELECT, options: ['128Go SSD', '256Go SSD', '512Go SSD', '1To SSD', '1To HDD', '2To HDD'] },
+    { n: 24, categoryId: newCreatedSubCats[204], fr: 'Taille écran', en: 'Screen Size', type: AttributeType.SELECT, options: ['13.3"', '14"', '15.6"', '16"', '17.3"'] },
+
+    // TVs & Monitors (207)
+    { n: 30, categoryId: newCreatedSubCats[207], fr: 'Marque', en: 'Brand', type: AttributeType.SELECT, options: ['Samsung', 'LG', 'Sony', 'TCL', 'Hisense', 'Philips', 'Skyworth'], isRequired: true },
+    { n: 31, categoryId: newCreatedSubCats[207], fr: 'Taille écran', en: 'Screen Size', type: AttributeType.SELECT, options: ['24"', '32"', '40"', '43"', '50"', '55"', '65"', '75"'] },
+    { n: 32, categoryId: newCreatedSubCats[207], fr: 'Résolution', en: 'Resolution', type: AttributeType.SELECT, options: ['HD (720p)', 'Full HD (1080p)', '4K UHD', '8K'] },
+    { n: 33, categoryId: newCreatedSubCats[207], fr: 'Smart TV', en: 'Smart TV', type: AttributeType.SELECT, options: ['Oui', 'Non'] },
+
+    // === Fashion & Apparel ===
+    // Women's Clothing (301)
+    { n: 40, categoryId: newCreatedSubCats[301], fr: 'Taille', en: 'Size', type: AttributeType.SELECT, options: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'], isRequired: true },
+    { n: 41, categoryId: newCreatedSubCats[301], fr: 'Couleur', en: 'Color', type: AttributeType.TEXT },
+    { n: 42, categoryId: newCreatedSubCats[301], fr: 'Matière', en: 'Material', type: AttributeType.SELECT, options: ['Coton', 'Polyester', 'Soie', 'Lin', 'Wax', 'Dentelle', 'Jean', 'Cuir', 'Laine'] },
+
+    // Men's Clothing (302)
+    { n: 45, categoryId: newCreatedSubCats[302], fr: 'Taille', en: 'Size', type: AttributeType.SELECT, options: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'], isRequired: true },
+    { n: 46, categoryId: newCreatedSubCats[302], fr: 'Couleur', en: 'Color', type: AttributeType.TEXT },
+    { n: 47, categoryId: newCreatedSubCats[302], fr: 'Matière', en: 'Material', type: AttributeType.SELECT, options: ['Coton', 'Polyester', 'Lin', 'Jean', 'Cuir', 'Laine', 'Soie'] },
+
+    // Women's Shoes (303)
+    { n: 50, categoryId: newCreatedSubCats[303], fr: 'Pointure', en: 'Size', type: AttributeType.SELECT, options: ['35', '36', '37', '38', '39', '40', '41', '42'], isRequired: true },
+    { n: 51, categoryId: newCreatedSubCats[303], fr: 'Couleur', en: 'Color', type: AttributeType.TEXT },
+    { n: 52, categoryId: newCreatedSubCats[303], fr: 'Matière', en: 'Material', type: AttributeType.SELECT, options: ['Cuir', 'Cuir synthétique', 'Tissu', 'Toile', 'Caoutchouc'] },
+    { n: 53, categoryId: newCreatedSubCats[303], fr: 'Marque', en: 'Brand', type: AttributeType.TEXT },
+
+    // Men's Shoes (304)
+    { n: 55, categoryId: newCreatedSubCats[304], fr: 'Pointure', en: 'Size', type: AttributeType.SELECT, options: ['39', '40', '41', '42', '43', '44', '45', '46', '47'], isRequired: true },
+    { n: 56, categoryId: newCreatedSubCats[304], fr: 'Couleur', en: 'Color', type: AttributeType.TEXT },
+    { n: 57, categoryId: newCreatedSubCats[304], fr: 'Matière', en: 'Material', type: AttributeType.SELECT, options: ['Cuir', 'Cuir synthétique', 'Tissu', 'Toile', 'Caoutchouc'] },
+    { n: 58, categoryId: newCreatedSubCats[304], fr: 'Marque', en: 'Brand', type: AttributeType.TEXT },
+
+    // Fabrics & Wax (307)
+    { n: 60, categoryId: newCreatedSubCats[307], fr: 'Type de tissu', en: 'Fabric Type', type: AttributeType.SELECT, options: ['Wax Hollandais', 'Wax Africain', 'Super Wax', 'Bazin', 'Soie', 'Dentelle', 'Satin', 'Kanga', 'Kitenge'] },
+    { n: 61, categoryId: newCreatedSubCats[307], fr: 'Longueur (yards)', en: 'Length (yards)', type: AttributeType.SELECT, options: ['3 yards', '6 yards', '12 yards'] },
+    { n: 62, categoryId: newCreatedSubCats[307], fr: 'Marque', en: 'Brand', type: AttributeType.SELECT, options: ['Vlisco', 'Julius Holland', 'GTP', 'Woodin', 'Hitarget', 'ABC Wax', 'Autre'] },
+
+    // === Auto & Moto ===
+    // Car Parts (501)
+    { n: 70, categoryId: newCreatedSubCats[501], fr: 'Marque véhicule', en: 'Vehicle Brand', type: AttributeType.SELECT, options: ['Toyota', 'Mitsubishi', 'Nissan', 'Mercedes-Benz', 'BMW', 'Honda', 'Hyundai', 'Land Rover', 'Ford', 'Suzuki', 'Volkswagen', 'Peugeot', 'Renault'], isRequired: true },
+    { n: 71, categoryId: newCreatedSubCats[501], fr: 'Type de pièce', en: 'Part Type', type: AttributeType.SELECT, options: ['Moteur', 'Freins', 'Suspension', 'Transmission', 'Électrique', 'Carrosserie', 'Échappement', 'Direction', 'Filtre', 'Courroie'] },
+    { n: 72, categoryId: newCreatedSubCats[501], fr: 'État', en: 'Condition', type: AttributeType.SELECT, options: ['Neuf', 'Occasion - Bon état', 'Occasion - État moyen', 'Reconditionné'] },
+
+    // Motorcycles & Bicycles (503)
+    { n: 75, categoryId: newCreatedSubCats[503], fr: 'Type', en: 'Type', type: AttributeType.SELECT, options: ['Moto', 'Scooter', 'Vélo', 'Vélo électrique', 'Tricycle'] },
+    { n: 76, categoryId: newCreatedSubCats[503], fr: 'Marque', en: 'Brand', type: AttributeType.SELECT, options: ['TVS', 'Haojue', 'Boxer', 'Honda', 'Yamaha', 'Suzuki', 'Hero', 'Bajaj', 'Autre'] },
+    { n: 77, categoryId: newCreatedSubCats[503], fr: 'Cylindrée', en: 'Engine Size', type: AttributeType.SELECT, options: ['50cc', '100cc', '125cc', '150cc', '200cc', '250cc', '400cc+'] },
+
+    // === Health & Beauty ===
+    // Face Care (601)
+    { n: 80, categoryId: newCreatedSubCats[601], fr: 'Type de produit', en: 'Product Type', type: AttributeType.SELECT, options: ['Crème hydratante', 'Nettoyant', 'Sérum', 'Masque', 'Tonique', 'Exfoliant', 'Huile', 'Écran solaire'] },
+    { n: 81, categoryId: newCreatedSubCats[601], fr: 'Type de peau', en: 'Skin Type', type: AttributeType.SELECT, options: ['Tous types', 'Peau grasse', 'Peau sèche', 'Peau mixte', 'Peau sensible'] },
+    { n: 82, categoryId: newCreatedSubCats[601], fr: 'Marque', en: 'Brand', type: AttributeType.TEXT },
+
+    // Perfumes (603)
+    { n: 85, categoryId: newCreatedSubCats[603], fr: 'Genre', en: 'Gender', type: AttributeType.SELECT, options: ['Homme', 'Femme', 'Unisexe'] },
+    { n: 86, categoryId: newCreatedSubCats[603], fr: 'Volume', en: 'Volume', type: AttributeType.SELECT, options: ['30ml', '50ml', '75ml', '100ml', '125ml', '200ml'] },
+    { n: 87, categoryId: newCreatedSubCats[603], fr: 'Marque', en: 'Brand', type: AttributeType.TEXT },
+
+    // === Construction & Tools ===
+    // Hand Tools (701)
+    { n: 90, categoryId: newCreatedSubCats[701], fr: 'Type d\'outil', en: 'Tool Type', type: AttributeType.SELECT, options: ['Marteau', 'Tournevis', 'Pince', 'Clé', 'Scie', 'Mètre', 'Niveau', 'Cutter', 'Autre'] },
+    { n: 91, categoryId: newCreatedSubCats[701], fr: 'Marque', en: 'Brand', type: AttributeType.TEXT },
+
+    // Power Tools (702)
+    { n: 95, categoryId: newCreatedSubCats[702], fr: 'Type', en: 'Type', type: AttributeType.SELECT, options: ['Perceuse', 'Meuleuse', 'Scie circulaire', 'Scie sauteuse', 'Ponceuse', 'Compresseur', 'Groupe électrogène', 'Soudeur'] },
+    { n: 96, categoryId: newCreatedSubCats[702], fr: 'Alimentation', en: 'Power Source', type: AttributeType.SELECT, options: ['Filaire 220V', 'Batterie', 'Essence', 'Diesel'] },
+    { n: 97, categoryId: newCreatedSubCats[702], fr: 'Marque', en: 'Brand', type: AttributeType.SELECT, options: ['Bosch', 'Makita', 'DeWalt', 'Black & Decker', 'Stanley', 'Einhell', 'Autre'] },
+
+    // === Baby & Kids ===
+    // Baby Clothing (801)
+    { n: 100, categoryId: newCreatedSubCats[801], fr: 'Âge', en: 'Age', type: AttributeType.SELECT, options: ['0-3 mois', '3-6 mois', '6-12 mois', '12-18 mois', '18-24 mois', '2-3 ans'], isRequired: true },
+    { n: 101, categoryId: newCreatedSubCats[801], fr: 'Genre', en: 'Gender', type: AttributeType.SELECT, options: ['Garçon', 'Fille', 'Unisexe'] },
+    { n: 102, categoryId: newCreatedSubCats[801], fr: 'Couleur', en: 'Color', type: AttributeType.TEXT },
+
+    // Children's Clothing (802)
+    { n: 105, categoryId: newCreatedSubCats[802], fr: 'Âge', en: 'Age', type: AttributeType.SELECT, options: ['2-3 ans', '3-4 ans', '4-5 ans', '5-6 ans', '6-8 ans', '8-10 ans', '10-12 ans', '12-14 ans'], isRequired: true },
+    { n: 106, categoryId: newCreatedSubCats[802], fr: 'Genre', en: 'Gender', type: AttributeType.SELECT, options: ['Garçon', 'Fille', 'Unisexe'] },
+    { n: 107, categoryId: newCreatedSubCats[802], fr: 'Couleur', en: 'Color', type: AttributeType.TEXT },
+
+    // Home & Living — Kitchen (403)
+    { n: 110, categoryId: newCreatedSubCats[403], fr: 'Matière', en: 'Material', type: AttributeType.SELECT, options: ['Inox', 'Aluminium', 'Fonte', 'Céramique', 'Plastique', 'Bois', 'Verre'] },
+    { n: 111, categoryId: newCreatedSubCats[403], fr: 'Marque', en: 'Brand', type: AttributeType.TEXT },
+
+    // Home & Living — Furniture (401)
+    { n: 115, categoryId: newCreatedSubCats[401], fr: 'Type', en: 'Type', type: AttributeType.SELECT, options: ['Canapé', 'Table', 'Chaise', 'Armoire', 'Lit', 'Bureau', 'Étagère', 'Commode', 'Table basse'] },
+    { n: 116, categoryId: newCreatedSubCats[401], fr: 'Matière', en: 'Material', type: AttributeType.SELECT, options: ['Bois massif', 'MDF', 'Métal', 'Plastique', 'Rotin', 'Cuir', 'Tissu'] },
+
+    // Phone Accessories (203)
+    { n: 120, categoryId: newCreatedSubCats[203], fr: 'Type', en: 'Type', type: AttributeType.SELECT, options: ['Coque', 'Chargeur', 'Câble', 'Écouteurs', 'Power Bank', 'Verre trempé', 'Support', 'Autre'] },
+    { n: 121, categoryId: newCreatedSubCats[203], fr: 'Compatible avec', en: 'Compatible With', type: AttributeType.TEXT },
+
+    // Audio & Hi-Fi (208)
+    { n: 125, categoryId: newCreatedSubCats[208], fr: 'Type', en: 'Type', type: AttributeType.SELECT, options: ['Enceinte Bluetooth', 'Casque', 'Écouteurs', 'Barre de son', 'Système Hi-Fi', 'Microphone'] },
+    { n: 126, categoryId: newCreatedSubCats[208], fr: 'Marque', en: 'Brand', type: AttributeType.SELECT, options: ['JBL', 'Sony', 'Samsung', 'Bose', 'Apple', 'Huawei', 'Anker', 'Autre'] },
+
+    // Bags & Accessories (305)
+    { n: 130, categoryId: newCreatedSubCats[305], fr: 'Type', en: 'Type', type: AttributeType.SELECT, options: ['Sac à main', 'Sac à dos', 'Sacoche', 'Pochette', 'Valise', 'Ceinture', 'Portefeuille'] },
+    { n: 131, categoryId: newCreatedSubCats[305], fr: 'Matière', en: 'Material', type: AttributeType.SELECT, options: ['Cuir', 'Cuir synthétique', 'Tissu', 'Toile', 'Nylon'] },
+    { n: 132, categoryId: newCreatedSubCats[305], fr: 'Couleur', en: 'Color', type: AttributeType.TEXT },
+
+    // Food — Beverages (101)
+    { n: 140, categoryId: newCreatedSubCats[101], fr: 'Type', en: 'Type', type: AttributeType.SELECT, options: ['Eau', 'Jus', 'Soda', 'Bière', 'Vin', 'Spiritueux', 'Thé', 'Café'] },
+    { n: 141, categoryId: newCreatedSubCats[101], fr: 'Volume', en: 'Volume', type: AttributeType.TEXT },
+
+    // Toys & Games (804)
+    { n: 145, categoryId: newCreatedSubCats[804], fr: 'Âge recommandé', en: 'Recommended Age', type: AttributeType.SELECT, options: ['0-2 ans', '3-5 ans', '6-8 ans', '9-12 ans', '12+ ans'] },
+    { n: 146, categoryId: newCreatedSubCats[804], fr: 'Type', en: 'Type', type: AttributeType.SELECT, options: ['Jouet éducatif', 'Poupée', 'Voiture', 'Puzzle', 'Jeu de société', 'Peluche', 'Lego', 'Autre'] },
+  ];
+
+  for (const attr of newAttributes) {
+    const id = newAttrId(attr.n);
+    await prisma.productAttribute.upsert({
+      where: { id },
+      update: {},
+      create: {
+        id,
+        categoryId: attr.categoryId,
+        name: { fr: attr.fr, en: attr.en } as any,
+        type: attr.type,
+        options: attr.options ? (attr.options as any) : undefined,
+        isRequired: attr.isRequired ?? false,
+        sortOrder: attr.n,
+      },
+    });
+  }
+
+  console.log(`Seeded ${newAttributes.length} new product attributes with rich option libraries`);
 
   // ============================================================
   // PRODUCTS (20+)
@@ -821,15 +1210,18 @@ async function main() {
     }
 
     // Upsert the product
+    const slug = generateProductSlug(prod.titleFr, id);
     await prisma.product.upsert({
       where: { id },
-      update: {},
+      update: { slug },
       create: {
         id,
+        slug,
         title: { fr: prod.titleFr, en: prod.titleEn } as any,
         description: { fr: prod.descFr, en: prod.descEn } as any,
         categoryId,
         sellerId: prod.sellerId,
+        cityId: LUBUMBASHI_CITY_ID,
         priceCDF: prod.priceCDF,
         priceUSD: prod.priceUSD,
         quantity: prod.quantity,
@@ -2246,8 +2638,41 @@ async function seedPhase7Data(
         fr: 'Teka RDC est une plateforme de commerce en ligne dédiée à la République Démocratique du Congo. Notre mission est de connecter acheteurs et vendeurs à travers les provinces du Haut-Katanga et du Lualaba.',
         en: 'Teka RDC is an online commerce platform dedicated to the Democratic Republic of Congo. Our mission is to connect buyers and sellers across the Haut-Katanga and Lualaba provinces.',
       },
-      status: ContentPageStatus.DRAFT,
+      status: ContentPageStatus.PUBLISHED,
       sortOrder: 5,
+    },
+    {
+      n: 6,
+      slug: 'contact',
+      title: { fr: 'Contactez-nous', en: 'Contact Us' },
+      content: {
+        fr: '## Contactez Teka RDC\n\nNous sommes là pour vous aider !\n\n**WhatsApp :** +243 999 000 000\n\n**Email :** support@teka.cd\n\n**Adresse :** Lubumbashi, Haut-Katanga, RD Congo\n\n**Horaires :** Lundi - Samedi, 8h00 - 18h00\n\nPour toute question sur vos commandes, livraisons ou votre compte, n\'hésitez pas à nous contacter.',
+        en: '## Contact Teka RDC\n\nWe are here to help!\n\n**WhatsApp:** +243 999 000 000\n\n**Email:** support@teka.cd\n\n**Address:** Lubumbashi, Haut-Katanga, DR Congo\n\n**Hours:** Monday - Saturday, 8:00 AM - 6:00 PM\n\nFor any questions about your orders, deliveries, or account, don\'t hesitate to contact us.',
+      },
+      status: ContentPageStatus.PUBLISHED,
+      sortOrder: 6,
+    },
+    {
+      n: 7,
+      slug: 'how-to-buy',
+      title: { fr: 'Comment acheter', en: 'How to Buy' },
+      content: {
+        fr: '## Comment acheter sur Teka RDC\n\n### 1. Choisissez votre ville\nSélectionnez Lubumbashi ou Kolwezi pour voir les produits disponibles près de chez vous.\n\n### 2. Parcourez les produits\nNaviguez par catégorie ou utilisez la barre de recherche.\n\n### 3. Ajoutez au panier\nCliquez sur \"Ajouter au panier\" sur les produits qui vous intéressent.\n\n### 4. Passez commande\nEntrez votre adresse de livraison et choisissez votre mode de paiement :\n- **Mobile Money** (M-Pesa, Airtel Money, Orange Money)\n- **Paiement à la livraison** (espèces)\n\n### 5. Recevez votre commande\nVotre commande sera livrée dans un délai de 24 à 72 heures.',
+        en: '## How to Buy on Teka RDC\n\n### 1. Choose your city\nSelect Lubumbashi or Kolwezi to see products available near you.\n\n### 2. Browse products\nNavigate by category or use the search bar.\n\n### 3. Add to cart\nClick "Add to cart" on products you\'re interested in.\n\n### 4. Place your order\nEnter your delivery address and choose your payment method:\n- **Mobile Money** (M-Pesa, Airtel Money, Orange Money)\n- **Cash on Delivery**\n\n### 5. Receive your order\nYour order will be delivered within 24 to 72 hours.',
+      },
+      status: ContentPageStatus.PUBLISHED,
+      sortOrder: 7,
+    },
+    {
+      n: 8,
+      slug: 'how-to-sell',
+      title: { fr: 'Comment vendre', en: 'How to Sell' },
+      content: {
+        fr: '## Comment vendre sur Teka RDC\n\n### 1. Créez votre compte vendeur\nInscrivez-vous avec votre numéro de téléphone et soumettez votre demande vendeur avec vos informations commerciales.\n\n### 2. Attendez l\'approbation\nNotre équipe vérifie votre profil sous 24-48 heures.\n\n### 3. Ajoutez vos produits\nPubliez vos produits avec photos, descriptions en français et prix en francs congolais (CDF).\n\n### 4. Gérez vos commandes\nRecevez les commandes, confirmez-les et organisez la livraison.\n\n### 5. Recevez vos paiements\nVos revenus sont crédités sur votre portefeuille Teka. Demandez un virement vers votre compte Mobile Money à tout moment.\n\n**Commission :** Teka prélève une commission de 10% sur chaque vente.',
+        en: '## How to Sell on Teka RDC\n\n### 1. Create your seller account\nSign up with your phone number and submit your seller application with your business information.\n\n### 2. Wait for approval\nOur team reviews your profile within 24-48 hours.\n\n### 3. Add your products\nList your products with photos, French descriptions, and prices in Congolese francs (CDF).\n\n### 4. Manage your orders\nReceive orders, confirm them, and arrange delivery.\n\n### 5. Get paid\nYour earnings are credited to your Teka wallet. Request a payout to your Mobile Money account anytime.\n\n**Commission:** Teka takes a 10% commission on each sale.',
+      },
+      status: ContentPageStatus.PUBLISHED,
+      sortOrder: 8,
     },
   ];
 

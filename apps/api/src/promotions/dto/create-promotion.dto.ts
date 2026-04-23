@@ -5,12 +5,11 @@ import {
   Min,
   Max,
   IsDateString,
-  IsUUID,
   IsObject,
   IsString,
   ValidateNested,
   ValidateIf,
-} from 'class-validator';
+Matches, } from 'class-validator';
 import { Type } from 'class-transformer';
 import { PromotionType } from '@prisma/client';
 
@@ -58,14 +57,14 @@ export class CreatePromotionDto {
   endsAt: string;
 
   @IsOptional()
-  @IsUUID('4', { message: 'ID produit invalide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'ID produit invalide' })
   productId?: string;
 
   @IsOptional()
-  @IsUUID('4', { message: 'ID catégorie invalide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'ID catégorie invalide' })
   categoryId?: string;
 
   @IsOptional()
-  @IsUUID('4', { message: 'ID vendeur invalide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'ID vendeur invalide' })
   sellerId?: string;
 }

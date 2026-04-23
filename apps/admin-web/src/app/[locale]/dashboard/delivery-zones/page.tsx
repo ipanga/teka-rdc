@@ -54,8 +54,9 @@ export default function DeliveryZonesPage() {
   const fetchZones = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await apiFetch<DeliveryZone[]>('/v1/admin/delivery-zones');
-      setZones(res.data);
+      const res = await apiFetch<{ data: DeliveryZone[] } | DeliveryZone[]>('/v1/admin/delivery-zones');
+      const data = Array.isArray(res.data) ? res.data : (res.data as { data: DeliveryZone[] }).data;
+      setZones(data);
     } catch {
       // Error handled by apiFetch
     } finally {

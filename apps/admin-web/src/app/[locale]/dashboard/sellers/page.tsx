@@ -41,8 +41,9 @@ export default function SellersPage() {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (statusFilter) params.set('status', statusFilter);
       const res = await apiFetch<PaginatedResponse>(`/v1/admin/sellers?${params}`);
-      setSellers(res.data.data);
-      setTotalPages(res.data.meta.totalPages);
+      const rd = res.data;
+      if (Array.isArray(rd)) { setSellers(rd); setTotalPages(1); }
+      else { setSellers(rd.data); setTotalPages(rd.meta?.totalPages ?? 1); }
     } catch {
       // ignore
     } finally {

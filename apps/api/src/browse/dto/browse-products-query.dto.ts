@@ -1,10 +1,14 @@
-import { IsOptional, IsUUID, IsString, MaxLength, IsEnum, IsInt, Min, Max } from 'class-validator';
+import { IsOptional, Matches, IsString, MaxLength, IsEnum, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class BrowseProductsQueryDto {
   @IsOptional()
-  @IsUUID()
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
   categoryId?: string;
+
+  @IsOptional()
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
+  cityId?: string;
 
   @IsOptional()
   @IsString()
@@ -35,7 +39,7 @@ export class BrowseProductsQueryDto {
   minRating?: number;
 
   @IsOptional()
-  @IsUUID()
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
   cursor?: string;
 
   @IsOptional()

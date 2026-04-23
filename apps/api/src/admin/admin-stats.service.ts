@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { RedisService } from '../redis/redis.service';
 import { OrderStatus, PayoutStatus } from '@prisma/client';
 
 export interface DashboardStats {
@@ -29,31 +28,15 @@ export interface DashboardTrends {
   gmvDaily: TrendDataPoint[];
 }
 
-const CACHE_KEY = 'admin:dashboard:stats';
-const CACHE_TTL_SECONDS = 300; // 5 minutes
-const TRENDS_CACHE_TTL_SECONDS = 600; // 10 minutes
-
 @Injectable()
 export class AdminStatsService {
   private readonly logger = new Logger(AdminStatsService.name);
 
   constructor(
     private prisma: PrismaService,
-    private redis: RedisService,
   ) {}
 
   async getDashboardStats(): Promise<{ success: true; data: DashboardStats }> {
-    // Try to return cached data
-    try {
-      const cached = await this.redis.getJson<DashboardStats>(CACHE_KEY);
-      if (cached) {
-        this.logger.debug('Returning cached dashboard stats');
-        return { success: true, data: cached };
-      }
-    } catch (err) {
-      this.logger.warn('Redis cache read failed, fetching from DB', err);
-    }
-
     // Calculate the first day of the current month (UTC)
     const now = new Date();
     const firstDayOfMonth = new Date(
@@ -148,32 +131,12 @@ export class AdminStatsService {
       ).toString(),
     };
 
-    // Cache the result (non-blocking, swallow errors)
-    try {
-      await this.redis.setJson(CACHE_KEY, stats, CACHE_TTL_SECONDS);
-    } catch (err) {
-      this.logger.warn('Redis cache write failed', err);
-    }
-
     return { success: true, data: stats };
   }
 
   async getDashboardTrends(
     period: TrendPeriod,
   ): Promise<{ success: true; data: DashboardTrends }> {
-    const cacheKey = `admin:trends:${period}`;
-
-    // Try cache first
-    try {
-      const cached = await this.redis.getJson<DashboardTrends>(cacheKey);
-      if (cached) {
-        this.logger.debug(`Returning cached trends for period ${period}`);
-        return { success: true, data: cached };
-      }
-    } catch (err) {
-      this.logger.warn('Redis cache read failed for trends', err);
-    }
-
     // Calculate start date based on period
     const now = new Date();
     const daysBack = period === '7d' ? 7 : period === '30d' ? 30 : 90;
@@ -250,13 +213,6 @@ export class AdminStatsService {
       usersDaily: formatResults(usersDaily),
       gmvDaily: formatResults(gmvDaily),
     };
-
-    // Cache the result
-    try {
-      await this.redis.setJson(cacheKey, trends, TRENDS_CACHE_TTL_SECONDS);
-    } catch (err) {
-      this.logger.warn('Redis cache write failed for trends', err);
-    }
 
     return { success: true, data: trends };
   }

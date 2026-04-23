@@ -277,7 +277,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get checkoutSuccess => 'Order confirmed!';
 
   @override
-  String get checkoutSuccessMessage => 'Your order has been placed successfully.';
+  String get checkoutSuccessMessage =>
+      'Your order has been placed successfully.';
 
   @override
   String get checkoutViewOrders => 'View my orders';
@@ -464,12 +465,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get alreadyReviewed => 'You have already reviewed this product';
 
   @override
-  String get mustBeDelivered =>
-      'Order must be delivered to leave a review';
+  String get mustBeDelivered => 'Order must be delivered to leave a review';
 
   @override
-  String get reviewPlaceholder =>
-      'Share your experience with this product...';
+  String get reviewPlaceholder => 'Share your experience with this product...';
 
   @override
   String get submitReview => 'Submit review';
@@ -582,4 +581,85 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get learnMore => 'Learn more';
+
+  @override
+  String get selectCity => 'Choose your city';
+
+  @override
+  String get selectCityDescription => 'To see available products';
+
+  @override
+  String get currentCity => 'City';
+
+  @override
+  String get changeCity => 'Change';
+
+  @override
+  String get addAddress => 'Add an address';
+
+  @override
+  String get newAddress => 'New address';
+
+  @override
+  String get cityLabel => 'City';
+
+  @override
+  String get cityPlaceholder => 'Select a city';
+
+  @override
+  String get communeLabel => 'Commune';
+
+  @override
+  String get communePlaceholder => 'Select a commune';
+
+  @override
+  String get loadingCities => 'Loading cities...';
+
+  @override
+  String get loadingCommunes => 'Loading communes...';
+
+  @override
+  String get avenueLabel => 'Avenue / Street';
+
+  @override
+  String get avenueHint => 'e.g. Av. Lumumba #24';
+
+  @override
+  String get referenceLabel => 'Reference point';
+
+  @override
+  String get referenceHint => 'e.g. Opposite the pharmacy';
+
+  @override
+  String get recipientNameLabel => 'Recipient name';
+
+  @override
+  String get recipientNameHint => 'Full name';
+
+  @override
+  String get recipientPhoneLabel => 'Recipient phone';
+
+  @override
+  String get recipientPhoneHint => '+243...';
+
+  @override
+  String get saveAddress => 'Save';
+
+  @override
+  String get savingAddress => 'Saving...';
+
+  @override
+  String get addressSaved => 'Address saved';
+
+  @override
+  String get addressError => 'Error saving address';
+
+  @override
+  String get cityRequired => 'Select a city';
+
+  @override
+  String get communeRequired => 'Select a commune';
+
+  @override
+  String get cancel => 'Cancel';
 }

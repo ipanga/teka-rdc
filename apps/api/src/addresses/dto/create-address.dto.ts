@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, Matches } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean, Matches, IsUUID } from 'class-validator';
 
 export class CreateAddressDto {
   @IsOptional()
@@ -16,6 +16,14 @@ export class CreateAddressDto {
   @IsString()
   @IsNotEmpty({ message: 'Le quartier/commune est requis' })
   neighborhood: string;
+
+  @IsOptional()
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'Ville invalide' })
+  cityId?: string;
+
+  @IsOptional()
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'Commune invalide' })
+  communeId?: string;
 
   @IsOptional()
   @IsString()

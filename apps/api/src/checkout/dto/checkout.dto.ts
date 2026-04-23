@@ -3,15 +3,13 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUUID,
-  Matches,
   MaxLength,
   ValidateIf,
-} from 'class-validator';
+Matches, } from 'class-validator';
 import { PaymentMethod } from '@prisma/client';
 
 export class CheckoutDto {
-  @IsUUID('4', { message: 'L\'adresse de livraison est invalide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'L\'adresse de livraison est invalide' })
   @IsNotEmpty({ message: 'L\'adresse de livraison est requise' })
   deliveryAddressId: string;
 
@@ -21,7 +19,7 @@ export class CheckoutDto {
   @IsNotEmpty({ message: 'Le mode de paiement est requis' })
   paymentMethod: PaymentMethod;
 
-  @IsUUID('4', { message: 'La clé d\'idempotence doit être un UUID valide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'La clé d\'idempotence doit être un UUID valide' })
   @IsNotEmpty({ message: 'La clé d\'idempotence est requise' })
   idempotencyKey: string;
 

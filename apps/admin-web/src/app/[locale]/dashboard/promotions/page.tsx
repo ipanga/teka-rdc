@@ -120,8 +120,9 @@ export default function PromotionsPage() {
         params.set('status', 'PENDING_APPROVAL');
       }
       const res = await apiFetch<PaginatedResponse>(`/v1/admin/promotions?${params}`);
-      setPromotions(res.data.data);
-      setTotalPages(res.data.pagination.totalPages);
+      const rd = res.data;
+      if (Array.isArray(rd)) { setPromotions(rd); setTotalPages(1); }
+      else { setPromotions(rd.data); setTotalPages(rd.pagination?.totalPages ?? 1); }
     } catch {
       // handled
     } finally {

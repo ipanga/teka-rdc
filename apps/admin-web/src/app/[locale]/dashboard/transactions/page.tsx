@@ -66,9 +66,14 @@ export default function TransactionsPage() {
       if (search.trim()) params.set('search', search.trim());
       if (dateFrom) params.set('dateFrom', dateFrom);
       if (dateTo) params.set('dateTo', dateTo);
-      const res = await apiFetch<PaginatedResponse>(`/v1/payments/transactions?${params}`);
-      setTransactions(res.data.data);
-      setTotalPages(res.data.meta.totalPages);
+      const res = await apiFetch<PaginatedResponse | Transaction[]>(`/v1/payments/transactions?${params}`);
+      if (Array.isArray(res.data)) {
+        setTransactions(res.data);
+        setTotalPages(1);
+      } else {
+        setTransactions(res.data.data);
+        setTotalPages(res.data.meta?.totalPages ?? 1);
+      }
     } catch {
       // Error handled by apiFetch
     } finally {

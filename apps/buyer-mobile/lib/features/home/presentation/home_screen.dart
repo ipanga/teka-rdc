@@ -10,6 +10,7 @@ import '../../catalog/data/models/product_model.dart';
 import '../../catalog/presentation/providers/catalog_provider.dart';
 import '../../catalog/presentation/widgets/category_chip.dart';
 import '../../catalog/presentation/widgets/product_card.dart';
+import '../../city/presentation/providers/city_provider.dart';
 import '../../messaging/presentation/providers/messaging_provider.dart';
 import '../data/models/banner_model.dart';
 import '../data/models/flash_deal_model.dart';
@@ -26,13 +27,49 @@ class HomeScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final authState = ref.watch(authProvider);
     final userName = authState.user?['firstName'] as String? ?? '';
+    final cityState = ref.watch(cityProvider);
+    final locale = Localizations.localeOf(context).languageCode;
+    final cityName = cityState.selectedCity?.getLocalizedName(locale);
     final categories = ref.watch(categoriesProvider);
     final popular = ref.watch(popularProductsProvider);
     final newest = ref.watch(newestProductsProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.appName),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(l10n.appName),
+            if (cityName != null)
+              GestureDetector(
+                onTap: () => context.push('/city-selection'),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.location_on,
+                      size: 12,
+                      color: TekaColors.tekaRed,
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      cityName,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: TekaColors.mutedForeground,
+                            fontSize: 12,
+                          ),
+                    ),
+                    const SizedBox(width: 2),
+                    Icon(
+                      Icons.keyboard_arrow_down,
+                      size: 14,
+                      color: TekaColors.mutedForeground,
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.favorite_border),

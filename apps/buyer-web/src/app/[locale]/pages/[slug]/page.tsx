@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description: content.substring(0, 160),
-    openGraph: { title: `${title} | Teka RDC`, description: content.substring(0, 160), siteName: 'Teka RDC' },
+    openGraph: { title: `${title} | Teka RDC`, description: content.substring(0, 160), siteName: 'Teka RDC', images: [{ url: 'https://teka.cd/og-default.png', width: 1200, height: 630, alt: `${title} | Teka RDC` }] },
     alternates: {
       canonical: `/pages/${slug}`,
       languages: { fr: `/fr/pages/${slug}`, en: `/en/pages/${slug}` },

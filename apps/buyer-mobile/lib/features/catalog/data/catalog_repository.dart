@@ -43,6 +43,7 @@ class CatalogRepository {
     String? condition,
     String? sortBy,
     String? cursor,
+    String? cityId,
     int limit = 20,
   }) async {
     final queryParams = <String, dynamic>{
@@ -51,6 +52,9 @@ class CatalogRepository {
 
     if (categoryId != null && categoryId.isNotEmpty) {
       queryParams['categoryId'] = categoryId;
+    }
+    if (cityId != null && cityId.isNotEmpty) {
+      queryParams['cityId'] = cityId;
     }
     if (search != null && search.isNotEmpty) {
       queryParams['search'] = search;

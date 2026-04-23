@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
-import { RedisService } from '../src/redis/redis.service';
 import { ResponseInterceptor } from '../src/common/interceptors/response.interceptor';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
 
@@ -149,6 +148,7 @@ export const mockPrismaService: Record<string, any> = {
     create: jest.fn(),
     update: jest.fn(),
     count: jest.fn(),
+    aggregate: jest.fn(),
   },
   payout: {
     findUnique: jest.fn(),
@@ -157,6 +157,7 @@ export const mockPrismaService: Record<string, any> = {
     create: jest.fn(),
     update: jest.fn(),
     count: jest.fn(),
+    aggregate: jest.fn(),
   },
   commissionSetting: {
     findUnique: jest.fn(),
@@ -216,6 +217,7 @@ export const mockPrismaService: Record<string, any> = {
     findMany: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    delete: jest.fn(),
     count: jest.fn(),
   },
   systemSetting: {
@@ -244,31 +246,51 @@ export const mockPrismaService: Record<string, any> = {
     count: jest.fn(),
   },
 
+  // Cities & Communes
+  city: {
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+  commune: {
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+  },
+
+  // OTP tables
+  otp: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    deleteMany: jest.fn(),
+    count: jest.fn(),
+  },
+  otpRateLimit: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    delete: jest.fn(),
+    deleteMany: jest.fn(),
+    count: jest.fn(),
+  },
+
   // Prisma client methods
   $queryRaw: jest.fn().mockResolvedValue([{ '?column?': 1 }]),
   $executeRaw: jest.fn().mockResolvedValue(0),
   $transaction: jest.fn((fn: Function) => fn(mockPrismaService)),
   $connect: jest.fn(),
   $disconnect: jest.fn(),
-  onModuleInit: jest.fn(),
-  onModuleDestroy: jest.fn(),
-};
-
-// ---------------------------------------------------------------------------
-// Mock RedisService
-// ---------------------------------------------------------------------------
-export const mockRedisService = {
-  get: jest.fn().mockResolvedValue(null),
-  set: jest.fn().mockResolvedValue(undefined),
-  del: jest.fn().mockResolvedValue(undefined),
-  getJson: jest.fn().mockResolvedValue(null),
-  setJson: jest.fn().mockResolvedValue(undefined),
-  getClient: jest.fn().mockReturnValue({
-    ping: jest.fn().mockResolvedValue('PONG'),
-    get: jest.fn().mockResolvedValue(null),
-    set: jest.fn().mockResolvedValue('OK'),
-    del: jest.fn().mockResolvedValue(1),
-  }),
   onModuleInit: jest.fn(),
   onModuleDestroy: jest.fn(),
 };
@@ -282,8 +304,6 @@ export async function createTestApp(): Promise<INestApplication> {
   })
     .overrideProvider(PrismaService)
     .useValue(mockPrismaService)
-    .overrideProvider(RedisService)
-    .useValue(mockRedisService)
     .compile();
 
   const app = moduleFixture.createNestApplication();
@@ -310,15 +330,6 @@ export async function createTestApp(): Promise<INestApplication> {
 // ---------------------------------------------------------------------------
 export function resetMocks() {
   jest.clearAllMocks();
-  // Restore default Redis mock behavior
-  mockRedisService.get.mockResolvedValue(null);
-  mockRedisService.getJson.mockResolvedValue(null);
-  mockRedisService.set.mockResolvedValue(undefined);
-  mockRedisService.setJson.mockResolvedValue(undefined);
-  mockRedisService.del.mockResolvedValue(undefined);
-  mockRedisService.getClient.mockReturnValue({
-    ping: jest.fn().mockResolvedValue('PONG'),
-  });
   // Restore default Prisma $queryRaw behavior (used by health check)
   mockPrismaService.$queryRaw.mockResolvedValue([{ '?column?': 1 }]);
   mockPrismaService.$transaction.mockImplementation((fn: Function) =>

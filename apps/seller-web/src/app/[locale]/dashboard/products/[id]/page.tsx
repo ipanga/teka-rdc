@@ -18,6 +18,7 @@ interface Category {
   id: string;
   name: { fr?: string; en?: string };
   children?: Category[];
+  subcategories?: Category[];
 }
 
 interface Product {
@@ -125,8 +126,9 @@ export default function ProductDetailPage() {
     for (const cat of cats) {
       const label = cat.name?.fr || cat.name?.en || '---';
       result.push({ id: cat.id, label, depth });
-      if (cat.children && cat.children.length > 0) {
-        result.push(...flattenCategories(cat.children, depth + 1));
+      const kids = cat.children || cat.subcategories || [];
+      if (kids.length > 0) {
+        result.push(...flattenCategories(kids, depth + 1));
       }
     }
     return result;

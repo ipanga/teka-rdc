@@ -4,7 +4,6 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { envValidationSchema } from './config/env.validation';
 import { PrismaModule } from './prisma/prisma.module';
-import { RedisModule } from './redis/redis.module';
 import { HealthModule } from './health/health.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -13,6 +12,7 @@ import { SellersModule } from './sellers/sellers.module';
 import { AdminModule } from './admin/admin.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
+import { CitiesModule } from './cities/cities.module';
 import { BrowseModule } from './browse/browse.module';
 import { DeliveryZonesModule } from './delivery-zones/delivery-zones.module';
 import { CartModule } from './cart/cart.module';
@@ -45,7 +45,6 @@ import { RolesGuard } from './auth/guards/roles.guard';
     }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     PrismaModule,
-    RedisModule,
     HealthModule,
     AuthModule,
     UsersModule,
@@ -54,6 +53,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     AdminModule,
     CategoriesModule,
     ProductsModule,
+    CitiesModule,
     BrowseModule,
     DeliveryZonesModule,
     CartModule,

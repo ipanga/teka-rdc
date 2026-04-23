@@ -25,6 +25,7 @@ export interface Product extends SoftDeletable {
   description: TranslatableText;
   categoryId: string;
   sellerId: string;
+  cityId?: string | null;
   priceCDF: string; // BigInt serialized as string
   priceUSD?: string | null;
   quantity: number;
@@ -91,6 +92,7 @@ export interface BrowseProduct {
   image?: ProductImage | null;
   seller: { businessName: string };
   categoryId: string;
+  cityId?: string | null;
 }
 
 export interface CursorPagination {

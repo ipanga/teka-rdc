@@ -3,8 +3,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsBoolean,
-  Matches,
-} from 'class-validator';
+Matches, } from 'class-validator';
 
 export class CreateDeliveryZoneDto {
   @IsString({ message: 'La ville d\'origine doit être une chaîne de caractères' })

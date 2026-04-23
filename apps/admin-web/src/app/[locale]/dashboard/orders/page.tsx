@@ -84,8 +84,9 @@ export default function OrdersPage() {
       if (dateFrom) params.set('dateFrom', dateFrom);
       if (dateTo) params.set('dateTo', dateTo);
       const res = await apiFetch<PaginatedResponse>(`/v1/admin/orders?${params}`);
-      setOrders(res.data.data);
-      setTotalPages(res.data.meta.totalPages);
+      const rd = res.data;
+      if (Array.isArray(rd)) { setOrders(rd); setTotalPages(1); }
+      else { setOrders(rd.data); setTotalPages(rd.meta?.totalPages ?? 1); }
     } catch {
       // Error handled by apiFetch
     } finally {

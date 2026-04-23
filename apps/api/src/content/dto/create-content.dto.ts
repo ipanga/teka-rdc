@@ -5,9 +5,8 @@ import {
   IsNumber,
   IsEnum,
   IsNotEmpty,
-  Matches,
   ValidateNested,
-} from 'class-validator';
+Matches, } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ContentPageStatus } from '@prisma/client';
 import { TranslatableTextDto } from './translatable-text.dto';

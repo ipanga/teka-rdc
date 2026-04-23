@@ -74,9 +74,9 @@ describe('Payments (e2e)', () => {
         .send({ code: '0', orderNumber: 'TK-TEST-002' })
         .expect(200);
 
-      // MockPaymentProvider.verifyWebhookSignature always returns true in mock mode,
-      // but the response shape includes 'received'
-      expect(res.body).toHaveProperty('received', true);
+      // Response is wrapped by ResponseInterceptor: { success: true, data: { received, processed } }
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('received', true);
     });
   });
 

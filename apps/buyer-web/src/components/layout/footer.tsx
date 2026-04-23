@@ -28,6 +28,12 @@ export function Footer() {
             <Link href="/pages/privacy" className="hover:text-white transition-colors">
               {t('privacy')}
             </Link>
+            <Link href="/pages/how-to-buy" className="hover:text-white transition-colors">
+              {t('howToBuy')}
+            </Link>
+            <Link href="/pages/how-to-sell" className="hover:text-white transition-colors">
+              {t('howToSell')}
+            </Link>
             <Link href="/pages/contact" className="hover:text-white transition-colors">
               {t('contact')}
             </Link>

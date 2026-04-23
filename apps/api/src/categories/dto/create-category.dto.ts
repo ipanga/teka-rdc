@@ -2,12 +2,11 @@ import {
   IsObject,
   IsOptional,
   IsString,
-  IsUUID,
   IsBoolean,
   IsNumber,
   MaxLength,
   ValidateNested,
-} from 'class-validator';
+Matches, } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TranslatableTextDto } from './translatable-text.dto';
 
@@ -24,7 +23,7 @@ export class CreateCategoryDto {
   description?: TranslatableTextDto;
 
   @IsOptional()
-  @IsUUID('4', { message: 'L\'identifiant de la catégorie parente doit être un UUID valide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'L\'identifiant de la catégorie parente doit être un UUID valide' })
   parentCategoryId?: string;
 
   @IsOptional()

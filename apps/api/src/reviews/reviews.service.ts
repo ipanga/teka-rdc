@@ -121,7 +121,7 @@ export class ReviewsService {
       await this.recalculateRatings(tx, dto.productId);
 
       return created;
-    });
+    }, { timeout: 60000 });
 
     this.logger.log(
       `Review created by buyer ${buyerId} for product ${dto.productId}`,
@@ -290,7 +290,7 @@ export class ReviewsService {
       });
 
       await this.recalculateRatings(tx, review.productId);
-    });
+    }, { timeout: 60000 });
 
     this.logger.log(
       `Review ${reviewId} soft-deleted by buyer ${buyerId}`,

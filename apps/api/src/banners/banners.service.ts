@@ -1,13 +1,9 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { RedisService } from '../redis/redis.service';
 import { BannerStatus } from '@prisma/client';
 import { CreateBannerDto } from './dto/create-banner.dto';
 import { UpdateBannerDto } from './dto/update-banner.dto';
 import { BannerQueryDto } from './dto/banner-query.dto';
-
-const ACTIVE_BANNERS_CACHE_KEY = 'banners:active';
-const ACTIVE_BANNERS_CACHE_TTL = 300; // 5 minutes
 
 @Injectable()
 export class BannersService {
@@ -15,25 +11,12 @@ export class BannersService {
 
   constructor(
     private prisma: PrismaService,
-    private redis: RedisService,
   ) {}
 
   /**
    * Returns active banners that are currently within their schedule window.
-   * Cached in Redis for 5 minutes.
    */
   async getActiveBanners() {
-    // Try cache first
-    try {
-      const cached = await this.redis.getJson(ACTIVE_BANNERS_CACHE_KEY);
-      if (cached) {
-        this.logger.debug('Returning cached active banners');
-        return cached;
-      }
-    } catch (err) {
-      this.logger.warn('Redis cache read failed for active banners', err);
-    }
-
     const now = new Date();
 
     const banners = await this.prisma.banner.findMany({
@@ -50,17 +33,6 @@ export class BannersService {
       orderBy: { sortOrder: 'asc' },
     });
 
-    // Cache result
-    try {
-      await this.redis.setJson(
-        ACTIVE_BANNERS_CACHE_KEY,
-        banners,
-        ACTIVE_BANNERS_CACHE_TTL,
-      );
-    } catch (err) {
-      this.logger.warn('Redis cache write failed for active banners', err);
-    }
-
     return banners;
   }
 
@@ -68,7 +40,6 @@ export class BannersService {
    * Refreshes banner statuses based on schedule:
    * - SCHEDULED banners where startsAt <= now → set to ACTIVE
    * - ACTIVE banners where endsAt < now → set to EXPIRED
-   * Then invalidates the Redis cache.
    */
   async refreshActiveBanners() {
     const now = new Date();
@@ -99,15 +70,6 @@ export class BannersService {
 
     if (expired.count > 0) {
       this.logger.log(`Expired ${expired.count} active banner(s)`);
-    }
-
-    // Invalidate cache if any changes were made
-    if (activated.count > 0 || expired.count > 0) {
-      try {
-        await this.redis.del(ACTIVE_BANNERS_CACHE_KEY);
-      } catch (err) {
-        this.logger.warn('Redis cache invalidation failed for banners', err);
-      }
     }
   }
 
@@ -206,15 +168,6 @@ export class BannersService {
 
     this.logger.log(`Banner created: ${banner.id} by user ${userId}`);
 
-    // Invalidate active banners cache if the new banner is ACTIVE
-    if (banner.status === BannerStatus.ACTIVE) {
-      try {
-        await this.redis.del(ACTIVE_BANNERS_CACHE_KEY);
-      } catch (err) {
-        this.logger.warn('Redis cache invalidation failed', err);
-      }
-    }
-
     return banner;
   }
 
@@ -253,13 +206,6 @@ export class BannersService {
 
     this.logger.log(`Banner updated: ${banner.id} by user ${userId}`);
 
-    // Invalidate active banners cache on any update
-    try {
-      await this.redis.del(ACTIVE_BANNERS_CACHE_KEY);
-    } catch (err) {
-      this.logger.warn('Redis cache invalidation failed', err);
-    }
-
     return banner;
   }
 
@@ -276,13 +222,6 @@ export class BannersService {
     });
 
     this.logger.log(`Banner soft-deleted: ${id}`);
-
-    // Invalidate active banners cache
-    try {
-      await this.redis.del(ACTIVE_BANNERS_CACHE_KEY);
-    } catch (err) {
-      this.logger.warn('Redis cache invalidation failed', err);
-    }
 
     return { deleted: true };
   }

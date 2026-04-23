@@ -6,7 +6,6 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { RedisService } from '../redis/redis.service';
 import {
   PromotionType,
   PromotionStatus,
@@ -21,14 +20,8 @@ import { PromotionQueryDto } from './dto/promotion-query.dto';
 export class PromotionsService {
   private readonly logger = new Logger(PromotionsService.name);
 
-  private static readonly CACHE_KEY_ACTIVE_PROMOTIONS = 'promotions:active';
-  private static readonly CACHE_KEY_ACTIVE_FLASH_DEALS = 'promotions:flash_deals';
-  private static readonly CACHE_TTL_PROMOTIONS = 300; // 5 minutes
-  private static readonly CACHE_TTL_FLASH_DEALS = 120; // 2 minutes
-
   constructor(
     private prisma: PrismaService,
-    private redis: RedisService,
   ) {}
 
   // ─── Admin Methods ───────────────────────────────────────────────────
@@ -166,10 +159,6 @@ export class PromotionsService {
       },
     });
 
-    if (status === PromotionStatus.ACTIVE) {
-      await this.invalidateCache();
-    }
-
     this.logger.log(`Promotion ${promotion.id} created by admin ${userId}`);
 
     return this.serializePromotion(promotion);
@@ -228,8 +217,6 @@ export class PromotionsService {
       },
     });
 
-    await this.invalidateCache();
-
     this.logger.log(`Promotion ${id} updated`);
 
     return this.serializePromotion(promotion);
@@ -282,8 +269,6 @@ export class PromotionsService {
         },
       },
     });
-
-    await this.invalidateCache();
 
     this.logger.log(`Promotion ${id} approved by admin ${adminId} → ${newStatus}`);
 
@@ -349,8 +334,6 @@ export class PromotionsService {
       where: { id },
       data: { deletedAt: new Date() },
     });
-
-    await this.invalidateCache();
 
     this.logger.log(`Promotion ${id} soft-deleted`);
 
@@ -519,16 +502,8 @@ export class PromotionsService {
 
   /**
    * Public: active promotions (type=PROMOTION, status=ACTIVE, within date range).
-   * Redis-cached for 5 minutes.
    */
   async getActivePromotions() {
-    const cached = await this.redis.getJson<unknown[]>(
-      PromotionsService.CACHE_KEY_ACTIVE_PROMOTIONS,
-    );
-    if (cached) {
-      return cached;
-    }
-
     const now = new Date();
     const promotions = await this.prisma.promotion.findMany({
       where: {
@@ -550,30 +525,14 @@ export class PromotionsService {
       take: 50,
     });
 
-    const serialized = promotions.map((p) => this.serializePromotion(p));
-
-    await this.redis.setJson(
-      PromotionsService.CACHE_KEY_ACTIVE_PROMOTIONS,
-      serialized,
-      PromotionsService.CACHE_TTL_PROMOTIONS,
-    );
-
-    return serialized;
+    return promotions.map((p) => this.serializePromotion(p));
   }
 
   /**
    * Public: active flash deals (type=FLASH_DEAL, status=ACTIVE, within date range)
    * with product info (title, priceCDF, first image).
-   * Redis-cached for 2 minutes (shorter for countdown accuracy).
    */
   async getActiveFlashDeals() {
-    const cached = await this.redis.getJson<unknown[]>(
-      PromotionsService.CACHE_KEY_ACTIVE_FLASH_DEALS,
-    );
-    if (cached) {
-      return cached;
-    }
-
     const now = new Date();
     const deals = await this.prisma.promotion.findMany({
       where: {
@@ -601,7 +560,7 @@ export class PromotionsService {
       take: 50,
     });
 
-    const serialized = deals.map((d) => {
+    return deals.map((d) => {
       const base = this.serializePromotion(d);
       return {
         ...base,
@@ -615,14 +574,6 @@ export class PromotionsService {
           : null,
       };
     });
-
-    await this.redis.setJson(
-      PromotionsService.CACHE_KEY_ACTIVE_FLASH_DEALS,
-      serialized,
-      PromotionsService.CACHE_TTL_FLASH_DEALS,
-    );
-
-    return serialized;
   }
 
   /**
@@ -718,15 +669,5 @@ export class PromotionsService {
     }
 
     return result;
-  }
-
-  /**
-   * Invalidates public-facing promotion caches.
-   */
-  private async invalidateCache() {
-    await Promise.all([
-      this.redis.del(PromotionsService.CACHE_KEY_ACTIVE_PROMOTIONS),
-      this.redis.del(PromotionsService.CACHE_KEY_ACTIVE_FLASH_DEALS),
-    ]);
   }
 }

@@ -257,5 +257,10 @@
   "promotionNoPromotions": "No promotions",
   "promotionCreateFirst": "Create your first promotion to boost your sales",
   "promotionRejectionReason": "Rejection reason",
-  "promotionSubmitForApproval": "Submit for approval"
+  "promotionSubmitForApproval": "Submit for approval",
+
+  "productAttributes": "Product attributes",
+  "selectOption": "Select...",
+  "requiredField": "This field is required",
+  "noAttributes": "No attributes for this category"
 }
