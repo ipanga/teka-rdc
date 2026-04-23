@@ -112,12 +112,53 @@ docker compose --env-file .env.production -f docker-compose.prod.yml build
 # Run database migrations against the cloud Postgres in .env.production
 docker compose --env-file .env.production -f docker-compose.prod.yml run --rm api npx prisma migrate deploy
 
-# Seed initial data (first deploy only — locations, categories, admin user)
-docker compose --env-file .env.production -f docker-compose.prod.yml run --rm api npx prisma db seed
-
 # Start all services
 docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 ```
+
+### 5b. Initial production seed (first deploy only)
+
+The seed script understands `SEED_MODE` (`dev` | `prod`). **Always use `prod`** against the production database — `dev` inserts sample buyers, sellers, products, orders, banners and so on, which you do not want anywhere near a live system.
+
+What `SEED_MODE=prod` writes (idempotent — safe to re-run):
+
+- One admin user (identity from env vars, see below)
+- 8 cities (Lubumbashi + Kolwezi active, 6 other provinces inactive)
+- 8 communes (6 Lubumbashi, 2 Kolwezi)
+- Full category tree (old 15 categories deactivated, 8 new main + 47 subcategories activated)
+- 72 product attributes with option libraries
+
+What it skips in prod: sample users, addresses, products, delivery zones, orders, reviews, banners, promotions, content pages, broadcasts. Create those through the admin panel once you're up.
+
+Required env vars (fail fast if unset):
+
+| Var | Example | Purpose |
+|---|---|---|
+| `SEED_ADMIN_PHONE` | `+243XXXXXXXXX` | Admin's phone number. Must be unique. |
+| `SEED_ADMIN_EMAIL` | `admin@teka.cd` | Admin's email. First access is via forgot-password on `admin.teka.cd`. |
+| `SEED_ADMIN_FIRST_NAME` | `Admin` (default) | Optional. |
+| `SEED_ADMIN_LAST_NAME` | `Teka` (default) | Optional. |
+
+The admin is created with `phoneVerified=false` and `emailVerified=false` on purpose — first sign-in goes through `/admin/forgot-password`, which sends a reset link, lets the operator set a password, and marks the email verified atomically.
+
+```bash
+# Seed foundational data against production
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+  run --rm \
+    -e SEED_MODE=prod \
+    -e SEED_ADMIN_PHONE='+243XXXXXXXXX' \
+    -e SEED_ADMIN_EMAIL='admin@teka.cd' \
+  api npx prisma db seed
+
+# Alternative (local workstation with .env.production available):
+pnpm --filter api run prisma:seed:prod
+```
+
+After the seed completes:
+1. Visit `https://admin.teka.cd/forgot-password`
+2. Enter `SEED_ADMIN_EMAIL`
+3. Check the inbox → set a password → log in
+
 
 ### 6. Verify Deployment
 

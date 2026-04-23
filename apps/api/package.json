@@ -23,6 +23,7 @@
     "prisma:push": "prisma db push",
     "prisma:generate": "prisma generate",
     "prisma:seed": "tsx --env-file=../../.env.development prisma/seed.ts",
+    "prisma:seed:prod": "SEED_MODE=prod tsx --env-file=../../.env.production prisma/seed.ts",
     "prisma:studio": "prisma studio"
   },
   "dependencies": {
