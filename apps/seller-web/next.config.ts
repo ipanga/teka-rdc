@@ -1,8 +1,12 @@
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 
+// See admin-web/next.config.ts for the basePath rationale.
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '/seller';
+
 const nextConfig: NextConfig = {
-  basePath: '/seller',
+  output: 'standalone',
+  basePath: basePath || undefined,
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'res.cloudinary.com' },

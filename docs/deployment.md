@@ -11,7 +11,7 @@
 
 ## Architecture Overview
 
-Production runs 6 Docker containers behind NGINX:
+Production runs 5 Docker containers behind NGINX:
 
 | Container | Image | Internal Port | Role |
 |-----------|-------|---------------|------|
@@ -20,7 +20,6 @@ Production runs 6 Docker containers behind NGINX:
 | buyer-web | Custom (Node 20 Alpine) | 5000 | Next.js 15 consumer storefront |
 | seller-web | Custom (Node 20 Alpine) | 5100 | Next.js 15 seller dashboard |
 | admin-web | Custom (Node 20 Alpine) | 5200 | Next.js 15 admin panel |
-| redis | redis:7-alpine | 6379 | Cache, OTP storage, rate limiting |
 
 PostgreSQL is hosted externally (cloud-managed) and is **not** containerized.
 
@@ -36,64 +35,104 @@ cp .env.production.example .env.production
 
 Edit `.env.production` with your actual values. See the [Environment Variables Reference](#environment-variables-reference) section below for all required variables.
 
+**External services to provision before first deploy:**
+- **Orange DRC SMS** — Register at [developer.orange.com](https://developer.orange.com/apis/sms/getting-started), create a sandbox app first to test, then production. Note the client id, secret, and the sender address assigned to your account. Fill `ORANGE_CLIENT_ID`, `ORANGE_CLIENT_SECRET`, `ORANGE_SENDER_ADDRESS` in `.env.production`.
+- **Resend** — Sign up at [resend.com](https://resend.com/), verify your sending domain (`teka.cd`), grab an API key into `RESEND_API_KEY`.
+- **Flexpay** — Real production credentials for `FLEXPAY_API_KEY`, `FLEXPAY_MERCHANT_ID`, `FLEXPAY_WEBHOOK_SECRET`. Flip `PAYMENT_MOCK_MODE=false` only after a webhook round-trip has been verified on staging.
+- **Google Cloud Console** — For the OAuth web client used by the three web apps, add **every** production origin under *Authorized JavaScript origins*:
+  - `https://teka.cd`
+  - `https://seller.teka.cd`
+  - `https://admin.teka.cd`
+
+  For mobile (deferred): create Android clients (one per app, with release SHA-1) and iOS clients (with bundle id). Fill `GOOGLE_IOS_CLIENT_ID` and `GOOGLE_ANDROID_CLIENT_ID` when wiring mobile Google sign-in.
+- **Google Search Console / domain verification** — Add `teka.cd` as a property; verify via DNS TXT record (the registrar's CNAME + TXT tab). This unblocks future sitemap submissions and makes the OAuth consent screen eligible for brand verification.
+
 ### 2. Generate Secrets
 
 ```bash
 # Generate JWT secrets (64-char hex strings)
 openssl rand -hex 32   # Use for JWT_SECRET
 openssl rand -hex 32   # Use for JWT_REFRESH_SECRET
-
-# Generate Redis password
-openssl rand -base64 24   # Use for REDIS_PASSWORD
 ```
 
-### 3. SSL Setup (Let's Encrypt)
+### 3. DNS setup (A records)
+
+Point all four public hostnames at the VPS IP **before** requesting Let's Encrypt certificates — certbot fails if DNS hasn't propagated.
+
+| Hostname | Record | Value |
+|---|---|---|
+| `teka.cd` | A | `<VPS public IPv4>` |
+| `www.teka.cd` | A (or CNAME to `teka.cd`) | `<VPS public IPv4>` |
+| `api.teka.cd` | A | `<VPS public IPv4>` |
+| `seller.teka.cd` | A | `<VPS public IPv4>` |
+| `admin.teka.cd` | A | `<VPS public IPv4>` |
+
+Verify propagation with `dig teka.cd +short` / `dig api.teka.cd +short` before moving on.
+
+### 4. SSL Setup (Let's Encrypt)
+
+The production NGINX config (`nginx/nginx.prod.conf`) terminates SSL for **four separate certificates** — one per subdomain. Issue them all in one certbot invocation so the renewal cron covers every host:
 
 ```bash
-# Create certbot directories
 mkdir -p certbot/conf certbot/www
 
-# Get initial certificate (stop nginx first if running)
+# Port 80 must be free — stop any running nginx first.
 docker run -it --rm \
-  -v ./certbot/conf:/etc/letsencrypt \
-  -v ./certbot/www:/var/www/certbot \
+  -v "$PWD/certbot/conf:/etc/letsencrypt" \
+  -v "$PWD/certbot/www:/var/www/certbot" \
   -p 80:80 \
-  certbot/certbot certonly --standalone -d teka.cd -d www.teka.cd
+  certbot/certbot certonly --standalone \
+  --agree-tos --no-eff-email -m ops@teka.cd \
+  -d teka.cd -d www.teka.cd \
+  -d api.teka.cd \
+  -d seller.teka.cd \
+  -d admin.teka.cd
 ```
 
-The production NGINX config (`nginx/nginx.prod.conf`) expects certificates at:
-- `/etc/letsencrypt/live/teka.cd/fullchain.pem`
-- `/etc/letsencrypt/live/teka.cd/privkey.pem`
+`nginx.prod.conf` expects certificates at:
 
-These paths are mapped via Docker volumes from `./certbot/conf`.
+- `/etc/letsencrypt/live/teka.cd/{fullchain,privkey}.pem` (covers `teka.cd` and `www.teka.cd`)
+- `/etc/letsencrypt/live/api.teka.cd/{fullchain,privkey}.pem`
+- `/etc/letsencrypt/live/seller.teka.cd/{fullchain,privkey}.pem`
+- `/etc/letsencrypt/live/admin.teka.cd/{fullchain,privkey}.pem`
 
-### 4. Build and Deploy
+Renewal cron (host-side, runs every 12h):
+```bash
+0 */12 * * * docker run --rm -v /srv/teka/certbot/conf:/etc/letsencrypt -v /srv/teka/certbot/www:/var/www/certbot certbot/certbot renew --quiet && docker exec teka-nginx nginx -s reload
+```
+
+### 5. Build and Deploy
+
+Use `--env-file .env.production` so compose substitutes `${NEXT_PUBLIC_GOOGLE_CLIENT_ID}` into the Next.js build args. Without this, the Google button will silently disappear from all three frontends.
 
 ```bash
-# Build all images
-docker compose -f docker-compose.prod.yml build
+# Build all images (reads prod env, bakes NEXT_PUBLIC_* into the Next.js bundles)
+docker compose --env-file .env.production -f docker-compose.prod.yml build
 
-# Run database migrations
-docker compose -f docker-compose.prod.yml run --rm api npx prisma migrate deploy
+# Run database migrations against the cloud Postgres in .env.production
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm api npx prisma migrate deploy
 
 # Seed initial data (first deploy only — locations, categories, admin user)
-docker compose -f docker-compose.prod.yml run --rm api npx prisma db seed
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm api npx prisma db seed
 
 # Start all services
-docker compose -f docker-compose.prod.yml up -d
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 ```
 
-### 5. Verify Deployment
+### 6. Verify Deployment
 
 ```bash
-# Check liveness (always returns 200 if process is running)
-curl https://teka.cd/api/v1/health/live
+# Each subdomain responds from the right service
+curl -I https://teka.cd
+curl -I https://seller.teka.cd
+curl -I https://admin.teka.cd
 
-# Check full health (database + Redis status)
-curl https://teka.cd/api/v1/health
+# API health (must be 200)
+curl https://api.teka.cd/api/v1/health/live
+curl https://api.teka.cd/api/v1/health
 
 # Check readiness (returns 503 if dependencies are down)
-curl https://teka.cd/api/v1/health/ready
+curl https://api.teka.cd/api/v1/health/ready
 
 # Check all containers are running
 docker compose -f docker-compose.prod.yml ps
@@ -106,8 +145,7 @@ Expected health response:
   "timestamp": "2026-02-28T12:00:00.000Z",
   "service": "teka-rdc-api",
   "checks": {
-    "database": "ok",
-    "redis": "ok"
+    "database": "ok"
   },
   "uptime": 123.456
 }
@@ -118,9 +156,6 @@ Expected health response:
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `DATABASE_URL` | Yes | PostgreSQL connection string with pooling params (e.g., `postgresql://user:pass@host:5432/teka_rdc?sslmode=require`) |
-| `REDIS_PASSWORD` | Yes | Redis authentication password (used in redis-server --requirepass) |
-| `REDIS_HOST` | No | Redis hostname (defaults to `redis` in Docker Compose) |
-| `REDIS_PORT` | No | Redis port (defaults to `6379`) |
 | `JWT_SECRET` | Yes | Access token signing secret (min 32 chars) |
 | `JWT_REFRESH_SECRET` | Yes | Refresh token signing secret (min 32 chars) |
 | `JWT_EXPIRY` | No | Access token expiry (default: `15m`) |
@@ -129,11 +164,25 @@ Expected health response:
 | `CLOUDINARY_CLOUD_NAME` | Yes | Cloudinary cloud name for image hosting |
 | `CLOUDINARY_API_KEY` | Yes | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Yes | Cloudinary API secret |
-| `AT_API_KEY` | Yes | Africa's Talking API key for SMS/OTP |
-| `AT_USERNAME` | Yes | Africa's Talking username |
-| `AT_SENDER_ID` | No | SMS sender ID (default: `TekaRDC`) |
-| `RESEND_API_KEY` | Yes | Resend.com API key for transactional emails |
-| `EMAIL_FROM` | No | Sender email address (default: `noreply@teka.cd`) |
+| `SMS_PROVIDER` | No | SMS provider: `orange` (default in prod), `africas_talking`, or `mock` |
+| `ORANGE_CLIENT_ID` | Yes (if `SMS_PROVIDER=orange`) | Orange DRC OAuth2 client id from [Orange Developer Portal](https://developer.orange.com/apis/sms/getting-started) |
+| `ORANGE_CLIENT_SECRET` | Yes (if `SMS_PROVIDER=orange`) | Orange DRC OAuth2 client secret |
+| `ORANGE_SENDER_ADDRESS` | Yes (if `SMS_PROVIDER=orange`) | Sender address in form `tel:+243XXXXXXXXX` or shortcode |
+| `ORANGE_API_BASE` | No | Orange API base URL (default: `https://api.orange.com`) |
+| `AT_API_KEY` | Yes (if `SMS_PROVIDER=africas_talking`) | Africa's Talking API key — kept as rollback fallback |
+| `AT_USERNAME` | No | Africa's Talking username (default: `teka_rdc`) |
+| `AT_SENDER_ID` | No | Africa's Talking sender ID (default: `TekaRDC`) |
+| `RESEND_API_KEY` | Yes | Resend.com API key for transactional emails (verification, reset, seller setup) |
+| `EMAIL_FROM` | No | Sender email address (default: `Teka RDC <noreply@teka.cd>`) |
+| `GOOGLE_WEB_CLIENT_ID` | Yes | Google OAuth 2.0 Client ID — Web app (from Google Cloud Console) |
+| `GOOGLE_IOS_CLIENT_ID` | No | Google OAuth iOS client id (required for seller-mobile/buyer-mobile on iOS) |
+| `GOOGLE_ANDROID_CLIENT_ID` | No | Google OAuth Android client id (required for seller-mobile/buyer-mobile on Android) |
+| `BCRYPT_ROUNDS` | No | bcrypt cost factor for password hashing (default: `12`) |
+| `PASSWORD_RESET_EXPIRY_MINUTES` | No | TTL for password-reset tokens (default: `60`) |
+| `SELLER_SETUP_EXPIRY_HOURS` | No | TTL for seller migration setup-password tokens (default: `24`) |
+| `BUYER_WEB_URL` | No | Public URL used to build reset/verification links for buyers |
+| `SELLER_WEB_URL` | No | Public URL used to build seller setup/reset links |
+| `ADMIN_WEB_URL` | No | Public URL used to build admin reset links |
 | `FLEXPAY_API_URL` | Yes | Flexpay Mobile Money API endpoint |
 | `FLEXPAY_API_KEY` | Yes | Flexpay API key |
 | `FLEXPAY_MERCHANT_ID` | Yes | Flexpay merchant identifier |
@@ -151,7 +200,7 @@ Expected health response:
 
 The `docker-compose.prod.yml` defines all services with:
 
-- **Memory limits**: API (512MB), Redis (256MB), web apps (256MB each)
+- **Memory limits**: API (512MB), web apps (256MB each)
 - **Health checks**: All services have Docker health checks configured
 - **Restart policy**: `unless-stopped` for all services
 - **Log rotation**: JSON file driver with 10MB max size, 3 files retained
@@ -159,7 +208,6 @@ The `docker-compose.prod.yml` defines all services with:
 
 Key differences from development (`docker-compose.yml`):
 - No ports are exposed directly (only NGINX exposes 80 and 443)
-- Redis requires authentication (`--requirepass`)
 - SSL termination at NGINX
 - Production NGINX config with security headers and HSTS
 
@@ -208,8 +256,8 @@ The production NGINX (`nginx/nginx.prod.conf`) provides:
 
 | Endpoint | Purpose | Expected Response |
 |----------|---------|-------------------|
-| `GET /api/v1/health` | Full health check | 200 with database + Redis status |
-| `GET /api/v1/health/ready` | Readiness probe | 200 if all deps OK, 503 if any down |
+| `GET /api/v1/health` | Full health check | 200 with database status |
+| `GET /api/v1/health/ready` | Readiness probe | 200 if database OK, 503 if down |
 | `GET /api/v1/health/live` | Liveness probe | Always 200 (process alive) |
 
 Health endpoints are exempt from rate limiting (via `@SkipThrottle()`).
@@ -257,19 +305,6 @@ pg_dump "$DATABASE_URL" | gzip > backup_$(date +%Y%m%d_%H%M%S).sql.gz
 # Restore from backup
 psql "$DATABASE_URL" < backup_20260228_120000.sql
 ```
-
-### Redis
-
-Redis data is persisted via `appendonly yes` mode. The Docker volume `redis_data` stores the append-only file.
-
-```bash
-# Backup Redis data volume
-docker compose -f docker-compose.prod.yml stop redis
-docker cp $(docker compose -f docker-compose.prod.yml ps -q redis):/data ./redis_backup_$(date +%Y%m%d)
-docker compose -f docker-compose.prod.yml start redis
-```
-
-In practice, Redis data (OTPs, cache) is ephemeral and does not require regular backups. The cache rebuilds automatically.
 
 ### Media (Cloudinary)
 
@@ -365,12 +400,6 @@ To run multiple API containers behind NGINX:
 - Set `DATABASE_URL` to the pooled connection string
 - Recommended pool size: 20-50 connections depending on API replicas
 
-### Redis
-
-- For high availability, consider Redis Sentinel or Redis Cluster
-- Upstash Redis is a good managed alternative for production
-- Current memory limit: 256MB with `allkeys-lru` eviction policy
-
 ### CDN
 
 - Cloudinary serves as the image CDN (product images, banners)
@@ -409,16 +438,6 @@ docker compose -f docker-compose.prod.yml exec api sh -c 'npx prisma db execute 
 
 # Check if DATABASE_URL is correct
 docker compose -f docker-compose.prod.yml exec api sh -c 'echo $DATABASE_URL'
-```
-
-### Redis Connection Issues
-
-```bash
-# Test Redis from inside the container
-docker compose -f docker-compose.prod.yml exec redis redis-cli -a "$REDIS_PASSWORD" ping
-
-# Check Redis memory usage
-docker compose -f docker-compose.prod.yml exec redis redis-cli -a "$REDIS_PASSWORD" info memory
 ```
 
 ### SSL Certificate Issues
