@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Prevent direct pushes to main — enforces the PR-from-develop workflow.
+# To bypass (emergencies only): git push --no-verify
+protected_branch="main"
+remote="$1"
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  if [[ "$remote_ref" == "refs/heads/${protected_branch}" ]]; then
+    echo "✗ Direct pushes to '${protected_branch}' are not allowed on this repo."
+    echo "  Workflow: commit on 'develop', push develop, then open a PR to 'main'."
+    echo "  Override once (emergencies): git push --no-verify"
+    exit 1
+  fi
+done
+exit 0
