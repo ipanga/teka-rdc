@@ -94,15 +94,25 @@ export class MessagingService {
         throw new NotFoundException('Conversation non trouvée');
       }
 
-      if (conversation.buyerId !== senderId && conversation.sellerId !== senderId) {
-        throw new ForbiddenException("Vous n'êtes pas un participant de cette conversation");
+      if (
+        conversation.buyerId !== senderId &&
+        conversation.sellerId !== senderId
+      ) {
+        throw new ForbiddenException(
+          "Vous n'êtes pas un participant de cette conversation",
+        );
       }
     } else if (dto.sellerId) {
       if (dto.sellerId === senderId) {
-        throw new BadRequestException('Vous ne pouvez pas démarrer une conversation avec vous-même');
+        throw new BadRequestException(
+          'Vous ne pouvez pas démarrer une conversation avec vous-même',
+        );
       }
 
-      const conversation = await this.getOrCreateConversation(senderId, dto.sellerId);
+      const conversation = await this.getOrCreateConversation(
+        senderId,
+        dto.sellerId,
+      );
       conversationId = conversation.id;
     } else {
       throw new BadRequestException(
@@ -114,7 +124,7 @@ export class MessagingService {
     const [message] = await this.prisma.$transaction([
       this.prisma.message.create({
         data: {
-          conversationId: conversationId!,
+          conversationId: conversationId,
           senderId,
           content: dto.content,
         },
@@ -130,7 +140,7 @@ export class MessagingService {
         },
       }),
       this.prisma.conversation.update({
-        where: { id: conversationId! },
+        where: { id: conversationId },
         data: { lastMessageAt: new Date() },
       }),
     ]);
@@ -141,7 +151,7 @@ export class MessagingService {
 
     return {
       ...message,
-      conversationId: conversationId!,
+      conversationId: conversationId,
     };
   }
 

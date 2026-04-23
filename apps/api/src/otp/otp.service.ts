@@ -1,4 +1,10 @@
-import { Injectable, Logger, BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  BadRequestException,
+  HttpException,
+  HttpStatus,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomInt, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -20,7 +26,8 @@ export class OtpService {
     private emailService: EmailService,
     private configService: ConfigService,
   ) {
-    this.otpExpirySeconds = (this.configService.get<number>('OTP_EXPIRY_MINUTES', 5)) * 60;
+    this.otpExpirySeconds =
+      this.configService.get<number>('OTP_EXPIRY_MINUTES', 5) * 60;
     this.isDev = this.configService.get<string>('NODE_ENV') === 'development';
   }
 
@@ -64,7 +71,9 @@ export class OtpService {
     });
 
     // Add rate limit entry
-    const rateLimitExpiresAt = new Date(now.getTime() + this.rateLimitWindowSeconds * 1000);
+    const rateLimitExpiresAt = new Date(
+      now.getTime() + this.rateLimitWindowSeconds * 1000,
+    );
     await this.prisma.otpRateLimit.create({
       data: {
         phone,
@@ -81,7 +90,9 @@ export class OtpService {
 
     if (wantsEmail) {
       if (!email) {
-        throw new BadRequestException('Aucun email fourni pour l\'envoi du code');
+        throw new BadRequestException(
+          "Aucun email fourni pour l'envoi du code",
+        );
       }
       await this.emailService.sendOtpEmail(email, code);
     }
@@ -107,7 +118,9 @@ export class OtpService {
     });
 
     if (!otp) {
-      throw new BadRequestException('Code expiré ou non demandé. Veuillez en demander un nouveau.');
+      throw new BadRequestException(
+        'Code expiré ou non demandé. Veuillez en demander un nouveau.',
+      );
     }
 
     // Brute force protection

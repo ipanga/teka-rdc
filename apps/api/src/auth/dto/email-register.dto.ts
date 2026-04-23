@@ -11,14 +11,22 @@ import { Transform } from 'class-transformer';
 
 export class EmailRegisterDto {
   @IsEmail({}, { message: 'Adresse email invalide' })
-  @Transform(({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   email: string;
 
   @IsString()
-  @MinLength(8, { message: 'Le mot de passe doit contenir au moins 8 caractères' })
+  @MinLength(8, {
+    message: 'Le mot de passe doit contenir au moins 8 caractères',
+  })
   @MaxLength(72, { message: 'Le mot de passe ne peut dépasser 72 caractères' })
-  @Matches(/[A-Za-z]/, { message: 'Le mot de passe doit contenir au moins une lettre' })
-  @Matches(/\d/, { message: 'Le mot de passe doit contenir au moins un chiffre' })
+  @Matches(/[A-Za-z]/, {
+    message: 'Le mot de passe doit contenir au moins une lettre',
+  })
+  @Matches(/\d/, {
+    message: 'Le mot de passe doit contenir au moins un chiffre',
+  })
   password: string;
 
   @IsString()

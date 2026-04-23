@@ -12,7 +12,9 @@ export class MockPaymentProvider implements PaymentProvider {
   private readonly logger = new Logger(MockPaymentProvider.name);
   private readonly pendingPayments = new Map<string, InitiatePaymentInput>();
 
-  async initiatePayment(input: InitiatePaymentInput): Promise<InitiatePaymentResult> {
+  async initiatePayment(
+    input: InitiatePaymentInput,
+  ): Promise<InitiatePaymentResult> {
     const externalReference = `MOCK-${randomUUID().slice(0, 8).toUpperCase()}`;
 
     this.pendingPayments.set(externalReference, input);
@@ -21,7 +23,10 @@ export class MockPaymentProvider implements PaymentProvider {
     );
 
     // Auto-expire after 5 minutes
-    setTimeout(() => this.pendingPayments.delete(externalReference), 5 * 60 * 1000);
+    setTimeout(
+      () => this.pendingPayments.delete(externalReference),
+      5 * 60 * 1000,
+    );
 
     return {
       externalReference,
@@ -37,7 +42,9 @@ export class MockPaymentProvider implements PaymentProvider {
   parseWebhookPayload(rawBody: unknown): WebhookPayload {
     const body = rawBody as Record<string, unknown>;
     return {
-      externalReference: String(body.externalReference ?? body.orderNumber ?? ''),
+      externalReference: String(
+        body.externalReference ?? body.orderNumber ?? '',
+      ),
       status: body.status === 'FAILED' ? 'FAILED' : 'COMPLETED',
       amountPaid: body.amount ? Number(body.amount) : undefined,
       rawBody,

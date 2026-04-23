@@ -1,4 +1,12 @@
-import { Controller, Get, Patch, Param, Body, Query, ParseUUIDPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Param,
+  Body,
+  Query,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { AdminUsersService } from './admin-users.service';
 import { SearchUsersDto } from './dto/search-users.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';

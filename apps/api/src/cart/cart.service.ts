@@ -101,7 +101,9 @@ export class CartService {
 
     // Check if updating existing item — validate total quantity doesn't exceed stock
     const existingItem = await this.prisma.cartItem.findUnique({
-      where: { cartId_productId: { cartId: cart.id, productId: dto.productId } },
+      where: {
+        cartId_productId: { cartId: cart.id, productId: dto.productId },
+      },
     });
 
     const newQuantity = existingItem
@@ -388,7 +390,7 @@ export class CartService {
     }
 
     if (product.status !== ProductStatus.ACTIVE) {
-      throw new BadRequestException('Ce produit n\'est plus disponible');
+      throw new BadRequestException("Ce produit n'est plus disponible");
     }
 
     return product;

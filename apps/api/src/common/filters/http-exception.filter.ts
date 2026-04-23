@@ -51,7 +51,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
         method: request.method,
         url: request.url,
         userId: (request as any).user?.sub || 'anonymous',
-        error: exception instanceof Error ? exception.message : String(exception),
+        error:
+          exception instanceof Error ? exception.message : String(exception),
         stack: exception instanceof Error ? exception.stack : undefined,
       });
       // TODO: Sentry.captureException(exception);

@@ -14,9 +14,7 @@ import { AttributeType } from '@prisma/client';
 export class CategoriesService {
   private readonly logger = new Logger(CategoriesService.name);
 
-  constructor(
-    private prisma: PrismaService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   /**
    * Returns the full category tree (up to 3 levels deep).
@@ -116,8 +114,6 @@ export class CategoriesService {
       },
     });
 
-
-
     return category;
   }
 
@@ -134,7 +130,10 @@ export class CategoriesService {
     }
 
     // If changing parent, validate depth
-    if (dto.parentCategoryId !== undefined && dto.parentCategoryId !== category.parentCategoryId) {
+    if (
+      dto.parentCategoryId !== undefined &&
+      dto.parentCategoryId !== category.parentCategoryId
+    ) {
       if (dto.parentCategoryId) {
         const parent = await this.prisma.category.findUnique({
           where: { id: dto.parentCategoryId, deletedAt: null },
@@ -162,8 +161,12 @@ export class CategoriesService {
       where: { id },
       data: {
         ...(dto.name !== undefined && { name: dto.name as any }),
-        ...(dto.description !== undefined && { description: dto.description as any }),
-        ...(dto.parentCategoryId !== undefined && { parentCategoryId: dto.parentCategoryId }),
+        ...(dto.description !== undefined && {
+          description: dto.description as any,
+        }),
+        ...(dto.parentCategoryId !== undefined && {
+          parentCategoryId: dto.parentCategoryId,
+        }),
         ...(dto.emoji !== undefined && { emoji: dto.emoji }),
         ...(dto.sortOrder !== undefined && { sortOrder: dto.sortOrder }),
         ...(dto.isActive !== undefined && { isActive: dto.isActive }),
@@ -175,8 +178,6 @@ export class CategoriesService {
         },
       },
     });
-
-
 
     return updated;
   }
@@ -219,8 +220,6 @@ export class CategoriesService {
       where: { id: { in: idsToDelete } },
       data: { deletedAt: now },
     });
-
-
 
     return { message: 'Catégorie supprimée avec succès' };
   }

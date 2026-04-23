@@ -16,7 +16,9 @@ export class CreateBroadcastDto {
 
   @IsString({ message: 'Le message est requis' })
   @IsNotEmpty({ message: 'Le message ne peut pas être vide' })
-  @MaxLength(160, { message: 'Le message ne peut pas dépasser 160 caractères (limite SMS)' })
+  @MaxLength(160, {
+    message: 'Le message ne peut pas dépasser 160 caractères (limite SMS)',
+  })
   message: string;
 
   @IsString({ message: 'Le segment est requis' })

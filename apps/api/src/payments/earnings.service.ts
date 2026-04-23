@@ -45,7 +45,9 @@ export class EarningsService {
     });
 
     if (!order || !order.seller?.sellerProfile) {
-      this.logger.warn(`Cannot create earning: order ${orderId} not found or seller has no profile`);
+      this.logger.warn(
+        `Cannot create earning: order ${orderId} not found or seller has no profile`,
+      );
       return;
     }
 

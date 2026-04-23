@@ -5,7 +5,7 @@ const PAYOUT_METHODS = ['M_PESA', 'AIRTEL_MONEY', 'ORANGE_MONEY'] as const;
 export class RequestPayoutDto {
   @IsEnum(PAYOUT_METHODS, {
     message:
-      'La méthode de paiement doit être l\'une des suivantes : M_PESA, AIRTEL_MONEY, ORANGE_MONEY',
+      "La méthode de paiement doit être l'une des suivantes : M_PESA, AIRTEL_MONEY, ORANGE_MONEY",
   })
   @IsNotEmpty({ message: 'La méthode de paiement est requise' })
   payoutMethod: string;

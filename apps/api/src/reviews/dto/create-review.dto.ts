@@ -5,13 +5,18 @@ import {
   IsOptional,
   IsString,
   MaxLength,
-Matches, } from 'class-validator';
+  Matches,
+} from 'class-validator';
 
 export class CreateReviewDto {
-  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'ID produit invalide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
+    message: 'ID produit invalide',
+  })
   productId: string;
 
-  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'ID commande invalide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
+    message: 'ID commande invalide',
+  })
   orderId: string;
 
   @IsInt({ message: 'La note doit être un nombre entier' })

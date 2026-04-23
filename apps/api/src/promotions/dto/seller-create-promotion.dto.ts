@@ -8,7 +8,8 @@ import {
   IsObject,
   IsString,
   ValidateNested,
-Matches, } from 'class-validator';
+  Matches,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { PromotionType } from '@prisma/client';
 
@@ -55,6 +56,8 @@ export class SellerCreatePromotionDto {
   @IsDateString({}, { message: 'La date de fin doit être au format ISO' })
   endsAt: string;
 
-  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'ID produit requis et invalide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
+    message: 'ID produit requis et invalide',
+  })
   productId: string;
 }

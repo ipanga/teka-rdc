@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { SmsProvider, SmsSendResult } from '../interfaces/sms-provider.interface';
+import type {
+  SmsProvider,
+  SmsSendResult,
+} from '../interfaces/sms-provider.interface';
 
 interface CachedToken {
   accessToken: string;
@@ -21,7 +24,10 @@ export class OrangeDrcSmsProvider implements SmsProvider {
     this.clientId = configService.get<string>('ORANGE_CLIENT_ID', '');
     this.clientSecret = configService.get<string>('ORANGE_CLIENT_SECRET', '');
     this.senderAddress = configService.get<string>('ORANGE_SENDER_ADDRESS', '');
-    this.apiBase = configService.get<string>('ORANGE_API_BASE', 'https://api.orange.com');
+    this.apiBase = configService.get<string>(
+      'ORANGE_API_BASE',
+      'https://api.orange.com',
+    );
   }
 
   async sendSms(phone: string, message: string): Promise<SmsSendResult> {
@@ -42,11 +48,18 @@ export class OrangeDrcSmsProvider implements SmsProvider {
         `Orange SMS send failed for ${phone}`,
         error instanceof Error ? error.message : error,
       );
-      return { ok: false, error: error instanceof Error ? error.message : 'unknown' };
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : 'unknown',
+      };
     }
   }
 
-  private async doSend(phone: string, message: string, isRetry: boolean): Promise<SmsSendResult> {
+  private async doSend(
+    phone: string,
+    message: string,
+    isRetry: boolean,
+  ): Promise<SmsSendResult> {
     const token = await this.getAccessToken();
     const url = `${this.apiBase}/smsmessaging/v1/outbound/${encodeURIComponent(
       this.senderAddress,
@@ -76,7 +89,9 @@ export class OrangeDrcSmsProvider implements SmsProvider {
 
     if (!response.ok) {
       const errorText = await response.text();
-      this.logger.error(`Orange SMS API error: ${response.status} - ${errorText}`);
+      this.logger.error(
+        `Orange SMS API error: ${response.status} - ${errorText}`,
+      );
       return { ok: false, error: `HTTP ${response.status}` };
     }
 
@@ -85,7 +100,9 @@ export class OrangeDrcSmsProvider implements SmsProvider {
     } = await response.json();
     const resourceURL = data.outboundSMSMessageRequest?.resourceURL;
     const messageId = resourceURL?.split('/').pop();
-    this.logger.log(`SMS sent to ${phone} via Orange DRC: ${messageId ?? 'ok'}`);
+    this.logger.log(
+      `SMS sent to ${phone} via Orange DRC: ${messageId ?? 'ok'}`,
+    );
     return { ok: true, messageId };
   }
 
@@ -95,7 +112,9 @@ export class OrangeDrcSmsProvider implements SmsProvider {
       return this.tokenCache.accessToken;
     }
 
-    const basic = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
+    const basic = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString(
+      'base64',
+    );
     const response = await fetch(`${this.apiBase}/oauth/v3/token`, {
       method: 'POST',
       headers: {
@@ -108,10 +127,13 @@ export class OrangeDrcSmsProvider implements SmsProvider {
 
     if (!response.ok) {
       const errorText = await response.text();
-      throw new Error(`Orange OAuth token request failed: ${response.status} - ${errorText}`);
+      throw new Error(
+        `Orange OAuth token request failed: ${response.status} - ${errorText}`,
+      );
     }
 
-    const data: { access_token: string; expires_in: number } = await response.json();
+    const data: { access_token: string; expires_in: number } =
+      await response.json();
     this.tokenCache = {
       accessToken: data.access_token,
       expiresAt: now + data.expires_in * 1000,

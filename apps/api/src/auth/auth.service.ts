@@ -53,7 +53,10 @@ export class AuthService {
   private googleAudiences(): string[] {
     const web = this.configService.get<string>('GOOGLE_WEB_CLIENT_ID', '');
     const ios = this.configService.get<string>('GOOGLE_IOS_CLIENT_ID', '');
-    const android = this.configService.get<string>('GOOGLE_ANDROID_CLIENT_ID', '');
+    const android = this.configService.get<string>(
+      'GOOGLE_ANDROID_CLIENT_ID',
+      '',
+    );
     return [web, ios, android].filter((v) => !!v);
   }
 
@@ -79,7 +82,9 @@ export class AuthService {
   async register(dto: RegisterDto) {
     await this.otpService.verifyOtp(dto.phone, dto.code);
 
-    const existing = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
+    const existing = await this.prisma.user.findUnique({
+      where: { phone: dto.phone },
+    });
     if (existing) {
       throw new ConflictException('Un compte avec ce numéro existe déjà');
     }
@@ -113,17 +118,24 @@ export class AuthService {
       where: { phone, deletedAt: null },
     });
     if (!user) {
-      throw new BadRequestException('Aucun compte trouvé avec ce numéro. Veuillez vous inscrire.');
+      throw new BadRequestException(
+        'Aucun compte trouvé avec ce numéro. Veuillez vous inscrire.',
+      );
     }
     if (user.status === 'SUSPENDED' || user.status === 'BANNED') {
       throw new ForbiddenException('Votre compte a été suspendu.');
     }
 
     // Seller migration guard — sellers must use email/password going forward.
-    if (user.role === 'SELLER' && user.authProvider === 'PHONE_OTP' && !user.passwordHash) {
+    if (
+      user.role === 'SELLER' &&
+      user.authProvider === 'PHONE_OTP' &&
+      !user.passwordHash
+    ) {
       throw new ConflictException({
         code: 'SELLER_MIGRATION_REQUIRED',
-        message: 'Les vendeurs doivent désormais se connecter par email. Consultez votre boîte mail pour configurer votre mot de passe.',
+        message:
+          'Les vendeurs doivent désormais se connecter par email. Consultez votre boîte mail pour configurer votre mot de passe.',
         redirect: '/seller/migrate',
       });
     }
@@ -142,7 +154,9 @@ export class AuthService {
   // ---------------------------------------------------------------------------
 
   async registerWithEmail(dto: EmailRegisterDto) {
-    const existing = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    const existing = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
     if (existing) {
       throw new ConflictException('Un compte avec cet email existe déjà');
     }
@@ -194,7 +208,10 @@ export class AuthService {
 
     // Constant-time fail to avoid user enumeration
     if (!user || !user.passwordHash) {
-      await verifyPassword(dto.password, '$2b$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidinv');
+      await verifyPassword(
+        dto.password,
+        '$2b$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidinv',
+      );
       throw new UnauthorizedException('Email ou mot de passe invalide');
     }
 
@@ -234,7 +251,9 @@ export class AuthService {
       });
       payload = ticket.getPayload();
     } catch (error) {
-      this.logger.warn(`Google idToken verification failed: ${error instanceof Error ? error.message : error}`);
+      this.logger.warn(
+        `Google idToken verification failed: ${error instanceof Error ? error.message : error}`,
+      );
       throw new UnauthorizedException('Jeton Google invalide');
     }
 
@@ -358,7 +377,9 @@ export class AuthService {
       throw new BadRequestException('Aucun compte trouvé avec ce numéro');
     }
     if (user.role !== 'SELLER') {
-      throw new ForbiddenException('Ce numéro n\'appartient pas à un compte vendeur');
+      throw new ForbiddenException(
+        "Ce numéro n'appartient pas à un compte vendeur",
+      );
     }
 
     // If a different user already owns this email, block
@@ -366,7 +387,9 @@ export class AuthService {
       where: { email: dto.email, deletedAt: null },
     });
     if (emailOwner && emailOwner.id !== user.id) {
-      throw new ConflictException('Cet email est déjà utilisé par un autre compte');
+      throw new ConflictException(
+        'Cet email est déjà utilisé par un autre compte',
+      );
     }
 
     const updated = await this.prisma.user.update({
@@ -426,8 +449,14 @@ export class AuthService {
       }),
     ]);
 
-    const refreshed = await this.prisma.user.findUnique({ where: { id: user.id } });
-    const tokens = await this.generateTokens(refreshed!.id, refreshed!.role, refreshed!.phone);
+    const refreshed = await this.prisma.user.findUnique({
+      where: { id: user.id },
+    });
+    const tokens = await this.generateTokens(
+      refreshed!.id,
+      refreshed!.role,
+      refreshed!.phone,
+    );
     await this.prisma.user.update({
       where: { id: refreshed!.id },
       data: { lastLoginAt: new Date() },
@@ -437,13 +466,22 @@ export class AuthService {
   }
 
   private async sendSellerSetupLink(userId: string, email: string) {
-    const expiryHours = this.configService.get<number>('SELLER_SETUP_EXPIRY_HOURS', 24);
+    const expiryHours = this.configService.get<number>(
+      'SELLER_SETUP_EXPIRY_HOURS',
+      24,
+    );
     const token = this.jwtService.sign(
       { sub: userId, type: 'seller_password_setup' },
-      { secret: this.configService.get('JWT_SECRET'), expiresIn: `${expiryHours}h` },
+      {
+        secret: this.configService.get('JWT_SECRET'),
+        expiresIn: `${expiryHours}h`,
+      },
     );
 
-    const sellerWebUrl = this.configService.get('SELLER_WEB_URL', 'http://localhost:5100');
+    const sellerWebUrl = this.configService.get(
+      'SELLER_WEB_URL',
+      'http://localhost:5100',
+    );
     const setupUrl = `${sellerWebUrl}/seller/setup-password?token=${token}`;
 
     await this.prisma.sellerMigration.upsert({
@@ -466,7 +504,10 @@ export class AuthService {
 
     // Always respond 200 regardless of existence (avoid enumeration)
     if (user && user.passwordHash) {
-      const expiryMinutes = this.configService.get<number>('PASSWORD_RESET_EXPIRY_MINUTES', 60);
+      const expiryMinutes = this.configService.get<number>(
+        'PASSWORD_RESET_EXPIRY_MINUTES',
+        60,
+      );
       const { raw, hash } = generateResetToken();
       await this.prisma.passwordResetToken.create({
         data: {
@@ -481,10 +522,15 @@ export class AuthService {
       const resetUrl = `${baseUrl}/reset-password?token=${raw}`;
       await this.emailService.sendPasswordResetEmail(user.email!, resetUrl);
     } else {
-      this.logger.log(`Password reset requested for unknown email: ${dto.email}`);
+      this.logger.log(
+        `Password reset requested for unknown email: ${dto.email}`,
+      );
     }
 
-    return { message: 'Si un compte existe, un email de réinitialisation a été envoyé.' };
+    return {
+      message:
+        'Si un compte existe, un email de réinitialisation a été envoyé.',
+    };
   }
 
   async confirmPasswordReset(dto: PasswordResetConfirmDto) {
@@ -499,7 +545,9 @@ export class AuthService {
     });
 
     if (!record) {
-      throw new BadRequestException('Lien de réinitialisation invalide ou expiré');
+      throw new BadRequestException(
+        'Lien de réinitialisation invalide ou expiré',
+      );
     }
 
     const rounds = this.configService.get<number>('BCRYPT_ROUNDS', 12);
@@ -549,13 +597,18 @@ export class AuthService {
 
       if (!storedToken || storedToken.revokedAt) {
         if (storedToken?.revokedAt) {
-          this.logger.warn(`Token replay detected for user ${payload.sub}. Revoking all tokens.`);
+          this.logger.warn(
+            `Token replay detected for user ${payload.sub}. Revoking all tokens.`,
+          );
           await this.revokeAllUserTokens(payload.sub);
         }
         throw new UnauthorizedException('Token révoqué ou invalide');
       }
 
-      const hashMatches = await bcrypt.compare(refreshToken, storedToken.tokenHash);
+      const hashMatches = await bcrypt.compare(
+        refreshToken,
+        storedToken.tokenHash,
+      );
       if (!hashMatches) {
         throw new UnauthorizedException('Token invalide');
       }
@@ -574,7 +627,10 @@ export class AuthService {
 
       return this.generateTokens(user.id, user.role, user.phone);
     } catch (error) {
-      if (error instanceof UnauthorizedException || error instanceof ForbiddenException) {
+      if (
+        error instanceof UnauthorizedException ||
+        error instanceof ForbiddenException
+      ) {
         throw error;
       }
       throw new UnauthorizedException('Token expiré ou invalide');
@@ -647,7 +703,11 @@ export class AuthService {
   // Internals
   // ---------------------------------------------------------------------------
 
-  private async generateTokens(userId: string, role: string, phone: string): Promise<AuthTokens> {
+  private async generateTokens(
+    userId: string,
+    role: string,
+    phone: string,
+  ): Promise<AuthTokens> {
     const tokenId = randomUUID();
     const payload = { sub: userId, role, phone, jti: tokenId };
 

@@ -36,7 +36,12 @@ export class AdminOrdersController {
     @CurrentUser('userId') adminId: string,
     @Body() dto: ForceStatusDto,
   ) {
-    return this.adminOrdersService.forceStatusChange(id, dto.status, adminId, dto.note);
+    return this.adminOrdersService.forceStatusChange(
+      id,
+      dto.status,
+      adminId,
+      dto.note,
+    );
   }
 
   @Post(':id/cancel')
@@ -45,6 +50,10 @@ export class AdminOrdersController {
     @CurrentUser('userId') adminId: string,
     @Body() dto: CancelOrderDto,
   ) {
-    return this.adminOrdersService.adminCancelOrder(id, adminId, dto.reason ?? '');
+    return this.adminOrdersService.adminCancelOrder(
+      id,
+      adminId,
+      dto.reason ?? '',
+    );
   }
 }

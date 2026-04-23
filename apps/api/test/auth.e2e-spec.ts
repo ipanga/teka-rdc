@@ -1,10 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import {
-  createTestApp,
-  resetMocks,
-  mockPrismaService,
-} from './test-utils';
+import { createTestApp, resetMocks, mockPrismaService } from './test-utils';
 
 describe('Auth (e2e)', () => {
   let app: INestApplication;
@@ -273,9 +269,7 @@ describe('Auth (e2e)', () => {
   // ---------------------------------------------------------------------------
   describe('GET /api/v1/auth/me', () => {
     it('should return 401 without a token', () => {
-      return request(app.getHttpServer())
-        .get('/api/v1/auth/me')
-        .expect(401);
+      return request(app.getHttpServer()).get('/api/v1/auth/me').expect(401);
     });
 
     it('should return 401 with an invalid Bearer token', () => {

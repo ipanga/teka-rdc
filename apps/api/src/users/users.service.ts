@@ -34,7 +34,10 @@ export class UsersService {
       data: {
         ...(dto.firstName !== undefined && { firstName: dto.firstName }),
         ...(dto.lastName !== undefined && { lastName: dto.lastName }),
-        ...(dto.email !== undefined && { email: dto.email, emailVerified: false }),
+        ...(dto.email !== undefined && {
+          email: dto.email,
+          emailVerified: false,
+        }),
         ...(dto.locale !== undefined && { locale: dto.locale }),
         ...(dto.avatar !== undefined && { avatar: dto.avatar }),
       },

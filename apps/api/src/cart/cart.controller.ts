@@ -24,10 +24,7 @@ export class CartController {
   }
 
   @Post('items')
-  addItem(
-    @CurrentUser('userId') userId: string,
-    @Body() dto: AddToCartDto,
-  ) {
+  addItem(@CurrentUser('userId') userId: string, @Body() dto: AddToCartDto) {
     return this.cartService.addItem(userId, dto);
   }
 

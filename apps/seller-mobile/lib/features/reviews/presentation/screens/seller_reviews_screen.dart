@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../l10n/app_localizations.dart';
-import '../../../products/data/models/product_model.dart';
 import '../../data/models/review_model.dart';
 import '../providers/reviews_provider.dart';
 import '../widgets/review_tile.dart';

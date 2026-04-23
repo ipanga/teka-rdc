@@ -142,7 +142,8 @@ export class OrderNotificationService {
       if (!enriched) return;
 
       const { orderNumber, buyer, seller } = enriched;
-      const displayReason = reason || enriched.cancellationReason || 'Non spécifiée';
+      const displayReason =
+        reason || enriched.cancellationReason || 'Non spécifiée';
 
       const msg =
         `La commande ${orderNumber} a été annulée. ` +

@@ -18,7 +18,22 @@ import { CitiesModule } from '../cities/cities.module';
 
 @Module({
   imports: [PrismaModule, DeliveryZonesModule, CitiesModule],
-  controllers: [AdminUsersController, AdminSellersController, AdminProductsController, AdminDeliveryZonesController, AdminOrdersController, AdminStatsController, AdminReviewsController, AdminCitiesController],
-  providers: [AdminUsersService, AdminProductsService, AdminOrdersService, AdminStatsService, AdminReviewsService],
+  controllers: [
+    AdminUsersController,
+    AdminSellersController,
+    AdminProductsController,
+    AdminDeliveryZonesController,
+    AdminOrdersController,
+    AdminStatsController,
+    AdminReviewsController,
+    AdminCitiesController,
+  ],
+  providers: [
+    AdminUsersService,
+    AdminProductsService,
+    AdminOrdersService,
+    AdminStatsService,
+    AdminReviewsService,
+  ],
 })
 export class AdminModule {}

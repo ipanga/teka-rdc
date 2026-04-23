@@ -144,9 +144,7 @@ export class PayoutsService {
       },
     });
 
-    this.logger.log(
-      `Payout approved: id=${payoutId}, admin=${adminId}`,
-    );
+    this.logger.log(`Payout approved: id=${payoutId}, admin=${adminId}`);
 
     return updated;
   }
@@ -222,10 +220,7 @@ export class PayoutsService {
   /**
    * List payouts for a specific seller (paginated).
    */
-  async listSellerPayouts(
-    sellerProfileId: string,
-    query: PayoutQueryDto,
-  ) {
+  async listSellerPayouts(sellerProfileId: string, query: PayoutQueryDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;

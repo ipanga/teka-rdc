@@ -4,11 +4,14 @@ import {
   IsOptional,
   Max,
   Min,
-Matches, } from 'class-validator';
+  Matches,
+} from 'class-validator';
 
 export class UpsertCommissionDto {
   @IsOptional()
-  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'L\'ID de catégorie est invalide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
+    message: "L'ID de catégorie est invalide",
+  })
   categoryId?: string | null;
 
   @IsNumber(

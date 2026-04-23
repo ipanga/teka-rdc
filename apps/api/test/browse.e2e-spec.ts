@@ -1,10 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import {
-  createTestApp,
-  resetMocks,
-  mockPrismaService,
-} from './test-utils';
+import { createTestApp, resetMocks, mockPrismaService } from './test-utils';
 
 describe('Browse (e2e)', () => {
   let app: INestApplication;
@@ -187,10 +183,14 @@ describe('Browse (e2e)', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // GET /api/v1/browse/products/:id
+  // GET /api/v1/browse/products/:identifier
+  // Route accepts either a UUID or a slug. Non-existent lookups return 404
+  // regardless of format — there's no longer a "reject non-UUID with 400"
+  // code path (that behavior was removed when slug-based product URLs shipped
+  // as part of the city-marketplace upgrade).
   // ---------------------------------------------------------------------------
-  describe('GET /api/v1/browse/products/:id', () => {
-    it('should return 404 for non-existent product', async () => {
+  describe('GET /api/v1/browse/products/:identifier', () => {
+    it('should return 404 for a non-existent UUID', async () => {
       const id = '30000000-0000-0000-0000-000000000999';
       mockPrismaService.product.findUnique.mockResolvedValue(null);
 
@@ -199,10 +199,12 @@ describe('Browse (e2e)', () => {
         .expect(404);
     });
 
-    it('should reject an invalid UUID', () => {
+    it('should return 404 for an unknown slug', async () => {
+      mockPrismaService.product.findUnique.mockResolvedValue(null);
+
       return request(app.getHttpServer())
-        .get('/api/v1/browse/products/not-a-uuid')
-        .expect(400);
+        .get('/api/v1/browse/products/not-a-real-slug')
+        .expect(404);
     });
   });
 

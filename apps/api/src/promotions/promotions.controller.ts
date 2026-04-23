@@ -94,7 +94,11 @@ export class PromotionsController {
     if (!reason || typeof reason !== 'string' || reason.trim().length === 0) {
       throw new BadRequestException('La raison du rejet est requise');
     }
-    const data = await this.promotionsService.reject(id, adminId, reason.trim());
+    const data = await this.promotionsService.reject(
+      id,
+      adminId,
+      reason.trim(),
+    );
     return { success: true, data };
   }
 

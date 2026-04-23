@@ -12,6 +12,8 @@ export class SellerMigrateLinkEmailDto {
   code: string;
 
   @IsEmail({}, { message: 'Adresse email invalide' })
-  @Transform(({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   email: string;
 }

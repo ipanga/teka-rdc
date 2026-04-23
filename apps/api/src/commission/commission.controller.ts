@@ -63,9 +63,7 @@ export class CommissionController {
    */
   @Delete(':categoryId')
   @Roles('ADMIN')
-  async removeOverride(
-    @Param('categoryId', ParseUUIDPipe) categoryId: string,
-  ) {
+  async removeOverride(@Param('categoryId', ParseUUIDPipe) categoryId: string) {
     const data = await this.commissionService.removeOverride(categoryId);
     return { success: true, data };
   }

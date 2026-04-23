@@ -13,9 +13,7 @@ import { UpdateContentDto } from './dto/update-content.dto';
 export class ContentService {
   private readonly logger = new Logger(ContentService.name);
 
-  constructor(
-    private prisma: PrismaService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   /**
    * Get a published content page by its slug.

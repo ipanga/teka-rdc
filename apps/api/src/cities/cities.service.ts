@@ -50,7 +50,12 @@ export class CitiesService {
   /**
    * Admin: create a city.
    */
-  async createCity(data: { name: { fr: string; en?: string }; province: string; isActive?: boolean; sortOrder?: number }) {
+  async createCity(data: {
+    name: { fr: string; en?: string };
+    province: string;
+    isActive?: boolean;
+    sortOrder?: number;
+  }) {
     const city = await this.prisma.city.create({
       data: {
         name: data.name as any,
@@ -66,7 +71,15 @@ export class CitiesService {
   /**
    * Admin: update a city (enable/disable, rename).
    */
-  async updateCity(id: string, data: { name?: { fr: string; en?: string }; province?: string; isActive?: boolean; sortOrder?: number }) {
+  async updateCity(
+    id: string,
+    data: {
+      name?: { fr: string; en?: string };
+      province?: string;
+      isActive?: boolean;
+      sortOrder?: number;
+    },
+  ) {
     const city = await this.prisma.city.findUnique({ where: { id } });
     if (!city) {
       throw new NotFoundException('Ville non trouvée');
@@ -88,7 +101,10 @@ export class CitiesService {
   /**
    * Admin: add a commune to a city.
    */
-  async createCommune(cityId: string, data: { name: { fr: string; en?: string }; sortOrder?: number }) {
+  async createCommune(
+    cityId: string,
+    data: { name: { fr: string; en?: string }; sortOrder?: number },
+  ) {
     const city = await this.prisma.city.findUnique({ where: { id: cityId } });
     if (!city) {
       throw new NotFoundException('Ville non trouvée');
@@ -108,7 +124,10 @@ export class CitiesService {
   /**
    * Admin: update a commune.
    */
-  async updateCommune(id: string, data: { name?: { fr: string; en?: string }; sortOrder?: number }) {
+  async updateCommune(
+    id: string,
+    data: { name?: { fr: string; en?: string }; sortOrder?: number },
+  ) {
     const commune = await this.prisma.commune.findUnique({ where: { id } });
     if (!commune) {
       throw new NotFoundException('Commune non trouvée');

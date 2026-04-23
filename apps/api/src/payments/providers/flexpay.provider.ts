@@ -24,13 +24,21 @@ export class FlexpayProvider implements PaymentProvider {
   private readonly webhookSecret: string;
 
   constructor(configService: ConfigService) {
-    this.apiUrl = configService.get<string>('FLEXPAY_API_URL', 'https://backend.flexpay.cd/api/rest/v1');
+    this.apiUrl = configService.get<string>(
+      'FLEXPAY_API_URL',
+      'https://backend.flexpay.cd/api/rest/v1',
+    );
     this.apiKey = configService.get<string>('FLEXPAY_API_KEY', '');
     this.merchantId = configService.get<string>('FLEXPAY_MERCHANT_ID', '');
-    this.webhookSecret = configService.get<string>('FLEXPAY_WEBHOOK_SECRET', '');
+    this.webhookSecret = configService.get<string>(
+      'FLEXPAY_WEBHOOK_SECRET',
+      '',
+    );
   }
 
-  async initiatePayment(input: InitiatePaymentInput): Promise<InitiatePaymentResult> {
+  async initiatePayment(
+    input: InitiatePaymentInput,
+  ): Promise<InitiatePaymentResult> {
     const body = {
       merchant: this.merchantId,
       type: PROVIDER_TYPE_MAP[input.provider] ?? 1,
@@ -63,7 +71,9 @@ export class FlexpayProvider implements PaymentProvider {
         };
       }
 
-      this.logger.error(`Flexpay payment initiation failed: ${JSON.stringify(data)}`);
+      this.logger.error(
+        `Flexpay payment initiation failed: ${JSON.stringify(data)}`,
+      );
       return {
         externalReference: input.orderNumber,
         status: 'FAILED',

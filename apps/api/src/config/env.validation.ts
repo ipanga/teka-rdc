@@ -79,7 +79,9 @@ export const envValidationSchema = Joi.object({
   CLOUDINARY_API_SECRET: Joi.string().default(''),
 
   // Payment (Flexpay Mobile Money)
-  FLEXPAY_API_URL: Joi.string().default('https://backend.flexpay.cd/api/rest/v1'),
+  FLEXPAY_API_URL: Joi.string().default(
+    'https://backend.flexpay.cd/api/rest/v1',
+  ),
   FLEXPAY_API_KEY: Joi.string().when('NODE_ENV', {
     is: 'production',
     then: Joi.required(),

@@ -1,11 +1,17 @@
 import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
 
-export async function hashPassword(plain: string, rounds: number): Promise<string> {
+export async function hashPassword(
+  plain: string,
+  rounds: number,
+): Promise<string> {
   return bcrypt.hash(plain, rounds);
 }
 
-export async function verifyPassword(plain: string, hash: string): Promise<boolean> {
+export async function verifyPassword(
+  plain: string,
+  hash: string,
+): Promise<boolean> {
   try {
     return await bcrypt.compare(plain, hash);
   } catch {

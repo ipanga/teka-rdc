@@ -1,4 +1,11 @@
-import { IsString, IsOptional, IsBoolean, IsNumber, ValidateNested, MinLength } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsNumber,
+  ValidateNested,
+  MinLength,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 class TranslatableTextDto {

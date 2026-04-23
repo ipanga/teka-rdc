@@ -255,7 +255,7 @@ export class AdminOrdersService {
 
     if (order.status === OrderStatus.DELIVERED) {
       throw new BadRequestException(
-        'Impossible d\'annuler une commande déjà livrée. Utilisez le retour à la place.',
+        "Impossible d'annuler une commande déjà livrée. Utilisez le retour à la place.",
       );
     }
 

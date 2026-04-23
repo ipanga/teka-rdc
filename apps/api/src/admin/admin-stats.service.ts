@@ -32,9 +32,7 @@ export interface DashboardTrends {
 export class AdminStatsService {
   private readonly logger = new Logger(AdminStatsService.name);
 
-  constructor(
-    private prisma: PrismaService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   async getDashboardStats(): Promise<{ success: true; data: DashboardStats }> {
     // Calculate the first day of the current month (UTC)

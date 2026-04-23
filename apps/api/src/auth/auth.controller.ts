@@ -57,7 +57,10 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
+  async register(
+    @Body() dto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const result = await this.authService.register(dto);
     this.setAuthCookies(res, result.tokens);
     return result;
@@ -66,7 +69,10 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() dto: VerifyOtpDto, @Res({ passthrough: true }) res: Response) {
+  async login(
+    @Body() dto: VerifyOtpDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const result = await this.authService.login(dto.phone, dto.code);
     this.setAuthCookies(res, result.tokens);
     return result;
@@ -90,7 +96,10 @@ export class AuthController {
   @Public()
   @Post('login/email')
   @HttpCode(HttpStatus.OK)
-  async loginWithEmail(@Body() dto: EmailLoginDto, @Res({ passthrough: true }) res: Response) {
+  async loginWithEmail(
+    @Body() dto: EmailLoginDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const result = await this.authService.loginWithEmail(dto);
     this.setAuthCookies(res, result.tokens);
     return result;
@@ -99,7 +108,10 @@ export class AuthController {
   @Public()
   @Post('password-reset/request')
   @HttpCode(HttpStatus.OK)
-  async requestPasswordReset(@Body() dto: PasswordResetRequestDto, @Ip() ip: string) {
+  async requestPasswordReset(
+    @Body() dto: PasswordResetRequestDto,
+    @Ip() ip: string,
+  ) {
     return this.authService.requestPasswordReset(dto, ip);
   }
 
@@ -220,7 +232,10 @@ export class AuthController {
   // Cookie helpers
   // ---------------------------------------------------------------------------
 
-  private setAuthCookies(res: Response, tokens: { accessToken: string; refreshToken: string }) {
+  private setAuthCookies(
+    res: Response,
+    tokens: { accessToken: string; refreshToken: string },
+  ) {
     const isProduction = this.configService.get('NODE_ENV') === 'production';
 
     res.cookie('teka_access_token', tokens.accessToken, {

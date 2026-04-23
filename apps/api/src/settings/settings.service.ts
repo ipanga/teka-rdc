@@ -8,9 +8,7 @@ const PUBLIC_SETTING_KEYS = ['MAINTENANCE_MODE', 'PLATFORM_ANNOUNCEMENT'];
 export class SettingsService {
   private readonly logger = new Logger(SettingsService.name);
 
-  constructor(
-    private prisma: PrismaService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   /**
    * Get all system settings. For admin use only.
@@ -91,7 +89,10 @@ export class SettingsService {
     });
 
     // Transform into a key-value map for easier frontend consumption
-    const settingsMap: Record<string, { value: string; type: string; label: unknown }> = {};
+    const settingsMap: Record<
+      string,
+      { value: string; type: string; label: unknown }
+    > = {};
     for (const setting of settings) {
       settingsMap[setting.key] = {
         value: setting.value,

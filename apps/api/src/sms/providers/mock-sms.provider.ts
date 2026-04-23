@@ -1,5 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
-import type { SmsProvider, SmsSendResult } from '../interfaces/sms-provider.interface';
+import type {
+  SmsProvider,
+  SmsSendResult,
+} from '../interfaces/sms-provider.interface';
 
 @Injectable()
 export class MockSmsProvider implements SmsProvider {

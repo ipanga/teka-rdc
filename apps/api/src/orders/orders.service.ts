@@ -163,7 +163,7 @@ export class OrdersService {
     }
 
     if (order.buyerId !== userId) {
-      throw new ForbiddenException('Vous n\'avez pas accès à cette commande');
+      throw new ForbiddenException("Vous n'avez pas accès à cette commande");
     }
 
     return order;
@@ -182,12 +182,12 @@ export class OrdersService {
     }
 
     if (order.buyerId !== userId) {
-      throw new ForbiddenException('Vous n\'avez pas accès à cette commande');
+      throw new ForbiddenException("Vous n'avez pas accès à cette commande");
     }
 
     if (order.status !== OrderStatus.PENDING) {
       throw new BadRequestException(
-        'Seules les commandes en attente peuvent être annulées par l\'acheteur',
+        "Seules les commandes en attente peuvent être annulées par l'acheteur",
       );
     }
 
@@ -199,7 +199,7 @@ export class OrdersService {
           fromStatus: order.status,
           toStatus: OrderStatus.CANCELLED,
           changedBy: userId,
-          note: reason || 'Annulée par l\'acheteur',
+          note: reason || "Annulée par l'acheteur",
         },
       });
 
@@ -208,7 +208,7 @@ export class OrdersService {
         where: { id: orderId },
         data: {
           status: OrderStatus.CANCELLED,
-          cancellationReason: reason || 'Annulée par l\'acheteur',
+          cancellationReason: reason || "Annulée par l'acheteur",
           cancelledBy: userId,
         },
         include: {
@@ -232,8 +232,10 @@ export class OrdersService {
 
     // Fire-and-forget: notify buyer and seller of cancellation
     this.notificationService
-      .notifyOrderCancelled(updatedOrder, reason || 'Annulée par l\'acheteur')
-      .catch((err) => this.logger.error('Échec de notification d\'annulation', err));
+      .notifyOrderCancelled(updatedOrder, reason || "Annulée par l'acheteur")
+      .catch((err) =>
+        this.logger.error("Échec de notification d'annulation", err),
+      );
 
     return updatedOrder;
   }

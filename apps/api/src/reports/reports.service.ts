@@ -38,8 +38,10 @@ export class ReportsService {
     return orders.map((order) => ({
       date: this.formatDate(order.createdAt),
       orderNumber: order.orderNumber,
-      buyerName: `${order.buyer.firstName ?? ''} ${order.buyer.lastName ?? ''}`.trim(),
-      sellerName: `${order.seller.firstName ?? ''} ${order.seller.lastName ?? ''}`.trim(),
+      buyerName:
+        `${order.buyer.firstName ?? ''} ${order.buyer.lastName ?? ''}`.trim(),
+      sellerName:
+        `${order.seller.firstName ?? ''} ${order.seller.lastName ?? ''}`.trim(),
       itemsCount: order.items.length,
       subtotalCDF: order.subtotalCDF.toString(),
       deliveryFeeCDF: order.deliveryFeeCDF.toString(),
@@ -215,7 +217,8 @@ export class ReportsService {
           ]);
 
         return {
-          sellerName: `${seller.firstName ?? ''} ${seller.lastName ?? ''}`.trim(),
+          sellerName:
+            `${seller.firstName ?? ''} ${seller.lastName ?? ''}`.trim(),
           businessName: seller.sellerProfile?.businessName ?? '',
           totalOrders,
           deliveredOrders,
@@ -285,9 +288,9 @@ export class ReportsService {
   /**
    * Builds a date range filter for createdAt.
    */
-  private buildDateFilter(
-    query: ReportQueryDto,
-  ): { createdAt?: Prisma.DateTimeFilter } {
+  private buildDateFilter(query: ReportQueryDto): {
+    createdAt?: Prisma.DateTimeFilter;
+  } {
     if (!query.dateFrom && !query.dateTo) {
       return {};
     }

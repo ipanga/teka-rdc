@@ -9,7 +9,8 @@ import {
   IsString,
   ValidateNested,
   ValidateIf,
-Matches, } from 'class-validator';
+  Matches,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { PromotionType } from '@prisma/client';
 
@@ -57,14 +58,20 @@ export class CreatePromotionDto {
   endsAt: string;
 
   @IsOptional()
-  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'ID produit invalide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
+    message: 'ID produit invalide',
+  })
   productId?: string;
 
   @IsOptional()
-  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'ID catégorie invalide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
+    message: 'ID catégorie invalide',
+  })
   categoryId?: string;
 
   @IsOptional()
-  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'ID vendeur invalide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
+    message: 'ID vendeur invalide',
+  })
   sellerId?: string;
 }

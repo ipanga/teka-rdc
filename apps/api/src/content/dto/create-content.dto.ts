@@ -6,7 +6,8 @@ import {
   IsEnum,
   IsNotEmpty,
   ValidateNested,
-Matches, } from 'class-validator';
+  Matches,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import { ContentPageStatus } from '@prisma/client';
 import { TranslatableTextDto } from './translatable-text.dto';
@@ -15,7 +16,8 @@ export class CreateContentDto {
   @IsString({ message: 'Le slug doit être une chaîne de caractères' })
   @IsNotEmpty({ message: 'Le slug est obligatoire' })
   @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, {
-    message: 'Le slug ne peut contenir que des lettres minuscules, chiffres et tirets',
+    message:
+      'Le slug ne peut contenir que des lettres minuscules, chiffres et tirets',
   })
   slug: string;
 
