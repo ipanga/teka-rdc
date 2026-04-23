@@ -858,7 +858,6 @@ abstract class AppLocalizations {
   ///
   /// In fr, this message translates to:
   /// **'En livraison'**
-  // ignore: non_constant_identifier_names
   String get orderStatusOUT_FOR_DELIVERY;
 
   /// No description provided for @orderStatusDELIVERED.
@@ -1334,6 +1333,30 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Soumettre pour approbation'**
   String get promotionSubmitForApproval;
+
+  /// No description provided for @productAttributes.
+  ///
+  /// In fr, this message translates to:
+  /// **'Caractéristiques du produit'**
+  String get productAttributes;
+
+  /// No description provided for @selectOption.
+  ///
+  /// In fr, this message translates to:
+  /// **'Sélectionnez...'**
+  String get selectOption;
+
+  /// No description provided for @requiredField.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ce champ est obligatoire'**
+  String get requiredField;
+
+  /// No description provided for @noAttributes.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucune caractéristique pour cette catégorie'**
+  String get noAttributes;
 }
 
 class _AppLocalizationsDelegate

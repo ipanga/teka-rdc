@@ -7,11 +7,12 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
-import { RedisService } from '../redis/redis.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductQueryDto } from './dto/product-query.dto';
 import { ProductCondition, ProductStatus } from '@prisma/client';
+import { randomUUID } from 'crypto';
+import { generateProductSlug } from '../common/utils/slugify';
 
 @Injectable()
 export class ProductsService {
@@ -20,7 +21,6 @@ export class ProductsService {
   constructor(
     private prisma: PrismaService,
     private cloudinary: CloudinaryService,
-    private redis: RedisService,
   ) {}
 
   /**
@@ -55,12 +55,23 @@ export class ProductsService {
     const priceCDF = BigInt(dto.priceCDF);
     const priceUSD = dto.priceUSD ? BigInt(dto.priceUSD) : undefined;
 
+    // Derive cityId: explicit > seller profile > null
+    const cityId = dto.cityId ?? sellerProfile.cityId ?? undefined;
+
+    // Generate product ID and SEO slug
+    const productId = randomUUID();
+    const frTitle = (dto.title as { fr: string }).fr || '';
+    const slug = generateProductSlug(frTitle, productId);
+
     const product = await this.prisma.product.create({
       data: {
+        id: productId,
+        slug,
         title: dto.title as any,
         description: dto.description as any,
         categoryId: dto.categoryId,
         sellerId,
+        cityId,
         priceCDF,
         priceUSD,
         quantity: dto.quantity,
@@ -249,12 +260,7 @@ export class ProductsService {
       });
     });
 
-    // Invalidate browse product detail cache
-    try {
-      await this.redis.del(`browse:product:${productId}`);
-    } catch (err) {
-      this.logger.warn('Redis cache invalidation failed for product detail', err);
-    }
+
 
     return updatedProduct;
   }
@@ -280,12 +286,7 @@ export class ProductsService {
       },
     });
 
-    // Invalidate browse product detail cache
-    try {
-      await this.redis.del(`browse:product:${productId}`);
-    } catch (err) {
-      this.logger.warn('Redis cache invalidation failed for product detail', err);
-    }
+
 
     return archived;
   }
@@ -333,12 +334,7 @@ export class ProductsService {
       },
     });
 
-    // Invalidate browse product detail cache
-    try {
-      await this.redis.del(`browse:product:${productId}`);
-    } catch (err) {
-      this.logger.warn('Redis cache invalidation failed for product detail', err);
-    }
+
 
     return submitted;
   }

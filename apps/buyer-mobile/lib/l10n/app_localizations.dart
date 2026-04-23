@@ -1187,7 +1187,7 @@ abstract class AppLocalizations {
   /// No description provided for @helpCenter.
   ///
   /// In fr, this message translates to:
-  /// **'Centre d'aide'**
+  /// **'Centre d\'aide'**
   String get helpCenter;
 
   /// No description provided for @aboutUs.
@@ -1219,6 +1219,168 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'En savoir plus'**
   String get learnMore;
+
+  /// No description provided for @selectCity.
+  ///
+  /// In fr, this message translates to:
+  /// **'Choisissez votre ville'**
+  String get selectCity;
+
+  /// No description provided for @selectCityDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pour voir les produits disponibles'**
+  String get selectCityDescription;
+
+  /// No description provided for @currentCity.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ville'**
+  String get currentCity;
+
+  /// No description provided for @changeCity.
+  ///
+  /// In fr, this message translates to:
+  /// **'Changer'**
+  String get changeCity;
+
+  /// No description provided for @addAddress.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajouter une adresse'**
+  String get addAddress;
+
+  /// No description provided for @newAddress.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouvelle adresse'**
+  String get newAddress;
+
+  /// No description provided for @cityLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ville'**
+  String get cityLabel;
+
+  /// No description provided for @cityPlaceholder.
+  ///
+  /// In fr, this message translates to:
+  /// **'Selectionnez une ville'**
+  String get cityPlaceholder;
+
+  /// No description provided for @communeLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Commune'**
+  String get communeLabel;
+
+  /// No description provided for @communePlaceholder.
+  ///
+  /// In fr, this message translates to:
+  /// **'Selectionnez une commune'**
+  String get communePlaceholder;
+
+  /// No description provided for @loadingCities.
+  ///
+  /// In fr, this message translates to:
+  /// **'Chargement des villes...'**
+  String get loadingCities;
+
+  /// No description provided for @loadingCommunes.
+  ///
+  /// In fr, this message translates to:
+  /// **'Chargement des communes...'**
+  String get loadingCommunes;
+
+  /// No description provided for @avenueLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Avenue / Rue'**
+  String get avenueLabel;
+
+  /// No description provided for @avenueHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ex: Av. Lumumba n24'**
+  String get avenueHint;
+
+  /// No description provided for @referenceLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Point de repere'**
+  String get referenceLabel;
+
+  /// No description provided for @referenceHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ex: En face de la pharmacie'**
+  String get referenceHint;
+
+  /// No description provided for @recipientNameLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nom du destinataire'**
+  String get recipientNameLabel;
+
+  /// No description provided for @recipientNameHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nom complet'**
+  String get recipientNameHint;
+
+  /// No description provided for @recipientPhoneLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Telephone du destinataire'**
+  String get recipientPhoneLabel;
+
+  /// No description provided for @recipientPhoneHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'+243...'**
+  String get recipientPhoneHint;
+
+  /// No description provided for @saveAddress.
+  ///
+  /// In fr, this message translates to:
+  /// **'Enregistrer'**
+  String get saveAddress;
+
+  /// No description provided for @savingAddress.
+  ///
+  /// In fr, this message translates to:
+  /// **'Enregistrement...'**
+  String get savingAddress;
+
+  /// No description provided for @addressSaved.
+  ///
+  /// In fr, this message translates to:
+  /// **'Adresse enregistree'**
+  String get addressSaved;
+
+  /// No description provided for @addressError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Erreur lors de l\'enregistrement'**
+  String get addressError;
+
+  /// No description provided for @cityRequired.
+  ///
+  /// In fr, this message translates to:
+  /// **'Selectionnez une ville'**
+  String get cityRequired;
+
+  /// No description provided for @communeRequired.
+  ///
+  /// In fr, this message translates to:
+  /// **'Selectionnez une commune'**
+  String get communeRequired;
+
+  /// No description provided for @cancel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Annuler'**
+  String get cancel;
 }
 
 class _AppLocalizationsDelegate

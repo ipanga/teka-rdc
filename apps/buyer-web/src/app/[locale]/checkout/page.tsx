@@ -18,7 +18,9 @@ import type {
   CheckoutRequest,
   CheckoutResponse,
   DeliveryEstimate,
+  Commune,
 } from '@/lib/types';
+import type { City } from '@/lib/city-store';
 import Image from 'next/image';
 
 type CheckoutStep = 'address' | 'payment' | 'review';
@@ -44,6 +46,25 @@ export default function CheckoutPage() {
   const [isPlacing, setIsPlacing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deliveryFees, setDeliveryFees] = useState<Record<string, string>>({});
+
+  // New address form state
+  const [showNewAddressForm, setShowNewAddressForm] = useState(false);
+  const [cities, setCities] = useState<City[]>([]);
+  const [communes, setCommunes] = useState<Commune[]>([]);
+  const [isLoadingCities, setIsLoadingCities] = useState(false);
+  const [isLoadingCommunes, setIsLoadingCommunes] = useState(false);
+  const [isSavingAddress, setIsSavingAddress] = useState(false);
+  const [newAddr, setNewAddr] = useState({
+    cityId: '',
+    communeId: '',
+    province: '',
+    town: '',
+    neighborhood: '',
+    avenue: '',
+    details: '',
+    recipientName: '',
+    phone: '',
+  });
 
   // Pre-fill payer phone from user profile
   useEffect(() => {
@@ -76,6 +97,107 @@ export default function CheckoutPage() {
       setIsLoadingAddresses(false);
     }
   }
+
+  // Fetch cities when new address form is opened
+  useEffect(() => {
+    if (showNewAddressForm && cities.length === 0) {
+      setIsLoadingCities(true);
+      apiFetch<City[]>('/v1/cities')
+        .then((res) => setCities(res.data))
+        .catch(() => {})
+        .finally(() => setIsLoadingCities(false));
+    }
+  }, [showNewAddressForm, cities.length]);
+
+  // Fetch communes when city changes
+  useEffect(() => {
+    if (!newAddr.cityId) {
+      setCommunes([]);
+      return;
+    }
+    setIsLoadingCommunes(true);
+    setCommunes([]);
+    apiFetch<Commune[]>(`/v1/cities/${newAddr.cityId}/communes`)
+      .then((res) => setCommunes(res.data))
+      .catch(() => {})
+      .finally(() => setIsLoadingCommunes(false));
+  }, [newAddr.cityId]);
+
+  function handleCityChange(cityId: string) {
+    const city = cities.find((c) => c.id === cityId);
+    const cityNameFr = city?.name?.fr || '';
+    const province = city?.province || '';
+    setNewAddr((prev) => ({
+      ...prev,
+      cityId,
+      communeId: '',
+      province,
+      town: cityNameFr,
+      neighborhood: '',
+    }));
+  }
+
+  function handleCommuneChange(communeId: string) {
+    const commune = communes.find((c) => c.id === communeId);
+    const communeNameFr = commune?.name?.fr || '';
+    setNewAddr((prev) => ({
+      ...prev,
+      communeId,
+      neighborhood: communeNameFr,
+    }));
+  }
+
+  async function handleSaveNewAddress() {
+    if (!newAddr.cityId || !newAddr.communeId) return;
+    setIsSavingAddress(true);
+    setError(null);
+    try {
+      const body = {
+        province: newAddr.province,
+        town: newAddr.town,
+        neighborhood: newAddr.neighborhood,
+        avenue: newAddr.avenue || undefined,
+        details: newAddr.details || undefined,
+        recipientName: newAddr.recipientName || undefined,
+        phone: newAddr.phone || undefined,
+        cityId: newAddr.cityId,
+        communeId: newAddr.communeId,
+      };
+      await apiFetch('/v1/addresses', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      });
+      // Reload addresses and close form
+      await loadAddresses();
+      setShowNewAddressForm(false);
+      setNewAddr({
+        cityId: '',
+        communeId: '',
+        province: '',
+        town: '',
+        neighborhood: '',
+        avenue: '',
+        details: '',
+        recipientName: '',
+        phone: '',
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t('addressError');
+      setError(message);
+    } finally {
+      setIsSavingAddress(false);
+    }
+  }
+
+  const getCityName = (city: City) => {
+    if (locale === 'en' && city.name.en) return city.name.en;
+    return city.name.fr;
+  };
+
+  const getCommuneName = (commune: Commune) => {
+    if (locale === 'en' && commune.name.en) return commune.name.en;
+    return commune.name.fr || '';
+  };
 
   // Group items by seller
   const itemsBySeller = useMemo(() => {
@@ -319,54 +441,195 @@ export default function CheckoutPage() {
                 <div className="h-20 bg-muted rounded-lg" />
                 <div className="h-20 bg-muted rounded-lg" />
               </div>
-            ) : addresses.length === 0 ? (
-              <div className="text-center py-8 border border-border rounded-lg">
-                <p className="text-muted-foreground mb-3">{t('noAddresses')}</p>
-                <Link
-                  href="/addresses"
-                  className="text-primary hover:underline text-sm font-medium"
-                >
-                  + {t('selectAddress')}
-                </Link>
-              </div>
             ) : (
-              <div className="space-y-3">
-                {addresses.map((addr) => (
-                  <label
-                    key={addr.id}
-                    className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${
-                      selectedAddressId === addr.id
-                        ? 'border-primary bg-primary/5'
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="address"
-                      value={addr.id}
-                      checked={selectedAddressId === addr.id}
-                      onChange={(e) => setSelectedAddressId(e.target.value)}
-                      className="mt-1 accent-primary"
-                    />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-foreground">{addr.recipientName}</p>
-                      <p className="text-sm text-muted-foreground">{addr.phone}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {addr.neighborhood}, {addr.town}
-                        {addr.avenue ? `, ${addr.avenue}` : ''}
-                      </p>
-                      {addr.details && (
-                        <p className="text-xs text-muted-foreground mt-1">{addr.details}</p>
-                      )}
-                      {addr.isDefault && (
-                        <span className="inline-block mt-1 text-xs text-primary font-medium">
-                          Par defaut
-                        </span>
+              <>
+                {addresses.length === 0 && !showNewAddressForm ? (
+                  <div className="text-center py-8 border border-border rounded-lg">
+                    <p className="text-muted-foreground mb-3">{t('noAddresses')}</p>
+                    <button
+                      onClick={() => setShowNewAddressForm(true)}
+                      className="text-primary hover:underline text-sm font-medium"
+                    >
+                      + {t('addAddress')}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {addresses.map((addr) => (
+                      <label
+                        key={addr.id}
+                        className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-colors ${
+                          selectedAddressId === addr.id
+                            ? 'border-primary bg-primary/5'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="address"
+                          value={addr.id}
+                          checked={selectedAddressId === addr.id}
+                          onChange={(e) => setSelectedAddressId(e.target.value)}
+                          className="mt-1 accent-primary"
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-foreground">{addr.recipientName}</p>
+                          <p className="text-sm text-muted-foreground">{addr.phone}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {addr.neighborhood}, {addr.town}
+                            {addr.avenue ? `, ${addr.avenue}` : ''}
+                          </p>
+                          {addr.details && (
+                            <p className="text-xs text-muted-foreground mt-1">{addr.details}</p>
+                          )}
+                          {addr.isDefault && (
+                            <span className="inline-block mt-1 text-xs text-primary font-medium">
+                              Par defaut
+                            </span>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+
+                    {!showNewAddressForm && (
+                      <button
+                        onClick={() => setShowNewAddressForm(true)}
+                        className="w-full py-3 border-2 border-dashed border-primary/40 rounded-lg text-sm font-medium text-primary hover:bg-primary/5 transition-colors"
+                      >
+                        + {t('addAddress')}
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* New address form with city/commune dropdowns */}
+                {showNewAddressForm && (
+                  <div className="mt-4 p-4 border border-primary/30 rounded-lg bg-primary/[0.02] space-y-4">
+                    <h3 className="text-sm font-semibold text-foreground">{t('newAddress')}</h3>
+
+                    {/* City dropdown */}
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">
+                        {t('cityLabel')} <span className="text-destructive">*</span>
+                      </label>
+                      {isLoadingCities ? (
+                        <p className="text-sm text-muted-foreground">{t('loadingCities')}</p>
+                      ) : (
+                        <select
+                          value={newAddr.cityId}
+                          onChange={(e) => handleCityChange(e.target.value)}
+                          className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                          <option value="">{t('cityPlaceholder')}</option>
+                          {cities.map((city) => (
+                            <option key={city.id} value={city.id}>
+                              {getCityName(city)} ({city.province})
+                            </option>
+                          ))}
+                        </select>
                       )}
                     </div>
-                  </label>
-                ))}
-              </div>
+
+                    {/* Commune dropdown */}
+                    {newAddr.cityId && (
+                      <div>
+                        <label className="block text-sm font-medium text-foreground mb-1.5">
+                          {t('communeLabel')} <span className="text-destructive">*</span>
+                        </label>
+                        {isLoadingCommunes ? (
+                          <p className="text-sm text-muted-foreground">{t('loadingCommunes')}</p>
+                        ) : (
+                          <select
+                            value={newAddr.communeId}
+                            onChange={(e) => handleCommuneChange(e.target.value)}
+                            className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                          >
+                            <option value="">{t('communePlaceholder')}</option>
+                            {communes.map((commune) => (
+                              <option key={commune.id} value={commune.id}>
+                                {getCommuneName(commune)}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Avenue / Street */}
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">
+                        {t('avenueLabel')}
+                      </label>
+                      <input
+                        type="text"
+                        value={newAddr.avenue}
+                        onChange={(e) => setNewAddr((prev) => ({ ...prev, avenue: e.target.value }))}
+                        placeholder={t('avenuePlaceholder')}
+                        className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+
+                    {/* Reference / details */}
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">
+                        {t('referenceLabel')}
+                      </label>
+                      <input
+                        type="text"
+                        value={newAddr.details}
+                        onChange={(e) => setNewAddr((prev) => ({ ...prev, details: e.target.value }))}
+                        placeholder={t('referencePlaceholder')}
+                        className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+
+                    {/* Recipient name */}
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">
+                        {t('recipientNameLabel')}
+                      </label>
+                      <input
+                        type="text"
+                        value={newAddr.recipientName}
+                        onChange={(e) => setNewAddr((prev) => ({ ...prev, recipientName: e.target.value }))}
+                        placeholder={t('recipientNamePlaceholder')}
+                        className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+
+                    {/* Recipient phone */}
+                    <div>
+                      <label className="block text-sm font-medium text-foreground mb-1.5">
+                        {t('recipientPhoneLabel')}
+                      </label>
+                      <input
+                        type="tel"
+                        value={newAddr.phone}
+                        onChange={(e) => setNewAddr((prev) => ({ ...prev, phone: e.target.value }))}
+                        placeholder={t('recipientPhonePlaceholder')}
+                        className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex gap-3 pt-2">
+                      <button
+                        onClick={() => setShowNewAddressForm(false)}
+                        className="flex-1 py-2.5 border border-border text-foreground rounded-lg text-sm font-medium hover:bg-muted transition-colors"
+                      >
+                        {t('cancelNewAddress')}
+                      </button>
+                      <button
+                        onClick={handleSaveNewAddress}
+                        disabled={!newAddr.cityId || !newAddr.communeId || isSavingAddress}
+                        className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        {isSavingAddress ? t('savingAddress') : t('saveAddress')}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             <div className="flex justify-end pt-4">

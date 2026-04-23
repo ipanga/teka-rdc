@@ -17,6 +17,35 @@ class AuthRepository {
     return response.data['data'] ?? response.data;
   }
 
+  /// User-initiated email OTP fallback. Server sends the code via Resend.
+  /// Throws if no email is on file for the phone number.
+  Future<Map<String, dynamic>> requestEmailOtp(String phone) async {
+    final response = await _dio.post(
+      '/v1/auth/otp/request-email',
+      data: {'phone': phone},
+    );
+    return response.data['data'] ?? response.data;
+  }
+
+  /// Google OAuth login. Mobile client obtains the idToken via google_sign_in,
+  /// then exchanges it server-side for Teka cookies + tokens.
+  Future<Map<String, dynamic>> loginWithGoogle(String idToken) async {
+    final response = await _dio.post(
+      '/v1/auth/login/google',
+      data: {'idToken': idToken},
+    );
+    final data = response.data['data'] ?? response.data;
+
+    if (data['tokens'] != null) {
+      await _tokenStorage.saveTokens(
+        data['tokens']['accessToken'],
+        data['tokens']['refreshToken'],
+      );
+    }
+
+    return data;
+  }
+
   Future<Map<String, dynamic>> verifyOtp(String phone, String code) async {
     final response = await _dio.post(
       '/v1/auth/otp/verify',

@@ -9,6 +9,10 @@ COPY apps/buyer-web/package.json ./apps/buyer-web/
 RUN pnpm install --frozen-lockfile
 
 FROM base AS build
+ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID=""
+ARG NEXT_PUBLIC_API_URL="http://localhost:5050/api"
+ENV NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=deps /app/apps/buyer-web/node_modules ./apps/buyer-web/node_modules

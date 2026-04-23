@@ -25,6 +25,7 @@ export function Sidebar() {
     { href: '/dashboard/categories', label: t('categories'), icon: '\u2630' },
     { href: '/dashboard/products', label: t('products'), icon: '\u2610' },
     { href: '/dashboard/orders', label: t('orders'), icon: '\uD83D\uDCE6' },
+    { href: '/dashboard/cities', label: t('cities'), icon: '\uD83C\uDFD9' },
     { href: '/dashboard/delivery-zones', label: t('deliveryZones'), icon: '\uD83D\uDE9A' },
     { href: '/dashboard/transactions', label: t('transactions'), icon: '\uD83D\uDCC4' },
     { href: '/dashboard/payouts', label: t('payouts'), icon: '\uD83D\uDCB5' },

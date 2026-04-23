@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../data/models/attribute_model.dart';
 import '../../data/models/product_model.dart';
 import '../../data/products_repository.dart';
 import '../providers/products_provider.dart';
 import '../widgets/category_selector.dart';
+import '../widgets/dynamic_attribute_field.dart';
 
 class ProductFormScreen extends ConsumerStatefulWidget {
   final SellerProductModel? product;
@@ -32,6 +34,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   String? _selectedCategoryId;
   ProductCondition _condition = ProductCondition.newItem;
   bool _isSaving = false;
+
+  List<AttributeModel> _attributes = [];
+  bool _isLoadingAttributes = false;
+  final Map<String, String> _specValues = {};
 
   bool get _isEditing => widget.product != null;
 
@@ -58,6 +64,41 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     );
     _selectedCategoryId = p?.categoryId;
     _condition = p?.condition ?? ProductCondition.newItem;
+
+    // Initialize spec values from existing product
+    if (p != null && p.specifications.isNotEmpty) {
+      for (final spec in p.specifications) {
+        if (spec.attributeId != null) {
+          _specValues[spec.attributeId!] = spec.value;
+        }
+      }
+    }
+
+    // Load attributes if editing and category is set
+    if (_selectedCategoryId != null) {
+      _loadAttributes(_selectedCategoryId!);
+    }
+  }
+
+  Future<void> _loadAttributes(String categoryId) async {
+    setState(() => _isLoadingAttributes = true);
+    try {
+      final repository = ref.read(productsRepositoryProvider);
+      final attrs = await repository.getCategoryAttributes(categoryId);
+      if (mounted) {
+        setState(() {
+          _attributes = attrs;
+          _isLoadingAttributes = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _attributes = [];
+          _isLoadingAttributes = false;
+        });
+      }
+    }
   }
 
   @override
@@ -91,7 +132,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               onCategorySelected: (cat) {
                 setState(() {
                   _selectedCategoryId = cat.id;
+                  _specValues.clear();
+                  _attributes = [];
                 });
+                _loadAttributes(cat.id);
               },
             ),
             const SizedBox(height: 16),
@@ -239,6 +283,54 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 16),
+
+            // Dynamic Attributes
+            if (_isLoadingAttributes)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_attributes.isNotEmpty) ...[
+              Text(
+                l10n.productAttributes,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: TekaColors.mutedForeground,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              ..._attributes.map((attr) {
+                final locale = Localizations.localeOf(context).languageCode;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: DynamicAttributeField(
+                    attribute: attr,
+                    value: _specValues[attr.id] ?? '',
+                    locale: locale,
+                    onChanged: (v) {
+                      setState(() {
+                        if (v.isEmpty) {
+                          _specValues.remove(attr.id);
+                        } else {
+                          _specValues[attr.id] = v;
+                        }
+                      });
+                    },
+                  ),
+                );
+              }),
+            ] else if (_selectedCategoryId != null && !_isLoadingAttributes)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  l10n.noAttributes,
+                  style: TextStyle(
+                    color: TekaColors.mutedForeground,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+
             const SizedBox(height: 24),
 
             // Save button
@@ -313,6 +405,15 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       };
       if (priceUSDCentimes != null) {
         data['priceUSD'] = priceUSDCentimes;
+      }
+
+      // Add specifications
+      final specs = _specValues.entries
+          .where((e) => e.value.trim().isNotEmpty)
+          .map((e) => {'attributeId': e.key, 'value': e.value})
+          .toList();
+      if (specs.isNotEmpty) {
+        data['specifications'] = specs;
       }
 
       SellerProductModel result;

@@ -1,18 +1,4 @@
 services:
-  # === Redis ===
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   # === API (NestJS) ===
   api:
     build:
@@ -22,12 +8,7 @@ services:
       - "5050:5050"
     env_file:
       - .env.development
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-    depends_on:
-      redis:
-        condition: service_healthy
+    depends_on: []
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:5050/api/v1/health"]
       interval: 30s
@@ -39,10 +20,15 @@ services:
     build:
       context: .
       dockerfile: apps/buyer-web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:5050/api"
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: "${NEXT_PUBLIC_GOOGLE_CLIENT_ID}"
     ports:
-      - "5000:5000"
+      - "5001:5000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8080/api
+      - NEXT_PUBLIC_API_URL=http://localhost:5050/api
+      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
+      - API_INTERNAL_URL=http://api:5050/api
     depends_on:
       - api
 
@@ -51,10 +37,14 @@ services:
     build:
       context: .
       dockerfile: apps/seller-web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:5050/api"
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: "${NEXT_PUBLIC_GOOGLE_CLIENT_ID}"
     ports:
       - "5100:5100"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8080/api
+      - NEXT_PUBLIC_API_URL=http://localhost:5050/api
+      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
     depends_on:
       - api
 
@@ -63,10 +53,14 @@ services:
     build:
       context: .
       dockerfile: apps/admin-web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "http://localhost:5050/api"
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: "${NEXT_PUBLIC_GOOGLE_CLIENT_ID}"
     ports:
       - "5200:5200"
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8080/api
+      - NEXT_PUBLIC_API_URL=http://localhost:5050/api
+      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
     depends_on:
       - api
 
@@ -82,6 +76,3 @@ services:
       - buyer-web
       - seller-web
       - admin-web
-
-volumes:
-  redis_data:

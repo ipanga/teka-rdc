@@ -54,11 +54,20 @@ All health endpoints are exempt from rate limiting.
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/v1/auth/otp/request` | Public | Request SMS OTP for a phone number |
-| POST | `/v1/auth/otp/verify` | Public | Verify OTP code and get tokens |
-| POST | `/v1/auth/register` | Public | Register new account with phone + name |
-| POST | `/v1/auth/login` | Public | Login with phone + OTP code |
-| POST | `/v1/auth/refresh` | Public | Refresh access token using refresh token |
+| POST | `/v1/auth/otp/request` | Public | Request SMS OTP for a phone number (via Orange DRC SMS) |
+| POST | `/v1/auth/otp/request-email` | Public | **User-initiated** email OTP fallback for buyers |
+| POST | `/v1/auth/otp/verify` | Public | Verify OTP code |
+| POST | `/v1/auth/register` | Public | Register buyer account via phone OTP + name |
+| POST | `/v1/auth/login` | Public | Login buyer/admin with phone + OTP code. Returns `409 SELLER_MIGRATION_REQUIRED` for phone-only sellers |
+| POST | `/v1/auth/register/email` | Public | Register with email + password |
+| POST | `/v1/auth/login/email` | Public | Login with email + password (sellers, admins, optional buyers) |
+| POST | `/v1/auth/login/google` | Public | Exchange a Google `idToken` for cookies (upsert/link by email or googleId) |
+| POST | `/v1/auth/password-reset/request` | Public | Always 200 — no enumeration. Sends reset link if account exists |
+| POST | `/v1/auth/password-reset/confirm` | Public | Consume reset token + set new password; revokes all refresh tokens |
+| POST | `/v1/auth/seller/migrate-check` | Public | Step 1 of seller migration. Returns `email_setup_sent` / `email_required` / `already_migrated` |
+| POST | `/v1/auth/seller/migrate-link-email` | Public | Seller with no email on file verifies via phone OTP and associates an email |
+| POST | `/v1/auth/seller/setup-password` | Public | Consume 24h setup JWT, sets hash, issues cookies |
+| POST | `/v1/auth/refresh` | Public | Refresh tokens. Replay-safe: revokes all tokens on replay |
 | POST | `/v1/auth/logout` | Bearer | Logout and invalidate refresh token |
 | GET | `/v1/auth/me` | Bearer | Get current user profile |
 | POST | `/v1/auth/email/send-verification` | Bearer | Send email verification link |
@@ -101,6 +110,65 @@ POST /v1/auth/refresh
 }
 ```
 Also accepts refresh token from `teka_refresh_token` cookie.
+
+### Email OTP fallback (buyers)
+```json
+POST /v1/auth/otp/request-email
+{ "phone": "+243XXXXXXXXX" }
+```
+User-initiated from the OTP waiting screen when SMS delivery is unreliable.
+Requires an email to be on file. Returns `400 { error: { code: "NO_EMAIL_ON_FILE" } }` otherwise.
+
+### Email + password
+```json
+POST /v1/auth/register/email
+{ "email": "vendeur@example.com", "password": "Secret123", "firstName": "Jean", "lastName": "Mukendi" }
+
+POST /v1/auth/login/email
+{ "email": "vendeur@example.com", "password": "Secret123" }
+```
+Password rules: min 8 / max 72 characters, at least one letter + one digit.
+Error messages are generic to avoid user enumeration (`"Email ou mot de passe invalide"`).
+
+### Password reset
+```json
+POST /v1/auth/password-reset/request
+{ "email": "vendeur@example.com" }
+// Response: always 200 — "Si un compte existe, un email de réinitialisation a été envoyé."
+
+POST /v1/auth/password-reset/confirm
+{ "token": "<raw token from email link>", "newPassword": "NewSecret123" }
+```
+Token TTL controlled by `PASSWORD_RESET_EXPIRY_MINUTES` (default 60).
+On confirm, all of the user's refresh tokens are revoked and `authProvider` is set to `EMAIL_PASSWORD`.
+
+### Google OAuth
+```json
+POST /v1/auth/login/google
+{ "idToken": "<Google id_token>" }
+```
+Backend verifies via `google-auth-library` against `GOOGLE_WEB_CLIENT_ID`, `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_ANDROID_CLIENT_ID`.
+Upsert order: match by `googleId` → link by `email` (only if Google marks `email_verified=true`) → create new user with `authProvider=GOOGLE`, `role=BUYER`.
+
+### Seller migration (existing phone-only sellers)
+```json
+POST /v1/auth/seller/migrate-check
+{ "email": "vendeur@example.com" }
+// → { "migration": "email_setup_sent" }
+// or { "migration": "email_required", "maskedPhone": "+243*******23" }
+// or { "migration": "already_migrated" }
+
+// If email_required — seller verifies phone + attaches email
+POST /v1/auth/seller/migrate-link-email
+{ "phone": "+243XXXXXXXXX", "code": "123456", "email": "vendeur@example.com" }
+// → { "migration": "email_setup_sent" }
+
+// User clicks the email link and lands on the password-setup page
+POST /v1/auth/seller/setup-password
+{ "token": "<24h seller_password_setup JWT>", "password": "NewSecret123" }
+// → { "user": {...}, "tokens": {...} } (also sets httpOnly cookies)
+```
+Setup token TTL controlled by `SELLER_SETUP_EXPIRY_HOURS` (default 24).
 
 ---
 

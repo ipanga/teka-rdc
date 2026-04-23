@@ -1,15 +1,9 @@
 import { Injectable, Logger, BadRequestException, HttpException, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomInt, timingSafeEqual } from 'crypto';
-import { RedisService } from '../redis/redis.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { SmsService } from '../sms/sms.service';
 import { EmailService } from '../email/email.service';
-
-interface OtpData {
-  code: string;
-  attempts: number;
-  createdAt: number;
-}
 
 @Injectable()
 export class OtpService {
@@ -21,7 +15,7 @@ export class OtpService {
   private readonly rateLimitWindowSeconds = 600; // 10 minutes
 
   constructor(
-    private redisService: RedisService,
+    private prisma: PrismaService,
     private smsService: SmsService,
     private emailService: EmailService,
     private configService: ConfigService,
@@ -30,12 +24,22 @@ export class OtpService {
     this.isDev = this.configService.get<string>('NODE_ENV') === 'development';
   }
 
-  async requestOtp(phone: string, email?: string): Promise<{ expiresIn: number }> {
-    // Rate limiting
-    const rateLimitKey = `otp:rate:${phone}`;
-    const rateCount = await this.redisService.get(rateLimitKey);
+  async requestOtp(
+    phone: string,
+    email?: string,
+    channel: 'sms' | 'email' | 'both' = 'both',
+  ): Promise<{ expiresIn: number; channel: 'sms' | 'email' | 'both' }> {
+    const now = new Date();
 
-    if (rateCount && parseInt(rateCount, 10) >= this.rateLimitMax) {
+    // Rate limiting — count unexpired rate limit entries
+    const rateCount = await this.prisma.otpRateLimit.count({
+      where: {
+        phone,
+        expiresAt: { gt: now },
+      },
+    });
+
+    if (rateCount >= this.rateLimitMax) {
       throw new HttpException(
         'Trop de demandes de code. Veuillez patienter 10 minutes.',
         HttpStatus.TOO_MANY_REQUESTS,
@@ -45,70 +49,89 @@ export class OtpService {
     // Generate 6-digit code
     const code = this.isDev ? '123456' : String(randomInt(100000, 999999));
 
-    // Store OTP in Redis
-    const otpData: OtpData = {
-      code,
-      attempts: 0,
-      createdAt: Date.now(),
-    };
-    await this.redisService.setJson(`otp:${phone}`, otpData, this.otpExpirySeconds);
+    // Delete any existing OTP for this phone
+    await this.prisma.otp.deleteMany({ where: { phone } });
 
-    // Increment rate limit
-    if (rateCount) {
-      await this.redisService.set(rateLimitKey, String(parseInt(rateCount, 10) + 1), this.rateLimitWindowSeconds);
-    } else {
-      await this.redisService.set(rateLimitKey, '1', this.rateLimitWindowSeconds);
+    // Store OTP in database
+    const expiresAt = new Date(now.getTime() + this.otpExpirySeconds * 1000);
+    await this.prisma.otp.create({
+      data: {
+        phone,
+        code,
+        attempts: 0,
+        expiresAt,
+      },
+    });
+
+    // Add rate limit entry
+    const rateLimitExpiresAt = new Date(now.getTime() + this.rateLimitWindowSeconds * 1000);
+    await this.prisma.otpRateLimit.create({
+      data: {
+        phone,
+        expiresAt: rateLimitExpiresAt,
+      },
+    });
+
+    const wantsSms = channel === 'sms' || channel === 'both';
+    const wantsEmail = channel === 'email' || (channel === 'both' && !!email);
+
+    if (wantsSms) {
+      await this.smsService.sendOtp(phone, code);
     }
 
-    // Send OTP via SMS
-    await this.smsService.sendOtp(phone, code);
-
-    // Also send via email if available (fallback)
-    if (email) {
+    if (wantsEmail) {
+      if (!email) {
+        throw new BadRequestException('Aucun email fourni pour l\'envoi du code');
+      }
       await this.emailService.sendOtpEmail(email, code);
     }
 
-    this.logger.log(`OTP requested for ${phone}`);
-    return { expiresIn: this.otpExpirySeconds };
+    this.logger.log(`OTP requested for ${phone} via ${channel}`);
+    return { expiresIn: this.otpExpirySeconds, channel };
   }
 
   async verifyOtp(phone: string, code: string): Promise<boolean> {
     // In dev mode, accept the dev code
     if (this.isDev && code === '123456') {
-      await this.redisService.del(`otp:${phone}`);
+      await this.prisma.otp.deleteMany({ where: { phone } });
       return true;
     }
 
-    const otpKey = `otp:${phone}`;
-    const otpData = await this.redisService.getJson<OtpData>(otpKey);
+    const now = new Date();
+    const otp = await this.prisma.otp.findFirst({
+      where: {
+        phone,
+        expiresAt: { gt: now },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
 
-    if (!otpData) {
+    if (!otp) {
       throw new BadRequestException('Code expiré ou non demandé. Veuillez en demander un nouveau.');
     }
 
     // Brute force protection
-    if (otpData.attempts >= this.maxAttempts) {
-      await this.redisService.del(otpKey);
+    if (otp.attempts >= this.maxAttempts) {
+      await this.prisma.otp.delete({ where: { id: otp.id } });
       throw new BadRequestException(
         'Trop de tentatives. Veuillez demander un nouveau code.',
       );
     }
 
     // Timing-safe comparison
-    const isValid = this.safeCompare(otpData.code, code);
+    const isValid = this.safeCompare(otp.code, code);
 
     if (!isValid) {
       // Increment attempts
-      otpData.attempts += 1;
-      const remainingTtl = this.otpExpirySeconds - Math.floor((Date.now() - otpData.createdAt) / 1000);
-      if (remainingTtl > 0) {
-        await this.redisService.setJson(otpKey, otpData, remainingTtl);
-      }
+      await this.prisma.otp.update({
+        where: { id: otp.id },
+        data: { attempts: otp.attempts + 1 },
+      });
       throw new BadRequestException('Code invalide. Veuillez réessayer.');
     }
 
     // Valid — clean up
-    await this.redisService.del(otpKey);
+    await this.prisma.otp.delete({ where: { id: otp.id } });
     return true;
   }
 

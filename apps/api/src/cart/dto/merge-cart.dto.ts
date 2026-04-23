@@ -1,16 +1,15 @@
 import {
   IsArray,
   ValidateNested,
-  IsUUID,
   IsInt,
   Min,
   Max,
   ArrayMinSize,
-} from 'class-validator';
+Matches, } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class MergeCartItemDto {
-  @IsUUID('4', { message: 'ID produit invalide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'ID produit invalide' })
   productId: string;
 
   @Type(() => Number)

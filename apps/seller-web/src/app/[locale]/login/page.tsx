@@ -1,88 +1,23 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
+import { Link } from '@/i18n/navigation';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { useAuthStore, type User } from '@/lib/auth-store';
+import { GoogleSignInButton } from '@/components/auth/google-sign-in-button';
 
 export default function SellerLoginPage() {
   const t = useTranslations('Auth');
   const router = useRouter();
   const setUser = useAuthStore((s) => s.setUser);
 
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [countdown, setCountdown] = useState(0);
   const [roleError, setRoleError] = useState(false);
-
-  useEffect(() => {
-    if (countdown <= 0) return;
-    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [countdown]);
-
-  const formatPhone = useCallback((input: string): string => {
-    const digits = input.replace(/\D/g, '');
-    if (digits.startsWith('0')) {
-      return `+243${digits.slice(1)}`;
-    }
-    if (digits.startsWith('243')) {
-      return `+${digits}`;
-    }
-    return `+243${digits}`;
-  }, []);
-
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setRoleError(false);
-    setIsLoading(true);
-
-    try {
-      const formattedPhone = formatPhone(phone);
-      await apiFetch('/v1/auth/otp/request', {
-        method: 'POST',
-        body: JSON.stringify({ phone: formattedPhone }),
-      });
-      setStep('otp');
-      setCountdown(60);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError('Une erreur est survenue');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    if (countdown > 0) return;
-    setError('');
-    setIsLoading(true);
-
-    try {
-      const formattedPhone = formatPhone(phone);
-      await apiFetch('/v1/auth/otp/request', {
-        method: 'POST',
-        body: JSON.stringify({ phone: formattedPhone }),
-      });
-      setCountdown(60);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError('Une erreur est survenue');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,10 +26,9 @@ export default function SellerLoginPage() {
     setIsLoading(true);
 
     try {
-      const formattedPhone = formatPhone(phone);
-      const res = await apiFetch<{ user: User }>('/v1/auth/login', {
+      const res = await apiFetch<{ user: User }>('/v1/auth/login/email', {
         method: 'POST',
-        body: JSON.stringify({ phone: formattedPhone, code: otp }),
+        body: JSON.stringify({ email, password }),
       });
 
       const user = res.data.user;
@@ -143,104 +77,66 @@ export default function SellerLoginPage() {
             </div>
           )}
 
-          {step === 'phone' && !roleError && (
-            <form onSubmit={handleSendOtp} className="space-y-4">
-              <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-foreground mb-1">
-                  {t('phoneLabel')}
-                </label>
-                <div className="flex">
-                  <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-input bg-muted text-muted-foreground text-sm">
-                    +243
-                  </span>
-                  <input
-                    id="phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder={t('phonePlaceholder')}
-                    className="flex-1 px-3 py-2 border border-input rounded-r-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    required
-                  />
-                </div>
-              </div>
-              <button
-                type="submit"
-                disabled={isLoading || !phone}
-                className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isLoading ? '...' : t('sendOtp')}
-              </button>
-            </form>
-          )}
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1">
+                {t('emailLabel')}
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={t('emailPlaceholder')}
+                autoComplete="email"
+                className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1">
+                {t('passwordLabel')}
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                required
+              />
+            </div>
 
-          {step === 'otp' && !roleError && (
-            <form onSubmit={handleLogin} className="space-y-4">
-              <p className="text-sm text-muted-foreground text-center">
-                {t('otpSent', { phone: formatPhone(phone) })}
-              </p>
-              <div>
-                <label htmlFor="otp" className="block text-sm font-medium text-foreground mb-1">
-                  {t('otpLabel')}
-                </label>
-                <input
-                  id="otp"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                  placeholder="000000"
-                  className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground text-center text-lg tracking-widest placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  required
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={isLoading || otp.length !== 6}
-                className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isLoading ? '...' : t('login')}
-              </button>
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={handleResendOtp}
-                  disabled={countdown > 0 || isLoading}
-                  className="text-sm text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
-                >
-                  {countdown > 0 ? t('resendIn', { seconds: countdown }) : t('resendOtp')}
-                </button>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setStep('phone');
-                  setOtp('');
-                  setError('');
-                }}
-                className="w-full text-sm text-muted-foreground hover:text-foreground"
-              >
-                &larr; {t('phoneLabel')}
-              </button>
-            </form>
-          )}
-
-          {roleError && (
             <button
-              type="button"
-              onClick={() => {
-                setRoleError(false);
-                setStep('phone');
-                setOtp('');
-                setPhone('');
-                setError('');
-              }}
-              className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+              type="submit"
+              disabled={isLoading || !email || !password}
+              className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {t('tryAgain')}
+              {isLoading ? '...' : t('login')}
             </button>
-          )}
+
+            <div className="flex items-center justify-between text-sm">
+              <Link href="/forgot-password" className="text-primary hover:underline">
+                {t('forgotPassword')}
+              </Link>
+              <Link href="/migrate" className="text-muted-foreground hover:underline">
+                {t('migrateTitle')}
+              </Link>
+            </div>
+          </form>
+
+          <div className="mt-6 flex items-center gap-3">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-xs text-muted-foreground uppercase">ou</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+          <div className="mt-4 flex justify-center">
+            <GoogleSignInButton
+              onError={(msg) => setError(msg)}
+              onWrongRole={() => setRoleError(true)}
+            />
+          </div>
         </div>
       </div>
     </div>

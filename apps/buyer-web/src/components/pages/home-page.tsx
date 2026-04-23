@@ -9,10 +9,12 @@ import { ProductGrid } from '@/components/product/product-grid';
 import { BannerCarousel } from '@/components/home/banner-carousel';
 import { FlashDealsSection } from '@/components/home/flash-deals-section';
 import { apiFetch } from '@/lib/api-client';
+import { useCityStore } from '@/lib/city-store';
+import { CitySelectorModal } from '@/components/city/city-selector-modal';
 import { getLocalizedName } from '@/lib/format';
 import type { BrowseCategory, BrowseProduct } from '@/lib/types';
 
-export default function HomePage() {
+export default function HomePage({ serverH1 }: { serverH1?: string }) {
   const t = useTranslations('Hero');
   const tCat = useTranslations('Categories');
   const tProd = useTranslations('Products');
@@ -25,29 +27,55 @@ export default function HomePage() {
   const [loadingPopular, setLoadingPopular] = useState(true);
   const [loadingNewest, setLoadingNewest] = useState(true);
 
+  // City store
+  const { selectedCity, initFromStorage, fetchCities, showSelector, openSelector } = useCityStore();
+  const [cityInitialized, setCityInitialized] = useState(false);
+
+  // Initialize city from localStorage on mount
   useEffect(() => {
+    initFromStorage();
+    fetchCities().then(() => {
+      // If no city stored, show the selector modal
+      const stored = typeof window !== 'undefined' ? localStorage.getItem('teka_city_id') : null;
+      if (!stored) {
+        openSelector();
+      }
+      setCityInitialized(true);
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch data when city changes (only after initialization)
+  useEffect(() => {
+    if (!cityInitialized) return;
+
+    const cityParam = selectedCity ? `&cityId=${selectedCity.id}` : '';
+
     // Fetch categories
+    setLoadingCategories(true);
     apiFetch<BrowseCategory[]>('/v1/browse/categories')
       .then((res) => setCategories(res.data))
       .catch(() => {})
       .finally(() => setLoadingCategories(false));
 
-    // Fetch popular products
-    apiFetch<{ data: BrowseProduct[] }>('/v1/browse/products?sortBy=popularity&limit=8')
+    // Fetch popular products (filtered by city)
+    setLoadingPopular(true);
+    apiFetch<{ data: BrowseProduct[] }>(`/v1/browse/products?sortBy=popularity&limit=8${cityParam}`)
       .then((res) => setPopularProducts(res.data.data))
       .catch(() => {})
       .finally(() => setLoadingPopular(false));
 
-    // Fetch newest products
-    apiFetch<{ data: BrowseProduct[] }>('/v1/browse/products?sortBy=newest&limit=8')
+    // Fetch newest products (filtered by city)
+    setLoadingNewest(true);
+    apiFetch<{ data: BrowseProduct[] }>(`/v1/browse/products?sortBy=newest&limit=8${cityParam}`)
       .then((res) => setNewestProducts(res.data.data))
       .catch(() => {})
       .finally(() => setLoadingNewest(false));
-  }, []);
+  }, [selectedCity, cityInitialized]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
+      <CitySelectorModal />
 
       <main className="flex-1">
         {/* Banner Carousel — replaces static hero when banners are available */}
@@ -56,10 +84,10 @@ export default function HomePage() {
             <section className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
               <div className="max-w-7xl mx-auto px-4 py-12 md:py-20 text-center">
                 <h1 className="text-3xl md:text-5xl font-bold mb-3">
-                  {t('title')}
+                  {serverH1 || t('title')}
                 </h1>
                 <p className="text-lg md:text-xl opacity-90 mb-6">
-                  {t('subtitle')}
+                  {t('subtitle', { city: selectedCity ? ((locale === 'en' && selectedCity.name.en) ? selectedCity.name.en : selectedCity.name.fr) : 'Congo' })}
                 </p>
                 <Link
                   href="/categories"

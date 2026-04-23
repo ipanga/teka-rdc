@@ -101,8 +101,9 @@ export default function BannersPage() {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (statusFilter) params.set('status', statusFilter);
       const res = await apiFetch<PaginatedResponse>(`/v1/admin/banners?${params}`);
-      setBanners(res.data.data);
-      setTotalPages(res.data.pagination.totalPages);
+      const rd = res.data;
+      if (Array.isArray(rd)) { setBanners(rd); setTotalPages(1); }
+      else { setBanners(rd.data); setTotalPages(rd.pagination?.totalPages ?? 1); }
     } catch {
       // handled
     } finally {

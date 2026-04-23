@@ -13,32 +13,21 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _phoneController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  bool _obscurePassword = true;
   String? _errorMessage;
 
   @override
   void dispose() {
-    _phoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
-  String _formatPhone(String input) {
-    String digits = input.replaceAll(RegExp(r'[^\d]'), '');
-    if (digits.startsWith('0')) {
-      digits = digits.substring(1);
-    }
-    if (!digits.startsWith('243')) {
-      digits = '243$digits';
-    }
-    if (!digits.startsWith('+')) {
-      digits = '+$digits';
-    }
-    return digits;
-  }
-
-  Future<void> _sendOtp() async {
+  Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
@@ -47,17 +36,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      final phone = _formatPhone(_phoneController.text.trim());
-      await ref.read(authProvider.notifier).requestOtp(phone);
-      if (mounted) {
-        context.push('/auth/otp', extra: {'phone': phone, 'isLogin': true});
-      }
+      await ref.read(authProvider.notifier).loginWithEmail(
+            _emailController.text.trim().toLowerCase(),
+            _passwordController.text,
+          );
+      if (mounted) context.go('/');
     } on DioException catch (e) {
       setState(() {
-        _errorMessage = e.response?.data?['message'] ??
-            'Impossible d\'envoyer le code. Veuillez reessayer.';
+        _errorMessage = e.response?.data?['error']?['message'] ??
+            e.response?.data?['message'] ??
+            'Email ou mot de passe invalide.';
       });
-    } catch (e) {
+    } catch (_) {
       setState(() {
         _errorMessage = 'Une erreur est survenue. Veuillez reessayer.';
       });
@@ -78,12 +68,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 60),
-                // Logo / Title
-                Icon(
-                  Icons.storefront_rounded,
-                  size: 80,
-                  color: TekaColors.tekaRed,
-                ),
+                Icon(Icons.storefront_rounded, size: 80, color: TekaColors.tekaRed),
                 const SizedBox(height: 16),
                 Text(
                   'Teka RDC',
@@ -93,62 +78,79 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 8),
                 Text(
                   'Espace Vendeur',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: TekaColors.mutedForeground,
-                        fontWeight: FontWeight.w500,
                       ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 48),
 
-                // Section title
                 Text(
                   'Se connecter',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Entrez votre numero de telephone pour recevoir un code de verification.',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: TekaColors.mutedForeground,
-                      ),
-                ),
                 const SizedBox(height: 24),
 
-                // Phone input
                 TextFormField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: InputDecoration(
-                    labelText: 'Numero de telephone',
-                    hintText: '09XX XXX XXX',
-                    prefixIcon: const Icon(Icons.phone),
-                    prefixText: '+243 ',
-                    prefixStyle: TextStyle(
-                      color: TekaColors.foreground,
-                      fontWeight: FontWeight.w500,
-                    ),
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  autofillHints: const [AutofillHints.email],
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    hintText: 'vous@exemple.com',
+                    prefixIcon: Icon(Icons.email_outlined),
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Veuillez entrer votre numero de telephone';
+                      return 'Veuillez entrer votre email';
                     }
-                    final digits =
-                        value.trim().replaceAll(RegExp(r'[^\d]'), '');
-                    if (digits.length < 9) {
-                      return 'Numero de telephone invalide';
+                    if (!value.contains('@')) {
+                      return 'Email invalide';
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 16),
 
-                // Error message
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  autofillHints: const [AutofillHints.password],
+                  decoration: InputDecoration(
+                    labelText: 'Mot de passe',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined),
+                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                    ),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Veuillez entrer votre mot de passe';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => context.push('/auth/forgot-password'),
+                    child: Text(
+                      'Mot de passe oublie ?',
+                      style: TextStyle(color: TekaColors.tekaRed),
+                    ),
+                  ),
+                ),
+
                 if (_errorMessage != null) ...[
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -164,11 +166,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 16),
                 ],
 
-                // Send OTP button
                 SizedBox(
                   height: 48,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _sendOtp,
+                    onPressed: _isLoading ? null : _login,
                     child: _isLoading
                         ? const SizedBox(
                             height: 20,
@@ -179,7 +180,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                           )
                         : const Text(
-                            'Envoyer le code',
+                            'Se connecter',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
@@ -187,14 +188,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 12),
 
-                // Register link
+                OutlinedButton.icon(
+                  onPressed: () => context.push('/auth/migrate'),
+                  icon: const Icon(Icons.swap_horiz),
+                  label: const Text('Compte vendeur existant ?'),
+                ),
+
+                const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Pas de compte vendeur ? ',
+                      'Pas encore vendeur ? ',
                       style: TextStyle(color: TekaColors.mutedForeground),
                     ),
                     GestureDetector(

@@ -191,7 +191,7 @@ export function FlashDealsSection() {
             return (
               <Link
                 key={deal.id}
-                href={`/products/${deal.product.id}`}
+                href={`/products/${deal.product.slug || deal.product.id}`}
                 className="flex-shrink-0 w-40 md:w-52 snap-start bg-white rounded-lg border border-border overflow-hidden hover:shadow-lg transition-shadow duration-200"
               >
                 {/* Product image */}

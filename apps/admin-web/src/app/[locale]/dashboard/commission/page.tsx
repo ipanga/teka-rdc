@@ -58,9 +58,25 @@ export default function CommissionPage() {
   const fetchSettings = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await apiFetch<CommissionSettings>('/v1/admin/commission-settings');
-      setSettings(res.data);
-      setGlobalRateInput(String(Math.round(res.data.globalRate * 100)));
+      const res = await apiFetch<CommissionSettings | Array<{ categoryId: string | null; rate: string; category?: { name: Record<string, string> } }>>('/v1/admin/commission-settings');
+      if (Array.isArray(res.data)) {
+        // API returns flat array — transform to expected structure
+        const globalEntry = res.data.find(e => !e.categoryId);
+        const overrides = res.data.filter(e => e.categoryId).map(e => ({
+          categoryId: e.categoryId!,
+          categoryName: e.category?.name?.fr || e.category?.name?.en || '---',
+          rate: parseFloat(e.rate),
+        }));
+        const settings: CommissionSettings = {
+          globalRate: globalEntry ? parseFloat(globalEntry.rate) : 0.1,
+          categoryOverrides: overrides,
+        };
+        setSettings(settings);
+        setGlobalRateInput(String(Math.round(settings.globalRate * 100)));
+      } else {
+        setSettings(res.data);
+        setGlobalRateInput(String(Math.round(res.data.globalRate * 100)));
+      }
     } catch {
       // Error handled by apiFetch
     } finally {
@@ -70,8 +86,8 @@ export default function CommissionPage() {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const res = await apiFetch<Category[]>('/v1/categories');
-      setCategories(res.data);
+      const res = await apiFetch<Category[] | { data: Category[] }>('/v1/browse/categories');
+      setCategories(Array.isArray(res.data) ? res.data : []);
     } catch {
       // Error handled by apiFetch
     }

@@ -1,9 +1,9 @@
-import { IsOptional, IsUUID, IsInt, Min, Max } from 'class-validator';
+import { IsOptional, Matches, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class MessagesQueryDto {
   @IsOptional()
-  @IsUUID('4', { message: "L'identifiant du curseur doit être un UUID valide" })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: "L'identifiant du curseur doit être un UUID valide" })
   before?: string;
 
   @IsOptional()

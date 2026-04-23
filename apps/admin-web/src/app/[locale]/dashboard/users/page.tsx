@@ -39,8 +39,9 @@ export default function UsersPage() {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (search) params.set('search', search);
       const res = await apiFetch<PaginatedResponse>(`/v1/admin/users?${params}`);
-      setUsers(res.data.data);
-      setTotalPages(res.data.meta.totalPages);
+      const rd = res.data;
+      if (Array.isArray(rd)) { setUsers(rd); setTotalPages(1); }
+      else { setUsers(rd.data); setTotalPages(rd.meta?.totalPages ?? 1); }
     } catch {
       // ignore
     } finally {

@@ -8,8 +8,7 @@ import {
   IsArray,
   ValidateNested,
   IsNotEmpty,
-  IsUUID,
-} from 'class-validator';
+Matches, } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class TranslatableTextDto {
@@ -23,7 +22,7 @@ class TranslatableTextDto {
 }
 
 class SpecificationDto {
-  @IsUUID('4', { message: 'Attribut invalide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'Attribut invalide' })
   attributeId: string;
 
   @IsString()
@@ -42,8 +41,12 @@ export class CreateProductDto {
   @Type(() => TranslatableTextDto)
   description: TranslatableTextDto;
 
-  @IsUUID('4', { message: 'Catégorie invalide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'Catégorie invalide' })
   categoryId: string;
+
+  @IsOptional()
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'Ville invalide' })
+  cityId?: string;
 
   @IsString({ message: 'Le prix CDF est requis' })
   priceCDF: string; // BigInt as string

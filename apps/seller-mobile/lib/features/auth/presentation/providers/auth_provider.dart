@@ -68,7 +68,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
           isLoading: false,
         );
       } else {
-        // User is logged in but not a seller
         state = state.copyWith(
           status: AuthStatus.wrongRole,
           user: user,
@@ -84,69 +83,116 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<Map<String, dynamic>> requestOtp(String phone) async {
-    return _authRepository.requestOtp(phone);
-  }
+  // Email + password ——————————————————————————————————————————————————————————
 
-  Future<Map<String, dynamic>> verifyOtp(String phone, String code) async {
-    return _authRepository.verifyOtp(phone, code);
-  }
-
-  Future<void> login(String phone, String code) async {
+  Future<void> loginWithEmail(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final data = await _authRepository.login(phone, code);
-      final user = data['user'] as Map<String, dynamic>?;
-      final role = user?['role'] as String?;
-
-      if (role == 'SELLER' || role == 'ADMIN') {
-        state = state.copyWith(
-          status: AuthStatus.authenticated,
-          user: user,
-          isLoading: false,
-        );
-      } else {
-        state = state.copyWith(
-          status: AuthStatus.wrongRole,
-          user: user,
-          isLoading: false,
-        );
-      }
+      final data = await _authRepository.loginWithEmail(email, password);
+      _applyLoggedInUser(data['user'] as Map<String, dynamic>?);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
       rethrow;
     }
   }
 
-  Future<void> register(
-    String phone,
-    String code,
+  Future<void> registerWithEmail(
+    String email,
+    String password,
     String firstName,
     String lastName,
   ) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final data = await _authRepository.register(
-        phone,
-        code,
+      final data = await _authRepository.registerWithEmail(
+        email,
+        password,
         firstName,
         lastName,
       );
-      final user = data['user'] as Map<String, dynamic>?;
-      state = state.copyWith(
-        status: AuthStatus.authenticated,
-        user: user,
-        isLoading: false,
-      );
+      // Note: new email registrations land as BUYER role initially.
+      // Seller application is a separate flow (apply from dashboard).
+      _applyLoggedInUser(data['user'] as Map<String, dynamic>?);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
       rethrow;
     }
   }
 
+  Future<void> requestPasswordReset(String email) async {
+    await _authRepository.requestPasswordReset(email);
+  }
+
+  Future<void> confirmPasswordReset(String token, String newPassword) async {
+    await _authRepository.confirmPasswordReset(token, newPassword);
+  }
+
+  // Google OAuth ——————————————————————————————————————————————————————————————
+
+  Future<void> loginWithGoogle(String idToken) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final data = await _authRepository.loginWithGoogle(idToken);
+      _applyLoggedInUser(data['user'] as Map<String, dynamic>?);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      rethrow;
+    }
+  }
+
+  // Seller migration ——————————————————————————————————————————————————————————
+
+  Future<Map<String, dynamic>> migrateSellerCheck(String email) {
+    return _authRepository.migrateSellerCheck(email);
+  }
+
+  Future<Map<String, dynamic>> migrateSellerLinkEmail({
+    required String phone,
+    required String code,
+    required String email,
+  }) {
+    return _authRepository.migrateSellerLinkEmail(
+      phone: phone,
+      code: code,
+      email: email,
+    );
+  }
+
+  Future<void> setupSellerPassword(String token, String password) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final data = await _authRepository.setupSellerPassword(token, password);
+      _applyLoggedInUser(data['user'] as Map<String, dynamic>?);
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> requestOtp(String phone) {
+    return _authRepository.requestOtp(phone);
+  }
+
   Future<void> logout() async {
     await _authRepository.logout();
     state = const AuthState(status: AuthStatus.unauthenticated);
+  }
+
+  void _applyLoggedInUser(Map<String, dynamic>? user) {
+    final role = user?['role'] as String?;
+    if (role == 'SELLER' || role == 'ADMIN') {
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        user: user,
+        isLoading: false,
+      );
+    } else {
+      state = state.copyWith(
+        status: AuthStatus.wrongRole,
+        user: user,
+        isLoading: false,
+      );
+    }
   }
 }
 

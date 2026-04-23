@@ -33,7 +33,28 @@
     "resendOtp": "Resend code",
     "resendIn": "Resend in {seconds}s",
     "logout": "Log out",
-    "profile": "My profile"
+    "profile": "My profile",
+    "receiveByEmail": "Receive code by email",
+    "noEmailOnFile": "No email registered for this account",
+    "emailSentToMasked": "A code has been sent to your email address",
+    "continueWithGoogle": "Continue with Google",
+    "emailLabel": "Email",
+    "emailPlaceholder": "you@example.com",
+    "passwordLabel": "Password",
+    "passwordHint": "At least 8 characters, with letters and digits",
+    "confirmPasswordLabel": "Confirm password",
+    "forgotPassword": "Forgot password?",
+    "forgotPasswordTitle": "Forgot password",
+    "forgotPasswordHint": "Enter your email and we'll send a password reset link.",
+    "sendResetLink": "Send link",
+    "resetLinkSent": "If an account exists, a reset email has been sent.",
+    "resetPasswordTitle": "New password",
+    "resetPassword": "Reset password",
+    "resetPasswordSuccess": "Password reset. You can log in.",
+    "resetPasswordInvalid": "Link is invalid or expired.",
+    "loginWithPhone": "By phone",
+    "loginWithEmail": "By email",
+    "backToLogin": "Back to login"
   },
   "Header": {
     "search": "Search for products...",
@@ -49,7 +70,7 @@
   },
   "Hero": {
     "title": "Welcome to Teka",
-    "subtitle": "Lubumbashi's online marketplace",
+    "subtitle": "{city}'s online marketplace",
     "cta": "Discover products"
   },
   "Categories": {
@@ -132,7 +153,9 @@
     "terms": "Terms of use",
     "privacy": "Privacy policy",
     "help": "Help",
-    "faq": "FAQ"
+    "faq": "FAQ",
+    "howToBuy": "How to buy",
+    "howToSell": "How to sell"
   },
   "Cart": {
     "title": "Cart",
@@ -177,7 +200,29 @@
     "payerPhone": "Mobile Money number",
     "payerPhonePlaceholder": "+243...",
     "providerRequired": "Please select a provider",
-    "phoneRequired": "Please enter your Mobile Money number"
+    "phoneRequired": "Please enter your Mobile Money number",
+    "newAddress": "New address",
+    "cityLabel": "City",
+    "cityPlaceholder": "Select a city",
+    "communeLabel": "Commune",
+    "communePlaceholder": "Select a commune",
+    "loadingCities": "Loading cities...",
+    "loadingCommunes": "Loading communes...",
+    "avenueLabel": "Avenue / Street",
+    "avenuePlaceholder": "e.g. Av. Lumumba #24",
+    "referenceLabel": "Reference point",
+    "referencePlaceholder": "e.g. Opposite the pharmacy",
+    "recipientNameLabel": "Recipient name",
+    "recipientNamePlaceholder": "Full name",
+    "recipientPhoneLabel": "Recipient phone",
+    "recipientPhonePlaceholder": "+243...",
+    "saveAddress": "Save address",
+    "savingAddress": "Saving...",
+    "addressSaved": "Address saved",
+    "addressError": "Error saving address",
+    "cityRequired": "Please select a city",
+    "communeRequired": "Please select a commune",
+    "cancelNewAddress": "Cancel"
   },
   "PaymentPending": {
     "title": "Payment pending",
@@ -309,5 +354,12 @@
     "homeDescription": "Online marketplace for DR Congo. Quality products delivered to Lubumbashi, Likasi, and Kolwezi.",
     "searchTitle": "Search",
     "categoryDescription": "Browse products on Teka RDC. Delivery to Lubumbashi, Likasi, and Kolwezi."
+  },
+  "City": {
+    "selectCity": "Choose your city",
+    "selectCityDescription": "To show you products available near you",
+    "currentCity": "Current city",
+    "changeCity": "Change city",
+    "cancel": "Cancel"
   }
 }

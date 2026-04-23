@@ -643,4 +643,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get promotionSubmitForApproval => 'Submit for approval';
+
+  @override
+  String get productAttributes => 'Product attributes';
+
+  @override
+  String get selectOption => 'Select...';
+
+  @override
+  String get requiredField => 'This field is required';
+
+  @override
+  String get noAttributes => 'No attributes for this category';
 }

@@ -69,8 +69,9 @@ export default function ProductModerationPage() {
     try {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       const res = await apiFetch<PaginatedResponse>(`/v1/admin/products?${params}`);
-      setProducts(res.data.data);
-      setTotalPages(res.data.meta.totalPages);
+      const rd = res.data;
+      if (Array.isArray(rd)) { setProducts(rd); setTotalPages(1); }
+      else { setProducts(rd.data); setTotalPages(rd.meta?.totalPages ?? 1); }
     } catch {
       // Error handled by apiFetch
     } finally {

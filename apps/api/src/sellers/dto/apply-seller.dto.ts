@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, MinLength, Matches, IsIn } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, MinLength, Matches, IsIn, IsUUID } from 'class-validator';
 
 export class ApplySellerDto {
   @IsString()
@@ -24,6 +24,10 @@ export class ApplySellerDto {
   @IsString()
   @IsNotEmpty({ message: 'La localisation est requise' })
   location: string;
+
+  @IsOptional()
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'Ville invalide' })
+  cityId?: string;
 
   @IsOptional()
   @IsString()

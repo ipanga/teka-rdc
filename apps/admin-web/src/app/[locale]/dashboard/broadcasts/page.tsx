@@ -86,8 +86,9 @@ export default function BroadcastsPage() {
     try {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       const res = await apiFetch<PaginatedResponse>(`/v1/admin/broadcasts?${params}`);
-      setBroadcasts(res.data.data);
-      setTotalPages(res.data.pagination.totalPages);
+      const rd = res.data;
+      if (Array.isArray(rd)) { setBroadcasts(rd); setTotalPages(1); }
+      else { setBroadcasts(rd.data); setTotalPages(rd.pagination?.totalPages ?? 1); }
     } catch {
       // handled
     } finally {

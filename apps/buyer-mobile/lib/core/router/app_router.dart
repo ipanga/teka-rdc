@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/city/presentation/providers/city_provider.dart';
+import '../../features/city/presentation/screens/city_selection_screen.dart';
 import '../../features/auth/presentation/screens/otp_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/cart/presentation/screens/cart_screen.dart';
@@ -24,14 +26,16 @@ import '../../features/wishlist/presentation/screens/wishlist_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
+  final cityState = ref.watch(cityProvider);
 
   return GoRouter(
     initialLocation: '/',
-    refreshListenable: _AuthRefreshNotifier(ref),
+    refreshListenable: _AuthCityRefreshNotifier(ref),
     redirect: (context, state) {
       final isAuth = authState.status == AuthStatus.authenticated;
       final isLoading = authState.status == AuthStatus.unknown;
       final isAuthRoute = state.matchedLocation.startsWith('/auth');
+      final isCityRoute = state.matchedLocation == '/city-selection';
 
       // Still loading, don't redirect
       if (isLoading) return null;
@@ -42,12 +46,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Authenticated and on auth route -> redirect to home
       if (isAuth && isAuthRoute) return '/';
 
+      // Authenticated but no city selected -> redirect to city selection
+      // (skip if already on city selection or still loading cities)
+      if (isAuth && !isCityRoute && !cityState.hasCity && !cityState.isLoading) {
+        return '/city-selection';
+      }
+
       return null;
     },
     routes: [
       GoRoute(
         path: '/',
         builder: (context, state) => const HomeScreen(),
+      ),
+      GoRoute(
+        path: '/city-selection',
+        builder: (context, state) => const CitySelectionScreen(),
       ),
       GoRoute(
         path: '/auth/login',
@@ -169,9 +183,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
-class _AuthRefreshNotifier extends ChangeNotifier {
-  _AuthRefreshNotifier(Ref ref) {
+class _AuthCityRefreshNotifier extends ChangeNotifier {
+  _AuthCityRefreshNotifier(Ref ref) {
     ref.listen(authProvider, (_, __) {
+      notifyListeners();
+    });
+    ref.listen(cityProvider, (_, __) {
       notifyListeners();
     });
   }

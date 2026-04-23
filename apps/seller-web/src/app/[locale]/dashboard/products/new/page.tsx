@@ -1,15 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { Link } from '@/i18n/navigation';
 import { apiFetch, ApiError } from '@/lib/api-client';
+import DynamicAttributesForm from '@/components/products/dynamic-attributes-form';
 
 interface Category {
   id: string;
   name: { fr?: string; en?: string };
   children?: Category[];
+  subcategories?: Category[];
 }
 
 export default function NewProductPage() {
@@ -32,6 +34,11 @@ export default function NewProductPage() {
   const [priceUSD, setPriceUSD] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [condition, setCondition] = useState<'NEW' | 'USED'>('NEW');
+  const [specifications, setSpecifications] = useState<{ attributeId: string; value: string }[]>([]);
+
+  const handleSpecificationsChange = useCallback((specs: { attributeId: string; value: string }[]) => {
+    setSpecifications(specs);
+  }, []);
 
   useEffect(() => {
     async function loadCategories() {
@@ -59,8 +66,9 @@ export default function NewProductPage() {
     for (const cat of cats) {
       const label = cat.name?.fr || cat.name?.en || '---';
       result.push({ id: cat.id, label, depth });
-      if (cat.children && cat.children.length > 0) {
-        result.push(...flattenCategories(cat.children, depth + 1));
+      const kids = cat.children || cat.subcategories || [];
+      if (kids.length > 0) {
+        result.push(...flattenCategories(kids, depth + 1));
       }
     }
     return result;
@@ -109,6 +117,10 @@ export default function NewProductPage() {
 
       if (priceUSD && Number(priceUSD) > 0) {
         body.priceUSD = String(Math.round(Number(priceUSD) * 100));
+      }
+
+      if (specifications.length > 0) {
+        body.specifications = specifications;
       }
 
       const res = await apiFetch<{ product?: { id: string }; id?: string }>('/v1/sellers/products', {
@@ -172,7 +184,7 @@ export default function NewProductPage() {
                 <select
                   id="categoryId"
                   value={categoryId}
-                  onChange={(e) => { setCategoryId(e.target.value); setFieldErrors((prev) => ({ ...prev, categoryId: '' })); }}
+                  onChange={(e) => { setCategoryId(e.target.value); setSpecifications([]); setFieldErrors((prev) => ({ ...prev, categoryId: '' })); }}
                   className={`w-full px-3 py-2 border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring ${
                     fieldErrors.categoryId ? 'border-destructive' : 'border-input'
                   }`}
@@ -287,6 +299,14 @@ export default function NewProductPage() {
             </div>
           </div>
         </div>
+
+        {/* Dynamic Attributes Section */}
+        {categoryId && (
+          <DynamicAttributesForm
+            categoryId={categoryId}
+            onChange={handleSpecificationsChange}
+          />
+        )}
 
         {/* Pricing Section */}
         <div className="bg-white rounded-xl border border-border p-6">

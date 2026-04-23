@@ -1,12 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { RedisService } from '../redis/redis.service';
 import { ProductStatus } from '@prisma/client';
 import { BrowseProductsQueryDto } from './dto/browse-products-query.dto';
-
-const CATEGORIES_CACHE_KEY = 'browse:categories';
-const CATEGORIES_CACHE_TTL = 3600; // 1 hour
-const PRODUCT_DETAIL_CACHE_TTL = 300; // 5 minutes
 
 @Injectable()
 export class BrowseService {
@@ -14,22 +9,12 @@ export class BrowseService {
 
   constructor(
     private prisma: PrismaService,
-    private redis: RedisService,
   ) {}
 
   /**
    * Returns active categories as a tree with ACTIVE product counts.
-   * Cached in Redis for 1 hour.
    */
   async getCategories() {
-    // Try cache first
-    try {
-      const cached = await this.redis.getJson(CATEGORIES_CACHE_KEY);
-      if (cached) return cached;
-    } catch (err) {
-      this.logger.warn('Redis cache read failed for browse categories', err);
-    }
-
     const categories = await this.prisma.category.findMany({
       where: { isActive: true, deletedAt: null },
       orderBy: { sortOrder: 'asc' },
@@ -67,13 +52,6 @@ export class BrowseService {
       }
     }
 
-    // Cache the result
-    try {
-      await this.redis.setJson(CATEGORIES_CACHE_KEY, roots, CATEGORIES_CACHE_TTL);
-    } catch (err) {
-      this.logger.warn('Redis cache write failed for browse categories', err);
-    }
-
     return roots;
   }
 
@@ -88,6 +66,10 @@ export class BrowseService {
       status: ProductStatus.ACTIVE,
       deletedAt: null,
     };
+
+    if (query.cityId) {
+      where.cityId = query.cityId;
+    }
 
     if (query.categoryId) {
       // Include subcategories: find all child category IDs
@@ -168,6 +150,7 @@ export class BrowseService {
       }),
       select: {
         id: true,
+        slug: true,
         title: true,
         priceCDF: true,
         priceUSD: true,
@@ -207,6 +190,7 @@ export class BrowseService {
     // Transform to BrowseProduct shape
     const items = data.map((p) => ({
       id: p.id,
+      slug: p.slug,
       title: p.title,
       priceCDF: p.priceCDF,
       priceUSD: p.priceUSD,
@@ -233,22 +217,14 @@ export class BrowseService {
 
   /**
    * Returns full product detail for public viewing.
-   * Cached in Redis for 5 minutes.
    */
-  async getProductDetail(productId: string) {
-    const cacheKey = `browse:product:${productId}`;
+  async getProductDetail(identifier: string) {
+    // Accept both UUID and slug for backward compatibility
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
 
-    // Try cache first
-    try {
-      const cached = await this.redis.getJson(cacheKey);
-      if (cached) return cached;
-    } catch (err) {
-      this.logger.warn('Redis cache read failed for product detail', err);
-    }
-
-    const product = await this.prisma.product.findUnique({
+    const product = await this.prisma.product.findFirst({
       where: {
-        id: productId,
+        ...(isUuid ? { id: identifier } : { slug: identifier }),
         status: ProductStatus.ACTIVE,
         deletedAt: null,
       },
@@ -304,18 +280,49 @@ export class BrowseService {
       });
     }
 
-    const result = {
+    return {
       ...product,
       breadcrumb,
     };
+  }
 
-    // Cache the result
-    try {
-      await this.redis.setJson(cacheKey, result, PRODUCT_DETAIL_CACHE_TTL);
-    } catch (err) {
-      this.logger.warn('Redis cache write failed for product detail', err);
+  /**
+   * Returns product attributes for a category.
+   * Includes attributes from the category itself and its parent categories.
+   * Used by seller forms to render dynamic fields.
+   */
+  async getCategoryAttributes(categoryId: string) {
+    const category = await this.prisma.category.findUnique({
+      where: { id: categoryId, deletedAt: null },
+      include: {
+        parentCategory: {
+          include: {
+            parentCategory: true,
+          },
+        },
+      },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Catégorie non trouvée');
     }
 
-    return result;
+    // Collect category IDs: self + parent + grandparent
+    const categoryIds = [categoryId];
+    if (category.parentCategoryId) {
+      categoryIds.push(category.parentCategoryId);
+      if (category.parentCategory?.parentCategoryId) {
+        categoryIds.push(category.parentCategory.parentCategoryId);
+      }
+    }
+
+    const attributes = await this.prisma.productAttribute.findMany({
+      where: {
+        categoryId: { in: categoryIds },
+      },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    return attributes;
   }
 }

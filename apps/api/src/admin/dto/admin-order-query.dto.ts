@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsUUID, Min, Max } from 'class-validator';
+import { IsOptional, IsString, Matches, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class AdminOrderQueryDto {
@@ -18,11 +18,11 @@ export class AdminOrderQueryDto {
   status?: string;
 
   @IsOptional()
-  @IsUUID('4', { message: 'L\'identifiant du vendeur doit être un UUID valide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'L\'identifiant du vendeur doit être un UUID valide' })
   sellerId?: string;
 
   @IsOptional()
-  @IsUUID('4', { message: 'L\'identifiant de l\'acheteur doit être un UUID valide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'L\'identifiant de l\'acheteur doit être un UUID valide' })
   buyerId?: string;
 
   @IsOptional()

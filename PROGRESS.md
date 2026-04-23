@@ -1,9 +1,110 @@
 # Teka RDC — Development Progress
 
-## Current Phase: Phase 8 — Optimization & Production Readiness (COMPLETED)
-## Current Task: ALL PHASES COMPLETE
-## Status: COMPLETED
-## Last Updated: 2026-02-28
+## Current Phase: Authentication Refactor
+## Current Task: Mobile Google sign-in integration + E2E tests (deferred follow-up)
+## Status: Backend + Web complete; Mobile email+migration flows complete; Google native SDK + deep links deferred
+## Last Updated: 2026-04-22
+
+**Detailed auth tracker**: [`tasks/auth-refactor-progress.md`](./tasks/auth-refactor-progress.md) — per-milestone status with deferred items called out.
+
+**Summary of this phase (all backend + web work shipped in this branch):**
+- Prisma schema: `AuthProvider` enum, `googleId` + `passwordSetAt` on User, `PasswordResetToken`, `SellerMigration`
+- SMS provider abstraction (mirrors `PaymentProvider`): Orange DRC (default prod), Africa's Talking (rollback), Mock — selected by `SMS_PROVIDER` env
+- Email + password: register / login / forgot / reset (all French-first, no user enumeration, atomic refresh-token revocation on reset)
+- Google OAuth: stateless `POST /v1/auth/login/google` using `google-auth-library` with upsert/link logic
+- Email OTP fallback for buyers: user-initiated `POST /v1/auth/otp/request-email`
+- Seller migration: existing phone-only sellers migrate via `migrate-check` → `migrate-link-email` → `setup-password` (24h JWT)
+- Web apps updated: buyer-web (email fallback link), seller-web (full rewrite: login/register/migrate/setup-password/forgot/reset), admin-web (email/phone tab coexist + forgot/reset)
+- Mobile apps updated: buyer-mobile (email fallback link + Google-ready repository methods), seller-mobile (full rewrite: email login + register + migrate + setup-password + forgot/reset)
+
+**Deferred (next session)**: Google native SDK wiring in Flutter (`google_sign_in` pubspec + iOS reversed client id + Android `google-services.json`), seller-mobile deep link config for `teka-seller://setup-password`, e2e test coverage for new endpoints (~15 cases), buyer-web email+password tab + Google button.
+
+---
+
+## Previous Phase — City Marketplace & Dynamic Catalog Upgrade (COMPLETED 2026-03-29)
+
+---
+
+## City Marketplace & Dynamic Catalog Upgrade (COMPLETED)
+
+### Phase 1: Database Schema
+- [x] Added City and Commune models to Prisma schema
+- [x] Added optional cityId FK to Product, Address, SellerProfile
+- [x] Pushed schema to cloud PostgreSQL
+- [x] Updated shared types (city.ts, product.ts, validators)
+
+### Phase 2: Seed Data
+- [x] Seeded 8 cities (Lubumbashi + Kolwezi active, 6 inactive)
+- [x] Seeded 8 communes (6 Lubumbashi, 2 Kolwezi)
+- [x] Deactivated old 15 main categories
+- [x] Created 8 new main categories with 47 subcategories
+- [x] Created 72 product attributes with rich option libraries (brands, sizes, models, etc.)
+- [x] Updated existing products, addresses, seller profiles with cityId
+
+### Phase 3: API
+- [x] Created CitiesModule with public endpoints (GET /v1/cities, GET /v1/cities/:id/communes)
+- [x] Added admin city management (CRUD cities + communes)
+- [x] Added cityId filter to browse products API
+- [x] Added public category attributes endpoint (GET /v1/browse/categories/:id/attributes)
+- [x] Updated product creation to derive cityId from seller profile
+- [x] Updated address service to use DB-backed city/commune data
+- [x] Updated checkout to use city-based seller location for delivery fees
+- [x] Updated seller application DTO with optional cityId
+
+### Phase 4: Admin Web
+- [x] Created Cities management page with enable/disable toggle and commune CRUD
+- [x] Added "Villes" to sidebar navigation
+- [x] Added fr + en i18n keys
+
+### Phase 5: Buyer Web
+- [x] Created city store (Zustand + localStorage persistence)
+- [x] Created city selector modal (shown on first visit)
+- [x] Added city indicator to header with change button
+- [x] Updated home page, search page, category page to filter by selected city
+- [x] Added fr + en i18n keys
+
+### Phase 6: Buyer Mobile (Flutter)
+- [x] Created city feature module (model, repository, provider, selection screen)
+- [x] Added city selection redirect in router
+- [x] Added city display in home screen AppBar
+- [x] Updated catalog providers to filter by cityId
+- [x] Added fr + en l10n keys
+
+### Phase 7: Seller Forms — Dynamic Attributes
+- [x] Seller Web: Created DynamicAttributesForm component (SELECT/MULTISELECT/TEXT/NUMERIC)
+- [x] Seller Web: Integrated into product creation form with specifications submission
+- [x] Seller Mobile: Created AttributeModel and DynamicAttributeField widget
+- [x] Seller Mobile: Integrated into product form screen
+- [x] Added fr + en i18n/l10n keys
+
+### Phase 8: Address Forms — Commune Dropdown
+- [x] Buyer Web: Added inline address creation form with city/commune dropdowns in checkout
+- [x] Buyer Mobile: Added address creation bottom sheet with city/commune dropdowns
+- [x] Auto-fill province/town/neighborhood strings from city/commune selections
+- [x] Added fr + en i18n/l10n keys
+
+### Phase 9: Verification
+- [x] TypeScript: 0 errors (API + shared)
+- [x] All 3 web builds: 0 errors (buyer-web, seller-web, admin-web)
+- [x] Flutter analyze: 0 errors (buyer-mobile: 20 info, seller-mobile: 15 info — all pre-existing)
+- [x] E2E tests: 67/67 pass
+- [x] Documentation updated
+
+---
+
+## Post-Phase Refactoring — Redis Removal (COMPLETED)
+- [x] Added Otp and OtpRateLimit PostgreSQL tables to replace Redis OTP storage
+- [x] Refactored OtpService to use Prisma instead of Redis
+- [x] Removed Redis caching from all services (settings, browse, banners, content, promotions, admin-stats, categories, products)
+- [x] Removed Redis from auth service (unused import)
+- [x] Removed RedisModule/RedisService from all NestJS modules
+- [x] Updated health endpoints to check only database (removed Redis health checks)
+- [x] Removed Redis from Docker Compose (dev + prod)
+- [x] Removed ioredis dependency from package.json
+- [x] Removed REDIS_* environment variables from all env files
+- [x] Updated test utilities and e2e tests (removed Redis mocks)
+- [x] Updated architecture.md and deployment.md documentation
+- [x] Verified TypeScript compilation and builds pass
 
 ---
 

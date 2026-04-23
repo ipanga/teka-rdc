@@ -1,18 +1,22 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, FormEvent } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useAuthStore } from '@/lib/auth-store';
+import { useCityStore } from '@/lib/city-store';
 import { LanguageSwitcher } from './language-switcher';
 import { CartBadge } from '@/components/cart/cart-badge';
 import { apiFetch } from '@/lib/api-client';
 
 export function Header() {
   const t = useTranslations('Header');
+  const tCity = useTranslations('City');
+  const locale = useLocale();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  const { selectedCity, openSelector } = useCityStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -58,6 +62,24 @@ export function Header() {
         <Link href="/" className="text-2xl font-bold text-primary shrink-0">
           Teka
         </Link>
+
+        {/* City selector */}
+        {selectedCity && (
+          <button
+            onClick={openSelector}
+            className="hidden md:flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border hover:border-primary/40 hover:bg-muted/50 transition-colors text-sm shrink-0"
+            title={tCity('changeCity')}
+          >
+            <span className="text-xs">{'\uD83D\uDCCD'}</span>
+            <span className="font-medium text-foreground">
+              {(locale === 'en' && selectedCity.name.en) ? selectedCity.name.en : selectedCity.name.fr}
+              {selectedCity.province && <span className="text-muted-foreground font-normal">, {selectedCity.province}</span>}
+            </span>
+            <svg className="w-3 h-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        )}
 
         {/* Search bar - desktop */}
         <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-xl">
@@ -223,6 +245,28 @@ export function Header() {
       {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-border bg-white px-4 py-4 space-y-4">
+          {/* Mobile city selector */}
+          <button
+            onClick={() => {
+              openSelector();
+              setMobileMenuOpen(false);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-border hover:border-primary/40 hover:bg-muted/50 transition-colors text-sm"
+          >
+            <span className="text-xs">{'\uD83D\uDCCD'}</span>
+            {selectedCity ? (
+              <span className="font-medium text-foreground">
+                {(locale === 'en' && selectedCity.name.en) ? selectedCity.name.en : selectedCity.name.fr}
+                {selectedCity.province && <span className="text-muted-foreground font-normal">, {selectedCity.province}</span>}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">{tCity('selectCity')}</span>
+            )}
+            <svg className="w-3 h-3 text-muted-foreground ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
           {/* Mobile search */}
           <form onSubmit={handleSearch}>
             <div className="relative">

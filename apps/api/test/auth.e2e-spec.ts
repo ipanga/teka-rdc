@@ -4,7 +4,6 @@ import {
   createTestApp,
   resetMocks,
   mockPrismaService,
-  mockRedisService,
 } from './test-utils';
 
 describe('Auth (e2e)', () => {
@@ -22,15 +21,36 @@ describe('Auth (e2e)', () => {
     resetMocks();
   });
 
+  /**
+   * Helper: mock OTP verification to succeed.
+   * Since tests run with NODE_ENV=test (jest default), the dev bypass (code '123456')
+   * won't work. Instead, we mock the Prisma OTP lookup to return a valid OTP record.
+   */
+  function mockOtpVerifySuccess(phone: string, code: string = '123456') {
+    mockPrismaService.otp.findFirst.mockResolvedValue({
+      id: 'otp-test-id',
+      phone,
+      code,
+      attempts: 0,
+      expiresAt: new Date(Date.now() + 300000), // 5 min in the future
+      createdAt: new Date(),
+    });
+    mockPrismaService.otp.delete.mockResolvedValue({});
+  }
+
   // ---------------------------------------------------------------------------
   // POST /api/v1/auth/otp/request
   // ---------------------------------------------------------------------------
   describe('POST /api/v1/auth/otp/request', () => {
     it('should accept a valid +243 phone number and return 200', async () => {
-      // No rate limit stored
-      mockRedisService.get.mockResolvedValue(null);
+      // No rate limit entries
+      mockPrismaService.otpRateLimit.count.mockResolvedValue(0);
       // No existing user
       mockPrismaService.user.findUnique.mockResolvedValue(null);
+      // OTP operations
+      mockPrismaService.otp.deleteMany.mockResolvedValue({ count: 0 });
+      mockPrismaService.otp.create.mockResolvedValue({});
+      mockPrismaService.otpRateLimit.create.mockResolvedValue({});
 
       const res = await request(app.getHttpServer())
         .post('/api/v1/auth/otp/request')
@@ -105,8 +125,8 @@ describe('Auth (e2e)', () => {
         .expect(400);
     });
 
-    it('should accept valid phone + 6-digit code in dev mode', async () => {
-      // In dev mode, OtpService accepts '123456' directly
+    it('should accept valid phone + 6-digit code', async () => {
+      mockOtpVerifySuccess('+243999000001');
       mockPrismaService.user.findUnique.mockResolvedValue(null);
 
       const res = await request(app.getHttpServer())
@@ -195,8 +215,9 @@ describe('Auth (e2e)', () => {
         updatedAt: new Date(),
       };
 
-      // OTP verify in dev mode accepts '123456'
-      // No existing user
+      // Mock OTP verification
+      mockOtpVerifySuccess('+243999000099');
+      // No existing user (first call for OTP check, second for registration check)
       mockPrismaService.user.findUnique.mockResolvedValue(null);
       mockPrismaService.user.create.mockResolvedValue(mockUser);
       mockPrismaService.user.update.mockResolvedValue(mockUser);

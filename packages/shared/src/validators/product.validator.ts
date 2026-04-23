@@ -20,6 +20,7 @@ export const createProductSchema = z.object({
   title: translatableTextSchema,
   description: translatableTextSchema,
   categoryId: z.string().uuid('Catégorie invalide'),
+  cityId: z.string().uuid().optional().nullable(),
   priceCDF: z.string().regex(/^\d+$/, 'Le prix CDF doit être un nombre entier positif'),
   priceUSD: z.string().regex(/^\d+$/).optional().nullable(),
   quantity: z.number().int().min(0, 'La quantité ne peut pas être négative'),
@@ -34,6 +35,7 @@ export const updateProductSchema = createProductSchema.partial();
 
 export const browseProductsSchema = z.object({
   categoryId: z.string().uuid().optional(),
+  cityId: z.string().uuid().optional(),
   minPrice: z.string().regex(/^\d+$/).optional(),
   maxPrice: z.string().regex(/^\d+$/).optional(),
   condition: z.enum(['NEW', 'USED']).optional(),

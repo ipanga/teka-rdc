@@ -81,8 +81,9 @@ export default function PayoutsPage() {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (statusFilter) params.set('status', statusFilter);
       const res = await apiFetch<PaginatedResponse>(`/v1/admin/payouts?${params}`);
-      setPayouts(res.data.data);
-      setTotalPages(res.data.meta.totalPages);
+      const rd = res.data;
+      if (Array.isArray(rd)) { setPayouts(rd); setTotalPages(1); }
+      else { setPayouts(rd.data); setTotalPages(rd.meta?.totalPages ?? 1); }
     } catch {
       // Error handled by apiFetch
     } finally {

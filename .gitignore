@@ -8,13 +8,10 @@ dist/
 .turbo/
 out/
 
-# Environment files (keep .env.example)
-.env
-.env.local
-.env.development
-.env.production
-.env.test
-!.env.example
+# Environment files — ALL ignored to prevent any leak of secrets.
+# Document required variables in docs/deployment.md instead.
+.env*
+!.env*.sample.md
 
 # IDE
 .vscode/

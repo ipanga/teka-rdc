@@ -145,7 +145,7 @@ export default function WishlistPage() {
                       </svg>
                     </button>
 
-                    <Link href={`/products/${product.id}`}>
+                    <Link href={`/products/${product.slug || product.id}`}>
                       {/* Image */}
                       <div className="relative aspect-square bg-muted overflow-hidden">
                         {imageUrl ? (

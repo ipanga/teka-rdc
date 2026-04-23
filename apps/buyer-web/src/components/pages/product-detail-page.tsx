@@ -21,8 +21,8 @@ export default function ProductDetailPage() {
   const tMsg = useTranslations('Messaging');
   const locale = useLocale();
   const router = useRouter();
-  const params = useParams<{ id: string }>();
-  const productId = params.id;
+  const params = useParams<{ slug: string }>();
+  const productId = params.slug;
   const user = useAuthStore((s) => s.user);
 
   const [product, setProduct] = useState<ProductDetail | null>(null);

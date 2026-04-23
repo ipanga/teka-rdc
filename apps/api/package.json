@@ -28,7 +28,7 @@
   "dependencies": {
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.0",
-    "@nestjs/core": "^11.0.1",
+    "@nestjs/core": "^11.1.18",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/mapped-types": "^2.1.0",
     "@nestjs/passport": "^11.0.5",
@@ -42,8 +42,8 @@
     "cloudinary": "^2.9.0",
     "compression": "^1.7.5",
     "cookie-parser": "^1.4.7",
+    "google-auth-library": "^10.6.2",
     "helmet": "^8.0.0",
-    "ioredis": "^5.4.2",
     "joi": "^17.13.3",
     "multer": "^2.0.2",
     "passport": "^0.7.0",

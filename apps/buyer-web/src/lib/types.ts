@@ -33,6 +33,7 @@ export interface BrowseSeller {
 /** Product from GET /api/v1/browse/products */
 export interface BrowseProduct {
   id: string;
+  slug?: string;
   title: TranslatableText;
   description?: TranslatableText;
   priceCDF: string;
@@ -54,6 +55,7 @@ export interface ProductSpecification {
 /** Full product detail from GET /api/v1/browse/products/:id */
 export interface ProductDetail {
   id: string;
+  slug?: string;
   title: TranslatableText;
   description: TranslatableText;
   priceCDF: string;
@@ -213,11 +215,21 @@ export interface Address {
   id: string;
   recipientName: string;
   phone: string;
+  province?: string;
   town: string;
   neighborhood: string;
   avenue?: string | null;
   details?: string | null;
   isDefault: boolean;
+  cityId?: string | null;
+  communeId?: string | null;
+}
+
+/** Commune from GET /v1/cities/:cityId/communes */
+export interface Commune {
+  id: string;
+  cityId: string;
+  name: TranslatableText;
 }
 
 /** Checkout request body */
@@ -407,6 +419,7 @@ export interface FlashDeal {
   endsAt: string;
   product: {
     id: string;
+    slug?: string;
     title: TranslatableText;
     priceCDF: string;
     images: { url: string }[];

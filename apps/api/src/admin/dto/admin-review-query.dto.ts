@@ -1,12 +1,11 @@
 import {
   IsOptional,
-  IsUUID,
   IsString,
   IsInt,
   Min,
   Max,
   IsEnum,
-} from 'class-validator';
+Matches, } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class AdminReviewQueryDto {
@@ -30,11 +29,11 @@ export class AdminReviewQueryDto {
   status?: 'ACTIVE' | 'HIDDEN';
 
   @IsOptional()
-  @IsUUID('4', { message: "L'identifiant du produit doit être un UUID valide" })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: "L'identifiant du produit doit être un UUID valide" })
   productId?: string;
 
   @IsOptional()
-  @IsUUID('4', { message: "L'identifiant de l'acheteur doit être un UUID valide" })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: "L'identifiant de l'acheteur doit être un UUID valide" })
   buyerId?: string;
 
   @IsOptional()

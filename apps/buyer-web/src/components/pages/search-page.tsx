@@ -12,6 +12,7 @@ import {
   type ConditionFilter,
 } from '@/components/product/product-filters';
 import { apiFetch } from '@/lib/api-client';
+import { useCityStore } from '@/lib/city-store';
 import type { BrowseProduct, CursorPagination } from '@/lib/types';
 
 function SearchContent() {
@@ -35,6 +36,8 @@ function SearchContent() {
   const filtersRef = useRef({ condition, minPrice, maxPrice, sortBy });
   filtersRef.current = { condition, minPrice, maxPrice, sortBy };
 
+  const selectedCity = useCityStore((s) => s.selectedCity);
+
   function buildQuery(cursor?: string, overrides?: Partial<typeof filtersRef.current>) {
     const f = overrides ? { ...filtersRef.current, ...overrides } : filtersRef.current;
     const qs = new URLSearchParams();
@@ -44,6 +47,7 @@ function SearchContent() {
     if (f.condition) qs.set('condition', f.condition);
     if (f.minPrice) qs.set('minPrice', f.minPrice);
     if (f.maxPrice) qs.set('maxPrice', f.maxPrice);
+    if (selectedCity) qs.set('cityId', selectedCity.id);
     if (cursor) qs.set('cursor', cursor);
     return qs.toString();
   }

@@ -279,7 +279,8 @@ class AppLocalizationsFr extends AppLocalizations {
   String get checkoutSuccess => 'Commande confirmee !';
 
   @override
-  String get checkoutSuccessMessage => 'Votre commande a ete passee avec succes.';
+  String get checkoutSuccessMessage =>
+      'Votre commande a ete passee avec succes.';
 
   @override
   String get checkoutViewOrders => 'Voir mes commandes';
@@ -585,4 +586,85 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get learnMore => 'En savoir plus';
+
+  @override
+  String get selectCity => 'Choisissez votre ville';
+
+  @override
+  String get selectCityDescription => 'Pour voir les produits disponibles';
+
+  @override
+  String get currentCity => 'Ville';
+
+  @override
+  String get changeCity => 'Changer';
+
+  @override
+  String get addAddress => 'Ajouter une adresse';
+
+  @override
+  String get newAddress => 'Nouvelle adresse';
+
+  @override
+  String get cityLabel => 'Ville';
+
+  @override
+  String get cityPlaceholder => 'Selectionnez une ville';
+
+  @override
+  String get communeLabel => 'Commune';
+
+  @override
+  String get communePlaceholder => 'Selectionnez une commune';
+
+  @override
+  String get loadingCities => 'Chargement des villes...';
+
+  @override
+  String get loadingCommunes => 'Chargement des communes...';
+
+  @override
+  String get avenueLabel => 'Avenue / Rue';
+
+  @override
+  String get avenueHint => 'Ex: Av. Lumumba n24';
+
+  @override
+  String get referenceLabel => 'Point de repere';
+
+  @override
+  String get referenceHint => 'Ex: En face de la pharmacie';
+
+  @override
+  String get recipientNameLabel => 'Nom du destinataire';
+
+  @override
+  String get recipientNameHint => 'Nom complet';
+
+  @override
+  String get recipientPhoneLabel => 'Telephone du destinataire';
+
+  @override
+  String get recipientPhoneHint => '+243...';
+
+  @override
+  String get saveAddress => 'Enregistrer';
+
+  @override
+  String get savingAddress => 'Enregistrement...';
+
+  @override
+  String get addressSaved => 'Adresse enregistree';
+
+  @override
+  String get addressError => 'Erreur lors de l\'enregistrement';
+
+  @override
+  String get cityRequired => 'Selectionnez une ville';
+
+  @override
+  String get communeRequired => 'Selectionnez une commune';
+
+  @override
+  String get cancel => 'Annuler';
 }

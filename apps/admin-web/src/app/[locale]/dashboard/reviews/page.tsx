@@ -100,8 +100,9 @@ export default function ReviewsPage() {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (statusFilter) params.set('status', statusFilter);
       const res = await apiFetch<PaginatedResponse>(`/v1/admin/reviews?${params}`);
-      setReviews(res.data.data);
-      setTotalPages(res.data.pagination.totalPages);
+      const rd = res.data;
+      if (Array.isArray(rd)) { setReviews(rd); setTotalPages(1); }
+      else { setReviews(rd.data); setTotalPages(rd.pagination?.totalPages ?? 1); }
     } catch {
       // Error handled by apiFetch
     } finally {

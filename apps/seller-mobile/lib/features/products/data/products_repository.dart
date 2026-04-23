@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import 'models/attribute_model.dart';
 import 'models/product_model.dart';
 
 class PaginatedResponse<T> {
@@ -123,6 +124,16 @@ class ProductsRepository {
     return data
         .map((e) => CategoryModel.fromJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  Future<List<AttributeModel>> getCategoryAttributes(String categoryId) async {
+    final response = await _dio.get('/v1/browse/categories/$categoryId/attributes');
+    final data = response.data['data'] as List<dynamic>? ?? [];
+    final attrs = data
+        .map((e) => AttributeModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+    attrs.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    return attrs;
   }
 }
 

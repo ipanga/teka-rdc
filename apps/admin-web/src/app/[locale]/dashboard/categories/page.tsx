@@ -30,8 +30,9 @@ export default function CategoriesPage() {
   const fetchCategories = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await apiFetch<Category[]>('/v1/admin/categories');
-      setCategories(res.data);
+      const res = await apiFetch<Category[] | { data: Category[] }>('/v1/admin/categories');
+      const cats = Array.isArray(res.data) ? res.data : (res.data as { data: Category[] }).data || [];
+      setCategories(cats);
     } catch {
       // Error handled by apiFetch
     } finally {

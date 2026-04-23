@@ -257,11 +257,16 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
   const fetchReviews = useCallback(
     async (p: number) => {
       try {
-        const res = await apiFetch<PaginatedReviews>(
+        const res = await apiFetch<PaginatedReviews | Review[]>(
           `/v1/reviews/products/${productId}?page=${p}&limit=10&sort=newest`,
         );
-        setReviews(res.data.data);
-        setTotalPages(Math.ceil(res.data.meta.total / res.data.meta.limit) || 1);
+        if (Array.isArray(res.data)) {
+          setReviews(res.data);
+          setTotalPages(1);
+        } else {
+          setReviews(res.data.data);
+          setTotalPages(Math.ceil(res.data.meta.total / res.data.meta.limit) || 1);
+        }
       } catch {
         // reviews unavailable
       }

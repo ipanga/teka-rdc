@@ -20,6 +20,9 @@ export * from './constants/auth';
 export * from './constants/address';
 export * from './validators/auth.validator';
 
+// City & Commune
+export * from './types/city';
+
 // Phase 3 - Product Catalog
 export * from './types/product';
 export * from './constants/product';

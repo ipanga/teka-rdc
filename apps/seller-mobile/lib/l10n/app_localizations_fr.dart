@@ -645,4 +645,16 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get promotionSubmitForApproval => 'Soumettre pour approbation';
+
+  @override
+  String get productAttributes => 'Caractéristiques du produit';
+
+  @override
+  String get selectOption => 'Sélectionnez...';
+
+  @override
+  String get requiredField => 'Ce champ est obligatoire';
+
+  @override
+  String get noAttributes => 'Aucune caractéristique pour cette catégorie';
 }

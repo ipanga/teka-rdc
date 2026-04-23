@@ -4,7 +4,6 @@ import {
   createTestApp,
   resetMocks,
   mockPrismaService,
-  mockRedisService,
 } from './test-utils';
 
 describe('Browse (e2e)', () => {
@@ -26,7 +25,7 @@ describe('Browse (e2e)', () => {
   // GET /api/v1/browse/categories
   // ---------------------------------------------------------------------------
   describe('GET /api/v1/browse/categories', () => {
-    it('should return a category tree (no cache)', async () => {
+    it('should return a category tree', async () => {
       const mockCategories = [
         {
           id: '20000000-0000-0000-0000-000000000001',
@@ -38,7 +37,6 @@ describe('Browse (e2e)', () => {
           _count: { products: 5 },
         },
       ];
-      mockRedisService.getJson.mockResolvedValueOnce(null); // no cache
       mockPrismaService.category.findMany.mockResolvedValue(mockCategories);
 
       const res = await request(app.getHttpServer())
@@ -50,29 +48,8 @@ describe('Browse (e2e)', () => {
       expect(Array.isArray(res.body.data)).toBe(true);
     });
 
-    it('should return cached categories on cache hit', async () => {
-      const cachedCategories = [
-        {
-          id: '20000000-0000-0000-0000-000000000001',
-          name: { fr: 'Mode', en: 'Fashion' },
-          subcategories: [],
-          productCount: 10,
-        },
-      ];
-      mockRedisService.getJson.mockResolvedValueOnce(cachedCategories);
-
-      const res = await request(app.getHttpServer())
-        .get('/api/v1/browse/categories')
-        .expect(200);
-
-      expect(res.body.success).toBe(true);
-      expect(res.body.data).toEqual(cachedCategories);
-      // Prisma should NOT have been called (cache hit)
-      expect(mockPrismaService.category.findMany).not.toHaveBeenCalled();
-    });
-
     it('should be accessible without authentication (public)', () => {
-      mockRedisService.getJson.mockResolvedValueOnce([]);
+      mockPrismaService.category.findMany.mockResolvedValue([]);
 
       return request(app.getHttpServer())
         .get('/api/v1/browse/categories')
@@ -215,7 +192,6 @@ describe('Browse (e2e)', () => {
   describe('GET /api/v1/browse/products/:id', () => {
     it('should return 404 for non-existent product', async () => {
       const id = '30000000-0000-0000-0000-000000000999';
-      mockRedisService.getJson.mockResolvedValueOnce(null);
       mockPrismaService.product.findUnique.mockResolvedValue(null);
 
       return request(app.getHttpServer())
@@ -228,24 +204,6 @@ describe('Browse (e2e)', () => {
         .get('/api/v1/browse/products/not-a-uuid')
         .expect(400);
     });
-
-    it('should return cached product detail on cache hit', async () => {
-      const id = '30000000-0000-0000-0000-000000000001';
-      const cachedProduct = {
-        id,
-        title: { fr: 'Produit Test', en: 'Test Product' },
-        priceCDF: '500000',
-      };
-      mockRedisService.getJson.mockResolvedValueOnce(cachedProduct);
-
-      const res = await request(app.getHttpServer())
-        .get(`/api/v1/browse/products/${id}`)
-        .expect(200);
-
-      expect(res.body.success).toBe(true);
-      expect(res.body.data.id).toBe(id);
-      expect(mockPrismaService.product.findUnique).not.toHaveBeenCalled();
-    });
   });
 
   // ---------------------------------------------------------------------------
@@ -255,8 +213,7 @@ describe('Browse (e2e)', () => {
     it('should return active banners', async () => {
       // refreshActiveBanners calls updateMany
       mockPrismaService.banner.updateMany.mockResolvedValue({ count: 0 });
-      // getActiveBanners: cache miss then DB
-      mockRedisService.getJson.mockResolvedValueOnce(null);
+      // getActiveBanners: DB query
       mockPrismaService.banner.findMany.mockResolvedValue([]);
 
       const res = await request(app.getHttpServer())
@@ -269,7 +226,7 @@ describe('Browse (e2e)', () => {
 
     it('should be accessible without authentication (public)', async () => {
       mockPrismaService.banner.updateMany.mockResolvedValue({ count: 0 });
-      mockRedisService.getJson.mockResolvedValueOnce([]);
+      mockPrismaService.banner.findMany.mockResolvedValue([]);
 
       return request(app.getHttpServer())
         .get('/api/v1/browse/banners')

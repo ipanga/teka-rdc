@@ -88,7 +88,7 @@ export class CheckoutService {
     // 4. Generate a checkout group ID
     const checkoutGroupId = crypto.randomUUID();
 
-    // 5. Execute everything in a Prisma transaction
+    // 5. Execute everything in a Prisma transaction (30s timeout for slow cloud DB)
     const orders = await this.prisma.$transaction(async (tx) => {
       const createdOrders = [];
 
@@ -133,11 +133,12 @@ export class CheckoutService {
         // Get seller location for delivery fee estimation
         const sellerProfile = await tx.sellerProfile.findFirst({
           where: { userId: group.sellerId },
-          select: { location: true },
+          select: { location: true, city: { select: { name: true } } },
         });
 
-        // Estimate delivery fee
-        const fromTown = sellerProfile?.location ?? 'Lubumbashi';
+        // Estimate delivery fee — use city name if available, fall back to location string
+        const cityName = sellerProfile?.city?.name as { fr: string; en?: string } | null;
+        const fromTown = cityName?.fr ?? sellerProfile?.location ?? 'Lubumbashi';
         const deliveryEstimate = await this.deliveryZonesService.estimateFee(
           fromTown,
           address.town,
@@ -270,7 +271,7 @@ export class CheckoutService {
       }
 
       return createdOrders;
-    });
+    }, { timeout: 120000 });
 
     this.logger.log(
       `Checkout completed: ${orders.length} order(s) created for user ${userId}, group ${checkoutGroupId}`,
