@@ -32,16 +32,15 @@ Teka RDC is a multi-tenant e-commerce marketplace for the Democratic Republic of
                     │ Port 5050  │──────►│  Cloudinary (Images)  │
                     │ NestJS 11  │       │  Africa's Talking SMS │
                     │ Prisma 6   │       │  Flexpay (Mobile $)   │
-                    └──┬─────┬──┘       │  Resend (Email)       │
-                       │     │          └───────────────────────┘
-              ┌────────┘     └────────┐
-              │                       │
-       ┌──────▼──────┐       ┌────────▼───────┐
-       │ PostgreSQL  │       │     Redis      │
-       │  (Cloud)    │       │  (Docker)      │
-       │  Prisma ORM │       │  Cache / OTP   │
-       │  Migrations │       │  Rate Limits   │
-       └─────────────┘       └────────────────┘
+                    └──────┬────┘       │  Resend (Email)       │
+                           │            └───────────────────────┘
+                           │
+                    ┌──────▼──────┐
+                    │ PostgreSQL  │
+                    │  (Cloud)    │
+                    │  Prisma ORM │
+                    │  Migrations │
+                    └─────────────┘
 
 
     ┌─────────────────┐     ┌──────────────────┐
@@ -89,25 +88,101 @@ teka-rdc/
 | **admin-web** | Next.js 15 + ShadCN UI | 5200 | Admin panel with charts and data tables (basePath: `/admin`) |
 | **buyer-mobile** | Flutter + Riverpod + go_router | N/A | Android consumer app (primary user interface) |
 | **seller-mobile** | Flutter + Riverpod + go_router | N/A | Android seller management app |
-| **PostgreSQL** | Cloud-hosted (Neon/Supabase) | 5432 | Primary relational database |
-| **Redis** | redis:7-alpine (Docker) | 6379 | Cache, OTP storage, rate limiting, session data |
+| **PostgreSQL** | Cloud-hosted (Neon/Supabase) | 5432 | Primary relational database (includes OTP storage) |
 
 > **Port restrictions**: Ports 3000 and 4000 are never used (reserved for other local services).
 
 ## Data Flow
 
-### Authentication (Phone OTP — Primary Flow)
+### Authentication — overview
+
+Teka RDC supports three auth providers, each tracked on `User.authProvider`:
+
+| Provider | Roles | Primary flow |
+|---|---|---|
+| `PHONE_OTP` | Buyers (primary), Admins (optional) | SMS code via **Orange DRC** (default) or Africa's Talking |
+| `EMAIL_PASSWORD` | Sellers (**only**), Admins (coexist), Buyers (optional future) | bcrypt hash + password-reset via Resend |
+| `GOOGLE` | All roles | Google id_token verified server-side via `google-auth-library` |
+
+All three paths terminate in the same `generateTokens` helper, so refresh-token replay detection and cookie semantics are identical.
+
+### Authentication — Phone OTP
 
 ```
 1. Client → POST /api/v1/auth/otp/request { phone: "+243XXXXXXXXX" }
-2. API generates 6-digit OTP, stores in Redis (5min TTL, max 3 attempts)
-3. API sends OTP via Africa's Talking SMS
-4. Client → POST /api/v1/auth/otp/verify { phone, code }
-5. API validates OTP against Redis, creates/finds User
-6. API returns JWT access token (15min) + refresh token (7d)
-7. Refresh token hash stored in DB for rotation/revocation
-8. Tokens also set as httpOnly cookies (teka_access_token, teka_refresh_token)
+2. API generates 6-digit OTP, stores in PostgreSQL Otp table (5min expiry, max 5 attempts)
+3. SmsService dispatches to the active provider (SMS_PROVIDER env: orange | africas_talking | mock)
+4. Client → POST /api/v1/auth/login { phone, code }
+5. If user.role=SELLER && authProvider=PHONE_OTP → 409 SELLER_MIGRATION_REQUIRED
+6. Else → JWT access (15m) + refresh (7d, hashed in DB, replay-protected)
+7. Tokens set as httpOnly cookies (teka_access_token, teka_refresh_token)
+
+Buyer-initiated email fallback (user taps "Recevoir par email"):
+  POST /api/v1/auth/otp/request-email { phone } → OtpService(channel='email') → Resend
 ```
+
+### Authentication — Email + password
+
+```
+1. POST /api/v1/auth/register/email { email, password, firstName, lastName }
+   → bcrypt hash (BCRYPT_ROUNDS=12 default), User created with authProvider=EMAIL_PASSWORD
+   → Welcome + verification email dispatched via Resend (fire-and-forget)
+2. POST /api/v1/auth/login/email { email, password }
+   → Generic error "Email ou mot de passe invalide" on any failure (no enumeration)
+3. Forgot password:
+   POST /auth/password-reset/request { email } — always 200
+   → PasswordResetToken row (sha256 hash of raw token) with 60min TTL
+   → Reset link emailed (BUYER_WEB_URL / SELLER_WEB_URL / ADMIN_WEB_URL chosen by user.role)
+4. POST /auth/password-reset/confirm { token, newPassword }
+   → Atomic: update hash + revoke all refresh tokens + consume reset token
+```
+
+### Authentication — Google OAuth
+
+```
+1. Client (web / mobile) authenticates with Google directly (returns id_token)
+2. POST /api/v1/auth/login/google { idToken }
+3. google-auth-library verifies the token against all configured audiences
+   (GOOGLE_WEB_CLIENT_ID, GOOGLE_IOS_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID)
+4. Upsert order:
+   a. Match by User.googleId
+   b. Match by User.email (only when Google reports email_verified=true) → set googleId
+   c. Else create new User with authProvider=GOOGLE, role=BUYER, emailVerified=true
+5. Standard generateTokens → cookies
+```
+
+### Authentication — Seller migration (existing phone-only sellers)
+
+```
+1. Seller opens new seller-web/seller-mobile → enters email
+2. POST /auth/seller/migrate-check { email }
+   a. Email matches SELLER on file with passwordHash=null
+      → send 24h seller_password_setup JWT to that email → 202 { migration: 'email_setup_sent' }
+   b. No email match
+      → 200 { migration: 'email_required' }
+      → Seller verifies phone via existing SMS OTP, then POST /auth/seller/migrate-link-email { phone, code, email }
+   c. Already has password + authProvider != PHONE_OTP
+      → 200 { migration: 'already_migrated' }
+3. Seller clicks email link → /seller/setup-password?token=...
+4. POST /auth/seller/setup-password { token, password }
+   → Transaction: set passwordHash + authProvider=EMAIL_PASSWORD + passwordSetAt
+   → Mark SellerMigration.setupCompleted; revoke all refresh tokens; issue new cookies
+```
+
+### SMS provider abstraction
+
+```
+apps/api/src/sms/
+├── interfaces/sms-provider.interface.ts   (SmsProvider { sendSms(phone, msg) })
+├── providers/
+│   ├── orange-drc.provider.ts             (OAuth2 token cache, 401 → invalidate + retry once)
+│   ├── africas-talking.provider.ts        (legacy, kept for rollback)
+│   └── mock-sms.provider.ts               (dev + test — logs to console)
+├── sms.service.ts                         (facade; builds French message, dispatches)
+└── sms.module.ts                          (DI factory keyed on SMS_PROVIDER env)
+```
+Mirrors the existing `payments/interfaces/payment-provider.interface.ts` pattern.
+
 
 ### Product Lifecycle
 
@@ -252,24 +327,16 @@ Deterministic UUIDs are used in seed data for consistency:
 | `e2000000-*` | Conversations |
 | `e3000000-*` | Messages |
 
-## Caching Strategy (Redis)
+## OTP Storage (PostgreSQL)
 
-| Key Pattern | TTL | Purpose |
-|-------------|-----|---------|
-| `otp:{phone}` | 5min | OTP code + attempt counter |
-| `otp:rate:{phone}` | 10min | OTP rate limiting (max 3 per 10min) |
-| `browse:categories` | 1hr | Category tree response |
-| `browse:product:{id}` | 5min | Product detail response |
-| `banners:active` | 5min | Active homepage banners |
-| `settings:{key}` | 1min | Individual system settings |
-| `settings:public` | 1min | Public-facing settings bundle |
-| `content:{slug}` | 15min | Published content pages |
-| `promotions:active` | 5min | Active promotions list |
-| `flash_deals:active` | 2min | Active flash deals (shorter TTL for time-sensitivity) |
-| `admin:stats` | 5min | Dashboard KPI aggregations |
-| `admin:trends:{period}` | 10min | Dashboard trend chart data |
+OTP codes and rate limiting are stored in PostgreSQL tables:
 
-Cache invalidation is performed on write operations (create, update, delete) for the relevant entities.
+| Table | Purpose |
+|-------|---------|
+| `otps` | OTP code + attempt counter, with `expiresAt` for automatic expiry |
+| `otp_rate_limits` | Rate limiting entries (max 3 per 10min window), with `expiresAt` |
+
+Expired entries are cleaned up on each OTP request. This approach eliminates the need for Redis while maintaining the same security guarantees.
 
 ## Security Model
 
@@ -387,9 +454,11 @@ Messages are stored in `Conversation` + `Message` tables. Each conversation link
 | Service | Purpose | Failure Handling |
 |---------|---------|------------------|
 | **Cloudinary** | Image upload, transformation (WebP, resize), CDN delivery | Upload fails gracefully; product saved without image |
-| **Africa's Talking** | SMS OTP, order notifications | Fire-and-forget with inner try-catch; failures logged but don't block operations |
+| **Orange DRC SMS** | Default SMS provider for phone OTP + order notifications | OAuth2 token cache (in-memory), retry-once on 401, fire-and-forget. Selectable via `SMS_PROVIDER=orange\|africas_talking\|mock` env |
+| **Africa's Talking** | Legacy SMS provider (rollback fallback) | Same interface as Orange; flip `SMS_PROVIDER=africas_talking` to cut over |
 | **Flexpay** | Mobile Money payment (M-Pesa, Airtel Money, Orange Money) | Async webhook; payment status polled if webhook delayed |
-| **Resend** | Transactional emails (verification, receipts) | Fire-and-forget; email is optional for most flows |
+| **Resend** | Transactional emails (verification, password reset, seller setup, receipts) | Fire-and-forget; dev mode logs to console instead of sending |
+| **Google OAuth** | Social login (all 3 roles) — verified server-side via `google-auth-library` | Stateless: clients hand a Google `idToken` to `/v1/auth/login/google`; backend upserts by `googleId` or links by verified `email` |
 
 All external service calls use the fire-and-forget notification pattern with inner try-catch blocks and outer `.catch()` at call sites to prevent cascading failures.
 
@@ -402,13 +471,12 @@ All external service calls use the fire-and-forget notification pattern with inn
 | admin-web | 5200 |
 | API | 5050 |
 | NGINX (dev proxy) | 8080 |
-| Redis | 6379 |
 
 > **Never use ports 3000 or 4000** — they are reserved for other local services.
 
 ## Key Design Decisions
 
-1. **Cloud PostgreSQL, Dockerized Redis**: Database is too critical for local Docker volumes; Redis is ephemeral cache that rebuilds automatically.
+1. **Cloud PostgreSQL, no Redis**: All data (including OTPs and rate limits) is stored in cloud-hosted PostgreSQL. This simplifies infrastructure and eliminates a separate dependency.
 
 2. **Polling over WebSocket for chat**: More resilient on unstable 2G/3G connections in DRC. Reconnection logic is simpler and more reliable.
 

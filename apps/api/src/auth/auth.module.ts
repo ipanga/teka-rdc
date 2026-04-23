@@ -7,7 +7,6 @@ import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { OtpModule } from '../otp/otp.module';
 import { PrismaModule } from '../prisma/prisma.module';
-import { RedisModule } from '../redis/redis.module';
 import { EmailModule } from '../email/email.module';
 
 @Module({
@@ -23,7 +22,6 @@ import { EmailModule } from '../email/email.module';
     }),
     OtpModule,
     PrismaModule,
-    RedisModule,
     ConfigModule,
     EmailModule,
   ],

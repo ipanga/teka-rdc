@@ -2,6 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { otpEmailTemplate } from './templates/otp.template';
 import { emailVerificationTemplate } from './templates/verification.template';
+import { passwordResetTemplate } from './templates/password-reset.template';
+import { welcomeTemplate } from './templates/welcome.template';
+import { sellerSetupTemplate } from './templates/seller-setup.template';
 
 @Injectable()
 export class EmailService {
@@ -19,14 +22,36 @@ export class EmailService {
   async sendOtpEmail(email: string, code: string): Promise<boolean> {
     const subject = `Votre code Teka RDC: ${code}`;
     const html = otpEmailTemplate(code, this.configService.get('OTP_EXPIRY_MINUTES', 5));
-
     return this.sendEmail(email, subject, html);
   }
 
   async sendEmailVerification(email: string, verificationUrl: string): Promise<boolean> {
     const subject = 'Vérifiez votre adresse email — Teka RDC';
     const html = emailVerificationTemplate(verificationUrl);
+    return this.sendEmail(email, subject, html);
+  }
 
+  async sendPasswordResetEmail(email: string, resetUrl: string): Promise<boolean> {
+    const expiryMinutes = this.configService.get<number>('PASSWORD_RESET_EXPIRY_MINUTES', 60);
+    const subject = 'Réinitialisation de votre mot de passe — Teka RDC';
+    const html = passwordResetTemplate(resetUrl, expiryMinutes);
+    return this.sendEmail(email, subject, html);
+  }
+
+  async sendWelcomeEmail(
+    email: string,
+    firstName: string | null,
+    verificationUrl: string | null,
+  ): Promise<boolean> {
+    const subject = 'Bienvenue sur Teka RDC';
+    const html = welcomeTemplate(firstName, verificationUrl);
+    return this.sendEmail(email, subject, html);
+  }
+
+  async sendSellerSetupEmail(email: string, setupUrl: string): Promise<boolean> {
+    const expiryHours = this.configService.get<number>('SELLER_SETUP_EXPIRY_HOURS', 24);
+    const subject = 'Configurez votre compte vendeur — Teka RDC';
+    const html = sellerSetupTemplate(setupUrl, expiryHours);
     return this.sendEmail(email, subject, html);
   }
 

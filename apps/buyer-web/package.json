@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 5000 --turbopack",
+    "dev": "next dev --port 5001 --turbopack",
     "build": "next build",
     "start": "next start -p 5000",
     "lint": "next lint",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@react-oauth/google": "^0.13.5",
     "@teka/shared": "workspace:*",
     "next": "15.5.12",
     "next-intl": "^4.1.0",

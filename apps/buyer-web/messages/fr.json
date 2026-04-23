@@ -33,7 +33,28 @@
     "resendOtp": "Renvoyer le code",
     "resendIn": "Renvoyer dans {seconds}s",
     "logout": "Se déconnecter",
-    "profile": "Mon profil"
+    "profile": "Mon profil",
+    "receiveByEmail": "Recevoir le code par email",
+    "noEmailOnFile": "Aucun email enregistré pour ce compte",
+    "emailSentToMasked": "Un code a été envoyé à votre adresse email",
+    "continueWithGoogle": "Continuer avec Google",
+    "emailLabel": "Email",
+    "emailPlaceholder": "vous@exemple.com",
+    "passwordLabel": "Mot de passe",
+    "passwordHint": "Au moins 8 caractères, avec lettres et chiffres",
+    "confirmPasswordLabel": "Confirmer le mot de passe",
+    "forgotPassword": "Mot de passe oublié ?",
+    "forgotPasswordTitle": "Mot de passe oublié",
+    "forgotPasswordHint": "Entrez votre email. Nous vous enverrons un lien pour réinitialiser votre mot de passe.",
+    "sendResetLink": "Envoyer le lien",
+    "resetLinkSent": "Si un compte existe, vous recevrez un email de réinitialisation.",
+    "resetPasswordTitle": "Nouveau mot de passe",
+    "resetPassword": "Réinitialiser le mot de passe",
+    "resetPasswordSuccess": "Mot de passe réinitialisé. Vous pouvez vous connecter.",
+    "resetPasswordInvalid": "Lien invalide ou expiré.",
+    "loginWithPhone": "Par téléphone",
+    "loginWithEmail": "Par email",
+    "backToLogin": "Retour à la connexion"
   },
   "Header": {
     "search": "Rechercher des produits...",
@@ -49,7 +70,7 @@
   },
   "Hero": {
     "title": "Bienvenue sur Teka",
-    "subtitle": "Le marché en ligne de Lubumbashi",
+    "subtitle": "Le marché en ligne de {city}",
     "cta": "Découvrir les produits"
   },
   "Categories": {
@@ -132,7 +153,9 @@
     "terms": "Conditions d'utilisation",
     "privacy": "Politique de confidentialité",
     "help": "Aide",
-    "faq": "FAQ"
+    "faq": "FAQ",
+    "howToBuy": "Comment acheter",
+    "howToSell": "Comment vendre"
   },
   "Cart": {
     "title": "Panier",
@@ -177,7 +200,29 @@
     "payerPhone": "Numéro Mobile Money",
     "payerPhonePlaceholder": "+243...",
     "providerRequired": "Veuillez sélectionner un opérateur",
-    "phoneRequired": "Veuillez entrer votre numéro Mobile Money"
+    "phoneRequired": "Veuillez entrer votre numéro Mobile Money",
+    "newAddress": "Nouvelle adresse",
+    "cityLabel": "Ville",
+    "cityPlaceholder": "Sélectionnez une ville",
+    "communeLabel": "Commune",
+    "communePlaceholder": "Sélectionnez une commune",
+    "loadingCities": "Chargement des villes...",
+    "loadingCommunes": "Chargement des communes...",
+    "avenueLabel": "Avenue / Rue",
+    "avenuePlaceholder": "Ex: Av. Lumumba n°24",
+    "referenceLabel": "Point de repère",
+    "referencePlaceholder": "Ex: En face de la pharmacie",
+    "recipientNameLabel": "Nom du destinataire",
+    "recipientNamePlaceholder": "Nom complet",
+    "recipientPhoneLabel": "Téléphone du destinataire",
+    "recipientPhonePlaceholder": "+243...",
+    "saveAddress": "Enregistrer l'adresse",
+    "savingAddress": "Enregistrement...",
+    "addressSaved": "Adresse enregistrée",
+    "addressError": "Erreur lors de l'enregistrement",
+    "cityRequired": "Veuillez sélectionner une ville",
+    "communeRequired": "Veuillez sélectionner une commune",
+    "cancelNewAddress": "Annuler"
   },
   "PaymentPending": {
     "title": "Paiement en attente",
@@ -309,5 +354,12 @@
     "homeDescription": "Marketplace en ligne pour la RD Congo. Produits de qualité livrés à Lubumbashi, Likasi et Kolwezi.",
     "searchTitle": "Recherche",
     "categoryDescription": "Découvrez les produits sur Teka RDC. Livraison à Lubumbashi, Likasi et Kolwezi."
+  },
+  "City": {
+    "selectCity": "Choisissez votre ville",
+    "selectCityDescription": "Pour vous montrer les produits disponibles près de chez vous",
+    "currentCity": "Ville actuelle",
+    "changeCity": "Changer de ville",
+    "cancel": "Annuler"
   }
 }

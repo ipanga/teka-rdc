@@ -9,6 +9,120 @@ class AuthRepository {
 
   AuthRepository(this._dio, this._tokenStorage);
 
+  // Email + password —————————————————————————————————————————————————————————
+
+  Future<Map<String, dynamic>> loginWithEmail(String email, String password) async {
+    final response = await _dio.post(
+      '/v1/auth/login/email',
+      data: {'email': email, 'password': password},
+    );
+    final data = response.data['data'] ?? response.data;
+    if (data['tokens'] != null) {
+      await _tokenStorage.saveTokens(
+        data['tokens']['accessToken'],
+        data['tokens']['refreshToken'],
+      );
+    }
+    return data;
+  }
+
+  Future<Map<String, dynamic>> registerWithEmail(
+    String email,
+    String password,
+    String firstName,
+    String lastName,
+  ) async {
+    final response = await _dio.post(
+      '/v1/auth/register/email',
+      data: {
+        'email': email,
+        'password': password,
+        'firstName': firstName,
+        'lastName': lastName,
+      },
+    );
+    final data = response.data['data'] ?? response.data;
+    if (data['tokens'] != null) {
+      await _tokenStorage.saveTokens(
+        data['tokens']['accessToken'],
+        data['tokens']['refreshToken'],
+      );
+    }
+    return data;
+  }
+
+  Future<void> requestPasswordReset(String email) async {
+    await _dio.post(
+      '/v1/auth/password-reset/request',
+      data: {'email': email},
+    );
+  }
+
+  Future<void> confirmPasswordReset(String token, String newPassword) async {
+    await _dio.post(
+      '/v1/auth/password-reset/confirm',
+      data: {'token': token, 'newPassword': newPassword},
+    );
+  }
+
+  // Google OAuth ——————————————————————————————————————————————————————————————
+
+  Future<Map<String, dynamic>> loginWithGoogle(String idToken) async {
+    final response = await _dio.post(
+      '/v1/auth/login/google',
+      data: {'idToken': idToken},
+    );
+    final data = response.data['data'] ?? response.data;
+    if (data['tokens'] != null) {
+      await _tokenStorage.saveTokens(
+        data['tokens']['accessToken'],
+        data['tokens']['refreshToken'],
+      );
+    }
+    return data;
+  }
+
+  // Seller migration ——————————————————————————————————————————————————————————
+
+  /// Returns one of: { migration: 'email_setup_sent' | 'email_required' | 'already_migrated', maskedPhone? }
+  Future<Map<String, dynamic>> migrateSellerCheck(String email) async {
+    final response = await _dio.post(
+      '/v1/auth/seller/migrate-check',
+      data: {'email': email},
+    );
+    return response.data['data'] ?? response.data;
+  }
+
+  Future<Map<String, dynamic>> migrateSellerLinkEmail({
+    required String phone,
+    required String code,
+    required String email,
+  }) async {
+    final response = await _dio.post(
+      '/v1/auth/seller/migrate-link-email',
+      data: {'phone': phone, 'code': code, 'email': email},
+    );
+    return response.data['data'] ?? response.data;
+  }
+
+  /// Consumes the 24h setup JWT, sets the password, and issues tokens.
+  Future<Map<String, dynamic>> setupSellerPassword(String token, String password) async {
+    final response = await _dio.post(
+      '/v1/auth/seller/setup-password',
+      data: {'token': token, 'password': password},
+    );
+    final data = response.data['data'] ?? response.data;
+    if (data['tokens'] != null) {
+      await _tokenStorage.saveTokens(
+        data['tokens']['accessToken'],
+        data['tokens']['refreshToken'],
+      );
+    }
+    return data;
+  }
+
+  // Phone OTP (kept for migration flow only) ——————————————————————————————————
+
   Future<Map<String, dynamic>> requestOtp(String phone) async {
     final response = await _dio.post(
       '/v1/auth/otp/request',
@@ -17,58 +131,7 @@ class AuthRepository {
     return response.data['data'] ?? response.data;
   }
 
-  Future<Map<String, dynamic>> verifyOtp(String phone, String code) async {
-    final response = await _dio.post(
-      '/v1/auth/otp/verify',
-      data: {'phone': phone, 'code': code},
-    );
-    return response.data['data'] ?? response.data;
-  }
-
-  Future<Map<String, dynamic>> login(String phone, String code) async {
-    final response = await _dio.post(
-      '/v1/auth/login',
-      data: {'phone': phone, 'code': code},
-    );
-    final data = response.data['data'] ?? response.data;
-
-    if (data['tokens'] != null) {
-      await _tokenStorage.saveTokens(
-        data['tokens']['accessToken'],
-        data['tokens']['refreshToken'],
-      );
-    }
-
-    return data;
-  }
-
-  Future<Map<String, dynamic>> register(
-    String phone,
-    String code,
-    String firstName,
-    String lastName,
-  ) async {
-    final response = await _dio.post(
-      '/v1/auth/register',
-      data: {
-        'phone': phone,
-        'code': code,
-        'firstName': firstName,
-        'lastName': lastName,
-        'role': 'SELLER',
-      },
-    );
-    final data = response.data['data'] ?? response.data;
-
-    if (data['tokens'] != null) {
-      await _tokenStorage.saveTokens(
-        data['tokens']['accessToken'],
-        data['tokens']['refreshToken'],
-      );
-    }
-
-    return data;
-  }
+  // Session ———————————————————————————————————————————————————————————————————
 
   Future<Map<String, dynamic>?> getCurrentUser() async {
     try {

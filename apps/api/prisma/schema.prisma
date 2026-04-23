@@ -23,6 +23,12 @@ enum UserStatus {
   PENDING_VERIFICATION
 }
 
+enum AuthProvider {
+  PHONE_OTP
+  EMAIL_PASSWORD
+  GOOGLE
+}
+
 enum SellerApplicationStatus {
   PENDING
   APPROVED
@@ -133,6 +139,42 @@ enum NotificationBroadcastStatus {
   FAILED
 }
 
+model City {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      Json     // { fr: string, en?: string }
+  province  String
+  isActive  Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  communes       Commune[]
+  products       Product[]
+  addresses      Address[]
+  sellerProfiles SellerProfile[]
+
+  @@index([isActive])
+  @@index([sortOrder])
+  @@index([province])
+  @@map("cities")
+}
+
+model Commune {
+  id        String   @id @default(uuid()) @db.Uuid
+  cityId    String   @db.Uuid
+  name      Json     // { fr: string, en?: string }
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  city      City      @relation(fields: [cityId], references: [id])
+  addresses Address[]
+
+  @@index([cityId])
+  @@index([sortOrder])
+  @@map("communes")
+}
+
 model User {
   id           String     @id @default(uuid()) @db.Uuid
   phone        String     @unique
@@ -144,6 +186,11 @@ model User {
   status       UserStatus @default(PENDING_VERIFICATION)
   avatar       String?
   locale       String     @default("fr")
+
+  // Auth provider
+  authProvider  AuthProvider @default(PHONE_OTP)
+  googleId      String?      @unique
+  passwordSetAt DateTime?
 
   // Verification
   phoneVerified Boolean @default(false)
@@ -180,8 +227,13 @@ model User {
   editedSettings       SystemSetting[]         @relation("SettingEditor")
   createdBroadcasts    NotificationBroadcast[] @relation("BroadcastCreatedBy")
 
+  // Auth refactor relations
+  passwordResetTokens PasswordResetToken[]
+  sellerMigration     SellerMigration?
+
   @@index([phone])
   @@index([email])
+  @@index([googleId])
   @@index([role])
   @@index([status])
   @@index([deletedAt])
@@ -197,6 +249,7 @@ model SellerProfile {
   idType            String // 'national_id' | 'passport' | 'rccm'
   phone             String
   location          String
+  cityId            String?                 @db.Uuid
   description       String?
   applicationStatus SellerApplicationStatus @default(PENDING)
   rejectionReason   String?
@@ -212,11 +265,13 @@ model SellerProfile {
 
   user       User  @relation("UserSellerProfile", fields: [userId], references: [id])
   approvedBy User? @relation("SellerApprover", fields: [approvedById], references: [id])
+  city       City? @relation(fields: [cityId], references: [id])
   earnings   SellerEarning[]
   payouts    Payout[]
 
   @@index([userId])
   @@index([applicationStatus])
+  @@index([cityId])
   @@index([deletedAt])
   @@map("seller_profiles")
 }
@@ -227,7 +282,9 @@ model Address {
   label          String?
   province       String
   town           String
-  neighborhood   String // commune
+  neighborhood   String // commune (legacy string field)
+  cityId         String?   @db.Uuid
+  communeId      String?   @db.Uuid
   avenue         String?
   reference      String? // landmark
   recipientName  String?
@@ -237,11 +294,14 @@ model Address {
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
 
-  user   User    @relation(fields: [userId], references: [id])
-  orders Order[]
+  user    User     @relation(fields: [userId], references: [id])
+  city    City?    @relation(fields: [cityId], references: [id])
+  commune Commune? @relation(fields: [communeId], references: [id])
+  orders  Order[]
 
   @@index([userId])
   @@index([userId, isDefault])
+  @@index([cityId])
   @@index([deletedAt])
   @@map("addresses")
 }
@@ -262,6 +322,36 @@ model RefreshToken {
   @@index([tokenHash])
   @@index([expiresAt])
   @@map("refresh_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  ipAddress String?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@map("password_reset_tokens")
+}
+
+model SellerMigration {
+  userId         String    @id @db.Uuid
+  setupEmailSent DateTime?
+  setupCompleted DateTime?
+  tempEmail      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("seller_migrations")
 }
 
 model Category {
@@ -292,10 +382,12 @@ model Category {
 
 model Product {
   id              String           @id @default(uuid()) @db.Uuid
+  slug            String?          @unique
   title           Json             // { fr: string, en?: string }
   description     Json             // { fr: string, en?: string }
   categoryId      String           @db.Uuid
   sellerId        String           @db.Uuid
+  cityId          String?          @db.Uuid
   priceCDF        BigInt           // centimes (1 CDF = 100 centimes)
   priceUSD        BigInt?          // cents (1 USD = 100 cents)
   quantity        Int              @default(0)
@@ -311,6 +403,7 @@ model Product {
 
   category       Category              @relation(fields: [categoryId], references: [id])
   seller         User                  @relation("SellerProducts", fields: [sellerId], references: [id])
+  city           City?                 @relation(fields: [cityId], references: [id])
   images         ProductImage[]
   specifications ProductSpecification[]
   cartItems      CartItem[]
@@ -319,8 +412,10 @@ model Product {
   wishlistEntries Wishlist[]
   promotions     Promotion[]
 
+  @@index([slug])
   @@index([categoryId])
   @@index([sellerId])
+  @@index([cityId])
   @@index([status])
   @@index([condition])
   @@index([priceCDF])
@@ -328,6 +423,8 @@ model Product {
   @@index([createdAt])
   @@index([deletedAt])
   @@index([categoryId, status, createdAt])
+  @@index([cityId, status])
+  @@index([cityId, status, createdAt])
   @@index([status, priceCDF])
   @@index([status, avgRating])
   @@map("products")
@@ -787,6 +884,31 @@ model SystemSetting {
 
   @@index([key])
   @@map("system_settings")
+}
+
+model Otp {
+  id        String   @id @default(uuid()) @db.Uuid
+  phone     String
+  code      String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+  @@index([expiresAt])
+  @@map("otps")
+}
+
+model OtpRateLimit {
+  id        String   @id @default(uuid()) @db.Uuid
+  phone     String
+  count     Int      @default(1)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+  @@index([expiresAt])
+  @@map("otp_rate_limits")
 }
 
 model NotificationBroadcast {

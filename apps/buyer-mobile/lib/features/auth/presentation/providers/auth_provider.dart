@@ -73,6 +73,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
     return _authRepository.requestOtp(phone);
   }
 
+  Future<Map<String, dynamic>> requestEmailOtp(String phone) async {
+    return _authRepository.requestEmailOtp(phone);
+  }
+
+  Future<void> loginWithGoogle(String idToken) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final data = await _authRepository.loginWithGoogle(idToken);
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        user: data['user'],
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      rethrow;
+    }
+  }
+
   Future<Map<String, dynamic>> verifyOtp(String phone, String code) async {
     return _authRepository.verifyOtp(phone, code);
   }
