@@ -17,32 +17,63 @@ function generateProductSlug(frenchTitle: string, productId: string): string {
 }
 
 async function main() {
-  console.log('Seeding database...');
+  // SEED_MODE=prod: only foundational data (cities, communes, categories,
+  // attributes, a single admin user). SEED_MODE=dev (default): the full
+  // sandbox including sample buyers, sellers, products, orders, reviews,
+  // banners, promotions, broadcasts — safe for local and staging.
+  const seedMode = (process.env.SEED_MODE ?? 'dev').toLowerCase();
+  const isProd = seedMode === 'prod';
+  console.log(`Seeding database in ${seedMode.toUpperCase()} mode...`);
 
   // ============================================================
   // USERS & SELLER PROFILES
   // ============================================================
 
-  // Admin user
+  // Admin user — required in every mode so the admin portal has at least one
+  // account to "forgot password" into. In prod, identity is driven by env vars
+  // so the seed never hard-codes a public phone/email; missing vars fail fast.
+  const requireInProd = (key: string, fallback: string): string => {
+    const v = process.env[key];
+    if (isProd && !v) {
+      throw new Error(`SEED_MODE=prod requires env var ${key}`);
+    }
+    return v ?? fallback;
+  };
+
+  const adminPhone = requireInProd('SEED_ADMIN_PHONE', '+243999000001');
+  const adminEmail = requireInProd('SEED_ADMIN_EMAIL', 'admin@teka.cd');
+  const adminFirstName = process.env.SEED_ADMIN_FIRST_NAME ?? 'Admin';
+  const adminLastName = process.env.SEED_ADMIN_LAST_NAME ?? 'Teka';
+
   const admin = await prisma.user.upsert({
-    where: { phone: '+243999000001' },
+    where: { phone: adminPhone },
     update: {},
     create: {
-      phone: '+243999000001',
-      firstName: 'Admin',
-      lastName: 'Teka',
-      email: 'admin@teka.cd',
+      phone: adminPhone,
+      firstName: adminFirstName,
+      lastName: adminLastName,
+      email: adminEmail,
       role: 'ADMIN',
       status: 'ACTIVE',
-      phoneVerified: true,
-      emailVerified: true,
+      // In prod the admin verifies their email + sets a password via the
+      // "forgot password" flow before first login; skip auto-verification.
+      phoneVerified: !isProd,
+      emailVerified: !isProd,
       locale: 'fr',
     },
   });
   console.log(`Admin user: ${admin.id}`);
 
+  // Sample users — dev-only. Declared in outer scope so Phase 4-7 calls
+  // below can still reference them.
+  let buyer: Awaited<ReturnType<typeof prisma.user.upsert>> | null = null;
+  let seller1: Awaited<ReturnType<typeof prisma.user.upsert>> | null = null;
+  let seller2: Awaited<ReturnType<typeof prisma.user.upsert>> | null = null;
+
+  if (!isProd) {
+
   // Buyer user
-  const buyer = await prisma.user.upsert({
+  buyer = await prisma.user.upsert({
     where: { phone: '+243999000002' },
     update: {},
     create: {
@@ -58,7 +89,7 @@ async function main() {
   console.log(`Buyer user: ${buyer.id}`);
 
   // Seller user 1 — Marie
-  const seller1 = await prisma.user.upsert({
+  seller1 = await prisma.user.upsert({
     where: { phone: '+243999000003' },
     update: {},
     create: {
@@ -75,7 +106,7 @@ async function main() {
   console.log(`Seller user 1 (Marie): ${seller1.id}`);
 
   // Seller user 2 — Patrick
-  const seller2 = await prisma.user.upsert({
+  seller2 = await prisma.user.upsert({
     where: { phone: '+243999000004' },
     update: {},
     create: {
@@ -130,8 +161,10 @@ async function main() {
     },
   });
 
+  } // end if (!isProd) — dev-only sample users
+
   // ============================================================
-  // CITIES & COMMUNES
+  // CITIES & COMMUNES  (foundational — always seeded)
   // ============================================================
 
   console.log('Seeding cities and communes...');
@@ -195,19 +228,23 @@ async function main() {
 
   console.log(`Seeded ${cities.length} cities + ${communes.length} communes`);
 
-  // Update seller profiles with cityId
-  await prisma.sellerProfile.updateMany({
-    where: { userId: seller1.id },
-    data: { cityId: LUBUMBASHI_CITY_ID },
-  });
-  await prisma.sellerProfile.updateMany({
-    where: { userId: seller2.id },
-    data: { cityId: LUBUMBASHI_CITY_ID },
-  });
+  // Update sample seller profiles with cityId (dev-only)
+  if (!isProd && seller1 && seller2) {
+    await prisma.sellerProfile.updateMany({
+      where: { userId: seller1.id },
+      data: { cityId: LUBUMBASHI_CITY_ID },
+    });
+    await prisma.sellerProfile.updateMany({
+      where: { userId: seller2.id },
+      data: { cityId: LUBUMBASHI_CITY_ID },
+    });
+  }
 
   // ============================================================
-  // ADDRESSES
+  // ADDRESSES (dev-only sample data)
   // ============================================================
+
+  if (!isProd && buyer && seller1 && seller2) {
 
   // Address for buyer
   await prisma.address.upsert({
@@ -266,8 +303,10 @@ async function main() {
     },
   });
 
+  } // end if (!isProd && buyer && seller1 && seller2) — dev-only addresses
+
   // ============================================================
-  // CATEGORIES (15 main + subcategories)
+  // CATEGORIES (15 main + subcategories)  (foundational)
   // ============================================================
 
   console.log('Seeding categories...');
@@ -757,8 +796,19 @@ async function main() {
   console.log(`Seeded ${newAttributes.length} new product attributes with rich option libraries`);
 
   // ============================================================
-  // PRODUCTS (20+)
+  // PRODUCTS (20+) — dev-only sample catalog
   // ============================================================
+
+  // Dev-only from here down: products, orders, reviews, banners, promotions,
+  // content pages, broadcasts. Prod stops after foundational data.
+  if (isProd) {
+    console.log('Prod seed completed (admin + cities + categories + attributes).');
+    return;
+  }
+
+  if (!buyer || !seller1 || !seller2) {
+    throw new Error('Internal seed error: sample users missing in dev mode');
+  }
 
   console.log('Seeding products...');
 
