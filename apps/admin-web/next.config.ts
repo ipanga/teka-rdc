@@ -1,3 +1,4 @@
+import path from 'node:path';
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 
@@ -8,6 +9,9 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '/admin';
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  // Required in pnpm workspaces — see buyer-web/next.config.ts for details.
+  outputFileTracingRoot: path.join(__dirname, '..', '..'),
+  transpilePackages: ['@teka/shared'],
   basePath: basePath || undefined,
   images: {
     remotePatterns: [

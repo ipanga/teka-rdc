@@ -26,8 +26,12 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=5200
+ENV HOSTNAME=0.0.0.0
+RUN apk add --no-cache curl
 COPY --from=build /app/apps/admin-web/.next/standalone ./
 COPY --from=build /app/apps/admin-web/.next/static ./apps/admin-web/.next/static
 COPY --from=build /app/apps/admin-web/public ./apps/admin-web/public
 EXPOSE 5200
+HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
+  CMD curl -fsS -o /dev/null -w '%{http_code}' http://127.0.0.1:5200/ | grep -qE '^(2|3)[0-9][0-9]$' || exit 1
 CMD ["node", "apps/admin-web/server.js"]

@@ -1,19 +1,25 @@
 # Production stack (server-side).
 #
 # This file lives on the server at /home/deploy/teka-rdc/docker-compose.prod.yml
-# and is invoked by the GitHub Actions deploy workflow via:
-#   docker compose -f docker-compose.prod.yml pull
-#   docker compose -f docker-compose.prod.yml up -d
+# and is invoked by the GitHub Actions deploy workflow. Images are built in CI
+# and pulled from ghcr.io; the server never builds anything.
 #
-# Images are built in GitHub Actions and pulled from ghcr.io. The server never
-# builds anything. Any change to NEXT_PUBLIC_* values requires a new build in
-# CI (they are baked into the Next.js images at build time).
+# Zero-downtime strategy: the deploy workflow uses the `docker rollout` CLI
+# plugin to swap containers one at a time — each new replica must pass its
+# healthcheck before the old one is stopped. nginx holds the TCP door open
+# throughout. See .github/workflows/deploy.yml for the rollout sequence.
 #
 # Required files alongside this one:
-#   .env.production              (chmod 600; holds DB URLs, secrets, GOOGLE_CLIENT_ID)
+#   .env.production              (chmod 600; DB URLs, secrets, GOOGLE_CLIENT_ID)
 #   nginx/nginx.prod.conf        (reverse proxy config for all 4 subdomains)
-#   certbot/conf/                (Let's Encrypt live certs, populated by certbot)
+#   certbot/conf/                (Let's Encrypt live certs)
 #   certbot/www/                 (ACME http-01 challenge webroot)
+
+x-healthcheck-defaults: &web-healthcheck
+  interval: 15s
+  timeout: 5s
+  start_period: 30s
+  retries: 3
 
 services:
   # === API (NestJS) ===
@@ -30,6 +36,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 20s
     logging: &default-logging
       driver: json-file
       options:
@@ -45,11 +52,17 @@ services:
       - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
       - API_INTERNAL_URL=http://api:5050/api
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     networks:
       - frontend
     restart: unless-stopped
     mem_limit: 256m
+    # Healthcheck is defined in the Dockerfile (curl 127.0.0.1:5000). Repeating
+    # the cadence here so the rollout script can poll `docker inspect` reliably.
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:5000/"]
+      <<: *web-healthcheck
     logging: *default-logging
 
   # === Seller Web (Next.js) — served at https://seller.teka.cd ===
@@ -61,11 +74,16 @@ services:
       - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
       - NEXT_PUBLIC_BASE_PATH=
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     networks:
       - frontend
     restart: unless-stopped
     mem_limit: 256m
+    healthcheck:
+      # Seller root may redirect to /login, so accept any 2xx/3xx.
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null -w '%{http_code}' http://127.0.0.1:5100/ | grep -qE '^(2|3)[0-9][0-9]$$'"]
+      <<: *web-healthcheck
     logging: *default-logging
 
   # === Admin Web (Next.js) — served at https://admin.teka.cd ===
@@ -77,14 +95,23 @@ services:
       - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
       - NEXT_PUBLIC_BASE_PATH=
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     networks:
       - frontend
     restart: unless-stopped
     mem_limit: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null -w '%{http_code}' http://127.0.0.1:5200/ | grep -qE '^(2|3)[0-9][0-9]$$'"]
+      <<: *web-healthcheck
     logging: *default-logging
 
   # === NGINX Reverse Proxy — terminates SSL for all 4 subdomains ===
+  #
+  # NGINX is the single point of contact for clients and therefore the piece
+  # that must NOT get recreated during a deploy (recreation = brief TCP reset).
+  # The rollout script below only restarts the web + api containers; nginx
+  # gets `nginx -s reload` if its config changed, nothing more.
   nginx:
     image: nginx:alpine
     ports:
@@ -102,6 +129,11 @@ services:
     networks:
       - frontend
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
     logging: *default-logging
 
 networks:

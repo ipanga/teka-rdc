@@ -26,8 +26,13 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=5100
+ENV HOSTNAME=0.0.0.0
+RUN apk add --no-cache curl
 COPY --from=build /app/apps/seller-web/.next/standalone ./
 COPY --from=build /app/apps/seller-web/.next/static ./apps/seller-web/.next/static
 COPY --from=build /app/apps/seller-web/public ./apps/seller-web/public
 EXPOSE 5100
+# Root path may redirect to a login/dashboard; treat any 2xx/3xx as alive.
+HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
+  CMD curl -fsS -o /dev/null -w '%{http_code}' http://127.0.0.1:5100/ | grep -qE '^(2|3)[0-9][0-9]$' || exit 1
 CMD ["node", "apps/seller-web/server.js"]
