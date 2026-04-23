@@ -8,7 +8,13 @@ import { CheckoutService } from './checkout.service';
 import { CheckoutController } from './checkout.controller';
 
 @Module({
-  imports: [PrismaModule, CartModule, DeliveryZonesModule, NotificationsModule, PaymentsModule],
+  imports: [
+    PrismaModule,
+    CartModule,
+    DeliveryZonesModule,
+    NotificationsModule,
+    PaymentsModule,
+  ],
   controllers: [CheckoutController],
   providers: [CheckoutService],
 })

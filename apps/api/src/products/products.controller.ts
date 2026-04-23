@@ -25,10 +25,7 @@ export class ProductsController {
   constructor(private productsService: ProductsService) {}
 
   @Post()
-  create(
-    @CurrentUser('userId') userId: string,
-    @Body() dto: CreateProductDto,
-  ) {
+  create(@CurrentUser('userId') userId: string, @Body() dto: CreateProductDto) {
     return this.productsService.create(userId, dto);
   }
 

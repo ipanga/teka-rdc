@@ -24,10 +24,7 @@ export class ReportsController {
    * Admin: sales report (CSV download).
    */
   @Get('sales/csv')
-  async getSalesCsv(
-    @Query() query: ReportQueryDto,
-    @Res() res: Response,
-  ) {
+  async getSalesCsv(@Query() query: ReportQueryDto, @Res() res: Response) {
     await this.reportsService.generateSalesCsv(query, res);
   }
 
@@ -46,10 +43,7 @@ export class ReportsController {
    * Admin: financial report (CSV download).
    */
   @Get('financial/csv')
-  async getFinancialCsv(
-    @Query() query: ReportQueryDto,
-    @Res() res: Response,
-  ) {
+  async getFinancialCsv(@Query() query: ReportQueryDto, @Res() res: Response) {
     await this.reportsService.generateFinancialCsv(query, res);
   }
 

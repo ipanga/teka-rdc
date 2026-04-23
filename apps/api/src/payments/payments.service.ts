@@ -66,7 +66,13 @@ export class PaymentsService {
       where: {
         orderId,
         type: TransactionType.PAYMENT,
-        status: { in: [PaymentStatus.COMPLETED, PaymentStatus.PENDING, PaymentStatus.PROCESSING] },
+        status: {
+          in: [
+            PaymentStatus.COMPLETED,
+            PaymentStatus.PENDING,
+            PaymentStatus.PROCESSING,
+          ],
+        },
       },
     });
 
@@ -93,7 +99,10 @@ export class PaymentsService {
       orderNumber: order.orderNumber,
       amountCDF: order.totalCDF,
       payerPhone: input.payerPhone,
-      provider: input.mobileMoneyProvider as 'M_PESA' | 'AIRTEL_MONEY' | 'ORANGE_MONEY',
+      provider: input.mobileMoneyProvider as
+        | 'M_PESA'
+        | 'AIRTEL_MONEY'
+        | 'ORANGE_MONEY',
       description: `Paiement commande ${order.orderNumber}`,
       idempotencyKey,
     });
@@ -107,10 +116,13 @@ export class PaymentsService {
         amountCDF: order.totalCDF,
         amountUSD: order.totalUSD,
         currency: 'CDF',
-        status: result.status === 'PENDING' ? PaymentStatus.PENDING : PaymentStatus.FAILED,
+        status:
+          result.status === 'PENDING'
+            ? PaymentStatus.PENDING
+            : PaymentStatus.FAILED,
         externalReference: result.externalReference,
         idempotencyKey,
-        metadata: result.rawResponse as object ?? undefined,
+        metadata: (result.rawResponse as object) ?? undefined,
       },
     });
 
@@ -141,7 +153,11 @@ export class PaymentsService {
   /**
    * Create a COD transaction record for an order.
    */
-  async createCodTransaction(orderId: string, amountCDF: bigint, amountUSD: bigint | null) {
+  async createCodTransaction(
+    orderId: string,
+    amountCDF: bigint,
+    amountUSD: bigint | null,
+  ) {
     return this.prisma.transaction.create({
       data: {
         orderId,
@@ -179,7 +195,9 @@ export class PaymentsService {
     });
 
     if (!transaction) {
-      this.logger.warn(`Webhook: no transaction found for ref=${externalReference}`);
+      this.logger.warn(
+        `Webhook: no transaction found for ref=${externalReference}`,
+      );
       return { processed: false, reason: 'Transaction not found' };
     }
 
@@ -188,7 +206,9 @@ export class PaymentsService {
       transaction.status === PaymentStatus.COMPLETED ||
       transaction.status === PaymentStatus.REFUNDED
     ) {
-      this.logger.log(`Webhook: transaction ${externalReference} already ${transaction.status}, skipping`);
+      this.logger.log(
+        `Webhook: transaction ${externalReference} already ${transaction.status}, skipping`,
+      );
       return { processed: false, reason: 'Already processed' };
     }
 
@@ -201,7 +221,7 @@ export class PaymentsService {
         where: { id: transaction.id },
         data: {
           status: newPaymentStatus,
-          metadata: payload.rawBody as object ?? undefined,
+          metadata: (payload.rawBody as object) ?? undefined,
         },
       });
 
@@ -220,7 +240,10 @@ export class PaymentsService {
       this.earningsService
         .createEarning(transaction.orderId)
         .catch((err) =>
-          this.logger.error(`Failed to create earning for order ${transaction.orderId}`, err),
+          this.logger.error(
+            `Failed to create earning for order ${transaction.orderId}`,
+            err,
+          ),
         );
     }
 

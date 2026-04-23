@@ -3,7 +3,9 @@ import { Type } from 'class-transformer';
 
 export class MessagesQueryDto {
   @IsOptional()
-  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: "L'identifiant du curseur doit être un UUID valide" })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
+    message: "L'identifiant du curseur doit être un UUID valide",
+  })
   before?: string;
 
   @IsOptional()

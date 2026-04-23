@@ -6,11 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  PromotionType,
-  PromotionStatus,
-  Prisma,
-} from '@prisma/client';
+import { PromotionType, PromotionStatus, Prisma } from '@prisma/client';
 import { CreatePromotionDto } from './dto/create-promotion.dto';
 import { UpdatePromotionDto } from './dto/update-promotion.dto';
 import { SellerCreatePromotionDto } from './dto/seller-create-promotion.dto';
@@ -20,9 +16,7 @@ import { PromotionQueryDto } from './dto/promotion-query.dto';
 export class PromotionsService {
   private readonly logger = new Logger(PromotionsService.name);
 
-  constructor(
-    private prisma: PrismaService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   // ─── Admin Methods ───────────────────────────────────────────────────
 
@@ -179,7 +173,8 @@ export class PromotionsService {
     if (dto.discountPercent !== undefined || dto.discountCDF !== undefined) {
       this.validateDiscount(
         dto.discountPercent ?? existing.discountPercent ?? undefined,
-        dto.discountCDF ?? (existing.discountCDF ? Number(existing.discountCDF) : undefined),
+        dto.discountCDF ??
+          (existing.discountCDF ? Number(existing.discountCDF) : undefined),
       );
     }
 
@@ -193,16 +188,22 @@ export class PromotionsService {
     const data: Prisma.PromotionUpdateInput = {};
 
     if (dto.type !== undefined) data.type = dto.type;
-    if (dto.title !== undefined) data.title = dto.title as unknown as Prisma.JsonObject;
+    if (dto.title !== undefined)
+      data.title = dto.title as unknown as Prisma.JsonObject;
     if (dto.description !== undefined)
       data.description = dto.description as unknown as Prisma.JsonObject;
-    if (dto.discountPercent !== undefined) data.discountPercent = dto.discountPercent;
-    if (dto.discountCDF !== undefined) data.discountCDF = BigInt(dto.discountCDF);
+    if (dto.discountPercent !== undefined)
+      data.discountPercent = dto.discountPercent;
+    if (dto.discountCDF !== undefined)
+      data.discountCDF = BigInt(dto.discountCDF);
     if (dto.startsAt !== undefined) data.startsAt = new Date(dto.startsAt);
     if (dto.endsAt !== undefined) data.endsAt = new Date(dto.endsAt);
-    if (dto.productId !== undefined) data.product = { connect: { id: dto.productId } };
-    if (dto.categoryId !== undefined) data.category = { connect: { id: dto.categoryId } };
-    if (dto.sellerId !== undefined) data.seller = { connect: { id: dto.sellerId } };
+    if (dto.productId !== undefined)
+      data.product = { connect: { id: dto.productId } };
+    if (dto.categoryId !== undefined)
+      data.category = { connect: { id: dto.categoryId } };
+    if (dto.sellerId !== undefined)
+      data.seller = { connect: { id: dto.sellerId } };
 
     const promotion = await this.prisma.promotion.update({
       where: { id },
@@ -270,7 +271,9 @@ export class PromotionsService {
       },
     });
 
-    this.logger.log(`Promotion ${id} approved by admin ${adminId} → ${newStatus}`);
+    this.logger.log(
+      `Promotion ${id} approved by admin ${adminId} → ${newStatus}`,
+    );
 
     return this.serializePromotion(updated);
   }
@@ -598,7 +601,12 @@ export class PromotionsService {
             priceCDF: true,
             priceUSD: true,
             images: {
-              select: { id: true, url: true, thumbnailUrl: true, displayOrder: true },
+              select: {
+                id: true,
+                url: true,
+                thumbnailUrl: true,
+                displayOrder: true,
+              },
               orderBy: { displayOrder: 'asc' },
             },
           },
@@ -621,10 +629,7 @@ export class PromotionsService {
   /**
    * Validates that at least one discount type is provided.
    */
-  private validateDiscount(
-    discountPercent?: number,
-    discountCDF?: number,
-  ) {
+  private validateDiscount(discountPercent?: number, discountCDF?: number) {
     if (!discountPercent && !discountCDF) {
       throw new BadRequestException(
         'Au moins un type de réduction est requis (pourcentage ou montant CDF)',
@@ -649,7 +654,9 @@ export class PromotionsService {
   /**
    * Serializes a promotion, converting BigInt fields to strings.
    */
-  private serializePromotion(promotion: Record<string, unknown>): Record<string, unknown> {
+  private serializePromotion(
+    promotion: Record<string, unknown>,
+  ): Record<string, unknown> {
     const result = { ...promotion };
 
     if (result.discountCDF !== null && result.discountCDF !== undefined) {

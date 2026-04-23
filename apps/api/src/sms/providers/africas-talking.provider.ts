@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { SmsProvider, SmsSendResult } from '../interfaces/sms-provider.interface';
+import type {
+  SmsProvider,
+  SmsSendResult,
+} from '../interfaces/sms-provider.interface';
 
 @Injectable()
 export class AfricasTalkingSmsProvider implements SmsProvider {
@@ -23,38 +26,49 @@ export class AfricasTalkingSmsProvider implements SmsProvider {
     }
 
     try {
-      const response = await fetch('https://api.africastalking.com/version1/messaging', {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/x-www-form-urlencoded',
-          apiKey: this.apiKey,
+      const response = await fetch(
+        'https://api.africastalking.com/version1/messaging',
+        {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            apiKey: this.apiKey,
+          },
+          body: new URLSearchParams({
+            username: this.username,
+            to: phone,
+            message,
+            from: this.senderId,
+          }),
         },
-        body: new URLSearchParams({
-          username: this.username,
-          to: phone,
-          message,
-          from: this.senderId,
-        }),
-      });
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
-        this.logger.error(`Africa's Talking API error: ${response.status} - ${errorText}`);
+        this.logger.error(
+          `Africa's Talking API error: ${response.status} - ${errorText}`,
+        );
         return { ok: false, error: `HTTP ${response.status}` };
       }
 
-      const data: { SMSMessageData?: { Recipients?: Array<{ messageId?: string }> } } =
-        await response.json();
+      const data: {
+        SMSMessageData?: { Recipients?: Array<{ messageId?: string }> };
+      } = await response.json();
       const messageId = data.SMSMessageData?.Recipients?.[0]?.messageId;
-      this.logger.log(`SMS sent to ${phone} via Africa's Talking: ${messageId ?? 'ok'}`);
+      this.logger.log(
+        `SMS sent to ${phone} via Africa's Talking: ${messageId ?? 'ok'}`,
+      );
       return { ok: true, messageId };
     } catch (error) {
       this.logger.error(
         `Africa's Talking send failed for ${phone}`,
         error instanceof Error ? error.message : error,
       );
-      return { ok: false, error: error instanceof Error ? error.message : 'unknown' };
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : 'unknown',
+      };
     }
   }
 }

@@ -1,4 +1,12 @@
-import { Controller, Get, Patch, Param, Body, Query, ParseUUIDPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Param,
+  Body,
+  Query,
+  ParseUUIDPipe,
+} from '@nestjs/common';
 import { AdminUsersService } from './admin-users.service';
 import { ReviewSellerDto } from './dto/review-seller.dto';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -15,7 +23,11 @@ export class AdminSellersController {
     @Query('limit') limit?: number,
     @Query('status') status?: string,
   ) {
-    return this.adminUsersService.findSellerApplications({ page, limit, status });
+    return this.adminUsersService.findSellerApplications({
+      page,
+      limit,
+      status,
+    });
   }
 
   @Get('applications/:id')

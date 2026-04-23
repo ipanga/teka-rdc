@@ -30,12 +30,16 @@ export class SmsService {
 
   private async dispatch(phone: string, message: string): Promise<boolean> {
     if (this.isDev && this.provider.name !== 'mock') {
-      this.logger.log(`[DEV] SMS to ${phone} via ${this.provider.name}: ${message}`);
+      this.logger.log(
+        `[DEV] SMS to ${phone} via ${this.provider.name}: ${message}`,
+      );
       return true;
     }
     const result = await this.provider.sendSms(phone, message);
     if (!result.ok) {
-      this.logger.warn(`SMS delivery failed for ${phone}: ${result.error ?? 'unknown'}`);
+      this.logger.warn(
+        `SMS delivery failed for ${phone}: ${result.error ?? 'unknown'}`,
+      );
     }
     return result.ok;
   }

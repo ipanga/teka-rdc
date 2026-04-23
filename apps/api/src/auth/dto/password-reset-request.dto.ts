@@ -3,6 +3,8 @@ import { Transform } from 'class-transformer';
 
 export class PasswordResetRequestDto {
   @IsEmail({}, { message: 'Adresse email invalide' })
-  @Transform(({ value }) => typeof value === 'string' ? value.trim().toLowerCase() : value)
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   email: string;
 }

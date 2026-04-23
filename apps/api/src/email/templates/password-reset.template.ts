@@ -1,4 +1,7 @@
-export function passwordResetTemplate(resetUrl: string, expiryMinutes: number): string {
+export function passwordResetTemplate(
+  resetUrl: string,
+  expiryMinutes: number,
+): string {
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>

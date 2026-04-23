@@ -10,7 +10,12 @@ import {
 } from '@nestjs/common';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CitiesService } from '../cities/cities.service';
-import { CreateCityDto, UpdateCityDto, CreateCommuneDto, UpdateCommuneDto } from '../cities/dto/create-city.dto';
+import {
+  CreateCityDto,
+  UpdateCityDto,
+  CreateCommuneDto,
+  UpdateCommuneDto,
+} from '../cities/dto/create-city.dto';
 
 @Controller('v1/admin/cities')
 @Roles('ADMIN')

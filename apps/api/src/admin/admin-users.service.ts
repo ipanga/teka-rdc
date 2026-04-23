@@ -22,8 +22,12 @@ export class AdminUsersService {
         OR: [
           { phone: { contains: query.search } },
           { email: { contains: query.search, mode: 'insensitive' as const } },
-          { firstName: { contains: query.search, mode: 'insensitive' as const } },
-          { lastName: { contains: query.search, mode: 'insensitive' as const } },
+          {
+            firstName: { contains: query.search, mode: 'insensitive' as const },
+          },
+          {
+            lastName: { contains: query.search, mode: 'insensitive' as const },
+          },
         ],
       }),
     };
@@ -103,7 +107,11 @@ export class AdminUsersService {
   }
 
   // Seller application management
-  async findSellerApplications(query: { page?: number; limit?: number; status?: string }) {
+  async findSellerApplications(query: {
+    page?: number;
+    limit?: number;
+    status?: string;
+  }) {
     const page = query.page || 1;
     const limit = Math.min(query.limit || 20, 100);
     const skip = (page - 1) * limit;
@@ -121,7 +129,13 @@ export class AdminUsersService {
         orderBy: { createdAt: 'desc' },
         include: {
           user: {
-            select: { id: true, phone: true, firstName: true, lastName: true, email: true },
+            select: {
+              id: true,
+              phone: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
           },
         },
       }),
@@ -144,7 +158,14 @@ export class AdminUsersService {
       where: { id: applicationId },
       include: {
         user: {
-          select: { id: true, phone: true, firstName: true, lastName: true, email: true, createdAt: true },
+          select: {
+            id: true,
+            phone: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            createdAt: true,
+          },
         },
       },
     });
@@ -156,7 +177,11 @@ export class AdminUsersService {
     return application;
   }
 
-  async reviewSellerApplication(applicationId: string, adminId: string, dto: ReviewSellerDto) {
+  async reviewSellerApplication(
+    applicationId: string,
+    adminId: string,
+    dto: ReviewSellerDto,
+  ) {
     const application = await this.prisma.sellerProfile.findUnique({
       where: { id: applicationId },
     });

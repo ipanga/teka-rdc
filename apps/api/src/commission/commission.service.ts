@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpsertCommissionDto } from './dto/upsert-commission.dto';
 import { Decimal } from '@prisma/client/runtime/library';
@@ -126,9 +122,7 @@ export class CommissionService {
       where: { id: setting.id },
     });
 
-    this.logger.log(
-      `Commission override removed for categoryId=${categoryId}`,
-    );
+    this.logger.log(`Commission override removed for categoryId=${categoryId}`);
 
     return { deleted: true };
   }

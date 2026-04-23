@@ -30,7 +30,10 @@ export class SellerOrdersService {
     [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
     [OrderStatus.CONFIRMED]: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
     [OrderStatus.PROCESSING]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
-    [OrderStatus.SHIPPED]: [OrderStatus.OUT_FOR_DELIVERY, OrderStatus.DELIVERED],
+    [OrderStatus.SHIPPED]: [
+      OrderStatus.OUT_FOR_DELIVERY,
+      OrderStatus.DELIVERED,
+    ],
     [OrderStatus.OUT_FOR_DELIVERY]: [OrderStatus.DELIVERED],
     [OrderStatus.DELIVERED]: [OrderStatus.RETURNED],
     [OrderStatus.CANCELLED]: [],
@@ -166,7 +169,7 @@ export class SellerOrdersService {
     }
 
     if (order.sellerId !== sellerId) {
-      throw new ForbiddenException('Vous n\'avez pas accès à cette commande');
+      throw new ForbiddenException("Vous n'avez pas accès à cette commande");
     }
 
     return order;
@@ -177,14 +180,25 @@ export class SellerOrdersService {
    */
   async confirmOrder(sellerId: string, orderId: string) {
     const order = await this.findAndValidateSellerOrder(sellerId, orderId);
-    this.validateTransition(order, [OrderStatus.PENDING], OrderStatus.CONFIRMED);
+    this.validateTransition(
+      order,
+      [OrderStatus.PENDING],
+      OrderStatus.CONFIRMED,
+    );
 
-    const updatedOrder = await this.transitionOrder(orderId, order.status, OrderStatus.CONFIRMED, sellerId);
+    const updatedOrder = await this.transitionOrder(
+      orderId,
+      order.status,
+      OrderStatus.CONFIRMED,
+      sellerId,
+    );
 
     // Fire-and-forget: notify buyer of confirmation
     this.notificationService
       .notifyOrderConfirmed(updatedOrder)
-      .catch((err) => this.logger.error('Échec de notification de confirmation', err));
+      .catch((err) =>
+        this.logger.error('Échec de notification de confirmation', err),
+      );
 
     return updatedOrder;
   }
@@ -194,7 +208,11 @@ export class SellerOrdersService {
    */
   async rejectOrder(sellerId: string, orderId: string, reason: string) {
     const order = await this.findAndValidateSellerOrder(sellerId, orderId);
-    this.validateTransition(order, [OrderStatus.PENDING], OrderStatus.CANCELLED);
+    this.validateTransition(
+      order,
+      [OrderStatus.PENDING],
+      OrderStatus.CANCELLED,
+    );
 
     const updatedOrder = await this.prisma.$transaction(async (tx) => {
       await this.createStatusLog(
@@ -233,9 +251,18 @@ export class SellerOrdersService {
    */
   async processOrder(sellerId: string, orderId: string) {
     const order = await this.findAndValidateSellerOrder(sellerId, orderId);
-    this.validateTransition(order, [OrderStatus.CONFIRMED], OrderStatus.PROCESSING);
+    this.validateTransition(
+      order,
+      [OrderStatus.CONFIRMED],
+      OrderStatus.PROCESSING,
+    );
 
-    return this.transitionOrder(orderId, order.status, OrderStatus.PROCESSING, sellerId);
+    return this.transitionOrder(
+      orderId,
+      order.status,
+      OrderStatus.PROCESSING,
+      sellerId,
+    );
   }
 
   /**
@@ -243,14 +270,25 @@ export class SellerOrdersService {
    */
   async shipOrder(sellerId: string, orderId: string) {
     const order = await this.findAndValidateSellerOrder(sellerId, orderId);
-    this.validateTransition(order, [OrderStatus.PROCESSING], OrderStatus.SHIPPED);
+    this.validateTransition(
+      order,
+      [OrderStatus.PROCESSING],
+      OrderStatus.SHIPPED,
+    );
 
-    const updatedOrder = await this.transitionOrder(orderId, order.status, OrderStatus.SHIPPED, sellerId);
+    const updatedOrder = await this.transitionOrder(
+      orderId,
+      order.status,
+      OrderStatus.SHIPPED,
+      sellerId,
+    );
 
     // Fire-and-forget: notify buyer of shipment
     this.notificationService
       .notifyOrderShipped(updatedOrder)
-      .catch((err) => this.logger.error('Échec de notification d\'expédition', err));
+      .catch((err) =>
+        this.logger.error("Échec de notification d'expédition", err),
+      );
 
     return updatedOrder;
   }
@@ -260,9 +298,18 @@ export class SellerOrdersService {
    */
   async markOutForDelivery(sellerId: string, orderId: string) {
     const order = await this.findAndValidateSellerOrder(sellerId, orderId);
-    this.validateTransition(order, [OrderStatus.SHIPPED], OrderStatus.OUT_FOR_DELIVERY);
+    this.validateTransition(
+      order,
+      [OrderStatus.SHIPPED],
+      OrderStatus.OUT_FOR_DELIVERY,
+    );
 
-    return this.transitionOrder(orderId, order.status, OrderStatus.OUT_FOR_DELIVERY, sellerId);
+    return this.transitionOrder(
+      orderId,
+      order.status,
+      OrderStatus.OUT_FOR_DELIVERY,
+      sellerId,
+    );
   }
 
   /**
@@ -308,13 +355,17 @@ export class SellerOrdersService {
     // Fire-and-forget: notify buyer of delivery
     this.notificationService
       .notifyOrderDelivered(updatedOrder)
-      .catch((err) => this.logger.error('Échec de notification de livraison', err));
+      .catch((err) =>
+        this.logger.error('Échec de notification de livraison', err),
+      );
 
     // Complete COD transaction if applicable
     if (order.paymentMethod === PaymentMethod.COD) {
       this.paymentsService
         .completeCodTransaction(orderId)
-        .catch((err) => this.logger.error('Échec de finalisation transaction COD', err));
+        .catch((err) =>
+          this.logger.error('Échec de finalisation transaction COD', err),
+        );
     }
 
     // Create earning if payment is completed (COD auto-completes, MM may already be completed)
@@ -382,7 +433,7 @@ export class SellerOrdersService {
     }
 
     if (order.sellerId !== sellerId) {
-      throw new ForbiddenException('Vous n\'avez pas accès à cette commande');
+      throw new ForbiddenException("Vous n'avez pas accès à cette commande");
     }
 
     return order;
@@ -399,7 +450,14 @@ export class SellerOrdersService {
     note?: string,
   ) {
     return this.prisma.$transaction(async (tx) => {
-      await this.createStatusLog(tx, orderId, fromStatus, toStatus, changedBy, note);
+      await this.createStatusLog(
+        tx,
+        orderId,
+        fromStatus,
+        toStatus,
+        changedBy,
+        note,
+      );
 
       return tx.order.update({
         where: { id: orderId },

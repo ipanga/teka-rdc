@@ -13,7 +13,7 @@ export class PayoutQueryDto {
   @IsOptional()
   @IsEnum(PAYOUT_STATUSES, {
     message:
-      'Le statut doit être l\'un des suivants : REQUESTED, APPROVED, PROCESSING, COMPLETED, REJECTED',
+      "Le statut doit être l'un des suivants : REQUESTED, APPROVED, PROCESSING, COMPLETED, REJECTED",
   })
   status?: string;
 

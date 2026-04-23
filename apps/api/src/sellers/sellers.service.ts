@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ApplySellerDto } from './dto/apply-seller.dto';
 import { UpdateSellerProfileDto } from './dto/update-seller-profile.dto';
@@ -72,7 +77,9 @@ export class SellersService {
     }
 
     if (profile.applicationStatus !== 'APPROVED') {
-      throw new ForbiddenException('Votre profil vendeur n\'est pas encore approuvé');
+      throw new ForbiddenException(
+        "Votre profil vendeur n'est pas encore approuvé",
+      );
     }
 
     return this.prisma.sellerProfile.update({

@@ -18,11 +18,15 @@ export class AdminOrderQueryDto {
   status?: string;
 
   @IsOptional()
-  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'L\'identifiant du vendeur doit être un UUID valide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
+    message: "L'identifiant du vendeur doit être un UUID valide",
+  })
   sellerId?: string;
 
   @IsOptional()
-  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'L\'identifiant de l\'acheteur doit être un UUID valide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
+    message: "L'identifiant de l'acheteur doit être un UUID valide",
+  })
   buyerId?: string;
 
   @IsOptional()

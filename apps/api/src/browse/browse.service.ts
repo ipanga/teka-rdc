@@ -7,9 +7,7 @@ import { BrowseProductsQueryDto } from './dto/browse-products-query.dto';
 export class BrowseService {
   private readonly logger = new Logger(BrowseService.name);
 
-  constructor(
-    private prisma: PrismaService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   /**
    * Returns active categories as a tree with ACTIVE product counts.
@@ -30,8 +28,17 @@ export class BrowseService {
     });
 
     // Build tree from flat list
-    const map = new Map<string, typeof categories[0] & { subcategories: typeof categories; productCount: number }>();
-    const roots: (typeof categories[0] & { subcategories: typeof categories; productCount: number })[] = [];
+    const map = new Map<
+      string,
+      (typeof categories)[0] & {
+        subcategories: typeof categories;
+        productCount: number;
+      }
+    >();
+    const roots: ((typeof categories)[0] & {
+      subcategories: typeof categories;
+      productCount: number;
+    })[] = [];
 
     for (const cat of categories) {
       const node = {
@@ -46,7 +53,9 @@ export class BrowseService {
     for (const cat of categories) {
       const node = map.get(cat.id)!;
       if (cat.parentCategoryId && map.has(cat.parentCategoryId)) {
-        map.get(cat.parentCategoryId)!.subcategories.push(node as typeof categories[0]);
+        map
+          .get(cat.parentCategoryId)!
+          .subcategories.push(node as (typeof categories)[0]);
       } else {
         roots.push(node);
       }
@@ -99,10 +108,14 @@ export class BrowseService {
     if (query.minPrice || query.maxPrice) {
       where.priceCDF = {};
       if (query.minPrice) {
-        (where.priceCDF as Record<string, unknown>).gte = BigInt(query.minPrice);
+        (where.priceCDF as Record<string, unknown>).gte = BigInt(
+          query.minPrice,
+        );
       }
       if (query.maxPrice) {
-        (where.priceCDF as Record<string, unknown>).lte = BigInt(query.maxPrice);
+        (where.priceCDF as Record<string, unknown>).lte = BigInt(
+          query.maxPrice,
+        );
       }
     }
 
@@ -220,7 +233,10 @@ export class BrowseService {
    */
   async getProductDetail(identifier: string) {
     // Accept both UUID and slug for backward compatibility
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        identifier,
+      );
 
     const product = await this.prisma.product.findFirst({
       where: {

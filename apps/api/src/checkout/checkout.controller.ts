@@ -10,10 +10,7 @@ export class CheckoutController {
   constructor(private checkoutService: CheckoutService) {}
 
   @Post()
-  checkout(
-    @CurrentUser('userId') userId: string,
-    @Body() dto: CheckoutDto,
-  ) {
+  checkout(@CurrentUser('userId') userId: string, @Body() dto: CheckoutDto) {
     return this.checkoutService.checkout(userId, dto);
   }
 }

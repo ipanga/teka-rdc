@@ -2,7 +2,9 @@ import { IsString, IsOptional, MaxLength, IsEnum } from 'class-validator';
 import { OrderStatus } from '@prisma/client';
 
 export class ForceStatusDto {
-  @IsEnum(OrderStatus, { message: 'Le statut doit être une valeur valide de OrderStatus' })
+  @IsEnum(OrderStatus, {
+    message: 'Le statut doit être une valeur valide de OrderStatus',
+  })
   status: OrderStatus;
 
   @IsOptional()

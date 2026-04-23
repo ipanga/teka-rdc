@@ -1,4 +1,11 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, Matches, IsUUID } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsBoolean,
+  Matches,
+  IsUUID,
+} from 'class-validator';
 
 export class CreateAddressDto {
   @IsOptional()
@@ -18,11 +25,15 @@ export class CreateAddressDto {
   neighborhood: string;
 
   @IsOptional()
-  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'Ville invalide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
+    message: 'Ville invalide',
+  })
   cityId?: string;
 
   @IsOptional()
-  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'Commune invalide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
+    message: 'Commune invalide',
+  })
   communeId?: string;
 
   @IsOptional()
@@ -39,7 +50,9 @@ export class CreateAddressDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^\+243\d{9}$/, { message: 'Numéro de téléphone invalide. Format: +243XXXXXXXXX' })
+  @Matches(/^\+243\d{9}$/, {
+    message: 'Numéro de téléphone invalide. Format: +243XXXXXXXXX',
+  })
   recipientPhone?: string;
 
   @IsOptional()

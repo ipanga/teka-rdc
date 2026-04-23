@@ -1,4 +1,7 @@
-export function welcomeTemplate(firstName: string | null, verificationUrl: string | null): string {
+export function welcomeTemplate(
+  firstName: string | null,
+  verificationUrl: string | null,
+): string {
   const greeting = firstName ? `Bonjour ${firstName},` : 'Bonjour,';
   const verifyBlock = verificationUrl
     ? `<p style="margin:0 0 16px 0;color:#374151;line-height:1.6;">

@@ -1,4 +1,7 @@
-export function sellerSetupTemplate(setupUrl: string, expiryHours: number): string {
+export function sellerSetupTemplate(
+  setupUrl: string,
+  expiryHours: number,
+): string {
   return `<!DOCTYPE html>
 <html lang="fr">
 <head>

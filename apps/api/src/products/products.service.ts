@@ -37,7 +37,7 @@ export class ProductsService {
     }
 
     if (!category.isActive) {
-      throw new BadRequestException('Cette catégorie n\'est plus active');
+      throw new BadRequestException("Cette catégorie n'est plus active");
     }
 
     // Validate seller has approved SellerProfile
@@ -196,22 +196,25 @@ export class ProductsService {
       }
 
       if (!category.isActive) {
-        throw new BadRequestException('Cette catégorie n\'est plus active');
+        throw new BadRequestException("Cette catégorie n'est plus active");
       }
     }
 
     // Convert BigInt prices if provided
-    const priceCDF = dto.priceCDF !== undefined ? BigInt(dto.priceCDF) : undefined;
-    const priceUSD = dto.priceUSD !== undefined ? BigInt(dto.priceUSD) : undefined;
+    const priceCDF =
+      dto.priceCDF !== undefined ? BigInt(dto.priceCDF) : undefined;
+    const priceUSD =
+      dto.priceUSD !== undefined ? BigInt(dto.priceUSD) : undefined;
 
     // Handle specifications update: delete old ones and create new ones
-    const specOps = dto.specifications !== undefined
-      ? [
-          this.prisma.productSpecification.deleteMany({
-            where: { productId },
-          }),
-        ]
-      : [];
+    const specOps =
+      dto.specifications !== undefined
+        ? [
+            this.prisma.productSpecification.deleteMany({
+              where: { productId },
+            }),
+          ]
+        : [];
 
     const updatedProduct = await this.prisma.$transaction(async (tx) => {
       // Delete old specifications if new ones are provided
@@ -260,8 +263,6 @@ export class ProductsService {
       });
     });
 
-
-
     return updatedProduct;
   }
 
@@ -285,8 +286,6 @@ export class ProductsService {
         category: true,
       },
     });
-
-
 
     return archived;
   }
@@ -317,9 +316,7 @@ export class ProductsService {
     }
 
     if (product.priceCDF <= BigInt(0)) {
-      throw new BadRequestException(
-        'Le prix CDF doit être supérieur à zéro',
-      );
+      throw new BadRequestException('Le prix CDF doit être supérieur à zéro');
     }
 
     const submitted = await this.prisma.product.update({
@@ -333,8 +330,6 @@ export class ProductsService {
         category: true,
       },
     });
-
-
 
     return submitted;
   }
@@ -369,7 +364,7 @@ export class ProductsService {
     // Validate file size (5 MB)
     if (file.size > 5 * 1024 * 1024) {
       throw new BadRequestException(
-        'La taille de l\'image ne doit pas dépasser 5 Mo',
+        "La taille de l'image ne doit pas dépasser 5 Mo",
       );
     }
 
@@ -402,11 +397,7 @@ export class ProductsService {
   /**
    * Deletes an image from a product and Cloudinary.
    */
-  async deleteImage(
-    sellerId: string,
-    productId: string,
-    imageId: string,
-  ) {
+  async deleteImage(sellerId: string, productId: string, imageId: string) {
     const image = await this.prisma.productImage.findUnique({
       where: { id: imageId },
       include: {

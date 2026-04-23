@@ -2,7 +2,9 @@ import { Matches, IsInt, Min, Max } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class AddToCartDto {
-  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, { message: 'ID produit invalide' })
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
+    message: 'ID produit invalide',
+  })
   productId: string;
 
   @Type(() => Number)

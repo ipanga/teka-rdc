@@ -35,11 +35,15 @@ export class CloudinaryService {
         (error, result) => {
           if (error) {
             this.logger.error(`Cloudinary upload failed: ${error.message}`);
-            reject(new BadRequestException('Échec du téléchargement de l\'image'));
+            reject(
+              new BadRequestException("Échec du téléchargement de l'image"),
+            );
             return;
           }
           if (!result) {
-            reject(new BadRequestException('Échec du téléchargement de l\'image'));
+            reject(
+              new BadRequestException("Échec du téléchargement de l'image"),
+            );
             return;
           }
 
@@ -67,7 +71,9 @@ export class CloudinaryService {
     try {
       await cloudinary.uploader.destroy(cloudinaryId);
     } catch (error) {
-      this.logger.error(`Cloudinary delete failed for ${cloudinaryId}: ${error}`);
+      this.logger.error(
+        `Cloudinary delete failed for ${cloudinaryId}: ${error}`,
+      );
     }
   }
 }

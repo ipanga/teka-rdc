@@ -1,10 +1,6 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import {
-  createTestApp,
-  resetMocks,
-  mockPrismaService,
-} from './test-utils';
+import { createTestApp, resetMocks, mockPrismaService } from './test-utils';
 
 describe('Browse (e2e)', () => {
   let app: INestApplication;

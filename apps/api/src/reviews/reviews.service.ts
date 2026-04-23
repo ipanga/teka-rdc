@@ -96,32 +96,35 @@ export class ReviewsService {
     }
 
     // Create review and recalculate ratings in a transaction
-    const review = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.review.create({
-        data: {
-          productId: dto.productId,
-          buyerId,
-          orderId: dto.orderId,
-          rating: dto.rating,
-          text: dto.text,
-          status: ReviewStatus.ACTIVE,
-        },
-        include: {
-          buyer: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              avatar: true,
+    const review = await this.prisma.$transaction(
+      async (tx) => {
+        const created = await tx.review.create({
+          data: {
+            productId: dto.productId,
+            buyerId,
+            orderId: dto.orderId,
+            rating: dto.rating,
+            text: dto.text,
+            status: ReviewStatus.ACTIVE,
+          },
+          include: {
+            buyer: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+              },
             },
           },
-        },
-      });
+        });
 
-      await this.recalculateRatings(tx, dto.productId);
+        await this.recalculateRatings(tx, dto.productId);
 
-      return created;
-    }, { timeout: 60000 });
+        return created;
+      },
+      { timeout: 60000 },
+    );
 
     this.logger.log(
       `Review created by buyer ${buyerId} for product ${dto.productId}`,
@@ -283,18 +286,19 @@ export class ReviewsService {
       );
     }
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.review.update({
-        where: { id: reviewId },
-        data: { deletedAt: new Date() },
-      });
+    await this.prisma.$transaction(
+      async (tx) => {
+        await tx.review.update({
+          where: { id: reviewId },
+          data: { deletedAt: new Date() },
+        });
 
-      await this.recalculateRatings(tx, review.productId);
-    }, { timeout: 60000 });
-
-    this.logger.log(
-      `Review ${reviewId} soft-deleted by buyer ${buyerId}`,
+        await this.recalculateRatings(tx, review.productId);
+      },
+      { timeout: 60000 },
     );
+
+    this.logger.log(`Review ${reviewId} soft-deleted by buyer ${buyerId}`);
 
     return { deleted: true };
   }

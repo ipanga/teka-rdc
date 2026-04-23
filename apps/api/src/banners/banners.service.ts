@@ -9,9 +9,7 @@ import { BannerQueryDto } from './dto/banner-query.dto';
 export class BannersService {
   private readonly logger = new Logger(BannersService.name);
 
-  constructor(
-    private prisma: PrismaService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   /**
    * Returns active banners that are currently within their schedule window.

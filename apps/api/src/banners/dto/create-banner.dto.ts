@@ -19,7 +19,9 @@ export class CreateBannerDto {
   title: TranslatableTextDto;
 
   @IsOptional()
-  @IsObject({ message: 'Le sous-titre doit être un objet avec les traductions' })
+  @IsObject({
+    message: 'Le sous-titre doit être un objet avec les traductions',
+  })
   @ValidateNested()
   @Type(() => TranslatableTextDto)
   subtitle?: TranslatableTextDto;
@@ -52,7 +54,10 @@ export class CreateBannerDto {
   sortOrder?: number;
 
   @IsOptional()
-  @IsDateString({}, { message: 'La date de début doit être une date ISO valide' })
+  @IsDateString(
+    {},
+    { message: 'La date de début doit être une date ISO valide' },
+  )
   startsAt?: string;
 
   @IsOptional()
