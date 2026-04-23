@@ -1,18 +1,25 @@
-# Production stack. Invoke with:
-#   docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+# Production stack (server-side).
 #
-# Each Next.js app is built with its production NEXT_PUBLIC_* values baked in.
-# Any change to those values (API URL, Google client ID, base path) requires a
-# rebuild of that service, not just a restart.
+# This file lives on the server at /home/deploy/teka-rdc/docker-compose.prod.yml
+# and is invoked by the GitHub Actions deploy workflow via:
+#   docker compose -f docker-compose.prod.yml pull
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Images are built in GitHub Actions and pulled from ghcr.io. The server never
+# builds anything. Any change to NEXT_PUBLIC_* values requires a new build in
+# CI (they are baked into the Next.js images at build time).
+#
+# Required files alongside this one:
+#   .env.production              (chmod 600; holds DB URLs, secrets, GOOGLE_CLIENT_ID)
+#   nginx/nginx.prod.conf        (reverse proxy config for all 4 subdomains)
+#   certbot/conf/                (Let's Encrypt live certs, populated by certbot)
+#   certbot/www/                 (ACME http-01 challenge webroot)
 
 services:
   # === API (NestJS) ===
   api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+    image: ghcr.io/ipanga/teka-rdc/api:latest
     env_file: .env.production
-    depends_on: []
     networks:
       - frontend
       - backend
@@ -23,7 +30,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    logging:
+    logging: &default-logging
       driver: json-file
       options:
         max-size: "10m"
@@ -31,12 +38,7 @@ services:
 
   # === Buyer Web (Next.js) — served at https://teka.cd ===
   buyer-web:
-    build:
-      context: .
-      dockerfile: apps/buyer-web/Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: "https://api.teka.cd/api"
-        NEXT_PUBLIC_GOOGLE_CLIENT_ID: "${NEXT_PUBLIC_GOOGLE_CLIENT_ID}"
+    image: ghcr.io/ipanga/teka-rdc/buyer-web:latest
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=https://api.teka.cd/api
@@ -48,21 +50,11 @@ services:
       - frontend
     restart: unless-stopped
     mem_limit: 256m
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *default-logging
 
-  # === Seller Web (Next.js) — served at https://seller.teka.cd, basePath empty ===
+  # === Seller Web (Next.js) — served at https://seller.teka.cd ===
   seller-web:
-    build:
-      context: .
-      dockerfile: apps/seller-web/Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: "https://api.teka.cd/api"
-        NEXT_PUBLIC_GOOGLE_CLIENT_ID: "${NEXT_PUBLIC_GOOGLE_CLIENT_ID}"
-        NEXT_PUBLIC_BASE_PATH: ""
+    image: ghcr.io/ipanga/teka-rdc/seller-web:latest
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=https://api.teka.cd/api
@@ -74,21 +66,11 @@ services:
       - frontend
     restart: unless-stopped
     mem_limit: 256m
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *default-logging
 
-  # === Admin Web (Next.js) — served at https://admin.teka.cd, basePath empty ===
+  # === Admin Web (Next.js) — served at https://admin.teka.cd ===
   admin-web:
-    build:
-      context: .
-      dockerfile: apps/admin-web/Dockerfile
-      args:
-        NEXT_PUBLIC_API_URL: "https://api.teka.cd/api"
-        NEXT_PUBLIC_GOOGLE_CLIENT_ID: "${NEXT_PUBLIC_GOOGLE_CLIENT_ID}"
-        NEXT_PUBLIC_BASE_PATH: ""
+    image: ghcr.io/ipanga/teka-rdc/admin-web:latest
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=https://api.teka.cd/api
@@ -100,11 +82,7 @@ services:
       - frontend
     restart: unless-stopped
     mem_limit: 256m
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *default-logging
 
   # === NGINX Reverse Proxy — terminates SSL for all 4 subdomains ===
   nginx:
@@ -124,11 +102,7 @@ services:
     networks:
       - frontend
     restart: unless-stopped
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *default-logging
 
 networks:
   frontend:
