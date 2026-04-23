@@ -1,6 +1,6 @@
 # Runs on every push to main (i.e. after a PR merges).
 # Builds all 4 images in parallel, pushes them to ghcr.io/ipanga/teka-rdc/*,
-# then SSHes to the Hetzner server and pulls + restarts the stack.
+# then SSHes to the server and pulls + restarts the stack.
 name: Deploy to production
 
 on:
@@ -26,27 +26,15 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
+        # NOTE: `secrets.*` cannot be used inside `matrix.include` — the matrix
+        # is evaluated at workflow-start time before the secrets context is
+        # bound. Keep only literal name/dockerfile here; the "Compute build
+        # args" step below fills in the Google client id via env.
         include:
-          - name: api
-            dockerfile: apps/api/Dockerfile
-            build_args: ""
-          - name: buyer-web
-            dockerfile: apps/buyer-web/Dockerfile
-            build_args: |
-              NEXT_PUBLIC_API_URL=https://api.teka.cd/api
-              NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
-          - name: seller-web
-            dockerfile: apps/seller-web/Dockerfile
-            build_args: |
-              NEXT_PUBLIC_API_URL=https://api.teka.cd/api
-              NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
-              NEXT_PUBLIC_BASE_PATH=
-          - name: admin-web
-            dockerfile: apps/admin-web/Dockerfile
-            build_args: |
-              NEXT_PUBLIC_API_URL=https://api.teka.cd/api
-              NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
-              NEXT_PUBLIC_BASE_PATH=
+          - { name: api,        dockerfile: apps/api/Dockerfile        }
+          - { name: buyer-web,  dockerfile: apps/buyer-web/Dockerfile  }
+          - { name: seller-web, dockerfile: apps/seller-web/Dockerfile }
+          - { name: admin-web,  dockerfile: apps/admin-web/Dockerfile  }
     steps:
       - uses: actions/checkout@v4
 
@@ -59,13 +47,46 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Per-service build args. api needs none; the three web apps need the
+      # API URL + Google client id baked in at build time (Next.js NEXT_PUBLIC_*
+      # are compile-time constants). seller-web and admin-web also flip the
+      # basePath to empty so they serve from their subdomain root.
+      - name: Compute build args for ${{ matrix.name }}
+        id: args
+        env:
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+        run: |
+          set -eu
+          case "${{ matrix.name }}" in
+            api)
+              echo "value=" >> "$GITHUB_OUTPUT"
+              ;;
+            buyer-web)
+              {
+                echo "value<<__END__"
+                echo "NEXT_PUBLIC_API_URL=https://api.teka.cd/api"
+                echo "NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}"
+                echo "__END__"
+              } >> "$GITHUB_OUTPUT"
+              ;;
+            seller-web|admin-web)
+              {
+                echo "value<<__END__"
+                echo "NEXT_PUBLIC_API_URL=https://api.teka.cd/api"
+                echo "NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}"
+                echo "NEXT_PUBLIC_BASE_PATH="
+                echo "__END__"
+              } >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
       - name: Build and push ${{ matrix.name }}
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ${{ matrix.dockerfile }}
           push: true
-          build-args: ${{ matrix.build_args }}
+          build-args: ${{ steps.args.outputs.value }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.name }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.name }}:${{ github.sha }}
