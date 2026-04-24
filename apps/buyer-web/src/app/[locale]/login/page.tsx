@@ -6,7 +6,10 @@ import { useRouter } from '@/i18n/navigation';
 import { Link } from '@/i18n/navigation';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { useAuthStore, type User } from '@/lib/auth-store';
-import { GoogleSignInButton } from '@/components/auth/google-sign-in-button';
+
+// Buyers authenticate via phone + SMS OTP only. Google and email-OTP fallback
+// were removed to enforce strict role boundaries per
+// docs/architecture.md § Auth.
 
 export default function LoginPage() {
   const t = useTranslations('Auth');
@@ -18,9 +21,7 @@ export default function LoginPage() {
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
   const [countdown, setCountdown] = useState(0);
-  const [emailRequesting, setEmailRequesting] = useState(false);
 
   useEffect(() => {
     if (countdown <= 0) return;
@@ -66,7 +67,6 @@ export default function LoginPage() {
   const handleResendOtp = async () => {
     if (countdown > 0) return;
     setError('');
-    setInfo('');
     setIsLoading(true);
 
     try {
@@ -84,33 +84,6 @@ export default function LoginPage() {
       }
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleEmailFallback = async () => {
-    setError('');
-    setInfo('');
-    setEmailRequesting(true);
-    try {
-      const formattedPhone = formatPhone(phone);
-      await apiFetch('/v1/auth/otp/request-email', {
-        method: 'POST',
-        body: JSON.stringify({ phone: formattedPhone }),
-      });
-      setInfo(t('emailSentToMasked'));
-      setCountdown(60);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        if (err.status === 400) {
-          setError(t('noEmailOnFile'));
-        } else {
-          setError(err.message);
-        }
-      } else {
-        setError('Une erreur est survenue');
-      }
-    } finally {
-      setEmailRequesting(false);
     }
   };
 
@@ -154,12 +127,6 @@ export default function LoginPage() {
           {error && (
             <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
               {error}
-            </div>
-          )}
-
-          {info && (
-            <div className="mb-4 p-3 rounded-lg bg-green-50 text-green-800 text-sm">
-              {info}
             </div>
           )}
 
@@ -222,7 +189,7 @@ export default function LoginPage() {
               >
                 {isLoading ? '...' : t('login')}
               </button>
-              <div className="text-center space-y-2">
+              <div className="text-center">
                 <button
                   type="button"
                   onClick={handleResendOtp}
@@ -231,16 +198,6 @@ export default function LoginPage() {
                 >
                   {countdown > 0 ? t('resendIn', { seconds: countdown }) : t('resendOtp')}
                 </button>
-                <div>
-                  <button
-                    type="button"
-                    onClick={handleEmailFallback}
-                    disabled={emailRequesting || isLoading}
-                    className="text-sm text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
-                  >
-                    {emailRequesting ? '...' : t('receiveByEmail')}
-                  </button>
-                </div>
               </div>
               <button
                 type="button"
@@ -248,7 +205,6 @@ export default function LoginPage() {
                   setStep('phone');
                   setOtp('');
                   setError('');
-                  setInfo('');
                 }}
                 className="w-full text-sm text-muted-foreground hover:text-foreground"
               >
@@ -256,19 +212,6 @@ export default function LoginPage() {
               </button>
             </form>
           )}
-
-          {/* Divider + Google Sign-In */}
-          <div className="mt-6 flex items-center gap-3">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground uppercase">ou</span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-          <div className="mt-4 flex justify-center">
-            <GoogleSignInButton
-              redirectTo="/"
-              onError={(msg) => setError(msg)}
-            />
-          </div>
 
           <div className="mt-6 text-center text-sm">
             <span className="text-muted-foreground">{t('noAccount')} </span>

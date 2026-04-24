@@ -20,7 +20,6 @@ import { EmailRegisterDto } from './dto/email-register.dto';
 import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
 import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
-import { EmailOtpFallbackDto } from './dto/email-otp-fallback.dto';
 import { SellerMigrateCheckDto } from './dto/seller-migrate-check.dto';
 import { SellerMigrateLinkEmailDto } from './dto/seller-migrate-link-email.dto';
 import { SellerPasswordSetupDto } from './dto/seller-password-setup.dto';
@@ -126,6 +125,21 @@ export class AuthService {
       throw new ForbiddenException('Votre compte a été suspendu.');
     }
 
+    // Admins must authenticate via email + password only. Mirrors the seller
+    // migration gate below but without a migration flow — admins already have
+    // email credentials; phone OTP is not an option for them.
+    if (
+      user.role === 'ADMIN' ||
+      user.role === 'SUPPORT' ||
+      user.role === 'FINANCE'
+    ) {
+      throw new ForbiddenException({
+        code: 'ADMIN_PHONE_AUTH_DISABLED',
+        message:
+          'Les administrateurs doivent se connecter par email et mot de passe.',
+      });
+    }
+
     // Seller migration guard — sellers must use email/password going forward.
     if (
       user.role === 'SELLER' &&
@@ -150,7 +164,10 @@ export class AuthService {
   }
 
   // ---------------------------------------------------------------------------
-  // Email + Password
+  // Email + Password — seller self-service registration + login. Buyers use
+  // phone OTP only; admins are seeded out-of-band. `registerWithEmail` always
+  // creates role=SELLER; the SellerProfile (business info + admin approval)
+  // is created in a follow-up step from the seller dashboard.
   // ---------------------------------------------------------------------------
 
   async registerWithEmail(dto: EmailRegisterDto) {
@@ -164,9 +181,8 @@ export class AuthService {
     const rounds = this.configService.get<number>('BCRYPT_ROUNDS', 12);
     const passwordHash = await hashPassword(dto.password, rounds);
 
-    // Users without a phone: generate a placeholder that respects uniqueness.
-    // Convention: email-based registrations store a synthetic +243-prefixed
-    // placeholder so the existing @unique constraint holds without a schema change.
+    // Email-based sellers have no phone on file yet; synthesise a placeholder
+    // that respects the existing @unique constraint without a schema change.
     const placeholderPhone = `+243EMAIL${Date.now().toString().slice(-9)}`;
 
     const user = await this.prisma.user.create({
@@ -178,14 +194,14 @@ export class AuthService {
         firstName: dto.firstName,
         lastName: dto.lastName,
         locale: dto.locale || 'fr',
-        role: 'BUYER',
+        role: 'SELLER',
         status: 'ACTIVE',
         authProvider: 'EMAIL_PASSWORD',
         emailVerified: false,
       },
     });
 
-    // Fire-and-forget welcome + verification email
+    // Fire-and-forget verification email. Failure doesn't block registration.
     this.sendEmailVerification(user.id).catch((error) => {
       this.logger.warn(
         `Failed to send verification email for ${user.id}: ${error instanceof Error ? error.message : error}`,
@@ -224,6 +240,17 @@ export class AuthService {
       throw new ForbiddenException('Votre compte a été suspendu.');
     }
 
+    // Buyers are phone-OTP only; they never get a password hash. If one somehow
+    // ends up here (e.g., a migration leftover), block so the email/password
+    // surface is strictly seller + admin.
+    if (user.role === 'BUYER') {
+      throw new ForbiddenException({
+        code: 'BUYER_EMAIL_AUTH_DISABLED',
+        message:
+          'Les acheteurs doivent se connecter par téléphone. Utilisez le code SMS.',
+      });
+    }
+
     const tokens = await this.generateTokens(user.id, user.role, user.phone);
     await this.prisma.user.update({
       where: { id: user.id },
@@ -234,7 +261,8 @@ export class AuthService {
   }
 
   // ---------------------------------------------------------------------------
-  // Google OAuth
+  // Google OAuth — sellers only. Admins MUST NOT have a Google path; buyers
+  // use phone OTP only. The role gate below enforces both.
   // ---------------------------------------------------------------------------
 
   async loginWithGoogle(dto: GoogleLoginDto) {
@@ -285,26 +313,37 @@ export class AuthService {
       }
     }
 
-    // 3) New user → create
+    // 3) No existing account — Google is NOT a self-service registration path.
+    // Sellers register via email/password (or admin-driven seller migration);
+    // buyers use phone OTP; admins are provisioned out-of-band. Telling the
+    // client "no account" is safer than silently provisioning a BUYER.
     if (!user) {
-      if (!emailVerifiedByGoogle) {
-        throw new UnauthorizedException('Email Google non vérifié');
-      }
-      const placeholderPhone = `+243GOOGLE${Date.now().toString().slice(-8)}`;
-      user = await this.prisma.user.create({
-        data: {
-          phone: placeholderPhone,
-          email,
-          googleId: payload.sub,
-          firstName: payload.given_name || null,
-          lastName: payload.family_name || null,
-          avatar: payload.picture || null,
-          locale: 'fr',
-          role: 'BUYER',
-          status: 'ACTIVE',
-          authProvider: 'GOOGLE',
-          emailVerified: true,
-        },
+      throw new UnauthorizedException({
+        code: 'NO_GOOGLE_ACCOUNT',
+        message:
+          "Aucun compte n'est associé à cet email Google. Inscrivez-vous d'abord avec un email et mot de passe.",
+      });
+    }
+
+    // 4) Role gate: Google is sellers-only. Admins must use email/password;
+    // buyers must use phone OTP. Both are hard rejects to keep the role
+    // boundaries strict.
+    if (
+      user.role === 'ADMIN' ||
+      user.role === 'SUPPORT' ||
+      user.role === 'FINANCE'
+    ) {
+      throw new ForbiddenException({
+        code: 'ADMIN_GOOGLE_AUTH_DISABLED',
+        message:
+          'Les administrateurs doivent se connecter par email et mot de passe.',
+      });
+    }
+    if (user.role === 'BUYER') {
+      throw new ForbiddenException({
+        code: 'BUYER_GOOGLE_AUTH_DISABLED',
+        message:
+          'Les acheteurs doivent se connecter par téléphone. Utilisez le code SMS.',
       });
     }
 
@@ -319,25 +358,6 @@ export class AuthService {
     });
 
     return { user: this.sanitizeUser(user), tokens };
-  }
-
-  // ---------------------------------------------------------------------------
-  // Email OTP fallback (buyer-initiated)
-  // ---------------------------------------------------------------------------
-
-  async requestEmailOtpFallback(dto: EmailOtpFallbackDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { phone: dto.phone, deletedAt: null },
-    });
-
-    if (!user?.email) {
-      throw new BadRequestException({
-        code: 'NO_EMAIL_ON_FILE',
-        message: 'Aucun email enregistré pour ce compte',
-      });
-    }
-
-    return this.otpService.requestOtp(dto.phone, user.email, 'email');
   }
 
   // ---------------------------------------------------------------------------

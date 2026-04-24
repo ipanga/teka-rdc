@@ -10,9 +10,6 @@ importers:
 
   apps/admin-web:
     dependencies:
-      '@react-oauth/google':
-        specifier: ^0.13.5
-        version: 0.13.5(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@teka/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -231,9 +228,6 @@ importers:
 
   apps/buyer-web:
     dependencies:
-      '@react-oauth/google':
-        specifier: ^0.13.5
-        version: 0.13.5(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@teka/shared':
         specifier: workspace:*
         version: link:../../packages/shared

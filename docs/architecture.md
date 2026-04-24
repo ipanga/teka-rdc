@@ -96,60 +96,71 @@ teka-rdc/
 
 ### Authentication — overview
 
-Teka RDC supports three auth providers, each tracked on `User.authProvider`:
+Teka RDC supports three auth providers, each tracked on `User.authProvider`. Role boundaries are **strict** — a user in one role cannot authenticate via a provider assigned to another role:
 
-| Provider | Roles | Primary flow |
+| Provider | Roles allowed | Primary flow |
 |---|---|---|
-| `PHONE_OTP` | Buyers (primary), Admins (optional) | SMS code via **Orange DRC** (default) or Africa's Talking |
-| `EMAIL_PASSWORD` | Sellers (**only**), Admins (coexist), Buyers (optional future) | bcrypt hash + password-reset via Resend |
-| `GOOGLE` | All roles | Google id_token verified server-side via `google-auth-library` |
+| `PHONE_OTP` | **Buyers only** | SMS code via **Orange DRC** (default) or Africa's Talking. Sellers get 409 `SELLER_MIGRATION_REQUIRED`; admins get 403 `ADMIN_PHONE_AUTH_DISABLED`. |
+| `EMAIL_PASSWORD` | **Sellers + Admins only** | bcrypt hash + password-reset via Resend. Buyers get 403 `BUYER_EMAIL_AUTH_DISABLED`. |
+| `GOOGLE` | **Sellers only** | Google id_token verified server-side via `google-auth-library`. Admins → 403 `ADMIN_GOOGLE_AUTH_DISABLED`; buyers → 403 `BUYER_GOOGLE_AUTH_DISABLED`; unknown users → 401 `NO_GOOGLE_ACCOUNT` (no self-provision). |
 
-All three paths terminate in the same `generateTokens` helper, so refresh-token replay detection and cookie semantics are identical.
+All three paths terminate in the same `generateTokens` helper, so refresh-token replay detection and cookie semantics are identical. Admins are **seeded** out-of-band (see `docs/deployment.md § 5b`) — there is no public admin registration endpoint.
 
-### Authentication — Phone OTP
+### Authentication — Phone OTP (buyers only)
 
 ```
 1. Client → POST /api/v1/auth/otp/request { phone: "+243XXXXXXXXX" }
 2. API generates 6-digit OTP, stores in PostgreSQL Otp table (5min expiry, max 5 attempts)
 3. SmsService dispatches to the active provider (SMS_PROVIDER env: orange | africas_talking | mock)
 4. Client → POST /api/v1/auth/login { phone, code }
-5. If user.role=SELLER && authProvider=PHONE_OTP → 409 SELLER_MIGRATION_REQUIRED
-6. Else → JWT access (15m) + refresh (7d, hashed in DB, replay-protected)
+5. Role gate on successful OTP verification:
+   - role=SELLER && authProvider=PHONE_OTP → 409 SELLER_MIGRATION_REQUIRED
+   - role=ADMIN | SUPPORT | FINANCE       → 403 ADMIN_PHONE_AUTH_DISABLED
+   - role=BUYER                            → continue
+6. JWT access (15m) + refresh (7d, hashed in DB, replay-protected)
 7. Tokens set as httpOnly cookies (teka_access_token, teka_refresh_token)
-
-Buyer-initiated email fallback (user taps "Recevoir par email"):
-  POST /api/v1/auth/otp/request-email { phone } → OtpService(channel='email') → Resend
 ```
 
-### Authentication — Email + password
+There is **no email-OTP fallback** for buyers — the delivery channel is SMS-only to keep the buyer surface strictly phone-identified.
+
+### Authentication — Email + password (sellers + admins)
 
 ```
 1. POST /api/v1/auth/register/email { email, password, firstName, lastName }
-   → bcrypt hash (BCRYPT_ROUNDS=12 default), User created with authProvider=EMAIL_PASSWORD
+   → bcrypt hash (BCRYPT_ROUNDS=12 default), User created with role=SELLER,
+     authProvider=EMAIL_PASSWORD
    → Welcome + verification email dispatched via Resend (fire-and-forget)
+   → (Admins cannot be registered via this endpoint — seeded out-of-band)
 2. POST /api/v1/auth/login/email { email, password }
    → Generic error "Email ou mot de passe invalide" on any failure (no enumeration)
+   → role=BUYER → 403 BUYER_EMAIL_AUTH_DISABLED (boundary guard)
 3. Forgot password:
    POST /auth/password-reset/request { email } — always 200
    → PasswordResetToken row (sha256 hash of raw token) with 60min TTL
-   → Reset link emailed (BUYER_WEB_URL / SELLER_WEB_URL / ADMIN_WEB_URL chosen by user.role)
+   → Reset link emailed (SELLER_WEB_URL / ADMIN_WEB_URL chosen by user.role)
 4. POST /auth/password-reset/confirm { token, newPassword }
    → Atomic: update hash + revoke all refresh tokens + consume reset token
 ```
 
-### Authentication — Google OAuth
+### Authentication — Google OAuth (sellers only)
 
 ```
-1. Client (web / mobile) authenticates with Google directly (returns id_token)
+1. Client (seller-web, seller-mobile) authenticates with Google directly (returns id_token)
 2. POST /api/v1/auth/login/google { idToken }
 3. google-auth-library verifies the token against all configured audiences
    (GOOGLE_WEB_CLIENT_ID, GOOGLE_IOS_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID)
-4. Upsert order:
-   a. Match by User.googleId
-   b. Match by User.email (only when Google reports email_verified=true) → set googleId
-   c. Else create new User with authProvider=GOOGLE, role=BUYER, emailVerified=true
-5. Standard generateTokens → cookies
+4. Resolution order:
+   a. Match by User.googleId  → resolved user
+   b. Match by User.email (only when Google reports email_verified=true) → link googleId → resolved user
+   c. No match → 401 NO_GOOGLE_ACCOUNT (user must register with email+password first)
+5. Role gate on resolved user:
+   - role=ADMIN | SUPPORT | FINANCE → 403 ADMIN_GOOGLE_AUTH_DISABLED
+   - role=BUYER                      → 403 BUYER_GOOGLE_AUTH_DISABLED
+   - role=SELLER                      → continue
+6. Standard generateTokens → cookies
 ```
+
+Google is **not a registration path** on the backend — if there's no existing account, the client is told to register with email+password first. The buyer-web and admin-web surfaces do not display a Google button; only seller-web and (future) seller-mobile.
 
 ### Authentication — Seller migration (existing phone-only sellers)
 

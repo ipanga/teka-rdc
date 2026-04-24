@@ -23,7 +23,6 @@ import { EmailRegisterDto } from './dto/email-register.dto';
 import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
 import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
-import { EmailOtpFallbackDto } from './dto/email-otp-fallback.dto';
 import { SellerMigrateCheckDto } from './dto/seller-migrate-check.dto';
 import { SellerMigrateLinkEmailDto } from './dto/seller-migrate-link-email.dto';
 import { SellerPasswordSetupDto } from './dto/seller-password-setup.dto';
@@ -79,7 +78,8 @@ export class AuthController {
   }
 
   // ---------------------------------------------------------------------------
-  // Email + password
+  // Email + password — seller self-service registration + login. Buyers use
+  // phone OTP; admins are seeded out-of-band.
   // ---------------------------------------------------------------------------
 
   @Public()
@@ -136,17 +136,6 @@ export class AuthController {
     const result = await this.authService.loginWithGoogle(dto);
     this.setAuthCookies(res, result.tokens);
     return result;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Email OTP fallback (buyer-initiated)
-  // ---------------------------------------------------------------------------
-
-  @Public()
-  @Post('otp/request-email')
-  @HttpCode(HttpStatus.OK)
-  async requestEmailOtp(@Body() dto: EmailOtpFallbackDto) {
-    return this.authService.requestEmailOtpFallback(dto);
   }
 
   // ---------------------------------------------------------------------------
