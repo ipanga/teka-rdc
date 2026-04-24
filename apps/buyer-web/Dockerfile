@@ -24,8 +24,16 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=5000
+# Next.js standalone defaults to binding localhost, which inside a container
+# is unreachable from the docker bridge (nginx → buyer-web:5000 gets ECONNREFUSED
+# → 502). Force the server to listen on all interfaces.
+ENV HOSTNAME=0.0.0.0
+# curl keeps the image small while giving docker + compose a healthcheck target.
+RUN apk add --no-cache curl
 COPY --from=build /app/apps/buyer-web/.next/standalone ./
 COPY --from=build /app/apps/buyer-web/.next/static ./apps/buyer-web/.next/static
 COPY --from=build /app/apps/buyer-web/public ./apps/buyer-web/public
 EXPOSE 5000
+HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
+  CMD curl -fsS http://127.0.0.1:5000/ > /dev/null || exit 1
 CMD ["node", "apps/buyer-web/server.js"]

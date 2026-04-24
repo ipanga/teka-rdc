@@ -73,6 +73,10 @@ export const envValidationSchema = Joi.object({
   }),
   EMAIL_FROM: Joi.string().default('Teka RDC <noreply@teka.cd>'),
 
+  // Recipient for contact-form submissions. Defaults to the EMAIL_FROM
+  // address; operators can override to route to a support distribution list.
+  CONTACT_FORM_RECIPIENT: Joi.string().email().optional().allow(''),
+
   // Cloudinary
   CLOUDINARY_CLOUD_NAME: Joi.string().default(''),
   CLOUDINARY_API_KEY: Joi.string().default(''),

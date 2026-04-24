@@ -5,6 +5,10 @@ import { emailVerificationTemplate } from './templates/verification.template';
 import { passwordResetTemplate } from './templates/password-reset.template';
 import { welcomeTemplate } from './templates/welcome.template';
 import { sellerSetupTemplate } from './templates/seller-setup.template';
+import {
+  contactFormTemplate,
+  type ContactFormEmailInput,
+} from './templates/contact-form.template';
 
 @Injectable()
 export class EmailService {
@@ -76,10 +80,20 @@ export class EmailService {
     return this.sendEmail(email, subject, html);
   }
 
+  /** Forwards a public contact-form submission to the support inbox. */
+  async sendContactNotification(
+    input: ContactFormEmailInput & { to: string; replyTo: string },
+  ): Promise<boolean> {
+    const subject = `[Contact] ${input.subject}`;
+    const html = contactFormTemplate(input);
+    return this.sendEmail(input.to, subject, html, { replyTo: input.replyTo });
+  }
+
   private async sendEmail(
     to: string,
     subject: string,
     html: string,
+    options: { replyTo?: string } = {},
   ): Promise<boolean> {
     if (this.isDev) {
       this.logger.log(`[DEV] Email to ${to}: ${subject}`);
@@ -103,6 +117,7 @@ export class EmailService {
           to: [to],
           subject,
           html,
+          ...(options.replyTo ? { reply_to: options.replyTo } : {}),
         }),
       });
 

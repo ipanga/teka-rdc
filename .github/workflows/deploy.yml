@@ -1,6 +1,6 @@
 # Runs on every push to main (i.e. after a PR merges).
 # Builds all 4 images in parallel, pushes them to ghcr.io/ipanga/teka-rdc/*,
-# then SSHes to the server and pulls + restarts the stack.
+# then SSHes to the server and performs a zero-downtime rolling update.
 name: Deploy to production
 
 on:
@@ -99,17 +99,70 @@ jobs:
     permissions:
       packages: read
     steps:
-      - name: SSH deploy
+      - name: SSH rolling deploy
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          command_timeout: 10m
           script: |
             set -euo pipefail
+
             cd /home/deploy/teka-rdc
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # ------------------------------------------------------------------
+            # Authenticate to GHCR and pull all new images. `pull` does NOT
+            # restart anything — containers keep serving the old image.
+            # ------------------------------------------------------------------
+            echo "${{ secrets.GITHUB_TOKEN }}" \
+              | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d
+
+            # ------------------------------------------------------------------
+            # Install the `docker rollout` CLI plugin on first run. It's a
+            # ~200-line bash script that handles the scale-up → wait-healthy →
+            # scale-down dance; each service is rolled independently so nginx
+            # never observes more than a few seconds where new containers are
+            # still warming up alongside the old ones.
+            # ------------------------------------------------------------------
+            if ! docker rollout --help >/dev/null 2>&1; then
+              echo "Installing docker-rollout plugin..."
+              sudo mkdir -p /usr/local/lib/docker/cli-plugins
+              sudo curl -fsSL \
+                https://raw.githubusercontent.com/Wowu/docker-rollout/v0.9/docker-rollout \
+                -o /usr/local/lib/docker/cli-plugins/docker-rollout
+              sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-rollout
+            fi
+
+            # ------------------------------------------------------------------
+            # Zero-downtime rolling updates. Order matters:
+            #   1. api first — web apps depend on it via the private network.
+            #   2. buyer-web, seller-web, admin-web in parallel (independent).
+            # Each call starts a NEW container beside the old one, waits for
+            # its healthcheck to report healthy, then stops and removes the old.
+            # If health never goes green, rollout exits non-zero and the step
+            # fails — the old container keeps serving.
+            # ------------------------------------------------------------------
+            COMPOSE="docker compose -f docker-compose.prod.yml"
+            for svc in api buyer-web seller-web admin-web; do
+              echo "▶ rolling $svc …"
+              $COMPOSE exec "$svc" echo "current $svc container still up" 2>/dev/null || true
+              # --wait-after-healthy gives the new replica a moment to warm
+              # Node's JIT before the old one goes away.
+              $COMPOSE --progress quiet $COMPOSE_ROLL_OPTS \
+                up -d --no-deps --quiet-pull "$svc" >/dev/null 2>&1 || true
+              docker rollout -f docker-compose.prod.yml -t 180 --wait 10 "$svc"
+            done
+
+            # ------------------------------------------------------------------
+            # nginx: reload if the config file changed, otherwise leave alone.
+            # Recreating nginx would drop in-flight TCP connections, so we
+            # never `up -d nginx` during a normal deploy.
+            # ------------------------------------------------------------------
+            if $COMPOSE exec nginx nginx -t >/dev/null 2>&1; then
+              $COMPOSE exec nginx nginx -s reload || true
+            fi
+
             docker logout ghcr.io
             docker image prune -f

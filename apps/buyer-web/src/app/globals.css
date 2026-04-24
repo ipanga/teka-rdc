@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Provides `prose` utilities used by the static content pages
+ * (/pages/<slug> — rendered from markdown via react-markdown). */
+@plugin "@tailwindcss/typography";
+
 @theme inline {
   --color-primary: #BF0000;
   --color-primary-foreground: #FFFFFF;

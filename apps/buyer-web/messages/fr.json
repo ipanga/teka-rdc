@@ -146,6 +146,23 @@
     "pageNotFound": "Page non trouvée",
     "backToHome": "Retour à l'accueil"
   },
+  "Contact": {
+    "formTitle": "Envoyer un message",
+    "formSubtitle": "Notre équipe vous répond sous 24 heures ouvrables.",
+    "nameLabel": "Votre nom",
+    "emailLabel": "Adresse email",
+    "phoneLabel": "Téléphone",
+    "subjectLabel": "Sujet",
+    "messageLabel": "Message",
+    "messageHint": "Entre 10 et 2000 caractères. Incluez votre numéro de commande si pertinent.",
+    "websiteLabel": "Site web (ne pas remplir)",
+    "optional": "facultatif",
+    "send": "Envoyer le message",
+    "sending": "Envoi en cours…",
+    "thanksTitle": "Message bien reçu",
+    "thanksBody": "Nous vous répondrons par email dans les meilleurs délais.",
+    "genericError": "Impossible d'envoyer le message. Veuillez réessayer."
+  },
   "Footer": {
     "copyright": "© {year} Teka RDC. Tous droits réservés.",
     "about": "À propos",
