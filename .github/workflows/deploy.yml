@@ -118,15 +118,10 @@ jobs:
             echo "${{ secrets.GITHUB_TOKEN }}" \
               | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            # Load .env.production into the shell so every compose command
-            # (and docker-rollout's nested compose calls) see the variables
-            # the yaml interpolates. Compose's implicit `.env` lookup doesn't
-            # find `.env.production`, which is why earlier runs spammed
-            # "NEXT_PUBLIC_GOOGLE_CLIENT_ID variable is not set" warnings.
-            set -a
-            . ./.env.production
-            set +a
-
+            # `--env-file .env.production` handles yaml interpolation for every
+            # compose invocation below. We do NOT shell-source the file:
+            # `.env.production` is compose-format (unquoted values with spaces
+            # are legal) and blows up under `sh -c . file` sourcing.
             COMPOSE="docker compose --env-file .env.production -f docker-compose.prod.yml"
             $COMPOSE pull
 
