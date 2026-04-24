@@ -117,23 +117,40 @@ jobs:
             # ------------------------------------------------------------------
             echo "${{ secrets.GITHUB_TOKEN }}" \
               | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker compose -f docker-compose.prod.yml pull
+
+            # Load .env.production into the shell so every compose command
+            # (and docker-rollout's nested compose calls) see the variables
+            # the yaml interpolates. Compose's implicit `.env` lookup doesn't
+            # find `.env.production`, which is why earlier runs spammed
+            # "NEXT_PUBLIC_GOOGLE_CLIENT_ID variable is not set" warnings.
+            set -a
+            . ./.env.production
+            set +a
+
+            COMPOSE="docker compose --env-file .env.production -f docker-compose.prod.yml"
+            $COMPOSE pull
 
             # ------------------------------------------------------------------
-            # Install the `docker rollout` CLI plugin on first run. It's a
-            # ~200-line bash script that handles the scale-up → wait-healthy →
-            # scale-down dance; each service is rolled independently so nginx
-            # never observes more than a few seconds where new containers are
-            # still warming up alongside the old ones.
+            # Install the `docker rollout` CLI plugin. Idempotent — we always
+            # (re)write the file and verify afterwards. The conditional form
+            # failed silently when a prior run left a partial/broken plugin
+            # that made `--help` return 0 while the real invocation blew up.
+            #
+            # User-home install avoids needing passwordless sudo on the VPS.
+            # Docker scans $HOME/.docker/cli-plugins the same as the system
+            # path.
             # ------------------------------------------------------------------
-            if ! docker rollout --help >/dev/null 2>&1; then
-              echo "Installing docker-rollout plugin..."
-              sudo mkdir -p /usr/local/lib/docker/cli-plugins
-              sudo curl -fsSL \
-                https://raw.githubusercontent.com/Wowu/docker-rollout/v0.9/docker-rollout \
-                -o /usr/local/lib/docker/cli-plugins/docker-rollout
-              sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-rollout
-            fi
+            mkdir -p "$HOME/.docker/cli-plugins"
+            curl -fsSL \
+              https://raw.githubusercontent.com/Wowu/docker-rollout/v0.9/docker-rollout \
+              -o "$HOME/.docker/cli-plugins/docker-rollout"
+            chmod +x "$HOME/.docker/cli-plugins/docker-rollout"
+            # Clean up any stale system-wide install from earlier attempts so
+            # we never mix versions.
+            sudo rm -f /usr/local/lib/docker/cli-plugins/docker-rollout 2>/dev/null || true
+            # Fail loudly if the install is bad — better here than 60s into a
+            # rolling swap.
+            docker rollout --help >/dev/null
 
             # ------------------------------------------------------------------
             # Zero-downtime rolling updates. Order matters:
@@ -147,7 +164,6 @@ jobs:
             # rollout exits non-zero and this step fails — the old container
             # keeps serving.
             # ------------------------------------------------------------------
-            COMPOSE="docker compose -f docker-compose.prod.yml"
             for svc in api buyer-web seller-web admin-web; do
               echo "▶ rolling $svc …"
               running="$($COMPOSE ps --services --filter status=running | grep -Fx "$svc" || true)"

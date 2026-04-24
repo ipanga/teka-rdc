@@ -35,7 +35,8 @@ export interface LoginResponse {
   tokens: AuthTokens;
 }
 
-// Email + password
+// Email + password — seller self-service registration + login. Buyers use
+// phone OTP; admins are seeded out-of-band.
 export interface EmailLoginDto {
   email: string;
   password: string;
@@ -59,14 +60,9 @@ export interface PasswordResetConfirmDto {
   newPassword: string;
 }
 
-// Google OAuth
+// Google OAuth — sellers only. Admins and buyers are rejected server-side.
 export interface GoogleLoginDto {
   idToken: string;
-}
-
-// Email OTP fallback (buyers)
-export interface EmailOtpFallbackDto {
-  phone: string;
 }
 
 // Seller migration

@@ -24,9 +24,7 @@ class OtpScreen extends ConsumerStatefulWidget {
 class _OtpScreenState extends ConsumerState<OtpScreen> {
   final _otpController = PinInputController();
   bool _isLoading = false;
-  bool _emailLoading = false;
   String? _errorMessage;
-  String? _infoMessage;
   int _countdown = 60;
   Timer? _timer;
 
@@ -59,7 +57,6 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
-      _infoMessage = null;
     });
 
     try {
@@ -76,38 +73,6 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
       });
     } finally {
       if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _requestEmailFallback() async {
-    setState(() {
-      _emailLoading = true;
-      _errorMessage = null;
-      _infoMessage = null;
-    });
-
-    try {
-      await ref.read(authProvider.notifier).requestEmailOtp(widget.phone);
-      setState(() {
-        _infoMessage = 'Code envoye a votre adresse email.';
-      });
-      _startCountdown();
-    } on DioException catch (e) {
-      final code = e.response?.data?['error']?['code'];
-      setState(() {
-        if (code == 'NO_EMAIL_ON_FILE' || e.response?.statusCode == 400) {
-          _errorMessage = 'Aucun email enregistre pour ce compte.';
-        } else {
-          _errorMessage = e.response?.data?['error']?['message'] ??
-              'Impossible d\'envoyer le code par email.';
-        }
-      });
-    } catch (_) {
-      setState(() {
-        _errorMessage = 'Une erreur est survenue.';
-      });
-    } finally {
-      if (mounted) setState(() => _emailLoading = false);
     }
   }
 
@@ -250,23 +215,6 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                 const SizedBox(height: 16),
               ],
 
-              // Info message (e.g. email sent)
-              if (_infoMessage != null) ...[
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    _infoMessage!,
-                    style: const TextStyle(color: Colors.green),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-
               // Loading indicator
               if (_isLoading)
                 const Padding(
@@ -299,23 +247,6 @@ class _OtpScreenState extends ConsumerState<OtpScreen> {
                   ),
                 ),
 
-              // Email fallback
-              Center(
-                child: TextButton(
-                  onPressed: _emailLoading || _isLoading
-                      ? null
-                      : _requestEmailFallback,
-                  child: Text(
-                    _emailLoading
-                        ? '...'
-                        : 'Recevoir le code par email',
-                    style: TextStyle(
-                      color: TekaColors.mutedForeground,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ),
               const SizedBox(height: 32),
             ],
           ),

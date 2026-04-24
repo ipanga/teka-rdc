@@ -262,6 +262,74 @@ describe('Auth (e2e)', () => {
         .send({ phone: 'bad', code: '123456' })
         .expect(400);
     });
+
+    it('should reject phone OTP login for ADMIN role (email-only enforcement)', async () => {
+      const phone = '+243999000999';
+      mockOtpVerifySuccess(phone);
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'admin-user-id',
+        phone,
+        role: 'ADMIN',
+        status: 'ACTIVE',
+        authProvider: 'EMAIL_PASSWORD',
+        passwordHash: 'hashed',
+      });
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ phone, code: '123456' })
+        .expect(403);
+
+      expect(res.body.success).toBe(false);
+    });
+
+    it('should reject phone OTP login for SUPPORT role', async () => {
+      const phone = '+243999000998';
+      mockOtpVerifySuccess(phone);
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'support-user-id',
+        phone,
+        role: 'SUPPORT',
+        status: 'ACTIVE',
+        authProvider: 'EMAIL_PASSWORD',
+        passwordHash: 'hashed',
+      });
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .send({ phone, code: '123456' })
+        .expect(403);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // POST /api/v1/auth/login/google — admin + buyer rejection
+  // ---------------------------------------------------------------------------
+  describe('POST /api/v1/auth/login/google', () => {
+    it('should reject missing idToken', () => {
+      return request(app.getHttpServer())
+        .post('/api/v1/auth/login/google')
+        .send({})
+        .expect(400);
+    });
+
+    // NOTE: verifying that ADMIN/BUYER users are rejected server-side requires
+    // stubbing google-auth-library's verifyIdToken, which is deep in
+    // AuthService. We exercise the controller contract here; the role-gate
+    // logic is covered by unit-level inspection of auth.service.ts
+    // (ADMIN_GOOGLE_AUTH_DISABLED + BUYER_GOOGLE_AUTH_DISABLED branches).
+  });
+
+  // ---------------------------------------------------------------------------
+  // POST /api/v1/auth/otp/request-email — removed endpoint (buyers are phone-only)
+  // ---------------------------------------------------------------------------
+  describe('POST /api/v1/auth/otp/request-email (removed)', () => {
+    it('should return 404 — endpoint no longer exists', () => {
+      return request(app.getHttpServer())
+        .post('/api/v1/auth/otp/request-email')
+        .send({ phone: '+243999000001' })
+        .expect(404);
+    });
   });
 
   // ---------------------------------------------------------------------------
