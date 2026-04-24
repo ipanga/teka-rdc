@@ -221,6 +221,31 @@ POST /v1/addresses
 
 ---
 
+## Contact — `/v1/contact`
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/v1/contact` | Public | Forward a contact-form submission to the support inbox |
+
+Rate-limited to 5 submissions per IP per hour (on top of the global 100/min). A hidden `website` honeypot field traps bots — any non-empty value is silently dropped server-side (still returns 200, so bots can't probe).
+
+```json
+POST /v1/contact
+{
+  "name": "Jean Mukendi",
+  "email": "jean@example.com",
+  "phone": "+243999000001",     // optional
+  "subject": "Question sur ma commande",
+  "message": "Bonjour, ma commande TK-12345 ...",
+  "website": ""                  // honeypot — leave empty
+}
+// → 200 { success: true, data: { ok: true } }
+```
+
+The email is sent via Resend to `CONTACT_FORM_RECIPIENT` (defaults to `EMAIL_FROM`). Reply-to is set to the submitter's email, so the support agent can reply directly from their inbox.
+
+---
+
 ## Browse (Public) — `/v1/browse`
 
 | Method | Endpoint | Auth | Description |
