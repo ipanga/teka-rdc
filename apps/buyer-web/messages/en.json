@@ -137,6 +137,23 @@
     "originalPrice": "Original price",
     "seeAll": "See all"
   },
+  "Contact": {
+    "formTitle": "Send a message",
+    "formSubtitle": "Our team replies within 24 business hours.",
+    "nameLabel": "Your name",
+    "emailLabel": "Email address",
+    "phoneLabel": "Phone",
+    "subjectLabel": "Subject",
+    "messageLabel": "Message",
+    "messageHint": "Between 10 and 2000 characters. Include your order number if relevant.",
+    "websiteLabel": "Website (do not fill)",
+    "optional": "optional",
+    "send": "Send message",
+    "sending": "Sending…",
+    "thanksTitle": "Message received",
+    "thanksBody": "We'll get back to you by email as soon as possible.",
+    "genericError": "Could not send the message. Please try again."
+  },
   "ContentPages": {
     "faq": "FAQ",
     "terms": "Terms and Conditions",
