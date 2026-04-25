@@ -15,8 +15,30 @@ interface ProductData {
   quantity: number;
   condition: string;
   images: Array<{ url: string }>;
-  seller: { businessName?: string; shopName?: string };
+  // The browse API actually returns the business name under
+  // `seller.sellerProfile.businessName`. Older code paths read flat
+  // shopName/businessName fields on `seller` directly — those don't exist
+  // here but we keep them as fallbacks for forward-compatibility.
+  seller: {
+    businessName?: string;
+    shopName?: string;
+    sellerProfile?: { businessName?: string };
+  };
   category?: { name: Record<string, string> };
+}
+
+/**
+ * Convert a Cloudinary product image URL into an OG-friendly 1200x630 card.
+ * Pads with white so the product is centered + fully visible (no head-crop).
+ * For non-Cloudinary URLs, returns the input unchanged — the social crawler
+ * will scale it itself.
+ */
+function ogImageUrl(url: string | undefined): string {
+  if (!url) return 'https://teka.cd/og-default.png';
+  if (url.includes('res.cloudinary.com')) {
+    return url.replace('/upload/', '/upload/c_pad,w_1200,h_630,b_white/');
+  }
+  return url;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -29,34 +51,71 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const title = product.title?.[locale] || product.title?.fr || '';
   const desc = product.description?.[locale] || product.description?.fr || '';
-  const image = product.images?.[0]?.url;
+  const ogImage = ogImageUrl(product.images?.[0]?.url);
   const price = (Number(product.priceCDF) / 100).toLocaleString('fr-CD');
   const categoryName = product.category?.name?.[locale] || product.category?.name?.fr || '';
-  const sellerName = product.seller?.businessName || product.seller?.shopName || '';
+  const sellerName =
+    product.seller?.sellerProfile?.businessName ||
+    product.seller?.businessName ||
+    product.seller?.shopName ||
+    '';
 
   const fullTitle = `${title} - ${price} FC`;
   const fullDesc = locale === 'fr'
     ? `${desc.substring(0, 120)}${desc.length > 120 ? '...' : ''} | ${categoryName} | Vendu par ${sellerName} sur Teka RDC. Livraison à Lubumbashi & Kolwezi.`
     : `${desc.substring(0, 120)}${desc.length > 120 ? '...' : ''} | ${categoryName} | Sold by ${sellerName} on Teka RDC. Delivery to Lubumbashi & Kolwezi.`;
+  const truncatedDesc = fullDesc.substring(0, 160);
+
+  // Locale-aware paths (next-intl `localePrefix: 'as-needed'` — FR has no prefix).
+  const localizedPath = `/products/${slug}`;
+  const canonical = locale === 'fr' ? localizedPath : `/${locale}${localizedPath}`;
+  const absoluteUrl = `https://teka.cd${canonical}`;
 
   return {
     title: fullTitle,
-    description: fullDesc.substring(0, 160),
-    keywords: [title, categoryName, sellerName, 'Teka RDC', locale === 'fr' ? 'acheter en ligne RDC' : 'buy online DRC'],
+    description: truncatedDesc,
+    keywords: [
+      title,
+      categoryName,
+      sellerName,
+      'Teka RDC',
+      locale === 'fr' ? 'acheter en ligne RDC' : 'buy online DRC',
+    ],
     openGraph: {
       title: `${title} | Teka RDC`,
-      description: fullDesc.substring(0, 160),
-      images: image
-        ? [{ url: image, width: 800, height: 800, alt: title }]
-        : [{ url: 'https://teka.cd/og-default.png', width: 1200, height: 630, alt: title }],
-      type: 'website',
+      description: truncatedDesc,
+      url: absoluteUrl,
+      // 'product' is an extended OG type Facebook + WhatsApp + LinkedIn all
+      // accept; Next.js Metadata's TS union only lists the OG core types so
+      // we cast. The emitted <meta property="og:type" content="product"> is
+      // what the crawlers actually read.
+      type: 'product' as 'website',
       siteName: 'Teka RDC',
       locale: locale === 'fr' ? 'fr_CD' : 'en_CD',
+      images: [
+        {
+          url: ogImage,
+          width: 1200,
+          height: 630,
+          alt: title,
+        },
+      ],
     },
-    twitter: { card: 'summary_large_image', title: `${title} | Teka RDC`, description: fullDesc.substring(0, 160) },
+    twitter: {
+      card: 'summary_large_image',
+      title: `${title} | Teka RDC`,
+      description: truncatedDesc,
+      // Without an image URL Twitter falls back to the small summary card
+      // even when summary_large_image is requested.
+      images: [ogImage],
+    },
     alternates: {
-      canonical: `/products/${slug}`,
-      languages: { fr: `/fr/products/${slug}`, en: `/en/products/${slug}` },
+      canonical,
+      languages: {
+        fr: localizedPath,
+        en: `/en${localizedPath}`,
+        'x-default': localizedPath,
+      },
     },
   };
 }
@@ -65,6 +124,12 @@ export default async function Page({ params }: Props) {
   const { locale, slug } = await params;
   const product = await serverFetch<ProductData>(`/v1/browse/products/${slug}`);
 
+  const sellerDisplayName =
+    product?.seller?.sellerProfile?.businessName ||
+    product?.seller?.businessName ||
+    product?.seller?.shopName ||
+    '';
+
   const productJsonLd = product ? {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -72,14 +137,14 @@ export default async function Page({ params }: Props) {
     description: product.description?.fr || '',
     image: product.images?.[0]?.url,
     sku: slug,
-    brand: { '@type': 'Organization', name: product.seller?.businessName || product.seller?.shopName || 'Teka RDC' },
+    brand: { '@type': 'Organization', name: sellerDisplayName || 'Teka RDC' },
     offers: {
       '@type': 'Offer',
       priceCurrency: 'CDF',
       price: String(Number(product.priceCDF) / 100),
       availability: product.quantity > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
       itemCondition: product.condition === 'NEW' ? 'https://schema.org/NewCondition' : 'https://schema.org/UsedCondition',
-      seller: { '@type': 'Organization', name: product.seller?.businessName || product.seller?.shopName || '' },
+      seller: { '@type': 'Organization', name: sellerDisplayName },
       shippingDetails: {
         '@type': 'OfferShippingDetails',
         shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'CD' },
