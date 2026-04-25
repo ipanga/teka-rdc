@@ -13,6 +13,16 @@ export class BrowseController {
     return this.browseService.getCategories();
   }
 
+  /**
+   * Detail page for a category. Accepts a UUID OR a slug — buyer-web routes
+   * via /categorie/<slug>; older /categories/<uuid> links keep working.
+   */
+  @Get('categories/:identifier')
+  @Public()
+  getCategoryDetail(@Param('identifier') identifier: string) {
+    return this.browseService.getCategoryDetail(identifier);
+  }
+
   @Get('products')
   @Public()
   browseProducts(@Query() query: BrowseProductsQueryDto) {

@@ -142,7 +142,7 @@ export default function ProductDetailPage() {
             <span key={crumb.id} className="flex items-center gap-2 shrink-0">
               <span>/</span>
               <Link
-                href={`/categories/${crumb.id}`}
+                href={crumb.slug ? `/categorie/${crumb.slug}` : `/categories/${crumb.id}`}
                 className="hover:text-primary transition-colors"
               >
                 {getLocalizedName(crumb.name, locale)}
@@ -372,7 +372,11 @@ export default function ProductDetailPage() {
               <div className="py-3 border-t border-border">
                 <p className="text-sm text-muted-foreground">{t('category')}</p>
                 <Link
-                  href={`/categories/${product.category.id}`}
+                  href={
+                    product.category.slug
+                      ? `/categorie/${product.category.slug}`
+                      : `/categories/${product.category.id}`
+                  }
                   className="text-sm font-medium text-primary hover:underline"
                 >
                   {getLocalizedName(product.category.name, locale)}

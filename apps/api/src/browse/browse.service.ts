@@ -275,23 +275,32 @@ export class BrowseService {
       throw new NotFoundException('Produit non trouvé');
     }
 
-    // Build category breadcrumb
-    const breadcrumb: { id: string; name: unknown }[] = [];
+    // Build category breadcrumb. `slug` is the canonical identifier used by
+    // buyer-web URLs (/categorie/<slug>); `id` is kept for backward
+    // compatibility with older clients.
+    const breadcrumb: {
+      id: string;
+      slug: string | null;
+      name: unknown;
+    }[] = [];
     if (product.category) {
       if (product.category.parentCategory?.parentCategory) {
         breadcrumb.push({
           id: product.category.parentCategory.parentCategory.id,
+          slug: product.category.parentCategory.parentCategory.slug,
           name: product.category.parentCategory.parentCategory.name,
         });
       }
       if (product.category.parentCategory) {
         breadcrumb.push({
           id: product.category.parentCategory.id,
+          slug: product.category.parentCategory.slug,
           name: product.category.parentCategory.name,
         });
       }
       breadcrumb.push({
         id: product.category.id,
+        slug: product.category.slug,
         name: product.category.name,
       });
     }
@@ -300,6 +309,57 @@ export class BrowseService {
       ...product,
       breadcrumb,
     };
+  }
+
+  /**
+   * Returns a single active category by id OR slug, with its direct
+   * subcategories and active product count. Used by buyer-web's category
+   * detail page (/categorie/<slug>). Mirrors the UUID-or-slug pattern of
+   * getProductDetail above.
+   */
+  async getCategoryDetail(identifier: string) {
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        identifier,
+      );
+
+    const category = await this.prisma.category.findFirst({
+      where: {
+        ...(isUuid ? { id: identifier } : { slug: identifier }),
+        isActive: true,
+        deletedAt: null,
+      },
+      include: {
+        parentCategory: {
+          select: { id: true, slug: true, name: true },
+        },
+        subcategories: {
+          where: { isActive: true, deletedAt: null },
+          orderBy: { sortOrder: 'asc' },
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            emoji: true,
+            sortOrder: true,
+          },
+        },
+        _count: {
+          select: {
+            products: {
+              where: { status: ProductStatus.ACTIVE, deletedAt: null },
+            },
+          },
+        },
+      },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Catégorie non trouvée');
+    }
+
+    const { _count, ...rest } = category;
+    return { ...rest, productCount: _count.products };
   }
 
   /**

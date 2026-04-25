@@ -241,7 +241,8 @@ The email is sent via Resend to `CONTACT_FORM_RECIPIENT` (defaults to `EMAIL_FRO
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/v1/browse/categories` | Public | Category tree (cached 1hr) |
+| GET | `/v1/browse/categories` | Public | Category tree (each node includes `slug`) |
+| GET | `/v1/browse/categories/:identifier` | Public | Category detail by **UUID or slug**. Used by `/categorie/<slug>` on buyer-web |
 | GET | `/v1/browse/products` | Public | Product listing with filters |
 | GET | `/v1/browse/products/:id` | Public | Product detail (cached 5min) |
 | GET | `/v1/browse/banners` | Public | Active homepage banners (cached 5min) |

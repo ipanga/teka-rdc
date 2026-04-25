@@ -64,7 +64,7 @@ export default function CategoriesPage() {
             {categories.map((cat) => (
               <Link
                 key={cat.id}
-                href={`/categories/${cat.id}`}
+                href={cat.slug ? `/categorie/${cat.slug}` : `/categories/${cat.id}`}
                 className="group bg-white rounded-lg border border-border p-6 text-center hover:shadow-lg hover:border-primary/30 transition-all"
               >
                 <div className="text-4xl mb-3">{cat.emoji || '📦'}</div>

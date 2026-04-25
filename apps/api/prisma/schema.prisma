@@ -356,6 +356,11 @@ model SellerMigration {
 
 model Category {
   id               String    @id @default(uuid()) @db.Uuid
+  // SEO-friendly slug used in buyer-web URLs (/categorie/<slug>). Generated
+  // from name.fr at seed time. Nullable to make backfill safe; unique to
+  // catch accidental collisions. The browse API resolves both /:id and
+  // /:slug for backwards compatibility with old links.
+  slug             String?   @unique
   name             Json      // { fr: string, en?: string }
   description      Json?     // { fr: string, en?: string }
   parentCategoryId String?   @db.Uuid
@@ -377,6 +382,7 @@ model Category {
   @@index([isActive])
   @@index([sortOrder])
   @@index([deletedAt])
+  @@index([slug])
   @@map("categories")
 }
 

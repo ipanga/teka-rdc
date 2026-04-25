@@ -16,6 +16,22 @@ function generateProductSlug(frenchTitle: string, productId: string): string {
   return `${base}-${shortId}`;
 }
 
+/**
+ * Slugify a French category name for use in URLs.
+ * Examples: "Téléphones & Électronique" -> "telephones-et-electronique"
+ *           "Auto & Moto" -> "auto-et-moto"
+ *           "Bébé & Enfants" -> "bebe-et-enfants"
+ */
+function frSlugify(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/&/g, ' et ')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 async function main() {
   // SEED_MODE=prod: only foundational data (cities, communes, categories,
   // attributes, a single admin user). SEED_MODE=dev (default): the full
@@ -539,11 +555,13 @@ async function main() {
   const newCreatedMainCats: Record<number, string> = {};
   for (const cat of newMainCategories) {
     const id = newCatId(cat.n);
+    const slug = frSlugify(cat.fr);
     await prisma.category.upsert({
       where: { id },
-      update: { isActive: true },
+      update: { isActive: true, slug },
       create: {
         id,
+        slug,
         name: { fr: cat.fr, en: cat.en } as any,
         emoji: cat.emoji,
         sortOrder: cat.n,
@@ -616,11 +634,13 @@ async function main() {
   for (const sub of newSubcategories) {
     const id = newCatId(sub.n);
     const parentId = newCreatedMainCats[sub.parent];
+    const slug = frSlugify(sub.fr);
     await prisma.category.upsert({
       where: { id },
-      update: { isActive: true },
+      update: { isActive: true, slug },
       create: {
         id,
+        slug,
         name: { fr: sub.fr, en: sub.en } as any,
         parentCategoryId: parentId,
         sortOrder: sub.n % 100,
@@ -806,13 +826,27 @@ async function main() {
   await seedPlatformBaseline(admin.id);
 
   // ============================================================
+  // PLATFORM SELLER + SAMPLE CATALOG (always-run, idempotent)
+  // ============================================================
+  // "Teka RDC Officiel" is a platform-owned seller account that owns the
+  // initial sample products shipped with every fresh install. Used both for
+  // SEO content (real product URLs to crawl + index) and for first-time-user
+  // onboarding (the marketplace doesn't look empty on day 1).
+  // ============================================================
+
+  const officielSellerId = await seedTekaOfficielSeller(admin.id);
+  await seedSampleProducts(officielSellerId);
+
+  // ============================================================
   // PRODUCTS (20+) — dev-only sample catalog
   // ============================================================
 
   // Dev-only from here down: products, orders, reviews, banners, promotions,
   // broadcasts. Prod stops here.
   if (isProd) {
-    console.log('Prod seed completed (admin + cities + categories + attributes + content pages + settings).');
+    console.log(
+      'Prod seed completed (admin + cities + categories + attributes + content pages + settings + officiel seller + sample products).',
+    );
     return;
   }
 
@@ -3001,6 +3035,394 @@ async function seedPlatformBaseline(adminId: string) {
     });
   }
   console.log(`  Seeded ${settings.length} system settings (upsert)`);
+}
+
+// ============================================================================
+// PLATFORM SELLER + SAMPLE CATALOG
+// ============================================================================
+// Both functions are idempotent — safe to re-run on every seed pass. They
+// power the initial SEO-friendly catalog (~152 products = 38 active subcats
+// × 2 cities × 2 variants) so a fresh prod install isn't an empty marketplace.
+// ============================================================================
+
+const TEKA_OFFICIEL_USER_ID = '10000000-0000-0000-0000-000000999999';
+const TEKA_OFFICIEL_SELLER_PHONE = '+243800000000';
+const TEKA_OFFICIEL_SELLER_EMAIL = 'officiel@teka.cd';
+
+const LUBUMBASHI_CITY_ID = '01000000-0000-0000-0000-000000000001';
+const KOLWEZI_CITY_ID = '01000000-0000-0000-0000-000000000002';
+
+/**
+ * Provision the platform-owned seller account ("Teka RDC Officiel"). Owner
+ * of the initial sample catalog. Idempotent.
+ */
+async function seedTekaOfficielSeller(adminId: string): Promise<string> {
+  console.log('Seeding "Teka RDC Officiel" platform seller...');
+
+  await prisma.user.upsert({
+    where: { id: TEKA_OFFICIEL_USER_ID },
+    update: {},
+    create: {
+      id: TEKA_OFFICIEL_USER_ID,
+      phone: TEKA_OFFICIEL_SELLER_PHONE,
+      email: TEKA_OFFICIEL_SELLER_EMAIL,
+      firstName: 'Teka RDC',
+      lastName: 'Officiel',
+      role: 'SELLER',
+      status: 'ACTIVE',
+      phoneVerified: true,
+      emailVerified: true,
+      authProvider: 'EMAIL_PASSWORD',
+      locale: 'fr',
+    },
+  });
+
+  await prisma.sellerProfile.upsert({
+    where: { userId: TEKA_OFFICIEL_USER_ID },
+    update: { applicationStatus: 'APPROVED' },
+    create: {
+      userId: TEKA_OFFICIEL_USER_ID,
+      businessName: 'Teka RDC Officiel',
+      businessType: 'company',
+      idNumber: 'TEKA-OFFICIEL',
+      idType: 'company_registration',
+      phone: TEKA_OFFICIEL_SELLER_PHONE,
+      location: 'Lubumbashi',
+      cityId: LUBUMBASHI_CITY_ID,
+      description:
+        'Compte officiel Teka RDC. Catalogue de démonstration - acheté et vendu directement par la plateforme.',
+      applicationStatus: 'APPROVED',
+      approvedAt: new Date(),
+      approvedById: adminId,
+    },
+  });
+
+  console.log(`  Teka Officiel seller ready: ${TEKA_OFFICIEL_USER_ID}`);
+  return TEKA_OFFICIEL_USER_ID;
+}
+
+/**
+ * Generate ~152 sample products: for each active subcategory (38 of them),
+ * 2 product variants × 2 cities (Lubumbashi + Kolwezi). Idempotent — keyed
+ * on a deterministic UUID derived from (subcat n, city index, variant index).
+ */
+async function seedSampleProducts(sellerId: string): Promise<void> {
+  console.log('Seeding sample product catalog (152 products)...');
+
+  // Cloudinary "demo" cloud serves a few stock images for free. Rotate
+  // through them so products don't all look identical. Real product images
+  // would be uploaded to teka-rdc cloud and the URLs swapped post-launch.
+  const SAMPLE_IMAGE_NAMES = [
+    'sample',
+    'cld-sample',
+    'cld-sample-2',
+    'cld-sample-3',
+    'cld-sample-4',
+    'cld-sample-5',
+  ];
+  const cloudUrl = (name: string) =>
+    `https://res.cloudinary.com/demo/image/upload/${name}.jpg`;
+  const cloudThumb = (name: string) =>
+    `https://res.cloudinary.com/demo/image/upload/w_300,h_300,c_fill/${name}.jpg`;
+
+  // 2 product variants per subcategory. Title in fr/en, optional priceUSD,
+  // priceCDF in CDF (not centimes — multiplied below). descKey is a short
+  // keyword string we paste into a longer SEO-friendly French/English copy.
+  interface Tpl {
+    titleFr: string;
+    titleEn: string;
+    descKey: string;
+    priceCDF: number;
+    priceUSD?: number;
+  }
+
+  const TEMPLATES: Record<number, [Tpl, Tpl]> = {
+    // 1. Food & Groceries
+    101: [
+      { titleFr: 'Coca-Cola 1.5L (pack de 6)', titleEn: 'Coca-Cola 1.5L (pack of 6)', descKey: 'Boissons gazeuses fraîches', priceCDF: 25000 },
+      { titleFr: 'Eau minérale Cristal 1L (pack de 12)', titleEn: 'Cristal Mineral Water 1L (pack of 12)', descKey: 'Eau minérale naturelle', priceCDF: 18000 },
+    ],
+    102: [
+      { titleFr: "Riz parfumé 25kg", titleEn: 'Fragrant rice 25kg', descKey: 'Riz long grain de qualité', priceCDF: 95000 },
+      { titleFr: "Huile végétale 5L", titleEn: 'Vegetable oil 5L', descKey: 'Huile de cuisine raffinée', priceCDF: 45000 },
+    ],
+    103: [
+      { titleFr: 'Bananes (régime 10kg)', titleEn: 'Bananas (10kg bunch)', descKey: 'Bananes fraîches du Katanga', priceCDF: 12000 },
+      { titleFr: 'Tomates fraîches (panier 5kg)', titleEn: 'Fresh tomatoes (5kg basket)', descKey: 'Tomates locales', priceCDF: 15000 },
+    ],
+    104: [
+      { titleFr: 'Biscuits Petit Beurre (carton 24)', titleEn: 'Petit Beurre biscuits (carton 24)', descKey: 'Biscuits sucrés', priceCDF: 32000 },
+      { titleFr: "Chocolats assortis 500g", titleEn: 'Assorted chocolates 500g', descKey: 'Chocolats premium', priceCDF: 22000 },
+    ],
+    105: [
+      { titleFr: 'Lait en poudre Nido 900g', titleEn: 'Nido milk powder 900g', descKey: 'Lait entier en poudre', priceCDF: 28000 },
+      { titleFr: 'Yaourts Yoplait (pack 12)', titleEn: 'Yoplait yogurts (pack of 12)', descKey: 'Yaourts aux fruits', priceCDF: 16000 },
+    ],
+    // 2. Phones & Electronics
+    201: [
+      { titleFr: 'Tecno Spark 10 Pro - 128Go', titleEn: 'Tecno Spark 10 Pro - 128GB', descKey: 'Smartphone Android 4G écran 6.6"', priceCDF: 380000, priceUSD: 14500 },
+      { titleFr: 'Infinix Hot 30 - 64Go', titleEn: 'Infinix Hot 30 - 64GB', descKey: 'Smartphone abordable batterie 5000mAh', priceCDF: 250000, priceUSD: 9500 },
+    ],
+    202: [
+      { titleFr: 'Samsung Galaxy Tab A8 - 64Go', titleEn: 'Samsung Galaxy Tab A8 - 64GB', descKey: 'Tablette Android 10.5"', priceCDF: 480000, priceUSD: 18000 },
+      { titleFr: 'Lenovo Tab M10 - 32Go', titleEn: 'Lenovo Tab M10 - 32GB', descKey: 'Tablette familiale', priceCDF: 320000, priceUSD: 12000 },
+    ],
+    203: [
+      { titleFr: 'Chargeur USB-C rapide 25W', titleEn: 'USB-C fast charger 25W', descKey: 'Charge rapide pour smartphones', priceCDF: 18000 },
+      { titleFr: 'Coque silicone universelle 6.5"', titleEn: 'Universal silicone case 6.5"', descKey: 'Protection antichoc', priceCDF: 8000 },
+    ],
+    204: [
+      { titleFr: 'HP Pavilion 15 i5 8Go 512Go SSD', titleEn: 'HP Pavilion 15 i5 8GB 512GB SSD', descKey: 'Ordinateur portable bureau', priceCDF: 1850000, priceUSD: 70000 },
+      { titleFr: 'Lenovo IdeaPad 3 Ryzen 5 8Go 256Go', titleEn: 'Lenovo IdeaPad 3 Ryzen 5 8GB 256GB', descKey: 'Laptop performances + autonomie', priceCDF: 1450000, priceUSD: 55000 },
+    ],
+    205: [
+      { titleFr: 'Tour HP Pro Mini i3 8Go 256Go', titleEn: 'HP Pro Mini Tower i3 8GB 256GB', descKey: 'PC bureau compact', priceCDF: 1200000, priceUSD: 45000 },
+      { titleFr: 'Dell OptiPlex 7010 i5 16Go 512Go', titleEn: 'Dell OptiPlex 7010 i5 16GB 512GB', descKey: 'Station de travail', priceCDF: 1800000, priceUSD: 68000 },
+    ],
+    206: [
+      { titleFr: 'Souris sans fil Logitech M170', titleEn: 'Logitech M170 wireless mouse', descKey: 'Souris sans fil USB', priceCDF: 22000 },
+      { titleFr: 'Clavier Bluetooth AZERTY', titleEn: 'Bluetooth AZERTY keyboard', descKey: 'Clavier multi-appareils', priceCDF: 35000 },
+    ],
+    207: [
+      { titleFr: 'TV Samsung 43" Smart Full HD', titleEn: 'Samsung 43" Smart Full HD TV', descKey: 'Téléviseur intelligent connecté', priceCDF: 850000, priceUSD: 32000 },
+      { titleFr: 'TV LG 32" HD LED', titleEn: 'LG 32" HD LED TV', descKey: 'Téléviseur compact', priceCDF: 480000, priceUSD: 18000 },
+    ],
+    208: [
+      { titleFr: 'Enceinte JBL Go 3 Bluetooth', titleEn: 'JBL Go 3 Bluetooth speaker', descKey: 'Enceinte portable étanche', priceCDF: 95000, priceUSD: 3600 },
+      { titleFr: 'Casque audio JBL Tune 510BT', titleEn: 'JBL Tune 510BT headphones', descKey: 'Casque sans fil 40h', priceCDF: 130000, priceUSD: 5000 },
+    ],
+    209: [
+      { titleFr: "Réfrigérateur Hisense 200L", titleEn: 'Hisense 200L refrigerator', descKey: 'Réfrigérateur 2 portes basse consommation', priceCDF: 950000, priceUSD: 36000 },
+      { titleFr: "Machine à laver Beko 7kg", titleEn: 'Beko 7kg washing machine', descKey: 'Lave-linge automatique', priceCDF: 1100000, priceUSD: 42000 },
+    ],
+    210: [
+      { titleFr: 'PlayStation 5 (Édition Standard)', titleEn: 'PlayStation 5 (Standard Edition)', descKey: 'Console PS5 1To', priceCDF: 1850000, priceUSD: 70000 },
+      { titleFr: 'Xbox Series S 512Go', titleEn: 'Xbox Series S 512GB', descKey: 'Console Xbox compacte', priceCDF: 950000, priceUSD: 36000 },
+    ],
+    // 3. Fashion & Apparel
+    301: [
+      { titleFr: 'Robe wax femme - Modèle Africain', titleEn: 'Wax-print African dress', descKey: 'Robe en pagne africain coupe moderne', priceCDF: 65000 },
+      { titleFr: 'Blouse en lin femme', titleEn: "Women's linen blouse", descKey: 'Blouse légère pour le climat', priceCDF: 38000 },
+    ],
+    302: [
+      { titleFr: 'Chemise homme manches longues', titleEn: "Men's long-sleeve shirt", descKey: 'Chemise classique de bureau', priceCDF: 45000 },
+      { titleFr: 'Polo coton homme', titleEn: "Men's cotton polo", descKey: 'Polo décontracté', priceCDF: 32000 },
+    ],
+    303: [
+      { titleFr: 'Sandales femme cuir', titleEn: "Women's leather sandals", descKey: 'Sandales élégantes', priceCDF: 42000 },
+      { titleFr: 'Baskets femme blanches', titleEn: "Women's white sneakers", descKey: 'Baskets confort tendance', priceCDF: 55000 },
+    ],
+    304: [
+      { titleFr: 'Chaussures de ville cuir homme', titleEn: "Men's leather dress shoes", descKey: 'Chaussures formelles', priceCDF: 85000 },
+      { titleFr: 'Baskets sport homme', titleEn: "Men's sports sneakers", descKey: 'Baskets running confort', priceCDF: 62000 },
+    ],
+    305: [
+      { titleFr: 'Sac à main femme cuir', titleEn: "Women's leather handbag", descKey: 'Sac à main élégant', priceCDF: 75000 },
+      { titleFr: 'Sac à dos urbain', titleEn: 'Urban backpack', descKey: 'Sac à dos résistant 25L', priceCDF: 48000 },
+    ],
+    306: [
+      { titleFr: 'Montre quartz homme bracelet métal', titleEn: "Men's quartz watch metal strap", descKey: 'Montre élégante quotidienne', priceCDF: 58000 },
+      { titleFr: 'Collier femme plaqué or', titleEn: "Women's gold-plated necklace", descKey: 'Bijou raffiné cadeau', priceCDF: 35000 },
+    ],
+    307: [
+      { titleFr: 'Tissu wax 6 yards (motif tradition)', titleEn: 'Wax fabric 6 yards (traditional)', descKey: 'Tissu wax authentique 100% coton', priceCDF: 55000 },
+      { titleFr: 'Pagne kitenge 6 yards', titleEn: 'Kitenge wax 6 yards', descKey: 'Pagne haute qualité', priceCDF: 48000 },
+    ],
+    // 4. Home & Living
+    401: [
+      { titleFr: 'Canapé 3 places en simili cuir', titleEn: '3-seater faux leather sofa', descKey: 'Canapé salon moderne', priceCDF: 850000 },
+      { titleFr: 'Table à manger 6 places en bois', titleEn: 'Wooden 6-seater dining table', descKey: 'Table familiale robuste', priceCDF: 480000 },
+    ],
+    402: [
+      { titleFr: 'Parure de lit 2 places (4 pièces)', titleEn: '2-person bedding set (4 pieces)', descKey: 'Parure complète coton', priceCDF: 75000 },
+      { titleFr: 'Couverture polaire 220x240', titleEn: 'Fleece blanket 220x240', descKey: 'Couverture chaude saison fraîche', priceCDF: 32000 },
+    ],
+    403: [
+      { titleFr: 'Service de table 24 pièces', titleEn: '24-piece dinner set', descKey: 'Vaisselle complète 6 personnes', priceCDF: 95000 },
+      { titleFr: 'Batterie de cuisine 12 pièces', titleEn: '12-piece cookware set', descKey: 'Casseroles + poêles antiadhésives', priceCDF: 145000 },
+    ],
+    404: [
+      { titleFr: 'Tableau décoratif XL 80x60cm', titleEn: 'XL decorative artwork 80x60cm', descKey: 'Toile imprimée tendance salon', priceCDF: 38000 },
+      { titleFr: "Vase céramique artisanal", titleEn: 'Artisan ceramic vase', descKey: 'Décoration faite main', priceCDF: 28000 },
+    ],
+    405: [
+      { titleFr: 'Lampadaire LED moderne', titleEn: 'Modern LED floor lamp', descKey: 'Éclairage salon réglable', priceCDF: 85000 },
+      { titleFr: 'Plafonnier LED 18W', titleEn: 'LED ceiling light 18W', descKey: 'Éclairage économique', priceCDF: 25000 },
+    ],
+    // 5. Auto & Moto
+    501: [
+      { titleFr: 'Plaquettes de frein avant universelles', titleEn: 'Universal front brake pads', descKey: 'Plaquettes de qualité', priceCDF: 65000 },
+      { titleFr: 'Filtre à huile (lot de 4)', titleEn: 'Oil filter (pack of 4)', descKey: 'Filtres compatibles toutes marques', priceCDF: 28000 },
+    ],
+    502: [
+      { titleFr: 'Tapis de sol auto (jeu complet)', titleEn: 'Car floor mats (full set)', descKey: 'Tapis caoutchouc résistants', priceCDF: 35000 },
+      { titleFr: 'Housse de siège universelle', titleEn: 'Universal seat covers', descKey: 'Housses confort + protection', priceCDF: 48000 },
+    ],
+    503: [
+      { titleFr: 'Moto Bajaj Boxer 100cc', titleEn: 'Bajaj Boxer 100cc motorcycle', descKey: 'Moto utilitaire économique', priceCDF: 4200000, priceUSD: 160000 },
+      { titleFr: 'Vélo VTT 26"', titleEn: 'Mountain bike 26"', descKey: 'Vélo tout-terrain 21 vitesses', priceCDF: 280000, priceUSD: 11000 },
+    ],
+    504: [
+      { titleFr: 'Pneu auto 195/65 R15', titleEn: 'Car tire 195/65 R15', descKey: 'Pneu été qualité européenne', priceCDF: 145000 },
+      { titleFr: 'Jante alu 15"', titleEn: 'Alloy wheel 15"', descKey: 'Jante design sportif', priceCDF: 95000 },
+    ],
+    505: [
+      { titleFr: 'Huile moteur 5W30 5L', titleEn: 'Engine oil 5W30 5L', descKey: 'Huile synthétique premium', priceCDF: 65000 },
+      { titleFr: 'Liquide de refroidissement 5L', titleEn: 'Coolant 5L', descKey: 'Liquide protection moteur', priceCDF: 28000 },
+    ],
+    // 6. Health & Beauty
+    601: [
+      { titleFr: 'Crème hydratante visage 50ml', titleEn: 'Face moisturizer 50ml', descKey: 'Crème jour anti-âge', priceCDF: 32000 },
+      { titleFr: 'Sérum vitamine C 30ml', titleEn: 'Vitamin C serum 30ml', descKey: 'Sérum éclat anti-taches', priceCDF: 45000 },
+    ],
+    602: [
+      { titleFr: 'Shampooing argan 500ml', titleEn: 'Argan shampoo 500ml', descKey: 'Shampooing nourrissant', priceCDF: 18000 },
+      { titleFr: 'Masque cheveux karité 250ml', titleEn: 'Shea hair mask 250ml', descKey: 'Soin capillaire profond', priceCDF: 22000 },
+    ],
+    603: [
+      { titleFr: 'Parfum femme floral 100ml', titleEn: "Women's floral perfume 100ml", descKey: 'Parfum élégant longue tenue', priceCDF: 75000 },
+      { titleFr: 'Déodorant homme 200ml', titleEn: "Men's deodorant 200ml", descKey: 'Déodorant 48h fraîcheur', priceCDF: 12000 },
+    ],
+    604: [
+      { titleFr: 'Palette maquillage 24 couleurs', titleEn: '24-color makeup palette', descKey: 'Palette yeux pigmentée', priceCDF: 48000 },
+      { titleFr: 'Rouge à lèvres mat', titleEn: 'Matte lipstick', descKey: 'Rouge à lèvres longue durée', priceCDF: 18000 },
+    ],
+    605: [
+      { titleFr: 'Savon antibactérien (lot de 6)', titleEn: 'Antibacterial soap (6-pack)', descKey: 'Savons hygiène quotidienne', priceCDF: 15000 },
+      { titleFr: 'Trousse premiers secours', titleEn: 'First aid kit', descKey: 'Kit complet maison', priceCDF: 35000 },
+    ],
+    // 7. Construction & Tools
+    701: [
+      { titleFr: 'Coffret outils 86 pièces', titleEn: '86-piece tool set', descKey: 'Coffret bricolage complet', priceCDF: 145000 },
+      { titleFr: 'Marteau acier 500g', titleEn: 'Steel hammer 500g', descKey: 'Marteau professionnel', priceCDF: 18000 },
+    ],
+    702: [
+      { titleFr: 'Perceuse-visseuse Bosch 18V', titleEn: 'Bosch 18V drill driver', descKey: 'Perceuse sans fil 2 batteries', priceCDF: 285000 },
+      { titleFr: 'Meuleuse d angle 850W 125mm', titleEn: '850W angle grinder 125mm', descKey: 'Meuleuse polyvalente', priceCDF: 145000 },
+    ],
+    703: [
+      { titleFr: 'Sac ciment 50kg (lot de 10)', titleEn: '50kg cement bag (pack of 10)', descKey: 'Ciment Portland qualité construction', priceCDF: 320000 },
+      { titleFr: 'Carreaux céramique 30x30 (carton 5m²)', titleEn: 'Ceramic tiles 30x30 (5m² box)', descKey: 'Carrelage sol intérieur', priceCDF: 85000 },
+    ],
+    704: [
+      { titleFr: 'Peinture acrylique blanche 20L', titleEn: 'White acrylic paint 20L', descKey: 'Peinture murale couvrante', priceCDF: 95000 },
+      { titleFr: 'Pinceaux + rouleaux (kit complet)', titleEn: 'Brushes + rollers (full kit)', descKey: 'Kit peinture professionnel', priceCDF: 28000 },
+    ],
+    705: [
+      { titleFr: 'Disjoncteur 16A (lot de 5)', titleEn: 'Circuit breaker 16A (pack of 5)', descKey: 'Protection électrique standard', priceCDF: 32000 },
+      { titleFr: 'Tuyau PVC 4m diamètre 50', titleEn: 'PVC pipe 4m diameter 50mm', descKey: 'Tuyauterie évacuation', priceCDF: 18000 },
+    ],
+    // 8. Baby & Kids
+    801: [
+      { titleFr: 'Body bébé coton (lot de 5)', titleEn: 'Baby cotton bodysuits (5-pack)', descKey: 'Body 0-12 mois doux', priceCDF: 35000 },
+      { titleFr: 'Pyjama bébé polaire', titleEn: 'Baby fleece pajamas', descKey: 'Pyjama chaud nuit', priceCDF: 22000 },
+    ],
+    802: [
+      { titleFr: 'Ensemble enfant 4-8 ans', titleEn: 'Kids outfit 4-8 years', descKey: 'Ensemble t-shirt + short', priceCDF: 28000 },
+      { titleFr: 'Robe fille 6-10 ans', titleEn: 'Girls dress 6-10 years', descKey: 'Robe imprimée colorée', priceCDF: 32000 },
+    ],
+    803: [
+      { titleFr: 'Couches bébé taille 3 (pack 60)', titleEn: 'Baby diapers size 3 (60-pack)', descKey: 'Couches absorbantes 12h', priceCDF: 32000 },
+      { titleFr: 'Biberon anti-coliques 250ml (lot 3)', titleEn: 'Anti-colic bottle 250ml (3-pack)', descKey: 'Biberons sans BPA', priceCDF: 28000 },
+    ],
+    804: [
+      { titleFr: 'Lego Classic 484 pièces', titleEn: 'Lego Classic 484 pieces', descKey: 'Boîte de briques créatives', priceCDF: 95000 },
+      { titleFr: 'Poupée articulée 30cm', titleEn: 'Articulated doll 30cm', descKey: 'Poupée jeu d éveil', priceCDF: 48000 },
+    ],
+    805: [
+      { titleFr: 'Cartable scolaire primaire', titleEn: 'Primary school backpack', descKey: 'Cartable ergonomique 6-10 ans', priceCDF: 45000 },
+      { titleFr: 'Kit fournitures rentrée (cahiers + stylos)', titleEn: 'Back-to-school supplies kit', descKey: 'Kit complet primaire', priceCDF: 32000 },
+    ],
+  };
+
+  const newCatId = (n: number) => `11000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
+  const seedProdId = (n: number) =>
+    `31000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
+  const seedImgId = (n: number) =>
+    `41000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
+
+  const cities = [
+    { id: LUBUMBASHI_CITY_ID, fr: 'Lubumbashi', en: 'Lubumbashi' },
+    { id: KOLWEZI_CITY_ID, fr: 'Kolwezi', en: 'Kolwezi' },
+  ];
+
+  let counter = 0;
+  let imgCounter = 0;
+  const subcatNs = Object.keys(TEMPLATES).map(Number).sort((a, b) => a - b);
+
+  for (const subcatN of subcatNs) {
+    const categoryId = newCatId(subcatN);
+    const variants = TEMPLATES[subcatN];
+
+    for (let cityIdx = 0; cityIdx < cities.length; cityIdx++) {
+      const city = cities[cityIdx];
+
+      for (let v = 0; v < variants.length; v++) {
+        counter += 1;
+        const tpl = variants[v];
+        const productId = seedProdId(counter);
+
+        const titleFr = tpl.titleFr;
+        const titleEn = tpl.titleEn;
+        const descFr =
+          `${tpl.descKey}. Disponible à ${city.fr}. ` +
+          'Livraison rapide partout en RDC. Achetez en toute confiance sur Teka RDC, ' +
+          'votre marketplace en République Démocratique du Congo.';
+        const descEn =
+          `${tpl.descKey}. Available in ${city.en}. ` +
+          'Fast delivery across DRC. Shop with confidence on Teka RDC, ' +
+          'your marketplace in the Democratic Republic of the Congo.';
+        const slug = generateProductSlug(`${titleFr} ${city.fr}`, productId);
+        const priceCDF = BigInt(tpl.priceCDF * 100); // convert CDF -> centimes
+        const priceUSD = tpl.priceUSD ? BigInt(tpl.priceUSD) : null;
+
+        await prisma.product.upsert({
+          where: { id: productId },
+          update: {
+            slug,
+            cityId: city.id,
+            categoryId,
+            sellerId,
+          },
+          create: {
+            id: productId,
+            slug,
+            title: { fr: titleFr, en: titleEn } as any,
+            description: { fr: descFr, en: descEn } as any,
+            categoryId,
+            sellerId,
+            cityId: city.id,
+            priceCDF,
+            priceUSD,
+            quantity: 25,
+            condition: ProductCondition.NEW,
+            status: ProductStatus.ACTIVE,
+          },
+        });
+
+        // Two product images per product, rotating through the demo pool.
+        for (let i = 0; i < 2; i++) {
+          imgCounter += 1;
+          const name =
+            SAMPLE_IMAGE_NAMES[(counter + i) % SAMPLE_IMAGE_NAMES.length];
+          await prisma.productImage.upsert({
+            where: { id: seedImgId(imgCounter) },
+            update: {},
+            create: {
+              id: seedImgId(imgCounter),
+              productId,
+              cloudinaryId: name,
+              url: cloudUrl(name),
+              thumbnailUrl: cloudThumb(name),
+              displayOrder: i,
+            },
+          });
+        }
+      }
+    }
+  }
+
+  console.log(`  Seeded ${counter} sample products (across 38 subcategories x 2 cities)`);
 }
 
 main()

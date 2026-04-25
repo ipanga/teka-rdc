@@ -135,7 +135,7 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
               {categories.slice(0, 12).map((cat) => (
                 <Link
                   key={cat.id}
-                  href={`/categories/${cat.id}`}
+                  href={cat.slug ? `/categorie/${cat.slug}` : `/categories/${cat.id}`}
                   className="group bg-white rounded-lg border border-border p-4 text-center hover:shadow-md hover:border-primary/30 transition-all"
                 >
                   <div className="text-3xl mb-2">{cat.emoji || '📦'}</div>
