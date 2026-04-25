@@ -78,7 +78,7 @@ export function Header() {
           >
             <span className="text-xs">{'\uD83D\uDCCD'}</span>
             <span className="font-medium text-foreground">
-              {(locale === 'en' && selectedCity.name.en) ? selectedCity.name.en : selectedCity.name.fr}
+              {selectedCity.name}
               {selectedCity.province && <span className="text-muted-foreground font-normal">, {selectedCity.province}</span>}
             </span>
             <svg className="w-3 h-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -261,7 +261,7 @@ export function Header() {
             <span className="text-xs">{'\uD83D\uDCCD'}</span>
             {selectedCity ? (
               <span className="font-medium text-foreground">
-                {(locale === 'en' && selectedCity.name.en) ? selectedCity.name.en : selectedCity.name.fr}
+                {selectedCity.name}
                 {selectedCity.province && <span className="text-muted-foreground font-normal">, {selectedCity.province}</span>}
               </span>
             ) : (

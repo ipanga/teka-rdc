@@ -127,10 +127,8 @@ export class PromotionsService {
     const promotion = await this.prisma.promotion.create({
       data: {
         type: dto.type,
-        title: dto.title as unknown as Prisma.JsonObject,
-        description: dto.description
-          ? (dto.description as unknown as Prisma.JsonObject)
-          : undefined,
+        title: dto.title.fr,
+        description: dto.description?.fr ?? undefined,
         discountPercent: dto.discountPercent,
         discountCDF: dto.discountCDF ? BigInt(dto.discountCDF) : undefined,
         status,
@@ -188,10 +186,8 @@ export class PromotionsService {
     const data: Prisma.PromotionUpdateInput = {};
 
     if (dto.type !== undefined) data.type = dto.type;
-    if (dto.title !== undefined)
-      data.title = dto.title as unknown as Prisma.JsonObject;
-    if (dto.description !== undefined)
-      data.description = dto.description as unknown as Prisma.JsonObject;
+    if (dto.title !== undefined) data.title = dto.title.fr;
+    if (dto.description !== undefined) data.description = dto.description?.fr ?? null;
     if (dto.discountPercent !== undefined)
       data.discountPercent = dto.discountPercent;
     if (dto.discountCDF !== undefined)
@@ -372,10 +368,8 @@ export class PromotionsService {
     const promotion = await this.prisma.promotion.create({
       data: {
         type: dto.type,
-        title: dto.title as unknown as Prisma.JsonObject,
-        description: dto.description
-          ? (dto.description as unknown as Prisma.JsonObject)
-          : undefined,
+        title: dto.title.fr,
+        description: dto.description?.fr ?? undefined,
         discountPercent: dto.discountPercent,
         discountCDF: dto.discountCDF ? BigInt(dto.discountCDF) : undefined,
         status: PromotionStatus.PENDING_APPROVAL,

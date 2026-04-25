@@ -8,7 +8,7 @@ interface TranslatableText {
 
 export interface City {
   id: string;
-  name: TranslatableText;
+  name: string;
   province: string;
   isActive: boolean;
   sortOrder: number;

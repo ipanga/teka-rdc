@@ -147,12 +147,8 @@ export class CheckoutService {
           });
 
           // Estimate delivery fee — use city name if available, fall back to location string
-          const cityName = sellerProfile?.city?.name as {
-            fr: string;
-            en?: string;
-          } | null;
           const fromTown =
-            cityName?.fr ?? sellerProfile?.location ?? 'Lubumbashi';
+            sellerProfile?.city?.name ?? sellerProfile?.location ?? 'Lubumbashi';
           const deliveryEstimate = await this.deliveryZonesService.estimateFee(
             fromTown,
             address.town,
@@ -205,7 +201,7 @@ export class CheckoutService {
               unitPriceUSD: product.priceUSD,
               totalCDF: itemTotalCDF,
               totalUSD: itemTotalUSD,
-              productTitle: product.title as object,
+              productTitle: product.title,
               productImage: product.images[0]?.thumbnailUrl ?? null,
             });
 

@@ -1,8 +1,8 @@
-/** Translatable text field { fr, en } */
-export interface TranslatableText {
-  fr?: string;
-  en?: string;
-}
+/**
+ * @deprecated Platform is monolingual (FR-only). Use `string` directly. This
+ * alias keeps legacy imports compiling during the transition.
+ */
+export type TranslatableText = string;
 
 /** Category from GET /api/v1/browse/categories */
 export interface BrowseCategory {
@@ -232,7 +232,7 @@ export interface Address {
 export interface Commune {
   id: string;
   cityId: string;
-  name: TranslatableText;
+  name: string;
 }
 
 /** Checkout request body */

@@ -21,10 +21,7 @@ export function CitySelectorModal() {
   // Don't render if no city selected but selector not yet opened (wait for homepage to trigger it)
   if (!showSelector && !selectedCity) return null;
 
-  const getName = (city: City) => {
-    if (locale === 'en' && city.name.en) return city.name.en;
-    return city.name.fr;
-  };
+  const getName = (city: City) => city.name;
 
   // Group cities by province
   const grouped: Record<string, City[]> = {};

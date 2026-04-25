@@ -141,7 +141,7 @@ enum NotificationBroadcastStatus {
 
 model City {
   id        String   @id @default(uuid()) @db.Uuid
-  name      Json     // { fr: string, en?: string }
+  name      String
   province  String
   isActive  Boolean  @default(false)
   sortOrder Int      @default(0)
@@ -162,7 +162,7 @@ model City {
 model Commune {
   id        String   @id @default(uuid()) @db.Uuid
   cityId    String   @db.Uuid
-  name      Json     // { fr: string, en?: string }
+  name      String
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -361,8 +361,8 @@ model Category {
   // catch accidental collisions. The browse API resolves both /:id and
   // /:slug for backwards compatibility with old links.
   slug             String?   @unique
-  name             Json      // { fr: string, en?: string }
-  description      Json?     // { fr: string, en?: string }
+  name             String
+  description      String?
   parentCategoryId String?   @db.Uuid
   emoji            String?
   sortOrder        Int       @default(0)
@@ -389,8 +389,8 @@ model Category {
 model Product {
   id              String           @id @default(uuid()) @db.Uuid
   slug            String?          @unique
-  title           Json             // { fr: string, en?: string }
-  description     Json             // { fr: string, en?: string }
+  title           String
+  description     String
   categoryId      String           @db.Uuid
   sellerId        String           @db.Uuid
   cityId          String?          @db.Uuid
@@ -456,7 +456,7 @@ model ProductImage {
 model ProductAttribute {
   id         String        @id @default(uuid()) @db.Uuid
   categoryId String        @db.Uuid
-  name       Json          // { fr: string, en?: string }
+  name       String
   type       AttributeType @default(TEXT)
   options    Json?         // string[] for SELECT/MULTISELECT types
   isRequired Boolean       @default(false)
@@ -591,7 +591,7 @@ model OrderItem {
   unitPriceUSD BigInt?
   totalCDF     BigInt
   totalUSD     BigInt?
-  productTitle Json    // snapshot: { fr: string, en?: string }
+  productTitle String  // snapshot of Product.title at order time
   productImage String? // thumbnail URL snapshot
   createdAt    DateTime @default(now())
 
@@ -795,8 +795,8 @@ model Message {
 
 model Banner {
   id          String       @id @default(uuid()) @db.Uuid
-  title       Json         // { fr: string, en?: string }
-  subtitle    Json?        // { fr: string, en?: string }
+  title       String
+  subtitle    String?
   imageUrl    String
   linkUrl     String?
   linkType    String?      // 'product' | 'category' | 'promotion' | 'url'
@@ -823,8 +823,8 @@ model Banner {
 model Promotion {
   id              String          @id @default(uuid()) @db.Uuid
   type            PromotionType   @default(PROMOTION)
-  title           Json            // { fr: string, en?: string }
-  description     Json?           // { fr: string, en?: string }
+  title           String
+  description     String?
   discountPercent Int?
   discountCDF     BigInt?
   status          PromotionStatus @default(DRAFT)
@@ -861,8 +861,8 @@ model Promotion {
 model ContentPage {
   id          String            @id @default(uuid()) @db.Uuid
   slug        String            @unique
-  title       Json              // { fr: string, en?: string }
-  content     Json              // { fr: string, en?: string }
+  title       String
+  content     String
   status      ContentPageStatus @default(DRAFT)
   sortOrder   Int               @default(0)
   updatedById String?           @db.Uuid
@@ -881,7 +881,7 @@ model SystemSetting {
   key         String   @unique
   value       String
   type        String   @default("boolean") // 'boolean' | 'string' | 'number' | 'json'
-  label       Json?    // { fr: string, en?: string }
+  label       String?
   updatedById String?  @db.Uuid
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

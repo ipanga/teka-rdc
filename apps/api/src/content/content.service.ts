@@ -87,8 +87,9 @@ export class ContentService {
     const page = await this.prisma.contentPage.create({
       data: {
         slug: dto.slug,
-        title: dto.title as unknown as Record<string, string>,
-        content: dto.content as unknown as Record<string, string>,
+        // DTO still accepts { fr, en } for back-compat with older clients.
+        title: dto.title.fr,
+        content: dto.content.fr,
         status: dto.status ?? ContentPageStatus.DRAFT,
         sortOrder: dto.sortOrder ?? 0,
         updatedById: userId,
@@ -148,12 +149,8 @@ export class ContentService {
     };
 
     if (dto.slug !== undefined) data.slug = dto.slug;
-    if (dto.title !== undefined) {
-      data.title = dto.title as unknown as Record<string, string>;
-    }
-    if (dto.content !== undefined) {
-      data.content = dto.content as unknown as Record<string, string>;
-    }
+    if (dto.title !== undefined) data.title = dto.title.fr;
+    if (dto.content !== undefined) data.content = dto.content.fr;
     if (dto.status !== undefined) data.status = dto.status;
     if (dto.sortOrder !== undefined) data.sortOrder = dto.sortOrder;
 

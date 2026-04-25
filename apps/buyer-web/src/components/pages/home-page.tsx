@@ -87,7 +87,7 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
                   {serverH1 || t('title')}
                 </h1>
                 <p className="text-lg md:text-xl opacity-90 mb-6">
-                  {t('subtitle', { city: selectedCity ? ((locale === 'en' && selectedCity.name.en) ? selectedCity.name.en : selectedCity.name.fr) : 'Congo' })}
+                  {t('subtitle', { city: selectedCity ? selectedCity.name : 'Congo' })}
                 </p>
                 <Link
                   href="/categories"
