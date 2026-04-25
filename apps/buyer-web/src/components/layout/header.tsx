@@ -59,8 +59,15 @@ export function Header() {
       {/* Main header bar */}
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center gap-4">
         {/* Logo */}
-        <Link href="/" className="text-2xl font-bold text-primary shrink-0">
-          Teka
+        <Link href="/" className="shrink-0" aria-label="Teka RDC — Accueil">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo.svg"
+            alt="Teka RDC"
+            className="h-8 w-auto"
+            width={160}
+            height={32}
+          />
         </Link>
 
         {/* City selector */}
