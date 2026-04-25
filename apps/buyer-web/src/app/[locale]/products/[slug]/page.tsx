@@ -85,11 +85,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: `${title} | Teka RDC`,
       description: truncatedDesc,
       url: absoluteUrl,
-      // 'product' is an extended OG type Facebook + WhatsApp + LinkedIn all
-      // accept; Next.js Metadata's TS union only lists the OG core types so
-      // we cast. The emitted <meta property="og:type" content="product"> is
-      // what the crawlers actually read.
-      type: 'product' as 'website',
+      // Stays 'website' — Next.js 15 validates openGraph.type at runtime
+      // against its typed union and throws on unknown values like 'product'.
+      // Rich previews work the same on FB/WhatsApp/LinkedIn — they read
+      // og:title/og:description/og:image regardless of og:type.
+      type: 'website',
       siteName: 'Teka RDC',
       locale: locale === 'fr' ? 'fr_CD' : 'en_CD',
       images: [
