@@ -54,8 +54,15 @@ export function Sidebar() {
   return (
     <aside className="w-64 min-h-screen bg-foreground text-white flex flex-col">
       <div className="p-6 border-b border-white/10">
-        <h2 className="text-lg font-bold">Teka RDC</h2>
-        <p className="text-sm text-white/60 mt-1">{t('adminPanel')}</p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo-white.svg"
+          alt="Teka RDC"
+          className="h-7 w-auto"
+          width={140}
+          height={28}
+        />
+        <p className="text-sm text-white/60 mt-2">{t('adminPanel')}</p>
       </div>
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">

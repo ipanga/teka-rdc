@@ -29,7 +29,14 @@ export function Footer() {
     <footer className="bg-foreground text-white mt-auto">
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="text-lg font-bold text-primary">Teka</div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-white.svg"
+            alt="Teka RDC"
+            className="h-7 w-auto"
+            width={140}
+            height={28}
+          />
           <nav className="flex flex-wrap justify-center gap-4 text-sm text-white/70">
             {FOOTER_LINKS.map(({ canonical, key }) => (
               <Link
