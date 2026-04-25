@@ -1,4 +1,5 @@
 import { useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 
 export default function AdminHomePage() {
@@ -10,12 +11,17 @@ export default function AdminHomePage() {
       <div className="absolute top-4 right-4">
         <LanguageSwitcher />
       </div>
-      <div className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Administration</div>
+      <div className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+        Administration
+      </div>
       <h1 className="text-4xl font-bold text-primary">{tc('appName')}</h1>
       <p className="text-lg text-muted-foreground">{t('subtitle')}</p>
-      <button className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition">
+      <Link
+        href="/login"
+        className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition"
+      >
         {tc('login')}
-      </button>
+      </Link>
     </main>
   );
 }
