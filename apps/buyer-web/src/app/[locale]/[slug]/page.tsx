@@ -2,6 +2,14 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { ContentPageView } from '@/components/pages/content-page-view';
 import { serverFetch } from '@/lib/server-api';
+import {
+  allStaticPageParams,
+  canonicalToUrlSlug,
+  pathForCanonical,
+  urlSlugToCanonical,
+  type CanonicalSlug,
+  type Locale,
+} from '@/lib/static-pages';
 
 type Props = { params: Promise<{ locale: string; slug: string }> };
 
@@ -17,9 +25,22 @@ function pickLocalized(field: Record<string, string> | undefined, locale: string
   return field[locale] || field.fr || Object.values(field)[0] || '';
 }
 
+/**
+ * Resolve URL slug to a canonical (DB) slug, or null if the URL doesn't map
+ * to a known static page. We reject unknown slugs *before* any DB roundtrip
+ * so this dynamic route doesn't catch and 500 on garbage URLs.
+ */
+function resolveCanonical(locale: string, slug: string): CanonicalSlug | null {
+  if (locale !== 'fr' && locale !== 'en') return null;
+  return urlSlugToCanonical(slug, locale);
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { locale, slug } = await params;
-  const page = await serverFetch<ApiContentPage>(`/v1/content/${slug}`);
+  const canonical = resolveCanonical(locale, slug);
+  if (!canonical) return { title: 'Teka RDC' };
+
+  const page = await serverFetch<ApiContentPage>(`/v1/content/${canonical}`);
   if (!page) return { title: slug };
 
   const title = pickLocalized(page.title, locale);
@@ -34,7 +55,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .trim()
     .slice(0, 160);
 
-  const canonicalPath = locale === 'fr' ? `/pages/${slug}` : `/${locale}/pages/${slug}`;
+  const canonicalPath = pathForCanonical(canonical, locale as Locale);
+  const frPath = pathForCanonical(canonical, 'fr');
+  const enPath = pathForCanonical(canonical, 'en');
 
   return {
     title,
@@ -62,45 +85,39 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: {
       canonical: canonicalPath,
       languages: {
-        fr: `/pages/${slug}`,
-        en: `/en/pages/${slug}`,
-        'x-default': `/pages/${slug}`,
+        fr: frPath,
+        en: enPath,
+        'x-default': frPath,
       },
     },
   };
 }
 
-// Pre-render the known slugs at build time so every footer link is an
-// already-generated static HTML shell. The server-fetch inside each page
-// still runs on the Next.js server (revalidated every 60s) so admin-panel
-// edits propagate without needing a redeploy.
 export function generateStaticParams() {
-  const slugs = [
-    'about',
-    'help',
-    'faq',
-    'terms',
-    'privacy',
-    'how-to-buy',
-    'how-to-sell',
-    'contact',
-  ];
-  const locales = ['fr', 'en'];
-  return locales.flatMap((locale) => slugs.map((slug) => ({ locale, slug })));
+  return allStaticPageParams();
 }
 
 export default async function Page({ params }: Props) {
   const { locale, slug } = await params;
-  const page = await serverFetch<ApiContentPage>(`/v1/content/${slug}`);
+  const canonical = resolveCanonical(locale, slug);
+  if (!canonical) notFound();
 
-  if (!page || page.status !== 'PUBLISHED') {
-    notFound();
-  }
+  const page = await serverFetch<ApiContentPage>(`/v1/content/${canonical}`);
+  if (!page || page.status !== 'PUBLISHED') notFound();
 
   const title = pickLocalized(page.title, locale);
   const body = pickLocalized(page.content, locale);
+  // Pass canonical to the view so links + JSON-LD can resolve cross-locale
+  // alternates. The URL slug is the visible one in the address bar.
+  const urlSlug = canonicalToUrlSlug(canonical, locale as Locale);
 
   return (
-    <ContentPageView slug={slug} locale={locale} title={title} body={body} />
+    <ContentPageView
+      slug={urlSlug}
+      canonical={canonical}
+      locale={locale}
+      title={title}
+      body={body}
+    />
   );
 }

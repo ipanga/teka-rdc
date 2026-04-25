@@ -1,10 +1,28 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
+import {
+  canonicalToUrlSlug,
+  type CanonicalSlug,
+  type Locale,
+} from '@/lib/static-pages';
+
+// Static pages in the order rendered in the footer.
+const FOOTER_LINKS: Array<{ canonical: CanonicalSlug; key: string }> = [
+  { canonical: 'about',       key: 'about' },
+  { canonical: 'help',        key: 'help' },
+  { canonical: 'faq',         key: 'faq' },
+  { canonical: 'terms',       key: 'terms' },
+  { canonical: 'privacy',     key: 'privacy' },
+  { canonical: 'how-to-buy',  key: 'howToBuy' },
+  { canonical: 'how-to-sell', key: 'howToSell' },
+  { canonical: 'contact',     key: 'contact' },
+];
 
 export function Footer() {
   const t = useTranslations('Footer');
+  const locale = useLocale() as Locale;
   const year = new Date().getFullYear();
 
   return (
@@ -13,30 +31,15 @@ export function Footer() {
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="text-lg font-bold text-primary">Teka</div>
           <nav className="flex flex-wrap justify-center gap-4 text-sm text-white/70">
-            <Link href="/pages/about" className="hover:text-white transition-colors">
-              {t('about')}
-            </Link>
-            <Link href="/pages/help" className="hover:text-white transition-colors">
-              {t('help')}
-            </Link>
-            <Link href="/pages/faq" className="hover:text-white transition-colors">
-              {t('faq')}
-            </Link>
-            <Link href="/pages/terms" className="hover:text-white transition-colors">
-              {t('terms')}
-            </Link>
-            <Link href="/pages/privacy" className="hover:text-white transition-colors">
-              {t('privacy')}
-            </Link>
-            <Link href="/pages/how-to-buy" className="hover:text-white transition-colors">
-              {t('howToBuy')}
-            </Link>
-            <Link href="/pages/how-to-sell" className="hover:text-white transition-colors">
-              {t('howToSell')}
-            </Link>
-            <Link href="/pages/contact" className="hover:text-white transition-colors">
-              {t('contact')}
-            </Link>
+            {FOOTER_LINKS.map(({ canonical, key }) => (
+              <Link
+                key={canonical}
+                href={`/${canonicalToUrlSlug(canonical, locale)}`}
+                className="hover:text-white transition-colors"
+              >
+                {t(key)}
+              </Link>
+            ))}
           </nav>
         </div>
         <div className="mt-6 pt-4 border-t border-white/10 text-center text-sm text-white/50">

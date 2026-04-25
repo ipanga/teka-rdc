@@ -29,7 +29,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       images: [{ url: 'https://teka.cd/og-default.png', width: 1200, height: 630, alt: title }],
     },
     twitter: { card: 'summary_large_image', title, description },
-    alternates: { canonical: '/', languages: { fr: '/fr', en: '/en' } },
+    // FR is the default locale with `localePrefix: 'as-needed'`, so the FR
+    // canonical has no `/fr/` prefix. EN keeps its `/en` prefix.
+    alternates: {
+      canonical: locale === 'fr' ? '/' : '/en',
+      languages: { fr: '/', en: '/en', 'x-default': '/' },
+    },
   };
 }
 
@@ -62,7 +67,7 @@ export default async function Page({ params }: Props) {
         url: 'https://teka.cd',
         potentialAction: {
           '@type': 'SearchAction',
-          target: 'https://teka.cd/fr/search?q={search_term_string}',
+          target: 'https://teka.cd/search?q={search_term_string}',
           'query-input': 'required name=search_term_string',
         },
       }} />
