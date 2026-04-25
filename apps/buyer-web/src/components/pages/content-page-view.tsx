@@ -9,7 +9,6 @@ import { ContactForm } from '@/components/contact/contact-form';
 import {
   rewriteContentLink,
   type CanonicalSlug,
-  type Locale,
 } from '@/lib/static-pages';
 
 interface ContentPageViewProps {
@@ -17,7 +16,6 @@ interface ContentPageViewProps {
   slug: string;
   /** Canonical (DB) slug — drives the contact-form trigger and link rewriting. */
   canonical: CanonicalSlug;
-  locale: string;
   title: string;
   body: string;
   // Back-link in the breadcrumb bar. Kept as a prop so pages can override it
@@ -36,7 +34,6 @@ interface ContentPageViewProps {
 export async function ContentPageView({
   slug,
   canonical,
-  locale,
   title,
   body,
   backHref = '/',
@@ -61,8 +58,8 @@ export async function ContentPageView({
           '@type': 'WebPage',
           name: title,
           description,
-          inLanguage: locale,
-          url: `https://teka.cd${locale === 'fr' ? '' : `/${locale}`}/${slug}`,
+          inLanguage: 'fr',
+          url: `https://teka.cd/${slug}`,
           isPartOf: {
             '@type': 'WebSite',
             name: 'Teka RDC',
@@ -105,9 +102,9 @@ export async function ContentPageView({
               // adds the locale prefix on render.
               a: ({ href = '', children, ...props }) => {
                 if (href.startsWith('/') && !href.startsWith('//')) {
-                  const localized = rewriteContentLink(href, locale as Locale);
+                  const rewritten = rewriteContentLink(href);
                   return (
-                    <Link href={localized} {...props}>
+                    <Link href={rewritten} {...props}>
                       {children}
                     </Link>
                   );
@@ -131,7 +128,7 @@ export async function ContentPageView({
 
         {canonical === 'contact' && (
           <section className="mt-10">
-            <ContactForm locale={locale} />
+            <ContactForm />
           </section>
         )}
       </main>

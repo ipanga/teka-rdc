@@ -5,7 +5,6 @@ import { useTranslations, useLocale } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { useCityStore } from '@/lib/city-store';
-import { LanguageSwitcher } from './language-switcher';
 import { CartBadge } from '@/components/cart/cart-badge';
 import { apiFetch } from '@/lib/api-client';
 
@@ -196,7 +195,6 @@ export function Header() {
             </div>
           )}
           <CartBadge />
-          <LanguageSwitcher />
         </div>
 
         {/* Mobile icons (always visible) */}
@@ -378,11 +376,6 @@ export function Header() {
                 </Link>
               </div>
             )}
-          </div>
-
-          {/* Language switcher */}
-          <div className="pt-2 border-t border-border">
-            <LanguageSwitcher />
           </div>
         </div>
       )}

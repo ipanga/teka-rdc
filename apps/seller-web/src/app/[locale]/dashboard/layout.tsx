@@ -3,7 +3,6 @@
 import { useAuthStore } from '@/lib/auth-store';
 import { useTranslations } from 'next-intl';
 import { Sidebar } from '@/components/layout/sidebar';
-import { LanguageSwitcher } from '@/components/layout/language-switcher';
 
 export default function DashboardLayout({
   children,
@@ -25,10 +24,6 @@ export default function DashboardLayout({
     <div className="min-h-screen flex bg-background">
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 border-b border-border bg-white flex items-center justify-between px-6 shrink-0">
-          <div />
-          <LanguageSwitcher />
-        </header>
         <main className="flex-1 p-6 overflow-auto">
           {children}
         </main>

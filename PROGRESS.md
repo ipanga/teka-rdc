@@ -465,6 +465,41 @@
 
 ---
 
+## Monolingual Refactor — French Only (2026-04-25)
+
+**Constraint:** Preserve API contracts. DB JSONB columns keep `{ fr, en }` shape; API responses unchanged. Only UI / URL surface goes FR-only.
+
+### Web (3 apps)
+- [x] **M1** — `routing.ts` to single locale (`locales: ['fr']`, `localePrefix: 'never'`, no detection)
+- [x] **M2** — Deleted `messages/en.json` everywhere; only `fr.json` remains
+- [x] **M3** — Deleted language-switcher component; stripped imports from header (buyer-web), seller-web home + dashboard layout, admin-web home
+- [x] **M4** — Sitemap (`apps/buyer-web/src/app/sitemap.ts`): single-locale URLs
+- [x] **M5** — Dropped `alternates.languages` from all metadata blocks (home, product, category, categorie/[slug], static [slug])
+- [x] **M6** — `next.config.ts` redirects: simplified — `/pages/<canonical>` → `/<fr>` + cross-language `/<en-slug>` → `/<fr-slug>` + wildcard `/en/:path*` → `/:path*`
+- [x] **M7** — `static-pages.ts`: collapsed `Record<Locale, string>` to plain `string`; dropped helpers' locale parameter
+- [x] **M8** — Stripped `locale === 'en'` conditional rendering from product page metadata + all hreflang blocks
+
+### Mobile (2 apps)
+- [x] **M9** — Deleted `app_en.arb` from buyer-mobile + seller-mobile (generated `app_localizations_en.dart` left in place — harmless until next `flutter gen-l10n` run regenerates)
+- [x] **M10** — Locale provider: state fixed at `Locale('fr')`, `setLocale` is a no-op, persistence dropped
+- [x] **M11** — `LocaleNotifier.supportedLocales` → `[Locale('fr')]`
+
+### Backend / DB
+- **No changes.** API contract preserved per spec.
+
+### Verification
+- [x] **V1** — Type-check + production build pass for all 3 web apps
+- [x] **V2** — `flutter analyze --no-fatal-infos` passes for both mobile apps (only baseline info-level deprecations)
+- [x] **V3** — API e2e suite: 71/71 still pass
+- [ ] **V4** — Smoke after deploy: `https://teka.cd/` renders FR; no language switcher visible; `https://teka.cd/en/<anything>` 308→`/<anything>`
+
+### Notes
+- `[locale]` route segment kept on disk (no file moves needed). With `localePrefix: 'never'`, the segment is effectively constant `'fr'` and URLs have no prefix.
+- `useLocale()` calls in components stay — always return `'fr'`. Cleaner removal can come in a follow-up.
+- DB JSONB shape (`{ fr, en }`) untouched. EN strings still live there but no UI surface exposes them.
+
+---
+
 ## ALL 8 PHASES COMPLETE
 
 The Teka RDC e-commerce marketplace is feature-complete across all 5 frontends (API, 3 web apps, 2 mobile apps) and production-ready with:

@@ -1,18 +1,18 @@
 /**
  * Single source of truth for the 8 static content pages.
  *
- * The DB stores ONE row per page, keyed by an English "canonical" slug. Each
- * locale renders the same content under a different URL slug:
+ * The DB stores ONE row per page, keyed by an English "canonical" slug (the
+ * column name didn't change for the FR-only refactor — DB schema is preserved
+ * per the API-contract constraint). The URL slug below is what users see in
+ * the address bar:
  *
- *   FR /a-propos                  ─┐
- *                                  ├─→ DB row { slug: 'about', title: { fr, en }, content: { fr, en } }
- *   EN /en/about                   ┘
+ *   /a-propos          ─→ DB row { slug: 'about', title: { fr, en }, content: { fr, en } }
  *
  * Routes resolve via `app/[locale]/[slug]/page.tsx`, which uses the helpers
- * below to translate between URL slug and canonical (DB) slug.
+ * below to translate URL slug → canonical (DB) slug.
  *
  * Adding a new page: add an entry to PAGE_DEFINITIONS — generateStaticParams,
- * the sitemap, the footer, hreflang and the redirects all derive from it.
+ * the sitemap, the footer and the redirects all derive from it.
  */
 
 export type CanonicalSlug =
@@ -25,76 +25,65 @@ export type CanonicalSlug =
   | 'how-to-sell'
   | 'contact';
 
-export type Locale = 'fr' | 'en';
+// `Locale` kept exported so legacy call-sites that imported the type still
+// compile. Always 'fr' since the monolingual refactor.
+export type Locale = 'fr';
 
 interface PageDefinition {
   /** Stored in `content_pages.slug` — never changes; used for API lookups. */
   canonical: CanonicalSlug;
-  /** URL slugs per locale. Same as canonical for pages we don't translate (faq, contact). */
-  urlSlug: Record<Locale, string>;
+  /** URL slug visible in the address bar. */
+  urlSlug: string;
 }
 
 export const PAGE_DEFINITIONS: ReadonlyArray<PageDefinition> = [
-  { canonical: 'about',        urlSlug: { fr: 'a-propos',                   en: 'about' } },
-  { canonical: 'help',         urlSlug: { fr: 'aide',                       en: 'help' } },
-  { canonical: 'faq',          urlSlug: { fr: 'faq',                        en: 'faq' } },
-  { canonical: 'terms',        urlSlug: { fr: 'conditions-utilisation',     en: 'terms' } },
-  { canonical: 'privacy',      urlSlug: { fr: 'politique-confidentialite',  en: 'privacy' } },
-  { canonical: 'how-to-buy',   urlSlug: { fr: 'comment-acheter',            en: 'how-to-buy' } },
-  { canonical: 'how-to-sell',  urlSlug: { fr: 'comment-vendre',             en: 'how-to-sell' } },
-  { canonical: 'contact',      urlSlug: { fr: 'contact',                    en: 'contact' } },
+  { canonical: 'about',       urlSlug: 'a-propos' },
+  { canonical: 'help',        urlSlug: 'aide' },
+  { canonical: 'faq',         urlSlug: 'faq' },
+  { canonical: 'terms',       urlSlug: 'conditions-utilisation' },
+  { canonical: 'privacy',     urlSlug: 'politique-confidentialite' },
+  { canonical: 'how-to-buy',  urlSlug: 'comment-acheter' },
+  { canonical: 'how-to-sell', urlSlug: 'comment-vendre' },
+  { canonical: 'contact',     urlSlug: 'contact' },
 ];
 
-const URL_TO_CANONICAL: Record<Locale, Record<string, CanonicalSlug>> = {
-  fr: Object.fromEntries(PAGE_DEFINITIONS.map((p) => [p.urlSlug.fr, p.canonical])),
-  en: Object.fromEntries(PAGE_DEFINITIONS.map((p) => [p.urlSlug.en, p.canonical])),
-};
+const URL_TO_CANONICAL: Record<string, CanonicalSlug> = Object.fromEntries(
+  PAGE_DEFINITIONS.map((p) => [p.urlSlug, p.canonical]),
+);
 
 /** URL slug (e.g. 'a-propos') → DB slug ('about'), or null if unknown. */
-export function urlSlugToCanonical(
-  urlSlug: string,
-  locale: Locale,
-): CanonicalSlug | null {
-  return URL_TO_CANONICAL[locale]?.[urlSlug] ?? null;
+export function urlSlugToCanonical(urlSlug: string): CanonicalSlug | null {
+  return URL_TO_CANONICAL[urlSlug] ?? null;
 }
 
-/** Canonical (DB) slug → URL slug for the given locale. */
-export function canonicalToUrlSlug(
-  canonical: CanonicalSlug,
-  locale: Locale,
-): string {
+/** Canonical (DB) slug → URL slug. */
+export function canonicalToUrlSlug(canonical: CanonicalSlug): string {
   const def = PAGE_DEFINITIONS.find((p) => p.canonical === canonical);
-  return def?.urlSlug[locale] ?? canonical;
+  return def?.urlSlug ?? canonical;
+}
+
+/** Path for a static page (no locale prefix in monolingual mode). */
+export function pathForCanonical(canonical: CanonicalSlug): string {
+  return `/${canonicalToUrlSlug(canonical)}`;
+}
+
+/** All URL slugs — drives generateStaticParams + the sitemap. */
+export function allStaticPageParams(): Array<{ locale: 'fr'; slug: string }> {
+  return PAGE_DEFINITIONS.map((p) => ({ locale: 'fr' as const, slug: p.urlSlug }));
 }
 
 /**
- * Path for a static page, locale-aware. With `localePrefix: 'as-needed'` the
- * default (FR) has no prefix; EN does.
+ * Rewrite internal markdown links so legacy /pages/<en-slug> or /<en-slug>
+ * (left over from the bilingual era's seed copy) resolve to the right FR URL.
  */
-export function pathForCanonical(canonical: CanonicalSlug, locale: Locale): string {
-  const slug = canonicalToUrlSlug(canonical, locale);
-  return locale === 'fr' ? `/${slug}` : `/${locale}/${slug}`;
-}
-
-/** All (locale, urlSlug) tuples — drives generateStaticParams + the sitemap. */
-export function allStaticPageParams(): Array<{ locale: Locale; slug: string }> {
-  return PAGE_DEFINITIONS.flatMap((p) => [
-    { locale: 'fr' as const, slug: p.urlSlug.fr },
-    { locale: 'en' as const, slug: p.urlSlug.en },
-  ]);
-}
-
-const LOCALES: ReadonlyArray<Locale> = ['fr', 'en'];
-
-/** Used by JSON-LD link rewriting in markdown — translate inbound paths to the current locale. */
-export function rewriteContentLink(href: string, currentLocale: Locale): string {
-  // Strip locale prefix if present, e.g. /en/foo → /foo
+export function rewriteContentLink(href: string): string {
   let path = href;
-  for (const l of LOCALES) {
-    if (path === `/${l}` || path.startsWith(`/${l}/`)) {
-      path = path.slice(l.length + 1) || '/';
-      break;
-    }
+
+  // Strip a stray locale prefix (e.g. /en/foo, /fr/foo from seed copy).
+  if (path === '/en' || path.startsWith('/en/')) {
+    path = path.slice(3) || '/';
+  } else if (path === '/fr' || path.startsWith('/fr/')) {
+    path = path.slice(3) || '/';
   }
 
   // Strip legacy /pages/ prefix.
@@ -102,19 +91,17 @@ export function rewriteContentLink(href: string, currentLocale: Locale): string 
     path = path.slice('/pages'.length);
   }
 
-  // /<urlSlug> — try to match against any locale's URL slugs (handles cases
-  // where seed copy links to '/about' from FR content, etc.).
+  // /<urlSlug> — match against the FR slug map first; fall back to the
+  // canonical (English) slug since some seed copy still links by canonical.
   const slug = path.startsWith('/') ? path.slice(1).split('/')[0] : '';
   if (slug) {
-    for (const l of LOCALES) {
-      const canonical = URL_TO_CANONICAL[l][slug];
-      if (canonical) {
-        return pathForCanonical(canonical, currentLocale);
-      }
-    }
+    const canonicalDirect = URL_TO_CANONICAL[slug];
+    if (canonicalDirect) return pathForCanonical(canonicalDirect);
+
+    // legacy English canonical → FR URL slug
+    const def = PAGE_DEFINITIONS.find((p) => p.canonical === slug);
+    if (def) return pathForCanonical(def.canonical);
   }
 
-  // Not a static-page link; return as-is. next-intl's <Link> will add the
-  // locale prefix when rendering.
-  return href.startsWith('/pages/') ? href.slice('/pages'.length) : href;
+  return path;
 }

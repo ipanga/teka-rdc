@@ -11,7 +11,7 @@ import { apiFetch, ApiError } from '@/lib/api-client';
  *
  * Client-only island so the rest of the Contact page stays SSR/SEO-friendly.
  */
-export function ContactForm({ locale: _locale }: { locale: string }) {
+export function ContactForm() {
   const t = useTranslations('Contact');
 
   const [loading, setLoading] = useState(false);

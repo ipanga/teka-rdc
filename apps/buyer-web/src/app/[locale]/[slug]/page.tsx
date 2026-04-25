@@ -8,7 +8,6 @@ import {
   pathForCanonical,
   urlSlugToCanonical,
   type CanonicalSlug,
-  type Locale,
 } from '@/lib/static-pages';
 
 type Props = { params: Promise<{ locale: string; slug: string }> };
@@ -20,31 +19,26 @@ interface ApiContentPage {
   status: string;
 }
 
-function pickLocalized(field: Record<string, string> | undefined, locale: string) {
-  if (!field) return '';
-  return field[locale] || field.fr || Object.values(field)[0] || '';
-}
-
 /**
- * Resolve URL slug to a canonical (DB) slug, or null if the URL doesn't map
- * to a known static page. We reject unknown slugs *before* any DB roundtrip
- * so this dynamic route doesn't catch and 500 on garbage URLs.
+ * Pick the FR-language value from the API's translatable JSON shape. The
+ * shape is preserved as `{ fr, en }` per the API-contract constraint, but
+ * the UI is monolingual (FR only) since 2026-04-25.
  */
-function resolveCanonical(locale: string, slug: string): CanonicalSlug | null {
-  if (locale !== 'fr' && locale !== 'en') return null;
-  return urlSlugToCanonical(slug, locale);
+function pickFr(field: Record<string, string> | undefined) {
+  if (!field) return '';
+  return field.fr || Object.values(field)[0] || '';
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { locale, slug } = await params;
-  const canonical = resolveCanonical(locale, slug);
+  const { slug } = await params;
+  const canonical = urlSlugToCanonical(slug);
   if (!canonical) return { title: 'Teka RDC' };
 
   const page = await serverFetch<ApiContentPage>(`/v1/content/${canonical}`);
   if (!page) return { title: slug };
 
-  const title = pickLocalized(page.title, locale);
-  const body = pickLocalized(page.content, locale);
+  const title = pickFr(page.title);
+  const body = pickFr(page.content);
 
   // Description: first 160 chars of plain text (markdown stripped).
   const description = body
@@ -55,9 +49,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .trim()
     .slice(0, 160);
 
-  const canonicalPath = pathForCanonical(canonical, locale as Locale);
-  const frPath = pathForCanonical(canonical, 'fr');
-  const enPath = pathForCanonical(canonical, 'en');
+  const canonicalPath = pathForCanonical(canonical);
 
   return {
     title,
@@ -66,7 +58,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: `${title} | Teka RDC`,
       description,
       siteName: 'Teka RDC',
-      locale: locale === 'fr' ? 'fr_CD' : 'en_US',
+      locale: 'fr_CD',
       url: `https://teka.cd${canonicalPath}`,
       images: [
         {
@@ -84,11 +76,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     alternates: {
       canonical: canonicalPath,
-      languages: {
-        fr: frPath,
-        en: enPath,
-        'x-default': frPath,
-      },
     },
   };
 }
@@ -98,24 +85,21 @@ export function generateStaticParams() {
 }
 
 export default async function Page({ params }: Props) {
-  const { locale, slug } = await params;
-  const canonical = resolveCanonical(locale, slug);
+  const { slug } = await params;
+  const canonical = urlSlugToCanonical(slug);
   if (!canonical) notFound();
 
   const page = await serverFetch<ApiContentPage>(`/v1/content/${canonical}`);
   if (!page || page.status !== 'PUBLISHED') notFound();
 
-  const title = pickLocalized(page.title, locale);
-  const body = pickLocalized(page.content, locale);
-  // Pass canonical to the view so links + JSON-LD can resolve cross-locale
-  // alternates. The URL slug is the visible one in the address bar.
-  const urlSlug = canonicalToUrlSlug(canonical, locale as Locale);
+  const title = pickFr(page.title);
+  const body = pickFr(page.content);
+  const urlSlug = canonicalToUrlSlug(canonical);
 
   return (
     <ContentPageView
       slug={urlSlug}
       canonical={canonical}
-      locale={locale}
       title={title}
       body={body}
     />

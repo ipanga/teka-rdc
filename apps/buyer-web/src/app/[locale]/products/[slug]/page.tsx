@@ -42,18 +42,18 @@ function ogImageUrl(url: string | undefined): string {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { locale, slug } = await params;
+  const { slug } = await params;
   const product = await serverFetch<ProductData>(`/v1/browse/products/${slug}`);
 
   if (!product) {
-    return { title: locale === 'fr' ? 'Produit non trouvé' : 'Product not found' };
+    return { title: 'Produit non trouvé' };
   }
 
-  const title = product.title?.[locale] || product.title?.fr || '';
-  const desc = product.description?.[locale] || product.description?.fr || '';
+  const title = product.title?.fr || '';
+  const desc = product.description?.fr || '';
   const ogImage = ogImageUrl(product.images?.[0]?.url);
   const price = (Number(product.priceCDF) / 100).toLocaleString('fr-CD');
-  const categoryName = product.category?.name?.[locale] || product.category?.name?.fr || '';
+  const categoryName = product.category?.name?.fr || '';
   const sellerName =
     product.seller?.sellerProfile?.businessName ||
     product.seller?.businessName ||
@@ -61,14 +61,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     '';
 
   const fullTitle = `${title} - ${price} FC`;
-  const fullDesc = locale === 'fr'
-    ? `${desc.substring(0, 120)}${desc.length > 120 ? '...' : ''} | ${categoryName} | Vendu par ${sellerName} sur Teka RDC. Livraison à Lubumbashi & Kolwezi.`
-    : `${desc.substring(0, 120)}${desc.length > 120 ? '...' : ''} | ${categoryName} | Sold by ${sellerName} on Teka RDC. Delivery to Lubumbashi & Kolwezi.`;
+  const fullDesc = `${desc.substring(0, 120)}${desc.length > 120 ? '...' : ''} | ${categoryName} | Vendu par ${sellerName} sur Teka RDC. Livraison à Lubumbashi & Kolwezi.`;
   const truncatedDesc = fullDesc.substring(0, 160);
 
-  // Locale-aware paths (next-intl `localePrefix: 'as-needed'` — FR has no prefix).
-  const localizedPath = `/products/${slug}`;
-  const canonical = locale === 'fr' ? localizedPath : `/${locale}${localizedPath}`;
+  const canonical = `/products/${slug}`;
   const absoluteUrl = `https://teka.cd${canonical}`;
 
   return {
@@ -79,7 +75,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       categoryName,
       sellerName,
       'Teka RDC',
-      locale === 'fr' ? 'acheter en ligne RDC' : 'buy online DRC',
+      'acheter en ligne RDC',
     ],
     openGraph: {
       title: `${title} | Teka RDC`,
@@ -91,7 +87,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       // og:title/og:description/og:image regardless of og:type.
       type: 'website',
       siteName: 'Teka RDC',
-      locale: locale === 'fr' ? 'fr_CD' : 'en_CD',
+      locale: 'fr_CD',
       images: [
         {
           url: ogImage,
@@ -109,19 +105,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       // even when summary_large_image is requested.
       images: [ogImage],
     },
-    alternates: {
-      canonical,
-      languages: {
-        fr: localizedPath,
-        en: `/en${localizedPath}`,
-        'x-default': localizedPath,
-      },
-    },
+    alternates: { canonical },
   };
 }
 
 export default async function Page({ params }: Props) {
-  const { locale, slug } = await params;
+  const { slug } = await params;
   const product = await serverFetch<ProductData>(`/v1/browse/products/${slug}`);
 
   const sellerDisplayName =
@@ -161,14 +150,14 @@ export default async function Page({ params }: Props) {
     }),
   } : null;
 
-  const categoryName = product?.category?.name?.[locale] || product?.category?.name?.fr || '';
-  const productName = product?.title?.[locale] || product?.title?.fr || '';
+  const categoryName = product?.category?.name?.fr || '';
+  const productName = product?.title?.fr || '';
   const breadcrumbJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: locale === 'fr' ? 'Accueil' : 'Home', item: 'https://teka.cd' },
-      ...(categoryName ? [{ '@type': 'ListItem', position: 2, name: categoryName, item: `https://teka.cd/${locale}/categories` }] : []),
+      { '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://teka.cd' },
+      ...(categoryName ? [{ '@type': 'ListItem', position: 2, name: categoryName, item: 'https://teka.cd/categories' }] : []),
       { '@type': 'ListItem', position: categoryName ? 3 : 2, name: productName },
     ],
   };
