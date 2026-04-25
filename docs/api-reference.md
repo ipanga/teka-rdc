@@ -52,7 +52,7 @@ All health endpoints are exempt from rate limiting.
 
 ## Auth — `/v1/auth`
 
-Role boundaries are strict (see `docs/architecture.md § Authentication — overview`): phone OTP is buyers-only, email/password is sellers + admins, Google is sellers-only. Rejected requests return 403 with a role-specific error code.
+Role boundaries are strict (see `docs/architecture.md § Authentication — overview`): phone OTP is buyers-only, email/password is sellers + admins. Rejected requests return 403 with a role-specific error code.
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
@@ -62,7 +62,6 @@ Role boundaries are strict (see `docs/architecture.md § Authentication — over
 | POST | `/v1/auth/login` | Public | Buyer login with phone + OTP. 409 `SELLER_MIGRATION_REQUIRED` for phone-only sellers; 403 `ADMIN_PHONE_AUTH_DISABLED` for admins |
 | POST | `/v1/auth/register/email` | Public | Register a seller account with email + password |
 | POST | `/v1/auth/login/email` | Public | Seller / admin login with email + password. 403 `BUYER_EMAIL_AUTH_DISABLED` for buyers |
-| POST | `/v1/auth/login/google` | Public | Seller Google sign-in. 401 `NO_GOOGLE_ACCOUNT` if unknown; 403 `ADMIN_GOOGLE_AUTH_DISABLED` / `BUYER_GOOGLE_AUTH_DISABLED` otherwise |
 | POST | `/v1/auth/password-reset/request` | Public | Always 200 — no enumeration. Sends reset link if account exists |
 | POST | `/v1/auth/password-reset/confirm` | Public | Consume reset token + set new password; revokes all refresh tokens |
 | POST | `/v1/auth/seller/migrate-check` | Public | Step 1 of seller migration. Returns `email_setup_sent` / `email_required` / `already_migrated` |
@@ -74,7 +73,9 @@ Role boundaries are strict (see `docs/architecture.md § Authentication — over
 | POST | `/v1/auth/email/send-verification` | Bearer | Send email verification link |
 | GET | `/v1/auth/email/verify?token=...` | Public | Verify email from link |
 
-> **Removed endpoints**: `POST /v1/auth/otp/request-email` (email-OTP fallback for buyers) was removed when buyer auth was locked to phone-only. Clients that call it now receive 404.
+> **Removed endpoints**:
+> - `POST /v1/auth/otp/request-email` (email-OTP fallback for buyers) — removed when buyer auth was locked to phone-only.
+> - `POST /v1/auth/login/google` (Google OAuth) — removed when seller auth was simplified to email/password only. Clients calling either receive 404.
 
 ### Request OTP
 ```json
@@ -139,18 +140,6 @@ POST /v1/auth/password-reset/confirm
 Token TTL controlled by `PASSWORD_RESET_EXPIRY_MINUTES` (default 60).
 On confirm, all of the user's refresh tokens are revoked and `authProvider` is set to `EMAIL_PASSWORD`.
 
-### Google OAuth (sellers only)
-```json
-POST /v1/auth/login/google
-{ "idToken": "<Google id_token>" }
-```
-Backend verifies via `google-auth-library` against `GOOGLE_WEB_CLIENT_ID`, `GOOGLE_IOS_CLIENT_ID`, `GOOGLE_ANDROID_CLIENT_ID`.
-Resolution order:
-1. Match by `User.googleId` → resolved user.
-2. Match by `User.email` (only if Google marks `email_verified=true`) → link `googleId` → resolved user.
-3. No match → `401 NO_GOOGLE_ACCOUNT` (clients must register with email+password first — Google is login-only, not a registration path).
-
-Role gate on resolved user: `SELLER` passes; `ADMIN | SUPPORT | FINANCE` → 403 `ADMIN_GOOGLE_AUTH_DISABLED`; `BUYER` → 403 `BUYER_GOOGLE_AUTH_DISABLED`.
 
 ### Seller migration (existing phone-only sellers)
 ```json

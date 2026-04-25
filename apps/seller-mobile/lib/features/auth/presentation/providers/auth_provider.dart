@@ -127,19 +127,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _authRepository.confirmPasswordReset(token, newPassword);
   }
 
-  // Google OAuth ——————————————————————————————————————————————————————————————
-
-  Future<void> loginWithGoogle(String idToken) async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      final data = await _authRepository.loginWithGoogle(idToken);
-      _applyLoggedInUser(data['user'] as Map<String, dynamic>?);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-      rethrow;
-    }
-  }
-
   // Seller migration ——————————————————————————————————————————————————————————
 
   Future<Map<String, dynamic>> migrateSellerCheck(String email) {

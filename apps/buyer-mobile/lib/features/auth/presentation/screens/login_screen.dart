@@ -1,8 +1,10 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/utils/phone.dart';
 import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -24,22 +26,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  String _formatPhone(String input) {
-    String digits = input.replaceAll(RegExp(r'[^\d]'), '');
-    if (digits.startsWith('0')) {
-      digits = digits.substring(1);
-    }
-    if (!digits.startsWith('243')) {
-      digits = '243$digits';
-    }
-    if (!digits.startsWith('+')) {
-      digits = '+$digits';
-    }
-    return digits;
-  }
-
   Future<void> _sendOtp() async {
     if (!_formKey.currentState!.validate()) return;
+
+    final phone = normalizeDrcPhone(_phoneController.text.trim());
+    if (phone == null) {
+      setState(() {
+        _errorMessage =
+            'Numero invalide. Entrez 9 chiffres (ou 10 avec le 0).';
+      });
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -47,7 +44,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      final phone = _formatPhone(_phoneController.text.trim());
       await ref.read(authProvider.notifier).requestOtp(phone);
       if (mounted) {
         context.push('/auth/otp', extra: {'phone': phone, 'isLogin': true});
@@ -119,13 +115,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Phone input
+                // Phone input — user types 9 digits (or 10 with leading 0).
+                // System adds +243 internally before submitting to the API.
                 TextFormField(
                   controller: _phoneController,
-                  keyboardType: TextInputType.phone,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(10),
+                  ],
                   decoration: InputDecoration(
                     labelText: 'Numero de telephone',
-                    hintText: '09XX XXX XXX',
+                    hintText: '991234567',
+                    helperText: '9 chiffres (ou 10 avec le 0)',
                     prefixIcon: const Icon(Icons.phone),
                     prefixText: '+243 ',
                     prefixStyle: TextStyle(
@@ -134,13 +136,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
+                    final digits =
+                        (value ?? '').replaceAll(RegExp(r'\D'), '');
+                    if (digits.isEmpty) {
                       return 'Veuillez entrer votre numero de telephone';
                     }
-                    final digits =
-                        value.trim().replaceAll(RegExp(r'[^\d]'), '');
-                    if (digits.length < 9) {
-                      return 'Numero de telephone invalide';
+                    if (digits.length != 9 && digits.length != 10) {
+                      return '9 chiffres (ou 10 avec le 0)';
+                    }
+                    if (digits.length == 10 && !digits.startsWith('0')) {
+                      return '10 chiffres = doit commencer par 0';
                     }
                     return null;
                   },

@@ -102,15 +102,6 @@ export const envValidationSchema = Joi.object({
   }),
   PAYMENT_MOCK_MODE: Joi.boolean().default(true),
 
-  // Google OAuth
-  GOOGLE_WEB_CLIENT_ID: Joi.string().when('NODE_ENV', {
-    is: 'production',
-    then: Joi.required(),
-    otherwise: Joi.string().allow('').default(''),
-  }),
-  GOOGLE_IOS_CLIENT_ID: Joi.string().allow('').default(''),
-  GOOGLE_ANDROID_CLIENT_ID: Joi.string().allow('').default(''),
-
   // Password hashing & resets
   BCRYPT_ROUNDS: Joi.number().min(10).max(14).default(12),
   PASSWORD_RESET_EXPIRY_MINUTES: Joi.number().default(60),

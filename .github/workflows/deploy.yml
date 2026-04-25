@@ -48,13 +48,11 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # Per-service build args. api needs none; the three web apps need the
-      # API URL + Google client id baked in at build time (Next.js NEXT_PUBLIC_*
-      # are compile-time constants). seller-web and admin-web also flip the
-      # basePath to empty so they serve from their subdomain root.
+      # API URL baked in at build time (Next.js NEXT_PUBLIC_* are compile-time
+      # constants). seller-web and admin-web also flip the basePath to empty
+      # so they serve from their subdomain root.
       - name: Compute build args for ${{ matrix.name }}
         id: args
-        env:
-          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
         run: |
           set -eu
           case "${{ matrix.name }}" in
@@ -65,7 +63,6 @@ jobs:
               {
                 echo "value<<__END__"
                 echo "NEXT_PUBLIC_API_URL=https://api.teka.cd/api"
-                echo "NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}"
                 echo "__END__"
               } >> "$GITHUB_OUTPUT"
               ;;
@@ -73,7 +70,6 @@ jobs:
               {
                 echo "value<<__END__"
                 echo "NEXT_PUBLIC_API_URL=https://api.teka.cd/api"
-                echo "NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}"
                 echo "NEXT_PUBLIC_BASE_PATH="
                 echo "__END__"
               } >> "$GITHUB_OUTPUT"

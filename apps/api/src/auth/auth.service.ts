@@ -10,7 +10,6 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
-import { OAuth2Client } from 'google-auth-library';
 import { PrismaService } from '../prisma/prisma.service';
 import { OtpService } from '../otp/otp.service';
 import { EmailService } from '../email/email.service';
@@ -19,7 +18,6 @@ import { EmailLoginDto } from './dto/email-login.dto';
 import { EmailRegisterDto } from './dto/email-register.dto';
 import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
 import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
-import { GoogleLoginDto } from './dto/google-login.dto';
 import { SellerMigrateCheckDto } from './dto/seller-migrate-check.dto';
 import { SellerMigrateLinkEmailDto } from './dto/seller-migrate-link-email.dto';
 import { SellerPasswordSetupDto } from './dto/seller-password-setup.dto';
@@ -39,7 +37,6 @@ export interface AuthTokens {
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
-  private readonly googleClient = new OAuth2Client();
 
   constructor(
     private prisma: PrismaService,
@@ -48,16 +45,6 @@ export class AuthService {
     private otpService: OtpService,
     private emailService: EmailService,
   ) {}
-
-  private googleAudiences(): string[] {
-    const web = this.configService.get<string>('GOOGLE_WEB_CLIENT_ID', '');
-    const ios = this.configService.get<string>('GOOGLE_IOS_CLIENT_ID', '');
-    const android = this.configService.get<string>(
-      'GOOGLE_ANDROID_CLIENT_ID',
-      '',
-    );
-    return [web, ios, android].filter((v) => !!v);
-  }
 
   // ---------------------------------------------------------------------------
   // Phone OTP (preserved — used by buyers and admins)
@@ -249,106 +236,6 @@ export class AuthService {
         message:
           'Les acheteurs doivent se connecter par téléphone. Utilisez le code SMS.',
       });
-    }
-
-    const tokens = await this.generateTokens(user.id, user.role, user.phone);
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
-
-    return { user: this.sanitizeUser(user), tokens };
-  }
-
-  // ---------------------------------------------------------------------------
-  // Google OAuth — sellers only. Admins MUST NOT have a Google path; buyers
-  // use phone OTP only. The role gate below enforces both.
-  // ---------------------------------------------------------------------------
-
-  async loginWithGoogle(dto: GoogleLoginDto) {
-    const audiences = this.googleAudiences();
-    if (audiences.length === 0) {
-      throw new BadRequestException('Connexion Google non configurée');
-    }
-
-    let payload;
-    try {
-      const ticket = await this.googleClient.verifyIdToken({
-        idToken: dto.idToken,
-        audience: audiences,
-      });
-      payload = ticket.getPayload();
-    } catch (error) {
-      this.logger.warn(
-        `Google idToken verification failed: ${error instanceof Error ? error.message : error}`,
-      );
-      throw new UnauthorizedException('Jeton Google invalide');
-    }
-
-    if (!payload?.sub || !payload.email) {
-      throw new UnauthorizedException('Jeton Google invalide');
-    }
-
-    const emailVerifiedByGoogle = payload.email_verified === true;
-    const email = payload.email.toLowerCase();
-
-    // 1) Existing user by googleId → log in
-    let user = await this.prisma.user.findUnique({
-      where: { googleId: payload.sub, deletedAt: null } as any,
-    });
-
-    // 2) Existing user by email (and Google confirmed ownership) → link and log in
-    if (!user && emailVerifiedByGoogle) {
-      user = await this.prisma.user.findUnique({
-        where: { email, deletedAt: null },
-      });
-      if (user) {
-        user = await this.prisma.user.update({
-          where: { id: user.id },
-          data: {
-            googleId: payload.sub,
-            emailVerified: true,
-          },
-        });
-      }
-    }
-
-    // 3) No existing account — Google is NOT a self-service registration path.
-    // Sellers register via email/password (or admin-driven seller migration);
-    // buyers use phone OTP; admins are provisioned out-of-band. Telling the
-    // client "no account" is safer than silently provisioning a BUYER.
-    if (!user) {
-      throw new UnauthorizedException({
-        code: 'NO_GOOGLE_ACCOUNT',
-        message:
-          "Aucun compte n'est associé à cet email Google. Inscrivez-vous d'abord avec un email et mot de passe.",
-      });
-    }
-
-    // 4) Role gate: Google is sellers-only. Admins must use email/password;
-    // buyers must use phone OTP. Both are hard rejects to keep the role
-    // boundaries strict.
-    if (
-      user.role === 'ADMIN' ||
-      user.role === 'SUPPORT' ||
-      user.role === 'FINANCE'
-    ) {
-      throw new ForbiddenException({
-        code: 'ADMIN_GOOGLE_AUTH_DISABLED',
-        message:
-          'Les administrateurs doivent se connecter par email et mot de passe.',
-      });
-    }
-    if (user.role === 'BUYER') {
-      throw new ForbiddenException({
-        code: 'BUYER_GOOGLE_AUTH_DISABLED',
-        message:
-          'Les acheteurs doivent se connecter par téléphone. Utilisez le code SMS.',
-      });
-    }
-
-    if (user.status === 'SUSPENDED' || user.status === 'BANNED') {
-      throw new ForbiddenException('Votre compte a été suspendu.');
     }
 
     const tokens = await this.generateTokens(user.id, user.role, user.phone);

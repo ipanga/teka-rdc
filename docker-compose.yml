@@ -22,12 +22,10 @@ services:
       dockerfile: apps/buyer-web/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: "http://localhost:5050/api"
-        NEXT_PUBLIC_GOOGLE_CLIENT_ID: "${NEXT_PUBLIC_GOOGLE_CLIENT_ID}"
     ports:
       - "5001:5000"
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:5050/api
-      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
       - API_INTERNAL_URL=http://api:5050/api
     depends_on:
       - api
@@ -39,12 +37,10 @@ services:
       dockerfile: apps/seller-web/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: "http://localhost:5050/api"
-        NEXT_PUBLIC_GOOGLE_CLIENT_ID: "${NEXT_PUBLIC_GOOGLE_CLIENT_ID}"
     ports:
       - "5100:5100"
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:5050/api
-      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
     depends_on:
       - api
 
@@ -55,12 +51,10 @@ services:
       dockerfile: apps/admin-web/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: "http://localhost:5050/api"
-        NEXT_PUBLIC_GOOGLE_CLIENT_ID: "${NEXT_PUBLIC_GOOGLE_CLIENT_ID}"
     ports:
       - "5200:5200"
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:5050/api
-      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID}
     depends_on:
       - api
 

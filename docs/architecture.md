@@ -96,15 +96,26 @@ teka-rdc/
 
 ### Authentication — overview
 
-Teka RDC supports three auth providers, each tracked on `User.authProvider`. Role boundaries are **strict** — a user in one role cannot authenticate via a provider assigned to another role:
+Teka RDC has two auth providers, each tracked on `User.authProvider`. Role boundaries are **strict** — a user in one role cannot authenticate via a provider assigned to another role:
 
 | Provider | Roles allowed | Primary flow |
 |---|---|---|
 | `PHONE_OTP` | **Buyers only** | SMS code via **Orange DRC** (default) or Africa's Talking. Sellers get 409 `SELLER_MIGRATION_REQUIRED`; admins get 403 `ADMIN_PHONE_AUTH_DISABLED`. |
 | `EMAIL_PASSWORD` | **Sellers + Admins only** | bcrypt hash + password-reset via Resend. Buyers get 403 `BUYER_EMAIL_AUTH_DISABLED`. |
-| `GOOGLE` | **Sellers only** | Google id_token verified server-side via `google-auth-library`. Admins → 403 `ADMIN_GOOGLE_AUTH_DISABLED`; buyers → 403 `BUYER_GOOGLE_AUTH_DISABLED`; unknown users → 401 `NO_GOOGLE_ACCOUNT` (no self-provision). |
 
-All three paths terminate in the same `generateTokens` helper, so refresh-token replay detection and cookie semantics are identical. Admins are **seeded** out-of-band (see `docs/deployment.md § 5b`) — there is no public admin registration endpoint.
+Both paths terminate in the same `generateTokens` helper, so refresh-token replay detection and cookie semantics are identical. Admins are **seeded** out-of-band (see `docs/deployment.md § 5b`) — there is no public admin registration endpoint.
+
+The legacy `GOOGLE` value still appears on `User.authProvider` for accounts created during the brief window Google OAuth was enabled (April 2026). The endpoint and all UI/SDK code paths have since been removed; those users continue to authenticate via email + password.
+
+### Buyer phone-input UX
+
+Users on `teka.cd` and the buyer mobile app type **9 digits** of their DRC number (or **10** with a leading `0`). The `+243` country prefix is added by the system before calling the API — users never type it. The frontend rules:
+
+- Input is digits-only (non-numeric characters are filtered on entry).
+- Maximum length: 10.
+- 9 digits → prepend `+243`. 10 digits with leading `0` → strip the `0` and prepend `+243`. Any other length → inline error, no API call.
+
+Implementation lives in a single helper per platform: `packages/shared/src/utils/phone.ts` (web) and `apps/buyer-mobile/lib/core/utils/phone.dart` (Flutter). Backend DTOs continue to enforce `^\+243\d{9}$`, so storage stays canonical (`+243XXXXXXXXX`).
 
 ### Authentication — Phone OTP (buyers only)
 
@@ -141,26 +152,6 @@ There is **no email-OTP fallback** for buyers — the delivery channel is SMS-on
 4. POST /auth/password-reset/confirm { token, newPassword }
    → Atomic: update hash + revoke all refresh tokens + consume reset token
 ```
-
-### Authentication — Google OAuth (sellers only)
-
-```
-1. Client (seller-web, seller-mobile) authenticates with Google directly (returns id_token)
-2. POST /api/v1/auth/login/google { idToken }
-3. google-auth-library verifies the token against all configured audiences
-   (GOOGLE_WEB_CLIENT_ID, GOOGLE_IOS_CLIENT_ID, GOOGLE_ANDROID_CLIENT_ID)
-4. Resolution order:
-   a. Match by User.googleId  → resolved user
-   b. Match by User.email (only when Google reports email_verified=true) → link googleId → resolved user
-   c. No match → 401 NO_GOOGLE_ACCOUNT (user must register with email+password first)
-5. Role gate on resolved user:
-   - role=ADMIN | SUPPORT | FINANCE → 403 ADMIN_GOOGLE_AUTH_DISABLED
-   - role=BUYER                      → 403 BUYER_GOOGLE_AUTH_DISABLED
-   - role=SELLER                      → continue
-6. Standard generateTokens → cookies
-```
-
-Google is **not a registration path** on the backend — if there's no existing account, the client is told to register with email+password first. The buyer-web and admin-web surfaces do not display a Google button; only seller-web and (future) seller-mobile.
 
 ### Authentication — Seller migration (existing phone-only sellers)
 
@@ -491,7 +482,6 @@ Messages are stored in `Conversation` + `Message` tables. Each conversation link
 | **Africa's Talking** | Legacy SMS provider (rollback fallback) | Same interface as Orange; flip `SMS_PROVIDER=africas_talking` to cut over |
 | **Flexpay** | Mobile Money payment (M-Pesa, Airtel Money, Orange Money) | Async webhook; payment status polled if webhook delayed |
 | **Resend** | Transactional emails (verification, password reset, seller setup, receipts) | Fire-and-forget; dev mode logs to console instead of sending |
-| **Google OAuth** | Social login (all 3 roles) — verified server-side via `google-auth-library` | Stateless: clients hand a Google `idToken` to `/v1/auth/login/google`; backend upserts by `googleId` or links by verified `email` |
 
 All external service calls use the fire-and-forget notification pattern with inner try-catch blocks and outer `.catch()` at call sites to prevent cascading failures.
 

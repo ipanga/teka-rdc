@@ -419,8 +419,10 @@ Execute these phases in strict order. Each phase builds on the previous one. Do 
 10. **For anything not specified:** Reference Jumia.ug's implementation and follow e-commerce industry best practices. When in doubt, optimize for the DRC context (low bandwidth, French language, Mobile Money payments, phone-first UX).
 11. **SMS uses a provider abstraction** at `apps/api/src/sms/interfaces/sms-provider.interface.ts` (mirrors the `PaymentProvider` pattern). Active provider is selected by the `SMS_PROVIDER` env var (`orange` | `africas_talking` | `mock`). To add a new provider, drop an implementation under `apps/api/src/sms/providers/` and wire it in the factory in `sms.module.ts`. **Never call an SMS vendor API directly** from application code — always go through `SmsService`.
 12. **Auth providers — strict role boundaries (server-enforced).** Users carry an `authProvider` on the `User` model. Role-to-provider mapping is:
-    - **Buyers → `PHONE_OTP` only.** No Google, no email/password, no email-OTP fallback. Non-buyer roles hitting `/v1/auth/login` are rejected (`ADMIN_PHONE_AUTH_DISABLED` 403, `SELLER_MIGRATION_REQUIRED` 409).
-    - **Sellers → `EMAIL_PASSWORD` + `GOOGLE`.** Self-service registration at `/v1/auth/register/email` creates `role=SELLER`. Google is **login-only** (`NO_GOOGLE_ACCOUNT` 401 for unknown users — no auto-provision on the backend).
-    - **Admins → `EMAIL_PASSWORD` only.** No Google, no phone OTP. Admins are seeded out-of-band (see `docs/deployment.md § 5b`).
+    - **Buyers → `PHONE_OTP` only.** No email/password. Non-buyer roles hitting `/v1/auth/login` are rejected (`ADMIN_PHONE_AUTH_DISABLED` 403, `SELLER_MIGRATION_REQUIRED` 409).
+    - **Sellers → `EMAIL_PASSWORD` only.** Self-service registration at `/v1/auth/register/email` creates `role=SELLER`.
+    - **Admins → `EMAIL_PASSWORD` only.** No phone OTP. Admins are seeded out-of-band (see `docs/deployment.md § 5b`).
 
-    All three paths terminate in the same `generateTokens` helper so cookie semantics and refresh-token replay detection are identical. See `docs/architecture.md § Authentication — overview` for the full matrix and error codes.
+    Google OAuth was removed in April 2026; the legacy `GOOGLE` value still exists on the `AuthProvider` enum for historical accounts but no code path creates new ones. Both remaining paths terminate in `generateTokens` so cookie semantics and refresh-token replay detection are identical. See `docs/architecture.md § Authentication — overview` for the full matrix and error codes.
+
+13. **Buyer phone-input UX.** Users on `teka.cd` and the buyer mobile app type only their 9-digit local number (or 10 with leading `0`); the `+243` prefix is added by the system. Single source of truth: `normalizeDrcPhone()` in `packages/shared/src/utils/phone.ts` (web) and `apps/buyer-mobile/lib/core/utils/phone.dart` (Flutter). Backend DTOs continue to enforce `^\+243\d{9}$` so storage stays canonical.

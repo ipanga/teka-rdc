@@ -1,15 +1,16 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { Link } from '@/i18n/navigation';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { useAuthStore, type User } from '@/lib/auth-store';
+import { normalizeDrcPhone } from '@teka/shared';
 
-// Buyers authenticate via phone + SMS OTP only. Google and email-OTP fallback
-// were removed to enforce strict role boundaries per
-// docs/architecture.md § Auth.
+// Buyers authenticate via phone + SMS OTP only. Phone input rules:
+//   - User types 9 digits (or 10 with leading 0); +243 is added automatically.
+//   - Anything outside 9–10 digits → null → inline error before any API call.
 
 export default function LoginPage() {
   const t = useTranslations('Auth');
@@ -29,24 +30,19 @@ export default function LoginPage() {
     return () => clearTimeout(timer);
   }, [countdown]);
 
-  const formatPhone = useCallback((input: string): string => {
-    const digits = input.replace(/\D/g, '');
-    if (digits.startsWith('0')) {
-      return `+243${digits.slice(1)}`;
-    }
-    if (digits.startsWith('243')) {
-      return `+${digits}`;
-    }
-    return `+243${digits}`;
-  }, []);
+  const phoneIsValid = phone.length >= 9 && phone.length <= 10;
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    const formattedPhone = normalizeDrcPhone(phone);
+    if (!formattedPhone) {
+      setError(t('phoneInvalid'));
+      return;
+    }
     setIsLoading(true);
 
     try {
-      const formattedPhone = formatPhone(phone);
       await apiFetch('/v1/auth/otp/request', {
         method: 'POST',
         body: JSON.stringify({ phone: formattedPhone }),
@@ -67,10 +63,11 @@ export default function LoginPage() {
   const handleResendOtp = async () => {
     if (countdown > 0) return;
     setError('');
+    const formattedPhone = normalizeDrcPhone(phone);
+    if (!formattedPhone) return;
     setIsLoading(true);
 
     try {
-      const formattedPhone = formatPhone(phone);
       await apiFetch('/v1/auth/otp/request', {
         method: 'POST',
         body: JSON.stringify({ phone: formattedPhone }),
@@ -90,10 +87,14 @@ export default function LoginPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    const formattedPhone = normalizeDrcPhone(phone);
+    if (!formattedPhone) {
+      setError(t('phoneInvalid'));
+      return;
+    }
     setIsLoading(true);
 
     try {
-      const formattedPhone = formatPhone(phone);
       const res = await apiFetch<{ user: User }>('/v1/auth/login', {
         method: 'POST',
         body: JSON.stringify({ phone: formattedPhone, code: otp }),
@@ -143,17 +144,20 @@ export default function LoginPage() {
                   <input
                     id="phone"
                     type="tel"
+                    inputMode="numeric"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                    maxLength={10}
                     placeholder={t('phonePlaceholder')}
                     className="flex-1 px-3 py-2 border border-input rounded-r-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     required
                   />
                 </div>
+                <p className="mt-1 text-xs text-muted-foreground">{t('phoneHint')}</p>
               </div>
               <button
                 type="submit"
-                disabled={isLoading || !phone}
+                disabled={isLoading || !phoneIsValid}
                 className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {isLoading ? '...' : t('sendOtp')}
@@ -164,7 +168,7 @@ export default function LoginPage() {
           {step === 'otp' && (
             <form onSubmit={handleLogin} className="space-y-4">
               <p className="text-sm text-muted-foreground text-center">
-                {t('otpSent', { phone: formatPhone(phone) })}
+                {t('otpSent', { phone: normalizeDrcPhone(phone) ?? `+243${phone}` })}
               </p>
               <div>
                 <label htmlFor="otp" className="block text-sm font-medium text-foreground mb-1">

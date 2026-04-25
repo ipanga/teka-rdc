@@ -6,7 +6,6 @@ import { useRouter } from '@/i18n/navigation';
 import { Link } from '@/i18n/navigation';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { useAuthStore, type User } from '@/lib/auth-store';
-import { GoogleSignInButton } from '@/components/auth/google-sign-in-button';
 
 export default function SellerLoginPage() {
   const t = useTranslations('Auth');
@@ -125,18 +124,6 @@ export default function SellerLoginPage() {
               </Link>
             </div>
           </form>
-
-          <div className="mt-6 flex items-center gap-3">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground uppercase">ou</span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-          <div className="mt-4 flex justify-center">
-            <GoogleSignInButton
-              onError={(msg) => setError(msg)}
-              onWrongRole={() => setRoleError(true)}
-            />
-          </div>
         </div>
       </div>
     </div>

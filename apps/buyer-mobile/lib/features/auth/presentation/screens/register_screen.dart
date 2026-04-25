@@ -1,9 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/utils/phone.dart';
 import '../providers/auth_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -48,24 +50,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     super.dispose();
   }
 
-  String _formatPhone(String input) {
-    String digits = input.replaceAll(RegExp(r'[^\d]'), '');
-    if (digits.startsWith('0')) {
-      digits = digits.substring(1);
-    }
-    if (!digits.startsWith('243')) {
-      digits = '243$digits';
-    }
-    if (!digits.startsWith('+')) {
-      digits = '+$digits';
-    }
-    return digits;
-  }
-
   Future<void> _sendOtp() async {
-    final phone = _phoneController.text.trim();
-    if (phone.isEmpty) {
-      setState(() => _errorMessage = 'Veuillez entrer votre numero.');
+    final raw = _phoneController.text.trim();
+    final normalized = normalizeDrcPhone(raw);
+    if (normalized == null) {
+      setState(() => _errorMessage =
+          'Numero invalide. Entrez 9 chiffres (ou 10 avec le 0).');
       return;
     }
 
@@ -75,7 +65,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     });
 
     try {
-      _verifiedPhone = _formatPhone(phone);
+      _verifiedPhone = normalized;
       await ref.read(authProvider.notifier).requestOtp(_verifiedPhone);
     } on DioException catch (e) {
       setState(() {
@@ -174,13 +164,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Phone field
+                  // Phone field — user types 9 digits (or 10 with leading 0).
                   TextFormField(
                     controller: _phoneController,
-                    keyboardType: TextInputType.phone,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(10),
+                    ],
                     decoration: InputDecoration(
                       labelText: 'Numero de telephone',
-                      hintText: '09XX XXX XXX',
+                      hintText: '991234567',
+                      helperText: '9 chiffres (ou 10 avec le 0)',
                       prefixIcon: const Icon(Icons.phone),
                       prefixText: '+243 ',
                       prefixStyle: TextStyle(
