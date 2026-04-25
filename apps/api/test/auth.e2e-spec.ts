@@ -303,21 +303,16 @@ describe('Auth (e2e)', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // POST /api/v1/auth/login/google — admin + buyer rejection
+  // POST /api/v1/auth/login/google — removed endpoint (sellers are now
+  // email/password only; no role can use Google sign-in)
   // ---------------------------------------------------------------------------
-  describe('POST /api/v1/auth/login/google', () => {
-    it('should reject missing idToken', () => {
+  describe('POST /api/v1/auth/login/google (removed)', () => {
+    it('should return 404 — endpoint no longer exists', () => {
       return request(app.getHttpServer())
         .post('/api/v1/auth/login/google')
-        .send({})
-        .expect(400);
+        .send({ idToken: 'whatever' })
+        .expect(404);
     });
-
-    // NOTE: verifying that ADMIN/BUYER users are rejected server-side requires
-    // stubbing google-auth-library's verifyIdToken, which is deep in
-    // AuthService. We exercise the controller contract here; the role-gate
-    // logic is covered by unit-level inspection of auth.service.ts
-    // (ADMIN_GOOGLE_AUTH_DISABLED + BUYER_GOOGLE_AUTH_DISABLED branches).
   });
 
   // ---------------------------------------------------------------------------

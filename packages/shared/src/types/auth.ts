@@ -60,11 +60,6 @@ export interface PasswordResetConfirmDto {
   newPassword: string;
 }
 
-// Google OAuth — sellers only. Admins and buyers are rejected server-side.
-export interface GoogleLoginDto {
-  idToken: string;
-}
-
 // Seller migration
 export interface SellerMigrateCheckDto {
   email: string;

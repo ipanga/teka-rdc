@@ -65,23 +65,6 @@ class AuthRepository {
     );
   }
 
-  // Google OAuth ——————————————————————————————————————————————————————————————
-
-  Future<Map<String, dynamic>> loginWithGoogle(String idToken) async {
-    final response = await _dio.post(
-      '/v1/auth/login/google',
-      data: {'idToken': idToken},
-    );
-    final data = response.data['data'] ?? response.data;
-    if (data['tokens'] != null) {
-      await _tokenStorage.saveTokens(
-        data['tokens']['accessToken'],
-        data['tokens']['refreshToken'],
-      );
-    }
-    return data;
-  }
-
   // Seller migration ——————————————————————————————————————————————————————————
 
   /// Returns one of: { migration: 'email_setup_sent' | 'email_required' | 'already_migrated', maskedPhone? }

@@ -14,6 +14,9 @@ export * from './constants/roles';
 export * from './validators/phone.validator';
 export * from './validators/common.validator';
 
+// Utils
+export * from './utils/phone';
+
 // Phase 2 - Auth
 export * from './types/auth';
 export * from './constants/auth';

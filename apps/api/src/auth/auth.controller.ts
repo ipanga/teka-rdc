@@ -22,7 +22,6 @@ import { EmailLoginDto } from './dto/email-login.dto';
 import { EmailRegisterDto } from './dto/email-register.dto';
 import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
 import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
-import { GoogleLoginDto } from './dto/google-login.dto';
 import { SellerMigrateCheckDto } from './dto/seller-migrate-check.dto';
 import { SellerMigrateLinkEmailDto } from './dto/seller-migrate-link-email.dto';
 import { SellerPasswordSetupDto } from './dto/seller-password-setup.dto';
@@ -120,22 +119,6 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async confirmPasswordReset(@Body() dto: PasswordResetConfirmDto) {
     return this.authService.confirmPasswordReset(dto);
-  }
-
-  // ---------------------------------------------------------------------------
-  // Google OAuth
-  // ---------------------------------------------------------------------------
-
-  @Public()
-  @Post('login/google')
-  @HttpCode(HttpStatus.OK)
-  async loginWithGoogle(
-    @Body() dto: GoogleLoginDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const result = await this.authService.loginWithGoogle(dto);
-    this.setAuthCookies(res, result.tokens);
-    return result;
   }
 
   // ---------------------------------------------------------------------------
