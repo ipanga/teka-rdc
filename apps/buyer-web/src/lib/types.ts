@@ -9,7 +9,9 @@ export interface BrowseCategory {
   id: string;
   name: TranslatableText;
   emoji: string | null;
-  slug: string;
+  // Nullable: backfilled by the seed but new admin-created categories may
+  // arrive without one. Routes guard with `cat.slug ? ... : ...`.
+  slug: string | null;
   parentId: string | null;
   subcategories: BrowseCategory[];
   productCount: number;
@@ -67,8 +69,9 @@ export interface ProductDetail {
   categoryId: string;
   category: {
     id: string;
+    slug: string | null;
     name: TranslatableText;
-    breadcrumb: { id: string; name: TranslatableText }[];
+    breadcrumb: { id: string; slug: string | null; name: TranslatableText }[];
   };
   specifications: ProductSpecification[];
 }

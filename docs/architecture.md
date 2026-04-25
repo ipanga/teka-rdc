@@ -447,11 +447,19 @@ The 8 static info pages (about, help, faq, terms, privacy, how-to-buy, how-to-se
 
 Mapping lives in `apps/buyer-web/src/lib/static-pages.ts` (`PAGE_DEFINITIONS`). All 8 pages are pre-rendered at build time via `generateStaticParams`. 301 redirects in `next.config.ts` cover legacy `/pages/<slug>` and cross-locale slug typos. The content API (`GET /v1/content/:slug`) keys on the canonical slug only; URL-to-canonical resolution happens in the buyer-web route handler before any API call.
 
+### Category URLs
+Categories are served at `/categorie/<slug>` (e.g. `/categorie/smartphones`, `/categorie/maison-et-interieur`). Slugs are derived from the French category name at seed time (`frSlugify()` in `apps/api/prisma/seed.ts`) and stored in `Category.slug` (unique, indexed). The browse endpoint `GET /v1/browse/categories/:identifier` accepts either a UUID or a slug, so admin-stored category references (e.g. banner `linkTarget`) keep working.
+
+The legacy `/categories/<id>` route is kept as a tiny server-side **308 redirect** to `/categorie/<slug>` — this preserves any external citations (Google index, social shares) from the pre-slug period.
+
+### Sample product catalog (always-seeded)
+Every fresh install gets a "**Teka RDC Officiel**" platform-owned seller plus **152 sample products** (38 active subcategories × 2 cities — Lubumbashi + Kolwezi — × 2 variants per slot). Both are upserted by the seed (idempotent) and exist in dev + prod. Purpose: SEO content (real product URLs to crawl) and first-time-user demo (the marketplace doesn't look empty on day 1). Seeded products use Cloudinary demo placeholder images; replace by uploading real assets to the `teka-rdc` Cloudinary cloud and updating `seedSampleProducts()`.
+
 ### SEO surface
-- **Sitemap**: dynamic at `/sitemap.xml` (Next.js `app/sitemap.ts`). Includes home, categories + subcategories, cities, products (top 500 by recency), and the 16 localized static-page URLs.
+- **Sitemap**: dynamic at `/sitemap.xml` (Next.js `app/sitemap.ts`). Includes home, categories + subcategories (slug-based URLs), cities, products (top 500 by recency), and the 16 localized static-page URLs.
 - **robots.txt**: dynamic at `/robots.txt` (Next.js `app/robots.ts`). Disallows `/checkout`, `/cart`, `/orders`, `/messages`, `/login`, `/register`, `/profile`, `/wishlist`. Points crawlers at the sitemap.
 - **hreflang**: every static page emits `alternates.languages` with FR + EN + `x-default` pointing at the FR URL. Home page does the same.
-- **JSON-LD**: Organization + WebSite (with SearchAction) on home; WebPage on each static page.
+- **JSON-LD**: Organization + WebSite (with SearchAction) on home; WebPage on each static page; BreadcrumbList on category + product detail pages.
 
 ### Mobile Applications
 - **Library**: flutter_localizations + custom ARB files

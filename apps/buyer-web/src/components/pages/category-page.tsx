@@ -17,12 +17,22 @@ import { useCityStore } from '@/lib/city-store';
 import { getLocalizedName } from '@/lib/format';
 import type { BrowseCategory, BrowseProduct, CursorPagination } from '@/lib/types';
 
-export default function CategoryPage() {
+interface CategoryPageProps {
+  /**
+   * Pre-resolved category UUID from the server route. The server already
+   * fetched the category (by id or slug) for SEO metadata; pass the UUID
+   * down so we don't double-fetch on the client. Falls back to params.id
+   * for the legacy /categories/[id] route.
+   */
+  categoryUuid?: string;
+}
+
+export default function CategoryPage({ categoryUuid }: CategoryPageProps = {}) {
   const t = useTranslations('Products');
   const tCat = useTranslations('Categories');
   const locale = useLocale();
-  const params = useParams<{ id: string }>();
-  const categoryId = params.id;
+  const params = useParams<{ id?: string; slug?: string }>();
+  const categoryId = categoryUuid ?? params.id ?? '';
 
   const [category, setCategory] = useState<BrowseCategory | null>(null);
   const [products, setProducts] = useState<BrowseProduct[]>([]);

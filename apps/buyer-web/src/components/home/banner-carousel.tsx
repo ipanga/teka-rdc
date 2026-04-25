@@ -101,7 +101,10 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
         router.push(`/products/${banner.linkTarget}`);
         break;
       case 'category':
-        router.push(`/categories/${banner.linkTarget}`);
+        // /categorie/<id-or-slug>: the route fetches by /v1/browse/categories/<identifier>
+        // which accepts UUID or slug, so admin-stored UUIDs (legacy) and
+        // slugs (new) both resolve correctly.
+        router.push(`/categorie/${banner.linkTarget}`);
         break;
       case 'url':
         if (banner.linkTarget) {

@@ -63,25 +63,37 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   );
 
   // -- Dynamic categories (incl. subcategories) --
+  // Emit /categorie/<slug> URLs (the new SEO-friendly route). Categories
+  // without a slug — there shouldn't be any in prod after the seed runs —
+  // are skipped rather than fall back to the legacy /categories/<id> URL,
+  // since that one only redirects.
   let categoryPages: MetadataRoute.Sitemap = [];
   const categories = await fetchApi<
-    Array<{ id: string; subcategories?: Array<{ id: string }> }>
+    Array<{
+      id: string;
+      slug: string | null;
+      subcategories?: Array<{ id: string; slug: string | null }>;
+    }>
   >('/v1/browse/categories');
   if (categories && Array.isArray(categories)) {
     categoryPages = categories.flatMap((cat) => {
-      const main = LOCALES.map((locale) => ({
-        url: urlFor(locale, `/categories/${cat.id}`),
-        lastModified: now,
-        changeFrequency: 'weekly' as const,
-        priority: 0.8,
-      }));
+      const main = cat.slug
+        ? LOCALES.map((locale) => ({
+            url: urlFor(locale, `/categorie/${cat.slug}`),
+            lastModified: now,
+            changeFrequency: 'weekly' as const,
+            priority: 0.8,
+          }))
+        : [];
       const subs = (cat.subcategories || []).flatMap((sub) =>
-        LOCALES.map((locale) => ({
-          url: urlFor(locale, `/categories/${sub.id}`),
-          lastModified: now,
-          changeFrequency: 'weekly' as const,
-          priority: 0.7,
-        })),
+        sub.slug
+          ? LOCALES.map((locale) => ({
+              url: urlFor(locale, `/categorie/${sub.slug}`),
+              lastModified: now,
+              changeFrequency: 'weekly' as const,
+              priority: 0.7,
+            }))
+          : [],
       );
       return [...main, ...subs];
     });
