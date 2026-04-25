@@ -437,8 +437,30 @@ Error responses:
 - **Library**: next-intl
 - **Default locale**: French (`fr`)
 - **Supported locales**: French (`fr`), English (`en`)
-- **URL structure**: `/{locale}/...` (e.g., `/fr/products`, `/en/products`)
+- **URL structure**: `localePrefix: 'as-needed'` — FR (default) has no prefix, EN does. So the same product is `/products/abc` in FR and `/en/products/abc` in EN.
 - **Translation files**: `messages/fr.json` and `messages/en.json` in each web app
+
+### Buyer-web static-page slugs
+The 8 static info pages (about, help, faq, terms, privacy, how-to-buy, how-to-sell, contact) live in the DB under English **canonical** slugs but are exposed in the URL via per-locale slugs for SEO:
+
+| Canonical (DB) | FR URL | EN URL |
+|---|---|---|
+| `about` | `/a-propos` | `/en/about` |
+| `help` | `/aide` | `/en/help` |
+| `faq` | `/faq` | `/en/faq` |
+| `terms` | `/conditions-utilisation` | `/en/terms` |
+| `privacy` | `/politique-confidentialite` | `/en/privacy` |
+| `how-to-buy` | `/comment-acheter` | `/en/how-to-buy` |
+| `how-to-sell` | `/comment-vendre` | `/en/how-to-sell` |
+| `contact` | `/contact` | `/en/contact` |
+
+Mapping lives in `apps/buyer-web/src/lib/static-pages.ts` (`PAGE_DEFINITIONS`). All 8 pages are pre-rendered at build time via `generateStaticParams`. 301 redirects in `next.config.ts` cover legacy `/pages/<slug>` and cross-locale slug typos. The content API (`GET /v1/content/:slug`) keys on the canonical slug only; URL-to-canonical resolution happens in the buyer-web route handler before any API call.
+
+### SEO surface
+- **Sitemap**: dynamic at `/sitemap.xml` (Next.js `app/sitemap.ts`). Includes home, categories + subcategories, cities, products (top 500 by recency), and the 16 localized static-page URLs.
+- **robots.txt**: dynamic at `/robots.txt` (Next.js `app/robots.ts`). Disallows `/checkout`, `/cart`, `/orders`, `/messages`, `/login`, `/register`, `/profile`, `/wishlist`. Points crawlers at the sitemap.
+- **hreflang**: every static page emits `alternates.languages` with FR + EN + `x-default` pointing at the FR URL. Home page does the same.
+- **JSON-LD**: Organization + WebSite (with SearchAction) on home; WebPage on each static page.
 
 ### Mobile Applications
 - **Library**: flutter_localizations + custom ARB files

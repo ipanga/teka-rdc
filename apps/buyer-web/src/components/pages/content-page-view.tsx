@@ -6,14 +6,22 @@ import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { JsonLd } from '@/components/seo/json-ld';
 import { ContactForm } from '@/components/contact/contact-form';
+import {
+  rewriteContentLink,
+  type CanonicalSlug,
+  type Locale,
+} from '@/lib/static-pages';
 
 interface ContentPageViewProps {
+  /** URL slug visible in the address bar (e.g. 'a-propos'). */
   slug: string;
+  /** Canonical (DB) slug — drives the contact-form trigger and link rewriting. */
+  canonical: CanonicalSlug;
   locale: string;
   title: string;
   body: string;
   // Back-link in the breadcrumb bar. Kept as a prop so pages can override it
-  // (e.g. /pages/contact → "Back to Help Center" when opened from the help CTA).
+  // (e.g. contact → "Back to Help Center" when opened from the help CTA).
   backHref?: string;
 }
 
@@ -22,11 +30,12 @@ interface ContentPageViewProps {
  * body via react-markdown with GitHub-flavored extensions (tables, autolinks,
  * task lists), plus JSON-LD structured data for SEO.
  *
- * The /pages/contact slug also renders the functional <ContactForm /> island
- * below the markdown copy.
+ * The contact page (canonical='contact') also renders the functional
+ * <ContactForm /> island below the markdown copy.
  */
 export async function ContentPageView({
   slug,
+  canonical,
   locale,
   title,
   body,
@@ -53,7 +62,7 @@ export async function ContentPageView({
           name: title,
           description,
           inLanguage: locale,
-          url: `https://teka.cd${locale === 'fr' ? '' : `/${locale}`}/pages/${slug}`,
+          url: `https://teka.cd${locale === 'fr' ? '' : `/${locale}`}/${slug}`,
           isPartOf: {
             '@type': 'WebSite',
             name: 'Teka RDC',
@@ -90,12 +99,15 @@ export async function ContentPageView({
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
-              // Route internal /pages/* links through next-intl's Link so the
-              // locale prefix is preserved.
+              // Route internal links through rewriteContentLink so legacy
+              // /pages/<en-slug> markdown still resolves to the right
+              // localized URL after the slug refactor. next-intl's <Link>
+              // adds the locale prefix on render.
               a: ({ href = '', children, ...props }) => {
                 if (href.startsWith('/') && !href.startsWith('//')) {
+                  const localized = rewriteContentLink(href, locale as Locale);
                   return (
-                    <Link href={href} {...props}>
+                    <Link href={localized} {...props}>
                       {children}
                     </Link>
                   );
@@ -117,7 +129,7 @@ export async function ContentPageView({
           </ReactMarkdown>
         </article>
 
-        {slug === 'contact' && (
+        {canonical === 'contact' && (
           <section className="mt-10">
             <ContactForm locale={locale} />
           </section>
