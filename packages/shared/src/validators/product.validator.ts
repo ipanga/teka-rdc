@@ -1,9 +1,7 @@
 import { z } from 'zod';
 
-const translatableTextSchema = z.object({
-  fr: z.string().min(1, 'Le texte en français est requis'),
-  en: z.string().optional(),
-});
+// Monolingual since 2026-04-25 — translatable fields are plain strings.
+const translatableTextSchema = z.string().min(1, 'Le texte en français est requis');
 
 export const createCategorySchema = z.object({
   name: translatableTextSchema,

@@ -205,7 +205,7 @@ async function main() {
       update: { isActive: city.isActive },
       create: {
         id: cityId(city.n),
-        name: { fr: city.fr, en: city.en } as any,
+        name: city.fr,
         province: city.province,
         isActive: city.isActive,
         sortOrder: city.n,
@@ -236,7 +236,7 @@ async function main() {
       create: {
         id: communeId(commune.n),
         cityId: cityId(commune.cityN),
-        name: { fr: commune.fr, en: commune.en } as any,
+        name: commune.fr,
         sortOrder: commune.n,
       },
     });
@@ -358,7 +358,7 @@ async function main() {
       update: {},
       create: {
         id,
-        name: { fr: cat.fr, en: cat.en } as any,
+        name: cat.fr,
         emoji: cat.emoji,
         sortOrder: cat.n,
         isActive: true,
@@ -442,7 +442,7 @@ async function main() {
       update: {},
       create: {
         id,
-        name: { fr: sub.fr, en: sub.en } as any,
+        name: sub.fr,
         parentCategoryId: parentId,
         sortOrder: sub.n % 100,
         isActive: true,
@@ -505,7 +505,7 @@ async function main() {
       create: {
         id,
         categoryId: attr.categoryId,
-        name: { fr: attr.fr, en: attr.en } as any,
+        name: attr.fr,
         type: attr.type,
         options: attr.options ? (attr.options as any) : undefined,
         isRequired: attr.isRequired ?? false,
@@ -562,7 +562,7 @@ async function main() {
       create: {
         id,
         slug,
-        name: { fr: cat.fr, en: cat.en } as any,
+        name: cat.fr,
         emoji: cat.emoji,
         sortOrder: cat.n,
         isActive: true,
@@ -641,7 +641,7 @@ async function main() {
       create: {
         id,
         slug,
-        name: { fr: sub.fr, en: sub.en } as any,
+        name: sub.fr,
         parentCategoryId: parentId,
         sortOrder: sub.n % 100,
         isActive: true,
@@ -804,7 +804,7 @@ async function main() {
       create: {
         id,
         categoryId: attr.categoryId,
-        name: { fr: attr.fr, en: attr.en } as any,
+        name: attr.fr,
         type: attr.type,
         options: attr.options ? (attr.options as any) : undefined,
         isRequired: attr.isRequired ?? false,
@@ -1311,8 +1311,8 @@ async function main() {
       create: {
         id,
         slug,
-        title: { fr: prod.titleFr, en: prod.titleEn } as any,
-        description: { fr: prod.descFr, en: prod.descEn } as any,
+        title: prod.titleFr,
+        description: prod.descFr,
         categoryId,
         sellerId: prod.sellerId,
         cityId: LUBUMBASHI_CITY_ID,
@@ -1560,7 +1560,7 @@ async function seedPhase4Data(
       unitPriceUSD: BigInt(1600),
       totalCDF: BigInt(4500000),
       totalUSD: BigInt(1600),
-      productTitle: { fr: 'Robe Wax Africaine - Modèle Kampala', en: 'African Wax Dress - Kampala Model' } as any,
+      productTitle: 'Robe Wax Africaine - Modèle Kampala',
       productImage: cloudThumb('cld-sample'),
     },
   });
@@ -1577,7 +1577,7 @@ async function seedPhase4Data(
       unitPriceUSD: BigInt(900),
       totalCDF: BigInt(2500000),
       totalUSD: BigInt(900),
-      productTitle: { fr: 'Casserole Inox 5L - Cuisine', en: 'Stainless Steel Pot 5L - Kitchen' } as any,
+      productTitle: 'Casserole Inox 5L - Cuisine',
       productImage: cloudThumb('cld-sample-4'),
     },
   });
@@ -1698,7 +1698,7 @@ async function seedPhase4Data(
       unitPriceUSD: BigInt(12500),
       totalCDF: BigInt(35000000),
       totalUSD: BigInt(12500),
-      productTitle: { fr: 'Samsung Galaxy A14 - 64Go', en: 'Samsung Galaxy A14 - 64GB' } as any,
+      productTitle: 'Samsung Galaxy A14 - 64Go',
       productImage: cloudThumb('sample'),
     },
   });
@@ -1759,7 +1759,7 @@ async function seedPhase4Data(
       unitPriceUSD: BigInt(2200),
       totalCDF: BigInt(6000000),
       totalUSD: BigInt(2200),
-      productTitle: { fr: 'Sac à Main en Cuir - Marron', en: 'Leather Handbag - Brown' } as any,
+      productTitle: 'Sac à Main en Cuir - Marron',
       productImage: cloudThumb('sample'),
     },
   });
@@ -1840,7 +1840,7 @@ async function seedPhase4Data(
       unitPriceUSD: BigInt(15000),
       totalCDF: BigInt(42000000),
       totalUSD: BigInt(15000),
-      productTitle: { fr: 'Tecno Spark 10 Pro - 128Go', en: 'Tecno Spark 10 Pro - 128GB' } as any,
+      productTitle: 'Tecno Spark 10 Pro - 128Go',
       productImage: cloudThumb('cld-sample-3'),
     },
   });
@@ -1857,7 +1857,7 @@ async function seedPhase4Data(
       unitPriceUSD: BigInt(700),
       totalCDF: order4Item2CDF,
       totalUSD: order4Item2USD,
-      productTitle: { fr: 'Souris Sans Fil Logitech M185', en: 'Logitech M185 Wireless Mouse' } as any,
+      productTitle: 'Souris Sans Fil Logitech M185',
       productImage: cloudThumb('cld-sample-2'),
     },
   });
@@ -1874,7 +1874,7 @@ async function seedPhase4Data(
       unitPriceUSD: BigInt(30000),
       totalCDF: BigInt(85000000),
       totalUSD: BigInt(30000),
-      productTitle: { fr: 'Téléviseur Samsung 43 Pouces - Smart TV', en: 'Samsung 43 Inch Smart TV' } as any,
+      productTitle: 'Téléviseur Samsung 43 Pouces - Smart TV',
       productImage: cloudThumb('cld-sample-4'),
     },
   });
@@ -1976,7 +1976,7 @@ async function seedPhase4Data(
       unitPriceUSD: BigInt(300),
       totalCDF: order5SubtotalCDF,
       totalUSD: order5SubtotalUSD,
-      productTitle: { fr: 'Huile Corporelle Karité - 250ml', en: 'Shea Body Oil - 250ml' } as any,
+      productTitle: 'Huile Corporelle Karité - 250ml',
       productImage: cloudThumb('cld-sample'),
     },
   });
@@ -2067,7 +2067,7 @@ async function seedPhase4Data(
       unitPriceUSD: BigInt(1200),
       totalCDF: order6Item1CDF,
       totalUSD: order6Item1USD,
-      productTitle: { fr: 'Chemise Homme en Lin - Blanche', en: "Men's Linen Shirt - White" } as any,
+      productTitle: 'Chemise Homme en Lin - Blanche',
       productImage: cloudThumb('cld-sample-3'),
     },
   });
@@ -2084,7 +2084,7 @@ async function seedPhase4Data(
       unitPriceUSD: BigInt(550),
       totalCDF: BigInt(1500000),
       totalUSD: BigInt(550),
-      productTitle: { fr: 'Ballon de Football - Taille 5', en: 'Football - Size 5' } as any,
+      productTitle: 'Ballon de Football - Taille 5',
       productImage: cloudThumb('cld-sample-5'),
     },
   });
@@ -2551,8 +2551,8 @@ async function seedPhase7Data(
   const banners = [
     {
       n: 1,
-      title: { fr: 'Bienvenue sur Teka RDC', en: 'Welcome to Teka RDC' },
-      subtitle: { fr: 'Votre marketplace en ligne pour le Congo', en: 'Your online marketplace for Congo' },
+      title: 'Bienvenue sur Teka RDC',
+      subtitle: 'Votre marketplace en ligne pour le Congo',
       imageUrl: 'https://res.cloudinary.com/demo/image/upload/v1/teka/banners/hero-welcome.jpg',
       linkType: 'url',
       linkTarget: '/categories',
@@ -2563,8 +2563,8 @@ async function seedPhase7Data(
     },
     {
       n: 2,
-      title: { fr: 'Soldes de Mars', en: 'March Sale' },
-      subtitle: { fr: 'Jusqu\'à -30% sur l\'électronique', en: 'Up to 30% off electronics' },
+      title: 'Soldes de Mars',
+      subtitle: 'Jusqu\'à -30% sur l\'électronique',
       imageUrl: 'https://res.cloudinary.com/demo/image/upload/v1/teka/banners/march-sale.jpg',
       linkType: 'category',
       linkTarget: catId(1),
@@ -2575,8 +2575,8 @@ async function seedPhase7Data(
     },
     {
       n: 3,
-      title: { fr: 'Fête de l\'indépendance', en: 'Independence Day' },
-      subtitle: { fr: 'Promotions spéciales pour le 30 juin', en: 'Special deals for June 30' },
+      title: 'Fête de l\'indépendance',
+      subtitle: 'Promotions spéciales pour le 30 juin',
       imageUrl: 'https://res.cloudinary.com/demo/image/upload/v1/teka/banners/independence.jpg',
       linkType: null,
       linkTarget: null,
@@ -2621,8 +2621,8 @@ async function seedPhase7Data(
     create: {
       id: promotionId(1),
       type: PromotionType.PROMOTION,
-      title: { fr: 'Promo Électronique', en: 'Electronics Promo' },
-      description: { fr: '10% de réduction sur tous les produits électroniques', en: '10% off all electronics' },
+      title: 'Promo Électronique',
+      description: '10% de réduction sur tous les produits électroniques',
       discountPercent: 10,
       status: PromotionStatus.ACTIVE,
       startsAt: new Date('2026-02-15T00:00:00Z'),
@@ -2641,8 +2641,8 @@ async function seedPhase7Data(
     create: {
       id: promotionId(2),
       type: PromotionType.FLASH_DEAL,
-      title: { fr: 'Vente Flash Samsung', en: 'Samsung Flash Sale' },
-      description: { fr: 'Samsung Galaxy A14 à prix réduit !', en: 'Samsung Galaxy A14 at reduced price!' },
+      title: 'Vente Flash Samsung',
+      description: 'Samsung Galaxy A14 à prix réduit !',
       discountPercent: 15,
       status: PromotionStatus.ACTIVE,
       startsAt: new Date('2026-02-26T08:00:00Z'),
@@ -2661,8 +2661,8 @@ async function seedPhase7Data(
     create: {
       id: promotionId(3),
       type: PromotionType.PROMOTION,
-      title: { fr: 'Soldes Boutique Marie', en: 'Boutique Marie Sale' },
-      description: { fr: 'Réduction sur les robes wax', en: 'Discount on wax dresses' },
+      title: 'Soldes Boutique Marie',
+      description: 'Réduction sur les robes wax',
       discountPercent: 20,
       status: PromotionStatus.PENDING_APPROVAL,
       startsAt: new Date('2026-03-01T00:00:00Z'),
@@ -2683,88 +2683,64 @@ async function seedPhase7Data(
     {
       n: 1,
       slug: 'faq',
-      title: { fr: 'Foire aux questions', en: 'Frequently Asked Questions' },
-      content: {
-        fr: '## Comment passer une commande ?\n\nParcourez nos produits, ajoutez au panier et suivez le processus de commande.\n\n## Quels sont les modes de paiement ?\n\nNous acceptons Mobile Money (M-Pesa, Airtel Money, Orange Money) et le paiement à la livraison.\n\n## Quel est le délai de livraison ?\n\nLa livraison se fait généralement sous 24 à 72 heures selon votre localisation.\n\n## Comment contacter le service client ?\n\nVous pouvez nous joindre via WhatsApp au +243 999 000 000 ou par email à support@teka.cd.',
-        en: '## How to place an order?\n\nBrowse our products, add to cart and follow the checkout process.\n\n## What are the payment methods?\n\nWe accept Mobile Money (M-Pesa, Airtel Money, Orange Money) and Cash on Delivery.\n\n## What is the delivery time?\n\nDelivery is usually within 24 to 72 hours depending on your location.\n\n## How to contact customer service?\n\nYou can reach us via WhatsApp at +243 999 000 000 or by email at support@teka.cd.',
-      },
+      title: 'Foire aux questions',
+      content: '## Comment passer une commande ?\n\nParcourez nos produits, ajoutez au panier et suivez le processus de commande.\n\n## Quels sont les modes de paiement ?\n\nNous acceptons Mobile Money (M-Pesa, Airtel Money, Orange Money) et le paiement à la livraison.\n\n## Quel est le délai de livraison ?\n\nLa livraison se fait généralement sous 24 à 72 heures selon votre localisation.\n\n## Comment contacter le service client ?\n\nVous pouvez nous joindre via WhatsApp au +243 999 000 000 ou par email à support@teka.cd.',
       status: ContentPageStatus.PUBLISHED,
       sortOrder: 1,
     },
     {
       n: 2,
       slug: 'terms',
-      title: { fr: 'Conditions générales d\'utilisation', en: 'Terms and Conditions' },
-      content: {
-        fr: '## 1. Acceptation des conditions\n\nEn utilisant la plateforme Teka RDC, vous acceptez les présentes conditions générales d\'utilisation.\n\n## 2. Inscription\n\nL\'inscription est ouverte à toute personne physique majeure résidant en République Démocratique du Congo.\n\n## 3. Commandes et paiements\n\nToute commande passée sur la plateforme constitue un contrat de vente entre l\'acheteur et le vendeur. Teka RDC agit en tant qu\'intermédiaire.\n\n## 4. Livraison\n\nLes délais de livraison sont indicatifs et peuvent varier selon la zone de livraison.\n\n## 5. Retours et remboursements\n\nLes retours sont acceptés dans un délai de 7 jours après réception du produit.',
-        en: '## 1. Acceptance of Terms\n\nBy using the Teka RDC platform, you agree to these terms and conditions.\n\n## 2. Registration\n\nRegistration is open to any adult individual residing in the Democratic Republic of Congo.\n\n## 3. Orders and Payments\n\nAny order placed on the platform constitutes a sales contract between the buyer and the seller. Teka RDC acts as an intermediary.\n\n## 4. Delivery\n\nDelivery times are indicative and may vary depending on the delivery area.\n\n## 5. Returns and Refunds\n\nReturns are accepted within 7 days of receiving the product.',
-      },
+      title: 'Conditions générales d\'utilisation',
+      content: '## 1. Acceptation des conditions\n\nEn utilisant la plateforme Teka RDC, vous acceptez les présentes conditions générales d\'utilisation.\n\n## 2. Inscription\n\nL\'inscription est ouverte à toute personne physique majeure résidant en République Démocratique du Congo.\n\n## 3. Commandes et paiements\n\nToute commande passée sur la plateforme constitue un contrat de vente entre l\'acheteur et le vendeur. Teka RDC agit en tant qu\'intermédiaire.\n\n## 4. Livraison\n\nLes délais de livraison sont indicatifs et peuvent varier selon la zone de livraison.\n\n## 5. Retours et remboursements\n\nLes retours sont acceptés dans un délai de 7 jours après réception du produit.',
       status: ContentPageStatus.PUBLISHED,
       sortOrder: 2,
     },
     {
       n: 3,
       slug: 'privacy',
-      title: { fr: 'Politique de confidentialité', en: 'Privacy Policy' },
-      content: {
-        fr: '## Collecte des données\n\nNous collectons uniquement les données nécessaires au bon fonctionnement de la plateforme : numéro de téléphone, nom, adresses de livraison.\n\n## Utilisation des données\n\nVos données sont utilisées pour traiter vos commandes, améliorer nos services et vous envoyer des notifications importantes.\n\n## Protection des données\n\nNous mettons en œuvre des mesures de sécurité appropriées pour protéger vos données personnelles.\n\n## Vos droits\n\nVous avez le droit d\'accéder, modifier ou supprimer vos données personnelles à tout moment.',
-        en: '## Data Collection\n\nWe only collect data necessary for the proper functioning of the platform: phone number, name, delivery addresses.\n\n## Data Usage\n\nYour data is used to process your orders, improve our services and send you important notifications.\n\n## Data Protection\n\nWe implement appropriate security measures to protect your personal data.\n\n## Your Rights\n\nYou have the right to access, modify or delete your personal data at any time.',
-      },
+      title: 'Politique de confidentialité',
+      content: '## Collecte des données\n\nNous collectons uniquement les données nécessaires au bon fonctionnement de la plateforme : numéro de téléphone, nom, adresses de livraison.\n\n## Utilisation des données\n\nVos données sont utilisées pour traiter vos commandes, améliorer nos services et vous envoyer des notifications importantes.\n\n## Protection des données\n\nNous mettons en œuvre des mesures de sécurité appropriées pour protéger vos données personnelles.\n\n## Vos droits\n\nVous avez le droit d\'accéder, modifier ou supprimer vos données personnelles à tout moment.',
       status: ContentPageStatus.PUBLISHED,
       sortOrder: 3,
     },
     {
       n: 4,
       slug: 'help',
-      title: { fr: 'Centre d\'aide', en: 'Help Center' },
-      content: {
-        fr: '## Besoin d\'aide ?\n\nNotre équipe est disponible pour vous aider du lundi au samedi, de 8h à 18h.\n\n### WhatsApp\n+243 999 000 000\n\n### Email\nsupport@teka.cd\n\n### Adresse\nAvenue Lumumba, Lubumbashi, Haut-Katanga, RDC',
-        en: '## Need Help?\n\nOur team is available to help you Monday to Saturday, 8am to 6pm.\n\n### WhatsApp\n+243 999 000 000\n\n### Email\nsupport@teka.cd\n\n### Address\nAvenue Lumumba, Lubumbashi, Haut-Katanga, DRC',
-      },
+      title: 'Centre d\'aide',
+      content: '## Besoin d\'aide ?\n\nNotre équipe est disponible pour vous aider du lundi au samedi, de 8h à 18h.\n\n### WhatsApp\n+243 999 000 000\n\n### Email\nsupport@teka.cd\n\n### Adresse\nAvenue Lumumba, Lubumbashi, Haut-Katanga, RDC',
       status: ContentPageStatus.PUBLISHED,
       sortOrder: 4,
     },
     {
       n: 5,
       slug: 'about',
-      title: { fr: 'À propos de Teka RDC', en: 'About Teka RDC' },
-      content: {
-        fr: 'Teka RDC est une plateforme de commerce en ligne dédiée à la République Démocratique du Congo. Notre mission est de connecter acheteurs et vendeurs à travers les provinces du Haut-Katanga et du Lualaba.',
-        en: 'Teka RDC is an online commerce platform dedicated to the Democratic Republic of Congo. Our mission is to connect buyers and sellers across the Haut-Katanga and Lualaba provinces.',
-      },
+      title: 'À propos de Teka RDC',
+      content: 'Teka RDC est une plateforme de commerce en ligne dédiée à la République Démocratique du Congo. Notre mission est de connecter acheteurs et vendeurs à travers les provinces du Haut-Katanga et du Lualaba.',
       status: ContentPageStatus.PUBLISHED,
       sortOrder: 5,
     },
     {
       n: 6,
       slug: 'contact',
-      title: { fr: 'Contactez-nous', en: 'Contact Us' },
-      content: {
-        fr: '## Contactez Teka RDC\n\nNous sommes là pour vous aider !\n\n**WhatsApp :** +243 999 000 000\n\n**Email :** support@teka.cd\n\n**Adresse :** Lubumbashi, Haut-Katanga, RD Congo\n\n**Horaires :** Lundi - Samedi, 8h00 - 18h00\n\nPour toute question sur vos commandes, livraisons ou votre compte, n\'hésitez pas à nous contacter.',
-        en: '## Contact Teka RDC\n\nWe are here to help!\n\n**WhatsApp:** +243 999 000 000\n\n**Email:** support@teka.cd\n\n**Address:** Lubumbashi, Haut-Katanga, DR Congo\n\n**Hours:** Monday - Saturday, 8:00 AM - 6:00 PM\n\nFor any questions about your orders, deliveries, or account, don\'t hesitate to contact us.',
-      },
+      title: 'Contactez-nous',
+      content: '## Contactez Teka RDC\n\nNous sommes là pour vous aider !\n\n**WhatsApp :** +243 999 000 000\n\n**Email :** support@teka.cd\n\n**Adresse :** Lubumbashi, Haut-Katanga, RD Congo\n\n**Horaires :** Lundi - Samedi, 8h00 - 18h00\n\nPour toute question sur vos commandes, livraisons ou votre compte, n\'hésitez pas à nous contacter.',
       status: ContentPageStatus.PUBLISHED,
       sortOrder: 6,
     },
     {
       n: 7,
       slug: 'how-to-buy',
-      title: { fr: 'Comment acheter', en: 'How to Buy' },
-      content: {
-        fr: '## Comment acheter sur Teka RDC\n\n### 1. Choisissez votre ville\nSélectionnez Lubumbashi ou Kolwezi pour voir les produits disponibles près de chez vous.\n\n### 2. Parcourez les produits\nNaviguez par catégorie ou utilisez la barre de recherche.\n\n### 3. Ajoutez au panier\nCliquez sur \"Ajouter au panier\" sur les produits qui vous intéressent.\n\n### 4. Passez commande\nEntrez votre adresse de livraison et choisissez votre mode de paiement :\n- **Mobile Money** (M-Pesa, Airtel Money, Orange Money)\n- **Paiement à la livraison** (espèces)\n\n### 5. Recevez votre commande\nVotre commande sera livrée dans un délai de 24 à 72 heures.',
-        en: '## How to Buy on Teka RDC\n\n### 1. Choose your city\nSelect Lubumbashi or Kolwezi to see products available near you.\n\n### 2. Browse products\nNavigate by category or use the search bar.\n\n### 3. Add to cart\nClick "Add to cart" on products you\'re interested in.\n\n### 4. Place your order\nEnter your delivery address and choose your payment method:\n- **Mobile Money** (M-Pesa, Airtel Money, Orange Money)\n- **Cash on Delivery**\n\n### 5. Receive your order\nYour order will be delivered within 24 to 72 hours.',
-      },
+      title: 'Comment acheter',
+      content: '## Comment acheter sur Teka RDC\n\n### 1. Choisissez votre ville\nSélectionnez Lubumbashi ou Kolwezi pour voir les produits disponibles près de chez vous.\n\n### 2. Parcourez les produits\nNaviguez par catégorie ou utilisez la barre de recherche.\n\n### 3. Ajoutez au panier\nCliquez sur \"Ajouter au panier\" sur les produits qui vous intéressent.\n\n### 4. Passez commande\nEntrez votre adresse de livraison et choisissez votre mode de paiement :\n- **Mobile Money** (M-Pesa, Airtel Money, Orange Money)\n- **Paiement à la livraison** (espèces)\n\n### 5. Recevez votre commande\nVotre commande sera livrée dans un délai de 24 à 72 heures.',
       status: ContentPageStatus.PUBLISHED,
       sortOrder: 7,
     },
     {
       n: 8,
       slug: 'how-to-sell',
-      title: { fr: 'Comment vendre', en: 'How to Sell' },
-      content: {
-        fr: '## Comment vendre sur Teka RDC\n\n### 1. Créez votre compte vendeur\nInscrivez-vous avec votre numéro de téléphone et soumettez votre demande vendeur avec vos informations commerciales.\n\n### 2. Attendez l\'approbation\nNotre équipe vérifie votre profil sous 24-48 heures.\n\n### 3. Ajoutez vos produits\nPubliez vos produits avec photos, descriptions en français et prix en francs congolais (CDF).\n\n### 4. Gérez vos commandes\nRecevez les commandes, confirmez-les et organisez la livraison.\n\n### 5. Recevez vos paiements\nVos revenus sont crédités sur votre portefeuille Teka. Demandez un virement vers votre compte Mobile Money à tout moment.\n\n**Commission :** Teka prélève une commission de 10% sur chaque vente.',
-        en: '## How to Sell on Teka RDC\n\n### 1. Create your seller account\nSign up with your phone number and submit your seller application with your business information.\n\n### 2. Wait for approval\nOur team reviews your profile within 24-48 hours.\n\n### 3. Add your products\nList your products with photos, French descriptions, and prices in Congolese francs (CDF).\n\n### 4. Manage your orders\nReceive orders, confirm them, and arrange delivery.\n\n### 5. Get paid\nYour earnings are credited to your Teka wallet. Request a payout to your Mobile Money account anytime.\n\n**Commission:** Teka takes a 10% commission on each sale.',
-      },
+      title: 'Comment vendre',
+      content: '## Comment vendre sur Teka RDC\n\n### 1. Créez votre compte vendeur\nInscrivez-vous avec votre numéro de téléphone et soumettez votre demande vendeur avec vos informations commerciales.\n\n### 2. Attendez l\'approbation\nNotre équipe vérifie votre profil sous 24-48 heures.\n\n### 3. Ajoutez vos produits\nPubliez vos produits avec photos, descriptions en français et prix en francs congolais (CDF).\n\n### 4. Gérez vos commandes\nRecevez les commandes, confirmez-les et organisez la livraison.\n\n### 5. Recevez vos paiements\nVos revenus sont crédités sur votre portefeuille Teka. Demandez un virement vers votre compte Mobile Money à tout moment.\n\n**Commission :** Teka prélève une commission de 10% sur chaque vente.',
       status: ContentPageStatus.PUBLISHED,
       sortOrder: 8,
     },
@@ -2794,14 +2770,14 @@ async function seedPhase7Data(
   console.log('  Seeding system settings...');
 
   const settings = [
-    { n: 1, key: 'MAINTENANCE_MODE', value: 'false', type: 'boolean', label: { fr: 'Mode maintenance', en: 'Maintenance Mode' } },
-    { n: 2, key: 'ENABLE_FLASH_DEALS', value: 'true', type: 'boolean', label: { fr: 'Activer les ventes flash', en: 'Enable Flash Deals' } },
-    { n: 3, key: 'ENABLE_SELLER_PROMOTIONS', value: 'true', type: 'boolean', label: { fr: 'Activer les promotions vendeur', en: 'Enable Seller Promotions' } },
-    { n: 4, key: 'ENABLE_REVIEWS', value: 'true', type: 'boolean', label: { fr: 'Activer les avis', en: 'Enable Reviews' } },
-    { n: 5, key: 'ENABLE_MESSAGING', value: 'true', type: 'boolean', label: { fr: 'Activer la messagerie', en: 'Enable Messaging' } },
-    { n: 6, key: 'MAX_BANNER_COUNT', value: '5', type: 'number', label: { fr: 'Nombre max de bannières', en: 'Max Banner Count' } },
-    { n: 7, key: 'DEFAULT_DELIVERY_FEE_CDF', value: '500000', type: 'number', label: { fr: 'Frais de livraison par défaut (centimes CDF)', en: 'Default Delivery Fee (CDF centimes)' } },
-    { n: 8, key: 'PLATFORM_ANNOUNCEMENT', value: '', type: 'string', label: { fr: 'Annonce plateforme', en: 'Platform Announcement' } },
+    { n: 1, key: 'MAINTENANCE_MODE', value: 'false', type: 'boolean', label: 'Mode maintenance' },
+    { n: 2, key: 'ENABLE_FLASH_DEALS', value: 'true', type: 'boolean', label: 'Activer les ventes flash' },
+    { n: 3, key: 'ENABLE_SELLER_PROMOTIONS', value: 'true', type: 'boolean', label: 'Activer les promotions vendeur' },
+    { n: 4, key: 'ENABLE_REVIEWS', value: 'true', type: 'boolean', label: 'Activer les avis' },
+    { n: 5, key: 'ENABLE_MESSAGING', value: 'true', type: 'boolean', label: 'Activer la messagerie' },
+    { n: 6, key: 'MAX_BANNER_COUNT', value: '5', type: 'number', label: 'Nombre max de bannières' },
+    { n: 7, key: 'DEFAULT_DELIVERY_FEE_CDF', value: '500000', type: 'number', label: 'Frais de livraison par défaut (centimes CDF)' },
+    { n: 8, key: 'PLATFORM_ANNOUNCEMENT', value: '', type: 'string', label: 'Annonce plateforme' },
   ];
 
   for (const setting of settings) {
@@ -2895,94 +2871,64 @@ async function seedPlatformBaseline(adminId: string) {
     {
       n: 1,
       slug: 'faq',
-      title: { fr: 'Foire aux questions', en: 'Frequently Asked Questions' },
-      content: {
-        fr: '## Comment passer une commande ?\n\nParcourez nos produits, ajoutez-les à votre panier et suivez le processus de commande en 4 étapes : panier, adresse de livraison, paiement, confirmation.\n\n## Quels sont les modes de paiement acceptés ?\n\nNous acceptons :\n\n- **Mobile Money** — M-Pesa (Vodacom), Airtel Money, Orange Money\n- **Paiement à la livraison** (espèces) — disponible à Lubumbashi et Kolwezi\n\nLes paiements par carte ne sont pas encore supportés.\n\n## Quel est le délai de livraison ?\n\nLa livraison se fait généralement sous **24 à 72 heures** selon votre quartier. Une notification SMS vous avertit à chaque étape (confirmé, expédié, en cours de livraison, livré).\n\n## Comment retourner un produit ?\n\nVous disposez de **7 jours** après réception pour signaler un problème. Contactez le service client par WhatsApp ou email, et nous organisons le retour avec le vendeur.\n\n## Mon paiement Mobile Money a échoué, que faire ?\n\nVérifiez d\'abord que votre numéro est bien actif et que vous avez un solde suffisant. Si le problème persiste, contactez-nous avec votre numéro de commande — nous pouvons relancer la transaction ou basculer en paiement à la livraison.\n\n## Comment devenir vendeur ?\n\nCréez votre compte acheteur, puis demandez l\'accès vendeur depuis votre profil. Voir la page [Comment vendre](/pages/how-to-sell) pour les détails.\n\n## Comment contacter le service client ?\n\nPar WhatsApp au **+243 999 000 000**, par email à **support@teka.cd**, ou via le [formulaire de contact](/pages/contact).\n\nHoraires : lundi à samedi, 8h à 18h.',
-        en: '## How do I place an order?\n\nBrowse our products, add them to your cart, then follow the 4-step checkout: cart → delivery address → payment → confirmation.\n\n## What payment methods are accepted?\n\nWe accept:\n\n- **Mobile Money** — M-Pesa (Vodacom), Airtel Money, Orange Money\n- **Cash on Delivery** — available in Lubumbashi and Kolwezi\n\nCard payments are not yet supported.\n\n## What is the delivery time?\n\nDelivery usually takes **24 to 72 hours** depending on your neighborhood. You get an SMS notification at each stage (confirmed, shipped, out for delivery, delivered).\n\n## How do I return an item?\n\nYou have **7 days** from receipt to report an issue. Contact customer service via WhatsApp or email, and we\'ll arrange the return with the seller.\n\n## My Mobile Money payment failed — what now?\n\nFirst check that your number is active and has enough balance. If the problem persists, contact us with your order number — we can retry the transaction or switch to cash on delivery.\n\n## How do I become a seller?\n\nCreate your buyer account, then request seller access from your profile. See the [How to Sell](/pages/how-to-sell) page for details.\n\n## How do I contact customer service?\n\nVia WhatsApp at **+243 999 000 000**, email **support@teka.cd**, or the [contact form](/pages/contact).\n\nHours: Monday to Saturday, 8 AM to 6 PM.',
-      },
+      title: 'Foire aux questions',
+      content: '## Comment passer une commande ?\n\nParcourez nos produits, ajoutez-les à votre panier et suivez le processus de commande en 4 étapes : panier, adresse de livraison, paiement, confirmation.\n\n## Quels sont les modes de paiement acceptés ?\n\nNous acceptons :\n\n- **Mobile Money** — M-Pesa (Vodacom), Airtel Money, Orange Money\n- **Paiement à la livraison** (espèces) — disponible à Lubumbashi et Kolwezi\n\nLes paiements par carte ne sont pas encore supportés.\n\n## Quel est le délai de livraison ?\n\nLa livraison se fait généralement sous **24 à 72 heures** selon votre quartier. Une notification SMS vous avertit à chaque étape (confirmé, expédié, en cours de livraison, livré).\n\n## Comment retourner un produit ?\n\nVous disposez de **7 jours** après réception pour signaler un problème. Contactez le service client par WhatsApp ou email, et nous organisons le retour avec le vendeur.\n\n## Mon paiement Mobile Money a échoué, que faire ?\n\nVérifiez d\'abord que votre numéro est bien actif et que vous avez un solde suffisant. Si le problème persiste, contactez-nous avec votre numéro de commande — nous pouvons relancer la transaction ou basculer en paiement à la livraison.\n\n## Comment devenir vendeur ?\n\nCréez votre compte acheteur, puis demandez l\'accès vendeur depuis votre profil. Voir la page [Comment vendre](/pages/how-to-sell) pour les détails.\n\n## Comment contacter le service client ?\n\nPar WhatsApp au **+243 999 000 000**, par email à **support@teka.cd**, ou via le [formulaire de contact](/pages/contact).\n\nHoraires : lundi à samedi, 8h à 18h.',
       status: ContentPageStatus.PUBLISHED,
       sortOrder: 1,
     },
     {
       n: 2,
       slug: 'terms',
-      title: {
-        fr: "Conditions générales d'utilisation",
-        en: 'Terms and Conditions',
-      },
-      content: {
-        fr: "## 1. Acceptation des conditions\n\nEn accédant à la plateforme Teka RDC (teka.cd), vous acceptez sans réserve les présentes conditions générales d'utilisation. Si vous n'êtes pas d'accord, n'utilisez pas la plateforme.\n\n## 2. Inscription et compte\n\n- L'inscription est ouverte à toute personne physique **majeure** (18 ans minimum) résidant en République Démocratique du Congo.\n- Vous êtes responsable de la confidentialité de vos identifiants et de toute activité effectuée avec votre compte.\n- Teka RDC se réserve le droit de suspendre tout compte en cas de fraude, usurpation d'identité, ou violation des présentes conditions.\n\n## 3. Rôles\n\n- **Acheteur** : passe des commandes auprès des vendeurs inscrits sur la plateforme.\n- **Vendeur** : publie des produits et gère les commandes reçues. Soumis à une vérification préalable de Teka RDC.\n- Teka RDC agit exclusivement en tant qu'intermédiaire technique entre acheteurs et vendeurs.\n\n## 4. Commandes et paiements\n\nToute commande confirmée constitue un contrat de vente entre l'acheteur et le vendeur. Teka RDC collecte le paiement au nom du vendeur et lui verse ses revenus déduction faite de la commission plateforme (10 % par défaut, sauf accord particulier).\n\n## 5. Livraison\n\nLes délais de livraison annoncés sont indicatifs. Les vendeurs sont responsables de la préparation et de la remise des colis aux livreurs.\n\n## 6. Retours et remboursements\n\nLes retours sont acceptés dans un **délai de 7 jours** après réception si le produit est non conforme, défectueux, ou endommagé. Les frais de retour sont à la charge du vendeur si la faute lui est imputable.\n\n## 7. Contenu publié\n\nLes vendeurs garantissent détenir tous les droits sur les images et descriptions qu'ils publient. Teka RDC peut retirer tout contenu qui viole les droits de tiers, la loi applicable, ou les règles de la plateforme.\n\n## 8. Propriété intellectuelle\n\nLa marque Teka RDC, le logo, le design et le code de la plateforme sont la propriété exclusive de Teka RDC SAS. Toute reproduction non autorisée est interdite.\n\n## 9. Limitation de responsabilité\n\nTeka RDC ne peut être tenu responsable des préjudices indirects résultant de l'utilisation de la plateforme. En cas de litige entre acheteur et vendeur, Teka RDC peut intervenir en médiation mais n'est pas partie au contrat de vente.\n\n## 10. Droit applicable\n\nLes présentes conditions sont régies par le droit congolais. Tout litige est soumis aux juridictions compétentes de Lubumbashi.\n\n## 11. Modifications\n\nTeka RDC peut modifier ces conditions à tout moment. La version en vigueur est celle publiée sur cette page. Les utilisateurs actifs sont informés des changements substantiels par SMS ou email.\n\n_Dernière mise à jour : avril 2026._",
-        en: '## 1. Acceptance of Terms\n\nBy accessing the Teka RDC platform (teka.cd), you agree without reservation to these terms and conditions. If you do not agree, do not use the platform.\n\n## 2. Registration and Account\n\n- Registration is open to any **adult** (18+) individual residing in the Democratic Republic of Congo.\n- You are responsible for keeping your credentials confidential and for any activity performed with your account.\n- Teka RDC reserves the right to suspend any account in case of fraud, identity theft, or violation of these terms.\n\n## 3. Roles\n\n- **Buyer**: places orders from sellers registered on the platform.\n- **Seller**: publishes products and manages received orders. Subject to prior verification by Teka RDC.\n- Teka RDC acts exclusively as a technical intermediary between buyers and sellers.\n\n## 4. Orders and Payments\n\nAny confirmed order constitutes a sales contract between the buyer and the seller. Teka RDC collects payment on behalf of the seller and transfers earnings after deducting the platform commission (10% by default, unless otherwise agreed).\n\n## 5. Delivery\n\nAnnounced delivery times are indicative. Sellers are responsible for preparing and handing packages to delivery couriers.\n\n## 6. Returns and Refunds\n\nReturns are accepted within **7 days** of receipt if the product is non-compliant, defective, or damaged. Return shipping costs are borne by the seller if the fault lies with them.\n\n## 7. Published Content\n\nSellers guarantee they own all rights to the images and descriptions they publish. Teka RDC may remove any content that violates third-party rights, applicable law, or platform rules.\n\n## 8. Intellectual Property\n\nThe Teka RDC brand, logo, design, and platform code are the exclusive property of Teka RDC SAS. Unauthorized reproduction is prohibited.\n\n## 9. Limitation of Liability\n\nTeka RDC cannot be held liable for indirect damages resulting from use of the platform. In case of a dispute between buyer and seller, Teka RDC may mediate but is not a party to the sales contract.\n\n## 10. Governing Law\n\nThese terms are governed by Congolese law. Any dispute is subject to the competent courts of Lubumbashi.\n\n## 11. Changes\n\nTeka RDC may modify these terms at any time. The current version is the one published on this page. Active users are notified of substantial changes by SMS or email.\n\n_Last updated: April 2026._',
-      },
+      title: "Conditions générales d'utilisation",
+      content: "## 1. Acceptation des conditions\n\nEn accédant à la plateforme Teka RDC (teka.cd), vous acceptez sans réserve les présentes conditions générales d'utilisation. Si vous n'êtes pas d'accord, n'utilisez pas la plateforme.\n\n## 2. Inscription et compte\n\n- L'inscription est ouverte à toute personne physique **majeure** (18 ans minimum) résidant en République Démocratique du Congo.\n- Vous êtes responsable de la confidentialité de vos identifiants et de toute activité effectuée avec votre compte.\n- Teka RDC se réserve le droit de suspendre tout compte en cas de fraude, usurpation d'identité, ou violation des présentes conditions.\n\n## 3. Rôles\n\n- **Acheteur** : passe des commandes auprès des vendeurs inscrits sur la plateforme.\n- **Vendeur** : publie des produits et gère les commandes reçues. Soumis à une vérification préalable de Teka RDC.\n- Teka RDC agit exclusivement en tant qu'intermédiaire technique entre acheteurs et vendeurs.\n\n## 4. Commandes et paiements\n\nToute commande confirmée constitue un contrat de vente entre l'acheteur et le vendeur. Teka RDC collecte le paiement au nom du vendeur et lui verse ses revenus déduction faite de la commission plateforme (10 % par défaut, sauf accord particulier).\n\n## 5. Livraison\n\nLes délais de livraison annoncés sont indicatifs. Les vendeurs sont responsables de la préparation et de la remise des colis aux livreurs.\n\n## 6. Retours et remboursements\n\nLes retours sont acceptés dans un **délai de 7 jours** après réception si le produit est non conforme, défectueux, ou endommagé. Les frais de retour sont à la charge du vendeur si la faute lui est imputable.\n\n## 7. Contenu publié\n\nLes vendeurs garantissent détenir tous les droits sur les images et descriptions qu'ils publient. Teka RDC peut retirer tout contenu qui viole les droits de tiers, la loi applicable, ou les règles de la plateforme.\n\n## 8. Propriété intellectuelle\n\nLa marque Teka RDC, le logo, le design et le code de la plateforme sont la propriété exclusive de Teka RDC SAS. Toute reproduction non autorisée est interdite.\n\n## 9. Limitation de responsabilité\n\nTeka RDC ne peut être tenu responsable des préjudices indirects résultant de l'utilisation de la plateforme. En cas de litige entre acheteur et vendeur, Teka RDC peut intervenir en médiation mais n'est pas partie au contrat de vente.\n\n## 10. Droit applicable\n\nLes présentes conditions sont régies par le droit congolais. Tout litige est soumis aux juridictions compétentes de Lubumbashi.\n\n## 11. Modifications\n\nTeka RDC peut modifier ces conditions à tout moment. La version en vigueur est celle publiée sur cette page. Les utilisateurs actifs sont informés des changements substantiels par SMS ou email.\n\n_Dernière mise à jour : avril 2026._",
       status: ContentPageStatus.PUBLISHED,
       sortOrder: 2,
     },
     {
       n: 3,
       slug: 'privacy',
-      title: {
-        fr: 'Politique de confidentialité',
-        en: 'Privacy Policy',
-      },
-      content: {
-        fr: "## Qui nous sommes\n\nTeka RDC SAS, société immatriculée en République Démocratique du Congo, exploite la plateforme e-commerce teka.cd. Nous sommes responsables du traitement des données personnelles collectées sur nos sites web et applications mobiles.\n\n## Données que nous collectons\n\nNous ne collectons que les données strictement nécessaires au fonctionnement de la plateforme :\n\n- **Identité** : prénom, nom\n- **Contact** : numéro de téléphone (obligatoire), email (optionnel)\n- **Livraison** : adresses (ville, commune, avenue, référence)\n- **Commandes** : historique d'achats et de ventes\n- **Techniques** : adresse IP, type d'appareil, langue du navigateur\n\n## Comment nous utilisons vos données\n\n- Traiter et livrer vos commandes\n- Vous authentifier de manière sécurisée (OTP SMS, mot de passe, Google OAuth)\n- Vous envoyer des notifications transactionnelles (confirmation de commande, suivi de livraison, reçu de paiement)\n- Détecter et prévenir la fraude\n- Améliorer nos services (analyses agrégées et anonymisées)\n\nNous n'utilisons **pas** vos données à des fins publicitaires sans votre consentement explicite.\n\n## Partage avec des tiers\n\nVos données peuvent être partagées uniquement avec :\n\n- **Le vendeur** concerné par votre commande (nom, adresse de livraison, numéro de téléphone)\n- **Les prestataires de paiement** (Flexpay, Orange Money, etc.) pour exécuter les transactions\n- **Les prestataires SMS et email** (Orange DRC, Resend) pour les notifications\n- **Les autorités** légales sur réquisition judiciaire uniquement\n\n## Sécurité\n\n- Les mots de passe sont hashés avec bcrypt (rounds ≥ 12)\n- Les tokens de session sont stockés dans des cookies httpOnly\n- Les communications sont chiffrées en HTTPS/TLS 1.2+\n- Les secrets (clés API, JWT) sont stockés hors du code source\n\n## Vos droits\n\nConformément à la réglementation, vous avez le droit de :\n\n- **Accéder** à vos données personnelles\n- **Rectifier** des informations incorrectes\n- **Supprimer** votre compte et vos données\n- **Retirer** votre consentement à tout moment\n- **Portabilité** : recevoir une copie de vos données dans un format lisible\n\nPour exercer ces droits, écrivez à **privacy@teka.cd** avec une pièce d'identité.\n\n## Conservation\n\nVos données sont conservées pendant la durée de votre compte actif. En cas de suppression, nous conservons certains registres (commandes, factures, paiements) pendant **10 ans** pour respecter nos obligations comptables et fiscales.\n\n## Cookies\n\nNous utilisons des cookies strictement nécessaires (authentification, préférences de langue, panier). Aucun cookie de traçage publicitaire n'est déposé sans votre consentement.\n\n## Contact\n\nQuestions sur la vie privée : **privacy@teka.cd**\n\n_Dernière mise à jour : avril 2026._",
-        en: '## Who We Are\n\nTeka RDC SAS, a company registered in the Democratic Republic of Congo, operates the teka.cd e-commerce platform. We are responsible for processing personal data collected on our websites and mobile apps.\n\n## Data We Collect\n\nWe only collect data strictly necessary for platform operations:\n\n- **Identity**: first name, last name\n- **Contact**: phone number (required), email (optional)\n- **Delivery**: addresses (city, commune, avenue, landmark)\n- **Orders**: purchase and sales history\n- **Technical**: IP address, device type, browser language\n\n## How We Use Your Data\n\n- Process and deliver your orders\n- Authenticate you securely (SMS OTP, password, Google OAuth)\n- Send you transactional notifications (order confirmation, delivery tracking, payment receipt)\n- Detect and prevent fraud\n- Improve our services (aggregated and anonymized analytics)\n\nWe do **not** use your data for advertising without your explicit consent.\n\n## Sharing with Third Parties\n\nYour data may be shared only with:\n\n- **The seller** involved in your order (name, delivery address, phone number)\n- **Payment processors** (Flexpay, Orange Money, etc.) to execute transactions\n- **SMS and email providers** (Orange DRC, Resend) for notifications\n- **Legal authorities** only upon judicial request\n\n## Security\n\n- Passwords are hashed with bcrypt (rounds ≥ 12)\n- Session tokens are stored in httpOnly cookies\n- Communications are encrypted with HTTPS/TLS 1.2+\n- Secrets (API keys, JWT) are stored outside source code\n\n## Your Rights\n\nUnder applicable regulations, you have the right to:\n\n- **Access** your personal data\n- **Correct** incorrect information\n- **Delete** your account and data\n- **Withdraw** consent at any time\n- **Portability**: receive a copy of your data in a readable format\n\nTo exercise these rights, email **privacy@teka.cd** with a photo ID.\n\n## Retention\n\nYour data is kept as long as your account is active. After deletion, we retain certain records (orders, invoices, payments) for **10 years** to comply with accounting and tax obligations.\n\n## Cookies\n\nWe use strictly necessary cookies (authentication, language preferences, cart). No advertising tracking cookies are set without your consent.\n\n## Contact\n\nPrivacy questions: **privacy@teka.cd**\n\n_Last updated: April 2026._',
-      },
+      title: 'Politique de confidentialité',
+      content: "## Qui nous sommes\n\nTeka RDC SAS, société immatriculée en République Démocratique du Congo, exploite la plateforme e-commerce teka.cd. Nous sommes responsables du traitement des données personnelles collectées sur nos sites web et applications mobiles.\n\n## Données que nous collectons\n\nNous ne collectons que les données strictement nécessaires au fonctionnement de la plateforme :\n\n- **Identité** : prénom, nom\n- **Contact** : numéro de téléphone (obligatoire), email (optionnel)\n- **Livraison** : adresses (ville, commune, avenue, référence)\n- **Commandes** : historique d'achats et de ventes\n- **Techniques** : adresse IP, type d'appareil, langue du navigateur\n\n## Comment nous utilisons vos données\n\n- Traiter et livrer vos commandes\n- Vous authentifier de manière sécurisée (OTP SMS, mot de passe, Google OAuth)\n- Vous envoyer des notifications transactionnelles (confirmation de commande, suivi de livraison, reçu de paiement)\n- Détecter et prévenir la fraude\n- Améliorer nos services (analyses agrégées et anonymisées)\n\nNous n'utilisons **pas** vos données à des fins publicitaires sans votre consentement explicite.\n\n## Partage avec des tiers\n\nVos données peuvent être partagées uniquement avec :\n\n- **Le vendeur** concerné par votre commande (nom, adresse de livraison, numéro de téléphone)\n- **Les prestataires de paiement** (Flexpay, Orange Money, etc.) pour exécuter les transactions\n- **Les prestataires SMS et email** (Orange DRC, Resend) pour les notifications\n- **Les autorités** légales sur réquisition judiciaire uniquement\n\n## Sécurité\n\n- Les mots de passe sont hashés avec bcrypt (rounds ≥ 12)\n- Les tokens de session sont stockés dans des cookies httpOnly\n- Les communications sont chiffrées en HTTPS/TLS 1.2+\n- Les secrets (clés API, JWT) sont stockés hors du code source\n\n## Vos droits\n\nConformément à la réglementation, vous avez le droit de :\n\n- **Accéder** à vos données personnelles\n- **Rectifier** des informations incorrectes\n- **Supprimer** votre compte et vos données\n- **Retirer** votre consentement à tout moment\n- **Portabilité** : recevoir une copie de vos données dans un format lisible\n\nPour exercer ces droits, écrivez à **privacy@teka.cd** avec une pièce d'identité.\n\n## Conservation\n\nVos données sont conservées pendant la durée de votre compte actif. En cas de suppression, nous conservons certains registres (commandes, factures, paiements) pendant **10 ans** pour respecter nos obligations comptables et fiscales.\n\n## Cookies\n\nNous utilisons des cookies strictement nécessaires (authentification, préférences de langue, panier). Aucun cookie de traçage publicitaire n'est déposé sans votre consentement.\n\n## Contact\n\nQuestions sur la vie privée : **privacy@teka.cd**\n\n_Dernière mise à jour : avril 2026._",
       status: ContentPageStatus.PUBLISHED,
       sortOrder: 3,
     },
     {
       n: 4,
       slug: 'help',
-      title: { fr: "Centre d'aide", en: 'Help Center' },
-      content: {
-        fr: "## Nous sommes là pour vous aider\n\nNotre équipe support est disponible **du lundi au samedi, 8h à 18h**.\n\n### Nous contacter\n\n- **WhatsApp** : [+243 999 000 000](https://wa.me/243999000000)\n- **Email** : support@teka.cd\n- **Formulaire de contact** : [cliquez ici](/pages/contact)\n- **Adresse** : Avenue Lumumba, Lubumbashi, Haut-Katanga, RDC\n\n### Questions fréquentes\n\nPour les questions les plus courantes, consultez notre [FAQ](/pages/faq). Vous y trouverez les réponses sur :\n\n- La procédure de commande\n- Les modes de paiement\n- Les délais de livraison\n- Les retours et remboursements\n\n### Guides\n\n- [Comment acheter sur Teka RDC](/pages/how-to-buy)\n- [Comment vendre sur Teka RDC](/pages/how-to-sell)\n\n### Problème avec une commande ?\n\nMunissez-vous de votre **numéro de commande** (format `TK-XXXXXXXX`, visible sur votre page Commandes) avant de nous contacter. Cela nous permettra d'agir beaucoup plus vite.\n\n### Problème de connexion ?\n\n- **Acheteur** : utilisez « Mot de passe oublié » ou demandez un nouveau code OTP SMS.\n- **Vendeur** : utilisez le lien « Configurer mon compte vendeur » sur la page de connexion pour migrer votre compte.\n- **Administrateur** : contactez-nous directement via email.",
-        en: '## We Are Here to Help\n\nOur support team is available **Monday to Saturday, 8 AM to 6 PM**.\n\n### Contact Us\n\n- **WhatsApp**: [+243 999 000 000](https://wa.me/243999000000)\n- **Email**: support@teka.cd\n- **Contact form**: [click here](/pages/contact)\n- **Address**: Avenue Lumumba, Lubumbashi, Haut-Katanga, DRC\n\n### Frequently Asked Questions\n\nFor the most common questions, see our [FAQ](/pages/faq). You\'ll find answers on:\n\n- The ordering process\n- Payment methods\n- Delivery times\n- Returns and refunds\n\n### Guides\n\n- [How to Buy on Teka RDC](/pages/how-to-buy)\n- [How to Sell on Teka RDC](/pages/how-to-sell)\n\n### Order Issue?\n\nHave your **order number** ready (format `TK-XXXXXXXX`, visible on your Orders page) before contacting us. It lets us help much faster.\n\n### Sign-in Issue?\n\n- **Buyer**: use "Forgot password" or request a new SMS OTP.\n- **Seller**: use the "Set up your seller account" link on the sign-in page to migrate your account.\n- **Admin**: contact us directly via email.',
-      },
+      title: "Centre d'aide",
+      content: "## Nous sommes là pour vous aider\n\nNotre équipe support est disponible **du lundi au samedi, 8h à 18h**.\n\n### Nous contacter\n\n- **WhatsApp** : [+243 999 000 000](https://wa.me/243999000000)\n- **Email** : support@teka.cd\n- **Formulaire de contact** : [cliquez ici](/pages/contact)\n- **Adresse** : Avenue Lumumba, Lubumbashi, Haut-Katanga, RDC\n\n### Questions fréquentes\n\nPour les questions les plus courantes, consultez notre [FAQ](/pages/faq). Vous y trouverez les réponses sur :\n\n- La procédure de commande\n- Les modes de paiement\n- Les délais de livraison\n- Les retours et remboursements\n\n### Guides\n\n- [Comment acheter sur Teka RDC](/pages/how-to-buy)\n- [Comment vendre sur Teka RDC](/pages/how-to-sell)\n\n### Problème avec une commande ?\n\nMunissez-vous de votre **numéro de commande** (format `TK-XXXXXXXX`, visible sur votre page Commandes) avant de nous contacter. Cela nous permettra d'agir beaucoup plus vite.\n\n### Problème de connexion ?\n\n- **Acheteur** : utilisez « Mot de passe oublié » ou demandez un nouveau code OTP SMS.\n- **Vendeur** : utilisez le lien « Configurer mon compte vendeur » sur la page de connexion pour migrer votre compte.\n- **Administrateur** : contactez-nous directement via email.",
       status: ContentPageStatus.PUBLISHED,
       sortOrder: 4,
     },
     {
       n: 5,
       slug: 'about',
-      title: { fr: 'À propos de Teka RDC', en: 'About Teka RDC' },
-      content: {
-        fr: "## Qui sommes-nous\n\n**Teka RDC** est une place de marché en ligne dédiée à la République Démocratique du Congo. Notre mission est de **connecter acheteurs et vendeurs locaux** avec une expérience adaptée aux réalités du pays : connexions 2G/3G fréquentes, paiements Mobile Money, livraison par coursiers locaux, contenu en français d'abord.\n\n## Nos valeurs\n\n- **Local d'abord** — vendeurs vérifiés, catalogues adaptés aux besoins congolais, prix en francs congolais (CDF)\n- **Simple et rapide** — pages légères qui chargent même en 3G, paiements Mobile Money en un clic, suivi de commande en temps réel par SMS\n- **Transparent** — commission annoncée dès l'inscription (10 % par défaut), aucun frais caché pour l'acheteur, retours acceptés sous 7 jours\n\n## Où nous opérons\n\nNous lançons à **Lubumbashi** (Haut-Katanga) et **Kolwezi** (Lualaba) — les deux pôles économiques du sud du pays. Notre architecture permet d'ajouter de nouvelles villes sans refonte technique ; la roadmap inclut Likasi, Goma, Bukavu, Kinshasa.\n\n## Équipe\n\nUne équipe congolaise basée à Lubumbashi, avec l'appui de développeurs à distance. Nous recrutons — postulez par email à **careers@teka.cd**.\n\n## Contact\n\n- **Email général** : hello@teka.cd\n- **Support client** : support@teka.cd\n- **Partenariats** : partnerships@teka.cd\n- **Presse** : press@teka.cd",
-        en: '## Who We Are\n\n**Teka RDC** is an online marketplace dedicated to the Democratic Republic of Congo. Our mission is to **connect local buyers and sellers** with an experience tailored to the country\'s realities: frequent 2G/3G connections, Mobile Money payments, local courier delivery, French-first content.\n\n## Our Values\n\n- **Local first** — verified sellers, catalogs tailored to Congolese needs, prices in Congolese francs (CDF)\n- **Simple and fast** — lightweight pages that load even on 3G, one-click Mobile Money payments, real-time SMS order tracking\n- **Transparent** — commission disclosed at sign-up (10% by default), no hidden fees for buyers, returns accepted within 7 days\n\n## Where We Operate\n\nWe launch in **Lubumbashi** (Haut-Katanga) and **Kolwezi** (Lualaba) — the two economic hubs of southern DRC. Our architecture allows adding new cities without a technical overhaul; the roadmap includes Likasi, Goma, Bukavu, Kinshasa.\n\n## Team\n\nA Congolese team based in Lubumbashi, with remote developer support. We are hiring — apply by email to **careers@teka.cd**.\n\n## Contact\n\n- **General email**: hello@teka.cd\n- **Customer support**: support@teka.cd\n- **Partnerships**: partnerships@teka.cd\n- **Press**: press@teka.cd',
-      },
+      title: 'À propos de Teka RDC',
+      content: "## Qui sommes-nous\n\n**Teka RDC** est une place de marché en ligne dédiée à la République Démocratique du Congo. Notre mission est de **connecter acheteurs et vendeurs locaux** avec une expérience adaptée aux réalités du pays : connexions 2G/3G fréquentes, paiements Mobile Money, livraison par coursiers locaux, contenu en français d'abord.\n\n## Nos valeurs\n\n- **Local d'abord** — vendeurs vérifiés, catalogues adaptés aux besoins congolais, prix en francs congolais (CDF)\n- **Simple et rapide** — pages légères qui chargent même en 3G, paiements Mobile Money en un clic, suivi de commande en temps réel par SMS\n- **Transparent** — commission annoncée dès l'inscription (10 % par défaut), aucun frais caché pour l'acheteur, retours acceptés sous 7 jours\n\n## Où nous opérons\n\nNous lançons à **Lubumbashi** (Haut-Katanga) et **Kolwezi** (Lualaba) — les deux pôles économiques du sud du pays. Notre architecture permet d'ajouter de nouvelles villes sans refonte technique ; la roadmap inclut Likasi, Goma, Bukavu, Kinshasa.\n\n## Équipe\n\nUne équipe congolaise basée à Lubumbashi, avec l'appui de développeurs à distance. Nous recrutons — postulez par email à **careers@teka.cd**.\n\n## Contact\n\n- **Email général** : hello@teka.cd\n- **Support client** : support@teka.cd\n- **Partenariats** : partnerships@teka.cd\n- **Presse** : press@teka.cd",
       status: ContentPageStatus.PUBLISHED,
       sortOrder: 5,
     },
     {
       n: 6,
       slug: 'contact',
-      title: { fr: 'Contactez-nous', en: 'Contact Us' },
-      content: {
-        fr: "## Envoyez-nous un message\n\nUtilisez le formulaire ci-dessous, ou joignez-nous directement :\n\n- **WhatsApp** : [+243 999 000 000](https://wa.me/243999000000)\n- **Email** : support@teka.cd\n- **Adresse** : Avenue Lumumba, Lubumbashi, Haut-Katanga, RDC\n- **Horaires** : lundi – samedi, 8h à 18h\n\nPour un traitement plus rapide, incluez votre **numéro de commande** s'il s'agit d'un problème de livraison ou de paiement.",
-        en: '## Send Us a Message\n\nUse the form below, or reach us directly:\n\n- **WhatsApp**: [+243 999 000 000](https://wa.me/243999000000)\n- **Email**: support@teka.cd\n- **Address**: Avenue Lumumba, Lubumbashi, Haut-Katanga, DRC\n- **Hours**: Monday – Saturday, 8 AM to 6 PM\n\nFor faster handling, include your **order number** if the issue is about a delivery or payment.',
-      },
+      title: 'Contactez-nous',
+      content: "## Envoyez-nous un message\n\nUtilisez le formulaire ci-dessous, ou joignez-nous directement :\n\n- **WhatsApp** : [+243 999 000 000](https://wa.me/243999000000)\n- **Email** : support@teka.cd\n- **Adresse** : Avenue Lumumba, Lubumbashi, Haut-Katanga, RDC\n- **Horaires** : lundi – samedi, 8h à 18h\n\nPour un traitement plus rapide, incluez votre **numéro de commande** s'il s'agit d'un problème de livraison ou de paiement.",
       status: ContentPageStatus.PUBLISHED,
       sortOrder: 6,
     },
     {
       n: 7,
       slug: 'how-to-buy',
-      title: { fr: 'Comment acheter', en: 'How to Buy' },
-      content: {
-        fr: "## Acheter sur Teka RDC en 5 étapes\n\n### 1. Choisissez votre ville\n\nAu premier lancement, sélectionnez **Lubumbashi** ou **Kolwezi** — vous ne verrez que les produits disponibles localement. Vous pouvez changer de ville à tout moment depuis l'en-tête.\n\n### 2. Parcourez le catalogue\n\n- Utilisez la **barre de recherche** pour chercher un produit précis.\n- Naviguez par **catégorie** depuis la page d'accueil.\n- Filtrez par prix, état (neuf / occasion), ou note vendeur.\n\n### 3. Ajoutez au panier\n\nSur la fiche produit, choisissez la quantité et cliquez sur **« Ajouter au panier »**. Le panier se synchronise entre vos appareils si vous êtes connecté.\n\n### 4. Passez commande\n\nDepuis le panier, cliquez sur **« Passer la commande »**. Vous serez guidé à travers :\n\n1. Adresse de livraison (ville, commune, avenue, repère)\n2. Mode de paiement :\n   - **Mobile Money** — saisissez votre numéro, vous recevez une pop-up USSD à valider\n   - **Paiement à la livraison** (espèces uniquement)\n3. Récapitulatif + confirmation\n\n### 5. Recevez votre commande\n\nVous recevez un **SMS à chaque étape** (confirmée, expédiée, en cours de livraison, livrée). Le livreur vous appelle avant d'arriver. Livraison généralement sous **24–72 heures**.\n\n### Après la livraison\n\nLaissez une **note de 1 à 5 étoiles** et un commentaire sur le produit et le vendeur — vous aidez les autres acheteurs à mieux choisir.\n\nUn souci ? Vous avez **7 jours** pour signaler un problème via le service client.",
-        en: '## Buy on Teka RDC in 5 Steps\n\n### 1. Choose Your City\n\nOn first launch, select **Lubumbashi** or **Kolwezi** — you\'ll only see products available locally. You can change cities anytime from the header.\n\n### 2. Browse the Catalog\n\n- Use the **search bar** to look for a specific product.\n- Browse by **category** from the homepage.\n- Filter by price, condition (new / used), or seller rating.\n\n### 3. Add to Cart\n\nOn the product page, choose quantity and click **"Add to Cart"**. Your cart syncs across devices when signed in.\n\n### 4. Checkout\n\nFrom the cart, click **"Checkout"**. You\'ll be guided through:\n\n1. Delivery address (city, commune, avenue, landmark)\n2. Payment method:\n   - **Mobile Money** — enter your number, validate the USSD prompt on your phone\n   - **Cash on Delivery** (cash only)\n3. Summary + confirmation\n\n### 5. Receive Your Order\n\nYou get an **SMS at each stage** (confirmed, shipped, out for delivery, delivered). The courier calls before arriving. Delivery typically within **24–72 hours**.\n\n### After Delivery\n\nLeave a **1–5 star rating** and a comment on the product and seller — you\'re helping other buyers choose better.\n\nAn issue? You have **7 days** to report a problem via customer service.',
-      },
+      title: 'Comment acheter',
+      content: "## Acheter sur Teka RDC en 5 étapes\n\n### 1. Choisissez votre ville\n\nAu premier lancement, sélectionnez **Lubumbashi** ou **Kolwezi** — vous ne verrez que les produits disponibles localement. Vous pouvez changer de ville à tout moment depuis l'en-tête.\n\n### 2. Parcourez le catalogue\n\n- Utilisez la **barre de recherche** pour chercher un produit précis.\n- Naviguez par **catégorie** depuis la page d'accueil.\n- Filtrez par prix, état (neuf / occasion), ou note vendeur.\n\n### 3. Ajoutez au panier\n\nSur la fiche produit, choisissez la quantité et cliquez sur **« Ajouter au panier »**. Le panier se synchronise entre vos appareils si vous êtes connecté.\n\n### 4. Passez commande\n\nDepuis le panier, cliquez sur **« Passer la commande »**. Vous serez guidé à travers :\n\n1. Adresse de livraison (ville, commune, avenue, repère)\n2. Mode de paiement :\n   - **Mobile Money** — saisissez votre numéro, vous recevez une pop-up USSD à valider\n   - **Paiement à la livraison** (espèces uniquement)\n3. Récapitulatif + confirmation\n\n### 5. Recevez votre commande\n\nVous recevez un **SMS à chaque étape** (confirmée, expédiée, en cours de livraison, livrée). Le livreur vous appelle avant d'arriver. Livraison généralement sous **24–72 heures**.\n\n### Après la livraison\n\nLaissez une **note de 1 à 5 étoiles** et un commentaire sur le produit et le vendeur — vous aidez les autres acheteurs à mieux choisir.\n\nUn souci ? Vous avez **7 jours** pour signaler un problème via le service client.",
       status: ContentPageStatus.PUBLISHED,
       sortOrder: 7,
     },
     {
       n: 8,
       slug: 'how-to-sell',
-      title: { fr: 'Comment vendre', en: 'How to Sell' },
-      content: {
-        fr: "## Vendre sur Teka RDC en 5 étapes\n\n### 1. Créez votre compte vendeur\n\nInscrivez-vous sur [seller.teka.cd](https://seller.teka.cd) avec votre email et un mot de passe. Vous pouvez aussi vous connecter avec Google.\n\n### 2. Remplissez votre profil vendeur\n\nFournissez :\n\n- **Nom commercial** et type d'activité (particulier / société)\n- **Pièce d'identité** (carte nationale, passeport, ou RCCM)\n- **Numéro de téléphone** de contact\n- **Adresse** de votre boutique ou entrepôt\n- **Description** courte de ce que vous vendez\n\n### 3. Attendez l'approbation\n\nNotre équipe vérifie votre profil **sous 24–48 heures**. Vous recevez un SMS et un email dès la décision.\n\n### 4. Publiez vos produits\n\nUne fois approuvé, accédez à votre tableau de bord et ajoutez des produits :\n\n- **Titre** et description en français (l'anglais est optionnel)\n- **Catégorie** et attributs dynamiques (marque, taille, couleur, etc.)\n- **Photos** (jusqu'à 8, la première est l'image principale)\n- **Prix en francs congolais** (CDF), stock disponible\n- **État** : neuf ou occasion\n\nChaque produit passe par une **modération** (généralement < 24h) avant d'être visible sur teka.cd.\n\n### 5. Gérez vos commandes et encaissez\n\n- Recevez une notification **SMS + email** à chaque nouvelle commande.\n- **Confirmez** la commande sous 24h, préparez le colis, remettez-le au coursier.\n- **Validez la livraison** — le paiement acheteur est libéré sur votre portefeuille Teka.\n- **Demandez un virement** vers votre Mobile Money à tout moment depuis la page Revenus.\n\n## Commission\n\nTeka prélève une **commission de 10 %** sur chaque vente. Le taux peut être ajusté par catégorie ou négocié pour les grands volumes — contactez **partnerships@teka.cd**.\n\n## Besoin d'aide ?\n\nNotre équipe vendeur est joignable à **sellers@teka.cd** ou WhatsApp **+243 999 000 000**.",
-        en: '## Sell on Teka RDC in 5 Steps\n\n### 1. Create Your Seller Account\n\nSign up at [seller.teka.cd](https://seller.teka.cd) with email and password. Google sign-in also works.\n\n### 2. Fill In Your Seller Profile\n\nProvide:\n\n- **Business name** and type (individual / company)\n- **Government ID** (national ID, passport, or RCCM)\n- **Contact phone number**\n- **Address** of your shop or warehouse\n- **Short description** of what you sell\n\n### 3. Wait for Approval\n\nOur team reviews your profile **within 24–48 hours**. You get an SMS and email with the decision.\n\n### 4. Publish Your Products\n\nOnce approved, open your dashboard and add products:\n\n- **Title** and description in French (English is optional)\n- **Category** and dynamic attributes (brand, size, color, etc.)\n- **Photos** (up to 8, the first is the cover image)\n- **Price in Congolese francs** (CDF), available stock\n- **Condition**: new or used\n\nEach product goes through **moderation** (usually < 24h) before it\'s visible on teka.cd.\n\n### 5. Manage Orders and Get Paid\n\n- Get **SMS + email** notifications for every new order.\n- **Confirm** the order within 24h, pack it, hand it to the courier.\n- **Mark as delivered** — the buyer\'s payment is released to your Teka wallet.\n- **Request a payout** to your Mobile Money number anytime from the Earnings page.\n\n## Commission\n\nTeka takes a **10% commission** on each sale. The rate can be adjusted per category or negotiated for high volumes — contact **partnerships@teka.cd**.\n\n## Need Help?\n\nOur seller team is reachable at **sellers@teka.cd** or WhatsApp **+243 999 000 000**.',
-      },
+      title: 'Comment vendre',
+      content: "## Vendre sur Teka RDC en 5 étapes\n\n### 1. Créez votre compte vendeur\n\nInscrivez-vous sur [seller.teka.cd](https://seller.teka.cd) avec votre email et un mot de passe. Vous pouvez aussi vous connecter avec Google.\n\n### 2. Remplissez votre profil vendeur\n\nFournissez :\n\n- **Nom commercial** et type d'activité (particulier / société)\n- **Pièce d'identité** (carte nationale, passeport, ou RCCM)\n- **Numéro de téléphone** de contact\n- **Adresse** de votre boutique ou entrepôt\n- **Description** courte de ce que vous vendez\n\n### 3. Attendez l'approbation\n\nNotre équipe vérifie votre profil **sous 24–48 heures**. Vous recevez un SMS et un email dès la décision.\n\n### 4. Publiez vos produits\n\nUne fois approuvé, accédez à votre tableau de bord et ajoutez des produits :\n\n- **Titre** et description en français (l'anglais est optionnel)\n- **Catégorie** et attributs dynamiques (marque, taille, couleur, etc.)\n- **Photos** (jusqu'à 8, la première est l'image principale)\n- **Prix en francs congolais** (CDF), stock disponible\n- **État** : neuf ou occasion\n\nChaque produit passe par une **modération** (généralement < 24h) avant d'être visible sur teka.cd.\n\n### 5. Gérez vos commandes et encaissez\n\n- Recevez une notification **SMS + email** à chaque nouvelle commande.\n- **Confirmez** la commande sous 24h, préparez le colis, remettez-le au coursier.\n- **Validez la livraison** — le paiement acheteur est libéré sur votre portefeuille Teka.\n- **Demandez un virement** vers votre Mobile Money à tout moment depuis la page Revenus.\n\n## Commission\n\nTeka prélève une **commission de 10 %** sur chaque vente. Le taux peut être ajusté par catégorie ou négocié pour les grands volumes — contactez **partnerships@teka.cd**.\n\n## Besoin d'aide ?\n\nNotre équipe vendeur est joignable à **sellers@teka.cd** ou WhatsApp **+243 999 000 000**.",
       status: ContentPageStatus.PUBLISHED,
       sortOrder: 8,
     },
@@ -3010,14 +2956,14 @@ async function seedPlatformBaseline(adminId: string) {
 
   // ----- System settings -----
   const settings = [
-    { n: 1, key: 'MAINTENANCE_MODE', value: 'false', type: 'boolean', label: { fr: 'Mode maintenance', en: 'Maintenance Mode' } },
-    { n: 2, key: 'ENABLE_FLASH_DEALS', value: 'true', type: 'boolean', label: { fr: 'Activer les ventes flash', en: 'Enable Flash Deals' } },
-    { n: 3, key: 'ENABLE_SELLER_PROMOTIONS', value: 'true', type: 'boolean', label: { fr: 'Activer les promotions vendeur', en: 'Enable Seller Promotions' } },
-    { n: 4, key: 'ENABLE_REVIEWS', value: 'true', type: 'boolean', label: { fr: 'Activer les avis', en: 'Enable Reviews' } },
-    { n: 5, key: 'ENABLE_MESSAGING', value: 'true', type: 'boolean', label: { fr: 'Activer la messagerie', en: 'Enable Messaging' } },
-    { n: 6, key: 'MAX_BANNER_COUNT', value: '5', type: 'number', label: { fr: 'Nombre max de bannières', en: 'Max Banner Count' } },
-    { n: 7, key: 'DEFAULT_DELIVERY_FEE_CDF', value: '500000', type: 'number', label: { fr: 'Frais de livraison par défaut (centimes CDF)', en: 'Default Delivery Fee (CDF centimes)' } },
-    { n: 8, key: 'PLATFORM_ANNOUNCEMENT', value: '', type: 'string', label: { fr: 'Annonce plateforme', en: 'Platform Announcement' } },
+    { n: 1, key: 'MAINTENANCE_MODE', value: 'false', type: 'boolean', label: 'Mode maintenance' },
+    { n: 2, key: 'ENABLE_FLASH_DEALS', value: 'true', type: 'boolean', label: 'Activer les ventes flash' },
+    { n: 3, key: 'ENABLE_SELLER_PROMOTIONS', value: 'true', type: 'boolean', label: 'Activer les promotions vendeur' },
+    { n: 4, key: 'ENABLE_REVIEWS', value: 'true', type: 'boolean', label: 'Activer les avis' },
+    { n: 5, key: 'ENABLE_MESSAGING', value: 'true', type: 'boolean', label: 'Activer la messagerie' },
+    { n: 6, key: 'MAX_BANNER_COUNT', value: '5', type: 'number', label: 'Nombre max de bannières' },
+    { n: 7, key: 'DEFAULT_DELIVERY_FEE_CDF', value: '500000', type: 'number', label: 'Frais de livraison par défaut (centimes CDF)' },
+    { n: 8, key: 'PLATFORM_ANNOUNCEMENT', value: '', type: 'string', label: 'Annonce plateforme' },
   ];
 
   for (const setting of settings) {
@@ -3387,8 +3333,8 @@ async function seedSampleProducts(sellerId: string): Promise<void> {
           create: {
             id: productId,
             slug,
-            title: { fr: titleFr, en: titleEn } as any,
-            description: { fr: descFr, en: descEn } as any,
+            title: titleFr,
+            description: descFr,
             categoryId,
             sellerId,
             cityId: city.id,

@@ -1,11 +1,10 @@
 'use client';
 
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import {
   canonicalToUrlSlug,
   type CanonicalSlug,
-  type Locale,
 } from '@/lib/static-pages';
 
 // Static pages in the order rendered in the footer.
@@ -22,7 +21,6 @@ const FOOTER_LINKS: Array<{ canonical: CanonicalSlug; key: string }> = [
 
 export function Footer() {
   const t = useTranslations('Footer');
-  const locale = useLocale() as Locale;
   const year = new Date().getFullYear();
 
   return (
@@ -41,7 +39,7 @@ export function Footer() {
             {FOOTER_LINKS.map(({ canonical, key }) => (
               <Link
                 key={canonical}
-                href={`/${canonicalToUrlSlug(canonical, locale)}`}
+                href={`/${canonicalToUrlSlug(canonical)}`}
                 className="hover:text-white transition-colors"
               >
                 {t(key)}

@@ -23,12 +23,20 @@ export function formatUSD(amount: number): string {
 }
 
 /**
- * Get the localized name from a translation object { fr: string, en: string }.
+ * Compatibility shim — the API used to return `{ fr, en }` translation
+ * objects; since the FR-only refactor it returns plain strings. This helper
+ * accepts either shape so callers don't have to change every call site at
+ * once. The `locale` argument is ignored (kept for back-compat).
+ *
+ * @deprecated Read the field directly. This shim exists during the
+ * monolingual transition and will be removed once all consumers stop
+ * passing translation objects.
  */
 export function getLocalizedName(
-  translations: { fr?: string; en?: string } | null | undefined,
-  locale: string,
+  value: string | { fr?: string; en?: string } | null | undefined,
+  _locale?: string,
 ): string {
-  if (!translations) return '';
-  return (locale === 'en' ? translations.en : translations.fr) || translations.fr || translations.en || '';
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  return value.fr || value.en || '';
 }

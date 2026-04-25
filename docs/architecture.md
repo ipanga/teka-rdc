@@ -424,28 +424,31 @@ Error responses:
 
 ## i18n (Internationalization)
 
+**Note (2026-04-25):** Teka RDC is now **monolingual — French only**. The infrastructure is preserved for future re-introduction of additional locales: next-intl is still used for translation lookups (`messages/fr.json`), DB JSONB columns keep their `{ fr, en }` shape (API contract preserved), and `flutter_localizations` infra stays in place on mobile. The user-facing surface (URLs, language switcher, hreflang) is FR-only.
+
 ### Web Applications
-- **Library**: next-intl
-- **Default locale**: French (`fr`)
-- **Supported locales**: French (`fr`), English (`en`)
-- **URL structure**: `localePrefix: 'as-needed'` — FR (default) has no prefix, EN does. So the same product is `/products/abc` in FR and `/en/products/abc` in EN.
-- **Translation files**: `messages/fr.json` and `messages/en.json` in each web app
+- **Library**: next-intl (single locale)
+- **Locales**: `['fr']` only; `localePrefix: 'never'`; `localeDetection: false`
+- **URL structure**: no locale prefix. Routes look like `/products/<slug>`, `/categorie/<slug>`, `/a-propos`, etc.
+- **Translation files**: `messages/fr.json` only in each web app
+- **Language switcher**: removed
+- **Hreflang**: not emitted (no alternate languages)
 
 ### Buyer-web static-page slugs
-The 8 static info pages (about, help, faq, terms, privacy, how-to-buy, how-to-sell, contact) live in the DB under English **canonical** slugs but are exposed in the URL via per-locale slugs for SEO:
+The 8 static info pages live in the DB under English **canonical** slugs but are exposed in the URL via French slugs for SEO:
 
-| Canonical (DB) | FR URL | EN URL |
-|---|---|---|
-| `about` | `/a-propos` | `/en/about` |
-| `help` | `/aide` | `/en/help` |
-| `faq` | `/faq` | `/en/faq` |
-| `terms` | `/conditions-utilisation` | `/en/terms` |
-| `privacy` | `/politique-confidentialite` | `/en/privacy` |
-| `how-to-buy` | `/comment-acheter` | `/en/how-to-buy` |
-| `how-to-sell` | `/comment-vendre` | `/en/how-to-sell` |
-| `contact` | `/contact` | `/en/contact` |
+| Canonical (DB) | URL |
+|---|---|
+| `about` | `/a-propos` |
+| `help` | `/aide` |
+| `faq` | `/faq` |
+| `terms` | `/conditions-utilisation` |
+| `privacy` | `/politique-confidentialite` |
+| `how-to-buy` | `/comment-acheter` |
+| `how-to-sell` | `/comment-vendre` |
+| `contact` | `/contact` |
 
-Mapping lives in `apps/buyer-web/src/lib/static-pages.ts` (`PAGE_DEFINITIONS`). All 8 pages are pre-rendered at build time via `generateStaticParams`. 301 redirects in `next.config.ts` cover legacy `/pages/<slug>` and cross-locale slug typos. The content API (`GET /v1/content/:slug`) keys on the canonical slug only; URL-to-canonical resolution happens in the buyer-web route handler before any API call.
+Mapping lives in `apps/buyer-web/src/lib/static-pages.ts` (`PAGE_DEFINITIONS`). All 8 pages are pre-rendered at build time via `generateStaticParams`. 301 redirects in `next.config.ts` cover legacy `/pages/<slug>` paths, English-canonical-slug typos, and a wildcard `/en/:path*` → `/:path*` for any old bilingual-era links. The content API (`GET /v1/content/:slug`) keys on the canonical slug only; URL-to-canonical resolution happens in the buyer-web route handler before any API call.
 
 ### Category URLs
 Categories are served at `/categorie/<slug>` (e.g. `/categorie/smartphones`, `/categorie/maison-et-interieur`). Slugs are derived from the French category name at seed time (`frSlugify()` in `apps/api/prisma/seed.ts`) and stored in `Category.slug` (unique, indexed). The browse endpoint `GET /v1/browse/categories/:identifier` accepts either a UUID or a slug, so admin-stored category references (e.g. banner `linkTarget`) keep working.
@@ -456,19 +459,19 @@ The legacy `/categories/<id>` route is kept as a tiny server-side **308 redirect
 Every fresh install gets a "**Teka RDC Officiel**" platform-owned seller plus **152 sample products** (38 active subcategories × 2 cities — Lubumbashi + Kolwezi — × 2 variants per slot). Both are upserted by the seed (idempotent) and exist in dev + prod. Purpose: SEO content (real product URLs to crawl) and first-time-user demo (the marketplace doesn't look empty on day 1). Seeded products use Cloudinary demo placeholder images; replace by uploading real assets to the `teka-rdc` Cloudinary cloud and updating `seedSampleProducts()`.
 
 ### SEO surface
-- **Sitemap**: dynamic at `/sitemap.xml` (Next.js `app/sitemap.ts`). Includes home, categories + subcategories (slug-based URLs), cities, products (top 500 by recency), and the 16 localized static-page URLs.
+- **Sitemap**: dynamic at `/sitemap.xml` (Next.js `app/sitemap.ts`). FR-only URLs: home, categories + subcategories (slug-based), cities, products (top 500 by recency), and the 8 static-page URLs.
 - **robots.txt**: dynamic at `/robots.txt` (Next.js `app/robots.ts`). Disallows `/checkout`, `/cart`, `/orders`, `/messages`, `/login`, `/register`, `/profile`, `/wishlist`. Points crawlers at the sitemap.
-- **hreflang**: every static page emits `alternates.languages` with FR + EN + `x-default` pointing at the FR URL. Home page does the same.
+- **hreflang**: not emitted (monolingual site).
 - **JSON-LD**: Organization + WebSite (with SearchAction) on home; WebPage on each static page; BreadcrumbList on category + product detail pages.
 
 ### Mobile Applications
-- **Library**: flutter_localizations + custom ARB files
-- **Locale detection**: Device locale with fallback to French
+- **Library**: `flutter_localizations` + ARB files (FR only since 2026-04-25)
+- **Locale**: hardcoded to `Locale('fr')` via `LocaleNotifier` (state never changes; `setLocale` is a no-op)
 
 ### API
-- **Error messages**: French by default
-- **Translatable content**: Stored as JSON `{ "fr": "...", "en": "..." }` in database
-- **Content negotiation**: Accept-Language header respected where applicable
+- **Error messages**: French
+- **Translatable content**: still stored as JSON `{ "fr": "...", "en": "..." }` in database (API contract preserved); the EN keys are dormant but kept for future re-internationalization
+- **Content negotiation**: not used; clients read the `fr` key directly
 
 ## Messaging Architecture
 

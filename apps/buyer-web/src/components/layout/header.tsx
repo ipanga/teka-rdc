@@ -5,7 +5,6 @@ import { useTranslations, useLocale } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { useCityStore } from '@/lib/city-store';
-import { LanguageSwitcher } from './language-switcher';
 import { CartBadge } from '@/components/cart/cart-badge';
 import { apiFetch } from '@/lib/api-client';
 
@@ -79,7 +78,7 @@ export function Header() {
           >
             <span className="text-xs">{'\uD83D\uDCCD'}</span>
             <span className="font-medium text-foreground">
-              {(locale === 'en' && selectedCity.name.en) ? selectedCity.name.en : selectedCity.name.fr}
+              {selectedCity.name}
               {selectedCity.province && <span className="text-muted-foreground font-normal">, {selectedCity.province}</span>}
             </span>
             <svg className="w-3 h-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -196,7 +195,6 @@ export function Header() {
             </div>
           )}
           <CartBadge />
-          <LanguageSwitcher />
         </div>
 
         {/* Mobile icons (always visible) */}
@@ -263,7 +261,7 @@ export function Header() {
             <span className="text-xs">{'\uD83D\uDCCD'}</span>
             {selectedCity ? (
               <span className="font-medium text-foreground">
-                {(locale === 'en' && selectedCity.name.en) ? selectedCity.name.en : selectedCity.name.fr}
+                {selectedCity.name}
                 {selectedCity.province && <span className="text-muted-foreground font-normal">, {selectedCity.province}</span>}
               </span>
             ) : (
@@ -378,11 +376,6 @@ export function Header() {
                 </Link>
               </div>
             )}
-          </div>
-
-          {/* Language switcher */}
-          <div className="pt-2 border-t border-border">
-            <LanguageSwitcher />
           </div>
         </div>
       )}

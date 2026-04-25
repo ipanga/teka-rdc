@@ -93,7 +93,7 @@ export class AddressesService {
       orderBy: { sortOrder: 'asc' },
     });
 
-    const result: Record<string, { id: string; name: unknown }[]> = {};
+    const result: Record<string, { id: string; name: string }[]> = {};
     for (const city of cities) {
       if (!result[city.province]) {
         result[city.province] = [];
@@ -104,15 +104,10 @@ export class AddressesService {
   }
 
   async getNeighborhoods(town: string) {
-    // Try to find city by French name and return its communes
+    // Find city by name (plain string after the FR-only refactor) and return
+    // its communes' names.
     const city = await this.prisma.city.findFirst({
-      where: {
-        isActive: true,
-        OR: [
-          { name: { path: ['fr'], equals: town } },
-          { name: { path: ['en'], equals: town } },
-        ],
-      },
+      where: { isActive: true, name: town },
     });
 
     if (!city) return [];
@@ -122,10 +117,7 @@ export class AddressesService {
       orderBy: { sortOrder: 'asc' },
     });
 
-    return communes.map((c) => {
-      const name = c.name as { fr: string; en?: string };
-      return name.fr;
-    });
+    return communes.map((c) => c.name);
   }
 
   private async findOneOrFail(userId: string, addressId: string) {

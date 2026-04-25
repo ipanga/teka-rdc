@@ -9,7 +9,12 @@ export const paginationSchema = z.object({
 
 export const uuidSchema = z.string().uuid('Identifiant invalide');
 
-export const translatableTextSchema = z.object({
-  fr: z.string().min(1, 'Le texte en français est requis'),
-  en: z.string().optional(),
-});
+/**
+ * @deprecated Platform is monolingual since 2026-04-25. New code should use
+ * `z.string()` directly. This export stays as a non-empty-string validator
+ * with the same French-required error message so legacy imports still
+ * compile during the transition.
+ */
+export const translatableTextSchema = z
+  .string()
+  .min(1, 'Le texte en français est requis');

@@ -1,19 +1,16 @@
 import type { MetadataRoute } from 'next';
-import { PAGE_DEFINITIONS, type Locale } from '@/lib/static-pages';
+import { PAGE_DEFINITIONS } from '@/lib/static-pages';
 
 const BASE_URL = 'https://teka.cd';
 const API_BASE = process.env.API_INTERNAL_URL || 'http://localhost:5050/api';
 
-const LOCALES: ReadonlyArray<Locale> = ['fr', 'en'];
-
 /**
- * Build a Teka URL for a given locale + path. Default locale (FR) has no
- * `/fr/` prefix because next-intl is configured with `localePrefix: 'as-needed'`.
+ * Build a Teka URL. Site is monolingual (FR-only) since 2026-04-25; URLs have
+ * no locale prefix.
  */
-function urlFor(locale: Locale, path: string): string {
+function urlFor(path: string): string {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  if (locale === 'fr') return `${BASE_URL}${cleanPath}`;
-  return `${BASE_URL}/${locale}${cleanPath}`;
+  return `${BASE_URL}${cleanPath}`;
 }
 
 async function fetchApi<T>(path: string): Promise<T | null> {
@@ -31,42 +28,36 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
 
   // -- Home + top-level browse pages --
-  const rootPages: MetadataRoute.Sitemap = LOCALES.flatMap((locale) => [
+  const rootPages: MetadataRoute.Sitemap = [
     {
-      url: urlFor(locale, '/'),
+      url: urlFor('/'),
       lastModified: now,
-      changeFrequency: 'daily' as const,
+      changeFrequency: 'daily',
       priority: 1.0,
     },
     {
-      url: urlFor(locale, '/categories'),
+      url: urlFor('/categories'),
       lastModified: now,
-      changeFrequency: 'weekly' as const,
+      changeFrequency: 'weekly',
       priority: 0.9,
     },
     {
-      url: urlFor(locale, '/search'),
+      url: urlFor('/search'),
       lastModified: now,
-      changeFrequency: 'weekly' as const,
+      changeFrequency: 'weekly',
       priority: 0.6,
     },
-  ]);
+  ];
 
-  // -- Static content pages — locale-aware French slugs (about → /a-propos etc.) --
-  const contentPages: MetadataRoute.Sitemap = PAGE_DEFINITIONS.flatMap((page) =>
-    LOCALES.map((locale) => ({
-      url: urlFor(locale, `/${page.urlSlug[locale]}`),
-      lastModified: now,
-      changeFrequency: 'monthly' as const,
-      priority: page.canonical === 'contact' || page.canonical === 'help' ? 0.7 : 0.5,
-    })),
-  );
+  // -- Static content pages — French slugs (about → /a-propos etc.) --
+  const contentPages: MetadataRoute.Sitemap = PAGE_DEFINITIONS.map((page) => ({
+    url: urlFor(`/${page.urlSlug}`),
+    lastModified: now,
+    changeFrequency: 'monthly',
+    priority: page.canonical === 'contact' || page.canonical === 'help' ? 0.7 : 0.5,
+  }));
 
   // -- Dynamic categories (incl. subcategories) --
-  // Emit /categorie/<slug> URLs (the new SEO-friendly route). Categories
-  // without a slug — there shouldn't be any in prod after the seed runs —
-  // are skipped rather than fall back to the legacy /categories/<id> URL,
-  // since that one only redirects.
   let categoryPages: MetadataRoute.Sitemap = [];
   const categories = await fetchApi<
     Array<{
@@ -78,21 +69,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (categories && Array.isArray(categories)) {
     categoryPages = categories.flatMap((cat) => {
       const main = cat.slug
-        ? LOCALES.map((locale) => ({
-            url: urlFor(locale, `/categorie/${cat.slug}`),
-            lastModified: now,
-            changeFrequency: 'weekly' as const,
-            priority: 0.8,
-          }))
+        ? [
+            {
+              url: urlFor(`/categorie/${cat.slug}`),
+              lastModified: now,
+              changeFrequency: 'weekly' as const,
+              priority: 0.8,
+            },
+          ]
         : [];
       const subs = (cat.subcategories || []).flatMap((sub) =>
         sub.slug
-          ? LOCALES.map((locale) => ({
-              url: urlFor(locale, `/categorie/${sub.slug}`),
-              lastModified: now,
-              changeFrequency: 'weekly' as const,
-              priority: 0.7,
-            }))
+          ? [
+              {
+                url: urlFor(`/categorie/${sub.slug}`),
+                lastModified: now,
+                changeFrequency: 'weekly' as const,
+                priority: 0.7,
+              },
+            ]
           : [],
       );
       return [...main, ...subs];
@@ -107,14 +102,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (cities && Array.isArray(cities)) {
     cityPages = cities
       .filter((c) => c.isActive !== false)
-      .flatMap((city) =>
-        LOCALES.map((locale) => ({
-          url: urlFor(locale, `/?cityId=${city.id}`),
-          lastModified: now,
-          changeFrequency: 'daily' as const,
-          priority: 0.7,
-        })),
-      );
+      .map((city) => ({
+        url: urlFor(`/?cityId=${city.id}`),
+        lastModified: now,
+        changeFrequency: 'daily',
+        priority: 0.7,
+      }));
   }
 
   // -- Dynamic products --
@@ -125,14 +118,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   >('/v1/browse/products?limit=500');
   if (products) {
     const items = Array.isArray(products) ? products : products.data || [];
-    productPages = items.flatMap((p) =>
-      LOCALES.map((locale) => ({
-        url: urlFor(locale, `/products/${p.slug || p.id}`),
-        lastModified: p.updatedAt ? new Date(p.updatedAt) : now,
-        changeFrequency: 'weekly' as const,
-        priority: 0.6,
-      })),
-    );
+    productPages = items.map((p) => ({
+      url: urlFor(`/products/${p.slug || p.id}`),
+      lastModified: p.updatedAt ? new Date(p.updatedAt) : now,
+      changeFrequency: 'weekly',
+      priority: 0.6,
+    }));
   }
 
   return [

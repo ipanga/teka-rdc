@@ -1,9 +1,7 @@
 import { z } from 'zod';
 
-const translatableText = z.object({
-  fr: z.string().min(1),
-  en: z.string().optional(),
-});
+// Monolingual since 2026-04-25 — translatable fields are plain strings.
+const translatableText = z.string().min(1);
 
 // ============================================================
 // BANNER

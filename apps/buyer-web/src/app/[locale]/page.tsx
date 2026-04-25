@@ -29,12 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       images: [{ url: 'https://teka.cd/og-default.png', width: 1200, height: 630, alt: title }],
     },
     twitter: { card: 'summary_large_image', title, description },
-    // FR is the default locale with `localePrefix: 'as-needed'`, so the FR
-    // canonical has no `/fr/` prefix. EN keeps its `/en` prefix.
-    alternates: {
-      canonical: locale === 'fr' ? '/' : '/en',
-      languages: { fr: '/', en: '/en', 'x-default': '/' },
-    },
+    alternates: { canonical: '/' },
   };
 }
 

@@ -125,25 +125,22 @@ export default function CheckoutPage() {
 
   function handleCityChange(cityId: string) {
     const city = cities.find((c) => c.id === cityId);
-    const cityNameFr = city?.name?.fr || '';
-    const province = city?.province || '';
     setNewAddr((prev) => ({
       ...prev,
       cityId,
       communeId: '',
-      province,
-      town: cityNameFr,
+      province: city?.province || '',
+      town: city?.name || '',
       neighborhood: '',
     }));
   }
 
   function handleCommuneChange(communeId: string) {
     const commune = communes.find((c) => c.id === communeId);
-    const communeNameFr = commune?.name?.fr || '';
     setNewAddr((prev) => ({
       ...prev,
       communeId,
-      neighborhood: communeNameFr,
+      neighborhood: commune?.name || '',
     }));
   }
 
@@ -189,15 +186,8 @@ export default function CheckoutPage() {
     }
   }
 
-  const getCityName = (city: City) => {
-    if (locale === 'en' && city.name.en) return city.name.en;
-    return city.name.fr;
-  };
-
-  const getCommuneName = (commune: Commune) => {
-    if (locale === 'en' && commune.name.en) return commune.name.en;
-    return commune.name.fr || '';
-  };
+  const getCityName = (city: City) => city.name;
+  const getCommuneName = (commune: Commune) => commune.name;
 
   // Group items by seller
   const itemsBySeller = useMemo(() => {

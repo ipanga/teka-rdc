@@ -14,25 +14,16 @@ interface ApiCategoryDetail {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { locale, slug } = await params;
+  const { slug } = await params;
   const category = await serverFetch<ApiCategoryDetail>(
     `/v1/browse/categories/${slug}`,
   );
 
-  const name = category?.name?.[locale] || category?.name?.fr || '';
-  const title =
-    locale === 'fr'
-      ? `${name} — Acheter en ligne sur Teka RDC`
-      : `${name} — Buy Online on Teka RDC`;
-  const description =
-    locale === 'fr'
-      ? `Découvrez les produits ${name} sur Teka RDC. Livraison rapide à Lubumbashi, Kolwezi et Likasi. Paiement Mobile Money ou à la livraison.`
-      : `Browse ${name} products on Teka RDC. Fast delivery to Lubumbashi, Kolwezi, and Likasi. Pay via Mobile Money or cash on delivery.`;
+  const name = category?.name?.fr || '';
+  const title = `${name} — Acheter en ligne sur Teka RDC`;
+  const description = `Découvrez les produits ${name} sur Teka RDC. Livraison rapide à Lubumbashi, Kolwezi et Likasi. Paiement Mobile Money ou à la livraison.`;
 
-  // Locale-aware canonical: /categorie/<slug> on FR (default, no prefix);
-  // /en/categorie/<slug> on EN.
-  const path = `/categorie/${slug}`;
-  const canonical = locale === 'fr' ? path : `/${locale}${path}`;
+  const canonical = `/categorie/${slug}`;
 
   return {
     title,
@@ -40,16 +31,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     keywords: [
       name,
       'Teka RDC',
-      locale === 'fr' ? 'acheter en ligne RDC' : 'buy online DRC',
-      locale === 'fr' ? 'livraison Lubumbashi' : 'delivery Lubumbashi',
-      locale === 'fr' ? 'livraison Kolwezi' : 'delivery Kolwezi',
+      'acheter en ligne RDC',
+      'livraison Lubumbashi',
+      'livraison Kolwezi',
     ],
     openGraph: {
       title: `${name} | Teka RDC`,
       description,
       siteName: 'Teka RDC',
       type: 'website',
-      locale: locale === 'fr' ? 'fr_CD' : 'en_CD',
+      locale: 'fr_CD',
       url: `https://teka.cd${canonical}`,
       images: [
         {
@@ -61,25 +52,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       ],
     },
     twitter: { card: 'summary', title: `${name} | Teka RDC`, description },
-    alternates: {
-      canonical,
-      languages: {
-        fr: path,
-        en: `/en${path}`,
-        'x-default': path,
-      },
-    },
+    alternates: { canonical },
   };
 }
 
 export default async function Page({ params }: Props) {
-  const { locale, slug } = await params;
+  const { slug } = await params;
   const category = await serverFetch<ApiCategoryDetail>(
     `/v1/browse/categories/${slug}`,
   );
   if (!category) notFound();
 
-  const name = category.name?.[locale] || category.name?.fr || '';
+  const name = category.name?.fr || '';
 
   return (
     <>
@@ -91,14 +75,14 @@ export default async function Page({ params }: Props) {
             {
               '@type': 'ListItem',
               position: 1,
-              name: locale === 'fr' ? 'Accueil' : 'Home',
+              name: 'Accueil',
               item: 'https://teka.cd',
             },
             {
               '@type': 'ListItem',
               position: 2,
-              name: locale === 'fr' ? 'Catégories' : 'Categories',
-              item: `https://teka.cd${locale === 'fr' ? '' : `/${locale}`}/categories`,
+              name: 'Catégories',
+              item: 'https://teka.cd/categories',
             },
             { '@type': 'ListItem', position: 3, name },
           ],
