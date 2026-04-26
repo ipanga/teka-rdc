@@ -45,7 +45,7 @@ export function CartItemRow({ item }: CartItemRowProps) {
     <div className="flex gap-3 py-4 border-b border-border last:border-0">
       {/* Product image */}
       <Link
-        href={`/products/${item.productId}`}
+        href={`/${item.productId}`}
         className="relative w-20 h-20 md:w-24 md:h-24 bg-muted rounded-lg overflow-hidden shrink-0"
       >
         {thumbnailUrl ? (
@@ -73,7 +73,7 @@ export function CartItemRow({ item }: CartItemRowProps) {
       {/* Product info */}
       <div className="flex-1 min-w-0">
         <Link
-          href={`/products/${item.productId}`}
+          href={`/${item.productId}`}
           className="text-sm font-medium text-foreground hover:text-primary transition-colors line-clamp-2"
         >
           {title}

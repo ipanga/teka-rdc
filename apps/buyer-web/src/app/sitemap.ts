@@ -119,7 +119,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if (products) {
     const items = Array.isArray(products) ? products : products.data || [];
     productPages = items.map((p) => ({
-      url: urlFor(`/products/${p.slug || p.id}`),
+      url: urlFor(`/${p.slug || p.id}`),
       lastModified: p.updatedAt ? new Date(p.updatedAt) : now,
       changeFrequency: 'weekly',
       priority: 0.6,
