@@ -59,6 +59,7 @@ DECLARE
   ];
   r          text[];
   col_type   text;
+  tmp_col    text;
 BEGIN
   FOREACH r SLICE 1 IN ARRAY cols LOOP
     -- Skip if column already migrated (already TEXT).
@@ -71,21 +72,26 @@ BEGIN
       AND c.column_name = r[2];
 
     IF col_type = 'jsonb' OR col_type = 'json' THEN
+      -- Build the temp column name as a separate identifier so format(%I)
+      -- quotes it correctly. Doing `%I_text_tmp` produces `"camelCase"_text_tmp`
+      -- which is broken syntax for camelCase column names like productTitle.
+      tmp_col := r[2] || '_text_tmp';
+
       EXECUTE format(
-        'ALTER TABLE %I ADD COLUMN %I_text_tmp TEXT',
-        r[1], r[2]
+        'ALTER TABLE %I ADD COLUMN %I TEXT',
+        r[1], tmp_col
       );
       EXECUTE format(
-        'UPDATE %I SET %I_text_tmp = COALESCE(%I->>''fr'', %I::text)',
-        r[1], r[2], r[2], r[2]
+        'UPDATE %I SET %I = COALESCE(%I->>''fr'', %I::text)',
+        r[1], tmp_col, r[2], r[2]
       );
       EXECUTE format(
         'ALTER TABLE %I DROP COLUMN %I',
         r[1], r[2]
       );
       EXECUTE format(
-        'ALTER TABLE %I RENAME COLUMN %I_text_tmp TO %I',
-        r[1], r[2], r[2]
+        'ALTER TABLE %I RENAME COLUMN %I TO %I',
+        r[1], tmp_col, r[2]
       );
       IF r[3] = 'NOT NULL' THEN
         -- Defensive: anything that was null after the COALESCE gets ''
