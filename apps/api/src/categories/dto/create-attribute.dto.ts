@@ -1,21 +1,17 @@
 import {
-  IsObject,
   IsOptional,
   IsString,
   IsBoolean,
   IsNumber,
   IsIn,
   IsArray,
-  ValidateNested,
+  IsNotEmpty,
 } from 'class-validator';
-import { Type } from 'class-transformer';
-import { TranslatableTextDto } from './translatable-text.dto';
 
 export class CreateAttributeDto {
-  @IsObject({ message: 'Le nom doit être un objet avec les traductions' })
-  @ValidateNested()
-  @Type(() => TranslatableTextDto)
-  name: TranslatableTextDto;
+  @IsString({ message: 'Le nom doit être une chaîne de caractères' })
+  @IsNotEmpty({ message: 'Le nom est obligatoire' })
+  name: string;
 
   @IsString({ message: 'Le type doit être une chaîne de caractères' })
   @IsIn(['TEXT', 'SELECT', 'MULTISELECT', 'NUMERIC'], {

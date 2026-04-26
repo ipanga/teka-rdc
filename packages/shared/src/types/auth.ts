@@ -27,7 +27,6 @@ export interface RegisterDto {
   code: string;
   firstName: string;
   lastName: string;
-  locale?: string;
 }
 
 export interface LoginResponse {
@@ -47,7 +46,6 @@ export interface EmailRegisterDto {
   password: string;
   firstName: string;
   lastName: string;
-  locale?: 'fr' | 'en';
 }
 
 // Password reset

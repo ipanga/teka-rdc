@@ -2,10 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import Image from 'next/image';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { apiFetch } from '@/lib/api-client';
-import { getLocalizedName } from '@/lib/format';
 import type { Banner } from '@/lib/types';
 
 const AUTO_ADVANCE_MS = 5000;
@@ -17,7 +16,6 @@ interface BannerCarouselProps {
 
 export function BannerCarousel({ fallback }: BannerCarouselProps) {
   const t = useTranslations('Banners');
-  const locale = useLocale();
   const router = useRouter();
 
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -149,10 +147,8 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
       >
         {banners.map((banner) => {
-          const title = getLocalizedName(banner.title, locale);
-          const subtitle = banner.subtitle
-            ? getLocalizedName(banner.subtitle, locale)
-            : null;
+          const title = banner.title;
+          const subtitle = banner.subtitle ?? null;
           const hasLink = banner.linkType && banner.linkTarget;
 
           return (

@@ -1,4 +1,4 @@
-import type { TranslatableText, Timestamps } from './common';
+import type { Timestamps } from './common';
 
 // Enums
 export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'SHIPPED' | 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'CANCELLED' | 'RETURNED';
@@ -41,7 +41,7 @@ export interface OrderItem {
   unitPriceUSD?: string | null;
   totalCDF: string;
   totalUSD?: string | null;
-  productTitle: TranslatableText;
+  productTitle: string;
   productImage?: string | null;
   createdAt: string;
 }

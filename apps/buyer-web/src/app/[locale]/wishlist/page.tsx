@@ -2,19 +2,17 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { apiFetch } from '@/lib/api-client';
-import { formatCDF, getLocalizedName } from '@/lib/format';
+import { formatCDF} from '@/lib/format';
 import type { WishlistItem, PaginatedWishlist } from '@/lib/types';
 
 export default function WishlistPage() {
   const t = useTranslations('Wishlist');
   const tProducts = useTranslations('Products');
-  const locale = useLocale();
-
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -121,7 +119,7 @@ export default function WishlistPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
               {items.map((item) => {
                 const product = item.product;
-                const title = getLocalizedName(product.title, locale);
+                const title = (product.title ?? '');
                 const imageUrl = product.image?.thumbnailUrl || product.image?.url;
 
                 return (

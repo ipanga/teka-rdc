@@ -1,13 +1,7 @@
-/**
- * @deprecated Platform is monolingual (FR-only). Use `string` directly. This
- * alias keeps legacy imports compiling during the transition.
- */
-export type TranslatableText = string;
-
 /** Category from GET /api/v1/browse/categories */
 export interface BrowseCategory {
   id: string;
-  name: TranslatableText;
+  name: string;
   emoji: string | null;
   // Nullable: backfilled by the seed but new admin-created categories may
   // arrive without one. Routes guard with `cat.slug ? ... : ...`.
@@ -36,8 +30,8 @@ export interface BrowseSeller {
 export interface BrowseProduct {
   id: string;
   slug?: string;
-  title: TranslatableText;
-  description?: TranslatableText;
+  title: string;
+  description?: string;
   priceCDF: string;
   priceUSD?: number | null;
   condition: 'NEW' | 'USED';
@@ -50,16 +44,16 @@ export interface BrowseProduct {
 /** Specification item */
 export interface ProductSpecification {
   id: string;
-  name: TranslatableText;
-  value: TranslatableText;
+  name: string;
+  value: string;
 }
 
 /** Full product detail from GET /api/v1/browse/products/:id */
 export interface ProductDetail {
   id: string;
   slug?: string;
-  title: TranslatableText;
-  description: TranslatableText;
+  title: string;
+  description: string;
   priceCDF: string;
   priceUSD?: number | null;
   condition: 'NEW' | 'USED';
@@ -70,8 +64,8 @@ export interface ProductDetail {
   category: {
     id: string;
     slug: string | null;
-    name: TranslatableText;
-    breadcrumb: { id: string; slug: string | null; name: TranslatableText }[];
+    name: string;
+    breadcrumb: { id: string; slug: string | null; name: string }[];
   };
   specifications: ProductSpecification[];
 }
@@ -99,7 +93,7 @@ export interface CartItem {
   quantity: number;
   product: {
     id: string;
-    title: TranslatableText;
+    title: string;
     priceCDF: string;
     priceUSD?: number | null;
     quantity: number; // stock available
@@ -163,7 +157,7 @@ export interface OrderItem {
   unitPriceCDF: string;
   totalPriceCDF: string;
   productSnapshot: {
-    title: TranslatableText;
+    title: string;
     image: { url: string; thumbnailUrl: string } | null;
   };
 }
@@ -398,8 +392,8 @@ export interface PaginatedMessages {
 /** Banner from GET /api/v1/browse/banners */
 export interface Banner {
   id: string;
-  title: TranslatableText;
-  subtitle?: TranslatableText | null;
+  title: string;
+  subtitle?: string | null;
   imageUrl: string;
   linkUrl?: string | null;
   linkType?: 'product' | 'category' | 'url' | 'promotion' | null;
@@ -415,7 +409,7 @@ export interface Banner {
 export interface FlashDeal {
   id: string;
   type: string;
-  title: TranslatableText;
+  title: string;
   discountPercent?: number | null;
   discountCDF?: string | null;
   startsAt: string;
@@ -423,7 +417,7 @@ export interface FlashDeal {
   product: {
     id: string;
     slug?: string;
-    title: TranslatableText;
+    title: string;
     priceCDF: string;
     images: { url: string }[];
   };
@@ -436,13 +430,13 @@ export interface FlashDeal {
 /** Content page from GET /api/v1/content/:slug */
 export interface ContentPage {
   slug: string;
-  title: TranslatableText;
-  content: TranslatableText;
+  title: string;
+  content: string;
   status: string;
 }
 
 /** Content page summary from GET /api/v1/content */
 export interface ContentPageSummary {
   slug: string;
-  title: TranslatableText;
+  title: string;
 }

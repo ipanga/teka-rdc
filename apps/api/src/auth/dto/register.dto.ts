@@ -4,8 +4,6 @@ import {
   Length,
   MinLength,
   MaxLength,
-  IsOptional,
-  IsIn,
 } from 'class-validator';
 
 export class RegisterDto {
@@ -29,9 +27,4 @@ export class RegisterDto {
   @MinLength(2, { message: 'Le nom doit contenir au moins 2 caractères' })
   @MaxLength(50)
   lastName: string;
-
-  @IsOptional()
-  @IsString()
-  @IsIn(['fr', 'en'])
-  locale?: string;
 }

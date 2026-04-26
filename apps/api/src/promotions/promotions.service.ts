@@ -127,8 +127,8 @@ export class PromotionsService {
     const promotion = await this.prisma.promotion.create({
       data: {
         type: dto.type,
-        title: dto.title.fr,
-        description: dto.description?.fr ?? undefined,
+        title: dto.title,
+        description: dto.description ?? undefined,
         discountPercent: dto.discountPercent,
         discountCDF: dto.discountCDF ? BigInt(dto.discountCDF) : undefined,
         status,
@@ -186,8 +186,8 @@ export class PromotionsService {
     const data: Prisma.PromotionUpdateInput = {};
 
     if (dto.type !== undefined) data.type = dto.type;
-    if (dto.title !== undefined) data.title = dto.title.fr;
-    if (dto.description !== undefined) data.description = dto.description?.fr ?? null;
+    if (dto.title !== undefined) data.title = dto.title;
+    if (dto.description !== undefined) data.description = dto.description ?? null;
     if (dto.discountPercent !== undefined)
       data.discountPercent = dto.discountPercent;
     if (dto.discountCDF !== undefined)
@@ -368,8 +368,8 @@ export class PromotionsService {
     const promotion = await this.prisma.promotion.create({
       data: {
         type: dto.type,
-        title: dto.title.fr,
-        description: dto.description?.fr ?? undefined,
+        title: dto.title,
+        description: dto.description ?? undefined,
         discountPercent: dto.discountPercent,
         discountCDF: dto.discountCDF ? BigInt(dto.discountCDF) : undefined,
         status: PromotionStatus.PENDING_APPROVAL,

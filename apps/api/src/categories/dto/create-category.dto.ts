@@ -1,29 +1,21 @@
 import {
-  IsObject,
   IsOptional,
   IsString,
   IsBoolean,
   IsNumber,
+  IsNotEmpty,
   MaxLength,
-  ValidateNested,
   Matches,
 } from 'class-validator';
-import { Type } from 'class-transformer';
-import { TranslatableTextDto } from './translatable-text.dto';
 
 export class CreateCategoryDto {
-  @IsObject({ message: 'Le nom doit être un objet avec les traductions' })
-  @ValidateNested()
-  @Type(() => TranslatableTextDto)
-  name: TranslatableTextDto;
+  @IsString({ message: 'Le nom doit être une chaîne de caractères' })
+  @IsNotEmpty({ message: 'Le nom est obligatoire' })
+  name: string;
 
   @IsOptional()
-  @IsObject({
-    message: 'La description doit être un objet avec les traductions',
-  })
-  @ValidateNested()
-  @Type(() => TranslatableTextDto)
-  description?: TranslatableTextDto;
+  @IsString({ message: 'La description doit être une chaîne de caractères' })
+  description?: string;
 
   @IsOptional()
   @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -11,15 +11,12 @@ import { FlashDealsSection } from '@/components/home/flash-deals-section';
 import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
 import { CitySelectorModal } from '@/components/city/city-selector-modal';
-import { getLocalizedName } from '@/lib/format';
 import type { BrowseCategory, BrowseProduct } from '@/lib/types';
 
 export default function HomePage({ serverH1 }: { serverH1?: string }) {
   const t = useTranslations('Hero');
   const tCat = useTranslations('Categories');
   const tProd = useTranslations('Products');
-  const locale = useLocale();
-
   const [categories, setCategories] = useState<BrowseCategory[]>([]);
   const [popularProducts, setPopularProducts] = useState<BrowseProduct[]>([]);
   const [newestProducts, setNewestProducts] = useState<BrowseProduct[]>([]);
@@ -140,7 +137,7 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
                 >
                   <div className="text-3xl mb-2">{cat.emoji || '📦'}</div>
                   <h3 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2">
-                    {getLocalizedName(cat.name, locale)}
+                    {(cat.name ?? '')}
                   </h3>
                   <p className="text-xs text-muted-foreground mt-1">
                     {tCat('productCount', { count: cat.productCount })}

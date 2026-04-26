@@ -1,9 +1,9 @@
 'use client';
 
 import Image from 'next/image';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
-import { formatCDF, getLocalizedName } from '@/lib/format';
+import { formatCDF } from '@/lib/format';
 import type { BrowseProduct } from '@/lib/types';
 
 interface ProductCardProps {
@@ -11,10 +11,9 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const locale = useLocale();
   const t = useTranslations('Products');
 
-  const title = getLocalizedName(product.title, locale);
+  const title = product.title;
   const imageUrl = product.image?.thumbnailUrl || product.image?.url;
 
   return (

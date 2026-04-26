@@ -10,7 +10,7 @@ import { Footer } from '@/components/layout/footer';
 import { OrderStatusBadge } from '@/components/orders/order-status-badge';
 import { OrderTimeline } from '@/components/orders/order-timeline';
 import { apiFetch } from '@/lib/api-client';
-import { formatCDF, getLocalizedName } from '@/lib/format';
+import { formatCDF} from '@/lib/format';
 import type { Order, PaymentStatus } from '@/lib/types';
 
 function formatDate(dateStr: string, locale: string): string {
@@ -206,7 +206,7 @@ export default function OrderDetailPage() {
 
           <div className="divide-y divide-border">
             {order.items.map((item) => {
-              const title = getLocalizedName(item.productSnapshot.title, locale);
+              const title = (item.productSnapshot.title ?? '');
               const thumbUrl = item.productSnapshot.image?.thumbnailUrl || item.productSnapshot.image?.url;
 
               return (

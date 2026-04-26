@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { useCartStore } from '@/lib/cart-store';
-import { formatCDF, getLocalizedName } from '@/lib/format';
+import { formatCDF } from '@/lib/format';
 import type { CartItem } from '@/lib/types';
 
 interface CartItemRowProps {
@@ -14,13 +14,12 @@ interface CartItemRowProps {
 
 export function CartItemRow({ item }: CartItemRowProps) {
   const t = useTranslations('Cart');
-  const locale = useLocale();
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeItem = useCartStore((s) => s.removeItem);
   const [isUpdating, setIsUpdating] = useState(false);
 
   const { product, quantity } = item;
-  const title = getLocalizedName(product.title, locale);
+  const title = product.title;
   const maxStock = product.quantity;
   const thumbnailUrl = product.image?.thumbnailUrl || product.image?.url;
 

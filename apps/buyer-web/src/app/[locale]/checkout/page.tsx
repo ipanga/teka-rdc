@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { useCartStore } from '@/lib/cart-store';
 import { useAuthStore } from '@/lib/auth-store';
 import { apiFetch } from '@/lib/api-client';
-import { formatCDF, getLocalizedName } from '@/lib/format';
+import { formatCDF} from '@/lib/format';
 import Link from 'next/link';
 import type {
   Address,
@@ -28,7 +28,6 @@ type CheckoutStep = 'address' | 'payment' | 'review';
 export default function CheckoutPage() {
   const t = useTranslations('Checkout');
   const tCart = useTranslations('Cart');
-  const locale = useLocale();
   const router = useRouter();
   const cartItems = useCartStore((s) => s.items);
   const fetchCart = useCartStore((s) => s.fetchCart);
@@ -887,7 +886,7 @@ export default function CheckoutPage() {
                     </p>
 
                     {group.items.map((item) => {
-                      const title = getLocalizedName(item.product.title, locale);
+                      const title = (item.product.title ?? '');
                       const lineTotal = BigInt(item.product.priceCDF) * BigInt(item.quantity);
                       const thumbUrl = item.product.image?.thumbnailUrl || item.product.image?.url;
 

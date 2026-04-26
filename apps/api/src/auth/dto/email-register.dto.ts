@@ -1,7 +1,5 @@
 import {
   IsEmail,
-  IsIn,
-  IsOptional,
   IsString,
   Matches,
   MaxLength,
@@ -38,9 +36,4 @@ export class EmailRegisterDto {
   @MinLength(2, { message: 'Le nom doit contenir au moins 2 caractères' })
   @MaxLength(50)
   lastName: string;
-
-  @IsOptional()
-  @IsString()
-  @IsIn(['fr', 'en'])
-  locale?: string;
 }

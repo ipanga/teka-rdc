@@ -4,21 +4,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 
-interface TranslatableText {
-  fr: string;
-  en?: string;
-}
-
 interface Commune {
   id: string;
   cityId: string;
-  name: TranslatableText;
+  name: string;
   sortOrder: number;
 }
 
 interface City {
   id: string;
-  name: TranslatableText;
+  name: string;
   province: string;
   isActive: boolean;
   sortOrder: number;
@@ -38,8 +33,7 @@ export default function CitiesPage() {
   // City modal state
   const [showCityModal, setShowCityModal] = useState(false);
   const [editingCity, setEditingCity] = useState<City | null>(null);
-  const [cityNameFr, setCityNameFr] = useState('');
-  const [cityNameEn, setCityNameEn] = useState('');
+  const [cityName, setCityName] = useState('');
   const [cityProvince, setCityProvince] = useState('');
   const [citySortOrder, setCitySortOrder] = useState(0);
   const [isSavingCity, setIsSavingCity] = useState(false);
@@ -47,8 +41,7 @@ export default function CitiesPage() {
   // Commune modal state
   const [showCommuneModal, setShowCommuneModal] = useState(false);
   const [editingCommune, setEditingCommune] = useState<Commune | null>(null);
-  const [communeNameFr, setCommuneNameFr] = useState('');
-  const [communeNameEn, setCommuneNameEn] = useState('');
+  const [communeName, setCommuneName] = useState('');
   const [communeSortOrder, setCommuneSortOrder] = useState(0);
   const [isSavingCommune, setIsSavingCommune] = useState(false);
   const [deletingCommuneId, setDeletingCommuneId] = useState<string | null>(null);
@@ -113,8 +106,7 @@ export default function CitiesPage() {
   // Open city modal for create
   const openCreateCity = () => {
     setEditingCity(null);
-    setCityNameFr('');
-    setCityNameEn('');
+    setCityName('');
     setCityProvince('');
     setCitySortOrder(0);
     setShowCityModal(true);
@@ -123,8 +115,7 @@ export default function CitiesPage() {
   // Open city modal for edit
   const openEditCity = (city: City) => {
     setEditingCity(city);
-    setCityNameFr(city.name.fr);
-    setCityNameEn(city.name.en || '');
+    setCityName(city.name);
     setCityProvince(city.province);
     setCitySortOrder(city.sortOrder);
     setShowCityModal(true);
@@ -132,11 +123,11 @@ export default function CitiesPage() {
 
   // Save city
   const saveCity = async () => {
-    if (!cityNameFr.trim() || !cityProvince.trim()) return;
+    if (!cityName.trim() || !cityProvince.trim()) return;
     setIsSavingCity(true);
     try {
       const body = {
-        name: { fr: cityNameFr.trim(), en: cityNameEn.trim() || undefined },
+        name: cityName.trim(),
         province: cityProvince.trim(),
         sortOrder: citySortOrder,
       };
@@ -165,8 +156,7 @@ export default function CitiesPage() {
   // Open commune modal for create
   const openCreateCommune = () => {
     setEditingCommune(null);
-    setCommuneNameFr('');
-    setCommuneNameEn('');
+    setCommuneName('');
     setCommuneSortOrder(0);
     setShowCommuneModal(true);
   };
@@ -174,19 +164,18 @@ export default function CitiesPage() {
   // Open commune modal for edit
   const openEditCommune = (commune: Commune) => {
     setEditingCommune(commune);
-    setCommuneNameFr(commune.name.fr);
-    setCommuneNameEn(commune.name.en || '');
+    setCommuneName(commune.name);
     setCommuneSortOrder(commune.sortOrder);
     setShowCommuneModal(true);
   };
 
   // Save commune
   const saveCommune = async () => {
-    if (!communeNameFr.trim() || !selectedCity) return;
+    if (!communeName.trim() || !selectedCity) return;
     setIsSavingCommune(true);
     try {
       const body = {
-        name: { fr: communeNameFr.trim(), en: communeNameEn.trim() || undefined },
+        name: communeName.trim(),
         sortOrder: communeSortOrder,
       };
 
@@ -268,10 +257,7 @@ export default function CitiesPage() {
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-foreground">{city.name.fr}</span>
-                      {city.name.en && city.name.en !== city.name.fr && (
-                        <span className="text-xs text-muted-foreground">({city.name.en})</span>
-                      )}
+                      <span className="font-medium text-foreground">{city.name}</span>
                     </div>
                     <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                       <span>{city.province}</span>
@@ -307,7 +293,7 @@ export default function CitiesPage() {
         <div className="bg-white rounded-xl border border-border shadow-sm">
           <div className="p-4 border-b border-border flex items-center justify-between">
             <h2 className="font-semibold text-foreground">
-              {t('communes')} {selectedCity && <span className="font-normal text-muted-foreground">— {selectedCity.name.fr}</span>}
+              {t('communes')} {selectedCity && <span className="font-normal text-muted-foreground">— {selectedCity.name}</span>}
             </h2>
             {selectedCity && (
               <button onClick={openCreateCommune} className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors">
@@ -325,10 +311,7 @@ export default function CitiesPage() {
               {communes.map((commune) => (
                 <div key={commune.id} className="flex items-center justify-between p-4">
                   <div>
-                    <span className="font-medium text-foreground">{commune.name.fr}</span>
-                    {commune.name.en && commune.name.en !== commune.name.fr && (
-                      <span className="text-xs text-muted-foreground ml-2">({commune.name.en})</span>
-                    )}
+                    <span className="font-medium text-foreground">{commune.name}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => openEditCommune(commune)} className="px-2 py-1 text-xs text-primary hover:text-primary/80 font-medium">
@@ -352,12 +335,8 @@ export default function CitiesPage() {
             <h3 className="text-lg font-semibold mb-4">{editingCity ? t('editCity') : t('newCity')}</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">{t('nameFr')} *</label>
-                <input value={cityNameFr} onChange={(e) => setCityNameFr(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input text-sm focus:ring-2 focus:ring-ring focus:outline-none" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">{t('nameEn')}</label>
-                <input value={cityNameEn} onChange={(e) => setCityNameEn(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input text-sm focus:ring-2 focus:ring-ring focus:outline-none" />
+                <label className="block text-sm font-medium mb-1">{t('name')} *</label>
+                <input value={cityName} onChange={(e) => setCityName(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input text-sm focus:ring-2 focus:ring-ring focus:outline-none" />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">{t('province')} *</label>
@@ -370,7 +349,7 @@ export default function CitiesPage() {
             </div>
             <div className="flex justify-end gap-3 mt-6">
               <button onClick={() => setShowCityModal(false)} className="px-4 py-2 text-sm rounded-lg border border-input hover:bg-muted transition-colors">{tc('cancel')}</button>
-              <button onClick={saveCity} disabled={isSavingCity || !cityNameFr.trim() || !cityProvince.trim()} className="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors">
+              <button onClick={saveCity} disabled={isSavingCity || !cityName.trim() || !cityProvince.trim()} className="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors">
                 {isSavingCity ? tc('loading') : tc('save')}
               </button>
             </div>
@@ -385,12 +364,8 @@ export default function CitiesPage() {
             <h3 className="text-lg font-semibold mb-4">{editingCommune ? t('editCommune') : t('newCommune')}</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">{t('nameFr')} *</label>
-                <input value={communeNameFr} onChange={(e) => setCommuneNameFr(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input text-sm focus:ring-2 focus:ring-ring focus:outline-none" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">{t('nameEn')}</label>
-                <input value={communeNameEn} onChange={(e) => setCommuneNameEn(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input text-sm focus:ring-2 focus:ring-ring focus:outline-none" />
+                <label className="block text-sm font-medium mb-1">{t('name')} *</label>
+                <input value={communeName} onChange={(e) => setCommuneName(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input text-sm focus:ring-2 focus:ring-ring focus:outline-none" />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">{t('sortOrder')}</label>
@@ -399,7 +374,7 @@ export default function CitiesPage() {
             </div>
             <div className="flex justify-end gap-3 mt-6">
               <button onClick={() => setShowCommuneModal(false)} className="px-4 py-2 text-sm rounded-lg border border-input hover:bg-muted transition-colors">{tc('cancel')}</button>
-              <button onClick={saveCommune} disabled={isSavingCommune || !communeNameFr.trim()} className="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors">
+              <button onClick={saveCommune} disabled={isSavingCommune || !communeName.trim()} className="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors">
                 {isSavingCommune ? tc('loading') : tc('save')}
               </button>
             </div>
