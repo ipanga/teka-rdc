@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { apiFetch } from '@/lib/api-client';
-import { formatCDF, getLocalizedName } from '@/lib/format';
+import { formatCDF } from '@/lib/format';
 import type { FlashDeal } from '@/lib/types';
 
 /**
@@ -74,7 +74,6 @@ function CountdownTimer({ endsAt }: { endsAt: string }) {
 
 export function FlashDealsSection() {
   const t = useTranslations('FlashDeals');
-  const locale = useLocale();
 
   const [deals, setDeals] = useState<FlashDeal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -177,7 +176,7 @@ export function FlashDealsSection() {
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
         >
           {deals.map((deal) => {
-            const title = getLocalizedName(deal.product.title, locale);
+            const title = deal.product.title;
             const originalPrice = deal.product.priceCDF;
             const discountedPrice = calcDiscountedPrice(
               originalPrice,

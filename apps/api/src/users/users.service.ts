@@ -38,7 +38,6 @@ export class UsersService {
           email: dto.email,
           emailVerified: false,
         }),
-        ...(dto.locale !== undefined && { locale: dto.locale }),
         ...(dto.avatar !== undefined && { avatar: dto.avatar }),
       },
     });

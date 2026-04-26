@@ -1,4 +1,4 @@
-import type { TranslatableText, SoftDeletable } from './common';
+import type { SoftDeletable } from './common';
 
 // Enums
 export type ProductCondition = 'NEW' | 'USED';
@@ -8,8 +8,8 @@ export type AttributeType = 'TEXT' | 'SELECT' | 'MULTISELECT' | 'NUMERIC';
 // Category
 export interface Category extends SoftDeletable {
   id: string;
-  name: TranslatableText;
-  description?: TranslatableText | null;
+  name: string;
+  description?: string | null;
   parentCategoryId?: string | null;
   emoji?: string | null;
   sortOrder: number;
@@ -21,8 +21,8 @@ export interface Category extends SoftDeletable {
 // Product
 export interface Product extends SoftDeletable {
   id: string;
-  title: TranslatableText;
-  description: TranslatableText;
+  title: string;
+  description: string;
   categoryId: string;
   sellerId: string;
   cityId?: string | null;
@@ -61,7 +61,7 @@ export interface ProductImage {
 export interface ProductAttribute {
   id: string;
   categoryId: string;
-  name: TranslatableText;
+  name: string;
   type: AttributeType;
   options?: string[] | null;
   isRequired: boolean;
@@ -84,7 +84,7 @@ export interface ProductSpecification {
 // Browse response shapes
 export interface BrowseProduct {
   id: string;
-  title: TranslatableText;
+  title: string;
   priceCDF: string;
   priceUSD?: string | null;
   condition: ProductCondition;

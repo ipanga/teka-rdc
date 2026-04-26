@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
 import { Link, useRouter } from '@/i18n/navigation';
 import { Header } from '@/components/layout/header';
@@ -12,14 +12,13 @@ import { WishlistButton } from '@/components/wishlist-button';
 import { apiFetch } from '@/lib/api-client';
 import { useCartStore } from '@/lib/cart-store';
 import { useAuthStore } from '@/lib/auth-store';
-import { formatCDF, formatUSD, getLocalizedName } from '@/lib/format';
+import { formatCDF, formatUSD} from '@/lib/format';
 import type { ProductDetail } from '@/lib/types';
 
 export default function ProductDetailPage() {
   const t = useTranslations('Products');
   const tCat = useTranslations('Categories');
   const tMsg = useTranslations('Messaging');
-  const locale = useLocale();
   const router = useRouter();
   const params = useParams<{ slug: string }>();
   const productId = params.slug;
@@ -122,8 +121,8 @@ export default function ProductDetailPage() {
     );
   }
 
-  const title = getLocalizedName(product.title, locale);
-  const description = getLocalizedName(product.description, locale);
+  const title = (product.title ?? '');
+  const description = (product.description ?? '');
   const images = product.images || [];
   const selectedImage = images[selectedImageIndex] || null;
   const isOutOfStock = product.quantity <= 0;
@@ -145,7 +144,7 @@ export default function ProductDetailPage() {
                 href={crumb.slug ? `/categorie/${crumb.slug}` : `/categories/${crumb.id}`}
                 className="hover:text-primary transition-colors"
               >
-                {getLocalizedName(crumb.name, locale)}
+                {(crumb.name ?? '')}
               </Link>
             </span>
           ))}
@@ -379,7 +378,7 @@ export default function ProductDetailPage() {
                   }
                   className="text-sm font-medium text-primary hover:underline"
                 >
-                  {getLocalizedName(product.category.name, locale)}
+                  {(product.category.name ?? '')}
                 </Link>
               </div>
             )}
@@ -409,10 +408,10 @@ export default function ProductDetailPage() {
                       className="flex gap-4 text-sm py-1.5 border-b border-border last:border-0"
                     >
                       <dt className="text-muted-foreground w-1/3 shrink-0">
-                        {getLocalizedName(spec.name, locale)}
+                        {(spec.name ?? '')}
                       </dt>
                       <dd className="text-foreground font-medium">
-                        {getLocalizedName(spec.value, locale)}
+                        {(spec.value ?? '')}
                       </dd>
                     </div>
                   ))}

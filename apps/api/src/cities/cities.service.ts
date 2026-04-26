@@ -51,14 +51,14 @@ export class CitiesService {
    * Admin: create a city.
    */
   async createCity(data: {
-    name: { fr: string; en?: string };
+    name: string;
     province: string;
     isActive?: boolean;
     sortOrder?: number;
   }) {
     const city = await this.prisma.city.create({
       data: {
-        name: data.name as any,
+        name: data.name,
         province: data.province,
         isActive: data.isActive ?? false,
         sortOrder: data.sortOrder ?? 0,
@@ -74,7 +74,7 @@ export class CitiesService {
   async updateCity(
     id: string,
     data: {
-      name?: { fr: string; en?: string };
+      name?: string;
       province?: string;
       isActive?: boolean;
       sortOrder?: number;
@@ -88,7 +88,7 @@ export class CitiesService {
     const updated = await this.prisma.city.update({
       where: { id },
       data: {
-        ...(data.name !== undefined && { name: data.name as any }),
+        ...(data.name !== undefined && { name: data.name }),
         ...(data.province !== undefined && { province: data.province }),
         ...(data.isActive !== undefined && { isActive: data.isActive }),
         ...(data.sortOrder !== undefined && { sortOrder: data.sortOrder }),
@@ -103,7 +103,7 @@ export class CitiesService {
    */
   async createCommune(
     cityId: string,
-    data: { name: { fr: string; en?: string }; sortOrder?: number },
+    data: { name: string; sortOrder?: number },
   ) {
     const city = await this.prisma.city.findUnique({ where: { id: cityId } });
     if (!city) {
@@ -113,7 +113,7 @@ export class CitiesService {
     const commune = await this.prisma.commune.create({
       data: {
         cityId,
-        name: data.name as any,
+        name: data.name,
         sortOrder: data.sortOrder ?? 0,
       },
     });
@@ -126,7 +126,7 @@ export class CitiesService {
    */
   async updateCommune(
     id: string,
-    data: { name?: { fr: string; en?: string }; sortOrder?: number },
+    data: { name?: string; sortOrder?: number },
   ) {
     const commune = await this.prisma.commune.findUnique({ where: { id } });
     if (!commune) {
@@ -136,7 +136,7 @@ export class CitiesService {
     return this.prisma.commune.update({
       where: { id },
       data: {
-        ...(data.name !== undefined && { name: data.name as any }),
+        ...(data.name !== undefined && { name: data.name }),
         ...(data.sortOrder !== undefined && { sortOrder: data.sortOrder }),
       },
     });

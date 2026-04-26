@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -9,13 +9,12 @@ import { CartItemRow } from '@/components/cart/cart-item-row';
 import { useCartStore } from '@/lib/cart-store';
 import { useAuthStore } from '@/lib/auth-store';
 import { apiFetch } from '@/lib/api-client';
-import { formatCDF, getLocalizedName } from '@/lib/format';
+import { formatCDF} from '@/lib/format';
 import type { Cart, CartItem, GuestCartItem, BrowseProduct } from '@/lib/types';
 
 export default function CartPage() {
   const t = useTranslations('Cart');
   const tProducts = useTranslations('Products');
-  const locale = useLocale();
   const user = useAuthStore((s) => s.user);
   const isLoadingAuth = useAuthStore((s) => s.isLoading);
 

@@ -148,10 +148,8 @@ export class BannersService {
   async create(dto: CreateBannerDto, userId: string) {
     const banner = await this.prisma.banner.create({
       data: {
-        // DTO still accepts { fr, en } for back-compat with older clients.
-        // Persist only the FR value — that's the only column the DB has now.
-        title: dto.title.fr,
-        subtitle: dto.subtitle?.fr ?? undefined,
+        title: dto.title,
+        subtitle: dto.subtitle ?? undefined,
         imageUrl: dto.imageUrl,
         linkUrl: dto.linkUrl,
         linkType: dto.linkType,
@@ -178,8 +176,8 @@ export class BannersService {
 
     const data: Record<string, unknown> = {};
 
-    if (dto.title !== undefined) data.title = dto.title.fr;
-    if (dto.subtitle !== undefined) data.subtitle = dto.subtitle?.fr ?? null;
+    if (dto.title !== undefined) data.title = dto.title;
+    if (dto.subtitle !== undefined) data.subtitle = dto.subtitle ?? null;
     if (dto.imageUrl !== undefined) data.imageUrl = dto.imageUrl;
     if (dto.linkUrl !== undefined) data.linkUrl = dto.linkUrl;
     if (dto.linkType !== undefined) data.linkType = dto.linkType;

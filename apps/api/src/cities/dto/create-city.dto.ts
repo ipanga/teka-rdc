@@ -3,25 +3,13 @@ import {
   IsOptional,
   IsBoolean,
   IsNumber,
-  ValidateNested,
   MinLength,
 } from 'class-validator';
-import { Type } from 'class-transformer';
-
-class TranslatableTextDto {
-  @IsString()
-  @MinLength(1, { message: 'Le nom en français est requis' })
-  fr: string;
-
-  @IsOptional()
-  @IsString()
-  en?: string;
-}
 
 export class CreateCityDto {
-  @ValidateNested()
-  @Type(() => TranslatableTextDto)
-  name: TranslatableTextDto;
+  @IsString()
+  @MinLength(1, { message: 'Le nom est requis' })
+  name: string;
 
   @IsString()
   @MinLength(1, { message: 'La province est requise' })
@@ -38,9 +26,9 @@ export class CreateCityDto {
 
 export class UpdateCityDto {
   @IsOptional()
-  @ValidateNested()
-  @Type(() => TranslatableTextDto)
-  name?: TranslatableTextDto;
+  @IsString()
+  @MinLength(1)
+  name?: string;
 
   @IsOptional()
   @IsString()
@@ -56,9 +44,9 @@ export class UpdateCityDto {
 }
 
 export class CreateCommuneDto {
-  @ValidateNested()
-  @Type(() => TranslatableTextDto)
-  name: TranslatableTextDto;
+  @IsString()
+  @MinLength(1, { message: 'Le nom est requis' })
+  name: string;
 
   @IsOptional()
   @IsNumber()
@@ -67,9 +55,9 @@ export class CreateCommuneDto {
 
 export class UpdateCommuneDto {
   @IsOptional()
-  @ValidateNested()
-  @Type(() => TranslatableTextDto)
-  name?: TranslatableTextDto;
+  @IsString()
+  @MinLength(1)
+  name?: string;
 
   @IsOptional()
   @IsNumber()

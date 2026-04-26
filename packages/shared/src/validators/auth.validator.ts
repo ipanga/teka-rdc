@@ -15,7 +15,6 @@ export const registerSchema = z.object({
   code: z.string().length(6, 'Code requis'),
   firstName: z.string().min(2, 'Le prénom doit contenir au moins 2 caractères').max(50),
   lastName: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').max(50),
-  locale: z.enum(['fr', 'en']).optional().default('fr'),
 });
 
 export const loginSchema = z.object({
@@ -48,7 +47,6 @@ export const emailRegisterSchema = z.object({
   password: passwordSchema,
   firstName: z.string().min(2, 'Le prénom doit contenir au moins 2 caractères').max(50),
   lastName: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').max(50),
-  locale: z.enum(['fr', 'en']).optional().default('fr'),
 });
 
 export const passwordResetRequestSchema = z.object({

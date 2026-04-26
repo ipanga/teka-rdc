@@ -75,7 +75,6 @@ async function main() {
       // "forgot password" flow before first login; skip auto-verification.
       phoneVerified: !isProd,
       emailVerified: !isProd,
-      locale: 'fr',
     },
   });
   console.log(`Admin user: ${admin.id}`);
@@ -99,7 +98,6 @@ async function main() {
       role: 'BUYER',
       status: 'ACTIVE',
       phoneVerified: true,
-      locale: 'fr',
     },
   });
   console.log(`Buyer user: ${buyer.id}`);
@@ -116,7 +114,6 @@ async function main() {
       role: 'SELLER',
       status: 'ACTIVE',
       phoneVerified: true,
-      locale: 'fr',
     },
   });
   console.log(`Seller user 1 (Marie): ${seller1.id}`);
@@ -134,7 +131,6 @@ async function main() {
       status: 'ACTIVE',
       phoneVerified: true,
       emailVerified: true,
-      locale: 'fr',
     },
   });
   console.log(`Seller user 2 (Patrick): ${seller2.id}`);
@@ -3019,7 +3015,6 @@ async function seedTekaOfficielSeller(adminId: string): Promise<string> {
       phoneVerified: true,
       emailVerified: true,
       authProvider: 'EMAIL_PASSWORD',
-      locale: 'fr',
     },
   });
 

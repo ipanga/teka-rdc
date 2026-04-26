@@ -1,30 +1,22 @@
 import {
-  IsObject,
   IsOptional,
   IsString,
   IsUrl,
   IsEnum,
   IsNumber,
   IsDateString,
-  ValidateNested,
+  IsNotEmpty,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 import { BannerStatus } from '@prisma/client';
-import { TranslatableTextDto } from './translatable-text.dto';
 
 export class CreateBannerDto {
-  @IsObject({ message: 'Le titre doit être un objet avec les traductions' })
-  @ValidateNested()
-  @Type(() => TranslatableTextDto)
-  title: TranslatableTextDto;
+  @IsString({ message: 'Le titre doit être une chaîne de caractères' })
+  @IsNotEmpty({ message: 'Le titre est obligatoire' })
+  title: string;
 
   @IsOptional()
-  @IsObject({
-    message: 'Le sous-titre doit être un objet avec les traductions',
-  })
-  @ValidateNested()
-  @Type(() => TranslatableTextDto)
-  subtitle?: TranslatableTextDto;
+  @IsString({ message: 'Le sous-titre doit être une chaîne de caractères' })
+  subtitle?: string;
 
   @IsUrl({}, { message: "L'URL de l'image doit être une URL valide" })
   imageUrl: string;

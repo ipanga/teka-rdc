@@ -9,7 +9,6 @@ export interface User {
   role: UserRole;
   status: UserStatus;
   avatar?: string | null;
-  locale: string;
   phoneVerified: boolean;
   emailVerified: boolean;
   createdAt: string;

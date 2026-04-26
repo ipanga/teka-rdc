@@ -1,16 +1,12 @@
 import {
-  IsObject,
   IsOptional,
   IsString,
   IsNumber,
   IsEnum,
   IsNotEmpty,
-  ValidateNested,
   Matches,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 import { ContentPageStatus } from '@prisma/client';
-import { TranslatableTextDto } from './translatable-text.dto';
 
 export class CreateContentDto {
   @IsString({ message: 'Le slug doit être une chaîne de caractères' })
@@ -21,15 +17,13 @@ export class CreateContentDto {
   })
   slug: string;
 
-  @IsObject({ message: 'Le titre doit être un objet avec les traductions' })
-  @ValidateNested()
-  @Type(() => TranslatableTextDto)
-  title: TranslatableTextDto;
+  @IsString({ message: 'Le titre doit être une chaîne de caractères' })
+  @IsNotEmpty({ message: 'Le titre est obligatoire' })
+  title: string;
 
-  @IsObject({ message: 'Le contenu doit être un objet avec les traductions' })
-  @ValidateNested()
-  @Type(() => TranslatableTextDto)
-  content: TranslatableTextDto;
+  @IsString({ message: 'Le contenu doit être une chaîne de caractères' })
+  @IsNotEmpty({ message: 'Le contenu est obligatoire' })
+  content: string;
 
   @IsOptional()
   @IsEnum(ContentPageStatus, {

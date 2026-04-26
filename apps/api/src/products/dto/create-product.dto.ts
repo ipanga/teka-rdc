@@ -1,5 +1,4 @@
 import {
-  IsObject,
   IsString,
   IsOptional,
   IsInt,
@@ -9,18 +8,9 @@ import {
   ValidateNested,
   IsNotEmpty,
   Matches,
+  MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-
-class TranslatableTextDto {
-  @IsString()
-  @IsNotEmpty({ message: 'Le texte en français est requis' })
-  fr: string;
-
-  @IsOptional()
-  @IsString()
-  en?: string;
-}
 
 class SpecificationDto {
   @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
@@ -34,15 +24,14 @@ class SpecificationDto {
 }
 
 export class CreateProductDto {
-  @IsObject()
-  @ValidateNested()
-  @Type(() => TranslatableTextDto)
-  title: TranslatableTextDto;
+  @IsString()
+  @IsNotEmpty({ message: 'Le titre est requis' })
+  @MaxLength(200)
+  title: string;
 
-  @IsObject()
-  @ValidateNested()
-  @Type(() => TranslatableTextDto)
-  description: TranslatableTextDto;
+  @IsString()
+  @IsNotEmpty({ message: 'La description est requise' })
+  description: string;
 
   @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
     message: 'Catégorie invalide',

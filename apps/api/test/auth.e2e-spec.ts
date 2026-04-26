@@ -184,19 +184,6 @@ describe('Auth (e2e)', () => {
         .expect(400);
     });
 
-    it('should reject invalid locale', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/auth/register')
-        .send({
-          phone: '+243999000001',
-          code: '123456',
-          firstName: 'Jean',
-          lastName: 'Kabeya',
-          locale: 'de',
-        })
-        .expect(400);
-    });
-
     it('should register a new user with valid data', async () => {
       const mockUser = {
         id: '10000000-0000-0000-0000-000000000099',
@@ -205,7 +192,6 @@ describe('Auth (e2e)', () => {
         lastName: 'Kabeya',
         role: 'BUYER',
         status: 'ACTIVE',
-        locale: 'fr',
         phoneVerified: true,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -226,7 +212,6 @@ describe('Auth (e2e)', () => {
           code: '123456',
           firstName: 'Jean',
           lastName: 'Kabeya',
-          locale: 'fr',
         })
         .expect(201);
 
