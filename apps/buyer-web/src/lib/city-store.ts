@@ -1,11 +1,6 @@
 import { create } from 'zustand';
 import { apiFetch } from './api-client';
 
-interface TranslatableText {
-  fr: string;
-  en?: string;
-}
-
 export interface City {
   id: string;
   name: string;

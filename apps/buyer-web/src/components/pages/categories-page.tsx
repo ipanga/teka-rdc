@@ -1,18 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { apiFetch } from '@/lib/api-client';
-import { getLocalizedName } from '@/lib/format';
 import type { BrowseCategory } from '@/lib/types';
 
 export default function CategoriesPage() {
   const t = useTranslations('Categories');
-  const locale = useLocale();
-
   const [categories, setCategories] = useState<BrowseCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -69,7 +66,7 @@ export default function CategoriesPage() {
               >
                 <div className="text-4xl mb-3">{cat.emoji || '📦'}</div>
                 <h2 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
-                  {getLocalizedName(cat.name, locale)}
+                  {(cat.name ?? '')}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-1">
                   {t('productCount', { count: cat.productCount })}
@@ -79,7 +76,7 @@ export default function CategoriesPage() {
                   <div className="mt-3 pt-3 border-t border-border">
                     {cat.subcategories.slice(0, 3).map((sub) => (
                       <p key={sub.id} className="text-xs text-muted-foreground truncate">
-                        {getLocalizedName(sub.name, locale)}
+                        {(sub.name ?? '')}
                       </p>
                     ))}
                     {cat.subcategories.length > 3 && (

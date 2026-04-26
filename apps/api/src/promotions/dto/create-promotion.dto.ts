@@ -5,23 +5,11 @@ import {
   Min,
   Max,
   IsDateString,
-  IsObject,
   IsString,
-  ValidateNested,
-  ValidateIf,
+  IsNotEmpty,
   Matches,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 import { PromotionType } from '@prisma/client';
-
-class TranslatableTextDto {
-  @IsString({ message: 'Le titre en français est requis' })
-  fr: string;
-
-  @IsOptional()
-  @IsString({ message: 'Le titre en anglais doit être une chaîne' })
-  en?: string;
-}
 
 export class CreatePromotionDto {
   @IsEnum(PromotionType, {
@@ -29,16 +17,13 @@ export class CreatePromotionDto {
   })
   type: PromotionType;
 
-  @IsObject({ message: 'Le titre doit être un objet { fr, en? }' })
-  @ValidateNested()
-  @Type(() => TranslatableTextDto)
-  title: TranslatableTextDto;
+  @IsString({ message: 'Le titre est requis' })
+  @IsNotEmpty({ message: 'Le titre est requis' })
+  title: string;
 
   @IsOptional()
-  @IsObject({ message: 'La description doit être un objet { fr, en? }' })
-  @ValidateNested()
-  @Type(() => TranslatableTextDto)
-  description?: TranslatableTextDto;
+  @IsString({ message: 'La description doit être une chaîne' })
+  description?: string;
 
   @IsOptional()
   @IsInt({ message: 'Le pourcentage de réduction doit être un entier' })

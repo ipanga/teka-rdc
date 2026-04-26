@@ -1,8 +1,8 @@
-import type { TranslatableText, Timestamps } from './common';
+import type { Timestamps } from './common';
 
 export interface City extends Timestamps {
   id: string;
-  name: TranslatableText;
+  name: string;
   province: string;
   isActive: boolean;
   sortOrder: number;
@@ -12,6 +12,6 @@ export interface City extends Timestamps {
 export interface Commune extends Timestamps {
   id: string;
   cityId: string;
-  name: TranslatableText;
+  name: string;
   sortOrder: number;
 }

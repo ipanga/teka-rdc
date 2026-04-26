@@ -1,4 +1,4 @@
-import type { TranslatableText, Timestamps } from './common';
+import type { Timestamps } from './common';
 
 // Cart
 export interface Cart extends Timestamps {
@@ -17,7 +17,7 @@ export interface CartItem extends Timestamps {
 
 export interface CartProduct {
   id: string;
-  title: TranslatableText;
+  title: string;
   priceCDF: string; // BigInt serialized as string
   priceUSD?: string | null;
   quantity: number; // available stock

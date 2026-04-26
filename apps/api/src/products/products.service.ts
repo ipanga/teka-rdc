@@ -60,15 +60,14 @@ export class ProductsService {
 
     // Generate product ID and SEO slug
     const productId = randomUUID();
-    const frTitle = (dto.title as { fr: string }).fr || '';
-    const slug = generateProductSlug(frTitle, productId);
+    const slug = generateProductSlug(dto.title, productId);
 
     const product = await this.prisma.product.create({
       data: {
         id: productId,
         slug,
-        title: dto.title as any,
-        description: dto.description as any,
+        title: dto.title,
+        description: dto.description,
         categoryId: dto.categoryId,
         sellerId,
         cityId,
@@ -227,9 +226,9 @@ export class ProductsService {
       return tx.product.update({
         where: { id: productId },
         data: {
-          ...(dto.title !== undefined && { title: dto.title as any }),
+          ...(dto.title !== undefined && { title: dto.title }),
           ...(dto.description !== undefined && {
-            description: dto.description as any,
+            description: dto.description,
           }),
           ...(dto.categoryId !== undefined && { categoryId: dto.categoryId }),
           ...(priceCDF !== undefined && { priceCDF }),

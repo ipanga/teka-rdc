@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { Header } from '@/components/layout/header';
@@ -14,7 +14,6 @@ import {
 } from '@/components/product/product-filters';
 import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
-import { getLocalizedName } from '@/lib/format';
 import type { BrowseCategory, BrowseProduct, CursorPagination } from '@/lib/types';
 
 interface CategoryPageProps {
@@ -30,7 +29,6 @@ interface CategoryPageProps {
 export default function CategoryPage({ categoryUuid }: CategoryPageProps = {}) {
   const t = useTranslations('Products');
   const tCat = useTranslations('Categories');
-  const locale = useLocale();
   const params = useParams<{ id?: string; slug?: string }>();
   const categoryId = categoryUuid ?? params.id ?? '';
 
@@ -155,7 +153,7 @@ export default function CategoryPage({ categoryUuid }: CategoryPageProps = {}) {
     }
   }
 
-  const categoryName = category ? getLocalizedName(category.name, locale) : '';
+  const categoryName = category ? (category.name ?? '') : '';
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

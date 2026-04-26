@@ -185,7 +185,6 @@ model User {
   role         UserRole   @default(BUYER)
   status       UserStatus @default(PENDING_VERIFICATION)
   avatar       String?
-  locale       String     @default("fr")
 
   // Auth provider
   authProvider  AuthProvider @default(PHONE_OTP)

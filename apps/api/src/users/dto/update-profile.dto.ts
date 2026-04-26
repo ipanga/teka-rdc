@@ -4,7 +4,6 @@ import {
   IsEmail,
   MinLength,
   MaxLength,
-  IsIn,
 } from 'class-validator';
 
 export class UpdateProfileDto {
@@ -23,11 +22,6 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsEmail({}, { message: 'Adresse email invalide' })
   email?: string;
-
-  @IsOptional()
-  @IsString()
-  @IsIn(['fr', 'en'])
-  locale?: string;
 
   @IsOptional()
   @IsString()

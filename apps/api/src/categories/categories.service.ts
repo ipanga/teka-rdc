@@ -99,8 +99,8 @@ export class CategoriesService {
 
     const category = await this.prisma.category.create({
       data: {
-        name: dto.name as any,
-        description: dto.description as any,
+        name: dto.name,
+        description: dto.description,
         parentCategoryId: dto.parentCategoryId,
         emoji: dto.emoji,
         sortOrder: dto.sortOrder ?? 0,
@@ -160,9 +160,9 @@ export class CategoriesService {
     const updated = await this.prisma.category.update({
       where: { id },
       data: {
-        ...(dto.name !== undefined && { name: dto.name as any }),
+        ...(dto.name !== undefined && { name: dto.name }),
         ...(dto.description !== undefined && {
-          description: dto.description as any,
+          description: dto.description,
         }),
         ...(dto.parentCategoryId !== undefined && {
           parentCategoryId: dto.parentCategoryId,
@@ -239,7 +239,7 @@ export class CategoriesService {
     return this.prisma.productAttribute.create({
       data: {
         categoryId,
-        name: dto.name as any,
+        name: dto.name,
         type: dto.type as AttributeType,
         options: dto.options ?? undefined,
         isRequired: dto.isRequired ?? false,
@@ -267,7 +267,7 @@ export class CategoriesService {
     return this.prisma.productAttribute.update({
       where: { id: attrId },
       data: {
-        ...(dto.name !== undefined && { name: dto.name as any }),
+        ...(dto.name !== undefined && { name: dto.name }),
         ...(dto.type !== undefined && { type: dto.type as AttributeType }),
         ...(dto.options !== undefined && { options: dto.options }),
         ...(dto.isRequired !== undefined && { isRequired: dto.isRequired }),
