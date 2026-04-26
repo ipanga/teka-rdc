@@ -36,6 +36,8 @@ const nextConfig: NextConfig = {
   //   - /pages/<canonical>   → /<fr-slug>  (legacy /pages/ prefix)
   //   - /<canonical-en>      → /<fr-slug>  (someone typed the English slug)
   //   - /en/<anything>       → /<anything> (legacy locale prefix)
+  //   - /products/<slug>     → /<slug>     (legacy product URL prefix; product
+  //                                          pages now live at the site root)
   async redirects() {
     const out: Array<{ source: string; destination: string; permanent: boolean }> = [];
 
@@ -56,15 +58,17 @@ const nextConfig: NextConfig = {
       }
     }
 
-    // Strip legacy /en/* prefixes from the bilingual era. Anything under
-    // /en/<path> redirects to /<path> on the FR-only site.
+    // Strip legacy /en/* prefixes from the bilingual era.
+    out.push({ source: '/en/:path*', destination: '/:path*', permanent: true });
+    out.push({ source: '/en', destination: '/', permanent: true });
+
+    // Legacy /products/<slug> URLs (in use until 2026-04-26) → /<slug>.
+    // Preserves Google index entries + any external product-link shares.
     out.push({
-      source: '/en/:path*',
-      destination: '/:path*',
+      source: '/products/:slug',
+      destination: '/:slug',
       permanent: true,
     });
-    // Bare /en → home.
-    out.push({ source: '/en', destination: '/', permanent: true });
 
     return out;
   },

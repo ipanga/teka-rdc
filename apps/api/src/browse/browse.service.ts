@@ -61,6 +61,19 @@ export class BrowseService {
       }
     }
 
+    // Roll up subcategory counts into the parent. Products are assigned to
+    // leaf (sub)categories, never directly to a top-level category, so the
+    // parent's _count.products is always 0 in our seed. Without this rollup
+    // the homepage shows "0 produits" under every main category card even
+    // though the catalog has 152 products.
+    for (const root of roots) {
+      const subTotal = root.subcategories.reduce(
+        (sum, sub) => sum + ((sub as { productCount?: number }).productCount ?? 0),
+        0,
+      );
+      root.productCount = root.productCount + subTotal;
+    }
+
     return roots;
   }
 
