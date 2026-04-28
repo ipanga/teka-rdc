@@ -41,24 +41,18 @@ export default function robots(): MetadataRoute.Robots {
           '/wishlist/',
         ],
       },
-      // Social card scrapers — they fetch a single page to build link
-      // previews. Without an explicit allowlist Facebook's debugger reports a
-      // robots.txt block (even when the * block's `Allow: /` would technically
-      // permit them), so list them by name.
-      {
-        userAgent: [
-          'facebookexternalhit',
-          'facebookcatalog',
-          'Twitterbot',
-          'LinkedInBot',
-          'WhatsApp',
-          'Slackbot',
-          'Slackbot-LinkExpanding',
-          'Discordbot',
-          'TelegramBot',
-        ],
-        allow: '/',
-      },
+      // Social card scrapers — one block per UA. Sharing one Allow across
+      // multiple `User-Agent:` lines is valid RFC 9309 but Facebook's parser
+      // doesn't handle it reliably and still reports "robots.txt block".
+      { userAgent: 'facebookexternalhit', allow: '/' },
+      { userAgent: 'facebookcatalog', allow: '/' },
+      { userAgent: 'Twitterbot', allow: '/' },
+      { userAgent: 'LinkedInBot', allow: '/' },
+      { userAgent: 'WhatsApp', allow: '/' },
+      { userAgent: 'Slackbot', allow: '/' },
+      { userAgent: 'Slackbot-LinkExpanding', allow: '/' },
+      { userAgent: 'Discordbot', allow: '/' },
+      { userAgent: 'TelegramBot', allow: '/' },
     ],
     sitemap: 'https://teka.cd/sitemap.xml',
     host: 'https://teka.cd',
