@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { serverFetch } from '@/lib/server-api';
 
-type Props = { params: Promise<{ locale: string; id: string }> };
+type Props = { params: Promise<{ id: string }> };
 
 interface ApiCategoryDetail {
   id: string;
@@ -19,18 +19,14 @@ interface ApiCategoryDetail {
  * legacy URL — the new route is the canonical one.
  */
 export default async function Page({ params }: Props) {
-  const { locale, id } = await params;
+  const { id } = await params;
   const category = await serverFetch<ApiCategoryDetail>(
     `/v1/browse/categories/${id}`,
   );
 
   if (!category?.slug) {
-    redirect(locale === 'fr' ? '/' : `/${locale}`);
+    redirect('/');
   }
 
-  const target =
-    locale === 'fr'
-      ? `/categorie/${category.slug}`
-      : `/${locale}/categorie/${category.slug}`;
-  redirect(target);
+  redirect(`/categorie/${category.slug}`);
 }

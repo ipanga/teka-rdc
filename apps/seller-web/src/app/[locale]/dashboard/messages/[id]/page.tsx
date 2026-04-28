@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { useLocale } from 'next-intl';
 import { useParams } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { apiFetch, ApiError } from '@/lib/api-client';
@@ -18,7 +17,6 @@ interface MessagesResponse {
 
 export default function ConversationPage() {
   const t = useTranslations('Messaging');
-  const locale = useLocale();
   const params = useParams();
   const conversationId = params.id as string;
   const currentUser = useAuthStore((s) => s.user);
@@ -36,14 +34,14 @@ export default function ConversationPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const shouldScrollRef = useRef(true);
 
-  const getProductTitle = (product?: { title: { fr?: string; en?: string } } | null) => {
+  const getProductTitle = (product?: { title: string } | null) => {
     if (!product) return '';
-    return (locale === 'en' ? product.title.en : product.title.fr) || product.title.fr || product.title.en || '';
+    return product.title || '';
   };
 
   const formatMessageTime = (dateStr: string) => {
     const date = new Date(dateStr);
-    return new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'fr-CD', {
+    return new Intl.DateTimeFormat('fr-CD', {
       hour: '2-digit',
       minute: '2-digit',
     }).format(date);
@@ -58,7 +56,7 @@ export default function ConversationPage() {
     if (diffDays === 0) return t('today');
     if (diffDays === 1) return t('yesterday');
 
-    return new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'fr-CD', {
+    return new Intl.DateTimeFormat('fr-CD', {
       day: '2-digit',
       month: 'long',
       year: 'numeric',

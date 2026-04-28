@@ -3304,15 +3304,10 @@ async function seedSampleProducts(sellerId: string): Promise<void> {
         const productId = seedProdId(counter);
 
         const titleFr = tpl.titleFr;
-        const titleEn = tpl.titleEn;
         const descFr =
           `${tpl.descKey}. Disponible à ${city.fr}. ` +
           'Livraison rapide partout en RDC. Achetez en toute confiance sur Teka RDC, ' +
           'votre marketplace en République Démocratique du Congo.';
-        const descEn =
-          `${tpl.descKey}. Available in ${city.en}. ` +
-          'Fast delivery across DRC. Shop with confidence on Teka RDC, ' +
-          'your marketplace in the Democratic Republic of the Congo.';
         const slug = generateProductSlug(`${titleFr} ${city.fr}`, productId);
         const priceCDF = BigInt(tpl.priceCDF * 100); // convert CDF -> centimes
         const priceUSD = tpl.priceUSD ? BigInt(tpl.priceUSD) : null;
