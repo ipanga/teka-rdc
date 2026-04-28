@@ -43,7 +43,7 @@ export function Header() {
     e.preventDefault();
     const q = searchQuery.trim();
     if (q) {
-      router.push(`/search?q=${encodeURIComponent(q)}`);
+      router.push(`/recherche?q=${encodeURIComponent(q)}`);
       setMobileMenuOpen(false);
     }
   }

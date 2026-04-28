@@ -74,6 +74,9 @@ const nextConfig: NextConfig = {
       permanent: true,
     });
 
+    // Legacy /search → /recherche (FR-only platform; route renamed for SEO).
+    out.push({ source: '/search', destination: '/recherche', permanent: true });
+
     return out;
   },
 };

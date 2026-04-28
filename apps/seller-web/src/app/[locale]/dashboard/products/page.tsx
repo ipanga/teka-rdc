@@ -14,7 +14,7 @@ interface ProductImage {
 
 interface Product {
   id: string;
-  title: { fr?: string; en?: string };
+  title: string;
   priceCDF: string;
   priceUSD?: string | null;
   quantity: number;
@@ -127,7 +127,7 @@ export default function ProductsListPage() {
   };
 
   const getProductTitle = (product: Product) => {
-    return product.title?.fr || product.title?.en || '---';
+    return product.title || '---';
   };
 
   const getThumbUrl = (product: Product) => {

@@ -9,7 +9,7 @@ import { OrderStatusBadge } from '@/components/orders/order-status-badge';
 
 interface OrderItemProduct {
   id: string;
-  title: { fr?: string; en?: string };
+  title: string;
   images: { id: string; url: string; order: number }[];
 }
 
@@ -159,7 +159,7 @@ export default function OrderDetailPage() {
   };
 
   const getProductTitle = (product: OrderItemProduct) => {
-    return product?.title?.fr || product?.title?.en || '---';
+    return product?.title || '---';
   };
 
   const getThumbUrl = (product: OrderItemProduct) => {

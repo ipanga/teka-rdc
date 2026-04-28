@@ -9,7 +9,7 @@ import DynamicAttributesForm from '@/components/products/dynamic-attributes-form
 
 interface Category {
   id: string;
-  name: { fr?: string; en?: string };
+  name: string;
   children?: Category[];
   subcategories?: Category[];
 }
@@ -25,10 +25,8 @@ export default function NewProductPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Form fields
-  const [titleFr, setTitleFr] = useState('');
-  const [titleEn, setTitleEn] = useState('');
-  const [descriptionFr, setDescriptionFr] = useState('');
-  const [descriptionEn, setDescriptionEn] = useState('');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [priceCDF, setPriceCDF] = useState('');
   const [priceUSD, setPriceUSD] = useState('');
@@ -64,7 +62,7 @@ export default function NewProductPage() {
   const flattenCategories = (cats: Category[], depth = 0): { id: string; label: string; depth: number }[] => {
     const result: { id: string; label: string; depth: number }[] = [];
     for (const cat of cats) {
-      const label = cat.name?.fr || cat.name?.en || '---';
+      const label = cat.name || '---';
       result.push({ id: cat.id, label, depth });
       const kids = cat.children || cat.subcategories || [];
       if (kids.length > 0) {
@@ -76,7 +74,7 @@ export default function NewProductPage() {
 
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
-    if (!titleFr.trim()) errors.titleFr = t('requiredField');
+    if (!title.trim()) errors.title = t('requiredField');
     if (!categoryId) errors.categoryId = t('requiredField');
     if (!priceCDF || isNaN(Number(priceCDF)) || Number(priceCDF) <= 0) {
       errors.priceCDF = t('invalidPrice');
@@ -99,16 +97,9 @@ export default function NewProductPage() {
     setError('');
 
     try {
-      const title: Record<string, string> = { fr: titleFr.trim() };
-      if (titleEn.trim()) title.en = titleEn.trim();
-
-      const description: Record<string, string> = {};
-      if (descriptionFr.trim()) description.fr = descriptionFr.trim();
-      if (descriptionEn.trim()) description.en = descriptionEn.trim();
-
       const body: Record<string, unknown> = {
-        title,
-        description: Object.keys(description).length > 0 ? description : undefined,
+        title: title.trim(),
+        description: description.trim() || undefined,
         categoryId,
         priceCDF: String(Math.round(Number(priceCDF) * 100)),
         quantity: Number(quantity),
@@ -202,68 +193,38 @@ export default function NewProductPage() {
               )}
             </div>
 
-            {/* Title FR */}
+            {/* Title */}
             <div>
-              <label htmlFor="titleFr" className="block text-sm font-medium text-foreground mb-1">
-                {t('titleFr')} *
+              <label htmlFor="title" className="block text-sm font-medium text-foreground mb-1">
+                {t('title')} *
               </label>
               <input
-                id="titleFr"
+                id="title"
                 type="text"
-                value={titleFr}
-                onChange={(e) => { setTitleFr(e.target.value); setFieldErrors((prev) => ({ ...prev, titleFr: '' })); }}
+                value={title}
+                onChange={(e) => { setTitle(e.target.value); setFieldErrors((prev) => ({ ...prev, title: '' })); }}
                 className={`w-full px-3 py-2 border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring ${
-                  fieldErrors.titleFr ? 'border-destructive' : 'border-input'
+                  fieldErrors.title ? 'border-destructive' : 'border-input'
                 }`}
                 placeholder="Ex: T-shirt en coton"
               />
-              {fieldErrors.titleFr && (
-                <p className="text-xs text-destructive mt-1">{fieldErrors.titleFr}</p>
+              {fieldErrors.title && (
+                <p className="text-xs text-destructive mt-1">{fieldErrors.title}</p>
               )}
-            </div>
-
-            {/* Title EN */}
-            <div>
-              <label htmlFor="titleEn" className="block text-sm font-medium text-foreground mb-1">
-                {t('titleEn')}
-              </label>
-              <input
-                id="titleEn"
-                type="text"
-                value={titleEn}
-                onChange={(e) => setTitleEn(e.target.value)}
-                className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder="Ex: Cotton T-shirt"
-              />
             </div>
 
             {/* Description FR */}
             <div>
-              <label htmlFor="descriptionFr" className="block text-sm font-medium text-foreground mb-1">
-                {t('descriptionFr')}
+              <label htmlFor="description" className="block text-sm font-medium text-foreground mb-1">
+                {t('description')}
               </label>
-              <textarea
-                id="descriptionFr"
-                value={descriptionFr}
-                onChange={(e) => setDescriptionFr(e.target.value)}
+                            <textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
                 rows={4}
                 className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-y"
                 placeholder="Donnez une description d\u00e9taill\u00e9e de votre produit..."
-              />
-            </div>
-
-            {/* Description EN */}
-            <div>
-              <label htmlFor="descriptionEn" className="block text-sm font-medium text-foreground mb-1">
-                {t('descriptionEn')}
-              </label>
-              <textarea
-                id="descriptionEn"
-                value={descriptionEn}
-                onChange={(e) => setDescriptionEn(e.target.value)}
-                rows={4}
-                className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-y"
-                placeholder="Give a detailed description of your product..."
               />
             </div>
 

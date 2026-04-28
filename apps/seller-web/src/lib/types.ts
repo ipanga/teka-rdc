@@ -45,7 +45,7 @@ export interface Review {
   };
   product?: {
     id: string;
-    title: { fr?: string; en?: string };
+    title: string;
   };
   createdAt: string;
 }
@@ -64,7 +64,7 @@ export interface ReviewStats {
 
 export interface SellerProduct {
   id: string;
-  title: { fr?: string; en?: string };
+  title: string;
   status: string;
   priceCDF: string;
   quantity: number;
@@ -93,7 +93,7 @@ export interface Conversation {
   };
   product?: {
     id: string;
-    title: { fr?: string; en?: string };
+    title: string;
   } | null;
   unreadCount: number;
   createdAt: string;
@@ -122,8 +122,8 @@ export type PromotionType = 'PROMOTION' | 'FLASH_DEAL';
 export interface Promotion {
   id: string;
   type: PromotionType;
-  title: { fr?: string; en?: string };
-  description?: { fr?: string; en?: string } | null;
+  title: string;
+  description?: string | null;
   discountPercent?: number | null;
   discountCDF?: string | null;
   startsAt: string;
@@ -132,7 +132,7 @@ export interface Promotion {
   rejectionReason?: string | null;
   product?: {
     id: string;
-    title: { fr?: string; en?: string };
+    title: string;
   } | null;
   createdAt: string;
   updatedAt: string;

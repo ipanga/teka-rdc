@@ -2,13 +2,12 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { useLocale } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 
 interface ProductAttribute {
   id: string;
   categoryId: string;
-  name: { fr?: string; en?: string };
+  name: string;
   type: 'TEXT' | 'SELECT' | 'MULTISELECT' | 'NUMERIC';
   options: string[];
   isRequired: boolean;
@@ -27,8 +26,6 @@ export default function DynamicAttributesForm({
   initialValues,
 }: DynamicAttributesFormProps) {
   const t = useTranslations('Products');
-  const locale = useLocale();
-
   const [attributes, setAttributes] = useState<ProductAttribute[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -119,8 +116,8 @@ export default function DynamicAttributesForm({
     [notifyChange]
   );
 
-  const getLocalizedName = (name: { fr?: string; en?: string }): string => {
-    return name[locale as 'fr' | 'en'] || name.fr || '';
+  const getLocalizedName = (name: string): string => {
+    return name || '';
   };
 
   if (!categoryId) return null;
