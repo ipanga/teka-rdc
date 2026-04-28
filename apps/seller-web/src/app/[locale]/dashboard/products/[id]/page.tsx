@@ -16,22 +16,22 @@ interface ProductImage {
 
 interface Category {
   id: string;
-  name: { fr?: string; en?: string };
+  name: string;
   children?: Category[];
   subcategories?: Category[];
 }
 
 interface Product {
   id: string;
-  title: { fr?: string; en?: string };
-  description?: { fr?: string; en?: string } | null;
+  title: string;
+  description?: string | null;
   priceCDF: string;
   priceUSD?: string | null;
   quantity: number;
   status: string;
   condition: string;
   categoryId: string;
-  category?: { id: string; name: { fr?: string; en?: string } };
+  category?: { id: string; name: string };
   images: ProductImage[];
   specifications?: { attributeId: string; value: string }[];
   rejectionReason?: string | null;
@@ -54,10 +54,8 @@ export default function ProductDetailPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   // Form fields
-  const [titleFr, setTitleFr] = useState('');
-  const [titleEn, setTitleEn] = useState('');
-  const [descriptionFr, setDescriptionFr] = useState('');
-  const [descriptionEn, setDescriptionEn] = useState('');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [priceCDF, setPriceCDF] = useState('');
   const [priceUSD, setPriceUSD] = useState('');
@@ -75,10 +73,8 @@ export default function ProductDetailPage() {
       setProduct(p);
 
       // Populate form
-      setTitleFr(p.title?.fr || '');
-      setTitleEn(p.title?.en || '');
-      setDescriptionFr(p.description?.fr || '');
-      setDescriptionEn(p.description?.en || '');
+      setTitle(p.title || '');
+      setDescription(p.description || '');
       setCategoryId(p.categoryId || '');
       setPriceCDF(p.priceCDF ? String(Number(p.priceCDF) / 100) : '');
       setPriceUSD(p.priceUSD ? String(Number(p.priceUSD) / 100) : '');
@@ -124,7 +120,7 @@ export default function ProductDetailPage() {
   const flattenCategories = (cats: Category[], depth = 0): { id: string; label: string; depth: number }[] => {
     const result: { id: string; label: string; depth: number }[] = [];
     for (const cat of cats) {
-      const label = cat.name?.fr || cat.name?.en || '---';
+      const label = cat.name || '---';
       result.push({ id: cat.id, label, depth });
       const kids = cat.children || cat.subcategories || [];
       if (kids.length > 0) {
@@ -136,7 +132,7 @@ export default function ProductDetailPage() {
 
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
-    if (!titleFr.trim()) errors.titleFr = t('requiredField');
+    if (!title.trim()) errors.title = t('requiredField');
     if (!categoryId) errors.categoryId = t('requiredField');
     if (!priceCDF || isNaN(Number(priceCDF)) || Number(priceCDF) <= 0) {
       errors.priceCDF = t('invalidPrice');
@@ -160,16 +156,9 @@ export default function ProductDetailPage() {
     setSuccessMessage('');
 
     try {
-      const title: Record<string, string> = { fr: titleFr.trim() };
-      if (titleEn.trim()) title.en = titleEn.trim();
-
-      const description: Record<string, string> = {};
-      if (descriptionFr.trim()) description.fr = descriptionFr.trim();
-      if (descriptionEn.trim()) description.en = descriptionEn.trim();
-
       const body: Record<string, unknown> = {
-        title,
-        description: Object.keys(description).length > 0 ? description : undefined,
+        title: title.trim(),
+        description: description.trim() || undefined,
         categoryId,
         priceCDF: String(Math.round(Number(priceCDF) * 100)),
         quantity: Number(quantity),
@@ -352,7 +341,7 @@ export default function ProductDetailPage() {
                   </select>
                 ) : (
                   <p className="px-3 py-2 bg-muted rounded-lg text-foreground text-sm">
-                    {product.category?.name?.fr || product.category?.name?.en || product.categoryId}
+                    {product.category?.name || product.categoryId}
                   </p>
                 )}
                 {fieldErrors.categoryId && (
@@ -360,83 +349,45 @@ export default function ProductDetailPage() {
                 )}
               </div>
 
-              {/* Title FR */}
+              {/* Title */}
               <div>
-                <label htmlFor="titleFr" className="block text-sm font-medium text-foreground mb-1">
-                  {t('titleFr')} *
+                <label htmlFor="title" className="block text-sm font-medium text-foreground mb-1">
+                  {t('title')} *
                 </label>
                 {isEditable ? (
                   <input
-                    id="titleFr"
+                    id="title"
                     type="text"
-                    value={titleFr}
-                    onChange={(e) => { setTitleFr(e.target.value); setFieldErrors((prev) => ({ ...prev, titleFr: '' })); }}
+                    value={title}
+                    onChange={(e) => { setTitle(e.target.value); setFieldErrors((prev) => ({ ...prev, title: '' })); }}
                     className={`w-full px-3 py-2 border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring ${
-                      fieldErrors.titleFr ? 'border-destructive' : 'border-input'
+                      fieldErrors.title ? 'border-destructive' : 'border-input'
                     }`}
                   />
                 ) : (
-                  <p className="px-3 py-2 bg-muted rounded-lg text-foreground text-sm">{titleFr || '---'}</p>
+                  <p className="px-3 py-2 bg-muted rounded-lg text-foreground text-sm">{title || '---'}</p>
                 )}
-                {fieldErrors.titleFr && (
-                  <p className="text-xs text-destructive mt-1">{fieldErrors.titleFr}</p>
-                )}
-              </div>
-
-              {/* Title EN */}
-              <div>
-                <label htmlFor="titleEn" className="block text-sm font-medium text-foreground mb-1">
-                  {t('titleEn')}
-                </label>
-                {isEditable ? (
-                  <input
-                    id="titleEn"
-                    type="text"
-                    value={titleEn}
-                    onChange={(e) => setTitleEn(e.target.value)}
-                    className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  />
-                ) : (
-                  <p className="px-3 py-2 bg-muted rounded-lg text-foreground text-sm">{titleEn || '---'}</p>
+                {fieldErrors.title && (
+                  <p className="text-xs text-destructive mt-1">{fieldErrors.title}</p>
                 )}
               </div>
 
-              {/* Description FR */}
+              {/* Description */}
               <div>
-                <label htmlFor="descriptionFr" className="block text-sm font-medium text-foreground mb-1">
-                  {t('descriptionFr')}
+                <label htmlFor="description" className="block text-sm font-medium text-foreground mb-1">
+                  {t('description')}
                 </label>
                 {isEditable ? (
                   <textarea
-                    id="descriptionFr"
-                    value={descriptionFr}
-                    onChange={(e) => setDescriptionFr(e.target.value)}
+                    id="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
                     rows={4}
                     className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-y"
                   />
                 ) : (
                   <p className="px-3 py-2 bg-muted rounded-lg text-foreground text-sm whitespace-pre-wrap">
-                    {descriptionFr || '---'}
-                  </p>
-                )}
-              </div>
-
-              {/* Description EN */}
-              <div>
-                <label htmlFor="descriptionEn" className="block text-sm font-medium text-foreground mb-1">
-                  {t('descriptionEn')}
-                </label>
-                {isEditable ? (
-                  <textarea
-                    id="descriptionEn"
-                    value={descriptionEn}
-                    onChange={(e) => setDescriptionEn(e.target.value)}
-                    rows={4}
-                    className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-y"
-                  />
-                ) : (
-                  <p className="px-3 py-2 bg-muted rounded-lg text-foreground text-sm whitespace-pre-wrap">
-                    {descriptionEn || '---'}
+                    {description || '---'}
                   </p>
                 )}
               </div>

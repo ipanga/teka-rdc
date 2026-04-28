@@ -24,7 +24,6 @@ export const metadata: Metadata = {
     type: 'website',
     siteName: 'Teka RDC',
     locale: 'fr_CD',
-    alternateLocale: 'en_CD',
     images: [{ url: 'https://teka.cd/og-default.png', width: 1200, height: 630, alt: 'Teka RDC — Supermarché en ligne' }],
   },
   twitter: {

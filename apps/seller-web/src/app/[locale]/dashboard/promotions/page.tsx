@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { useLocale } from 'next-intl';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import type { Promotion, PromotionType, SellerProduct } from '@/lib/types';
 
@@ -32,8 +31,6 @@ const LIMIT = 20;
 
 export default function PromotionsPage() {
   const t = useTranslations('Promotions');
-  const locale = useLocale();
-
   // Promotions list state
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,10 +50,8 @@ export default function PromotionsPage() {
 
   // Form fields
   const [formType, setFormType] = useState<PromotionType>('PROMOTION');
-  const [formTitleFr, setFormTitleFr] = useState('');
-  const [formTitleEn, setFormTitleEn] = useState('');
-  const [formDescFr, setFormDescFr] = useState('');
-  const [formDescEn, setFormDescEn] = useState('');
+  const [formTitle, setFormTitle] = useState('');
+  const [formDesc, setFormDesc] = useState('');
   const [formDiscountMode, setFormDiscountMode] = useState<DiscountMode>('percent');
   const [formDiscountValue, setFormDiscountValue] = useState('');
   const [formProductId, setFormProductId] = useState('');
@@ -65,12 +60,12 @@ export default function PromotionsPage() {
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
-  const getTitle = (title: { fr?: string; en?: string }) => {
-    return (locale === 'en' ? title.en : title.fr) || title.fr || title.en || '';
+  const getTitle = (title: string) => {
+    return title || '';
   };
 
   const formatDate = (dateStr: string) => {
-    return new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'fr-CD', {
+    return new Intl.DateTimeFormat('fr-CD', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
@@ -198,10 +193,8 @@ export default function PromotionsPage() {
   const openCreateForm = () => {
     setShowCreateForm(true);
     setFormType('PROMOTION');
-    setFormTitleFr('');
-    setFormTitleEn('');
-    setFormDescFr('');
-    setFormDescEn('');
+    setFormTitle('');
+    setFormDesc('');
     setFormDiscountMode('percent');
     setFormDiscountValue('');
     setFormProductId('');
@@ -216,8 +209,8 @@ export default function PromotionsPage() {
     if (formSubmitting) return;
 
     // Validate
-    if (!formTitleFr.trim()) {
-      setFormError(t('titleFr') + ' - ' + t('requiredField'));
+    if (!formTitle.trim()) {
+      setFormError(t('title') + ' - ' + t('requiredField'));
       return;
     }
     if (!formProductId) {
@@ -244,21 +237,14 @@ export default function PromotionsPage() {
     try {
       const body: Record<string, unknown> = {
         type: formType,
-        title: { fr: formTitleFr.trim() },
+        title: formTitle.trim(),
         productId: formProductId,
         startsAt: new Date(formStartsAt).toISOString(),
         endsAt: new Date(formEndsAt).toISOString(),
       };
 
-      if (formTitleEn.trim()) {
-        (body.title as Record<string, string>).en = formTitleEn.trim();
-      }
-
-      if (formDescFr.trim() || formDescEn.trim()) {
-        const desc: Record<string, string> = {};
-        if (formDescFr.trim()) desc.fr = formDescFr.trim();
-        if (formDescEn.trim()) desc.en = formDescEn.trim();
-        body.description = desc;
+      if (formDesc.trim()) {
+        body.description = formDesc.trim();
       }
 
       if (formDiscountMode === 'percent') {
@@ -409,53 +395,27 @@ export default function PromotionsPage() {
                 </div>
               </div>
 
-              {/* Title FR */}
+              {/* Title */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  {t('titleFr')} *
+                  {t('title')} *
                 </label>
                 <input
                   type="text"
-                  value={formTitleFr}
-                  onChange={(e) => setFormTitleFr(e.target.value)}
+                  value={formTitle}
+                  onChange={(e) => setFormTitle(e.target.value)}
                   className="w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
                 />
               </div>
 
-              {/* Title EN */}
+              {/* Description */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  {t('titleEn')}
-                </label>
-                <input
-                  type="text"
-                  value={formTitleEn}
-                  onChange={(e) => setFormTitleEn(e.target.value)}
-                  className="w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                />
-              </div>
-
-              {/* Description FR */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  {t('descriptionFr')}
+                  {t('description')}
                 </label>
                 <textarea
-                  value={formDescFr}
-                  onChange={(e) => setFormDescFr(e.target.value)}
-                  rows={2}
-                  className="w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
-                />
-              </div>
-
-              {/* Description EN */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  {t('descriptionEn')}
-                </label>
-                <textarea
-                  value={formDescEn}
-                  onChange={(e) => setFormDescEn(e.target.value)}
+                  value={formDesc}
+                  onChange={(e) => setFormDesc(e.target.value)}
                   rows={2}
                   className="w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
                 />
@@ -589,7 +549,7 @@ export default function PromotionsPage() {
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                      {t('titleFr')}
+                      {t('title')}
                     </th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">
                       {t('type')}

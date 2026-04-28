@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { useLocale } from 'next-intl';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import type { Review, ReviewStats, SellerProduct } from '@/lib/types';
 
@@ -28,8 +27,6 @@ interface ReviewsResponse {
 
 export default function ReviewsPage() {
   const t = useTranslations('Reviews');
-  const locale = useLocale();
-
   const [products, setProducts] = useState<SellerProduct[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [selectedProductId, setSelectedProductId] = useState<string>('');
@@ -50,12 +47,12 @@ export default function ReviewsPage() {
     totalReviews: number;
   }>({ averageRating: 0, totalReviews: 0 });
 
-  const getProductTitle = (product: { title: { fr?: string; en?: string } }) => {
-    return (locale === 'en' ? product.title.en : product.title.fr) || product.title.fr || product.title.en || '';
+  const getProductTitle = (product: { title: string }) => {
+    return product.title || '';
   };
 
   const formatDate = (dateStr: string) => {
-    return new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'fr-CD', {
+    return new Intl.DateTimeFormat('fr-CD', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',

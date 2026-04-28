@@ -2,29 +2,20 @@ import type { Metadata } from 'next';
 import HomePage from '@/components/pages/home-page';
 import { JsonLd } from '@/components/seo/json-ld';
 
-type Props = { params: Promise<{ locale: string }> };
-
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { locale } = await params;
-  const title = locale === 'fr'
-    ? 'Teka RDC — Supermarché en ligne en RD Congo | Livraison Lubumbashi & Kolwezi'
-    : 'Teka RDC — Online Supermarket in DR Congo | Delivery Lubumbashi & Kolwezi';
-  const description = locale === 'fr'
-    ? 'Teka RDC, votre supermarché en ligne en RD Congo. Achetez smartphones, vêtements, électronique et plus. Livraison rapide à Lubumbashi, Kolwezi et Likasi. Paiement Mobile Money ou à la livraison.'
-    : 'Teka RDC, your online supermarket in DR Congo. Buy smartphones, clothing, electronics and more. Fast delivery to Lubumbashi, Kolwezi, and Likasi. Pay via Mobile Money or cash on delivery.';
+export async function generateMetadata(): Promise<Metadata> {
+  const title = 'Teka RDC — Supermarché en ligne en RD Congo | Livraison Lubumbashi & Kolwezi';
+  const description = 'Teka RDC, votre supermarché en ligne en RD Congo. Achetez smartphones, vêtements, électronique et plus. Livraison rapide à Lubumbashi, Kolwezi et Likasi. Paiement Mobile Money ou à la livraison.';
 
   return {
     title,
     description,
-    keywords: locale === 'fr'
-      ? ['supermarché en ligne RDC', 'acheter en ligne RDC', 'livraison Lubumbashi', 'livraison Kolwezi', 'marketplace Congo', 'Teka RDC', 'boutique en ligne RDC', 'acheter smartphone Lubumbashi', 'Mobile Money RDC', 'paiement à la livraison Congo']
-      : ['online supermarket DRC', 'buy online Congo', 'delivery Lubumbashi', 'delivery Kolwezi', 'marketplace Congo', 'Teka RDC', 'online shopping DRC', 'buy smartphone Lubumbashi', 'Mobile Money DRC', 'cash on delivery Congo'],
+    keywords: ['supermarché en ligne RDC', 'acheter en ligne RDC', 'livraison Lubumbashi', 'livraison Kolwezi', 'marketplace Congo', 'Teka RDC', 'boutique en ligne RDC', 'acheter smartphone Lubumbashi', 'Mobile Money RDC', 'paiement à la livraison Congo'],
     openGraph: {
       title,
       description,
       url: 'https://teka.cd',
       siteName: 'Teka RDC',
-      locale: locale === 'fr' ? 'fr_CD' : 'en_CD',
+      locale: 'fr_CD',
       type: 'website',
       images: [{ url: 'https://teka.cd/og-default.png', width: 1200, height: 630, alt: title }],
     },
@@ -33,8 +24,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function Page({ params }: Props) {
-  const { locale } = await params;
+export default async function Page() {
 
   return (
     <>
@@ -52,7 +42,7 @@ export default async function Page({ params }: Props) {
         contactPoint: {
           '@type': 'ContactPoint',
           contactType: 'customer service',
-          availableLanguage: ['French', 'English'],
+          availableLanguage: ['French'],
         },
       }} />
       <JsonLd data={{
@@ -62,14 +52,11 @@ export default async function Page({ params }: Props) {
         url: 'https://teka.cd',
         potentialAction: {
           '@type': 'SearchAction',
-          target: 'https://teka.cd/search?q={search_term_string}',
+          target: 'https://teka.cd/recherche?q={search_term_string}',
           'query-input': 'required name=search_term_string',
         },
       }} />
-      <HomePage serverH1={locale === 'fr'
-        ? 'Teka RDC — Supermarché en ligne en RD Congo'
-        : 'Teka RDC — Online Supermarket in DR Congo'
-      } />
+      <HomePage serverH1="Teka RDC — Supermarché en ligne en RD Congo" />
     </>
   );
 }

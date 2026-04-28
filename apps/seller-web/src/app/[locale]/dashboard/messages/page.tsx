@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { useLocale } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import type { Conversation } from '@/lib/types';
@@ -19,16 +18,14 @@ interface ConversationsResponse {
 
 export default function MessagesPage() {
   const t = useTranslations('Messaging');
-  const locale = useLocale();
-
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const getProductTitle = (product?: { title: { fr?: string; en?: string } } | null) => {
+  const getProductTitle = (product?: { title: string } | null) => {
     if (!product) return '';
-    return (locale === 'en' ? product.title.en : product.title.fr) || product.title.fr || product.title.en || '';
+    return product.title || '';
   };
 
   const formatTime = (dateStr: string) => {
@@ -38,14 +35,14 @@ export default function MessagesPage() {
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
     if (diffDays === 0) {
-      return new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'fr-CD', {
+      return new Intl.DateTimeFormat('fr-CD', {
         hour: '2-digit',
         minute: '2-digit',
       }).format(date);
     } else if (diffDays === 1) {
       return t('yesterday');
     } else {
-      return new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'fr-CD', {
+      return new Intl.DateTimeFormat('fr-CD', {
         day: '2-digit',
         month: '2-digit',
       }).format(date);
