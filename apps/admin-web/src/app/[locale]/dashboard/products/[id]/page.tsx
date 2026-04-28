@@ -15,14 +15,14 @@ interface ProductImage {
 
 interface ProductSpecification {
   id: string;
-  name: { fr: string; en?: string };
+  name: string;
   value: string;
 }
 
 interface ProductDetail {
   id: string;
-  title: { fr: string; en?: string };
-  description: { fr: string; en?: string };
+  title: string;
+  description: string;
   priceCDF: number;
   priceUSD?: number | null;
   stock: number;
@@ -43,10 +43,10 @@ interface ProductDetail {
   };
   category?: {
     id: string;
-    name: { fr: string; en?: string };
+    name: string;
     parent?: {
       id: string;
-      name: { fr: string; en?: string };
+      name: string;
     } | null;
   };
 }
@@ -170,8 +170,8 @@ export default function ProductDetailPage() {
 
   const categoryBreadcrumb = product.category
     ? product.category.parent
-      ? `${product.category.parent.name.fr} > ${product.category.name.fr}`
-      : product.category.name.fr
+      ? `${product.category.parent.name} > ${product.category.name}`
+      : product.category.name
     : '-';
 
   const isPending = product.status === 'PENDING_REVIEW';
@@ -231,7 +231,7 @@ export default function ProductDetailPage() {
             {selectedImage ? (
               <img
                 src={getOptimizedUrl(selectedImage, 600)}
-                alt={product.title.fr}
+                alt={product.title}
                 className="w-full h-full object-contain"
               />
             ) : (
@@ -274,10 +274,7 @@ export default function ProductDetailPage() {
         <div className="space-y-4">
           {/* Title & Price */}
           <div className="bg-white rounded-xl border border-border p-4">
-            <h2 className="text-xl font-bold text-foreground mb-1">{product.title.fr}</h2>
-            {product.title.en && (
-              <p className="text-sm text-muted-foreground mb-3">{product.title.en}</p>
-            )}
+            <h2 className="text-xl font-bold text-foreground mb-3">{product.title}</h2>
             <p className="text-2xl font-bold text-primary">
               {formatPrice(product.priceCDF, product.priceUSD)}
             </p>
@@ -315,16 +312,8 @@ export default function ProductDetailPage() {
               {t('description')}
             </h3>
             <div className="text-sm text-foreground whitespace-pre-wrap">
-              {product.description.fr || '-'}
+              {product.description || '-'}
             </div>
-            {product.description.en && (
-              <div className="mt-3 pt-3 border-t border-border">
-                <p className="text-xs text-muted-foreground mb-1">English</p>
-                <div className="text-sm text-foreground whitespace-pre-wrap">
-                  {product.description.en}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Specifications */}
@@ -336,7 +325,7 @@ export default function ProductDetailPage() {
               <div className="space-y-1">
                 {product.specifications.map((spec) => (
                   <div key={spec.id} className="flex justify-between text-sm py-1 border-b border-border last:border-0">
-                    <span className="text-muted-foreground">{spec.name.fr}</span>
+                    <span className="text-muted-foreground">{spec.name}</span>
                     <span className="text-foreground font-medium">{spec.value}</span>
                   </div>
                 ))}
@@ -364,7 +353,7 @@ export default function ProductDetailPage() {
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Tel</span>
+                      <span className="text-muted-foreground">Téléphone</span>
                       <span className="text-foreground">{product.seller.user.phone}</span>
                     </div>
                   </>

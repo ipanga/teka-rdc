@@ -13,7 +13,7 @@ interface OrderItem {
   totalPriceCDF: string;
   product: {
     id: string;
-    title: { fr?: string; en?: string };
+    title: string;
   };
 }
 
