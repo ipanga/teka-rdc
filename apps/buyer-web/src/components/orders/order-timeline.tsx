@@ -1,6 +1,6 @@
 'use client';
 
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import type { OrderStatusLog } from '@/lib/types';
 import { OrderStatusBadge } from './order-status-badge';
 
@@ -8,9 +8,9 @@ interface OrderTimelineProps {
   logs: OrderStatusLog[];
 }
 
-function formatDate(dateStr: string, locale: string): string {
+function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
-  return new Intl.DateTimeFormat(locale === 'en' ? 'en-CD' : 'fr-CD', {
+  return new Intl.DateTimeFormat('fr-CD', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -21,8 +21,6 @@ function formatDate(dateStr: string, locale: string): string {
 
 export function OrderTimeline({ logs }: OrderTimelineProps) {
   const t = useTranslations('Orders');
-  const locale = useLocale();
-
   if (!logs || logs.length === 0) return null;
 
   // Sort logs chronologically (oldest first)
@@ -56,7 +54,7 @@ export function OrderTimeline({ logs }: OrderTimelineProps) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <OrderStatusBadge status={log.status} />
                   <span className="text-xs text-muted-foreground">
-                    {formatDate(log.createdAt, locale)}
+                    {formatDate(log.createdAt)}
                   </span>
                 </div>
                 {log.note && (

@@ -1,12 +1,11 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useCityStore, type City } from '@/lib/city-store';
 
 export function CitySelectorModal() {
   const t = useTranslations('City');
-  const locale = useLocale();
   const { selectedCity, cities, isLoading, showSelector, setCity, fetchCities, closeSelector } = useCityStore();
 
   useEffect(() => {

@@ -4,7 +4,7 @@
 
 **Platform:** Teka RDC — A full-featured online e-commerce marketplace for the Democratic Republic of Congo, modeled after Jumia (jumia.cd / jumia.com).
 **Domain:** teka.cd
-**Default Language:** French (fr) | Secondary: English (en)
+**Language:** French (fr) only — monolingual platform since 2026-04-25.
 **Launch Markets:** Haut-Katanga and Lualaba provinces — specifically Lubumbashi, Likasi, and Kolwezi. Architecture must support future expansion to other provinces and towns without structural refactoring.
 
 ---
@@ -16,7 +16,7 @@ Before making ANY architectural or UX decision, internalize these constraints:
 - **Unreliable internet:** Most users are on 2G/3G with frequent drops. Pages must be lightweight (<200KB initial payload ideally), images lazy-loaded and aggressively compressed, and API responses paginated and minimal. Consider offline-first patterns for the mobile app (queue actions, sync when online).
 - **Low-end devices:** Target Android 8+ devices with 2GB RAM. Avoid heavy JS bundles on web. Flutter apps must be optimized for low memory.
 - **Mobile Money is king:** Cash on delivery and Mobile Money (M-Pesa Vodacom, Airtel Money, Orange Money) are the primary payment methods. Card payments are nearly non-existent for the target market. Integrate a Mobile Money aggregation gateway (e.g., Flexpay, MaxiCash, or direct USSD integration). Structure the payment module to easily add new providers.
-- **French-only UX (2026-04-25 update):** Teka RDC is monolingual — French only on the user-facing surface. Translation infrastructure is preserved for future re-internationalization: next-intl drives translations from `messages/fr.json`, the DB JSONB columns keep their `{ fr, en }` shape (API contract preserved), `flutter_localizations` infra stays. But: no language switcher, no `/en/` URLs, no hreflang, no `app_en.arb`. To re-add a locale later, bring back the EN message files / ARB and flip `routing.ts` `locales` back to `['fr', 'en']`.
+- **French-only platform:** Teka RDC is monolingual since 2026-04-25 and was further flattened on 2026-05-04. The DB stores translatable fields as plain TEXT (no `{ fr, en }` JSONB), DTOs accept plain strings, and admin/seller forms have a single language input. Translation *infrastructure* is preserved — next-intl serves `messages/fr.json`, the `[locale]` route directory stays with `localePrefix: 'never'` and `locales: ['fr']`, and `flutter_localizations` is wired against `app_fr.arb`. No language switcher, no `/en/` URLs, no hreflang, no `app_en.arb`. To re-add a locale later: restore EN message file / ARB and flip `routing.ts` `locales` back to `['fr', 'en']`. Re-introducing EN content into the DB would require a new schema (e.g., a `translations` table) — the JSONB shape is gone.
 - **Logistics are local:** No national postal system. Delivery is handled by local riders/drivers. Build a simple delivery zone system based on towns/neighborhoods, not postal codes. Support seller self-delivery + platform-managed delivery options.
 - **Phone numbers as primary identity:** Most users don't have email. Support phone number (with country code +243) as the primary registration and login method, with email as optional. SMS OTP is the primary verification flow.
 - **Power outages:** Users may lose connection mid-transaction. All critical flows (checkout, payment confirmation, order placement) must be idempotent and resumable. Use server-side state machines for order lifecycle.
@@ -213,7 +213,7 @@ Implement ALL of the following, organized by user role. Reference Jumia.cd for e
 - **Category Management:** CRUD category tree with attributes per category
 - **Order Management:** View all orders, intervene in disputes, process refunds
 - **Banner/Promotion Management:** Create/schedule homepage banners, platform-wide promotions, flash sales
-- **Content Management:** FAQ, help pages, terms & conditions, privacy policy (multilingual)
+- **Content Management:** FAQ, help pages, terms & conditions, privacy policy (French)
 - **Delivery Zone Management:** Define towns, neighborhoods, delivery fees by zone
 - **Payment Management:** View transactions, reconcile Mobile Money callbacks, manage payouts to sellers
 - **Commission Settings:** Set platform commission per category or seller
@@ -317,7 +317,7 @@ Execute these phases in strict order. Each phase builds on the previous one. Do 
 ### Phase 3 — Product Catalog
 3.1. Database: Category, Product, ProductImage, ProductAttribute, ProductSpecification tables
 3.2. Category tree CRUD (admin) with per-category attribute definitions
-3.3. Product CRUD (seller): multilingual title/description, images (Cloudinary), pricing, stock, specs
+3.3. Product CRUD (seller): French title/description, images (Cloudinary), pricing, stock, specs
 3.4. Product listing API: search, filter, sort, paginate (cursor-based)
 3.5. Product detail API with seller info, category breadcrumb
 3.6. Admin: product moderation (approve/reject/flag)
@@ -369,7 +369,7 @@ Execute these phases in strict order. Each phase builds on the previous one. Do 
 7.1. Admin dashboard: KPIs, charts (GMV, orders, users, revenue)
 7.2. Banner/promotion management with scheduling
 7.3. Flash deals system
-7.4. Content management: FAQ, help pages, terms (multilingual, stored in DB)
+7.4. Content management: FAQ, help pages, terms (French, stored in DB)
 7.5. Platform commission configuration (global + per-category + per-seller overrides)
 7.6. Notification broadcast system (SMS/push to segments)
 7.7. Reports: exportable CSV/PDF for sales, financial, seller performance

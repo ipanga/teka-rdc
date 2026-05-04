@@ -7,8 +7,8 @@ import { apiFetch } from '@/lib/api-client';
 interface ContentPage {
   id: string;
   slug: string;
-  title: { fr: string; en: string };
-  content: { fr: string; en: string };
+  title: string;
+  content: string;
   status: string;
   sortOrder: number;
   createdAt: string;
@@ -18,10 +18,8 @@ interface ContentPage {
 interface ContentForm {
   slug: string;
   customSlug: string;
-  titleFr: string;
-  titleEn: string;
-  contentFr: string;
-  contentEn: string;
+  title: string;
+  content: string;
   status: string;
   sortOrder: number;
 }
@@ -29,10 +27,8 @@ interface ContentForm {
 const EMPTY_FORM: ContentForm = {
   slug: 'faq',
   customSlug: '',
-  titleFr: '',
-  titleEn: '',
-  contentFr: '',
-  contentEn: '',
+  title: '',
+  content: '',
   status: 'DRAFT',
   sortOrder: 0,
 };
@@ -98,10 +94,8 @@ export default function ContentManagementPage() {
     setForm({
       slug: isPredefined ? page.slug : 'custom',
       customSlug: isPredefined ? '' : page.slug,
-      titleFr: page.title?.fr || '',
-      titleEn: page.title?.en || '',
-      contentFr: page.content?.fr || '',
-      contentEn: page.content?.en || '',
+      title: page.title || '',
+      content: page.content || '',
       status: page.status || 'DRAFT',
       sortOrder: page.sortOrder || 0,
     });
@@ -114,8 +108,8 @@ export default function ContentManagementPage() {
       const slug = useCustomSlug ? form.customSlug : form.slug;
       const body = {
         slug,
-        title: { fr: form.titleFr, en: form.titleEn },
-        content: { fr: form.contentFr, en: form.contentEn },
+        title: form.title,
+        content: form.content,
         status: form.status,
         sortOrder: form.sortOrder,
       };
@@ -212,7 +206,7 @@ export default function ContentManagementPage() {
                 <tr key={pg.id} className="border-b border-border last:border-0 hover:bg-muted/50">
                   <td className="px-4 py-3 text-sm font-mono text-muted-foreground">{pg.slug}</td>
                   <td className="px-4 py-3 text-sm font-medium text-foreground max-w-[200px] truncate">
-                    {pg.title?.fr || '-'}
+                    {pg.title || '-'}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -300,44 +294,23 @@ export default function ContentManagementPage() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('titleFr')}</label>
-                    <input
-                      type="text"
-                      value={form.titleFr}
-                      onChange={(e) => setForm({ ...form, titleFr: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('titleEn')}</label>
-                    <input
-                      type="text"
-                      value={form.titleEn}
-                      onChange={(e) => setForm({ ...form, titleEn: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                  </div>
-                </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">{t('contentFr')}</label>
-                  <textarea
-                    value={form.contentFr}
-                    onChange={(e) => setForm({ ...form, contentFr: e.target.value })}
+                  <label className="block text-sm font-medium text-foreground mb-1">{t('titleLabel')}</label>
+                  <input
+                    type="text"
+                    value={form.title}
+                    onChange={(e) => setForm({ ...form, title: e.target.value })}
                     className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    rows={8}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">{t('contentEn')}</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">{t('content')}</label>
                   <textarea
-                    value={form.contentEn}
-                    onChange={(e) => setForm({ ...form, contentEn: e.target.value })}
+                    value={form.content}
+                    onChange={(e) => setForm({ ...form, content: e.target.value })}
                     className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    rows={8}
+                    rows={12}
                   />
                 </div>
 
@@ -374,7 +347,7 @@ export default function ContentManagementPage() {
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={isSaving || !form.titleFr}
+                  disabled={isSaving || !form.title}
                   className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSaving ? tCommon('loading') : tCommon('save')}
@@ -405,9 +378,9 @@ export default function ContentManagementPage() {
                   /{previewPage.slug}
                 </span>
               </div>
-              <h4 className="text-xl font-bold text-foreground mb-4">{previewPage.title?.fr}</h4>
+              <h4 className="text-xl font-bold text-foreground mb-4">{previewPage.title}</h4>
               <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap">
-                {previewPage.content?.fr || t('noContentYet')}
+                {previewPage.content || t('noContentYet')}
               </div>
             </div>
           </div>

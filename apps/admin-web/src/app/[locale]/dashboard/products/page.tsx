@@ -13,7 +13,7 @@ interface ProductImage {
 
 interface Product {
   id: string;
-  title: { fr: string; en?: string };
+  title: string;
   priceCDF: number;
   priceUSD?: number | null;
   status: string;
@@ -30,7 +30,7 @@ interface Product {
   };
   category?: {
     id: string;
-    name: { fr: string; en?: string };
+    name: string;
   };
 }
 
@@ -211,7 +211,7 @@ export default function ProductModerationPage() {
                       {coverUrl ? (
                         <img
                           src={coverUrl}
-                          alt={product.title.fr}
+                          alt={product.title}
                           className="w-10 h-10 rounded-lg object-cover bg-muted"
                           loading="lazy"
                         />
@@ -225,10 +225,10 @@ export default function ProductModerationPage() {
                     </td>
                     <td className="px-4 py-3">
                       <p className="text-sm font-medium text-foreground truncate max-w-[200px]">
-                        {product.title.fr}
+                        {product.title}
                       </p>
                       {product.category && (
-                        <p className="text-xs text-muted-foreground">{product.category.name.fr}</p>
+                        <p className="text-xs text-muted-foreground">{product.category.name}</p>
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-foreground">
