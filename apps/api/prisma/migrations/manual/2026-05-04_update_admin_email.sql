@@ -13,8 +13,8 @@ BEGIN;
 
 DO $$
 DECLARE
-  admin_id text;
-  conflict_id text;
+  admin_id uuid;
+  conflict_id uuid;
 BEGIN
   SELECT id INTO admin_id
   FROM users
