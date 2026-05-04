@@ -135,7 +135,7 @@ Required env vars (fail fast if unset):
 | Var | Example | Purpose |
 |---|---|---|
 | `SEED_ADMIN_PHONE` | `+243XXXXXXXXX` | Admin's phone number. Must be unique. |
-| `SEED_ADMIN_EMAIL` | `admin@teka.cd` | Admin's email. First access is via forgot-password on `admin.teka.cd`. |
+| `SEED_ADMIN_EMAIL` | `contact@teka.cd` | Admin's email. First access is via forgot-password on `admin.teka.cd`. |
 | `SEED_ADMIN_FIRST_NAME` | `Admin` (default) | Optional. |
 | `SEED_ADMIN_LAST_NAME` | `Teka` (default) | Optional. |
 
@@ -147,7 +147,7 @@ docker compose --env-file .env.production -f docker-compose.prod.yml \
   run --rm \
     -e SEED_MODE=prod \
     -e SEED_ADMIN_PHONE='+243XXXXXXXXX' \
-    -e SEED_ADMIN_EMAIL='admin@teka.cd' \
+    -e SEED_ADMIN_EMAIL='contact@teka.cd' \
   api npx prisma db seed
 
 # Alternative (local workstation with .env.production available):
