@@ -407,8 +407,15 @@ export class AuthService {
       where: { email: dto.email, deletedAt: null },
     });
 
-    // Always respond 200 regardless of existence (avoid enumeration)
-    if (user && user.passwordHash) {
+    // Always respond 200 regardless of existence (avoid enumeration). Send
+    // the reset email for any role that uses email/password — i.e. admins
+    // and sellers. Buyers are PHONE_OTP-only and never use this surface.
+    //
+    // Don't gate on `user.passwordHash`: the very first admin login (and the
+    // first email-password seller login) goes through forgot-password
+    // *because* they don't have a password yet. Gating on passwordHash would
+    // make the bootstrap flow silently no-op.
+    if (user && (user.role === 'ADMIN' || user.role === 'SELLER')) {
       const expiryMinutes = this.configService.get<number>(
         'PASSWORD_RESET_EXPIRY_MINUTES',
         60,
@@ -464,6 +471,10 @@ export class AuthService {
         data: {
           passwordHash,
           passwordSetAt: new Date(),
+          // Reaching this code path proves the user controls the email (only
+          // they could have followed the reset link), so flip emailVerified
+          // atomically. Documented in docs/deployment.md § 5b.
+          emailVerified: true,
           // Users who reset may have come from PHONE_OTP or GOOGLE; consolidate to EMAIL_PASSWORD.
           authProvider: 'EMAIL_PASSWORD',
         },

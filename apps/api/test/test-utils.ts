@@ -276,6 +276,11 @@ export const mockPrismaService: Record<string, any> = {
     deleteMany: jest.fn(),
     count: jest.fn(),
   },
+  passwordResetToken: {
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+  },
   otpRateLimit: {
     findFirst: jest.fn(),
     findMany: jest.fn(),
