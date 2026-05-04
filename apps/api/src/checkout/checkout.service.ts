@@ -124,16 +124,14 @@ export class CheckoutService {
               product.deletedAt !== null ||
               product.status !== ProductStatus.ACTIVE
             ) {
-              const title = item.product.title as any;
-              const name = title?.fr || title?.en || 'Produit';
+              const name = item.product.title || 'Produit';
               throw new BadRequestException(
                 `Le produit "${name}" n'est plus disponible`,
               );
             }
 
             if (item.quantity > product.quantity) {
-              const title = product.title as any;
-              const name = title?.fr || title?.en || 'Produit';
+              const name = product.title || 'Produit';
               throw new BadRequestException(
                 `Stock insuffisant pour "${name}". Disponible : ${product.quantity}, demandé : ${item.quantity}`,
               );

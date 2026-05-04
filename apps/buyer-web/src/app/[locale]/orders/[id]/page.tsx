@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
 import { Link } from '@/i18n/navigation';
 import { Header } from '@/components/layout/header';
@@ -13,9 +13,9 @@ import { apiFetch } from '@/lib/api-client';
 import { formatCDF} from '@/lib/format';
 import type { Order, PaymentStatus } from '@/lib/types';
 
-function formatDate(dateStr: string, locale: string): string {
+function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
-  return new Intl.DateTimeFormat(locale === 'en' ? 'en-CD' : 'fr-CD', {
+  return new Intl.DateTimeFormat('fr-CD', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -26,7 +26,6 @@ function formatDate(dateStr: string, locale: string): string {
 
 export default function OrderDetailPage() {
   const t = useTranslations('Orders');
-  const locale = useLocale();
   const params = useParams<{ id: string }>();
   const orderId = params.id;
 
@@ -151,7 +150,7 @@ export default function OrderDetailPage() {
             <OrderStatusBadge status={order.status} />
           </div>
           <p className="text-sm text-muted-foreground">
-            {t('date')}: {formatDate(order.createdAt, locale)}
+            {t('date')}: {formatDate(order.createdAt)}
           </p>
           <p className="text-sm text-muted-foreground mt-1">
             {t('seller')}: {sellerName}

@@ -5,8 +5,8 @@ import { useTranslations } from 'next-intl';
 
 export interface Category {
   id: string;
-  name: { fr: string; en?: string };
-  description?: { fr?: string; en?: string } | null;
+  name: string;
+  description?: string | null;
   emoji?: string | null;
   sortOrder: number;
   isActive: boolean;
@@ -121,7 +121,7 @@ function CategoryNode({
         <span className={`text-sm font-medium flex-1 min-w-0 truncate ${
           !category.isActive ? 'text-muted-foreground line-through' : 'text-foreground'
         }`}>
-          {category.name.fr}
+          {category.name}
         </span>
 
         {productCount > 0 && (

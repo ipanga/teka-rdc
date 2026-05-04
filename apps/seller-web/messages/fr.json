@@ -120,10 +120,6 @@
     "maxImages": "{count}/8 images",
     "category": "Catégorie",
     "selectCategory": "Sélectionner une catégorie",
-    "titleFr": "Titre (Français)",
-    "titleEn": "Titre (Anglais)",
-    "descriptionFr": "Description (Français)",
-    "descriptionEn": "Description (Anglais)",
     "priceCDF": "Prix en CDF",
     "priceUSD": "Prix en USD (optionnel)",
     "quantity": "Quantité",
@@ -168,7 +164,8 @@
     "errorLoadingCategories": "Erreur lors du chargement des catégories",
     "productAttributes": "Caractéristiques du produit",
     "selectOption": "Sélectionnez...",
-    "noAttributes": "Aucune caractéristique pour cette catégorie"
+    "noAttributes": "Aucune caractéristique pour cette catégorie",
+    "description": "Description"
   },
   "Orders": {
     "title": "Commandes",
@@ -310,14 +307,11 @@
     "createFirst": "Créez votre première promotion pour augmenter vos ventes",
     "submit": "Soumettre pour approbation",
     "success": "Promotion créée avec succès",
-    "titleFr": "Titre (Français)",
-    "titleEn": "Titre (Anglais)",
-    "descriptionFr": "Description (Français)",
-    "descriptionEn": "Description (Anglais)",
     "requiredField": "Ce champ est requis",
     "previousPage": "Précédent",
     "nextPage": "Suivant",
-    "pageOf": "Page {page} sur {total}"
+    "pageOf": "Page {page} sur {total}",
+    "description": "Description"
   },
   "Messaging": {
     "title": "Messages",

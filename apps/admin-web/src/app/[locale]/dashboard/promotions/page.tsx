@@ -7,8 +7,8 @@ import { apiFetch } from '@/lib/api-client';
 interface Promotion {
   id: string;
   type: string;
-  title: { fr: string; en: string };
-  description: { fr: string; en: string } | null;
+  title: string;
+  description: string | null;
   discountPercent: number | null;
   discountAmountCDF: number | null;
   targetType: string | null;
@@ -33,10 +33,8 @@ interface PaginatedResponse {
 
 interface PromotionForm {
   type: string;
-  titleFr: string;
-  titleEn: string;
-  descriptionFr: string;
-  descriptionEn: string;
+  title: string;
+  description: string;
   discountPercent: string;
   discountAmountCDF: string;
   targetType: string;
@@ -47,10 +45,8 @@ interface PromotionForm {
 
 const EMPTY_FORM: PromotionForm = {
   type: 'PROMOTION',
-  titleFr: '',
-  titleEn: '',
-  descriptionFr: '',
-  descriptionEn: '',
+  title: '',
+  description: '',
   discountPercent: '',
   discountAmountCDF: '',
   targetType: '',
@@ -139,8 +135,8 @@ export default function PromotionsPage() {
     try {
       const body: Record<string, unknown> = {
         type: form.type,
-        title: { fr: form.titleFr, en: form.titleEn },
-        description: { fr: form.descriptionFr, en: form.descriptionEn },
+        title: form.title,
+        description: form.description || undefined,
         startDate: form.startDate,
         endDate: form.endDate,
       };
@@ -303,7 +299,7 @@ export default function PromotionsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm font-medium text-foreground max-w-[200px] truncate">
-                    {promo.title?.fr || '-'}
+                    {promo.title || '-'}
                   </td>
                   <td className="px-4 py-3 text-sm font-medium text-foreground">
                     {formatDiscount(promo)}
@@ -392,46 +388,24 @@ export default function PromotionsPage() {
                   </select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('titleFr')}</label>
-                    <input
-                      type="text"
-                      value={form.titleFr}
-                      onChange={(e) => setForm({ ...form, titleFr: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('titleEn')}</label>
-                    <input
-                      type="text"
-                      value={form.titleEn}
-                      onChange={(e) => setForm({ ...form, titleEn: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">{t('titleLabel')}</label>
+                  <input
+                    type="text"
+                    value={form.title}
+                    onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('descriptionFr')}</label>
-                    <textarea
-                      value={form.descriptionFr}
-                      onChange={(e) => setForm({ ...form, descriptionFr: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      rows={2}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('descriptionEn')}</label>
-                    <textarea
-                      value={form.descriptionEn}
-                      onChange={(e) => setForm({ ...form, descriptionEn: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      rows={2}
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">{t('description')}</label>
+                  <textarea
+                    value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    rows={2}
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -514,7 +488,7 @@ export default function PromotionsPage() {
                 </button>
                 <button
                   onClick={handleCreate}
-                  disabled={isSaving || !form.titleFr}
+                  disabled={isSaving || !form.title}
                   className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSaving ? tCommon('loading') : tCommon('save')}

@@ -9,7 +9,7 @@ type Props = { params: Promise<{ locale: string; slug: string }> };
 interface ApiCategoryDetail {
   id: string;
   slug: string | null;
-  name: Record<string, string>;
+  name: string;
   productCount?: number;
 }
 
@@ -19,7 +19,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     `/v1/browse/categories/${slug}`,
   );
 
-  const name = category?.name?.fr || '';
+  const name = category?.name || '';
   const title = `${name} — Acheter en ligne sur Teka RDC`;
   const description = `Découvrez les produits ${name} sur Teka RDC. Livraison rapide à Lubumbashi, Kolwezi et Likasi. Paiement Mobile Money ou à la livraison.`;
 
@@ -63,7 +63,7 @@ export default async function Page({ params }: Props) {
   );
   if (!category) notFound();
 
-  const name = category.name?.fr || '';
+  const name = category.name || '';
 
   return (
     <>

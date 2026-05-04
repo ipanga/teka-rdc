@@ -6,8 +6,8 @@ import { apiFetch } from '@/lib/api-client';
 
 interface Banner {
   id: string;
-  title: { fr: string; en: string };
-  subtitle: { fr: string; en: string } | null;
+  title: string;
+  subtitle: string | null;
   imageUrl: string;
   linkType: string;
   linkTarget: string;
@@ -29,10 +29,8 @@ interface PaginatedResponse {
 }
 
 interface BannerForm {
-  titleFr: string;
-  titleEn: string;
-  subtitleFr: string;
-  subtitleEn: string;
+  title: string;
+  subtitle: string;
   imageUrl: string;
   linkType: string;
   linkTarget: string;
@@ -43,10 +41,8 @@ interface BannerForm {
 }
 
 const EMPTY_FORM: BannerForm = {
-  titleFr: '',
-  titleEn: '',
-  subtitleFr: '',
-  subtitleEn: '',
+  title: '',
+  subtitle: '',
   imageUrl: '',
   linkType: 'url',
   linkTarget: '',
@@ -124,10 +120,8 @@ export default function BannersPage() {
   const openEdit = (banner: Banner) => {
     setEditingId(banner.id);
     setForm({
-      titleFr: banner.title?.fr || '',
-      titleEn: banner.title?.en || '',
-      subtitleFr: banner.subtitle?.fr || '',
-      subtitleEn: banner.subtitle?.en || '',
+      title: banner.title || '',
+      subtitle: banner.subtitle || '',
       imageUrl: banner.imageUrl || '',
       linkType: banner.linkType || 'url',
       linkTarget: banner.linkTarget || '',
@@ -143,8 +137,8 @@ export default function BannersPage() {
     setIsSaving(true);
     try {
       const body = {
-        title: { fr: form.titleFr, en: form.titleEn },
-        subtitle: { fr: form.subtitleFr, en: form.subtitleEn },
+        title: form.title,
+        subtitle: form.subtitle || undefined,
         imageUrl: form.imageUrl,
         linkType: form.linkType,
         linkTarget: form.linkTarget,
@@ -288,7 +282,7 @@ export default function BannersPage() {
                     )}
                   </td>
                   <td className="px-4 py-3 text-sm font-medium text-foreground max-w-[200px] truncate">
-                    {banner.title?.fr || '-'}
+                    {banner.title || '-'}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[banner.status] || 'bg-gray-100 text-gray-700'}`}>
@@ -358,46 +352,24 @@ export default function BannersPage() {
               </h3>
 
               <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('titleFr')}</label>
-                    <input
-                      type="text"
-                      value={form.titleFr}
-                      onChange={(e) => setForm({ ...form, titleFr: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('titleEn')}</label>
-                    <input
-                      type="text"
-                      value={form.titleEn}
-                      onChange={(e) => setForm({ ...form, titleEn: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">{t('titleLabel')}</label>
+                  <input
+                    type="text"
+                    value={form.title}
+                    onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('subtitleFr')}</label>
-                    <input
-                      type="text"
-                      value={form.subtitleFr}
-                      onChange={(e) => setForm({ ...form, subtitleFr: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('subtitleEn')}</label>
-                    <input
-                      type="text"
-                      value={form.subtitleEn}
-                      onChange={(e) => setForm({ ...form, subtitleEn: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">{t('subtitle')}</label>
+                  <input
+                    type="text"
+                    value={form.subtitle}
+                    onChange={(e) => setForm({ ...form, subtitle: e.target.value })}
+                    className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  />
                 </div>
 
                 <div>
@@ -490,7 +462,7 @@ export default function BannersPage() {
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={isSaving || !form.titleFr}
+                  disabled={isSaving || !form.title}
                   className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSaving ? tCommon('loading') : tCommon('save')}

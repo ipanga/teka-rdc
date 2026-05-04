@@ -15,14 +15,14 @@ type Props = { params: Promise<{ locale: string; slug: string }> };
 
 interface ApiContentPage {
   slug: string;
-  title: string | Record<string, string>;
-  content: string | Record<string, string>;
+  title: string;
+  content: string;
   status: string;
 }
 
 interface ProductData {
-  title: string | Record<string, string>;
-  description: string | Record<string, string>;
+  title: string;
+  description: string;
   priceCDF: string;
   priceUSD?: string | null;
   avgRating: number;
@@ -35,19 +35,15 @@ interface ProductData {
     shopName?: string;
     sellerProfile?: { businessName?: string };
   };
-  category?: { name: string | Record<string, string> };
+  category?: { name: string };
 }
 
 /**
- * Pick a plain string out of a field that may either be a string (current
- * monolingual API response) or a `{ fr, en }` JSON object (legacy shape from
- * cached payloads or older callers). The DB has been flattened to TEXT, but
- * the union keeps things robust.
+ * Plain string fallback. The DB is flat TEXT since 2026-04-25; this stays
+ * as a tiny null-safe coercion so we don't have to scatter `?? ''` everywhere.
  */
-function pickStr(field: string | Record<string, string> | undefined) {
-  if (!field) return '';
-  if (typeof field === 'string') return field;
-  return field.fr || Object.values(field)[0] || '';
+function pickStr(field: string | undefined | null) {
+  return field ?? '';
 }
 
 /**
