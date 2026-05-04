@@ -57,7 +57,7 @@ async function main() {
   };
 
   const adminPhone = requireInProd('SEED_ADMIN_PHONE', '+243999000001');
-  const adminEmail = requireInProd('SEED_ADMIN_EMAIL', 'admin@teka.cd');
+  const adminEmail = requireInProd('SEED_ADMIN_EMAIL', 'contact@teka.cd');
   const adminFirstName = process.env.SEED_ADMIN_FIRST_NAME ?? 'Admin';
   const adminLastName = process.env.SEED_ADMIN_LAST_NAME ?? 'Teka';
 
