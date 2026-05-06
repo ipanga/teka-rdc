@@ -13,8 +13,8 @@ interface CategoryFormModalProps {
 }
 
 export interface CategoryFormData {
-  name: { fr: string; en?: string };
-  description?: { fr?: string; en?: string };
+  name: string;
+  description?: string;
   parentCategoryId?: string | null;
   emoji?: string;
   sortOrder?: number;
@@ -31,10 +31,8 @@ export function CategoryFormModal({
   const t = useTranslations('Categories');
   const tCommon = useTranslations('Common');
 
-  const [nameFr, setNameFr] = useState('');
-  const [nameEn, setNameEn] = useState('');
-  const [descFr, setDescFr] = useState('');
-  const [descEn, setDescEn] = useState('');
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [parentId, setParentId] = useState('');
   const [emoji, setEmoji] = useState('');
   const [sortOrder, setSortOrder] = useState(0);
@@ -43,19 +41,15 @@ export function CategoryFormModal({
 
   useEffect(() => {
     if (category) {
-      setNameFr(category.name.fr || '');
-      setNameEn(category.name.en || '');
-      setDescFr(category.description?.fr || '');
-      setDescEn(category.description?.en || '');
+      setName(category.name || '');
+      setDescription(category.description || '');
       setParentId(category.parentCategoryId || '');
       setEmoji(category.emoji || '');
       setSortOrder(category.sortOrder || 0);
       setIsActive(category.isActive ?? true);
     } else {
-      setNameFr('');
-      setNameEn('');
-      setDescFr('');
-      setDescEn('');
+      setName('');
+      setDescription('');
       setParentId('');
       setEmoji('');
       setSortOrder(0);
@@ -65,15 +59,13 @@ export function CategoryFormModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nameFr.trim()) return;
+    if (!name.trim()) return;
 
     setIsSaving(true);
     try {
       const data: CategoryFormData = {
-        name: { fr: nameFr.trim(), en: nameEn.trim() || undefined },
-        description: (descFr.trim() || descEn.trim())
-          ? { fr: descFr.trim() || undefined, en: descEn.trim() || undefined }
-          : undefined,
+        name: name.trim(),
+        description: description.trim() || undefined,
         parentCategoryId: parentId || null,
         emoji: emoji.trim() || undefined,
         sortOrder,
@@ -109,50 +101,25 @@ export function CategoryFormModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">
-              {t('nameFr')} <span className="text-destructive">*</span>
+              {t('name')} <span className="text-destructive">*</span>
             </label>
             <input
               type="text"
-              value={nameFr}
-              onChange={(e) => setNameFr(e.target.value)}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               required
               className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="Ex: \u00c9lectronique"
+              placeholder="Ex: Électronique"
             />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">
-              {t('nameEn')}
-            </label>
-            <input
-              type="text"
-              value={nameEn}
-              onChange={(e) => setNameEn(e.target.value)}
-              className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="Ex: Electronics"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
-              {t('descriptionFr')}
+              {t('description')}
             </label>
             <textarea
-              value={descFr}
-              onChange={(e) => setDescFr(e.target.value)}
-              rows={2}
-              className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1">
-              {t('descriptionEn')}
-            </label>
-            <textarea
-              value={descEn}
-              onChange={(e) => setDescEn(e.target.value)}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               rows={2}
               className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
             />
@@ -189,7 +156,7 @@ export function CategoryFormModal({
                 onChange={(e) => setEmoji(e.target.value)}
                 maxLength={4}
                 className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder="\u{1F4F1}"
+                placeholder="📱"
               />
             </div>
 
@@ -230,7 +197,7 @@ export function CategoryFormModal({
             </button>
             <button
               type="submit"
-              disabled={isSaving || !nameFr.trim()}
+              disabled={isSaving || !name.trim()}
               className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving ? tCommon('loading') : tCommon('save')}

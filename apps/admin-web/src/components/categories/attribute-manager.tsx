@@ -6,7 +6,7 @@ import { apiFetch } from '@/lib/api-client';
 
 export interface CategoryAttribute {
   id: string;
-  name: { fr: string; en?: string };
+  name: string;
   type: 'TEXT' | 'SELECT' | 'MULTISELECT' | 'NUMERIC';
   options?: string[] | null;
   isRequired: boolean;
@@ -36,16 +36,14 @@ export function AttributeManager({
   const [isSaving, setIsSaving] = useState(false);
 
   // Form state
-  const [nameFr, setNameFr] = useState('');
-  const [nameEn, setNameEn] = useState('');
+  const [name, setName] = useState('');
   const [type, setType] = useState<CategoryAttribute['type']>('TEXT');
   const [options, setOptions] = useState('');
   const [isRequired, setIsRequired] = useState(false);
   const [sortOrder, setSortOrder] = useState(0);
 
   const resetForm = () => {
-    setNameFr('');
-    setNameEn('');
+    setName('');
     setType('TEXT');
     setOptions('');
     setIsRequired(false);
@@ -56,8 +54,7 @@ export function AttributeManager({
 
   const startEdit = (attr: CategoryAttribute) => {
     setEditingAttr(attr);
-    setNameFr(attr.name.fr || '');
-    setNameEn(attr.name.en || '');
+    setName(attr.name || '');
     setType(attr.type);
     setOptions(attr.options?.join(', ') || '');
     setIsRequired(attr.isRequired);
@@ -67,12 +64,12 @@ export function AttributeManager({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nameFr.trim()) return;
+    if (!name.trim()) return;
 
     setIsSaving(true);
     try {
       const body: Record<string, unknown> = {
-        name: { fr: nameFr.trim(), en: nameEn.trim() || undefined },
+        name: name.trim(),
         type,
         isRequired,
         sortOrder,
@@ -144,32 +141,18 @@ export function AttributeManager({
           onSubmit={handleSave}
           className="mb-4 p-4 bg-muted/50 rounded-lg border border-border space-y-3"
         >
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-foreground mb-1">
-                {t('attributeNameFr')} <span className="text-destructive">*</span>
-              </label>
-              <input
-                type="text"
-                value={nameFr}
-                onChange={(e) => setNameFr(e.target.value)}
-                required
-                className="w-full px-2.5 py-1.5 text-sm border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder="Ex: Taille"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-foreground mb-1">
-                {t('attributeNameEn')}
-              </label>
-              <input
-                type="text"
-                value={nameEn}
-                onChange={(e) => setNameEn(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-sm border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder="Ex: Size"
-              />
-            </div>
+          <div>
+            <label className="block text-xs font-medium text-foreground mb-1">
+              {t('attributeName')} <span className="text-destructive">*</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+              className="w-full px-2.5 py-1.5 text-sm border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Ex: Taille"
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -241,7 +224,7 @@ export function AttributeManager({
             </button>
             <button
               type="submit"
-              disabled={isSaving || !nameFr.trim()}
+              disabled={isSaving || !name.trim()}
               className="px-3 py-1.5 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving ? tCommon('loading') : tCommon('save')}
@@ -282,7 +265,7 @@ export function AttributeManager({
                   key={attr.id}
                   className="border-b border-border last:border-0 hover:bg-muted/50"
                 >
-                  <td className="px-3 py-2 text-sm text-foreground">{attr.name.fr}</td>
+                  <td className="px-3 py-2 text-sm text-foreground">{attr.name}</td>
                   <td className="px-3 py-2">
                     <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-secondary text-secondary-foreground">
                       {attr.type}

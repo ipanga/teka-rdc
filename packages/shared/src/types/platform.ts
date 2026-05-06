@@ -9,8 +9,8 @@ export type BannerLinkType = 'product' | 'category' | 'promotion' | 'url';
 
 export interface Banner extends Timestamps {
   id: string;
-  title: { fr: string; en?: string };
-  subtitle?: { fr: string; en?: string } | null;
+  title: string;
+  subtitle?: string | null;
   imageUrl: string;
   linkUrl?: string | null;
   linkType?: BannerLinkType | null;
@@ -22,8 +22,8 @@ export interface Banner extends Timestamps {
 }
 
 export interface CreateBannerRequest {
-  title: { fr: string; en?: string };
-  subtitle?: { fr: string; en?: string };
+  title: string;
+  subtitle?: string;
   imageUrl: string;
   linkUrl?: string;
   linkType?: BannerLinkType;
@@ -44,8 +44,8 @@ export type PromotionStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJEC
 export interface Promotion extends Timestamps {
   id: string;
   type: PromotionType;
-  title: { fr: string; en?: string };
-  description?: { fr: string; en?: string } | null;
+  title: string;
+  description?: string | null;
   discountPercent?: number | null;
   discountCDF?: string | null;
   status: PromotionStatus;
@@ -55,14 +55,14 @@ export interface Promotion extends Timestamps {
   categoryId?: string | null;
   sellerId?: string | null;
   rejectionReason?: string | null;
-  product?: { id: string; title: { fr: string; en?: string } } | null;
-  category?: { id: string; name: { fr: string; en?: string } } | null;
+  product?: { id: string; title: string } | null;
+  category?: { id: string; name: string } | null;
 }
 
 export interface CreatePromotionRequest {
   type: PromotionType;
-  title: { fr: string; en?: string };
-  description?: { fr: string; en?: string };
+  title: string;
+  description?: string;
   discountPercent?: number;
   discountCDF?: number;
   startsAt: string;
@@ -74,8 +74,8 @@ export interface CreatePromotionRequest {
 
 export interface SellerCreatePromotionRequest {
   type: PromotionType;
-  title: { fr: string; en?: string };
-  description?: { fr: string; en?: string };
+  title: string;
+  description?: string;
   discountPercent?: number;
   discountCDF?: number;
   startsAt: string;
@@ -92,8 +92,8 @@ export type ContentPageStatus = 'DRAFT' | 'PUBLISHED';
 export interface ContentPage {
   id: string;
   slug: string;
-  title: { fr: string; en?: string };
-  content: { fr: string; en?: string };
+  title: string;
+  content: string;
   status: ContentPageStatus;
   sortOrder: number;
   createdAt: string;
@@ -102,8 +102,8 @@ export interface ContentPage {
 
 export interface UpsertContentPageRequest {
   slug: string;
-  title: { fr: string; en?: string };
-  content: { fr: string; en?: string };
+  title: string;
+  content: string;
   status?: ContentPageStatus;
   sortOrder?: number;
 }
@@ -119,7 +119,7 @@ export interface SystemSetting {
   key: string;
   value: string;
   type: SystemSettingType;
-  label?: { fr: string; en?: string } | null;
+  label?: string | null;
   createdAt: string;
   updatedAt: string;
 }

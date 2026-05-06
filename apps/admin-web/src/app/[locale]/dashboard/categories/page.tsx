@@ -118,9 +118,9 @@ export default function CategoriesPage() {
   const buildParentOptions = (cats: Category[], prefix = ''): { id: string; name: string }[] => {
     const result: { id: string; name: string }[] = [];
     for (const cat of cats) {
-      result.push({ id: cat.id, name: prefix + cat.name.fr });
+      result.push({ id: cat.id, name: prefix + cat.name });
       if (cat.children && cat.children.length > 0) {
-        result.push(...buildParentOptions(cat.children, prefix + cat.name.fr + ' > '));
+        result.push(...buildParentOptions(cat.children, prefix + cat.name + ' > '));
       }
     }
     return result;
@@ -182,7 +182,7 @@ export default function CategoriesPage() {
             ) : (
               <AttributeManager
                 categoryId={selectedCategory.id}
-                categoryName={`${selectedCategory.emoji || ''} ${selectedCategory.name.fr}`}
+                categoryName={`${selectedCategory.emoji || ''} ${selectedCategory.name}`}
                 attributes={attributes}
                 onRefresh={() => fetchCategoryDetail(selectedCategory.id)}
               />
