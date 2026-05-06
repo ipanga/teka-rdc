@@ -209,6 +209,11 @@ export class AuthController {
     tokens: { accessToken: string; refreshToken: string },
   ) {
     const isProduction = this.configService.get('NODE_ENV') === 'production';
+    // Cross-subdomain cookies: API runs on api.teka.cd but the cookie has to
+    // be visible on admin.teka.cd / seller.teka.cd / teka.cd so the web
+    // middlewares can detect auth state. Without this, browsers scope the
+    // cookie to api.teka.cd only and protected routes always 401-redirect.
+    const domain = this.configService.get<string>('COOKIE_DOMAIN') || undefined;
 
     res.cookie('teka_access_token', tokens.accessToken, {
       httpOnly: true,
@@ -216,6 +221,7 @@ export class AuthController {
       sameSite: 'lax',
       maxAge: 15 * 60 * 1000,
       path: '/',
+      ...(domain ? { domain } : {}),
     });
 
     res.cookie('teka_refresh_token', tokens.refreshToken, {
@@ -224,11 +230,13 @@ export class AuthController {
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/',
+      ...(domain ? { domain } : {}),
     });
   }
 
   private clearAuthCookies(res: Response) {
-    res.clearCookie('teka_access_token', { path: '/' });
-    res.clearCookie('teka_refresh_token', { path: '/' });
+    const domain = this.configService.get<string>('COOKIE_DOMAIN') || undefined;
+    res.clearCookie('teka_access_token', { path: '/', ...(domain ? { domain } : {}) });
+    res.clearCookie('teka_refresh_token', { path: '/', ...(domain ? { domain } : {}) });
   }
 }
