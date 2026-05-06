@@ -33,13 +33,22 @@ export default function middleware(request: NextRequest) {
   );
 
   if (isProtected && !hasToken) {
-    const loginUrl = new URL('/seller/login', request.url);
+    // Use nextUrl.clone() so the basePath (if any) is preserved automatically.
+    // Hardcoding `/seller/login` only works in dev where basePath='/seller';
+    // in prod the app is served at seller.teka.cd root and the prefix produces
+    // a 404 (seller.teka.cd/seller/login).
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = '/login';
+    loginUrl.search = '';
     loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   if (isAuthOnly && hasToken) {
-    return NextResponse.redirect(new URL('/seller/dashboard', request.url));
+    const dashboardUrl = request.nextUrl.clone();
+    dashboardUrl.pathname = '/dashboard';
+    dashboardUrl.search = '';
+    return NextResponse.redirect(dashboardUrl);
   }
 
   return response;

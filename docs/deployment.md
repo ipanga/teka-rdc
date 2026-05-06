@@ -202,6 +202,7 @@ Expected health response:
 | `JWT_EXPIRY` | No | Access token expiry (default: `15m`) |
 | `JWT_REFRESH_EXPIRY` | No | Refresh token expiry (default: `7d`) |
 | `OTP_EXPIRY_MINUTES` | No | OTP validity duration in minutes (default: `5`) |
+| `COOKIE_DOMAIN` | Yes (prod) | Cross-subdomain auth cookie scope. **Must be `.teka.cd`** in prod so cookies issued by `api.teka.cd` are visible to `admin.teka.cd` / `seller.teka.cd` / `teka.cd` middleware. Leave empty in dev (cookies stay on localhost). Without this, web middlewares can't see the auth cookie and protected routes always 401-redirect. |
 | `CLOUDINARY_CLOUD_NAME` | Yes | Cloudinary cloud name for image hosting |
 | `CLOUDINARY_API_KEY` | Yes | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Yes | Cloudinary API secret |
