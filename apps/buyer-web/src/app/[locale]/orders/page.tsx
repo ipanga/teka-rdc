@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -21,9 +21,9 @@ const STATUS_TABS: { key: FilterStatus; labelKey: string }[] = [
   { key: 'CANCELLED', labelKey: 'cancelled' },
 ];
 
-function formatDate(dateStr: string, locale: string): string {
+function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
-  return new Intl.DateTimeFormat(locale === 'en' ? 'en-CD' : 'fr-CD', {
+  return new Intl.DateTimeFormat('fr-CD', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -32,8 +32,6 @@ function formatDate(dateStr: string, locale: string): string {
 
 export default function OrdersPage() {
   const t = useTranslations('Orders');
-  const locale = useLocale();
-
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<FilterStatus>('ALL');
@@ -157,7 +155,7 @@ export default function OrdersPage() {
                         {t('orderNumber')} #{order.orderNumber}
                       </span>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {formatDate(order.createdAt, locale)}
+                        {formatDate(order.createdAt)}
                       </p>
                     </div>
                     <OrderStatusBadge status={order.status} />

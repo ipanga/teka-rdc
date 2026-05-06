@@ -9,8 +9,8 @@ interface Setting {
   key: string;
   value: string;
   type: string;
-  label: { fr: string; en: string } | null;
-  description: { fr: string; en: string } | null;
+  label: string | null;
+  description: string | null;
   updatedAt: string;
 }
 
@@ -89,13 +89,11 @@ export default function SettingsPage() {
   };
 
   const getLabel = (setting: Setting): string => {
-    if (setting.label?.fr) return setting.label.fr;
-    return setting.key;
+    return setting.label || setting.key;
   };
 
   const getDescription = (setting: Setting): string | null => {
-    if (setting.description?.fr) return setting.description.fr;
-    return null;
+    return setting.description || null;
   };
 
   const isBoolean = (setting: Setting): boolean => {

@@ -23,7 +23,7 @@ export interface ReviewBuyer {
 
 export interface ReviewProduct {
   id: string;
-  title: { fr: string; en?: string };
+  title: string;
   avgRating: number;
   totalReviews: number;
 }
@@ -55,7 +55,7 @@ export interface WishlistItem {
 
 export interface WishlistProduct {
   id: string;
-  title: { fr: string; en?: string };
+  title: string;
   priceCDF: string;
   priceUSD?: string | null;
   condition: string;

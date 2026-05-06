@@ -288,6 +288,96 @@ describe('Auth (e2e)', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // POST /api/v1/auth/password-reset/request
+  // Bootstrap regression: a seeded admin/seller has NO passwordHash on
+  // creation, and the very first login is supposed to be the forgot-password
+  // flow. The endpoint must trigger a token+email regardless of whether the
+  // user already has a password set. Gating on `user.passwordHash` would
+  // make the bootstrap silently fail (which is what happened in prod
+  // 2026-05-04 — the operator never received the reset link).
+  // ---------------------------------------------------------------------------
+  describe('POST /api/v1/auth/password-reset/request', () => {
+    it('returns 200 + creates token for ADMIN with no passwordHash yet (bootstrap)', async () => {
+      const email = 'contact@teka.cd';
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'admin-bootstrap-id',
+        email,
+        role: 'ADMIN',
+        status: 'ACTIVE',
+        authProvider: 'PHONE_OTP', // default before first password is set
+        passwordHash: null,
+        deletedAt: null,
+      });
+      mockPrismaService.passwordResetToken.create.mockResolvedValue({});
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/password-reset/request')
+        .send({ email })
+        .expect(200);
+
+      expect(
+        mockPrismaService.passwordResetToken.create,
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns 200 + creates token for SELLER with passwordHash already set', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'seller-id',
+        email: 'seller@example.cd',
+        role: 'SELLER',
+        status: 'ACTIVE',
+        authProvider: 'EMAIL_PASSWORD',
+        passwordHash: 'hashed',
+        deletedAt: null,
+      });
+      mockPrismaService.passwordResetToken.create.mockResolvedValue({});
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/password-reset/request')
+        .send({ email: 'seller@example.cd' })
+        .expect(200);
+
+      expect(
+        mockPrismaService.passwordResetToken.create,
+      ).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns 200 but does NOT create token for BUYER (phone-OTP only)', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'buyer-id',
+        email: 'buyer@example.cd',
+        role: 'BUYER',
+        status: 'ACTIVE',
+        authProvider: 'PHONE_OTP',
+        passwordHash: null,
+        deletedAt: null,
+      });
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/password-reset/request')
+        .send({ email: 'buyer@example.cd' })
+        .expect(200);
+
+      expect(
+        mockPrismaService.passwordResetToken.create,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('returns 200 (enumeration-safe) for unknown email', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/password-reset/request')
+        .send({ email: 'nobody@example.cd' })
+        .expect(200);
+
+      expect(
+        mockPrismaService.passwordResetToken.create,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // POST /api/v1/auth/login/google — removed endpoint (sellers are now
   // email/password only; no role can use Google sign-in)
   // ---------------------------------------------------------------------------
