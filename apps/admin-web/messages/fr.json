@@ -137,10 +137,6 @@
     "deleteCategory": "Supprimer la catégorie",
     "confirmDelete": "Voulez-vous vraiment supprimer cette catégorie ? Cette action est irréversible.",
     "name": "Nom",
-    "nameFr": "Nom (Français)",
-    "nameEn": "Nom (Anglais)",
-    "descriptionFr": "Description (Français)",
-    "descriptionEn": "Description (Anglais)",
     "parentCategory": "Catégorie parente",
     "noParent": "Aucune (catégorie racine)",
     "emoji": "Emoji",
@@ -152,8 +148,6 @@
     "deleted": "Catégorie supprimée avec succès",
     "attributes": "Attributs",
     "attributeName": "Nom de l'attribut",
-    "attributeNameFr": "Nom (Français)",
-    "attributeNameEn": "Nom (Anglais)",
     "attributeType": "Type",
     "attributeOptions": "Options (séparées par des virgules)",
     "attributeRequired": "Obligatoire",
@@ -166,7 +160,8 @@
     "attributeDeleted": "Attribut supprimé avec succès",
     "expand": "Développer",
     "collapse": "Réduire",
-    "selectCategory": "Sélectionnez une catégorie pour voir ses attributs"
+    "selectCategory": "Sélectionnez une catégorie pour voir ses attributs",
+    "description": "Description"
   },
   "Moderation": {
     "title": "Modération des produits",
@@ -407,10 +402,6 @@
     "all": "Toutes",
     "image": "Image",
     "titleLabel": "Titre",
-    "titleFr": "Titre (Français)",
-    "titleEn": "Titre (Anglais)",
-    "subtitleFr": "Sous-titre (Français)",
-    "subtitleEn": "Sous-titre (Anglais)",
     "imageUrl": "URL de l'image",
     "linkType": "Type de lien",
     "linkTarget": "Cible du lien",
@@ -422,7 +413,8 @@
     "statusDraft": "Brouillon",
     "statusActive": "Active",
     "statusScheduled": "Programmée",
-    "statusExpired": "Expirée"
+    "statusExpired": "Expirée",
+    "subtitle": "Sous-titre"
   },
   "Promotions": {
     "title": "Gestion des promotions",
@@ -438,10 +430,6 @@
     "pendingApproval": "En attente d'approbation",
     "type": "Type",
     "titleLabel": "Titre",
-    "titleFr": "Titre (Français)",
-    "titleEn": "Titre (Anglais)",
-    "descriptionFr": "Description (Français)",
-    "descriptionEn": "Description (Anglais)",
     "discount": "Réduction",
     "discountPercent": "Réduction (%)",
     "discountAmountCDF": "Réduction (CDF)",
@@ -464,7 +452,8 @@
     "approve": "Approuver",
     "reject": "Rejeter",
     "rejectionReason": "Motif du rejet",
-    "rejectionReasonPlaceholder": "Décrivez le motif du rejet..."
+    "rejectionReasonPlaceholder": "Décrivez le motif du rejet...",
+    "description": "Description"
   },
   "Content": {
     "title": "Gestion du contenu",
@@ -480,17 +469,14 @@
     "customSlug": "Personnalisé",
     "customSlugPlaceholder": "mon-identifiant",
     "titleLabel": "Titre",
-    "titleFr": "Titre (Français)",
-    "titleEn": "Titre (Anglais)",
-    "contentFr": "Contenu (Français)",
-    "contentEn": "Contenu (Anglais)",
     "status": "Statut",
     "published": "Publié",
     "draft": "Brouillon",
     "sortOrder": "Ordre d'affichage",
     "updatedAt": "Dernière modification",
     "preview": "Aperçu",
-    "noContentYet": "Aucun contenu pour le moment"
+    "noContentYet": "Aucun contenu pour le moment",
+    "content": "Contenu"
   },
   "Broadcasts": {
     "title": "Diffusions SMS",

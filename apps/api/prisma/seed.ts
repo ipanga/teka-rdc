@@ -185,14 +185,14 @@ async function main() {
   const communeId = (n: number) => `02000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
 
   const cities = [
-    { n: 1, fr: 'Lubumbashi', en: 'Lubumbashi', province: 'Haut-Katanga', isActive: true },
-    { n: 2, fr: 'Kolwezi', en: 'Kolwezi', province: 'Lualaba', isActive: true },
-    { n: 3, fr: 'Kinshasa', en: 'Kinshasa', province: 'Kinshasa', isActive: false },
-    { n: 4, fr: 'Likasi', en: 'Likasi', province: 'Haut-Katanga', isActive: false },
-    { n: 5, fr: 'Goma', en: 'Goma', province: 'Nord-Kivu', isActive: false },
-    { n: 6, fr: 'Bukavu', en: 'Bukavu', province: 'Sud-Kivu', isActive: false },
-    { n: 7, fr: 'Kisangani', en: 'Kisangani', province: 'Tshopo', isActive: false },
-    { n: 8, fr: 'Mbuji-Mayi', en: 'Mbuji-Mayi', province: 'Kasaï-Oriental', isActive: false },
+    { n: 1, fr: 'Lubumbashi', province: 'Haut-Katanga', isActive: true },
+    { n: 2, fr: 'Kolwezi', province: 'Lualaba', isActive: true },
+    { n: 3, fr: 'Kinshasa', province: 'Kinshasa', isActive: false },
+    { n: 4, fr: 'Likasi', province: 'Haut-Katanga', isActive: false },
+    { n: 5, fr: 'Goma', province: 'Nord-Kivu', isActive: false },
+    { n: 6, fr: 'Bukavu', province: 'Sud-Kivu', isActive: false },
+    { n: 7, fr: 'Kisangani', province: 'Tshopo', isActive: false },
+    { n: 8, fr: 'Mbuji-Mayi', province: 'Kasaï-Oriental', isActive: false },
   ];
 
   for (const city of cities) {
@@ -214,15 +214,15 @@ async function main() {
 
   const communes = [
     // Lubumbashi communes
-    { n: 1, cityN: 1, fr: 'Lubumbashi', en: 'Lubumbashi' },
-    { n: 2, cityN: 1, fr: 'Kampemba', en: 'Kampemba' },
-    { n: 3, cityN: 1, fr: 'Kenya', en: 'Kenya' },
-    { n: 4, cityN: 1, fr: 'Katuba', en: 'Katuba' },
-    { n: 5, cityN: 1, fr: 'Ruashi', en: 'Ruashi' },
-    { n: 6, cityN: 1, fr: 'Annexe', en: 'Annexe' },
+    { n: 1, cityN: 1, fr: 'Lubumbashi' },
+    { n: 2, cityN: 1, fr: 'Kampemba' },
+    { n: 3, cityN: 1, fr: 'Kenya' },
+    { n: 4, cityN: 1, fr: 'Katuba' },
+    { n: 5, cityN: 1, fr: 'Ruashi' },
+    { n: 6, cityN: 1, fr: 'Annexe' },
     // Kolwezi communes
-    { n: 7, cityN: 2, fr: 'Dilala', en: 'Dilala' },
-    { n: 8, cityN: 2, fr: 'Manika', en: 'Manika' },
+    { n: 7, cityN: 2, fr: 'Dilala' },
+    { n: 8, cityN: 2, fr: 'Manika' },
   ];
 
   for (const commune of communes) {
@@ -328,21 +328,21 @@ async function main() {
   const catId = (n: number) => `10000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
 
   const mainCategories = [
-    { n: 1, emoji: '\ud83d\udcf1', fr: 'T\u00e9l\u00e9phonie', en: 'Phones & Tablets' },
-    { n: 2, emoji: '\ud83d\udcbb', fr: 'Informatique', en: 'Computers' },
-    { n: 3, emoji: '\u26a1', fr: '\u00c9lectronique', en: 'Electronics' },
-    { n: 4, emoji: '\ud83d\udc57', fr: 'Mode Femme', en: "Women's Fashion" },
-    { n: 5, emoji: '\ud83d\udc54', fr: 'Mode Homme', en: "Men's Fashion" },
-    { n: 6, emoji: '\ud83c\udfe0', fr: 'Maison & D\u00e9coration', en: 'Home & Decor' },
-    { n: 7, emoji: '\ud83d\udc84', fr: 'Beaut\u00e9 & Sant\u00e9', en: 'Beauty & Health' },
-    { n: 8, emoji: '\ud83c\udf4e', fr: 'Alimentation', en: 'Food & Groceries' },
-    { n: 9, emoji: '\u26bd', fr: 'Sports & Loisirs', en: 'Sports & Leisure' },
-    { n: 10, emoji: '\ud83d\ude97', fr: 'Auto-Moto', en: 'Automotive' },
-    { n: 11, emoji: '\ud83c\udfae', fr: 'Jeux & Divertissement', en: 'Games & Entertainment' },
-    { n: 12, emoji: '\ud83d\udc76', fr: 'B\u00e9b\u00e9s & Enfants', en: 'Babies & Kids' },
-    { n: 13, emoji: '\ud83d\udcda', fr: 'Livres & Papeterie', en: 'Books & Stationery' },
-    { n: 14, emoji: '\ud83d\udd27', fr: 'Bricolage & Jardinage', en: 'DIY & Garden' },
-    { n: 15, emoji: '\ud83d\udce6', fr: 'Autres', en: 'Others' },
+    { n: 1, emoji: '\ud83d\udcf1', fr: 'T\u00e9l\u00e9phonie' },
+    { n: 2, emoji: '\ud83d\udcbb', fr: 'Informatique' },
+    { n: 3, emoji: '\u26a1', fr: '\u00c9lectronique' },
+    { n: 4, emoji: '\ud83d\udc57', fr: 'Mode Femme' },
+    { n: 5, emoji: '\ud83d\udc54', fr: 'Mode Homme' },
+    { n: 6, emoji: '\ud83c\udfe0', fr: 'Maison & D\u00e9coration' },
+    { n: 7, emoji: '\ud83d\udc84', fr: 'Beaut\u00e9 & Sant\u00e9' },
+    { n: 8, emoji: '\ud83c\udf4e', fr: 'Alimentation' },
+    { n: 9, emoji: '\u26bd', fr: 'Sports & Loisirs' },
+    { n: 10, emoji: '\ud83d\ude97', fr: 'Auto-Moto' },
+    { n: 11, emoji: '\ud83c\udfae', fr: 'Jeux & Divertissement' },
+    { n: 12, emoji: '\ud83d\udc76', fr: 'B\u00e9b\u00e9s & Enfants' },
+    { n: 13, emoji: '\ud83d\udcda', fr: 'Livres & Papeterie' },
+    { n: 14, emoji: '\ud83d\udd27', fr: 'Bricolage & Jardinage' },
+    { n: 15, emoji: '\ud83d\udce6', fr: 'Autres' },
   ];
 
   const createdMainCats: Record<number, string> = {};
@@ -366,66 +366,66 @@ async function main() {
   // Subcategories: starting IDs at 100+
   const subcategories = [
     // 1. Telephonie
-    { n: 101, parent: 1, fr: 'Smartphones', en: 'Smartphones' },
-    { n: 102, parent: 1, fr: 'Tablettes', en: 'Tablets' },
-    { n: 103, parent: 1, fr: 'Accessoires T\u00e9l\u00e9phone', en: 'Phone Accessories' },
-    { n: 104, parent: 1, fr: 'T\u00e9l\u00e9phones Basiques', en: 'Feature Phones' },
+    { n: 101, parent: 1, fr: 'Smartphones' },
+    { n: 102, parent: 1, fr: 'Tablettes' },
+    { n: 103, parent: 1, fr: 'Accessoires T\u00e9l\u00e9phone' },
+    { n: 104, parent: 1, fr: 'T\u00e9l\u00e9phones Basiques' },
     // 2. Informatique
-    { n: 201, parent: 2, fr: 'Ordinateurs Portables', en: 'Laptops' },
-    { n: 202, parent: 2, fr: 'Ordinateurs de Bureau', en: 'Desktop Computers' },
-    { n: 203, parent: 2, fr: 'Accessoires Informatique', en: 'Computer Accessories' },
-    { n: 204, parent: 2, fr: 'Imprimantes & Scanners', en: 'Printers & Scanners' },
+    { n: 201, parent: 2, fr: 'Ordinateurs Portables' },
+    { n: 202, parent: 2, fr: 'Ordinateurs de Bureau' },
+    { n: 203, parent: 2, fr: 'Accessoires Informatique' },
+    { n: 204, parent: 2, fr: 'Imprimantes & Scanners' },
     // 3. Electronique
-    { n: 301, parent: 3, fr: 'T\u00e9l\u00e9viseurs', en: 'Televisions' },
-    { n: 302, parent: 3, fr: 'Audio & Hi-Fi', en: 'Audio & Hi-Fi' },
-    { n: 303, parent: 3, fr: '\u00c9lectrom\u00e9nager', en: 'Home Appliances' },
+    { n: 301, parent: 3, fr: 'T\u00e9l\u00e9viseurs' },
+    { n: 302, parent: 3, fr: 'Audio & Hi-Fi' },
+    { n: 303, parent: 3, fr: '\u00c9lectrom\u00e9nager' },
     // 4. Mode Femme
-    { n: 401, parent: 4, fr: 'Robes & Jupes', en: 'Dresses & Skirts' },
-    { n: 402, parent: 4, fr: 'Chaussures Femme', en: "Women's Shoes" },
-    { n: 403, parent: 4, fr: 'Sacs \u00e0 Main', en: 'Handbags' },
-    { n: 404, parent: 4, fr: 'Bijoux & Accessoires', en: 'Jewelry & Accessories' },
+    { n: 401, parent: 4, fr: 'Robes & Jupes' },
+    { n: 402, parent: 4, fr: 'Chaussures Femme' },
+    { n: 403, parent: 4, fr: 'Sacs \u00e0 Main' },
+    { n: 404, parent: 4, fr: 'Bijoux & Accessoires' },
     // 5. Mode Homme
-    { n: 501, parent: 5, fr: 'Chemises & T-shirts', en: 'Shirts & T-shirts' },
-    { n: 502, parent: 5, fr: 'Pantalons & Jeans', en: 'Pants & Jeans' },
-    { n: 503, parent: 5, fr: 'Chaussures Homme', en: "Men's Shoes" },
+    { n: 501, parent: 5, fr: 'Chemises & T-shirts' },
+    { n: 502, parent: 5, fr: 'Pantalons & Jeans' },
+    { n: 503, parent: 5, fr: 'Chaussures Homme' },
     // 6. Maison & Decoration
-    { n: 601, parent: 6, fr: 'Meubles', en: 'Furniture' },
-    { n: 602, parent: 6, fr: 'Literie', en: 'Bedding' },
-    { n: 603, parent: 6, fr: 'Cuisine & Vaisselle', en: 'Kitchen & Dinnerware' },
+    { n: 601, parent: 6, fr: 'Meubles' },
+    { n: 602, parent: 6, fr: 'Literie' },
+    { n: 603, parent: 6, fr: 'Cuisine & Vaisselle' },
     // 7. Beaute & Sante
-    { n: 701, parent: 7, fr: 'Soins du Visage', en: 'Face Care' },
-    { n: 702, parent: 7, fr: 'Soins Capillaires', en: 'Hair Care' },
-    { n: 703, parent: 7, fr: 'Parfums', en: 'Perfumes' },
+    { n: 701, parent: 7, fr: 'Soins du Visage' },
+    { n: 702, parent: 7, fr: 'Soins Capillaires' },
+    { n: 703, parent: 7, fr: 'Parfums' },
     // 8. Alimentation
-    { n: 801, parent: 8, fr: 'Boissons', en: 'Beverages' },
-    { n: 802, parent: 8, fr: '\u00c9picerie', en: 'Groceries' },
-    { n: 803, parent: 8, fr: 'Snacks & Confiserie', en: 'Snacks & Confectionery' },
+    { n: 801, parent: 8, fr: 'Boissons' },
+    { n: 802, parent: 8, fr: '\u00c9picerie' },
+    { n: 803, parent: 8, fr: 'Snacks & Confiserie' },
     // 9. Sports & Loisirs
-    { n: 901, parent: 9, fr: 'V\u00eatements de Sport', en: 'Sportswear' },
-    { n: 902, parent: 9, fr: '\u00c9quipements de Sport', en: 'Sports Equipment' },
-    { n: 903, parent: 9, fr: 'Chaussures de Sport', en: 'Sports Shoes' },
+    { n: 901, parent: 9, fr: 'V\u00eatements de Sport' },
+    { n: 902, parent: 9, fr: '\u00c9quipements de Sport' },
+    { n: 903, parent: 9, fr: 'Chaussures de Sport' },
     // 10. Auto-Moto
-    { n: 1001, parent: 10, fr: 'Pi\u00e8ces Auto', en: 'Car Parts' },
-    { n: 1002, parent: 10, fr: 'Accessoires Auto', en: 'Car Accessories' },
-    { n: 1003, parent: 10, fr: 'Motos & V\u00e9los', en: 'Motorcycles & Bicycles' },
+    { n: 1001, parent: 10, fr: 'Pi\u00e8ces Auto' },
+    { n: 1002, parent: 10, fr: 'Accessoires Auto' },
+    { n: 1003, parent: 10, fr: 'Motos & V\u00e9los' },
     // 11. Jeux & Divertissement
-    { n: 1101, parent: 11, fr: 'Consoles & Jeux Vid\u00e9o', en: 'Consoles & Video Games' },
-    { n: 1102, parent: 11, fr: 'Jouets', en: 'Toys' },
+    { n: 1101, parent: 11, fr: 'Consoles & Jeux Vid\u00e9o' },
+    { n: 1102, parent: 11, fr: 'Jouets' },
     // 12. Bebes & Enfants
-    { n: 1201, parent: 12, fr: 'V\u00eatements Enfants', en: "Children's Clothing" },
-    { n: 1202, parent: 12, fr: 'Pu\u00e9riculture', en: 'Baby Care' },
-    { n: 1203, parent: 12, fr: 'Jouets Enfants', en: "Children's Toys" },
+    { n: 1201, parent: 12, fr: 'V\u00eatements Enfants' },
+    { n: 1202, parent: 12, fr: 'Pu\u00e9riculture' },
+    { n: 1203, parent: 12, fr: 'Jouets Enfants' },
     // 13. Livres & Papeterie
-    { n: 1301, parent: 13, fr: 'Livres', en: 'Books' },
-    { n: 1302, parent: 13, fr: 'Fournitures Scolaires', en: 'School Supplies' },
-    { n: 1303, parent: 13, fr: 'Fournitures de Bureau', en: 'Office Supplies' },
+    { n: 1301, parent: 13, fr: 'Livres' },
+    { n: 1302, parent: 13, fr: 'Fournitures Scolaires' },
+    { n: 1303, parent: 13, fr: 'Fournitures de Bureau' },
     // 14. Bricolage & Jardinage
-    { n: 1401, parent: 14, fr: 'Outils', en: 'Tools' },
-    { n: 1402, parent: 14, fr: 'Peinture & D\u00e9co', en: 'Paint & Decor' },
-    { n: 1403, parent: 14, fr: 'Jardinage', en: 'Gardening' },
+    { n: 1401, parent: 14, fr: 'Outils' },
+    { n: 1402, parent: 14, fr: 'Peinture & D\u00e9co' },
+    { n: 1403, parent: 14, fr: 'Jardinage' },
     // 15. Autres
-    { n: 1501, parent: 15, fr: 'Divers', en: 'Miscellaneous' },
-    { n: 1502, parent: 15, fr: 'Services', en: 'Services' },
+    { n: 1501, parent: 15, fr: 'Divers' },
+    { n: 1502, parent: 15, fr: 'Services' },
   ];
 
   const createdSubCats: Record<number, string> = {};
@@ -461,7 +461,6 @@ async function main() {
     n: number;
     categoryId: string;
     fr: string;
-    en: string;
     type: AttributeType;
     options?: string[];
     isRequired?: boolean;
@@ -469,26 +468,26 @@ async function main() {
 
   const attributes: AttrDef[] = [
     // Telephonie (main cat 1)
-    { n: 1, categoryId: createdMainCats[1], fr: 'Marque', en: 'Brand', type: AttributeType.SELECT, options: ['Samsung', 'Apple', 'Tecno', 'Infinix', 'Xiaomi', 'Huawei', 'Nokia', 'Oppo'], isRequired: true },
-    { n: 2, categoryId: createdMainCats[1], fr: 'M\u00e9moire', en: 'Storage', type: AttributeType.SELECT, options: ['32Go', '64Go', '128Go', '256Go', '512Go'] },
-    { n: 3, categoryId: createdMainCats[1], fr: 'Couleur', en: 'Color', type: AttributeType.TEXT },
-    { n: 4, categoryId: createdMainCats[1], fr: 'RAM', en: 'RAM', type: AttributeType.SELECT, options: ['2Go', '3Go', '4Go', '6Go', '8Go', '12Go'] },
+    { n: 1, categoryId: createdMainCats[1], fr: 'Marque', type: AttributeType.SELECT, options: ['Samsung', 'Apple', 'Tecno', 'Infinix', 'Xiaomi', 'Huawei', 'Nokia', 'Oppo'], isRequired: true },
+    { n: 2, categoryId: createdMainCats[1], fr: 'M\u00e9moire', type: AttributeType.SELECT, options: ['32Go', '64Go', '128Go', '256Go', '512Go'] },
+    { n: 3, categoryId: createdMainCats[1], fr: 'Couleur', type: AttributeType.TEXT },
+    { n: 4, categoryId: createdMainCats[1], fr: 'RAM', type: AttributeType.SELECT, options: ['2Go', '3Go', '4Go', '6Go', '8Go', '12Go'] },
     // Informatique (main cat 2)
-    { n: 10, categoryId: createdMainCats[2], fr: 'Marque', en: 'Brand', type: AttributeType.SELECT, options: ['HP', 'Dell', 'Lenovo', 'Apple', 'Asus', 'Acer', 'MSI'], isRequired: true },
-    { n: 11, categoryId: createdMainCats[2], fr: 'RAM', en: 'RAM', type: AttributeType.SELECT, options: ['4Go', '8Go', '16Go', '32Go'] },
-    { n: 12, categoryId: createdMainCats[2], fr: 'Stockage', en: 'Storage', type: AttributeType.SELECT, options: ['128Go', '256Go', '512Go', '1To'] },
-    { n: 13, categoryId: createdMainCats[2], fr: 'Processeur', en: 'Processor', type: AttributeType.TEXT },
+    { n: 10, categoryId: createdMainCats[2], fr: 'Marque', type: AttributeType.SELECT, options: ['HP', 'Dell', 'Lenovo', 'Apple', 'Asus', 'Acer', 'MSI'], isRequired: true },
+    { n: 11, categoryId: createdMainCats[2], fr: 'RAM', type: AttributeType.SELECT, options: ['4Go', '8Go', '16Go', '32Go'] },
+    { n: 12, categoryId: createdMainCats[2], fr: 'Stockage', type: AttributeType.SELECT, options: ['128Go', '256Go', '512Go', '1To'] },
+    { n: 13, categoryId: createdMainCats[2], fr: 'Processeur', type: AttributeType.TEXT },
     // Mode Femme (main cat 4)
-    { n: 20, categoryId: createdMainCats[4], fr: 'Taille', en: 'Size', type: AttributeType.SELECT, options: ['XS', 'S', 'M', 'L', 'XL', 'XXL'] },
-    { n: 21, categoryId: createdMainCats[4], fr: 'Couleur', en: 'Color', type: AttributeType.TEXT },
-    { n: 22, categoryId: createdMainCats[4], fr: 'Mati\u00e8re', en: 'Material', type: AttributeType.TEXT },
+    { n: 20, categoryId: createdMainCats[4], fr: 'Taille', type: AttributeType.SELECT, options: ['XS', 'S', 'M', 'L', 'XL', 'XXL'] },
+    { n: 21, categoryId: createdMainCats[4], fr: 'Couleur', type: AttributeType.TEXT },
+    { n: 22, categoryId: createdMainCats[4], fr: 'Mati\u00e8re', type: AttributeType.TEXT },
     // Mode Homme (main cat 5)
-    { n: 30, categoryId: createdMainCats[5], fr: 'Taille', en: 'Size', type: AttributeType.SELECT, options: ['XS', 'S', 'M', 'L', 'XL', 'XXL'] },
-    { n: 31, categoryId: createdMainCats[5], fr: 'Couleur', en: 'Color', type: AttributeType.TEXT },
-    { n: 32, categoryId: createdMainCats[5], fr: 'Mati\u00e8re', en: 'Material', type: AttributeType.TEXT },
+    { n: 30, categoryId: createdMainCats[5], fr: 'Taille', type: AttributeType.SELECT, options: ['XS', 'S', 'M', 'L', 'XL', 'XXL'] },
+    { n: 31, categoryId: createdMainCats[5], fr: 'Couleur', type: AttributeType.TEXT },
+    { n: 32, categoryId: createdMainCats[5], fr: 'Mati\u00e8re', type: AttributeType.TEXT },
     // Electronique (main cat 3)
-    { n: 40, categoryId: createdMainCats[3], fr: 'Marque', en: 'Brand', type: AttributeType.TEXT },
-    { n: 41, categoryId: createdMainCats[3], fr: 'Puissance', en: 'Power', type: AttributeType.TEXT },
+    { n: 40, categoryId: createdMainCats[3], fr: 'Marque', type: AttributeType.TEXT },
+    { n: 41, categoryId: createdMainCats[3], fr: 'Puissance', type: AttributeType.TEXT },
   ];
 
   const createdAttrs: Record<number, string> = {};
@@ -538,14 +537,14 @@ async function main() {
   const newAttrId = (n: number) => `12000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
 
   const newMainCategories = [
-    { n: 1, emoji: '🍎', fr: 'Alimentation & Épicerie', en: 'Food & Groceries' },
-    { n: 2, emoji: '📱', fr: 'Téléphones & Électronique', en: 'Phones & Electronics' },
-    { n: 3, emoji: '👗', fr: 'Mode & Habillement', en: 'Fashion & Apparel' },
-    { n: 4, emoji: '🏠', fr: 'Maison & Intérieur', en: 'Home & Living' },
-    { n: 5, emoji: '🚗', fr: 'Auto & Moto', en: 'Auto & Moto' },
-    { n: 6, emoji: '💊', fr: 'Santé & Beauté', en: 'Health & Beauty' },
-    { n: 7, emoji: '🔨', fr: 'Construction & Outillage', en: 'Construction & Tools' },
-    { n: 8, emoji: '👶', fr: 'Bébé & Enfants', en: 'Baby & Kids' },
+    { n: 1, emoji: '🍎', fr: 'Alimentation & Épicerie' },
+    { n: 2, emoji: '📱', fr: 'Téléphones & Électronique' },
+    { n: 3, emoji: '👗', fr: 'Mode & Habillement' },
+    { n: 4, emoji: '🏠', fr: 'Maison & Intérieur' },
+    { n: 5, emoji: '🚗', fr: 'Auto & Moto' },
+    { n: 6, emoji: '💊', fr: 'Santé & Beauté' },
+    { n: 7, emoji: '🔨', fr: 'Construction & Outillage' },
+    { n: 8, emoji: '👶', fr: 'Bébé & Enfants' },
   ];
 
   const newCreatedMainCats: Record<number, string> = {};
@@ -570,60 +569,60 @@ async function main() {
   // New subcategories
   const newSubcategories = [
     // 1. Food & Groceries
-    { n: 101, parent: 1, fr: 'Boissons', en: 'Beverages' },
-    { n: 102, parent: 1, fr: 'Épicerie & Condiments', en: 'Groceries & Condiments' },
-    { n: 103, parent: 1, fr: 'Fruits & Légumes', en: 'Fruits & Vegetables' },
-    { n: 104, parent: 1, fr: 'Snacks & Confiserie', en: 'Snacks & Confectionery' },
-    { n: 105, parent: 1, fr: 'Produits Laitiers', en: 'Dairy Products' },
+    { n: 101, parent: 1, fr: 'Boissons' },
+    { n: 102, parent: 1, fr: 'Épicerie & Condiments' },
+    { n: 103, parent: 1, fr: 'Fruits & Légumes' },
+    { n: 104, parent: 1, fr: 'Snacks & Confiserie' },
+    { n: 105, parent: 1, fr: 'Produits Laitiers' },
     // 2. Phones & Electronics
-    { n: 201, parent: 2, fr: 'Smartphones', en: 'Smartphones' },
-    { n: 202, parent: 2, fr: 'Tablettes', en: 'Tablets' },
-    { n: 203, parent: 2, fr: 'Accessoires Téléphone', en: 'Phone Accessories' },
-    { n: 204, parent: 2, fr: 'Ordinateurs Portables', en: 'Laptops' },
-    { n: 205, parent: 2, fr: 'Ordinateurs de Bureau', en: 'Desktop Computers' },
-    { n: 206, parent: 2, fr: 'Accessoires Informatique', en: 'Computer Accessories' },
-    { n: 207, parent: 2, fr: 'Téléviseurs & Écrans', en: 'TVs & Monitors' },
-    { n: 208, parent: 2, fr: 'Audio & Hi-Fi', en: 'Audio & Hi-Fi' },
-    { n: 209, parent: 2, fr: 'Électroménager', en: 'Home Appliances' },
-    { n: 210, parent: 2, fr: 'Consoles & Jeux Vidéo', en: 'Consoles & Video Games' },
+    { n: 201, parent: 2, fr: 'Smartphones' },
+    { n: 202, parent: 2, fr: 'Tablettes' },
+    { n: 203, parent: 2, fr: 'Accessoires Téléphone' },
+    { n: 204, parent: 2, fr: 'Ordinateurs Portables' },
+    { n: 205, parent: 2, fr: 'Ordinateurs de Bureau' },
+    { n: 206, parent: 2, fr: 'Accessoires Informatique' },
+    { n: 207, parent: 2, fr: 'Téléviseurs & Écrans' },
+    { n: 208, parent: 2, fr: 'Audio & Hi-Fi' },
+    { n: 209, parent: 2, fr: 'Électroménager' },
+    { n: 210, parent: 2, fr: 'Consoles & Jeux Vidéo' },
     // 3. Fashion & Apparel
-    { n: 301, parent: 3, fr: 'Vêtements Femme', en: "Women's Clothing" },
-    { n: 302, parent: 3, fr: 'Vêtements Homme', en: "Men's Clothing" },
-    { n: 303, parent: 3, fr: 'Chaussures Femme', en: "Women's Shoes" },
-    { n: 304, parent: 3, fr: 'Chaussures Homme', en: "Men's Shoes" },
-    { n: 305, parent: 3, fr: 'Sacs & Accessoires', en: 'Bags & Accessories' },
-    { n: 306, parent: 3, fr: 'Bijoux & Montres', en: 'Jewelry & Watches' },
-    { n: 307, parent: 3, fr: 'Tissus & Pagnes', en: 'Fabrics & Wax Prints' },
+    { n: 301, parent: 3, fr: 'Vêtements Femme' },
+    { n: 302, parent: 3, fr: 'Vêtements Homme' },
+    { n: 303, parent: 3, fr: 'Chaussures Femme' },
+    { n: 304, parent: 3, fr: 'Chaussures Homme' },
+    { n: 305, parent: 3, fr: 'Sacs & Accessoires' },
+    { n: 306, parent: 3, fr: 'Bijoux & Montres' },
+    { n: 307, parent: 3, fr: 'Tissus & Pagnes' },
     // 4. Home & Living
-    { n: 401, parent: 4, fr: 'Meubles', en: 'Furniture' },
-    { n: 402, parent: 4, fr: 'Literie & Linge de Maison', en: 'Bedding & Home Linen' },
-    { n: 403, parent: 4, fr: 'Cuisine & Vaisselle', en: 'Kitchen & Dinnerware' },
-    { n: 404, parent: 4, fr: 'Décoration', en: 'Decoration' },
-    { n: 405, parent: 4, fr: 'Éclairage', en: 'Lighting' },
+    { n: 401, parent: 4, fr: 'Meubles' },
+    { n: 402, parent: 4, fr: 'Literie & Linge de Maison' },
+    { n: 403, parent: 4, fr: 'Cuisine & Vaisselle' },
+    { n: 404, parent: 4, fr: 'Décoration' },
+    { n: 405, parent: 4, fr: 'Éclairage' },
     // 5. Auto & Moto
-    { n: 501, parent: 5, fr: 'Pièces Auto', en: 'Car Parts' },
-    { n: 502, parent: 5, fr: 'Accessoires Auto', en: 'Car Accessories' },
-    { n: 503, parent: 5, fr: 'Motos & Vélos', en: 'Motorcycles & Bicycles' },
-    { n: 504, parent: 5, fr: 'Pneus & Jantes', en: 'Tires & Rims' },
-    { n: 505, parent: 5, fr: 'Huiles & Lubrifiants', en: 'Oils & Lubricants' },
+    { n: 501, parent: 5, fr: 'Pièces Auto' },
+    { n: 502, parent: 5, fr: 'Accessoires Auto' },
+    { n: 503, parent: 5, fr: 'Motos & Vélos' },
+    { n: 504, parent: 5, fr: 'Pneus & Jantes' },
+    { n: 505, parent: 5, fr: 'Huiles & Lubrifiants' },
     // 6. Health & Beauty
-    { n: 601, parent: 6, fr: 'Soins du Visage', en: 'Face Care' },
-    { n: 602, parent: 6, fr: 'Soins Capillaires', en: 'Hair Care' },
-    { n: 603, parent: 6, fr: 'Parfums & Déodorants', en: 'Perfumes & Deodorants' },
-    { n: 604, parent: 6, fr: 'Maquillage', en: 'Makeup' },
-    { n: 605, parent: 6, fr: 'Hygiène & Santé', en: 'Hygiene & Health' },
+    { n: 601, parent: 6, fr: 'Soins du Visage' },
+    { n: 602, parent: 6, fr: 'Soins Capillaires' },
+    { n: 603, parent: 6, fr: 'Parfums & Déodorants' },
+    { n: 604, parent: 6, fr: 'Maquillage' },
+    { n: 605, parent: 6, fr: 'Hygiène & Santé' },
     // 7. Construction & Tools
-    { n: 701, parent: 7, fr: 'Outils à Main', en: 'Hand Tools' },
-    { n: 702, parent: 7, fr: 'Outils Électriques', en: 'Power Tools' },
-    { n: 703, parent: 7, fr: 'Matériaux de Construction', en: 'Building Materials' },
-    { n: 704, parent: 7, fr: 'Peinture & Finitions', en: 'Paint & Finishes' },
-    { n: 705, parent: 7, fr: 'Plomberie & Électricité', en: 'Plumbing & Electrical' },
+    { n: 701, parent: 7, fr: 'Outils à Main' },
+    { n: 702, parent: 7, fr: 'Outils Électriques' },
+    { n: 703, parent: 7, fr: 'Matériaux de Construction' },
+    { n: 704, parent: 7, fr: 'Peinture & Finitions' },
+    { n: 705, parent: 7, fr: 'Plomberie & Électricité' },
     // 8. Baby & Kids
-    { n: 801, parent: 8, fr: 'Vêtements Bébé', en: 'Baby Clothing' },
-    { n: 802, parent: 8, fr: 'Vêtements Enfants', en: "Children's Clothing" },
-    { n: 803, parent: 8, fr: 'Puériculture', en: 'Baby Care' },
-    { n: 804, parent: 8, fr: 'Jouets & Jeux', en: 'Toys & Games' },
-    { n: 805, parent: 8, fr: 'Fournitures Scolaires', en: 'School Supplies' },
+    { n: 801, parent: 8, fr: 'Vêtements Bébé' },
+    { n: 802, parent: 8, fr: 'Vêtements Enfants' },
+    { n: 803, parent: 8, fr: 'Puériculture' },
+    { n: 804, parent: 8, fr: 'Jouets & Jeux' },
+    { n: 805, parent: 8, fr: 'Fournitures Scolaires' },
   ];
 
   const newCreatedSubCats: Record<number, string> = {};
@@ -658,7 +657,6 @@ async function main() {
     n: number;
     categoryId: string;
     fr: string;
-    en: string;
     type: AttributeType;
     options?: string[];
     isRequired?: boolean;
@@ -667,129 +665,129 @@ async function main() {
   const newAttributes: NewAttrDef[] = [
     // === Phones & Electronics ===
     // Smartphones (201)
-    { n: 1, categoryId: newCreatedSubCats[201], fr: 'Marque', en: 'Brand', type: AttributeType.SELECT, options: ['Samsung', 'Apple', 'Tecno', 'Infinix', 'Xiaomi', 'Huawei', 'Nokia', 'Oppo', 'Realme', 'Vivo', 'OnePlus', 'Google', 'Motorola', 'Itel'], isRequired: true },
-    { n: 2, categoryId: newCreatedSubCats[201], fr: 'Mémoire interne', en: 'Internal Storage', type: AttributeType.SELECT, options: ['16Go', '32Go', '64Go', '128Go', '256Go', '512Go', '1To'], isRequired: true },
-    { n: 3, categoryId: newCreatedSubCats[201], fr: 'RAM', en: 'RAM', type: AttributeType.SELECT, options: ['1Go', '2Go', '3Go', '4Go', '6Go', '8Go', '12Go', '16Go'] },
-    { n: 4, categoryId: newCreatedSubCats[201], fr: 'Couleur', en: 'Color', type: AttributeType.TEXT },
-    { n: 5, categoryId: newCreatedSubCats[201], fr: 'Taille écran', en: 'Screen Size', type: AttributeType.SELECT, options: ['5.0"', '5.5"', '6.0"', '6.1"', '6.4"', '6.5"', '6.6"', '6.7"', '6.8"'] },
+    { n: 1, categoryId: newCreatedSubCats[201], fr: 'Marque', type: AttributeType.SELECT, options: ['Samsung', 'Apple', 'Tecno', 'Infinix', 'Xiaomi', 'Huawei', 'Nokia', 'Oppo', 'Realme', 'Vivo', 'OnePlus', 'Google', 'Motorola', 'Itel'], isRequired: true },
+    { n: 2, categoryId: newCreatedSubCats[201], fr: 'Mémoire interne', type: AttributeType.SELECT, options: ['16Go', '32Go', '64Go', '128Go', '256Go', '512Go', '1To'], isRequired: true },
+    { n: 3, categoryId: newCreatedSubCats[201], fr: 'RAM', type: AttributeType.SELECT, options: ['1Go', '2Go', '3Go', '4Go', '6Go', '8Go', '12Go', '16Go'] },
+    { n: 4, categoryId: newCreatedSubCats[201], fr: 'Couleur', type: AttributeType.TEXT },
+    { n: 5, categoryId: newCreatedSubCats[201], fr: 'Taille écran', type: AttributeType.SELECT, options: ['5.0"', '5.5"', '6.0"', '6.1"', '6.4"', '6.5"', '6.6"', '6.7"', '6.8"'] },
 
     // Tablets (202)
-    { n: 10, categoryId: newCreatedSubCats[202], fr: 'Marque', en: 'Brand', type: AttributeType.SELECT, options: ['Samsung', 'Apple', 'Huawei', 'Lenovo', 'Xiaomi', 'Amazon'], isRequired: true },
-    { n: 11, categoryId: newCreatedSubCats[202], fr: 'Mémoire interne', en: 'Internal Storage', type: AttributeType.SELECT, options: ['32Go', '64Go', '128Go', '256Go', '512Go'] },
-    { n: 12, categoryId: newCreatedSubCats[202], fr: 'Taille écran', en: 'Screen Size', type: AttributeType.SELECT, options: ['7"', '8"', '10.1"', '10.9"', '11"', '12.4"', '12.9"'] },
+    { n: 10, categoryId: newCreatedSubCats[202], fr: 'Marque', type: AttributeType.SELECT, options: ['Samsung', 'Apple', 'Huawei', 'Lenovo', 'Xiaomi', 'Amazon'], isRequired: true },
+    { n: 11, categoryId: newCreatedSubCats[202], fr: 'Mémoire interne', type: AttributeType.SELECT, options: ['32Go', '64Go', '128Go', '256Go', '512Go'] },
+    { n: 12, categoryId: newCreatedSubCats[202], fr: 'Taille écran', type: AttributeType.SELECT, options: ['7"', '8"', '10.1"', '10.9"', '11"', '12.4"', '12.9"'] },
 
     // Laptops (204)
-    { n: 20, categoryId: newCreatedSubCats[204], fr: 'Marque', en: 'Brand', type: AttributeType.SELECT, options: ['HP', 'Dell', 'Lenovo', 'Apple', 'Asus', 'Acer', 'MSI', 'Toshiba', 'Microsoft'], isRequired: true },
-    { n: 21, categoryId: newCreatedSubCats[204], fr: 'Processeur', en: 'Processor', type: AttributeType.SELECT, options: ['Intel Core i3', 'Intel Core i5', 'Intel Core i7', 'Intel Core i9', 'AMD Ryzen 3', 'AMD Ryzen 5', 'AMD Ryzen 7', 'Apple M1', 'Apple M2', 'Apple M3'] },
-    { n: 22, categoryId: newCreatedSubCats[204], fr: 'RAM', en: 'RAM', type: AttributeType.SELECT, options: ['4Go', '8Go', '16Go', '32Go', '64Go'], isRequired: true },
-    { n: 23, categoryId: newCreatedSubCats[204], fr: 'Stockage', en: 'Storage', type: AttributeType.SELECT, options: ['128Go SSD', '256Go SSD', '512Go SSD', '1To SSD', '1To HDD', '2To HDD'] },
-    { n: 24, categoryId: newCreatedSubCats[204], fr: 'Taille écran', en: 'Screen Size', type: AttributeType.SELECT, options: ['13.3"', '14"', '15.6"', '16"', '17.3"'] },
+    { n: 20, categoryId: newCreatedSubCats[204], fr: 'Marque', type: AttributeType.SELECT, options: ['HP', 'Dell', 'Lenovo', 'Apple', 'Asus', 'Acer', 'MSI', 'Toshiba', 'Microsoft'], isRequired: true },
+    { n: 21, categoryId: newCreatedSubCats[204], fr: 'Processeur', type: AttributeType.SELECT, options: ['Intel Core i3', 'Intel Core i5', 'Intel Core i7', 'Intel Core i9', 'AMD Ryzen 3', 'AMD Ryzen 5', 'AMD Ryzen 7', 'Apple M1', 'Apple M2', 'Apple M3'] },
+    { n: 22, categoryId: newCreatedSubCats[204], fr: 'RAM', type: AttributeType.SELECT, options: ['4Go', '8Go', '16Go', '32Go', '64Go'], isRequired: true },
+    { n: 23, categoryId: newCreatedSubCats[204], fr: 'Stockage', type: AttributeType.SELECT, options: ['128Go SSD', '256Go SSD', '512Go SSD', '1To SSD', '1To HDD', '2To HDD'] },
+    { n: 24, categoryId: newCreatedSubCats[204], fr: 'Taille écran', type: AttributeType.SELECT, options: ['13.3"', '14"', '15.6"', '16"', '17.3"'] },
 
     // TVs & Monitors (207)
-    { n: 30, categoryId: newCreatedSubCats[207], fr: 'Marque', en: 'Brand', type: AttributeType.SELECT, options: ['Samsung', 'LG', 'Sony', 'TCL', 'Hisense', 'Philips', 'Skyworth'], isRequired: true },
-    { n: 31, categoryId: newCreatedSubCats[207], fr: 'Taille écran', en: 'Screen Size', type: AttributeType.SELECT, options: ['24"', '32"', '40"', '43"', '50"', '55"', '65"', '75"'] },
-    { n: 32, categoryId: newCreatedSubCats[207], fr: 'Résolution', en: 'Resolution', type: AttributeType.SELECT, options: ['HD (720p)', 'Full HD (1080p)', '4K UHD', '8K'] },
-    { n: 33, categoryId: newCreatedSubCats[207], fr: 'Smart TV', en: 'Smart TV', type: AttributeType.SELECT, options: ['Oui', 'Non'] },
+    { n: 30, categoryId: newCreatedSubCats[207], fr: 'Marque', type: AttributeType.SELECT, options: ['Samsung', 'LG', 'Sony', 'TCL', 'Hisense', 'Philips', 'Skyworth'], isRequired: true },
+    { n: 31, categoryId: newCreatedSubCats[207], fr: 'Taille écran', type: AttributeType.SELECT, options: ['24"', '32"', '40"', '43"', '50"', '55"', '65"', '75"'] },
+    { n: 32, categoryId: newCreatedSubCats[207], fr: 'Résolution', type: AttributeType.SELECT, options: ['HD (720p)', 'Full HD (1080p)', '4K UHD', '8K'] },
+    { n: 33, categoryId: newCreatedSubCats[207], fr: 'Smart TV', type: AttributeType.SELECT, options: ['Oui', 'Non'] },
 
     // === Fashion & Apparel ===
     // Women's Clothing (301)
-    { n: 40, categoryId: newCreatedSubCats[301], fr: 'Taille', en: 'Size', type: AttributeType.SELECT, options: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'], isRequired: true },
-    { n: 41, categoryId: newCreatedSubCats[301], fr: 'Couleur', en: 'Color', type: AttributeType.TEXT },
-    { n: 42, categoryId: newCreatedSubCats[301], fr: 'Matière', en: 'Material', type: AttributeType.SELECT, options: ['Coton', 'Polyester', 'Soie', 'Lin', 'Wax', 'Dentelle', 'Jean', 'Cuir', 'Laine'] },
+    { n: 40, categoryId: newCreatedSubCats[301], fr: 'Taille', type: AttributeType.SELECT, options: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'], isRequired: true },
+    { n: 41, categoryId: newCreatedSubCats[301], fr: 'Couleur', type: AttributeType.TEXT },
+    { n: 42, categoryId: newCreatedSubCats[301], fr: 'Matière', type: AttributeType.SELECT, options: ['Coton', 'Polyester', 'Soie', 'Lin', 'Wax', 'Dentelle', 'Jean', 'Cuir', 'Laine'] },
 
     // Men's Clothing (302)
-    { n: 45, categoryId: newCreatedSubCats[302], fr: 'Taille', en: 'Size', type: AttributeType.SELECT, options: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'], isRequired: true },
-    { n: 46, categoryId: newCreatedSubCats[302], fr: 'Couleur', en: 'Color', type: AttributeType.TEXT },
-    { n: 47, categoryId: newCreatedSubCats[302], fr: 'Matière', en: 'Material', type: AttributeType.SELECT, options: ['Coton', 'Polyester', 'Lin', 'Jean', 'Cuir', 'Laine', 'Soie'] },
+    { n: 45, categoryId: newCreatedSubCats[302], fr: 'Taille', type: AttributeType.SELECT, options: ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'], isRequired: true },
+    { n: 46, categoryId: newCreatedSubCats[302], fr: 'Couleur', type: AttributeType.TEXT },
+    { n: 47, categoryId: newCreatedSubCats[302], fr: 'Matière', type: AttributeType.SELECT, options: ['Coton', 'Polyester', 'Lin', 'Jean', 'Cuir', 'Laine', 'Soie'] },
 
     // Women's Shoes (303)
-    { n: 50, categoryId: newCreatedSubCats[303], fr: 'Pointure', en: 'Size', type: AttributeType.SELECT, options: ['35', '36', '37', '38', '39', '40', '41', '42'], isRequired: true },
-    { n: 51, categoryId: newCreatedSubCats[303], fr: 'Couleur', en: 'Color', type: AttributeType.TEXT },
-    { n: 52, categoryId: newCreatedSubCats[303], fr: 'Matière', en: 'Material', type: AttributeType.SELECT, options: ['Cuir', 'Cuir synthétique', 'Tissu', 'Toile', 'Caoutchouc'] },
-    { n: 53, categoryId: newCreatedSubCats[303], fr: 'Marque', en: 'Brand', type: AttributeType.TEXT },
+    { n: 50, categoryId: newCreatedSubCats[303], fr: 'Pointure', type: AttributeType.SELECT, options: ['35', '36', '37', '38', '39', '40', '41', '42'], isRequired: true },
+    { n: 51, categoryId: newCreatedSubCats[303], fr: 'Couleur', type: AttributeType.TEXT },
+    { n: 52, categoryId: newCreatedSubCats[303], fr: 'Matière', type: AttributeType.SELECT, options: ['Cuir', 'Cuir synthétique', 'Tissu', 'Toile', 'Caoutchouc'] },
+    { n: 53, categoryId: newCreatedSubCats[303], fr: 'Marque', type: AttributeType.TEXT },
 
     // Men's Shoes (304)
-    { n: 55, categoryId: newCreatedSubCats[304], fr: 'Pointure', en: 'Size', type: AttributeType.SELECT, options: ['39', '40', '41', '42', '43', '44', '45', '46', '47'], isRequired: true },
-    { n: 56, categoryId: newCreatedSubCats[304], fr: 'Couleur', en: 'Color', type: AttributeType.TEXT },
-    { n: 57, categoryId: newCreatedSubCats[304], fr: 'Matière', en: 'Material', type: AttributeType.SELECT, options: ['Cuir', 'Cuir synthétique', 'Tissu', 'Toile', 'Caoutchouc'] },
-    { n: 58, categoryId: newCreatedSubCats[304], fr: 'Marque', en: 'Brand', type: AttributeType.TEXT },
+    { n: 55, categoryId: newCreatedSubCats[304], fr: 'Pointure', type: AttributeType.SELECT, options: ['39', '40', '41', '42', '43', '44', '45', '46', '47'], isRequired: true },
+    { n: 56, categoryId: newCreatedSubCats[304], fr: 'Couleur', type: AttributeType.TEXT },
+    { n: 57, categoryId: newCreatedSubCats[304], fr: 'Matière', type: AttributeType.SELECT, options: ['Cuir', 'Cuir synthétique', 'Tissu', 'Toile', 'Caoutchouc'] },
+    { n: 58, categoryId: newCreatedSubCats[304], fr: 'Marque', type: AttributeType.TEXT },
 
     // Fabrics & Wax (307)
-    { n: 60, categoryId: newCreatedSubCats[307], fr: 'Type de tissu', en: 'Fabric Type', type: AttributeType.SELECT, options: ['Wax Hollandais', 'Wax Africain', 'Super Wax', 'Bazin', 'Soie', 'Dentelle', 'Satin', 'Kanga', 'Kitenge'] },
-    { n: 61, categoryId: newCreatedSubCats[307], fr: 'Longueur (yards)', en: 'Length (yards)', type: AttributeType.SELECT, options: ['3 yards', '6 yards', '12 yards'] },
-    { n: 62, categoryId: newCreatedSubCats[307], fr: 'Marque', en: 'Brand', type: AttributeType.SELECT, options: ['Vlisco', 'Julius Holland', 'GTP', 'Woodin', 'Hitarget', 'ABC Wax', 'Autre'] },
+    { n: 60, categoryId: newCreatedSubCats[307], fr: 'Type de tissu', type: AttributeType.SELECT, options: ['Wax Hollandais', 'Wax Africain', 'Super Wax', 'Bazin', 'Soie', 'Dentelle', 'Satin', 'Kanga', 'Kitenge'] },
+    { n: 61, categoryId: newCreatedSubCats[307], fr: 'Longueur (yards)', type: AttributeType.SELECT, options: ['3 yards', '6 yards', '12 yards'] },
+    { n: 62, categoryId: newCreatedSubCats[307], fr: 'Marque', type: AttributeType.SELECT, options: ['Vlisco', 'Julius Holland', 'GTP', 'Woodin', 'Hitarget', 'ABC Wax', 'Autre'] },
 
     // === Auto & Moto ===
     // Car Parts (501)
-    { n: 70, categoryId: newCreatedSubCats[501], fr: 'Marque véhicule', en: 'Vehicle Brand', type: AttributeType.SELECT, options: ['Toyota', 'Mitsubishi', 'Nissan', 'Mercedes-Benz', 'BMW', 'Honda', 'Hyundai', 'Land Rover', 'Ford', 'Suzuki', 'Volkswagen', 'Peugeot', 'Renault'], isRequired: true },
-    { n: 71, categoryId: newCreatedSubCats[501], fr: 'Type de pièce', en: 'Part Type', type: AttributeType.SELECT, options: ['Moteur', 'Freins', 'Suspension', 'Transmission', 'Électrique', 'Carrosserie', 'Échappement', 'Direction', 'Filtre', 'Courroie'] },
-    { n: 72, categoryId: newCreatedSubCats[501], fr: 'État', en: 'Condition', type: AttributeType.SELECT, options: ['Neuf', 'Occasion - Bon état', 'Occasion - État moyen', 'Reconditionné'] },
+    { n: 70, categoryId: newCreatedSubCats[501], fr: 'Marque véhicule', type: AttributeType.SELECT, options: ['Toyota', 'Mitsubishi', 'Nissan', 'Mercedes-Benz', 'BMW', 'Honda', 'Hyundai', 'Land Rover', 'Ford', 'Suzuki', 'Volkswagen', 'Peugeot', 'Renault'], isRequired: true },
+    { n: 71, categoryId: newCreatedSubCats[501], fr: 'Type de pièce', type: AttributeType.SELECT, options: ['Moteur', 'Freins', 'Suspension', 'Transmission', 'Électrique', 'Carrosserie', 'Échappement', 'Direction', 'Filtre', 'Courroie'] },
+    { n: 72, categoryId: newCreatedSubCats[501], fr: 'État', type: AttributeType.SELECT, options: ['Neuf', 'Occasion - Bon état', 'Occasion - État moyen', 'Reconditionné'] },
 
     // Motorcycles & Bicycles (503)
-    { n: 75, categoryId: newCreatedSubCats[503], fr: 'Type', en: 'Type', type: AttributeType.SELECT, options: ['Moto', 'Scooter', 'Vélo', 'Vélo électrique', 'Tricycle'] },
-    { n: 76, categoryId: newCreatedSubCats[503], fr: 'Marque', en: 'Brand', type: AttributeType.SELECT, options: ['TVS', 'Haojue', 'Boxer', 'Honda', 'Yamaha', 'Suzuki', 'Hero', 'Bajaj', 'Autre'] },
-    { n: 77, categoryId: newCreatedSubCats[503], fr: 'Cylindrée', en: 'Engine Size', type: AttributeType.SELECT, options: ['50cc', '100cc', '125cc', '150cc', '200cc', '250cc', '400cc+'] },
+    { n: 75, categoryId: newCreatedSubCats[503], fr: 'Type', type: AttributeType.SELECT, options: ['Moto', 'Scooter', 'Vélo', 'Vélo électrique', 'Tricycle'] },
+    { n: 76, categoryId: newCreatedSubCats[503], fr: 'Marque', type: AttributeType.SELECT, options: ['TVS', 'Haojue', 'Boxer', 'Honda', 'Yamaha', 'Suzuki', 'Hero', 'Bajaj', 'Autre'] },
+    { n: 77, categoryId: newCreatedSubCats[503], fr: 'Cylindrée', type: AttributeType.SELECT, options: ['50cc', '100cc', '125cc', '150cc', '200cc', '250cc', '400cc+'] },
 
     // === Health & Beauty ===
     // Face Care (601)
-    { n: 80, categoryId: newCreatedSubCats[601], fr: 'Type de produit', en: 'Product Type', type: AttributeType.SELECT, options: ['Crème hydratante', 'Nettoyant', 'Sérum', 'Masque', 'Tonique', 'Exfoliant', 'Huile', 'Écran solaire'] },
-    { n: 81, categoryId: newCreatedSubCats[601], fr: 'Type de peau', en: 'Skin Type', type: AttributeType.SELECT, options: ['Tous types', 'Peau grasse', 'Peau sèche', 'Peau mixte', 'Peau sensible'] },
-    { n: 82, categoryId: newCreatedSubCats[601], fr: 'Marque', en: 'Brand', type: AttributeType.TEXT },
+    { n: 80, categoryId: newCreatedSubCats[601], fr: 'Type de produit', type: AttributeType.SELECT, options: ['Crème hydratante', 'Nettoyant', 'Sérum', 'Masque', 'Tonique', 'Exfoliant', 'Huile', 'Écran solaire'] },
+    { n: 81, categoryId: newCreatedSubCats[601], fr: 'Type de peau', type: AttributeType.SELECT, options: ['Tous types', 'Peau grasse', 'Peau sèche', 'Peau mixte', 'Peau sensible'] },
+    { n: 82, categoryId: newCreatedSubCats[601], fr: 'Marque', type: AttributeType.TEXT },
 
     // Perfumes (603)
-    { n: 85, categoryId: newCreatedSubCats[603], fr: 'Genre', en: 'Gender', type: AttributeType.SELECT, options: ['Homme', 'Femme', 'Unisexe'] },
-    { n: 86, categoryId: newCreatedSubCats[603], fr: 'Volume', en: 'Volume', type: AttributeType.SELECT, options: ['30ml', '50ml', '75ml', '100ml', '125ml', '200ml'] },
-    { n: 87, categoryId: newCreatedSubCats[603], fr: 'Marque', en: 'Brand', type: AttributeType.TEXT },
+    { n: 85, categoryId: newCreatedSubCats[603], fr: 'Genre', type: AttributeType.SELECT, options: ['Homme', 'Femme', 'Unisexe'] },
+    { n: 86, categoryId: newCreatedSubCats[603], fr: 'Volume', type: AttributeType.SELECT, options: ['30ml', '50ml', '75ml', '100ml', '125ml', '200ml'] },
+    { n: 87, categoryId: newCreatedSubCats[603], fr: 'Marque', type: AttributeType.TEXT },
 
     // === Construction & Tools ===
     // Hand Tools (701)
-    { n: 90, categoryId: newCreatedSubCats[701], fr: 'Type d\'outil', en: 'Tool Type', type: AttributeType.SELECT, options: ['Marteau', 'Tournevis', 'Pince', 'Clé', 'Scie', 'Mètre', 'Niveau', 'Cutter', 'Autre'] },
-    { n: 91, categoryId: newCreatedSubCats[701], fr: 'Marque', en: 'Brand', type: AttributeType.TEXT },
+    { n: 90, categoryId: newCreatedSubCats[701], fr: 'Type d\'outil', type: AttributeType.SELECT, options: ['Marteau', 'Tournevis', 'Pince', 'Clé', 'Scie', 'Mètre', 'Niveau', 'Cutter', 'Autre'] },
+    { n: 91, categoryId: newCreatedSubCats[701], fr: 'Marque', type: AttributeType.TEXT },
 
     // Power Tools (702)
-    { n: 95, categoryId: newCreatedSubCats[702], fr: 'Type', en: 'Type', type: AttributeType.SELECT, options: ['Perceuse', 'Meuleuse', 'Scie circulaire', 'Scie sauteuse', 'Ponceuse', 'Compresseur', 'Groupe électrogène', 'Soudeur'] },
-    { n: 96, categoryId: newCreatedSubCats[702], fr: 'Alimentation', en: 'Power Source', type: AttributeType.SELECT, options: ['Filaire 220V', 'Batterie', 'Essence', 'Diesel'] },
-    { n: 97, categoryId: newCreatedSubCats[702], fr: 'Marque', en: 'Brand', type: AttributeType.SELECT, options: ['Bosch', 'Makita', 'DeWalt', 'Black & Decker', 'Stanley', 'Einhell', 'Autre'] },
+    { n: 95, categoryId: newCreatedSubCats[702], fr: 'Type', type: AttributeType.SELECT, options: ['Perceuse', 'Meuleuse', 'Scie circulaire', 'Scie sauteuse', 'Ponceuse', 'Compresseur', 'Groupe électrogène', 'Soudeur'] },
+    { n: 96, categoryId: newCreatedSubCats[702], fr: 'Alimentation', type: AttributeType.SELECT, options: ['Filaire 220V', 'Batterie', 'Essence', 'Diesel'] },
+    { n: 97, categoryId: newCreatedSubCats[702], fr: 'Marque', type: AttributeType.SELECT, options: ['Bosch', 'Makita', 'DeWalt', 'Black & Decker', 'Stanley', 'Einhell', 'Autre'] },
 
     // === Baby & Kids ===
     // Baby Clothing (801)
-    { n: 100, categoryId: newCreatedSubCats[801], fr: 'Âge', en: 'Age', type: AttributeType.SELECT, options: ['0-3 mois', '3-6 mois', '6-12 mois', '12-18 mois', '18-24 mois', '2-3 ans'], isRequired: true },
-    { n: 101, categoryId: newCreatedSubCats[801], fr: 'Genre', en: 'Gender', type: AttributeType.SELECT, options: ['Garçon', 'Fille', 'Unisexe'] },
-    { n: 102, categoryId: newCreatedSubCats[801], fr: 'Couleur', en: 'Color', type: AttributeType.TEXT },
+    { n: 100, categoryId: newCreatedSubCats[801], fr: 'Âge', type: AttributeType.SELECT, options: ['0-3 mois', '3-6 mois', '6-12 mois', '12-18 mois', '18-24 mois', '2-3 ans'], isRequired: true },
+    { n: 101, categoryId: newCreatedSubCats[801], fr: 'Genre', type: AttributeType.SELECT, options: ['Garçon', 'Fille', 'Unisexe'] },
+    { n: 102, categoryId: newCreatedSubCats[801], fr: 'Couleur', type: AttributeType.TEXT },
 
     // Children's Clothing (802)
-    { n: 105, categoryId: newCreatedSubCats[802], fr: 'Âge', en: 'Age', type: AttributeType.SELECT, options: ['2-3 ans', '3-4 ans', '4-5 ans', '5-6 ans', '6-8 ans', '8-10 ans', '10-12 ans', '12-14 ans'], isRequired: true },
-    { n: 106, categoryId: newCreatedSubCats[802], fr: 'Genre', en: 'Gender', type: AttributeType.SELECT, options: ['Garçon', 'Fille', 'Unisexe'] },
-    { n: 107, categoryId: newCreatedSubCats[802], fr: 'Couleur', en: 'Color', type: AttributeType.TEXT },
+    { n: 105, categoryId: newCreatedSubCats[802], fr: 'Âge', type: AttributeType.SELECT, options: ['2-3 ans', '3-4 ans', '4-5 ans', '5-6 ans', '6-8 ans', '8-10 ans', '10-12 ans', '12-14 ans'], isRequired: true },
+    { n: 106, categoryId: newCreatedSubCats[802], fr: 'Genre', type: AttributeType.SELECT, options: ['Garçon', 'Fille', 'Unisexe'] },
+    { n: 107, categoryId: newCreatedSubCats[802], fr: 'Couleur', type: AttributeType.TEXT },
 
     // Home & Living — Kitchen (403)
-    { n: 110, categoryId: newCreatedSubCats[403], fr: 'Matière', en: 'Material', type: AttributeType.SELECT, options: ['Inox', 'Aluminium', 'Fonte', 'Céramique', 'Plastique', 'Bois', 'Verre'] },
-    { n: 111, categoryId: newCreatedSubCats[403], fr: 'Marque', en: 'Brand', type: AttributeType.TEXT },
+    { n: 110, categoryId: newCreatedSubCats[403], fr: 'Matière', type: AttributeType.SELECT, options: ['Inox', 'Aluminium', 'Fonte', 'Céramique', 'Plastique', 'Bois', 'Verre'] },
+    { n: 111, categoryId: newCreatedSubCats[403], fr: 'Marque', type: AttributeType.TEXT },
 
     // Home & Living — Furniture (401)
-    { n: 115, categoryId: newCreatedSubCats[401], fr: 'Type', en: 'Type', type: AttributeType.SELECT, options: ['Canapé', 'Table', 'Chaise', 'Armoire', 'Lit', 'Bureau', 'Étagère', 'Commode', 'Table basse'] },
-    { n: 116, categoryId: newCreatedSubCats[401], fr: 'Matière', en: 'Material', type: AttributeType.SELECT, options: ['Bois massif', 'MDF', 'Métal', 'Plastique', 'Rotin', 'Cuir', 'Tissu'] },
+    { n: 115, categoryId: newCreatedSubCats[401], fr: 'Type', type: AttributeType.SELECT, options: ['Canapé', 'Table', 'Chaise', 'Armoire', 'Lit', 'Bureau', 'Étagère', 'Commode', 'Table basse'] },
+    { n: 116, categoryId: newCreatedSubCats[401], fr: 'Matière', type: AttributeType.SELECT, options: ['Bois massif', 'MDF', 'Métal', 'Plastique', 'Rotin', 'Cuir', 'Tissu'] },
 
     // Phone Accessories (203)
-    { n: 120, categoryId: newCreatedSubCats[203], fr: 'Type', en: 'Type', type: AttributeType.SELECT, options: ['Coque', 'Chargeur', 'Câble', 'Écouteurs', 'Power Bank', 'Verre trempé', 'Support', 'Autre'] },
-    { n: 121, categoryId: newCreatedSubCats[203], fr: 'Compatible avec', en: 'Compatible With', type: AttributeType.TEXT },
+    { n: 120, categoryId: newCreatedSubCats[203], fr: 'Type', type: AttributeType.SELECT, options: ['Coque', 'Chargeur', 'Câble', 'Écouteurs', 'Power Bank', 'Verre trempé', 'Support', 'Autre'] },
+    { n: 121, categoryId: newCreatedSubCats[203], fr: 'Compatible avec', type: AttributeType.TEXT },
 
     // Audio & Hi-Fi (208)
-    { n: 125, categoryId: newCreatedSubCats[208], fr: 'Type', en: 'Type', type: AttributeType.SELECT, options: ['Enceinte Bluetooth', 'Casque', 'Écouteurs', 'Barre de son', 'Système Hi-Fi', 'Microphone'] },
-    { n: 126, categoryId: newCreatedSubCats[208], fr: 'Marque', en: 'Brand', type: AttributeType.SELECT, options: ['JBL', 'Sony', 'Samsung', 'Bose', 'Apple', 'Huawei', 'Anker', 'Autre'] },
+    { n: 125, categoryId: newCreatedSubCats[208], fr: 'Type', type: AttributeType.SELECT, options: ['Enceinte Bluetooth', 'Casque', 'Écouteurs', 'Barre de son', 'Système Hi-Fi', 'Microphone'] },
+    { n: 126, categoryId: newCreatedSubCats[208], fr: 'Marque', type: AttributeType.SELECT, options: ['JBL', 'Sony', 'Samsung', 'Bose', 'Apple', 'Huawei', 'Anker', 'Autre'] },
 
     // Bags & Accessories (305)
-    { n: 130, categoryId: newCreatedSubCats[305], fr: 'Type', en: 'Type', type: AttributeType.SELECT, options: ['Sac à main', 'Sac à dos', 'Sacoche', 'Pochette', 'Valise', 'Ceinture', 'Portefeuille'] },
-    { n: 131, categoryId: newCreatedSubCats[305], fr: 'Matière', en: 'Material', type: AttributeType.SELECT, options: ['Cuir', 'Cuir synthétique', 'Tissu', 'Toile', 'Nylon'] },
-    { n: 132, categoryId: newCreatedSubCats[305], fr: 'Couleur', en: 'Color', type: AttributeType.TEXT },
+    { n: 130, categoryId: newCreatedSubCats[305], fr: 'Type', type: AttributeType.SELECT, options: ['Sac à main', 'Sac à dos', 'Sacoche', 'Pochette', 'Valise', 'Ceinture', 'Portefeuille'] },
+    { n: 131, categoryId: newCreatedSubCats[305], fr: 'Matière', type: AttributeType.SELECT, options: ['Cuir', 'Cuir synthétique', 'Tissu', 'Toile', 'Nylon'] },
+    { n: 132, categoryId: newCreatedSubCats[305], fr: 'Couleur', type: AttributeType.TEXT },
 
     // Food — Beverages (101)
-    { n: 140, categoryId: newCreatedSubCats[101], fr: 'Type', en: 'Type', type: AttributeType.SELECT, options: ['Eau', 'Jus', 'Soda', 'Bière', 'Vin', 'Spiritueux', 'Thé', 'Café'] },
-    { n: 141, categoryId: newCreatedSubCats[101], fr: 'Volume', en: 'Volume', type: AttributeType.TEXT },
+    { n: 140, categoryId: newCreatedSubCats[101], fr: 'Type', type: AttributeType.SELECT, options: ['Eau', 'Jus', 'Soda', 'Bière', 'Vin', 'Spiritueux', 'Thé', 'Café'] },
+    { n: 141, categoryId: newCreatedSubCats[101], fr: 'Volume', type: AttributeType.TEXT },
 
     // Toys & Games (804)
-    { n: 145, categoryId: newCreatedSubCats[804], fr: 'Âge recommandé', en: 'Recommended Age', type: AttributeType.SELECT, options: ['0-2 ans', '3-5 ans', '6-8 ans', '9-12 ans', '12+ ans'] },
-    { n: 146, categoryId: newCreatedSubCats[804], fr: 'Type', en: 'Type', type: AttributeType.SELECT, options: ['Jouet éducatif', 'Poupée', 'Voiture', 'Puzzle', 'Jeu de société', 'Peluche', 'Lego', 'Autre'] },
+    { n: 145, categoryId: newCreatedSubCats[804], fr: 'Âge recommandé', type: AttributeType.SELECT, options: ['0-2 ans', '3-5 ans', '6-8 ans', '9-12 ans', '12+ ans'] },
+    { n: 146, categoryId: newCreatedSubCats[804], fr: 'Type', type: AttributeType.SELECT, options: ['Jouet éducatif', 'Poupée', 'Voiture', 'Puzzle', 'Jeu de société', 'Peluche', 'Lego', 'Autre'] },
   ];
 
   for (const attr of newAttributes) {
@@ -863,9 +861,7 @@ async function main() {
   interface ProductDef {
     n: number;
     titleFr: string;
-    titleEn: string;
     descFr: string;
-    descEn: string;
     categoryN: number; // subcategory number (or main if no sub)
     sellerId: string;
     priceCDF: bigint;
@@ -883,9 +879,7 @@ async function main() {
     {
       n: 1,
       titleFr: 'Samsung Galaxy A14 - 64Go',
-      titleEn: 'Samsung Galaxy A14 - 64GB',
       descFr: 'Smartphone Samsung Galaxy A14 avec 4Go de RAM et 64Go de stockage. \u00c9cran 6.6 pouces, batterie 5000mAh. Id\u00e9al pour une utilisation quotidienne.',
-      descEn: 'Samsung Galaxy A14 smartphone with 4GB RAM and 64GB storage. 6.6 inch screen, 5000mAh battery. Ideal for daily use.',
       categoryN: 101,
       sellerId: seller2.id,
       priceCDF: BigInt(35000000), // 350,000 CDF (centimes)
@@ -908,9 +902,7 @@ async function main() {
     {
       n: 2,
       titleFr: 'Tecno Spark 10 Pro - 128Go',
-      titleEn: 'Tecno Spark 10 Pro - 128GB',
       descFr: 'Tecno Spark 10 Pro avec cam\u00e9ra 50MP, 8Go de RAM et 128Go de stockage. Design \u00e9l\u00e9gant et performant.',
-      descEn: 'Tecno Spark 10 Pro with 50MP camera, 8GB RAM and 128GB storage. Elegant and performant design.',
       categoryN: 101,
       sellerId: seller2.id,
       priceCDF: BigInt(42000000), // 420,000 CDF
@@ -932,9 +924,7 @@ async function main() {
     {
       n: 3,
       titleFr: 'Ordinateur Portable HP 250 G9 - Core i5',
-      titleEn: 'HP 250 G9 Laptop - Core i5',
       descFr: 'HP 250 G9 avec processeur Intel Core i5, 8Go RAM, SSD 256Go. Parfait pour le travail et les \u00e9tudes.',
-      descEn: 'HP 250 G9 with Intel Core i5 processor, 8GB RAM, 256GB SSD. Perfect for work and studies.',
       categoryN: 201,
       sellerId: seller2.id,
       priceCDF: BigInt(150000000), // 1,500,000 CDF
@@ -956,9 +946,7 @@ async function main() {
     {
       n: 4,
       titleFr: 'Robe Wax Africaine - Mod\u00e8le Kampala',
-      titleEn: 'African Wax Dress - Kampala Model',
       descFr: 'Magnifique robe en tissu wax africain, coupe \u00e9l\u00e9gante. Confectionn\u00e9e \u00e0 Lubumbashi par des couturi\u00e8res locales.',
-      descEn: 'Beautiful African wax fabric dress, elegant cut. Made in Lubumbashi by local seamstresses.',
       categoryN: 401,
       sellerId: seller1.id,
       priceCDF: BigInt(4500000), // 45,000 CDF
@@ -979,9 +967,7 @@ async function main() {
     {
       n: 5,
       titleFr: 'Chemise Homme en Lin - Blanche',
-      titleEn: 'Men\'s Linen Shirt - White',
       descFr: 'Chemise l\u00e9g\u00e8re en lin pour homme, id\u00e9ale pour le climat tropical. Coupe classique, confortable.',
-      descEn: 'Lightweight linen shirt for men, ideal for tropical climate. Classic fit, comfortable.',
       categoryN: 501,
       sellerId: seller1.id,
       priceCDF: BigInt(3500000), // 35,000 CDF
@@ -1001,9 +987,7 @@ async function main() {
     {
       n: 6,
       titleFr: 'T\u00e9l\u00e9viseur Samsung 43 Pouces - Smart TV',
-      titleEn: 'Samsung 43 Inch Smart TV',
       descFr: 'T\u00e9l\u00e9viseur Samsung 43 pouces Full HD, Smart TV avec Wi-Fi int\u00e9gr\u00e9. Applications YouTube, Netflix.',
-      descEn: 'Samsung 43 inch Full HD TV, Smart TV with built-in Wi-Fi. YouTube, Netflix apps.',
       categoryN: 301,
       sellerId: seller2.id,
       priceCDF: BigInt(85000000), // 850,000 CDF
@@ -1023,9 +1007,7 @@ async function main() {
     {
       n: 7,
       titleFr: 'Sac \u00e0 Main en Cuir - Marron',
-      titleEn: 'Leather Handbag - Brown',
       descFr: 'Sac \u00e0 main en cuir v\u00e9ritable, design \u00e9l\u00e9gant. Plusieurs compartiments, fermeture \u00e9clair.',
-      descEn: 'Genuine leather handbag, elegant design. Multiple compartments, zipper closure.',
       categoryN: 403,
       sellerId: seller1.id,
       priceCDF: BigInt(6000000), // 60,000 CDF
@@ -1042,9 +1024,7 @@ async function main() {
     {
       n: 8,
       titleFr: 'Infinix Hot 30 - 128Go (Occasion)',
-      titleEn: 'Infinix Hot 30 - 128GB (Used)',
       descFr: 'Infinix Hot 30 en tr\u00e8s bon \u00e9tat. 128Go de stockage, 8Go de RAM. Vendu avec chargeur.',
-      descEn: 'Infinix Hot 30 in very good condition. 128GB storage, 8GB RAM. Sold with charger.',
       categoryN: 101,
       sellerId: seller2.id,
       priceCDF: BigInt(25000000), // 250,000 CDF
@@ -1065,9 +1045,7 @@ async function main() {
     {
       n: 9,
       titleFr: 'Casserole Inox 5L - Cuisine',
-      titleEn: 'Stainless Steel Pot 5L - Kitchen',
       descFr: 'Casserole en acier inoxydable de 5 litres avec couvercle. Qualit\u00e9 sup\u00e9rieure, fond \u00e9pais.',
-      descEn: 'Stainless steel 5-liter pot with lid. Superior quality, thick bottom.',
       categoryN: 603,
       sellerId: seller1.id,
       priceCDF: BigInt(2500000), // 25,000 CDF
@@ -1082,9 +1060,7 @@ async function main() {
     {
       n: 10,
       titleFr: 'Ballon de Football - Taille 5',
-      titleEn: 'Football - Size 5',
       descFr: 'Ballon de football taille officielle 5. Cousu machine, rev\u00eatement synth\u00e9tique durable.',
-      descEn: 'Official size 5 football. Machine stitched, durable synthetic cover.',
       categoryN: 902,
       sellerId: seller1.id,
       priceCDF: BigInt(1500000), // 15,000 CDF
@@ -1100,9 +1076,7 @@ async function main() {
     {
       n: 11,
       titleFr: 'Huile Corporelle Karit\u00e9 - 250ml',
-      titleEn: 'Shea Body Oil - 250ml',
       descFr: 'Huile corporelle \u00e0 base de beurre de karit\u00e9 naturel. Hydrate et nourrit la peau. Fabriqu\u00e9 au Congo.',
-      descEn: 'Body oil made from natural shea butter. Moisturizes and nourishes skin. Made in Congo.',
       categoryN: 701,
       sellerId: seller1.id,
       priceCDF: BigInt(800000), // 8,000 CDF
@@ -1117,9 +1091,7 @@ async function main() {
     {
       n: 12,
       titleFr: 'Souris Sans Fil Logitech M185',
-      titleEn: 'Logitech M185 Wireless Mouse',
       descFr: 'Souris sans fil Logitech M185, r\u00e9cepteur USB nano. Port\u00e9e 10m, autonomie 12 mois.',
-      descEn: 'Logitech M185 wireless mouse, USB nano receiver. 10m range, 12-month battery life.',
       categoryN: 203,
       sellerId: seller2.id,
       priceCDF: BigInt(2000000), // 20,000 CDF
@@ -1136,9 +1108,7 @@ async function main() {
     {
       n: 13,
       titleFr: 'Chaussures Nike Air Force 1 (Brouillon)',
-      titleEn: 'Nike Air Force 1 Shoes (Draft)',
       descFr: 'Chaussures Nike Air Force 1, pointure 42-45. Neuves, dans bo\u00eete originale.',
-      descEn: 'Nike Air Force 1 shoes, size 42-45. New, in original box.',
       categoryN: 503,
       sellerId: seller1.id,
       priceCDF: BigInt(18000000), // 180,000 CDF
@@ -1151,9 +1121,7 @@ async function main() {
     {
       n: 14,
       titleFr: 'Imprimante HP DeskJet 2710 (Brouillon)',
-      titleEn: 'HP DeskJet 2710 Printer (Draft)',
       descFr: 'Imprimante multifonction HP DeskJet 2710. Impression, copie, scan. Wi-Fi.',
-      descEn: 'HP DeskJet 2710 all-in-one printer. Print, copy, scan. Wi-Fi.',
       categoryN: 204,
       sellerId: seller2.id,
       priceCDF: BigInt(25000000), // 250,000 CDF
@@ -1166,9 +1134,7 @@ async function main() {
     {
       n: 15,
       titleFr: 'Lot de 3 Cahiers A4 - 200 Pages',
-      titleEn: 'Set of 3 A4 Notebooks - 200 Pages',
       descFr: 'Lot de 3 cahiers format A4, 200 pages chacun. Couverture rigide, papier de qualit\u00e9.',
-      descEn: 'Set of 3 A4 notebooks, 200 pages each. Hardcover, quality paper.',
       categoryN: 1302,
       sellerId: seller1.id,
       priceCDF: BigInt(500000), // 5,000 CDF
@@ -1182,9 +1148,7 @@ async function main() {
     {
       n: 16,
       titleFr: 'Enceinte Bluetooth JBL Flip 5',
-      titleEn: 'JBL Flip 5 Bluetooth Speaker',
       descFr: 'Enceinte portable Bluetooth JBL Flip 5. \u00c9tanche IPX7, 12h d\'autonomie. Son puissant.',
-      descEn: 'JBL Flip 5 portable Bluetooth speaker. IPX7 waterproof, 12h battery. Powerful sound.',
       categoryN: 302,
       sellerId: seller2.id,
       priceCDF: BigInt(22000000), // 220,000 CDF
@@ -1203,9 +1167,7 @@ async function main() {
     {
       n: 17,
       titleFr: 'Ensemble Pagne 6 Yards - Vlisco',
-      titleEn: 'Vlisco 6 Yards Fabric Set',
       descFr: 'V\u00e9ritable pagne Vlisco 6 yards. Motif exclusif, couleurs vives. Qualit\u00e9 hollandaise.',
-      descEn: 'Genuine Vlisco 6 yards fabric. Exclusive pattern, vibrant colors. Dutch quality.',
       categoryN: 401,
       sellerId: seller1.id,
       priceCDF: BigInt(12000000), // 120,000 CDF
@@ -1225,9 +1187,7 @@ async function main() {
     {
       n: 18,
       titleFr: 'Batterie Externe 20000mAh - Power Bank',
-      titleEn: '20000mAh Power Bank',
       descFr: 'Batterie externe 20000mAh avec double port USB. Charge rapide. Indispensable \u00e0 Lubumbashi!',
-      descEn: '20000mAh power bank with dual USB ports. Fast charging. Essential in Lubumbashi!',
       categoryN: 103,
       sellerId: seller2.id,
       priceCDF: BigInt(5000000), // 50,000 CDF
@@ -1243,9 +1203,7 @@ async function main() {
     {
       n: 19,
       titleFr: 'iPhone 15 Pro Max - 256Go',
-      titleEn: 'iPhone 15 Pro Max - 256GB',
       descFr: 'iPhone 15 Pro Max neuf sous blister. 256Go, couleur titane naturel.',
-      descEn: 'Brand new sealed iPhone 15 Pro Max. 256GB, natural titanium color.',
       categoryN: 101,
       sellerId: seller2.id,
       priceCDF: BigInt(500000000), // 5,000,000 CDF
@@ -1268,9 +1226,7 @@ async function main() {
     {
       n: 20,
       titleFr: 'Lenovo IdeaPad 3 - Core i3 (Occasion)',
-      titleEn: 'Lenovo IdeaPad 3 - Core i3 (Used)',
       descFr: 'Ordinateur portable Lenovo IdeaPad 3. Core i3, 4Go RAM, 256Go SSD. En bon \u00e9tat g\u00e9n\u00e9ral.',
-      descEn: 'Lenovo IdeaPad 3 laptop. Core i3, 4GB RAM, 256GB SSD. In good general condition.',
       categoryN: 201,
       sellerId: seller2.id,
       priceCDF: BigInt(55000000), // 550,000 CDF
@@ -3071,7 +3027,6 @@ async function seedSampleProducts(sellerId: string): Promise<void> {
   // keyword string we paste into a longer SEO-friendly French/English copy.
   interface Tpl {
     titleFr: string;
-    titleEn: string;
     descKey: string;
     priceCDF: number;
     priceUSD?: number;
@@ -3080,199 +3035,199 @@ async function seedSampleProducts(sellerId: string): Promise<void> {
   const TEMPLATES: Record<number, [Tpl, Tpl]> = {
     // 1. Food & Groceries
     101: [
-      { titleFr: 'Coca-Cola 1.5L (pack de 6)', titleEn: 'Coca-Cola 1.5L (pack of 6)', descKey: 'Boissons gazeuses fraîches', priceCDF: 25000 },
-      { titleFr: 'Eau minérale Cristal 1L (pack de 12)', titleEn: 'Cristal Mineral Water 1L (pack of 12)', descKey: 'Eau minérale naturelle', priceCDF: 18000 },
+      { titleFr: 'Coca-Cola 1.5L (pack de 6)', descKey: 'Boissons gazeuses fraîches', priceCDF: 25000 },
+      { titleFr: 'Eau minérale Cristal 1L (pack de 12)', descKey: 'Eau minérale naturelle', priceCDF: 18000 },
     ],
     102: [
-      { titleFr: "Riz parfumé 25kg", titleEn: 'Fragrant rice 25kg', descKey: 'Riz long grain de qualité', priceCDF: 95000 },
-      { titleFr: "Huile végétale 5L", titleEn: 'Vegetable oil 5L', descKey: 'Huile de cuisine raffinée', priceCDF: 45000 },
+      { titleFr: "Riz parfumé 25kg", descKey: 'Riz long grain de qualité', priceCDF: 95000 },
+      { titleFr: "Huile végétale 5L", descKey: 'Huile de cuisine raffinée', priceCDF: 45000 },
     ],
     103: [
-      { titleFr: 'Bananes (régime 10kg)', titleEn: 'Bananas (10kg bunch)', descKey: 'Bananes fraîches du Katanga', priceCDF: 12000 },
-      { titleFr: 'Tomates fraîches (panier 5kg)', titleEn: 'Fresh tomatoes (5kg basket)', descKey: 'Tomates locales', priceCDF: 15000 },
+      { titleFr: 'Bananes (régime 10kg)', descKey: 'Bananes fraîches du Katanga', priceCDF: 12000 },
+      { titleFr: 'Tomates fraîches (panier 5kg)', descKey: 'Tomates locales', priceCDF: 15000 },
     ],
     104: [
-      { titleFr: 'Biscuits Petit Beurre (carton 24)', titleEn: 'Petit Beurre biscuits (carton 24)', descKey: 'Biscuits sucrés', priceCDF: 32000 },
-      { titleFr: "Chocolats assortis 500g", titleEn: 'Assorted chocolates 500g', descKey: 'Chocolats premium', priceCDF: 22000 },
+      { titleFr: 'Biscuits Petit Beurre (carton 24)', descKey: 'Biscuits sucrés', priceCDF: 32000 },
+      { titleFr: "Chocolats assortis 500g", descKey: 'Chocolats premium', priceCDF: 22000 },
     ],
     105: [
-      { titleFr: 'Lait en poudre Nido 900g', titleEn: 'Nido milk powder 900g', descKey: 'Lait entier en poudre', priceCDF: 28000 },
-      { titleFr: 'Yaourts Yoplait (pack 12)', titleEn: 'Yoplait yogurts (pack of 12)', descKey: 'Yaourts aux fruits', priceCDF: 16000 },
+      { titleFr: 'Lait en poudre Nido 900g', descKey: 'Lait entier en poudre', priceCDF: 28000 },
+      { titleFr: 'Yaourts Yoplait (pack 12)', descKey: 'Yaourts aux fruits', priceCDF: 16000 },
     ],
     // 2. Phones & Electronics
     201: [
-      { titleFr: 'Tecno Spark 10 Pro - 128Go', titleEn: 'Tecno Spark 10 Pro - 128GB', descKey: 'Smartphone Android 4G écran 6.6"', priceCDF: 380000, priceUSD: 14500 },
-      { titleFr: 'Infinix Hot 30 - 64Go', titleEn: 'Infinix Hot 30 - 64GB', descKey: 'Smartphone abordable batterie 5000mAh', priceCDF: 250000, priceUSD: 9500 },
+      { titleFr: 'Tecno Spark 10 Pro - 128Go', descKey: 'Smartphone Android 4G écran 6.6"', priceCDF: 380000, priceUSD: 14500 },
+      { titleFr: 'Infinix Hot 30 - 64Go', descKey: 'Smartphone abordable batterie 5000mAh', priceCDF: 250000, priceUSD: 9500 },
     ],
     202: [
-      { titleFr: 'Samsung Galaxy Tab A8 - 64Go', titleEn: 'Samsung Galaxy Tab A8 - 64GB', descKey: 'Tablette Android 10.5"', priceCDF: 480000, priceUSD: 18000 },
-      { titleFr: 'Lenovo Tab M10 - 32Go', titleEn: 'Lenovo Tab M10 - 32GB', descKey: 'Tablette familiale', priceCDF: 320000, priceUSD: 12000 },
+      { titleFr: 'Samsung Galaxy Tab A8 - 64Go', descKey: 'Tablette Android 10.5"', priceCDF: 480000, priceUSD: 18000 },
+      { titleFr: 'Lenovo Tab M10 - 32Go', descKey: 'Tablette familiale', priceCDF: 320000, priceUSD: 12000 },
     ],
     203: [
-      { titleFr: 'Chargeur USB-C rapide 25W', titleEn: 'USB-C fast charger 25W', descKey: 'Charge rapide pour smartphones', priceCDF: 18000 },
-      { titleFr: 'Coque silicone universelle 6.5"', titleEn: 'Universal silicone case 6.5"', descKey: 'Protection antichoc', priceCDF: 8000 },
+      { titleFr: 'Chargeur USB-C rapide 25W', descKey: 'Charge rapide pour smartphones', priceCDF: 18000 },
+      { titleFr: 'Coque silicone universelle 6.5"', descKey: 'Protection antichoc', priceCDF: 8000 },
     ],
     204: [
-      { titleFr: 'HP Pavilion 15 i5 8Go 512Go SSD', titleEn: 'HP Pavilion 15 i5 8GB 512GB SSD', descKey: 'Ordinateur portable bureau', priceCDF: 1850000, priceUSD: 70000 },
-      { titleFr: 'Lenovo IdeaPad 3 Ryzen 5 8Go 256Go', titleEn: 'Lenovo IdeaPad 3 Ryzen 5 8GB 256GB', descKey: 'Laptop performances + autonomie', priceCDF: 1450000, priceUSD: 55000 },
+      { titleFr: 'HP Pavilion 15 i5 8Go 512Go SSD', descKey: 'Ordinateur portable bureau', priceCDF: 1850000, priceUSD: 70000 },
+      { titleFr: 'Lenovo IdeaPad 3 Ryzen 5 8Go 256Go', descKey: 'Laptop performances + autonomie', priceCDF: 1450000, priceUSD: 55000 },
     ],
     205: [
-      { titleFr: 'Tour HP Pro Mini i3 8Go 256Go', titleEn: 'HP Pro Mini Tower i3 8GB 256GB', descKey: 'PC bureau compact', priceCDF: 1200000, priceUSD: 45000 },
-      { titleFr: 'Dell OptiPlex 7010 i5 16Go 512Go', titleEn: 'Dell OptiPlex 7010 i5 16GB 512GB', descKey: 'Station de travail', priceCDF: 1800000, priceUSD: 68000 },
+      { titleFr: 'Tour HP Pro Mini i3 8Go 256Go', descKey: 'PC bureau compact', priceCDF: 1200000, priceUSD: 45000 },
+      { titleFr: 'Dell OptiPlex 7010 i5 16Go 512Go', descKey: 'Station de travail', priceCDF: 1800000, priceUSD: 68000 },
     ],
     206: [
-      { titleFr: 'Souris sans fil Logitech M170', titleEn: 'Logitech M170 wireless mouse', descKey: 'Souris sans fil USB', priceCDF: 22000 },
-      { titleFr: 'Clavier Bluetooth AZERTY', titleEn: 'Bluetooth AZERTY keyboard', descKey: 'Clavier multi-appareils', priceCDF: 35000 },
+      { titleFr: 'Souris sans fil Logitech M170', descKey: 'Souris sans fil USB', priceCDF: 22000 },
+      { titleFr: 'Clavier Bluetooth AZERTY', descKey: 'Clavier multi-appareils', priceCDF: 35000 },
     ],
     207: [
-      { titleFr: 'TV Samsung 43" Smart Full HD', titleEn: 'Samsung 43" Smart Full HD TV', descKey: 'Téléviseur intelligent connecté', priceCDF: 850000, priceUSD: 32000 },
-      { titleFr: 'TV LG 32" HD LED', titleEn: 'LG 32" HD LED TV', descKey: 'Téléviseur compact', priceCDF: 480000, priceUSD: 18000 },
+      { titleFr: 'TV Samsung 43" Smart Full HD', descKey: 'Téléviseur intelligent connecté', priceCDF: 850000, priceUSD: 32000 },
+      { titleFr: 'TV LG 32" HD LED', descKey: 'Téléviseur compact', priceCDF: 480000, priceUSD: 18000 },
     ],
     208: [
-      { titleFr: 'Enceinte JBL Go 3 Bluetooth', titleEn: 'JBL Go 3 Bluetooth speaker', descKey: 'Enceinte portable étanche', priceCDF: 95000, priceUSD: 3600 },
-      { titleFr: 'Casque audio JBL Tune 510BT', titleEn: 'JBL Tune 510BT headphones', descKey: 'Casque sans fil 40h', priceCDF: 130000, priceUSD: 5000 },
+      { titleFr: 'Enceinte JBL Go 3 Bluetooth', descKey: 'Enceinte portable étanche', priceCDF: 95000, priceUSD: 3600 },
+      { titleFr: 'Casque audio JBL Tune 510BT', descKey: 'Casque sans fil 40h', priceCDF: 130000, priceUSD: 5000 },
     ],
     209: [
-      { titleFr: "Réfrigérateur Hisense 200L", titleEn: 'Hisense 200L refrigerator', descKey: 'Réfrigérateur 2 portes basse consommation', priceCDF: 950000, priceUSD: 36000 },
-      { titleFr: "Machine à laver Beko 7kg", titleEn: 'Beko 7kg washing machine', descKey: 'Lave-linge automatique', priceCDF: 1100000, priceUSD: 42000 },
+      { titleFr: "Réfrigérateur Hisense 200L", descKey: 'Réfrigérateur 2 portes basse consommation', priceCDF: 950000, priceUSD: 36000 },
+      { titleFr: "Machine à laver Beko 7kg", descKey: 'Lave-linge automatique', priceCDF: 1100000, priceUSD: 42000 },
     ],
     210: [
-      { titleFr: 'PlayStation 5 (Édition Standard)', titleEn: 'PlayStation 5 (Standard Edition)', descKey: 'Console PS5 1To', priceCDF: 1850000, priceUSD: 70000 },
-      { titleFr: 'Xbox Series S 512Go', titleEn: 'Xbox Series S 512GB', descKey: 'Console Xbox compacte', priceCDF: 950000, priceUSD: 36000 },
+      { titleFr: 'PlayStation 5 (Édition Standard)', descKey: 'Console PS5 1To', priceCDF: 1850000, priceUSD: 70000 },
+      { titleFr: 'Xbox Series S 512Go', descKey: 'Console Xbox compacte', priceCDF: 950000, priceUSD: 36000 },
     ],
     // 3. Fashion & Apparel
     301: [
-      { titleFr: 'Robe wax femme - Modèle Africain', titleEn: 'Wax-print African dress', descKey: 'Robe en pagne africain coupe moderne', priceCDF: 65000 },
-      { titleFr: 'Blouse en lin femme', titleEn: "Women's linen blouse", descKey: 'Blouse légère pour le climat', priceCDF: 38000 },
+      { titleFr: 'Robe wax femme - Modèle Africain', descKey: 'Robe en pagne africain coupe moderne', priceCDF: 65000 },
+      { titleFr: 'Blouse en lin femme', descKey: 'Blouse légère pour le climat', priceCDF: 38000 },
     ],
     302: [
-      { titleFr: 'Chemise homme manches longues', titleEn: "Men's long-sleeve shirt", descKey: 'Chemise classique de bureau', priceCDF: 45000 },
-      { titleFr: 'Polo coton homme', titleEn: "Men's cotton polo", descKey: 'Polo décontracté', priceCDF: 32000 },
+      { titleFr: 'Chemise homme manches longues', descKey: 'Chemise classique de bureau', priceCDF: 45000 },
+      { titleFr: 'Polo coton homme', descKey: 'Polo décontracté', priceCDF: 32000 },
     ],
     303: [
-      { titleFr: 'Sandales femme cuir', titleEn: "Women's leather sandals", descKey: 'Sandales élégantes', priceCDF: 42000 },
-      { titleFr: 'Baskets femme blanches', titleEn: "Women's white sneakers", descKey: 'Baskets confort tendance', priceCDF: 55000 },
+      { titleFr: 'Sandales femme cuir', descKey: 'Sandales élégantes', priceCDF: 42000 },
+      { titleFr: 'Baskets femme blanches', descKey: 'Baskets confort tendance', priceCDF: 55000 },
     ],
     304: [
-      { titleFr: 'Chaussures de ville cuir homme', titleEn: "Men's leather dress shoes", descKey: 'Chaussures formelles', priceCDF: 85000 },
-      { titleFr: 'Baskets sport homme', titleEn: "Men's sports sneakers", descKey: 'Baskets running confort', priceCDF: 62000 },
+      { titleFr: 'Chaussures de ville cuir homme', descKey: 'Chaussures formelles', priceCDF: 85000 },
+      { titleFr: 'Baskets sport homme', descKey: 'Baskets running confort', priceCDF: 62000 },
     ],
     305: [
-      { titleFr: 'Sac à main femme cuir', titleEn: "Women's leather handbag", descKey: 'Sac à main élégant', priceCDF: 75000 },
-      { titleFr: 'Sac à dos urbain', titleEn: 'Urban backpack', descKey: 'Sac à dos résistant 25L', priceCDF: 48000 },
+      { titleFr: 'Sac à main femme cuir', descKey: 'Sac à main élégant', priceCDF: 75000 },
+      { titleFr: 'Sac à dos urbain', descKey: 'Sac à dos résistant 25L', priceCDF: 48000 },
     ],
     306: [
-      { titleFr: 'Montre quartz homme bracelet métal', titleEn: "Men's quartz watch metal strap", descKey: 'Montre élégante quotidienne', priceCDF: 58000 },
-      { titleFr: 'Collier femme plaqué or', titleEn: "Women's gold-plated necklace", descKey: 'Bijou raffiné cadeau', priceCDF: 35000 },
+      { titleFr: 'Montre quartz homme bracelet métal', descKey: 'Montre élégante quotidienne', priceCDF: 58000 },
+      { titleFr: 'Collier femme plaqué or', descKey: 'Bijou raffiné cadeau', priceCDF: 35000 },
     ],
     307: [
-      { titleFr: 'Tissu wax 6 yards (motif tradition)', titleEn: 'Wax fabric 6 yards (traditional)', descKey: 'Tissu wax authentique 100% coton', priceCDF: 55000 },
-      { titleFr: 'Pagne kitenge 6 yards', titleEn: 'Kitenge wax 6 yards', descKey: 'Pagne haute qualité', priceCDF: 48000 },
+      { titleFr: 'Tissu wax 6 yards (motif tradition)', descKey: 'Tissu wax authentique 100% coton', priceCDF: 55000 },
+      { titleFr: 'Pagne kitenge 6 yards', descKey: 'Pagne haute qualité', priceCDF: 48000 },
     ],
     // 4. Home & Living
     401: [
-      { titleFr: 'Canapé 3 places en simili cuir', titleEn: '3-seater faux leather sofa', descKey: 'Canapé salon moderne', priceCDF: 850000 },
-      { titleFr: 'Table à manger 6 places en bois', titleEn: 'Wooden 6-seater dining table', descKey: 'Table familiale robuste', priceCDF: 480000 },
+      { titleFr: 'Canapé 3 places en simili cuir', descKey: 'Canapé salon moderne', priceCDF: 850000 },
+      { titleFr: 'Table à manger 6 places en bois', descKey: 'Table familiale robuste', priceCDF: 480000 },
     ],
     402: [
-      { titleFr: 'Parure de lit 2 places (4 pièces)', titleEn: '2-person bedding set (4 pieces)', descKey: 'Parure complète coton', priceCDF: 75000 },
-      { titleFr: 'Couverture polaire 220x240', titleEn: 'Fleece blanket 220x240', descKey: 'Couverture chaude saison fraîche', priceCDF: 32000 },
+      { titleFr: 'Parure de lit 2 places (4 pièces)', descKey: 'Parure complète coton', priceCDF: 75000 },
+      { titleFr: 'Couverture polaire 220x240', descKey: 'Couverture chaude saison fraîche', priceCDF: 32000 },
     ],
     403: [
-      { titleFr: 'Service de table 24 pièces', titleEn: '24-piece dinner set', descKey: 'Vaisselle complète 6 personnes', priceCDF: 95000 },
-      { titleFr: 'Batterie de cuisine 12 pièces', titleEn: '12-piece cookware set', descKey: 'Casseroles + poêles antiadhésives', priceCDF: 145000 },
+      { titleFr: 'Service de table 24 pièces', descKey: 'Vaisselle complète 6 personnes', priceCDF: 95000 },
+      { titleFr: 'Batterie de cuisine 12 pièces', descKey: 'Casseroles + poêles antiadhésives', priceCDF: 145000 },
     ],
     404: [
-      { titleFr: 'Tableau décoratif XL 80x60cm', titleEn: 'XL decorative artwork 80x60cm', descKey: 'Toile imprimée tendance salon', priceCDF: 38000 },
-      { titleFr: "Vase céramique artisanal", titleEn: 'Artisan ceramic vase', descKey: 'Décoration faite main', priceCDF: 28000 },
+      { titleFr: 'Tableau décoratif XL 80x60cm', descKey: 'Toile imprimée tendance salon', priceCDF: 38000 },
+      { titleFr: "Vase céramique artisanal", descKey: 'Décoration faite main', priceCDF: 28000 },
     ],
     405: [
-      { titleFr: 'Lampadaire LED moderne', titleEn: 'Modern LED floor lamp', descKey: 'Éclairage salon réglable', priceCDF: 85000 },
-      { titleFr: 'Plafonnier LED 18W', titleEn: 'LED ceiling light 18W', descKey: 'Éclairage économique', priceCDF: 25000 },
+      { titleFr: 'Lampadaire LED moderne', descKey: 'Éclairage salon réglable', priceCDF: 85000 },
+      { titleFr: 'Plafonnier LED 18W', descKey: 'Éclairage économique', priceCDF: 25000 },
     ],
     // 5. Auto & Moto
     501: [
-      { titleFr: 'Plaquettes de frein avant universelles', titleEn: 'Universal front brake pads', descKey: 'Plaquettes de qualité', priceCDF: 65000 },
-      { titleFr: 'Filtre à huile (lot de 4)', titleEn: 'Oil filter (pack of 4)', descKey: 'Filtres compatibles toutes marques', priceCDF: 28000 },
+      { titleFr: 'Plaquettes de frein avant universelles', descKey: 'Plaquettes de qualité', priceCDF: 65000 },
+      { titleFr: 'Filtre à huile (lot de 4)', descKey: 'Filtres compatibles toutes marques', priceCDF: 28000 },
     ],
     502: [
-      { titleFr: 'Tapis de sol auto (jeu complet)', titleEn: 'Car floor mats (full set)', descKey: 'Tapis caoutchouc résistants', priceCDF: 35000 },
-      { titleFr: 'Housse de siège universelle', titleEn: 'Universal seat covers', descKey: 'Housses confort + protection', priceCDF: 48000 },
+      { titleFr: 'Tapis de sol auto (jeu complet)', descKey: 'Tapis caoutchouc résistants', priceCDF: 35000 },
+      { titleFr: 'Housse de siège universelle', descKey: 'Housses confort + protection', priceCDF: 48000 },
     ],
     503: [
-      { titleFr: 'Moto Bajaj Boxer 100cc', titleEn: 'Bajaj Boxer 100cc motorcycle', descKey: 'Moto utilitaire économique', priceCDF: 4200000, priceUSD: 160000 },
-      { titleFr: 'Vélo VTT 26"', titleEn: 'Mountain bike 26"', descKey: 'Vélo tout-terrain 21 vitesses', priceCDF: 280000, priceUSD: 11000 },
+      { titleFr: 'Moto Bajaj Boxer 100cc', descKey: 'Moto utilitaire économique', priceCDF: 4200000, priceUSD: 160000 },
+      { titleFr: 'Vélo VTT 26"', descKey: 'Vélo tout-terrain 21 vitesses', priceCDF: 280000, priceUSD: 11000 },
     ],
     504: [
-      { titleFr: 'Pneu auto 195/65 R15', titleEn: 'Car tire 195/65 R15', descKey: 'Pneu été qualité européenne', priceCDF: 145000 },
-      { titleFr: 'Jante alu 15"', titleEn: 'Alloy wheel 15"', descKey: 'Jante design sportif', priceCDF: 95000 },
+      { titleFr: 'Pneu auto 195/65 R15', descKey: 'Pneu été qualité européenne', priceCDF: 145000 },
+      { titleFr: 'Jante alu 15"', descKey: 'Jante design sportif', priceCDF: 95000 },
     ],
     505: [
-      { titleFr: 'Huile moteur 5W30 5L', titleEn: 'Engine oil 5W30 5L', descKey: 'Huile synthétique premium', priceCDF: 65000 },
-      { titleFr: 'Liquide de refroidissement 5L', titleEn: 'Coolant 5L', descKey: 'Liquide protection moteur', priceCDF: 28000 },
+      { titleFr: 'Huile moteur 5W30 5L', descKey: 'Huile synthétique premium', priceCDF: 65000 },
+      { titleFr: 'Liquide de refroidissement 5L', descKey: 'Liquide protection moteur', priceCDF: 28000 },
     ],
     // 6. Health & Beauty
     601: [
-      { titleFr: 'Crème hydratante visage 50ml', titleEn: 'Face moisturizer 50ml', descKey: 'Crème jour anti-âge', priceCDF: 32000 },
-      { titleFr: 'Sérum vitamine C 30ml', titleEn: 'Vitamin C serum 30ml', descKey: 'Sérum éclat anti-taches', priceCDF: 45000 },
+      { titleFr: 'Crème hydratante visage 50ml', descKey: 'Crème jour anti-âge', priceCDF: 32000 },
+      { titleFr: 'Sérum vitamine C 30ml', descKey: 'Sérum éclat anti-taches', priceCDF: 45000 },
     ],
     602: [
-      { titleFr: 'Shampooing argan 500ml', titleEn: 'Argan shampoo 500ml', descKey: 'Shampooing nourrissant', priceCDF: 18000 },
-      { titleFr: 'Masque cheveux karité 250ml', titleEn: 'Shea hair mask 250ml', descKey: 'Soin capillaire profond', priceCDF: 22000 },
+      { titleFr: 'Shampooing argan 500ml', descKey: 'Shampooing nourrissant', priceCDF: 18000 },
+      { titleFr: 'Masque cheveux karité 250ml', descKey: 'Soin capillaire profond', priceCDF: 22000 },
     ],
     603: [
-      { titleFr: 'Parfum femme floral 100ml', titleEn: "Women's floral perfume 100ml", descKey: 'Parfum élégant longue tenue', priceCDF: 75000 },
-      { titleFr: 'Déodorant homme 200ml', titleEn: "Men's deodorant 200ml", descKey: 'Déodorant 48h fraîcheur', priceCDF: 12000 },
+      { titleFr: 'Parfum femme floral 100ml', descKey: 'Parfum élégant longue tenue', priceCDF: 75000 },
+      { titleFr: 'Déodorant homme 200ml', descKey: 'Déodorant 48h fraîcheur', priceCDF: 12000 },
     ],
     604: [
-      { titleFr: 'Palette maquillage 24 couleurs', titleEn: '24-color makeup palette', descKey: 'Palette yeux pigmentée', priceCDF: 48000 },
-      { titleFr: 'Rouge à lèvres mat', titleEn: 'Matte lipstick', descKey: 'Rouge à lèvres longue durée', priceCDF: 18000 },
+      { titleFr: 'Palette maquillage 24 couleurs', descKey: 'Palette yeux pigmentée', priceCDF: 48000 },
+      { titleFr: 'Rouge à lèvres mat', descKey: 'Rouge à lèvres longue durée', priceCDF: 18000 },
     ],
     605: [
-      { titleFr: 'Savon antibactérien (lot de 6)', titleEn: 'Antibacterial soap (6-pack)', descKey: 'Savons hygiène quotidienne', priceCDF: 15000 },
-      { titleFr: 'Trousse premiers secours', titleEn: 'First aid kit', descKey: 'Kit complet maison', priceCDF: 35000 },
+      { titleFr: 'Savon antibactérien (lot de 6)', descKey: 'Savons hygiène quotidienne', priceCDF: 15000 },
+      { titleFr: 'Trousse premiers secours', descKey: 'Kit complet maison', priceCDF: 35000 },
     ],
     // 7. Construction & Tools
     701: [
-      { titleFr: 'Coffret outils 86 pièces', titleEn: '86-piece tool set', descKey: 'Coffret bricolage complet', priceCDF: 145000 },
-      { titleFr: 'Marteau acier 500g', titleEn: 'Steel hammer 500g', descKey: 'Marteau professionnel', priceCDF: 18000 },
+      { titleFr: 'Coffret outils 86 pièces', descKey: 'Coffret bricolage complet', priceCDF: 145000 },
+      { titleFr: 'Marteau acier 500g', descKey: 'Marteau professionnel', priceCDF: 18000 },
     ],
     702: [
-      { titleFr: 'Perceuse-visseuse Bosch 18V', titleEn: 'Bosch 18V drill driver', descKey: 'Perceuse sans fil 2 batteries', priceCDF: 285000 },
-      { titleFr: 'Meuleuse d angle 850W 125mm', titleEn: '850W angle grinder 125mm', descKey: 'Meuleuse polyvalente', priceCDF: 145000 },
+      { titleFr: 'Perceuse-visseuse Bosch 18V', descKey: 'Perceuse sans fil 2 batteries', priceCDF: 285000 },
+      { titleFr: 'Meuleuse d angle 850W 125mm', descKey: 'Meuleuse polyvalente', priceCDF: 145000 },
     ],
     703: [
-      { titleFr: 'Sac ciment 50kg (lot de 10)', titleEn: '50kg cement bag (pack of 10)', descKey: 'Ciment Portland qualité construction', priceCDF: 320000 },
-      { titleFr: 'Carreaux céramique 30x30 (carton 5m²)', titleEn: 'Ceramic tiles 30x30 (5m² box)', descKey: 'Carrelage sol intérieur', priceCDF: 85000 },
+      { titleFr: 'Sac ciment 50kg (lot de 10)', descKey: 'Ciment Portland qualité construction', priceCDF: 320000 },
+      { titleFr: 'Carreaux céramique 30x30 (carton 5m²)', descKey: 'Carrelage sol intérieur', priceCDF: 85000 },
     ],
     704: [
-      { titleFr: 'Peinture acrylique blanche 20L', titleEn: 'White acrylic paint 20L', descKey: 'Peinture murale couvrante', priceCDF: 95000 },
-      { titleFr: 'Pinceaux + rouleaux (kit complet)', titleEn: 'Brushes + rollers (full kit)', descKey: 'Kit peinture professionnel', priceCDF: 28000 },
+      { titleFr: 'Peinture acrylique blanche 20L', descKey: 'Peinture murale couvrante', priceCDF: 95000 },
+      { titleFr: 'Pinceaux + rouleaux (kit complet)', descKey: 'Kit peinture professionnel', priceCDF: 28000 },
     ],
     705: [
-      { titleFr: 'Disjoncteur 16A (lot de 5)', titleEn: 'Circuit breaker 16A (pack of 5)', descKey: 'Protection électrique standard', priceCDF: 32000 },
-      { titleFr: 'Tuyau PVC 4m diamètre 50', titleEn: 'PVC pipe 4m diameter 50mm', descKey: 'Tuyauterie évacuation', priceCDF: 18000 },
+      { titleFr: 'Disjoncteur 16A (lot de 5)', descKey: 'Protection électrique standard', priceCDF: 32000 },
+      { titleFr: 'Tuyau PVC 4m diamètre 50', descKey: 'Tuyauterie évacuation', priceCDF: 18000 },
     ],
     // 8. Baby & Kids
     801: [
-      { titleFr: 'Body bébé coton (lot de 5)', titleEn: 'Baby cotton bodysuits (5-pack)', descKey: 'Body 0-12 mois doux', priceCDF: 35000 },
-      { titleFr: 'Pyjama bébé polaire', titleEn: 'Baby fleece pajamas', descKey: 'Pyjama chaud nuit', priceCDF: 22000 },
+      { titleFr: 'Body bébé coton (lot de 5)', descKey: 'Body 0-12 mois doux', priceCDF: 35000 },
+      { titleFr: 'Pyjama bébé polaire', descKey: 'Pyjama chaud nuit', priceCDF: 22000 },
     ],
     802: [
-      { titleFr: 'Ensemble enfant 4-8 ans', titleEn: 'Kids outfit 4-8 years', descKey: 'Ensemble t-shirt + short', priceCDF: 28000 },
-      { titleFr: 'Robe fille 6-10 ans', titleEn: 'Girls dress 6-10 years', descKey: 'Robe imprimée colorée', priceCDF: 32000 },
+      { titleFr: 'Ensemble enfant 4-8 ans', descKey: 'Ensemble t-shirt + short', priceCDF: 28000 },
+      { titleFr: 'Robe fille 6-10 ans', descKey: 'Robe imprimée colorée', priceCDF: 32000 },
     ],
     803: [
-      { titleFr: 'Couches bébé taille 3 (pack 60)', titleEn: 'Baby diapers size 3 (60-pack)', descKey: 'Couches absorbantes 12h', priceCDF: 32000 },
-      { titleFr: 'Biberon anti-coliques 250ml (lot 3)', titleEn: 'Anti-colic bottle 250ml (3-pack)', descKey: 'Biberons sans BPA', priceCDF: 28000 },
+      { titleFr: 'Couches bébé taille 3 (pack 60)', descKey: 'Couches absorbantes 12h', priceCDF: 32000 },
+      { titleFr: 'Biberon anti-coliques 250ml (lot 3)', descKey: 'Biberons sans BPA', priceCDF: 28000 },
     ],
     804: [
-      { titleFr: 'Lego Classic 484 pièces', titleEn: 'Lego Classic 484 pieces', descKey: 'Boîte de briques créatives', priceCDF: 95000 },
-      { titleFr: 'Poupée articulée 30cm', titleEn: 'Articulated doll 30cm', descKey: 'Poupée jeu d éveil', priceCDF: 48000 },
+      { titleFr: 'Lego Classic 484 pièces', descKey: 'Boîte de briques créatives', priceCDF: 95000 },
+      { titleFr: 'Poupée articulée 30cm', descKey: 'Poupée jeu d éveil', priceCDF: 48000 },
     ],
     805: [
-      { titleFr: 'Cartable scolaire primaire', titleEn: 'Primary school backpack', descKey: 'Cartable ergonomique 6-10 ans', priceCDF: 45000 },
-      { titleFr: 'Kit fournitures rentrée (cahiers + stylos)', titleEn: 'Back-to-school supplies kit', descKey: 'Kit complet primaire', priceCDF: 32000 },
+      { titleFr: 'Cartable scolaire primaire', descKey: 'Cartable ergonomique 6-10 ans', priceCDF: 45000 },
+      { titleFr: 'Kit fournitures rentrée (cahiers + stylos)', descKey: 'Kit complet primaire', priceCDF: 32000 },
     ],
   };
 
@@ -3283,8 +3238,8 @@ async function seedSampleProducts(sellerId: string): Promise<void> {
     `41000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
 
   const cities = [
-    { id: LUBUMBASHI_CITY_ID, fr: 'Lubumbashi', en: 'Lubumbashi' },
-    { id: KOLWEZI_CITY_ID, fr: 'Kolwezi', en: 'Kolwezi' },
+    { id: LUBUMBASHI_CITY_ID, fr: 'Lubumbashi' },
+    { id: KOLWEZI_CITY_ID, fr: 'Kolwezi' },
   ];
 
   let counter = 0;

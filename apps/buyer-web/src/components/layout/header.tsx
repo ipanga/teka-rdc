@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, FormEvent } from 'react';
-import { useTranslations, useLocale } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { Link, useRouter } from '@/i18n/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { useCityStore } from '@/lib/city-store';
@@ -11,7 +11,6 @@ import { apiFetch } from '@/lib/api-client';
 export function Header() {
   const t = useTranslations('Header');
   const tCity = useTranslations('City');
-  const locale = useLocale();
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
