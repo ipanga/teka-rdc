@@ -96,82 +96,82 @@ teka-rdc/
 
 ### Authentication — overview
 
-Teka RDC has two auth providers, each tracked on `User.authProvider`. Role boundaries are **strict** — a user in one role cannot authenticate via a provider assigned to another role:
+Teka RDC uses **email + password for all roles** (buyers, sellers, admins) since the May 2026 refactor. `User.authProvider` is `EMAIL_PASSWORD` for all new accounts. The legacy `PHONE_OTP` and `GOOGLE` enum values still appear on existing accounts created before May 2026 (buyers) or April 2026 (Google), but no code path creates new ones.
 
-| Provider | Roles allowed | Primary flow |
+| Role | Registration | Login |
 |---|---|---|
-| `PHONE_OTP` | **Buyers only** | SMS code via **Orange DRC** (default) or Africa's Talking. Sellers get 409 `SELLER_MIGRATION_REQUIRED`; admins get 403 `ADMIN_PHONE_AUTH_DISABLED`. |
-| `EMAIL_PASSWORD` | **Sellers + Admins only** | bcrypt hash + password-reset via Resend. Buyers get 403 `BUYER_EMAIL_AUTH_DISABLED`. |
+| **Buyer** | `POST /v1/auth/register/buyer` | `POST /v1/auth/login/email` |
+| **Seller** | `POST /v1/auth/register/email` | `POST /v1/auth/login/email` |
+| **Admin** | Seeded out-of-band (see `docs/deployment.md § 5b`) | `POST /v1/auth/login/email` |
 
-Both paths terminate in the same `generateTokens` helper, so refresh-token replay detection and cookie semantics are identical. Admins are **seeded** out-of-band (see `docs/deployment.md § 5b`) — there is no public admin registration endpoint.
+All three roles authenticate through the same email-login endpoint, the same password-reset flow (`/v1/auth/password-reset/{request, confirm}`), and the same `generateTokens` helper. Refresh-token replay detection and cookie semantics (`teka_access_token`, `teka_refresh_token`) are uniform across roles.
 
-The legacy `GOOGLE` value still appears on `User.authProvider` for accounts created during the brief window Google OAuth was enabled (April 2026). The endpoint and all UI/SDK code paths have since been removed; those users continue to authenticate via email + password.
+`User.phone` is `String? @unique`. Email-registered users have `phone = null` until they add one via the address / profile screen.
 
-### Buyer phone-input UX
+### Removed auth endpoints (all return 404)
 
-Users on `teka.cd` and the buyer mobile app type **9 digits** of their DRC number (or **10** with a leading `0`). The `+243` country prefix is added by the system before calling the API — users never type it. The frontend rules:
+The following were retired in earlier refactors and explicitly assert 404 in `apps/api/test/auth.e2e-spec.ts` so a regression that re-adds them is caught:
 
-- Input is digits-only (non-numeric characters are filtered on entry).
-- Maximum length: 10.
-- 9 digits → prepend `+243`. 10 digits with leading `0` → strip the `0` and prepend `+243`. Any other length → inline error, no API call.
+- `POST /v1/auth/otp/request`, `POST /v1/auth/otp/verify` — phone-OTP request/verify (May 2026).
+- `POST /v1/auth/register` — phone+OTP buyer register (May 2026).
+- `POST /v1/auth/login` — phone+OTP login (May 2026).
+- `POST /v1/auth/login/google` — Google OAuth (April 2026).
+- `POST /v1/auth/otp/request-email` — email-OTP fallback (April 2026).
 
-Implementation lives in a single helper per platform: `packages/shared/src/utils/phone.ts` (web) and `apps/buyer-mobile/lib/core/utils/phone.dart` (Flutter). Backend DTOs continue to enforce `^\+243\d{9}$`, so storage stays canonical (`+243XXXXXXXXX`).
-
-### Authentication — Phone OTP (buyers only)
-
-```
-1. Client → POST /api/v1/auth/otp/request { phone: "+243XXXXXXXXX" }
-2. API generates 6-digit OTP, stores in PostgreSQL Otp table (5min expiry, max 5 attempts)
-3. SmsService dispatches to the active provider (SMS_PROVIDER env: orange | africas_talking | mock)
-4. Client → POST /api/v1/auth/login { phone, code }
-5. Role gate on successful OTP verification:
-   - role=SELLER && authProvider=PHONE_OTP → 409 SELLER_MIGRATION_REQUIRED
-   - role=ADMIN | SUPPORT | FINANCE       → 403 ADMIN_PHONE_AUTH_DISABLED
-   - role=BUYER                            → continue
-6. JWT access (15m) + refresh (7d, hashed in DB, replay-protected)
-7. Tokens set as httpOnly cookies (teka_access_token, teka_refresh_token)
-```
-
-There is **no email-OTP fallback** for buyers — the delivery channel is SMS-only to keep the buyer surface strictly phone-identified.
-
-### Authentication — Email + password (sellers + admins)
+### Authentication — Email + password flow
 
 ```
-1. POST /api/v1/auth/register/email { email, password, firstName, lastName }
-   → bcrypt hash (BCRYPT_ROUNDS=12 default), User created with role=SELLER,
-     authProvider=EMAIL_PASSWORD
-   → Welcome + verification email dispatched via Resend (fire-and-forget)
-   → (Admins cannot be registered via this endpoint — seeded out-of-band)
-2. POST /api/v1/auth/login/email { email, password }
-   → Generic error "Email ou mot de passe invalide" on any failure (no enumeration)
-   → role=BUYER → 403 BUYER_EMAIL_AUTH_DISABLED (boundary guard)
+1. POST /v1/auth/register/buyer  (or /register/email for sellers)
+     { email, password, firstName, lastName }
+   → bcrypt hash (BCRYPT_ROUNDS=12 default), User created with role assigned
+     server-side based on endpoint, authProvider=EMAIL_PASSWORD, phone=null
+   → Verification email dispatched via Resend (fire-and-forget — soft
+     verification, user is logged in immediately)
+
+2. POST /v1/auth/login/email { email, password }
+   → Generic error "Email ou mot de passe invalide" on any failure
+     (constant-time, no user enumeration)
+   → Suspended/banned accounts: 403
+
 3. Forgot password:
-   POST /auth/password-reset/request { email } — always 200
+   POST /v1/auth/password-reset/request { email } — always 200
    → PasswordResetToken row (sha256 hash of raw token) with 60min TTL
-   → Reset link emailed (SELLER_WEB_URL / ADMIN_WEB_URL chosen by user.role)
-4. POST /auth/password-reset/confirm { token, newPassword }
-   → Atomic: update hash + revoke all refresh tokens + consume reset token
+   → Reset link emailed (BUYER_WEB_URL / SELLER_WEB_URL / ADMIN_WEB_URL
+     chosen by user.role)
+
+4. POST /v1/auth/password-reset/confirm { token, newPassword }
+   → Atomic: update hash + revoke all refresh tokens + consume reset token +
+     flip authProvider to EMAIL_PASSWORD + emailVerified=true
 ```
 
-### Authentication — Seller migration (existing phone-only sellers)
+### Authentication — Migration flows (legacy PHONE_OTP → EMAIL_PASSWORD)
+
+Both buyer and seller migration use the same shape; the OTP step that existed in the original seller migration was removed when OTP infrastructure was deleted. The chosen email is stashed on `{Buyer,Seller}Migration.tempEmail` and only committed to `User.email` when the setup link is clicked (limits hijack risk for a stolen phone number).
 
 ```
-1. Seller opens new seller-web/seller-mobile → enters email
-2. POST /auth/seller/migrate-check { email }
-   a. Email matches SELLER on file with passwordHash=null
-      → send 24h seller_password_setup JWT to that email → 202 { migration: 'email_setup_sent' }
-   b. No email match
-      → 200 { migration: 'email_required' }
-      → Seller verifies phone via existing SMS OTP, then POST /auth/seller/migrate-link-email { phone, code, email }
-   c. Already has password + authProvider != PHONE_OTP
-      → 200 { migration: 'already_migrated' }
-3. Seller clicks email link → /seller/setup-password?token=...
-4. POST /auth/seller/setup-password { token, password }
-   → Transaction: set passwordHash + authProvider=EMAIL_PASSWORD + passwordSetAt
-   → Mark SellerMigration.setupCompleted; revoke all refresh tokens; issue new cookies
+Buyer migration:
+1. POST /v1/auth/buyer/migrate-check { phone: "+243XXXXXXXXX" }
+   → { migration: 'needs_email_setup' | 'already_migrated' | 'unknown' }
+2. POST /v1/auth/buyer/migrate-link-email { phone, email }
+   → BuyerMigration.tempEmail = email; sendBuyerSetupEmail(email, 24h JWT)
+   → { migration: 'email_setup_sent' } (neutral 200 regardless of existence)
+3. User clicks email → /setup-password?token=...
+4. POST /v1/auth/buyer/setup-password { token, password }
+   → Transaction: set User.email = tempEmail, passwordHash, passwordSetAt,
+     authProvider=EMAIL_PASSWORD, emailVerified=true; clear tempEmail;
+     mark BuyerMigration.setupCompleted; revoke all refresh tokens; issue cookies.
+
+Seller migration mirrors this exactly with /v1/auth/seller/{migrate-check,
+migrate-link-email, setup-password}.
 ```
 
-### SMS provider abstraction
+### Phone-input UX (address + delivery contact)
+
+Phone is no longer collected at registration. It is still collected on the **address / delivery-contact / seller-profile** surfaces. Users type 9 digits of their DRC number (or 10 with leading `0`); the `+243` prefix is added by the system before calling the API. Single source of truth: `normalizeDrcPhone()` in `packages/shared/src/utils/phone.ts` (web) and `apps/buyer-mobile/lib/core/utils/phone.dart` (Flutter). Backend DTOs that accept phone enforce `^\+243\d{9}$`.
+
+### SMS provider abstraction (notification-only)
+
+SMS is no longer used for authentication. The `SmsService` + provider abstraction stays alive for **order status notifications, payment confirmations, and admin broadcasts**.
 
 ```
 apps/api/src/sms/

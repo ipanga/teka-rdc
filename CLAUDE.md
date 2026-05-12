@@ -1,4 +1,8 @@
-# CLAUDE.md — Teka RDC (teka.cd)
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+# Teka RDC (teka.cd)
 
 ## Project Identity
 
@@ -6,6 +10,82 @@
 **Domain:** teka.cd
 **Language:** French (fr) only — monolingual platform since 2026-04-25.
 **Launch Markets:** Haut-Katanga and Lualaba provinces — specifically Lubumbashi, Likasi, and Kolwezi. Architecture must support future expansion to other provinces and towns without structural refactoring.
+
+**Status (May 2026):** Feature-complete. All 8 phases of the original spec (auth → optimization) have shipped. Day-to-day work is now maintenance, refactors, and incremental features — not greenfield phase work. The "Implementation Phases" section below is preserved as historical context, not as a backlog.
+
+---
+
+## 0. COMMANDS (the things you'll actually run)
+
+This is a **pnpm workspace** monorepo (`pnpm-workspace.yaml`: `apps/*`, `packages/*`). Node ≥ 20, pnpm ≥ 9.
+
+### Root-level (workspace-aware)
+
+```bash
+pnpm install                    # install all workspaces
+pnpm dev:api                    # run NestJS API on :5050 (watch mode)
+pnpm dev:buyer-web              # run buyer storefront on :5001 (dev) / :5000 (prod)
+pnpm dev:seller-web             # run seller dashboard on :5100
+pnpm dev:admin-web              # run admin panel on :5200
+pnpm dev:web                    # all three Next.js apps in parallel
+pnpm build                      # builds @teka/shared first, then all apps
+pnpm lint                       # recursive lint across all packages
+pnpm type-check                 # recursive tsc --noEmit
+pnpm test                       # recursive test (Jest in api/, none elsewhere yet)
+pnpm db:push                    # prisma db push (schema sync, no migration file)
+pnpm db:migrate                 # prisma migrate dev
+pnpm db:seed                    # tsx prisma/seed.ts with .env.development
+pnpm db:studio                  # open Prisma Studio
+pnpm clean                      # nuke node_modules / dist / .next / .turbo everywhere
+```
+
+### Running a single API test
+
+The API uses Jest with `rootDir: "src"` and `testRegex: ".*\\.spec\\.ts$"` (see `apps/api/package.json`). From `apps/api/`:
+
+```bash
+pnpm test                                  # all unit specs in src/
+pnpm test -- path/to/file.spec.ts          # single file
+pnpm test -- -t "should reject phone-only seller"  # filter by test name
+pnpm test:watch                            # watch mode
+pnpm test:e2e                              # jest --config ./test/jest-e2e.json
+pnpm test:cov                              # with coverage
+```
+
+### Prisma workflow
+
+The seed script uses `tsx --env-file=../../.env.development` rather than auto-loading. If you run `prisma` commands manually and hit a missing `DATABASE_URL`:
+
+```bash
+# From repo root, ad-hoc:
+DATABASE_URL=$(grep '^DATABASE_URL=' .env.development | cut -d= -f2-) \
+  pnpm --filter api exec prisma db push
+```
+
+After editing `apps/api/prisma/schema.prisma`: run `pnpm db:push` (cloud DB, no migration files in dev) then `pnpm --filter api prisma:generate` if your IDE doesn't pick up new types.
+
+### Docker
+
+```bash
+docker compose up               # 5 services: api, buyer-web, seller-web, admin-web, nginx
+docker compose -f docker-compose.prod.yml up    # production stack (cloud DB, SSL via nginx.prod.conf)
+```
+
+Note: there is **no local Postgres or Redis container** — the DB is cloud-hosted (Neon/Supabase/Railway) via `DATABASE_URL`, and Redis was removed in March 2026 (OTP storage moved to PostgreSQL `otps` + `otp_rate_limits` tables).
+
+### Flutter (mobile)
+
+```bash
+cd apps/buyer-mobile && flutter run         # buyer app on connected device/emulator
+cd apps/seller-mobile && flutter run        # seller app
+flutter test                                 # unit tests
+flutter pub run build_runner build           # regenerate Riverpod / freezed code
+flutter gen-l10n                             # regenerate from app_fr.arb (FR-only since 2026-04-25)
+```
+
+### Branching (see CONTRIBUTING.md for full detail)
+
+Two-branch GitHub Flow: `develop` is the active working branch, `main` is release-only and updated **only** via `gh pr merge --merge` (never `--squash` — squashes cause permanent SHA divergence and phantom conflicts on later back-merges). A pre-push hook at `.githooks/pre-push` blocks direct pushes to `main`. After a hotfix lands on `main`, immediately back-merge `main → develop` to close the loop.
 
 ---
 
@@ -32,28 +112,32 @@ Before making ANY architectural or UX decision, internalize these constraints:
 | Runtime | Node.js + NestJS | Enterprise-grade, modular, TypeScript-native |
 | Database | PostgreSQL | Cloud-hosted (Neon, Supabase, or Railway). Connection string in env files |
 | ORM | Prisma | Type-safe queries, migrations, seeding |
-| Cache & Queues | Redis | Cloud-hosted (Upstash or Railway). Used for sessions, caching, rate limiting, BullMQ job queues |
-| Auth | JWT (access) + Refresh Tokens + SMS OTP | Phone-first auth. Optional email/password. Social login (Google) as stretch goal |
-| Media Storage | Cloudinary | Image upload, transformation, CDN delivery. Enforce max upload size (5MB), auto-compress to WebP |
-| Email Service | Resend.com | Transactional emails (order confirmations, password resets). Connection vars in env |
-| SMS/OTP | Africa's Talking | SMS OTP for auth, order notifications. Connection vars in env |
-| Payments | Mobile Money (M-Pesa, Airtel Money, Orange Money) + COD | Use aggregator API (Flexpay/MaxiCash). Abstract behind a PaymentProvider interface for extensibility |
-| Reverse Proxy | NGINX | SSL termination, routing to services, rate limiting, gzip |
-| Containerization | Docker + Docker Compose | All services containerized for dev. Production uses cloud DB/Redis |
+| Cache & Queues | **Removed (Mar 2026)** | Redis was removed. API-level throttling via `@nestjs/throttler` (in-memory). The OTP storage tables that briefly replaced Redis were themselves removed in May 2026 when phone-OTP auth was deleted. |
+| Auth | JWT (access) + Refresh Tokens, email/password (all roles) | See Rule 12. Phone-OTP auth + OTP infrastructure removed in May 2026; Google OAuth removed April 2026. |
+| Media Storage | Cloudinary | Image upload, transformation, CDN delivery. Max 5MB, auto-compress to WebP. |
+| Email Service | Resend.com | Transactional emails — French-first templates in `apps/api/src/email/templates/`. |
+| SMS/OTP | Provider abstraction (see Rule 11) | Orange DRC is default in prod (OAuth2 client_credentials). Africa's Talking is rollback. Mock for dev/test. Selected by `SMS_PROVIDER` env. |
+| Payments | Mobile Money (M-Pesa, Airtel Money, Orange Money) + COD | Flexpay aggregator. `PaymentProvider` interface at `apps/api/src/payments/interfaces/`; factory selects mock vs. real via `PAYMENT_MOCK_MODE`. |
+| Reverse Proxy | NGINX | SSL termination, routing to services, rate limiting, gzip. Dev: `nginx/nginx.conf`. Prod: `nginx/nginx.prod.conf`. |
+| Containerization | Docker + Docker Compose | 5 services in dev (api, buyer-web, seller-web, admin-web, nginx). Cloud DB — no local Postgres. |
 | CI/CD | GitHub Actions | Lint → Test → Build → Deploy pipeline |
 | Monitoring | Prometheus + Grafana | Health checks, API latency, error rates, queue depth |
 
-### Frontend
+### Frontend & Production URLs
 
-| App | Stack | Port (Dev) |
-|---|---|---|
-| buyer-web | Next.js 14+ (App Router) + Tailwind CSS | 5000 |
-| seller-web | Next.js 14+ (App Router) + Tailwind CSS | 5100 |
-| admin-web | Next.js 14+ (App Router) + ShadCN UI + Tailwind CSS | 5200 |
-| API | NestJS | 5050 |
-| NGINX | Reverse proxy | 8080 |
+| App | Stack | Dev port | Prod subdomain |
+|---|---|---|---|
+| buyer-web | Next.js 15 (App Router) + Tailwind v4 + next-intl | 5000 (start) / 5001 (dev) | `teka.cd` |
+| seller-web | Next.js 15 (App Router) + Tailwind v4 + next-intl | 5100 | `seller.teka.cd` |
+| admin-web | Next.js 15 (App Router) + Tailwind v4 + Recharts | 5200 | `admin.teka.cd` |
+| API | NestJS 11 + Prisma 6 | 5050 | `api.teka.cd` |
+| NGINX | Reverse proxy | 8080 | (terminates SSL on each subdomain in prod) |
 
 > **IMPORTANT:** Ports 3000 and 4000 are already in use locally. Never use them.
+
+### Deployment
+
+GitHub Actions handles CI/CD with **zero-downtime** deploys (lint → type-check → test → build → deploy). Every merge to `main` ships. `develop` is the integration branch; releases happen via real merge PRs `develop → main` (see CONTRIBUTING.md — never squash).
 
 ### Mobile (Flutter)
 
@@ -64,57 +148,49 @@ Before making ANY architectural or UX decision, internalize these constraints:
 
 Both apps target Android first (APK distribution + Play Store). iOS as future phase.
 
-### Container / Folder Structure
+### Repository Layout
+
+This is a **pnpm workspace** monorepo. The flat `api/`, `buyer-web/`, etc. layout described in earlier drafts of this doc is *not* what's on disk — everything sits under `apps/*` or `packages/*`.
 
 ```
 teka-rdc/
-├── CLAUDE.md                    # This file — project context for Claude Code
-├── PROGRESS.md                  # Development progress tracker (auto-updated)
-├── docker-compose.yml
-├── docker-compose.prod.yml
-├── .env.development
-├── .env.production
-├── .env.example                 # Template with all required vars documented
-├── nginx/
-│   └── nginx.conf
-├── api/                         # NestJS backend
-│   ├── src/
-│   ├── prisma/
-│   ├── test/
-│   ├── Dockerfile
-│   └── package.json
-├── buyer-web/                   # Next.js buyer frontend
-│   ├── src/
-│   ├── public/
-│   ├── messages/                # i18n: fr.json, en.json
-│   ├── Dockerfile
-│   └── package.json
-├── seller-web/                  # Next.js seller frontend
-│   ├── src/
-│   ├── public/
-│   ├── messages/
-│   ├── Dockerfile
-│   └── package.json
-├── admin-web/                   # Next.js admin frontend
-│   ├── src/
-│   ├── public/
-│   ├── messages/
-│   ├── Dockerfile
-│   └── package.json
-├── buyer-mobile/                # Flutter buyer app
-│   └── ...
-├── seller-mobile/               # Flutter seller app
-│   └── ...
-├── shared/                      # Shared types, constants, validation schemas
-│   ├── types/
-│   ├── constants/
-│   └── validators/
-└── docs/                        # Architecture decisions, API docs, deployment guides
-    ├── architecture.md
+├── CLAUDE.md                    # This file
+├── CONTRIBUTING.md              # Branching, merge policy, pre-push hook setup
+├── PROGRESS.md                  # Historical development progress
+├── docker-compose.yml           # Dev stack (5 services, no local DB/Redis)
+├── docker-compose.prod.yml      # Prod stack (cloud DB, SSL via nginx.prod.conf)
+├── .env.development             # Active dev env (root-level, NOT per-app)
+├── .env.production              # Active prod env
+├── pnpm-workspace.yaml          # packages: apps/*, packages/*
+├── tsconfig.base.json           # Root TS config inherited by apps
+├── nginx/                       # nginx.conf (dev) + nginx.prod.conf
+├── scripts/                     # ruleset-main.json, run-prod-sql.sh
+├── tasks/                       # In-flight tracker files (e.g. auth-refactor-progress.md)
+├── apps/
+│   ├── api/                     # NestJS 11 backend (port 5050)
+│   │   ├── src/                 # Domain modules: auth, users, products, orders, payments,
+│   │   │                        # cart, checkout, reviews, wishlist, messaging, broadcasts,
+│   │   │                        # banners, promotions, content, settings, reports, sms,
+│   │   │                        # email, cloudinary, cities, browse, admin, sellers, ...
+│   │   ├── prisma/              # schema.prisma + seed.ts + migrations/
+│   │   └── test/                # jest-e2e.json + e2e specs
+│   ├── buyer-web/               # Next.js 15 storefront (port 5000, dev 5001) — Tailwind v4
+│   ├── seller-web/              # Next.js 15 seller dashboard (port 5100, basePath /seller)
+│   ├── admin-web/               # Next.js 15 admin panel (port 5200, basePath /admin) — Recharts
+│   ├── buyer-mobile/            # Flutter — Riverpod + go_router + dio
+│   │   └── lib/{app.dart, main.dart, core/, features/, l10n/}
+│   └── seller-mobile/           # Flutter — same stack
+├── packages/
+│   └── shared/                  # @teka/shared — types, constants, Zod validators,
+│                                # phone normalization (normalizeDrcPhone), auth cookie names
+└── docs/
+    ├── architecture.md          # Authoritative service architecture (read this first)
     ├── api-reference.md
-    ├── deployment.md
-    └── phases/                  # Phase-by-phase implementation plans
+    ├── deployment.md            # Includes § 5b: how admins are seeded out-of-band
+    └── phases/
 ```
+
+Each Next.js app's `src/` follows the App Router convention (`app/`, `components/`, `lib/`, `i18n/`, `middleware.ts`). The `[locale]` route directory is preserved with `locales: ['fr']` and `localePrefix: 'never'` to keep next-intl plumbing in place for future re-locale work — there is no `/en/` URL.
 
 ---
 
@@ -282,112 +358,30 @@ When resuming work (after interruption or new session):
 
 ---
 
-## 8. IMPLEMENTATION PHASES
+## 8. IMPLEMENTATION HISTORY (all shipped)
 
-Execute these phases in strict order. Each phase builds on the previous one. Do not skip ahead.
+The platform was built in 8 sequential phases — all complete. Do not treat the phase list as a backlog; treat it as historical scope.
 
-### Phase 1 — Foundation (Scaffolding & Infrastructure)
-1.1. Initialize monorepo structure with all folders
-1.2. Set up Docker Compose (api, buyer-web, seller-web, admin-web, nginx)
-1.3. Configure NGINX reverse proxy (route /api → api, / → buyer-web, /seller → seller-web, /admin → admin-web)
-1.4. Set up NestJS project with: config module (env validation), logger, CORS, helmet, compression
-1.5. Set up Prisma with PostgreSQL connection, initial schema with User model
-1.6. Set up Redis connection and caching module
-1.7. Set up shared/ folder with common types, constants, and validators
-1.8. Set up all three Next.js projects with: Tailwind, i18n (next-intl), layout with language switcher
-1.9. Initialize Flutter projects (buyer-mobile, seller-mobile) with: localization, base navigation, HTTP client setup
-1.10. Create `.env.example` with all variables documented
-1.11. Verify all containers build and run correctly
-1.12. Set up GitHub Actions: lint + type-check + test on PR
+| Phase | Scope | Notable code |
+|---|---|---|
+| 1 | Scaffolding, Docker, NestJS bootstrap, Prisma, Next.js x3, Flutter x2 | `docker-compose.yml`, `apps/api/src/app.module.ts` |
+| 2 | Auth & Users — SMS OTP, JWT + refresh rotation, guards, profiles, addresses, seller reg + admin approval | `apps/api/src/auth/`, `apps/api/src/users/` |
+| 3 | Product Catalog — categories, products, browse API, moderation, seed data | `apps/api/src/{products,categories,browse}/` |
+| 4 | Cart, Checkout, Orders — state machine, delivery zones, SMS notifications | `apps/api/src/{cart,checkout,orders,delivery-zones,notifications}/` |
+| 5 | Payments — Flexpay Mobile Money + COD, webhooks, earnings, payouts, commission | `apps/api/src/{payments,payouts,commission}/` |
+| 6 | Reviews, Wishlist, Messaging (polling-based, not WebSocket) | `apps/api/src/{reviews,wishlist,messaging}/` |
+| 7 | Admin Ops — dashboard charts, banners, promotions/flash deals, content CMS, settings, SMS broadcasts, CSV reports | `apps/api/src/{banners,promotions,content,settings,broadcasts,reports}/` |
+| 8 | Production hardening — composite indexes, health probes, throttling, SEO, error boundaries, PWA, Docker prod, 67 e2e tests | `apps/api/src/health/`, `apps/buyer-web/public/sw.js`, `docker-compose.prod.yml` |
 
-### Phase 2 — Authentication & Users
-2.1. Database: User, SellerProfile, Address, OTP tables
-2.2. SMS OTP flow: request OTP → verify → create account / login (Africa's Talking integration)
-2.3. JWT auth: access token + refresh token + rotation
-2.4. Auth guards and decorators (NestJS): @Public, @Roles, @CurrentUser
-2.5. User profile CRUD (name, phone, email, language, avatar)
-2.6. Address management CRUD (with town/neighborhood selection)
-2.7. Seller registration application flow
-2.8. Admin: user list, search, block/unblock, seller approval
-2.9. Implement auth on all frontends (buyer-web, seller-web, admin-web)
-2.10. Implement auth on both mobile apps
-2.11. Email verification flow (optional, via Resend)
-2.12. Tests for all auth endpoints and flows
-
-### Phase 3 — Product Catalog
-3.1. Database: Category, Product, ProductImage, ProductAttribute, ProductSpecification tables
-3.2. Category tree CRUD (admin) with per-category attribute definitions
-3.3. Product CRUD (seller): French title/description, images (Cloudinary), pricing, stock, specs
-3.4. Product listing API: search, filter, sort, paginate (cursor-based)
-3.5. Product detail API with seller info, category breadcrumb
-3.6. Admin: product moderation (approve/reject/flag)
-3.7. Location seeding: Haut-Katanga & Lualaba provinces, towns, neighborhoods
-3.8. Buyer-web: homepage, category pages, search results, product detail page
-3.9. Seller-web: product management dashboard
-3.10. Admin-web: category manager, product moderation queue
-3.11. Mobile: product browsing, search, detail screens
-3.12. Tests for all product endpoints
-
-### Phase 4 — Shopping & Orders
-4.1. Database: Cart, CartItem, Order, OrderItem, OrderStatusLog tables
-4.2. Cart API: add, remove, update quantity, clear (persist for logged-in users)
-4.3. Delivery zone system: zones, fees calculation based on buyer/seller locations
-4.4. Checkout flow API: validate cart → create order → reserve stock → initiate payment
-4.5. Order state machine: Pending → Confirmed → Processing → Shipped → Delivered / Cancelled / Returned
-4.6. Order management API (seller): accept/reject, update status
-4.7. Order management API (admin): view all, intervene, cancel
-4.8. SMS notifications via Africa's Talking at each order status change
-4.9. Buyer-web: cart page, checkout flow, order history, order detail
-4.10. Seller-web: order management dashboard
-4.11. Admin-web: order management panel
-4.12. Mobile: cart, checkout, order tracking screens
-4.13. Tests for all order flow endpoints
-
-### Phase 5 — Payments
-5.1. Payment provider abstraction layer (PaymentProvider interface)
-5.2. Mobile Money integration (M-Pesa, Airtel Money, Orange Money via Flexpay/MaxiCash)
-5.3. Cash on Delivery flow with confirmation mechanism
-5.4. Payment webhook handler (idempotent, with signature verification)
-5.5. Transaction logging and reconciliation
-5.6. Seller earnings calculation (sale amount - platform commission)
-5.7. Seller payout system (request payout → admin approval → process to Mobile Money)
-5.8. Admin: transaction dashboard, payout management, commission settings
-5.9. Integrate payment into checkout flow on all frontends
-5.10. Tests for payment flows (use mock payment provider for tests)
-
-### Phase 6 — Reviews, Wishlist & Messaging
-6.1. Database: Review, Wishlist, Conversation, Message tables
-6.2. Review system: post-delivery, 1-5 stars + text, verified buyer only
-6.3. Seller rating aggregation
-6.4. Wishlist / saved items CRUD
-6.5. Buyer-seller messaging (simple real-time chat via WebSocket or polling)
-6.6. All frontends: review components, wishlist pages, messaging UI
-6.7. Mobile: reviews, wishlist, chat screens
-6.8. Tests
-
-### Phase 7 — Admin & Platform Operations
-7.1. Admin dashboard: KPIs, charts (GMV, orders, users, revenue)
-7.2. Banner/promotion management with scheduling
-7.3. Flash deals system
-7.4. Content management: FAQ, help pages, terms (French, stored in DB)
-7.5. Platform commission configuration (global + per-category + per-seller overrides)
-7.6. Notification broadcast system (SMS/push to segments)
-7.7. Reports: exportable CSV/PDF for sales, financial, seller performance
-7.8. System settings: feature flags, maintenance mode
-7.9. Tests
-
-### Phase 8 — Optimization & Production Readiness
-8.1. Performance audit: Lighthouse scores, API response times, bundle sizes
-8.2. Image optimization pipeline (Cloudinary transforms, WebP, lazy loading)
-8.3. API response caching strategy (Redis)
-8.4. Database query optimization (indexes, N+1 prevention, connection pooling)
-8.5. Security audit: rate limiting, input sanitization, SQL injection prevention, XSS, CSRF
-8.6. SEO: meta tags, structured data, sitemap, robots.txt (buyer-web)
-8.7. PWA capabilities for buyer-web (offline product browsing)
-8.8. Error tracking setup (Sentry or similar free tier)
-8.9. Docker production configs, health checks
-8.10. Deployment documentation
-8.11. Final end-to-end testing
+Post-phase work (chronological, kept in `PROGRESS.md` + memory):
+- **Mar 2026** — Redis removed entirely (OTP storage → `otps` + `otp_rate_limits` tables); 5 Docker containers.
+- **Mar 2026** — City marketplace upgrade: `City` + `Commune` models, 8 cities (2 active), city-based product filtering, dynamic per-category attribute forms (web + mobile), commune-based addresses.
+- **Apr 2026** — Auth refactor: multi-provider (`User.authProvider`: `PHONE_OTP` / `EMAIL_PASSWORD` / `GOOGLE`-legacy). SMS provider abstraction (Orange DRC default, Africa's Talking fallback, Mock). Email+password register/login/forgot/reset. Seller migration flow.
+- **Apr 25, 2026** — Google OAuth removed completely (endpoint deleted, deps removed). Buyer email-OTP fallback also removed. Buyer phone-input UX normalized via `normalizeDrcPhone()` single source of truth.
+- **Apr 25, 2026** — Category SEO slugs (`/categorie/<slug>` canonical, `/categories/<id>` returns 308 redirect). Sample catalog: "Teka RDC Officiel" platform seller + 152 sample products seeded idempotently.
+- **Apr 25, 2026** — Monolingual refactor: FR-only user-facing surface. `messages/en.json` and `app_en.arb` deleted; `locales: ['fr']`, `localePrefix: 'never'`. Translation *infrastructure* preserved.
+- **May 4, 2026** — Translation schema flattened: DB stores translatable fields as plain TEXT, not `{ fr, en }` JSONB.
+- **May 12, 2026** — Buyer auth migrated from phone-OTP to email + password. OtpService + OtpModule + `otps` / `otp_rate_limits` tables removed entirely. Seller migration redesigned to drop the OTP step. `User.phone` is now `String? @unique` (email-only buyers have `null`). New endpoints: `POST /v1/auth/register/buyer`, `POST /v1/auth/buyer/{migrate-check, migrate-link-email, setup-password}`. Removed (404): `/v1/auth/otp/*`, `/v1/auth/register`, `/v1/auth/login`. `SmsService` stays alive for order/broadcast notifications only.
 
 ---
 
@@ -416,13 +410,17 @@ Execute these phases in strict order. Each phase builds on the previous one. Do 
 7. **Update PROGRESS.md after every completed task.**
 8. **Use CDF (Congolese Franc) as primary currency.** Support USD as secondary (many transactions in Katanga use USD informally). Always show both when possible.
 9. **Phone number format:** Always store as international format (+243XXXXXXXXX). Display with local formatting.
-10. **For anything not specified:** Reference Jumia.ug's implementation and follow e-commerce industry best practices. When in doubt, optimize for the DRC context (low bandwidth, French language, Mobile Money payments, phone-first UX).
+10. **For anything not specified:** Optimize for the DRC context (low bandwidth, French language, Mobile Money payments, phone-first UX). Reference `docs/architecture.md` for the authoritative service architecture.
 11. **SMS uses a provider abstraction** at `apps/api/src/sms/interfaces/sms-provider.interface.ts` (mirrors the `PaymentProvider` pattern). Active provider is selected by the `SMS_PROVIDER` env var (`orange` | `africas_talking` | `mock`). To add a new provider, drop an implementation under `apps/api/src/sms/providers/` and wire it in the factory in `sms.module.ts`. **Never call an SMS vendor API directly** from application code — always go through `SmsService`.
-12. **Auth providers — strict role boundaries (server-enforced).** Users carry an `authProvider` on the `User` model. Role-to-provider mapping is:
-    - **Buyers → `PHONE_OTP` only.** No email/password. Non-buyer roles hitting `/v1/auth/login` are rejected (`ADMIN_PHONE_AUTH_DISABLED` 403, `SELLER_MIGRATION_REQUIRED` 409).
-    - **Sellers → `EMAIL_PASSWORD` only.** Self-service registration at `/v1/auth/register/email` creates `role=SELLER`.
-    - **Admins → `EMAIL_PASSWORD` only.** No phone OTP. Admins are seeded out-of-band (see `docs/deployment.md § 5b`).
+12. **Auth providers — email + password only since May 2026.** Users carry an `authProvider` on the `User` model. Role-to-provider mapping is:
+    - **Buyers → `EMAIL_PASSWORD`.** Self-service registration at `POST /v1/auth/register/buyer`. Legacy `PHONE_OTP` buyers migrate via `POST /v1/auth/buyer/{migrate-check, migrate-link-email, setup-password}` (phone lookup → setup link to email → click link → set password).
+    - **Sellers → `EMAIL_PASSWORD`.** Self-service registration at `POST /v1/auth/register/email`. Legacy `PHONE_OTP` sellers migrate via the parallel `/v1/auth/seller/{migrate-check, migrate-link-email, setup-password}` (same flow — no OTP step).
+    - **Admins → `EMAIL_PASSWORD`.** Admins are seeded out-of-band (see `docs/deployment.md § 5b`).
 
-    Google OAuth was removed in April 2026; the legacy `GOOGLE` value still exists on the `AuthProvider` enum for historical accounts but no code path creates new ones. Both remaining paths terminate in `generateTokens` so cookie semantics and refresh-token replay detection are identical. See `docs/architecture.md § Authentication — overview` for the full matrix and error codes.
+    Login is shared: every role authenticates at `POST /v1/auth/login/email`. Password reset is also shared (`/v1/auth/password-reset/{request, confirm}`).
 
-13. **Buyer phone-input UX.** Users on `teka.cd` and the buyer mobile app type only their 9-digit local number (or 10 with leading `0`); the `+243` prefix is added by the system. Single source of truth: `normalizeDrcPhone()` in `packages/shared/src/utils/phone.ts` (web) and `apps/buyer-mobile/lib/core/utils/phone.dart` (Flutter). Backend DTOs continue to enforce `^\+243\d{9}$` so storage stays canonical.
+    Removed endpoints (return 404): `/v1/auth/otp/request`, `/v1/auth/otp/verify`, `/v1/auth/register` (phone+OTP), `/v1/auth/login` (phone+OTP), `/v1/auth/login/google`, `/v1/auth/otp/request-email`. The `PHONE_OTP` and `GOOGLE` enum values stay on `AuthProvider` for historical accounts; no code path creates new ones.
+
+13. **Phone-input UX (address + checkout only).** Phone is no longer collected at auth — buyers register with email. But phone is still collected at the address / delivery-contact / seller-profile surfaces. Users type 9 digits (or 10 with leading `0`); `+243` is added by the system. Single source of truth: `normalizeDrcPhone()` in `packages/shared/src/utils/phone.ts` (web) and `apps/buyer-mobile/lib/core/utils/phone.dart` (Flutter). Backend DTOs that store phone enforce `^\+243\d{9}$`. `User.phone` itself is now `String? @unique` — email-only buyers have `null`.
+
+14. **SMS is notification-only.** `SmsService` + the Orange/AT/Mock providers stay alive but are only used for order status notifications, payment confirmations, and admin broadcasts. There is no SMS code path for authentication. Order notifications skip users with `phone = null` (mostly post-May-2026 email-only buyers).
