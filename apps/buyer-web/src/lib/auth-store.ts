@@ -3,7 +3,9 @@ import { apiFetch } from './api-client';
 
 export interface User {
   id: string;
-  phone: string;
+  // Nullable since the 2026-05-12 email-auth refactor: buyers registered via
+  // email no longer have a phone on file until they add one in their profile.
+  phone: string | null;
   email?: string | null;
   firstName?: string | null;
   lastName?: string | null;

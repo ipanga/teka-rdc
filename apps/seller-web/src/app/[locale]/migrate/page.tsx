@@ -11,13 +11,13 @@ type MigrationState =
   | { kind: 'email_required' }
   | { kind: 'already_migrated' };
 
+const DRC_PHONE_REGEX = /^\+243\d{9}$/;
+
 export default function SellerMigratePage() {
   const t = useTranslations('Auth');
 
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
-  const [countdown, setCountdown] = useState(0);
   const [state, setState] = useState<MigrationState>({ kind: 'initial' });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -34,37 +34,13 @@ export default function SellerMigratePage() {
     setError('');
     setIsLoading(true);
     try {
-      const res = await apiFetch<{ migration: 'email_setup_sent' | 'email_required' | 'already_migrated' }>(
-        '/v1/auth/seller/migrate-check',
-        { method: 'POST', body: JSON.stringify({ email }) },
-      );
-      setState({ kind: res.data.migration } as MigrationState);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Une erreur est survenue');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSendPhoneOtp = async () => {
-    setError('');
-    setIsLoading(true);
-    try {
-      const formatted = formatPhone(phone);
-      await apiFetch('/v1/auth/otp/request', {
+      const res = await apiFetch<{
+        migration: 'email_setup_sent' | 'email_required' | 'already_migrated';
+      }>('/v1/auth/seller/migrate-check', {
         method: 'POST',
-        body: JSON.stringify({ phone: formatted }),
+        body: JSON.stringify({ email }),
       });
-      setCountdown(60);
-      const timer = setInterval(() => {
-        setCountdown((c) => {
-          if (c <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return c - 1;
-        });
-      }, 1000);
+      setState({ kind: res.data.migration } as MigrationState);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Une erreur est survenue');
     } finally {
@@ -75,12 +51,16 @@ export default function SellerMigratePage() {
   const handleLinkEmail = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    const formatted = formatPhone(phone);
+    if (!DRC_PHONE_REGEX.test(formatted)) {
+      setError(t('phoneInvalid'));
+      return;
+    }
     setIsLoading(true);
     try {
-      const formatted = formatPhone(phone);
       await apiFetch('/v1/auth/seller/migrate-link-email', {
         method: 'POST',
-        body: JSON.stringify({ email, phone: formatted, code: otp }),
+        body: JSON.stringify({ email, phone: formatted }),
       });
       setState({ kind: 'email_setup_sent' });
     } catch (err) {
@@ -189,35 +169,9 @@ export default function SellerMigratePage() {
                   required
                 />
               </div>
-              <div>
-                <label htmlFor="otp" className="block text-sm font-medium text-foreground mb-1">
-                  {t('otpLabel')}
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    id="otp"
-                    type="text"
-                    inputMode="numeric"
-                    maxLength={6}
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                    placeholder="000000"
-                    className="flex-1 px-3 py-2 border border-input rounded-lg bg-background text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-ring"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={handleSendPhoneOtp}
-                    disabled={!phone || countdown > 0 || isLoading}
-                    className="px-4 py-2 border border-input rounded-lg text-sm hover:bg-muted disabled:opacity-50"
-                  >
-                    {countdown > 0 ? `${countdown}s` : t('sendOtp')}
-                  </button>
-                </div>
-              </div>
               <button
                 type="submit"
-                disabled={isLoading || otp.length !== 6 || !phone || !email}
+                disabled={isLoading || !phone || !email}
                 className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
                 {isLoading ? '...' : t('migrateVerifyAndContinue')}

@@ -1,133 +1,38 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 import { Link } from '@/i18n/navigation';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { useAuthStore, type User } from '@/lib/auth-store';
-import { normalizeDrcPhone } from '@teka/shared';
 
 export default function RegisterPage() {
   const t = useTranslations('Auth');
   const router = useRouter();
   const setUser = useAuthStore((s) => s.setUser);
 
-  const [phone, setPhone] = useState('');
-  const [otp, setOtp] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [step, setStep] = useState<'phone' | 'otp' | 'profile'>('phone');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [countdown, setCountdown] = useState(0);
-
-  useEffect(() => {
-    if (countdown <= 0) return;
-    const timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
-    return () => clearTimeout(timer);
-  }, [countdown]);
-
-  const phoneIsValid = phone.length >= 9 && phone.length <= 10;
-
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    const formattedPhone = normalizeDrcPhone(phone);
-    if (!formattedPhone) {
-      setError(t('phoneInvalid'));
-      return;
-    }
-    setIsLoading(true);
-
-    try {
-      await apiFetch('/v1/auth/otp/request', {
-        method: 'POST',
-        body: JSON.stringify({ phone: formattedPhone }),
-      });
-      setStep('otp');
-      setCountdown(60);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError('Une erreur est survenue');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    if (countdown > 0) return;
-    setError('');
-    const formattedPhone = normalizeDrcPhone(phone);
-    if (!formattedPhone) return;
-    setIsLoading(true);
-
-    try {
-      await apiFetch('/v1/auth/otp/request', {
-        method: 'POST',
-        body: JSON.stringify({ phone: formattedPhone }),
-      });
-      setCountdown(60);
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError('Une erreur est survenue');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    const formattedPhone = normalizeDrcPhone(phone);
-    if (!formattedPhone) {
-      setError(t('phoneInvalid'));
-      return;
-    }
-    setIsLoading(true);
-
-    try {
-      await apiFetch('/v1/auth/otp/verify', {
-        method: 'POST',
-        body: JSON.stringify({ phone: formattedPhone, code: otp }),
-      });
-      setStep('profile');
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError('Une erreur est survenue');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const formattedPhone = normalizeDrcPhone(phone);
-    if (!formattedPhone) {
-      setError(t('phoneInvalid'));
+    if (password !== confirm) {
+      setError(t('passwordMismatch'));
       return;
     }
     setIsLoading(true);
 
     try {
-      const res = await apiFetch<{ user: User }>('/v1/auth/register', {
+      const res = await apiFetch<{ user: User }>('/v1/auth/register/buyer', {
         method: 'POST',
-        body: JSON.stringify({
-          phone: formattedPhone,
-          code: otp,
-          firstName,
-          lastName,
-        }),
+        body: JSON.stringify({ email, password, firstName, lastName }),
       });
       setUser(res.data.user);
       router.push('/');
@@ -157,94 +62,8 @@ export default function RegisterPage() {
             </div>
           )}
 
-          {step === 'phone' && (
-            <form onSubmit={handleSendOtp} className="space-y-4">
-              <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-foreground mb-1">
-                  {t('phoneLabel')}
-                </label>
-                <div className="flex">
-                  <span className="inline-flex items-center px-3 rounded-l-lg border border-r-0 border-input bg-muted text-muted-foreground text-sm">
-                    +243
-                  </span>
-                  <input
-                    id="phone"
-                    type="tel"
-                    inputMode="numeric"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
-                    maxLength={10}
-                    placeholder={t('phonePlaceholder')}
-                    className="flex-1 px-3 py-2 border border-input rounded-r-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                    required
-                  />
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{t('phoneHint')}</p>
-              </div>
-              <button
-                type="submit"
-                disabled={isLoading || !phoneIsValid}
-                className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isLoading ? '...' : t('sendOtp')}
-              </button>
-            </form>
-          )}
-
-          {step === 'otp' && (
-            <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <p className="text-sm text-muted-foreground text-center">
-                {t('otpSent', { phone: normalizeDrcPhone(phone) ?? `+243${phone}` })}
-              </p>
-              <div>
-                <label htmlFor="otp" className="block text-sm font-medium text-foreground mb-1">
-                  {t('otpLabel')}
-                </label>
-                <input
-                  id="otp"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                  placeholder="000000"
-                  className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground text-center text-lg tracking-widest placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  required
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={isLoading || otp.length !== 6}
-                className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isLoading ? '...' : t('register')}
-              </button>
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={handleResendOtp}
-                  disabled={countdown > 0 || isLoading}
-                  className="text-sm text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
-                >
-                  {countdown > 0 ? t('resendIn', { seconds: countdown }) : t('resendOtp')}
-                </button>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setStep('phone');
-                  setOtp('');
-                  setError('');
-                }}
-                className="w-full text-sm text-muted-foreground hover:text-foreground"
-              >
-                &larr; {t('phoneLabel')}
-              </button>
-            </form>
-          )}
-
-          {step === 'profile' && (
-            <form onSubmit={handleRegister} className="space-y-4">
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label htmlFor="firstName" className="block text-sm font-medium text-foreground mb-1">
                   {t('firstNameLabel')}
@@ -254,8 +73,10 @@ export default function RegisterPage() {
                   type="text"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  autoComplete="given-name"
+                  className="w-full px-3 py-2 border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                   required
+                  minLength={2}
                 />
               </div>
               <div>
@@ -267,29 +88,71 @@ export default function RegisterPage() {
                   type="text"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  autoComplete="family-name"
+                  className="w-full px-3 py-2 border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                   required
+                  minLength={2}
                 />
               </div>
-              <button
-                type="submit"
-                disabled={isLoading || !firstName || !lastName}
-                className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {isLoading ? '...' : t('register')}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setStep('otp');
-                  setError('');
-                }}
-                className="w-full text-sm text-muted-foreground hover:text-foreground"
-              >
-                &larr; {t('otpLabel')}
-              </button>
-            </form>
-          )}
+            </div>
+
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1">
+                {t('emailLabel')}
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={t('emailPlaceholder')}
+                autoComplete="email"
+                className="w-full px-3 py-2 border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                required
+              />
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1">
+                {t('passwordLabel')}
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                className="w-full px-3 py-2 border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                required
+                minLength={8}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">{t('passwordHint')}</p>
+            </div>
+
+            <div>
+              <label htmlFor="confirm" className="block text-sm font-medium text-foreground mb-1">
+                {t('confirmPasswordLabel')}
+              </label>
+              <input
+                id="confirm"
+                type="password"
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                autoComplete="new-password"
+                className="w-full px-3 py-2 border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
+                required
+                minLength={8}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={isLoading || !firstName || !lastName || !email || !password || !confirm}
+              className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {isLoading ? '...' : t('register')}
+            </button>
+          </form>
 
           <div className="mt-6 text-center text-sm">
             <span className="text-muted-foreground">{t('hasAccount')} </span>
