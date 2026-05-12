@@ -11,9 +11,7 @@ import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { OtpService } from '../otp/otp.service';
 import { EmailService } from '../email/email.service';
-import { RegisterDto } from './dto/register.dto';
 import { EmailLoginDto } from './dto/email-login.dto';
 import { EmailRegisterDto } from './dto/email-register.dto';
 import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
@@ -21,12 +19,17 @@ import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
 import { SellerMigrateCheckDto } from './dto/seller-migrate-check.dto';
 import { SellerMigrateLinkEmailDto } from './dto/seller-migrate-link-email.dto';
 import { SellerPasswordSetupDto } from './dto/seller-password-setup.dto';
+import { BuyerMigrateCheckDto } from './dto/buyer-migrate-check.dto';
+import { BuyerMigrateLinkEmailDto } from './dto/buyer-migrate-link-email.dto';
+import { BuyerPasswordSetupDto } from './dto/buyer-password-setup.dto';
 import {
   generateResetToken,
   hashPassword,
   hashResetToken,
   verifyPassword,
 } from './utils/password.util';
+
+type AssignableRole = 'BUYER' | 'SELLER';
 
 export interface AuthTokens {
   accessToken: string;
@@ -42,121 +45,30 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private configService: ConfigService,
-    private otpService: OtpService,
     private emailService: EmailService,
   ) {}
 
   // ---------------------------------------------------------------------------
-  // Phone OTP (preserved — used by buyers and admins)
+  // Email + password — registration (role-parameterised), login, password reset.
+  //
+  // Buyer and seller registration share the same DTO + flow; they differ only
+  // in the role assigned and the verification email's destination (buyer setup
+  // vs. seller setup template). Admins are seeded out-of-band and bootstrap
+  // their first password via /password-reset/request.
   // ---------------------------------------------------------------------------
 
-  async requestOtp(phone: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { phone, deletedAt: null },
-    });
-    return this.otpService.requestOtp(phone, user?.email || undefined);
+  async registerBuyerWithEmail(dto: EmailRegisterDto) {
+    return this.registerWithEmailForRole(dto, 'BUYER');
   }
 
-  async verifyOtp(phone: string, code: string) {
-    await this.otpService.verifyOtp(phone, code);
-    const user = await this.prisma.user.findUnique({
-      where: { phone, deletedAt: null },
-    });
-    return { verified: true, exists: !!user };
+  async registerSellerWithEmail(dto: EmailRegisterDto) {
+    return this.registerWithEmailForRole(dto, 'SELLER');
   }
 
-  async register(dto: RegisterDto) {
-    await this.otpService.verifyOtp(dto.phone, dto.code);
-
-    const existing = await this.prisma.user.findUnique({
-      where: { phone: dto.phone },
-    });
-    if (existing) {
-      throw new ConflictException('Un compte avec ce numéro existe déjà');
-    }
-
-    const user = await this.prisma.user.create({
-      data: {
-        phone: dto.phone,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        role: 'BUYER',
-        status: 'ACTIVE',
-        phoneVerified: true,
-        authProvider: 'PHONE_OTP',
-      },
-    });
-
-    const tokens = await this.generateTokens(user.id, user.role, user.phone);
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
-
-    return { user: this.sanitizeUser(user), tokens };
-  }
-
-  async login(phone: string, code: string) {
-    await this.otpService.verifyOtp(phone, code);
-
-    const user = await this.prisma.user.findUnique({
-      where: { phone, deletedAt: null },
-    });
-    if (!user) {
-      throw new BadRequestException(
-        'Aucun compte trouvé avec ce numéro. Veuillez vous inscrire.',
-      );
-    }
-    if (user.status === 'SUSPENDED' || user.status === 'BANNED') {
-      throw new ForbiddenException('Votre compte a été suspendu.');
-    }
-
-    // Admins must authenticate via email + password only. Mirrors the seller
-    // migration gate below but without a migration flow — admins already have
-    // email credentials; phone OTP is not an option for them.
-    if (
-      user.role === 'ADMIN' ||
-      user.role === 'SUPPORT' ||
-      user.role === 'FINANCE'
-    ) {
-      throw new ForbiddenException({
-        code: 'ADMIN_PHONE_AUTH_DISABLED',
-        message:
-          'Les administrateurs doivent se connecter par email et mot de passe.',
-      });
-    }
-
-    // Seller migration guard — sellers must use email/password going forward.
-    if (
-      user.role === 'SELLER' &&
-      user.authProvider === 'PHONE_OTP' &&
-      !user.passwordHash
-    ) {
-      throw new ConflictException({
-        code: 'SELLER_MIGRATION_REQUIRED',
-        message:
-          'Les vendeurs doivent désormais se connecter par email. Consultez votre boîte mail pour configurer votre mot de passe.',
-        redirect: '/seller/migrate',
-      });
-    }
-
-    const tokens = await this.generateTokens(user.id, user.role, user.phone);
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date(), phoneVerified: true },
-    });
-
-    return { user: this.sanitizeUser(user), tokens };
-  }
-
-  // ---------------------------------------------------------------------------
-  // Email + Password — seller self-service registration + login. Buyers use
-  // phone OTP only; admins are seeded out-of-band. `registerWithEmail` always
-  // creates role=SELLER; the SellerProfile (business info + admin approval)
-  // is created in a follow-up step from the seller dashboard.
-  // ---------------------------------------------------------------------------
-
-  async registerWithEmail(dto: EmailRegisterDto) {
+  private async registerWithEmailForRole(
+    dto: EmailRegisterDto,
+    role: AssignableRole,
+  ) {
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -167,26 +79,25 @@ export class AuthService {
     const rounds = this.configService.get<number>('BCRYPT_ROUNDS', 12);
     const passwordHash = await hashPassword(dto.password, rounds);
 
-    // Email-based sellers have no phone on file yet; synthesise a placeholder
-    // that respects the existing @unique constraint without a schema change.
-    const placeholderPhone = `+243EMAIL${Date.now().toString().slice(-9)}`;
-
     const user = await this.prisma.user.create({
       data: {
-        phone: placeholderPhone,
+        // phone is now nullable; email-registered users have none on file
+        // until they add one explicitly via the profile / address screens.
+        phone: null,
         email: dto.email,
         passwordHash,
         passwordSetAt: new Date(),
         firstName: dto.firstName,
         lastName: dto.lastName,
-        role: 'SELLER',
+        role,
         status: 'ACTIVE',
         authProvider: 'EMAIL_PASSWORD',
         emailVerified: false,
       },
     });
 
-    // Fire-and-forget verification email. Failure doesn't block registration.
+    // Fire-and-forget verification email. Failure doesn't block registration —
+    // soft verification model: user is logged in, can resend later.
     this.sendEmailVerification(user.id).catch((error) => {
       this.logger.warn(
         `Failed to send verification email for ${user.id}: ${error instanceof Error ? error.message : error}`,
@@ -225,17 +136,6 @@ export class AuthService {
       throw new ForbiddenException('Votre compte a été suspendu.');
     }
 
-    // Buyers are phone-OTP only; they never get a password hash. If one somehow
-    // ends up here (e.g., a migration leftover), block so the email/password
-    // surface is strictly seller + admin.
-    if (user.role === 'BUYER') {
-      throw new ForbiddenException({
-        code: 'BUYER_EMAIL_AUTH_DISABLED',
-        message:
-          'Les acheteurs doivent se connecter par téléphone. Utilisez le code SMS.',
-      });
-    }
-
     const tokens = await this.generateTokens(user.id, user.role, user.phone);
     await this.prisma.user.update({
       where: { id: user.id },
@@ -246,7 +146,185 @@ export class AuthService {
   }
 
   // ---------------------------------------------------------------------------
-  // Seller migration (phone-only → email+password)
+  // Buyer migration (phone-OTP legacy buyer → email + password).
+  //
+  // Threat model: phone-only as a possession factor is weak. We mitigate by
+  // never updating User.email at the migrate-link step — we stash the chosen
+  // email on BuyerMigration.tempEmail and only commit it on setup-password
+  // (i.e. the user proves they control the email by clicking the link). An
+  // attacker who knows a buyer's phone could request a link to their own
+  // email, but they cannot complete the takeover without clicking — and the
+  // real owner gets no email, just an undisturbed account.
+  // ---------------------------------------------------------------------------
+
+  async migrateBuyerCheck(dto: BuyerMigrateCheckDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { phone: dto.phone, deletedAt: null },
+    });
+
+    // Always return 200 with a neutral shape — avoid enumeration.
+    if (!user || user.role !== 'BUYER') {
+      return { migration: 'unknown' as const };
+    }
+
+    if (user.passwordHash && user.authProvider !== 'PHONE_OTP') {
+      return { migration: 'already_migrated' as const };
+    }
+
+    return { migration: 'needs_email_setup' as const };
+  }
+
+  async migrateBuyerLinkEmail(dto: BuyerMigrateLinkEmailDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { phone: dto.phone, deletedAt: null },
+    });
+
+    // Neutral response — don't reveal whether the phone exists.
+    if (!user || user.role !== 'BUYER') {
+      return { migration: 'email_setup_sent' as const };
+    }
+
+    // If a *different* user already owns the chosen email, refuse silently
+    // (still neutral 200 response so we don't leak account existence).
+    const emailOwner = await this.prisma.user.findUnique({
+      where: { email: dto.email, deletedAt: null },
+    });
+    if (emailOwner && emailOwner.id !== user.id) {
+      this.logger.warn(
+        `Buyer migration aborted: email ${dto.email} already owned by ${emailOwner.id}`,
+      );
+      return { migration: 'email_setup_sent' as const };
+    }
+
+    await this.prisma.buyerMigration.upsert({
+      where: { userId: user.id },
+      create: {
+        userId: user.id,
+        tempEmail: dto.email,
+        setupEmailSent: new Date(),
+      },
+      update: {
+        tempEmail: dto.email,
+        setupEmailSent: new Date(),
+      },
+    });
+
+    await this.sendBuyerSetupLink(user.id, dto.email);
+    return { migration: 'email_setup_sent' as const };
+  }
+
+  async setupBuyerPassword(dto: BuyerPasswordSetupDto) {
+    let payload: { sub?: string; type?: string };
+    try {
+      payload = this.jwtService.verify(dto.token, {
+        secret: this.configService.get('JWT_SECRET'),
+      });
+    } catch {
+      throw new BadRequestException('Lien de configuration invalide ou expiré');
+    }
+
+    if (payload.type !== 'buyer_password_setup' || !payload.sub) {
+      throw new BadRequestException('Lien de configuration invalide');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: payload.sub, deletedAt: null },
+    });
+    if (!user || user.role !== 'BUYER') {
+      throw new BadRequestException('Compte acheteur introuvable');
+    }
+
+    const migration = await this.prisma.buyerMigration.findUnique({
+      where: { userId: user.id },
+    });
+    if (!migration?.tempEmail) {
+      throw new BadRequestException(
+        'Aucune adresse email en attente pour ce compte',
+      );
+    }
+
+    // Double-check the chosen email hasn't been claimed by another user
+    // between migrate-link-email and now.
+    const emailOwner = await this.prisma.user.findUnique({
+      where: { email: migration.tempEmail, deletedAt: null },
+    });
+    if (emailOwner && emailOwner.id !== user.id) {
+      throw new ConflictException(
+        'Cet email est désormais utilisé par un autre compte',
+      );
+    }
+
+    const rounds = this.configService.get<number>('BCRYPT_ROUNDS', 12);
+    const passwordHash = await hashPassword(dto.password, rounds);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          email: migration.tempEmail,
+          passwordHash,
+          passwordSetAt: new Date(),
+          authProvider: 'EMAIL_PASSWORD',
+          emailVerified: true,
+        },
+      }),
+      this.prisma.buyerMigration.update({
+        where: { userId: user.id },
+        data: {
+          tempEmail: null,
+          setupCompleted: new Date(),
+        },
+      }),
+      this.prisma.refreshToken.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+
+    const refreshed = await this.prisma.user.findUnique({
+      where: { id: user.id },
+    });
+    const tokens = await this.generateTokens(
+      refreshed!.id,
+      refreshed!.role,
+      refreshed!.phone,
+    );
+    await this.prisma.user.update({
+      where: { id: refreshed!.id },
+      data: { lastLoginAt: new Date() },
+    });
+
+    return { user: this.sanitizeUser(refreshed), tokens };
+  }
+
+  private async sendBuyerSetupLink(userId: string, email: string) {
+    const expiryHours = this.configService.get<number>(
+      'BUYER_SETUP_EXPIRY_HOURS',
+      24,
+    );
+    const token = this.jwtService.sign(
+      { sub: userId, type: 'buyer_password_setup' },
+      {
+        secret: this.configService.get('JWT_SECRET'),
+        expiresIn: `${expiryHours}h`,
+      },
+    );
+
+    const buyerWebUrl = this.configService.get(
+      'BUYER_WEB_URL',
+      'http://localhost:5001',
+    );
+    const setupUrl = `${buyerWebUrl}/setup-password?token=${token}`;
+
+    await this.emailService.sendBuyerSetupEmail(email, setupUrl);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Seller migration (phone-OTP legacy seller → email + password).
+  //
+  // Mirrors the buyer flow exactly: phone lookup → setup link to a freshly
+  // provided email → click link → set password. The old phone-OTP possession
+  // factor is gone since OTP infrastructure has been removed.
   // ---------------------------------------------------------------------------
 
   async migrateSellerCheck(dto: SellerMigrateCheckDto) {
@@ -254,12 +332,8 @@ export class AuthService {
       where: { email: dto.email, deletedAt: null },
     });
 
-    if (!user) {
-      // Always respond 200 regardless of existence (avoid enumeration)
-      return { migration: 'email_required' as const, maskedPhone: null };
-    }
-
-    if (user.role !== 'SELLER') {
+    if (!user || user.role !== 'SELLER') {
+      // Neutral response — don't reveal account existence.
       return { migration: 'email_required' as const, maskedPhone: null };
     }
 
@@ -267,50 +341,51 @@ export class AuthService {
       return { migration: 'already_migrated' as const };
     }
 
-    // Seller with matching email on file — send setup link
+    // Seller with this email already on file — send setup link to it.
     await this.sendSellerSetupLink(user.id, user.email!);
     return { migration: 'email_setup_sent' as const };
   }
 
   async migrateSellerLinkEmail(dto: SellerMigrateLinkEmailDto) {
-    await this.otpService.verifyOtp(dto.phone, dto.code);
-
     const user = await this.prisma.user.findUnique({
       where: { phone: dto.phone, deletedAt: null },
     });
-    if (!user) {
-      throw new BadRequestException('Aucun compte trouvé avec ce numéro');
-    }
-    if (user.role !== 'SELLER') {
-      throw new ForbiddenException(
-        "Ce numéro n'appartient pas à un compte vendeur",
-      );
+
+    // Neutral response — don't reveal whether the phone exists.
+    if (!user || user.role !== 'SELLER') {
+      return { migration: 'email_setup_sent' as const };
     }
 
-    // If a different user already owns this email, block
+    // Block if a *different* user already owns this email.
     const emailOwner = await this.prisma.user.findUnique({
       where: { email: dto.email, deletedAt: null },
     });
     if (emailOwner && emailOwner.id !== user.id) {
-      throw new ConflictException(
-        'Cet email est déjà utilisé par un autre compte',
+      this.logger.warn(
+        `Seller migration aborted: email ${dto.email} already owned by ${emailOwner.id}`,
       );
+      return { migration: 'email_setup_sent' as const };
     }
 
-    const updated = await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        email: dto.email,
-        phoneVerified: true,
+    await this.prisma.sellerMigration.upsert({
+      where: { userId: user.id },
+      create: {
+        userId: user.id,
+        tempEmail: dto.email,
+        setupEmailSent: new Date(),
+      },
+      update: {
+        tempEmail: dto.email,
+        setupEmailSent: new Date(),
       },
     });
 
-    await this.sendSellerSetupLink(updated.id, updated.email!);
+    await this.sendSellerSetupLink(user.id, dto.email);
     return { migration: 'email_setup_sent' as const };
   }
 
   async setupSellerPassword(dto: SellerPasswordSetupDto) {
-    let payload;
+    let payload: { sub?: string; type?: string };
     try {
       payload = this.jwtService.verify(dto.token, {
         secret: this.configService.get('JWT_SECRET'),
@@ -330,6 +405,30 @@ export class AuthService {
       throw new BadRequestException('Compte vendeur introuvable');
     }
 
+    // If a tempEmail was set in migrate-link-email, commit it now. If the
+    // seller already had an email on file (legacy path), tempEmail is null
+    // and we just consume the token without rewriting the email.
+    const migration = await this.prisma.sellerMigration.findUnique({
+      where: { userId: user.id },
+    });
+    const finalEmail = migration?.tempEmail ?? user.email;
+    if (!finalEmail) {
+      throw new BadRequestException(
+        'Aucune adresse email associée à ce compte',
+      );
+    }
+
+    if (migration?.tempEmail && migration.tempEmail !== user.email) {
+      const emailOwner = await this.prisma.user.findUnique({
+        where: { email: migration.tempEmail, deletedAt: null },
+      });
+      if (emailOwner && emailOwner.id !== user.id) {
+        throw new ConflictException(
+          'Cet email est désormais utilisé par un autre compte',
+        );
+      }
+    }
+
     const rounds = this.configService.get<number>('BCRYPT_ROUNDS', 12);
     const passwordHash = await hashPassword(dto.password, rounds);
 
@@ -337,6 +436,7 @@ export class AuthService {
       this.prisma.user.update({
         where: { id: user.id },
         data: {
+          email: finalEmail,
           passwordHash,
           passwordSetAt: new Date(),
           authProvider: 'EMAIL_PASSWORD',
@@ -346,7 +446,7 @@ export class AuthService {
       this.prisma.sellerMigration.upsert({
         where: { userId: user.id },
         create: { userId: user.id, setupCompleted: new Date() },
-        update: { setupCompleted: new Date() },
+        update: { tempEmail: null, setupCompleted: new Date() },
       }),
       this.prisma.refreshToken.updateMany({
         where: { userId: user.id, revokedAt: null },
@@ -399,7 +499,7 @@ export class AuthService {
   }
 
   // ---------------------------------------------------------------------------
-  // Password reset
+  // Password reset (shared across all email-based roles: BUYER, SELLER, ADMIN).
   // ---------------------------------------------------------------------------
 
   async requestPasswordReset(dto: PasswordResetRequestDto, ipAddress?: string) {
@@ -408,14 +508,17 @@ export class AuthService {
     });
 
     // Always respond 200 regardless of existence (avoid enumeration). Send
-    // the reset email for any role that uses email/password — i.e. admins
-    // and sellers. Buyers are PHONE_OTP-only and never use this surface.
+    // the reset email for any role that uses email — buyers, sellers, admins.
     //
     // Don't gate on `user.passwordHash`: the very first admin login (and the
-    // first email-password seller login) goes through forgot-password
-    // *because* they don't have a password yet. Gating on passwordHash would
-    // make the bootstrap flow silently no-op.
-    if (user && (user.role === 'ADMIN' || user.role === 'SELLER')) {
+    // first buyer/seller login post-migration if they haven't completed setup)
+    // goes through forgot-password *because* they don't have a password yet.
+    if (
+      user &&
+      (user.role === 'ADMIN' ||
+        user.role === 'SELLER' ||
+        user.role === 'BUYER')
+    ) {
       const expiryMinutes = this.configService.get<number>(
         'PASSWORD_RESET_EXPIRY_MINUTES',
         60,
@@ -475,7 +578,7 @@ export class AuthService {
           // they could have followed the reset link), so flip emailVerified
           // atomically. Documented in docs/deployment.md § 5b.
           emailVerified: true,
-          // Users who reset may have come from PHONE_OTP or GOOGLE; consolidate to EMAIL_PASSWORD.
+          // Users who reset may have come from PHONE_OTP; consolidate to EMAIL_PASSWORD.
           authProvider: 'EMAIL_PASSWORD',
         },
       }),
@@ -494,7 +597,7 @@ export class AuthService {
   }
 
   // ---------------------------------------------------------------------------
-  // Refresh / logout / profile / email verification (preserved)
+  // Refresh / logout / profile / email verification
   // ---------------------------------------------------------------------------
 
   async refreshTokens(refreshToken: string) {
@@ -622,7 +725,7 @@ export class AuthService {
   private async generateTokens(
     userId: string,
     role: string,
-    phone: string,
+    phone: string | null,
   ): Promise<AuthTokens> {
     const tokenId = randomUUID();
     const payload = { sub: userId, role, phone, jti: tokenId };

@@ -254,6 +254,10 @@ export class BroadcastsService {
         }
 
         for (const user of users) {
+          // Skip users without a phone on file (email-only buyers).
+          if (!user.phone) {
+            continue;
+          }
           try {
             const success = await this.smsService.sendSms(user.phone, message);
             if (success) {

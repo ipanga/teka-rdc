@@ -5,7 +5,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { OtpModule } from '../otp/otp.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { EmailModule } from '../email/email.module';
 
@@ -20,7 +19,6 @@ import { EmailModule } from '../email/email.module';
       }),
       inject: [ConfigService],
     }),
-    OtpModule,
     PrismaModule,
     ConfigModule,
     EmailModule,
