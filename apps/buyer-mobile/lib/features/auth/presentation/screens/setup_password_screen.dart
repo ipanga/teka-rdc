@@ -5,17 +5,18 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../providers/auth_provider.dart';
 
-class RegisterScreen extends ConsumerStatefulWidget {
-  const RegisterScreen({super.key});
+/// Consumes the 24h JWT from the buyer-setup email link and sets the password.
+/// Reached via deep link or in-app navigation after migrate-link-email.
+class SetupPasswordScreen extends ConsumerStatefulWidget {
+  final String? token;
+
+  const SetupPasswordScreen({super.key, this.token});
 
   @override
-  ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
+  ConsumerState<SetupPasswordScreen> createState() => _SetupPasswordScreenState();
 }
 
-class _RegisterScreenState extends ConsumerState<RegisterScreen> {
-  final _firstNameController = TextEditingController();
-  final _lastNameController = TextEditingController();
-  final _emailController = TextEditingController();
+class _SetupPasswordScreenState extends ConsumerState<SetupPasswordScreen> {
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -25,36 +26,36 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   void dispose() {
-    _firstNameController.dispose();
-    _lastNameController.dispose();
-    _emailController.dispose();
     _passwordController.dispose();
     _confirmController.dispose();
     super.dispose();
   }
 
-  Future<void> _register() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_passwordController.text != _confirmController.text) {
-      setState(() => _errorMessage = 'Les mots de passe ne correspondent pas');
+  Future<void> _submit() async {
+    if (widget.token == null || widget.token!.isEmpty) {
+      setState(() => _errorMessage = 'Lien invalide.');
       return;
     }
+    if (!_formKey.currentState!.validate()) return;
+    if (_passwordController.text != _confirmController.text) {
+      setState(() => _errorMessage = 'Les mots de passe ne correspondent pas.');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
+
     try {
-      await ref.read(authProvider.notifier).registerBuyerWithEmail(
-            _emailController.text.trim().toLowerCase(),
-            _passwordController.text,
-            _firstNameController.text.trim(),
-            _lastNameController.text.trim(),
-          );
+      await ref
+          .read(authProvider.notifier)
+          .setupBuyerPassword(widget.token!, _passwordController.text);
       if (mounted) context.go('/');
     } on DioException catch (e) {
       setState(() {
         _errorMessage = e.response?.data?['error']?['message'] ??
-            'Inscription impossible.';
+            'Lien de configuration invalide ou expiré.';
       });
     } catch (_) {
       setState(() => _errorMessage = 'Une erreur est survenue.');
@@ -65,15 +66,42 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.token == null || widget.token!.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Configuration'),
+          backgroundColor: Colors.transparent,
+          foregroundColor: TekaColors.foreground,
+          elevation: 0,
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Lien invalide ou expiré.', textAlign: TextAlign.center),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => context.go('/auth/migrate'),
+                  child: const Text('Recommencer la migration'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Créer un compte'),
+        title: const Text('Définir votre mot de passe'),
         backgroundColor: Colors.transparent,
         foregroundColor: TekaColors.foreground,
         elevation: 0,
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Form(
             key: _formKey,
@@ -81,48 +109,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _firstNameController,
-                        autofillHints: const [AutofillHints.givenName],
-                        decoration: const InputDecoration(
-                          labelText: 'Prénom',
-                          prefixIcon: Icon(Icons.person_outline),
-                        ),
-                        validator: (v) =>
-                            (v == null || v.trim().length < 2) ? 'Trop court' : null,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _lastNameController,
-                        autofillHints: const [AutofillHints.familyName],
-                        decoration: const InputDecoration(labelText: 'Nom'),
-                        validator: (v) =>
-                            (v == null || v.trim().length < 2) ? 'Trop court' : null,
-                      ),
-                    ),
-                  ],
+                Text(
+                  'Choisissez un mot de passe pour terminer la configuration de votre compte.',
+                  style: TextStyle(color: TekaColors.mutedForeground),
                 ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  autofillHints: const [AutofillHints.email],
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    hintText: 'vous@exemple.com',
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
-                  validator: (v) {
-                    if (v == null || !v.contains('@')) return 'Email invalide';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
@@ -176,7 +167,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 SizedBox(
                   height: 48,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _register,
+                    onPressed: _isLoading ? null : _submit,
                     child: _isLoading
                         ? const SizedBox(
                             height: 20,
@@ -186,30 +177,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text('Créer un compte'),
+                        : const Text('Définir mon mot de passe'),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'Déjà inscrit ? ',
-                      style: TextStyle(color: TekaColors.mutedForeground),
-                    ),
-                    GestureDetector(
-                      onTap: () => context.go('/auth/login'),
-                      child: Text(
-                        'Se connecter',
-                        style: TextStyle(
-                          color: TekaColors.tekaRed,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 32),
               ],
             ),
           ),
