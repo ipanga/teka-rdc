@@ -25,9 +25,15 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Page() {
+  // Hour-precision timestamp — hints FB/LinkedIn/etc. that they should refresh
+  // their per-URL scrape cache. React 19 hoists this <meta> into <head>.
+  const ogUpdated = new Date(
+    Math.floor(Date.now() / 3_600_000) * 3_600_000,
+  ).toISOString();
 
   return (
     <>
+      <meta property="og:updated_time" content={ogUpdated} />
       <JsonLd data={{
         '@context': 'https://schema.org',
         '@type': 'Organization',
