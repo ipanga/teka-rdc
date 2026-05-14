@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
-import { Link } from '@/i18n/navigation';
+import Link from 'next/link';
 import { formatCDF } from '@/lib/format';
 import type { BrowseProduct } from '@/lib/types';
 

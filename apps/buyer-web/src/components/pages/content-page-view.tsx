@@ -1,7 +1,7 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getTranslations } from 'next-intl/server';
-import { Link } from '@/i18n/navigation';
+import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { JsonLd } from '@/components/seo/json-ld';

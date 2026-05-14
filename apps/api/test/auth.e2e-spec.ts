@@ -1,4 +1,5 @@
 import { INestApplication } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import request from 'supertest';
 import { createTestApp, resetMocks, mockPrismaService } from './test-utils';
 
@@ -17,294 +18,195 @@ describe('Auth (e2e)', () => {
     resetMocks();
   });
 
-  /**
-   * Helper: mock OTP verification to succeed.
-   * Since tests run with NODE_ENV=test (jest default), the dev bypass (code '123456')
-   * won't work. Instead, we mock the Prisma OTP lookup to return a valid OTP record.
-   */
-  function mockOtpVerifySuccess(phone: string, code: string = '123456') {
-    mockPrismaService.otp.findFirst.mockResolvedValue({
-      id: 'otp-test-id',
-      phone,
-      code,
-      attempts: 0,
-      expiresAt: new Date(Date.now() + 300000), // 5 min in the future
-      createdAt: new Date(),
-    });
-    mockPrismaService.otp.delete.mockResolvedValue({});
-  }
-
   // ---------------------------------------------------------------------------
-  // POST /api/v1/auth/otp/request
+  // Removed endpoints — assert 404 so a regression that re-adds them is caught.
+  // Phone-OTP auth was removed in the 2026-05-12 buyer email refactor; Google
+  // login was removed earlier (April 2026); email-OTP fallback also removed.
   // ---------------------------------------------------------------------------
-  describe('POST /api/v1/auth/otp/request', () => {
-    it('should accept a valid +243 phone number and return 200', async () => {
-      // No rate limit entries
-      mockPrismaService.otpRateLimit.count.mockResolvedValue(0);
-      // No existing user
-      mockPrismaService.user.findUnique.mockResolvedValue(null);
-      // OTP operations
-      mockPrismaService.otp.deleteMany.mockResolvedValue({ count: 0 });
-      mockPrismaService.otp.create.mockResolvedValue({});
-      mockPrismaService.otpRateLimit.create.mockResolvedValue({});
-
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/otp/request')
-        .send({ phone: '+243999000001' })
-        .expect(200);
-
-      expect(res.body.success).toBe(true);
-      expect(res.body.data.expiresIn).toBeDefined();
-    });
-
-    it('should reject a phone number without +243 prefix', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/auth/otp/request')
-        .send({ phone: '+1234567890' })
-        .expect(400)
-        .expect((res) => {
-          expect(res.body.success).toBe(false);
-        });
-    });
-
-    it('should reject a phone number that is too short', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/auth/otp/request')
-        .send({ phone: '+24399900' })
-        .expect(400);
-    });
-
-    it('should reject an empty body', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/auth/otp/request')
-        .send({})
-        .expect(400);
-    });
-
-    it('should reject a non-numeric phone value', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/auth/otp/request')
-        .send({ phone: 'not-a-phone' })
-        .expect(400);
-    });
-
-    it('should reject extra/unknown fields (forbidNonWhitelisted)', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/auth/otp/request')
-        .send({ phone: '+243999000001', hack: true })
-        .expect(400);
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // POST /api/v1/auth/otp/verify
-  // ---------------------------------------------------------------------------
-  describe('POST /api/v1/auth/otp/verify', () => {
-    it('should reject without required fields', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/auth/otp/verify')
-        .send({})
-        .expect(400);
-    });
-
-    it('should reject a code shorter than 6 digits', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/auth/otp/verify')
-        .send({ phone: '+243999000001', code: '123' })
-        .expect(400);
-    });
-
-    it('should reject a non-numeric code', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/auth/otp/verify')
-        .send({ phone: '+243999000001', code: 'abcdef' })
-        .expect(400);
-    });
-
-    it('should accept valid phone + 6-digit code', async () => {
-      mockOtpVerifySuccess('+243999000001');
-      mockPrismaService.user.findUnique.mockResolvedValue(null);
-
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/otp/verify')
-        .send({ phone: '+243999000001', code: '123456' })
-        .expect(200);
-
-      expect(res.body.success).toBe(true);
-      expect(res.body.data.verified).toBe(true);
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // POST /api/v1/auth/register
-  // ---------------------------------------------------------------------------
-  describe('POST /api/v1/auth/register', () => {
-    it('should reject registration without required fields', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/auth/register')
-        .send({})
-        .expect(400)
-        .expect((res) => {
-          expect(res.body.success).toBe(false);
-        });
-    });
-
-    it('should reject registration with invalid phone format', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/auth/register')
-        .send({
-          phone: 'invalid-phone',
+  describe('Removed endpoints return 404', () => {
+    it.each([
+      ['POST', '/api/v1/auth/otp/request', { phone: '+243999000001' }],
+      [
+        'POST',
+        '/api/v1/auth/otp/verify',
+        { phone: '+243999000001', code: '123456' },
+      ],
+      [
+        'POST',
+        '/api/v1/auth/register',
+        {
+          phone: '+243999000001',
           code: '123456',
+          firstName: 'X',
+          lastName: 'Y',
+        },
+      ],
+      ['POST', '/api/v1/auth/login', { phone: '+243999000001', code: '123456' }],
+      ['POST', '/api/v1/auth/login/google', { idToken: 'whatever' }],
+      ['POST', '/api/v1/auth/otp/request-email', { phone: '+243999000001' }],
+    ])('%s %s returns 404', async (method, url, body) => {
+      await request(app.getHttpServer())
+        [method.toLowerCase() as 'post'](url)
+        .send(body)
+        .expect(404);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // POST /api/v1/auth/register/buyer — email + password buyer registration
+  // ---------------------------------------------------------------------------
+  describe('POST /api/v1/auth/register/buyer', () => {
+    it('rejects empty body', async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/register/buyer')
+        .send({})
+        .expect(400);
+    });
+
+    it('rejects invalid email', async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/register/buyer')
+        .send({
+          email: 'not-an-email',
+          password: 'GoodPass123',
           firstName: 'Jean',
           lastName: 'Kabeya',
         })
         .expect(400);
     });
 
-    it('should reject registration with missing firstName', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/auth/register')
+    it('rejects weak password (no digit)', async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/register/buyer')
         .send({
-          phone: '+243999000001',
-          code: '123456',
+          email: 'buyer@example.cd',
+          password: 'OnlyLetters',
+          firstName: 'Jean',
           lastName: 'Kabeya',
         })
         .expect(400);
     });
 
-    it('should reject registration with firstName too short', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/auth/register')
+    it('rejects when email already taken', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'existing-id',
+        email: 'taken@example.cd',
+      });
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/register/buyer')
         .send({
-          phone: '+243999000001',
-          code: '123456',
-          firstName: 'J',
+          email: 'taken@example.cd',
+          password: 'GoodPass123',
+          firstName: 'Jean',
           lastName: 'Kabeya',
         })
-        .expect(400);
+        .expect(409);
     });
 
-    it('should register a new user with valid data', async () => {
+    it('creates a buyer with role=BUYER and authProvider=EMAIL_PASSWORD', async () => {
       const mockUser = {
         id: '10000000-0000-0000-0000-000000000099',
-        phone: '+243999000099',
+        phone: null,
+        email: 'newbuyer@example.cd',
         firstName: 'Jean',
         lastName: 'Kabeya',
         role: 'BUYER',
         status: 'ACTIVE',
-        phoneVerified: true,
+        authProvider: 'EMAIL_PASSWORD',
+        emailVerified: false,
+        passwordHash: 'hashed',
         createdAt: new Date(),
         updatedAt: new Date(),
       };
 
-      // Mock OTP verification
-      mockOtpVerifySuccess('+243999000099');
-      // No existing user (first call for OTP check, second for registration check)
-      mockPrismaService.user.findUnique.mockResolvedValue(null);
+      // First findUnique = email-uniqueness check (returns null)
+      // Subsequent calls for sendEmailVerification etc. also return the user
+      mockPrismaService.user.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValue(mockUser);
       mockPrismaService.user.create.mockResolvedValue(mockUser);
       mockPrismaService.user.update.mockResolvedValue(mockUser);
       mockPrismaService.refreshToken.create.mockResolvedValue({});
 
       const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/register')
+        .post('/api/v1/auth/register/buyer')
         .send({
-          phone: '+243999000099',
-          code: '123456',
+          email: 'newbuyer@example.cd',
+          password: 'GoodPass123',
           firstName: 'Jean',
           lastName: 'Kabeya',
         })
         .expect(201);
 
       expect(res.body.success).toBe(true);
-      expect(res.body.data.user).toBeDefined();
-      expect(res.body.data.tokens).toBeDefined();
+      expect(res.body.data.user.role).toBe('BUYER');
+      expect(res.body.data.user.authProvider).toBe('EMAIL_PASSWORD');
       expect(res.body.data.tokens.accessToken).toBeDefined();
       expect(res.body.data.tokens.refreshToken).toBeDefined();
+      expect(mockPrismaService.user.create).toHaveBeenCalledTimes(1);
+      const createArgs = mockPrismaService.user.create.mock.calls[0][0];
+      expect(createArgs.data.role).toBe('BUYER');
+      expect(createArgs.data.phone).toBeNull();
+      expect(createArgs.data.authProvider).toBe('EMAIL_PASSWORD');
     });
   });
 
   // ---------------------------------------------------------------------------
-  // POST /api/v1/auth/login
+  // POST /api/v1/auth/login/email — now accepts BUYER (previously rejected)
   // ---------------------------------------------------------------------------
-  describe('POST /api/v1/auth/login', () => {
-    it('should reject login without credentials', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/auth/login')
-        .send({})
-        .expect(400);
-    });
-
-    it('should reject login with missing code', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/auth/login')
-        .send({ phone: '+243999000001' })
-        .expect(400);
-    });
-
-    it('should reject login with invalid phone', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/auth/login')
-        .send({ phone: 'bad', code: '123456' })
-        .expect(400);
-    });
-
-    it('should reject phone OTP login for ADMIN role (email-only enforcement)', async () => {
-      const phone = '+243999000999';
-      mockOtpVerifySuccess(phone);
-      mockPrismaService.user.findUnique.mockResolvedValue({
-        id: 'admin-user-id',
-        phone,
-        role: 'ADMIN',
-        status: 'ACTIVE',
-        authProvider: 'EMAIL_PASSWORD',
-        passwordHash: 'hashed',
-      });
-
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/login')
-        .send({ phone, code: '123456' })
-        .expect(403);
-
-      expect(res.body.success).toBe(false);
-    });
-
-    it('should reject phone OTP login for SUPPORT role', async () => {
-      const phone = '+243999000998';
-      mockOtpVerifySuccess(phone);
-      mockPrismaService.user.findUnique.mockResolvedValue({
-        id: 'support-user-id',
-        phone,
-        role: 'SUPPORT',
-        status: 'ACTIVE',
-        authProvider: 'EMAIL_PASSWORD',
-        passwordHash: 'hashed',
-      });
+  describe('POST /api/v1/auth/login/email', () => {
+    it('rejects invalid credentials with 401', async () => {
+      // Constant-time fail when no user found
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
 
       await request(app.getHttpServer())
-        .post('/api/v1/auth/login')
-        .send({ phone, code: '123456' })
-        .expect(403);
+        .post('/api/v1/auth/login/email')
+        .send({ email: 'nobody@example.cd', password: 'GoodPass123' })
+        .expect(401);
+    });
+
+    it('accepts a valid BUYER login (no more BUYER_EMAIL_AUTH_DISABLED gate)', async () => {
+      const passwordHash = await bcrypt.hash('GoodPass123', 10);
+
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'buyer-id',
+        phone: null,
+        email: 'buyer@example.cd',
+        passwordHash,
+        firstName: 'Jean',
+        lastName: 'Kabeya',
+        role: 'BUYER',
+        status: 'ACTIVE',
+        authProvider: 'EMAIL_PASSWORD',
+        deletedAt: null,
+      });
+      mockPrismaService.user.update.mockResolvedValue({});
+      mockPrismaService.refreshToken.create.mockResolvedValue({});
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/login/email')
+        .send({ email: 'buyer@example.cd', password: 'GoodPass123' })
+        .expect(200);
+
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.user.role).toBe('BUYER');
+      expect(res.body.data.tokens.accessToken).toBeDefined();
     });
   });
 
   // ---------------------------------------------------------------------------
-  // POST /api/v1/auth/password-reset/request
-  // Bootstrap regression: a seeded admin/seller has NO passwordHash on
-  // creation, and the very first login is supposed to be the forgot-password
-  // flow. The endpoint must trigger a token+email regardless of whether the
-  // user already has a password set. Gating on `user.passwordHash` would
-  // make the bootstrap silently fail (which is what happened in prod
-  // 2026-05-04 — the operator never received the reset link).
+  // POST /api/v1/auth/password-reset/request — BUYER is now in the role
+  // allowlist (was admin/seller only before).
   // ---------------------------------------------------------------------------
   describe('POST /api/v1/auth/password-reset/request', () => {
-    it('returns 200 + creates token for ADMIN with no passwordHash yet (bootstrap)', async () => {
-      const email = 'contact@teka.cd';
+    it('returns 200 + creates token for ADMIN with no passwordHash (bootstrap)', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue({
-        id: 'admin-bootstrap-id',
-        email,
+        id: 'admin-id',
+        email: 'contact@teka.cd',
         role: 'ADMIN',
         status: 'ACTIVE',
-        authProvider: 'PHONE_OTP', // default before first password is set
+        authProvider: 'PHONE_OTP',
         passwordHash: null,
         deletedAt: null,
       });
@@ -312,7 +214,7 @@ describe('Auth (e2e)', () => {
 
       await request(app.getHttpServer())
         .post('/api/v1/auth/password-reset/request')
-        .send({ email })
+        .send({ email: 'contact@teka.cd' })
         .expect(200);
 
       expect(
@@ -320,7 +222,7 @@ describe('Auth (e2e)', () => {
       ).toHaveBeenCalledTimes(1);
     });
 
-    it('returns 200 + creates token for SELLER with passwordHash already set', async () => {
+    it('returns 200 + creates token for SELLER', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue({
         id: 'seller-id',
         email: 'seller@example.cd',
@@ -342,16 +244,17 @@ describe('Auth (e2e)', () => {
       ).toHaveBeenCalledTimes(1);
     });
 
-    it('returns 200 but does NOT create token for BUYER (phone-OTP only)', async () => {
+    it('returns 200 + creates token for BUYER (post-refactor — was excluded before)', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue({
         id: 'buyer-id',
         email: 'buyer@example.cd',
         role: 'BUYER',
         status: 'ACTIVE',
-        authProvider: 'PHONE_OTP',
-        passwordHash: null,
+        authProvider: 'EMAIL_PASSWORD',
+        passwordHash: 'hashed',
         deletedAt: null,
       });
+      mockPrismaService.passwordResetToken.create.mockResolvedValue({});
 
       await request(app.getHttpServer())
         .post('/api/v1/auth/password-reset/request')
@@ -360,7 +263,7 @@ describe('Auth (e2e)', () => {
 
       expect(
         mockPrismaService.passwordResetToken.create,
-      ).not.toHaveBeenCalled();
+      ).toHaveBeenCalledTimes(1);
     });
 
     it('returns 200 (enumeration-safe) for unknown email', async () => {
@@ -378,27 +281,163 @@ describe('Auth (e2e)', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // POST /api/v1/auth/login/google — removed endpoint (sellers are now
-  // email/password only; no role can use Google sign-in)
+  // Buyer migration (PHONE_OTP legacy → email+password). Three-step flow:
+  // migrate-check → migrate-link-email → setup-password.
   // ---------------------------------------------------------------------------
-  describe('POST /api/v1/auth/login/google (removed)', () => {
-    it('should return 404 — endpoint no longer exists', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/auth/login/google')
-        .send({ idToken: 'whatever' })
-        .expect(404);
+  describe('POST /api/v1/auth/buyer/migrate-check', () => {
+    it('rejects invalid phone format', async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/migrate-check')
+        .send({ phone: 'not-a-phone' })
+        .expect(400);
+    });
+
+    it('returns "unknown" for non-existent phone (enumeration-safe)', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/migrate-check')
+        .send({ phone: '+243999000001' })
+        .expect(200);
+
+      expect(res.body.data.migration).toBe('unknown');
+    });
+
+    it('returns "needs_email_setup" for legacy PHONE_OTP buyer', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'buyer-id',
+        phone: '+243999000001',
+        email: null,
+        role: 'BUYER',
+        authProvider: 'PHONE_OTP',
+        passwordHash: null,
+        deletedAt: null,
+      });
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/migrate-check')
+        .send({ phone: '+243999000001' })
+        .expect(200);
+
+      expect(res.body.data.migration).toBe('needs_email_setup');
+    });
+
+    it('returns "already_migrated" for buyer with EMAIL_PASSWORD + hash', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'buyer-id',
+        phone: '+243999000001',
+        email: 'buyer@example.cd',
+        role: 'BUYER',
+        authProvider: 'EMAIL_PASSWORD',
+        passwordHash: 'hashed',
+        deletedAt: null,
+      });
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/migrate-check')
+        .send({ phone: '+243999000001' })
+        .expect(200);
+
+      expect(res.body.data.migration).toBe('already_migrated');
     });
   });
 
-  // ---------------------------------------------------------------------------
-  // POST /api/v1/auth/otp/request-email — removed endpoint (buyers are phone-only)
-  // ---------------------------------------------------------------------------
-  describe('POST /api/v1/auth/otp/request-email (removed)', () => {
-    it('should return 404 — endpoint no longer exists', () => {
-      return request(app.getHttpServer())
-        .post('/api/v1/auth/otp/request-email')
-        .send({ phone: '+243999000001' })
-        .expect(404);
+  describe('POST /api/v1/auth/buyer/migrate-link-email', () => {
+    it('rejects invalid email', async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/migrate-link-email')
+        .send({ phone: '+243999000001', email: 'not-an-email' })
+        .expect(400);
+    });
+
+    it('returns neutral 200 for unknown phone (enumeration-safe)', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue(null);
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/migrate-link-email')
+        .send({
+          phone: '+243999000001',
+          email: 'someone@example.cd',
+        })
+        .expect(200);
+
+      expect(res.body.data.migration).toBe('email_setup_sent');
+      expect(mockPrismaService.buyerMigration.upsert).not.toHaveBeenCalled();
+    });
+
+    it('stashes tempEmail in BuyerMigration and sends setup link', async () => {
+      mockPrismaService.user.findUnique
+        // 1st: lookup by phone → existing buyer
+        .mockResolvedValueOnce({
+          id: 'buyer-id',
+          phone: '+243999000001',
+          email: null,
+          role: 'BUYER',
+          authProvider: 'PHONE_OTP',
+          passwordHash: null,
+          deletedAt: null,
+        })
+        // 2nd: email-uniqueness check → no conflict
+        .mockResolvedValueOnce(null);
+      mockPrismaService.buyerMigration.upsert.mockResolvedValue({});
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/migrate-link-email')
+        .send({
+          phone: '+243999000001',
+          email: 'newbuyer@example.cd',
+        })
+        .expect(200);
+
+      expect(res.body.data.migration).toBe('email_setup_sent');
+      expect(mockPrismaService.buyerMigration.upsert).toHaveBeenCalledTimes(1);
+      const upsertArgs =
+        mockPrismaService.buyerMigration.upsert.mock.calls[0][0];
+      expect(upsertArgs.create.tempEmail).toBe('newbuyer@example.cd');
+    });
+
+    it('silently refuses when chosen email is owned by another user', async () => {
+      mockPrismaService.user.findUnique
+        .mockResolvedValueOnce({
+          id: 'buyer-id',
+          phone: '+243999000001',
+          role: 'BUYER',
+          authProvider: 'PHONE_OTP',
+          passwordHash: null,
+          deletedAt: null,
+        })
+        .mockResolvedValueOnce({
+          id: 'OTHER-USER',
+          email: 'taken@example.cd',
+          deletedAt: null,
+        });
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/migrate-link-email')
+        .send({
+          phone: '+243999000001',
+          email: 'taken@example.cd',
+        })
+        .expect(200);
+
+      expect(res.body.data.migration).toBe('email_setup_sent');
+      expect(mockPrismaService.buyerMigration.upsert).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('POST /api/v1/auth/buyer/setup-password', () => {
+    it('rejects invalid token', async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/setup-password')
+        .send({ token: 'not-a-jwt', password: 'GoodPass123' })
+        .expect(400);
+    });
+
+    it('rejects weak password', async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/setup-password')
+        .send({ token: 'whatever', password: 'short' })
+        .expect(400);
     });
   });
 
@@ -406,11 +445,11 @@ describe('Auth (e2e)', () => {
   // GET /api/v1/auth/me — requires authentication
   // ---------------------------------------------------------------------------
   describe('GET /api/v1/auth/me', () => {
-    it('should return 401 without a token', () => {
+    it('returns 401 without a token', () => {
       return request(app.getHttpServer()).get('/api/v1/auth/me').expect(401);
     });
 
-    it('should return 401 with an invalid Bearer token', () => {
+    it('returns 401 with an invalid Bearer token', () => {
       return request(app.getHttpServer())
         .get('/api/v1/auth/me')
         .set('Authorization', 'Bearer invalid-token-here')
@@ -418,47 +457,33 @@ describe('Auth (e2e)', () => {
     });
   });
 
-  // ---------------------------------------------------------------------------
-  // POST /api/v1/auth/logout — requires authentication
-  // ---------------------------------------------------------------------------
   describe('POST /api/v1/auth/logout', () => {
-    it('should return 401 without a token', () => {
+    it('returns 401 without a token', () => {
       return request(app.getHttpServer())
         .post('/api/v1/auth/logout')
         .expect(401);
     });
   });
 
-  // ---------------------------------------------------------------------------
-  // POST /api/v1/auth/refresh — public endpoint
-  // ---------------------------------------------------------------------------
   describe('POST /api/v1/auth/refresh', () => {
-    it('should reject refresh without a token', async () => {
+    it('rejects refresh without a token', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/v1/auth/refresh')
         .send({});
-
-      // Should return an error (500 from throw new Error or similar)
       expect(res.status).toBeGreaterThanOrEqual(400);
     });
   });
 
-  // ---------------------------------------------------------------------------
-  // POST /api/v1/auth/email/send-verification — requires auth
-  // ---------------------------------------------------------------------------
   describe('POST /api/v1/auth/email/send-verification', () => {
-    it('should return 401 without a token', () => {
+    it('returns 401 without a token', () => {
       return request(app.getHttpServer())
         .post('/api/v1/auth/email/send-verification')
         .expect(401);
     });
   });
 
-  // ---------------------------------------------------------------------------
-  // GET /api/v1/auth/email/verify — public endpoint
-  // ---------------------------------------------------------------------------
   describe('GET /api/v1/auth/email/verify', () => {
-    it('should reject with an invalid token', () => {
+    it('rejects an invalid token', () => {
       return request(app.getHttpServer())
         .get('/api/v1/auth/email/verify?token=invalid')
         .expect(400);

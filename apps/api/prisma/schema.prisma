@@ -177,7 +177,11 @@ model Commune {
 
 model User {
   id           String     @id @default(uuid()) @db.Uuid
-  phone        String     @unique
+  // Nullable since 2026-05-12 buyer-email-auth refactor: buyers registered via
+  // email no longer require a phone. Existing legacy buyers retain their phone.
+  // Unique constraint still applies — Postgres treats NULLs as distinct under
+  // a standard unique index, so multiple email-only buyers can coexist.
+  phone        String?    @unique
   email        String?    @unique
   passwordHash String?
   firstName    String?
@@ -202,33 +206,34 @@ model User {
   lastLoginAt DateTime?
 
   // Relations
-  sellerProfile   SellerProfile?  @relation("UserSellerProfile")
-  approvedSellers SellerProfile[] @relation("SellerApprover")
-  addresses       Address[]
-  refreshTokens   RefreshToken[]
-  products        Product[]       @relation("SellerProducts")
-  cart            Cart?
-  buyerOrders     Order[]         @relation("BuyerOrders")
-  sellerOrders    Order[]         @relation("SellerOrders")
-  approvedPayouts Payout[]        @relation("PayoutApprover")
-  reviews              Review[]       @relation("BuyerReviews")
-  wishlistItems        Wishlist[]     @relation("UserWishlist")
-  buyerConversations   Conversation[] @relation("BuyerConversations")
-  sellerConversations  Conversation[] @relation("SellerConversations")
-  sentMessages         Message[]      @relation("SentMessages")
+  sellerProfile       SellerProfile?  @relation("UserSellerProfile")
+  approvedSellers     SellerProfile[] @relation("SellerApprover")
+  addresses           Address[]
+  refreshTokens       RefreshToken[]
+  products            Product[]       @relation("SellerProducts")
+  cart                Cart?
+  buyerOrders         Order[]         @relation("BuyerOrders")
+  sellerOrders        Order[]         @relation("SellerOrders")
+  approvedPayouts     Payout[]        @relation("PayoutApprover")
+  reviews             Review[]        @relation("BuyerReviews")
+  wishlistItems       Wishlist[]      @relation("UserWishlist")
+  buyerConversations  Conversation[]  @relation("BuyerConversations")
+  sellerConversations Conversation[]  @relation("SellerConversations")
+  sentMessages        Message[]       @relation("SentMessages")
 
   // Phase 7 relations
-  createdBanners       Banner[]                @relation("BannerCreatedBy")
-  sellerPromotions     Promotion[]             @relation("SellerPromotions")
-  createdPromotions    Promotion[]             @relation("PromotionCreatedBy")
-  approvedPromotions   Promotion[]             @relation("PromotionApprovedBy")
-  editedContentPages   ContentPage[]           @relation("ContentPageEditor")
-  editedSettings       SystemSetting[]         @relation("SettingEditor")
-  createdBroadcasts    NotificationBroadcast[] @relation("BroadcastCreatedBy")
+  createdBanners     Banner[]                @relation("BannerCreatedBy")
+  sellerPromotions   Promotion[]             @relation("SellerPromotions")
+  createdPromotions  Promotion[]             @relation("PromotionCreatedBy")
+  approvedPromotions Promotion[]             @relation("PromotionApprovedBy")
+  editedContentPages ContentPage[]           @relation("ContentPageEditor")
+  editedSettings     SystemSetting[]         @relation("SettingEditor")
+  createdBroadcasts  NotificationBroadcast[] @relation("BroadcastCreatedBy")
 
   // Auth refactor relations
   passwordResetTokens PasswordResetToken[]
   sellerMigration     SellerMigration?
+  buyerMigration      BuyerMigration?
 
   @@index([phone])
   @@index([email])
@@ -262,9 +267,9 @@ model SellerProfile {
   avgRating        Float  @default(0)
   totalReviews     Int    @default(0)
 
-  user       User  @relation("UserSellerProfile", fields: [userId], references: [id])
-  approvedBy User? @relation("SellerApprover", fields: [approvedById], references: [id])
-  city       City? @relation(fields: [cityId], references: [id])
+  user       User            @relation("UserSellerProfile", fields: [userId], references: [id])
+  approvedBy User?           @relation("SellerApprover", fields: [approvedById], references: [id])
+  city       City?           @relation(fields: [cityId], references: [id])
   earnings   SellerEarning[]
   payouts    Payout[]
 
@@ -353,6 +358,19 @@ model SellerMigration {
   @@map("seller_migrations")
 }
 
+model BuyerMigration {
+  userId         String    @id @db.Uuid
+  setupEmailSent DateTime?
+  setupCompleted DateTime?
+  tempEmail      String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("buyer_migrations")
+}
+
 model Category {
   id               String    @id @default(uuid()) @db.Uuid
   // SEO-friendly slug used in buyer-web URLs (/categorie/<slug>). Generated
@@ -370,8 +388,8 @@ model Category {
   updatedAt        DateTime  @updatedAt
   deletedAt        DateTime?
 
-  parentCategory    Category?           @relation("CategoryTree", fields: [parentCategoryId], references: [id])
-  subcategories     Category[]          @relation("CategoryTree")
+  parentCategory    Category?          @relation("CategoryTree", fields: [parentCategoryId], references: [id])
+  subcategories     Category[]         @relation("CategoryTree")
   products          Product[]
   attributes        ProductAttribute[]
   commissionSetting CommissionSetting?
@@ -393,8 +411,8 @@ model Product {
   categoryId      String           @db.Uuid
   sellerId        String           @db.Uuid
   cityId          String?          @db.Uuid
-  priceCDF        BigInt           // centimes (1 CDF = 100 centimes)
-  priceUSD        BigInt?          // cents (1 USD = 100 cents)
+  priceCDF        BigInt // centimes (1 CDF = 100 centimes)
+  priceUSD        BigInt? // cents (1 USD = 100 cents)
   quantity        Int              @default(0)
   condition       ProductCondition @default(NEW)
   status          ProductStatus    @default(DRAFT)
@@ -406,16 +424,16 @@ model Product {
   avgRating    Float @default(0)
   totalReviews Int   @default(0)
 
-  category       Category              @relation(fields: [categoryId], references: [id])
-  seller         User                  @relation("SellerProducts", fields: [sellerId], references: [id])
-  city           City?                 @relation(fields: [cityId], references: [id])
-  images         ProductImage[]
-  specifications ProductSpecification[]
-  cartItems      CartItem[]
-  orderItems     OrderItem[]
-  reviews        Review[]
+  category        Category               @relation(fields: [categoryId], references: [id])
+  seller          User                   @relation("SellerProducts", fields: [sellerId], references: [id])
+  city            City?                  @relation(fields: [cityId], references: [id])
+  images          ProductImage[]
+  specifications  ProductSpecification[]
+  cartItems       CartItem[]
+  orderItems      OrderItem[]
+  reviews         Review[]
   wishlistEntries Wishlist[]
-  promotions     Promotion[]
+  promotions      Promotion[]
 
   @@index([slug])
   @@index([categoryId])
@@ -457,7 +475,7 @@ model ProductAttribute {
   categoryId String        @db.Uuid
   name       String
   type       AttributeType @default(TEXT)
-  options    Json?         // string[] for SELECT/MULTISELECT types
+  options    Json? // string[] for SELECT/MULTISELECT types
   isRequired Boolean       @default(false)
   sortOrder  Int           @default(0)
   createdAt  DateTime      @default(now())
@@ -534,28 +552,28 @@ model DeliveryZone {
 }
 
 model Order {
-  id                String        @id @default(uuid()) @db.Uuid
-  orderNumber       String        @unique
-  checkoutGroupId   String        @db.Uuid
-  buyerId           String        @db.Uuid
-  sellerId          String        @db.Uuid
-  status            OrderStatus   @default(PENDING)
-  paymentMethod     PaymentMethod
-  paymentStatus     PaymentStatus @default(PENDING)
-  deliveryAddressId String        @db.Uuid
-  deliveryFeeCDF    BigInt        @default(0)
-  deliveryFeeUSD    BigInt?
-  subtotalCDF       BigInt
-  subtotalUSD       BigInt?
-  totalCDF          BigInt
-  totalUSD          BigInt?
-  idempotencyKey    String?       @unique
-  buyerNote         String?
+  id                 String        @id @default(uuid()) @db.Uuid
+  orderNumber        String        @unique
+  checkoutGroupId    String        @db.Uuid
+  buyerId            String        @db.Uuid
+  sellerId           String        @db.Uuid
+  status             OrderStatus   @default(PENDING)
+  paymentMethod      PaymentMethod
+  paymentStatus      PaymentStatus @default(PENDING)
+  deliveryAddressId  String        @db.Uuid
+  deliveryFeeCDF     BigInt        @default(0)
+  deliveryFeeUSD     BigInt?
+  subtotalCDF        BigInt
+  subtotalUSD        BigInt?
+  totalCDF           BigInt
+  totalUSD           BigInt?
+  idempotencyKey     String?       @unique
+  buyerNote          String?
   cancellationReason String?
-  cancelledBy       String?       @db.Uuid
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  deletedAt         DateTime?
+  cancelledBy        String?       @db.Uuid
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  deletedAt          DateTime?
 
   buyer           User             @relation("BuyerOrders", fields: [buyerId], references: [id])
   seller          User             @relation("SellerOrders", fields: [sellerId], references: [id])
@@ -582,15 +600,15 @@ model Order {
 }
 
 model OrderItem {
-  id           String  @id @default(uuid()) @db.Uuid
-  orderId      String  @db.Uuid
-  productId    String  @db.Uuid
+  id           String   @id @default(uuid()) @db.Uuid
+  orderId      String   @db.Uuid
+  productId    String   @db.Uuid
   quantity     Int
   unitPriceCDF BigInt
   unitPriceUSD BigInt?
   totalCDF     BigInt
   totalUSD     BigInt?
-  productTitle String  // snapshot of Product.title at order time
+  productTitle String // snapshot of Product.title at order time
   productImage String? // thumbnail URL snapshot
   createdAt    DateTime @default(now())
 
@@ -798,7 +816,7 @@ model Banner {
   subtitle    String?
   imageUrl    String
   linkUrl     String?
-  linkType    String?      // 'product' | 'category' | 'promotion' | 'url'
+  linkType    String? // 'product' | 'category' | 'promotion' | 'url'
   linkTarget  String?
   status      BannerStatus @default(DRAFT)
   sortOrder   Int          @default(0)
@@ -889,31 +907,6 @@ model SystemSetting {
 
   @@index([key])
   @@map("system_settings")
-}
-
-model Otp {
-  id        String   @id @default(uuid()) @db.Uuid
-  phone     String
-  code      String
-  attempts  Int      @default(0)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  @@index([phone])
-  @@index([expiresAt])
-  @@map("otps")
-}
-
-model OtpRateLimit {
-  id        String   @id @default(uuid()) @db.Uuid
-  phone     String
-  count     Int      @default(1)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
-
-  @@index([phone])
-  @@index([expiresAt])
-  @@map("otp_rate_limits")
 }
 
 model NotificationBroadcast {

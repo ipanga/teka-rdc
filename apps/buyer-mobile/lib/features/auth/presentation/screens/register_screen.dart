@@ -1,132 +1,60 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pin_code_fields/pin_code_fields.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../core/utils/phone.dart';
 import '../providers/auth_provider.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
-  final String? phone;
-  final String? code;
-
-  const RegisterScreen({super.key, this.phone, this.code});
+  const RegisterScreen({super.key});
 
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
 }
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
-  final _phoneController = TextEditingController();
-  final _otpController = PinInputController();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
+  bool _obscurePassword = true;
   String? _errorMessage;
-  bool _otpVerified = false;
-  String _verifiedPhone = '';
-  String _verifiedCode = '';
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.phone != null && widget.code != null) {
-      _verifiedPhone = widget.phone!;
-      _verifiedCode = widget.code!;
-      _otpVerified = true;
-      _phoneController.text = widget.phone!.replaceFirst('+243', '');
-    }
-  }
 
   @override
   void dispose() {
-    _phoneController.dispose();
-    _otpController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmController.dispose();
     super.dispose();
-  }
-
-  Future<void> _sendOtp() async {
-    final raw = _phoneController.text.trim();
-    final normalized = normalizeDrcPhone(raw);
-    if (normalized == null) {
-      setState(() => _errorMessage =
-          'Numero invalide. Entrez 9 chiffres (ou 10 avec le 0).');
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      _verifiedPhone = normalized;
-      await ref.read(authProvider.notifier).requestOtp(_verifiedPhone);
-    } on DioException catch (e) {
-      setState(() {
-        _errorMessage = e.response?.data?['message'] ??
-            'Impossible d\'envoyer le code.';
-      });
-    } catch (_) {
-      setState(() => _errorMessage = 'Une erreur est survenue.');
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _verifyOtp(String code) async {
-    if (code.length != 6) return;
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      await ref.read(authProvider.notifier).verifyOtp(_verifiedPhone, code);
-      setState(() {
-        _verifiedCode = code;
-        _otpVerified = true;
-      });
-    } on DioException catch (e) {
-      setState(() {
-        _errorMessage = e.response?.data?['message'] ??
-            'Code invalide. Veuillez reessayer.';
-      });
-      _otpController.clear();
-    } catch (_) {
-      setState(() => _errorMessage = 'Une erreur est survenue.');
-      _otpController.clear();
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
   }
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
-
+    if (_passwordController.text != _confirmController.text) {
+      setState(() => _errorMessage = 'Les mots de passe ne correspondent pas');
+      return;
+    }
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
-
     try {
-      await ref.read(authProvider.notifier).register(
-            _verifiedPhone,
-            _verifiedCode,
+      await ref.read(authProvider.notifier).registerBuyerWithEmail(
+            _emailController.text.trim().toLowerCase(),
+            _passwordController.text,
             _firstNameController.text.trim(),
             _lastNameController.text.trim(),
           );
       if (mounted) context.go('/');
     } on DioException catch (e) {
       setState(() {
-        _errorMessage = e.response?.data?['message'] ??
-            'Impossible de creer le compte. Veuillez reessayer.';
+        _errorMessage = e.response?.data?['error']?['message'] ??
+            'Inscription impossible.';
       });
     } catch (_) {
       setState(() => _errorMessage = 'Une erreur est survenue.');
@@ -139,7 +67,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Creer un compte'),
+        title: const Text('Créer un compte'),
         backgroundColor: Colors.transparent,
         foregroundColor: TekaColors.foreground,
         elevation: 0,
@@ -152,173 +80,86 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 24),
-
-                if (!_otpVerified) ...[
-                  // Step 1: Phone + OTP
-                  Text(
-                    'Etape 1 : Verifier votre numero',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _firstNameController,
+                        autofillHints: const [AutofillHints.givenName],
+                        decoration: const InputDecoration(
+                          labelText: 'Prénom',
+                          prefixIcon: Icon(Icons.person_outline),
                         ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Phone field — user types 9 digits (or 10 with leading 0).
-                  TextFormField(
-                    controller: _phoneController,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(10),
-                    ],
-                    decoration: InputDecoration(
-                      labelText: 'Numero de telephone',
-                      hintText: '991234567',
-                      helperText: '9 chiffres (ou 10 avec le 0)',
-                      prefixIcon: const Icon(Icons.phone),
-                      prefixText: '+243 ',
-                      prefixStyle: TextStyle(
-                        color: TekaColors.foreground,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      suffixIcon: TextButton(
-                        onPressed: _isLoading ? null : _sendOtp,
-                        child: Text(
-                          'Envoyer',
-                          style: TextStyle(color: TekaColors.tekaRed),
-                        ),
+                        validator: (v) =>
+                            (v == null || v.trim().length < 2) ? 'Trop court' : null,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  Text(
-                    'Entrez le code recu par SMS',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: TekaColors.mutedForeground,
-                        ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-
-                  MaterialPinField(
-                    length: 6,
-                    pinController: _otpController,
-                    keyboardType: TextInputType.number,
-                    enabled: !_isLoading,
-                    theme: MaterialPinTheme(
-                      shape: MaterialPinShape.outlined,
-                      borderRadius: BorderRadius.circular(8),
-                      cellSize: const Size(46, 52),
-                      focusedBorderColor: TekaColors.tekaRed,
-                      borderColor: TekaColors.border,
-                      fillColor: Colors.white,
-                      focusedFillColor: Colors.white,
-                      filledFillColor: Colors.white,
-                      entryAnimation: MaterialPinAnimation.fade,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _lastNameController,
+                        autofillHints: const [AutofillHints.familyName],
+                        decoration: const InputDecoration(labelText: 'Nom'),
+                        validator: (v) =>
+                            (v == null || v.trim().length < 2) ? 'Trop court' : null,
+                      ),
                     ),
-                    onCompleted: _verifyOtp,
-                    onChanged: (_) {},
+                  ],
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  autofillHints: const [AutofillHints.email],
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    hintText: 'vous@exemple.com',
+                    prefixIcon: Icon(Icons.email_outlined),
                   ),
-                ] else ...[
-                  // Step 2: Name fields
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: TekaColors.success.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.check_circle, color: TekaColors.success),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Numero verifie : $_verifiedPhone',
-                            style: TextStyle(color: TekaColors.success),
-                          ),
-                        ),
-                      ],
+                  validator: (v) {
+                    if (v == null || !v.contains('@')) return 'Email invalide';
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _passwordController,
+                  obscureText: _obscurePassword,
+                  autofillHints: const [AutofillHints.newPassword],
+                  decoration: InputDecoration(
+                    labelText: 'Mot de passe',
+                    helperText: 'Au moins 8 caractères, avec lettres et chiffres',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      icon: Icon(_obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
                   ),
-                  const SizedBox(height: 24),
-
-                  Text(
-                    'Etape 2 : Vos informations',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                  validator: (v) {
+                    if (v == null || v.length < 8) return 'Au moins 8 caractères';
+                    if (!RegExp(r'[A-Za-z]').hasMatch(v) ||
+                        !RegExp(r'\d').hasMatch(v)) {
+                      return 'Doit contenir lettres et chiffres';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _confirmController,
+                  obscureText: _obscurePassword,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirmer le mot de passe',
+                    prefixIcon: Icon(Icons.lock_outline),
                   ),
-                  const SizedBox(height: 16),
-
-                  TextFormField(
-                    controller: _firstNameController,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Prenom',
-                      hintText: 'Entrez votre prenom',
-                      prefixIcon: Icon(Icons.person_outline),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Veuillez entrer votre prenom';
-                      }
-                      if (value.trim().length < 2) {
-                        return 'Le prenom doit contenir au moins 2 caracteres';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  TextFormField(
-                    controller: _lastNameController,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Nom',
-                      hintText: 'Entrez votre nom',
-                      prefixIcon: Icon(Icons.person_outline),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Veuillez entrer votre nom';
-                      }
-                      if (value.trim().length < 2) {
-                        return 'Le nom doit contenir au moins 2 caracteres';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 24),
-
-                  SizedBox(
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _register,
-                      child: _isLoading
-                          ? const SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Text(
-                              'Creer mon compte',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                    ),
-                  ),
-                ],
-
-                // Error message
+                  validator: (v) => (v == null || v.isEmpty) ? 'Requis' : null,
+                ),
+                const SizedBox(height: 16),
                 if (_errorMessage != null) ...[
-                  const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -328,26 +169,32 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     child: Text(
                       _errorMessage!,
                       style: TextStyle(color: TekaColors.destructive),
-                      textAlign: TextAlign.center,
                     ),
                   ),
+                  const SizedBox(height: 16),
                 ],
-
-                // Loading
-                if (_isLoading && !_otpVerified)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Center(child: CircularProgressIndicator()),
+                SizedBox(
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _register,
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Créer un compte'),
                   ),
-
-                const SizedBox(height: 24),
-
-                // Login link
+                ),
+                const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Deja un compte ? ',
+                      'Déjà inscrit ? ',
                       style: TextStyle(color: TekaColors.mutedForeground),
                     ),
                     GestureDetector(

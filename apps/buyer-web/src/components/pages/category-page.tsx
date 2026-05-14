@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
-import { Link } from '@/i18n/navigation';
+import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { ProductGrid } from '@/components/product/product-grid';

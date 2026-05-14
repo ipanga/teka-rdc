@@ -1,9 +1,10 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { Link, usePathname } from '@/i18n/navigation';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
-import { useRouter } from '@/i18n/navigation';
+import { useRouter } from 'next/navigation';
 
 interface NavItem {
   href: string;

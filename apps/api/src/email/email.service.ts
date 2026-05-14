@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { otpEmailTemplate } from './templates/otp.template';
 import { emailVerificationTemplate } from './templates/verification.template';
 import { passwordResetTemplate } from './templates/password-reset.template';
 import { welcomeTemplate } from './templates/welcome.template';
 import { sellerSetupTemplate } from './templates/seller-setup.template';
+import { buyerSetupTemplate } from './templates/buyer-setup.template';
 import {
   contactFormTemplate,
   type ContactFormEmailInput,
@@ -24,15 +24,6 @@ export class EmailService {
       'Teka RDC <noreply@teka.cd>',
     );
     this.isDev = this.configService.get<string>('NODE_ENV') === 'development';
-  }
-
-  async sendOtpEmail(email: string, code: string): Promise<boolean> {
-    const subject = `Votre code Teka RDC: ${code}`;
-    const html = otpEmailTemplate(
-      code,
-      this.configService.get('OTP_EXPIRY_MINUTES', 5),
-    );
-    return this.sendEmail(email, subject, html);
   }
 
   async sendEmailVerification(
@@ -77,6 +68,19 @@ export class EmailService {
     );
     const subject = 'Configurez votre compte vendeur — Teka RDC';
     const html = sellerSetupTemplate(setupUrl, expiryHours);
+    return this.sendEmail(email, subject, html);
+  }
+
+  async sendBuyerSetupEmail(
+    email: string,
+    setupUrl: string,
+  ): Promise<boolean> {
+    const expiryHours = this.configService.get<number>(
+      'BUYER_SETUP_EXPIRY_HOURS',
+      24,
+    );
+    const subject = 'Configurez votre compte Teka RDC';
+    const html = buyerSetupTemplate(setupUrl, expiryHours);
     return this.sendEmail(email, subject, html);
   }
 
