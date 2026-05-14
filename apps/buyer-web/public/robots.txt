@@ -1,0 +1,63 @@
+# Public crawlers — block the user-private routes.
+User-agent: *
+Disallow: /checkout/
+Disallow: /cart/
+Disallow: /orders/
+Disallow: /messages/
+Disallow: /login/
+Disallow: /register/
+Disallow: /profile/
+Disallow: /wishlist/
+Disallow: /api/
+Disallow: /_next/
+
+# Google — same private-route block, no /api or /_next (they're not in robots
+# anyway for Google, but listing them explicitly under * already covers it).
+User-agent: Googlebot
+Disallow: /checkout/
+Disallow: /cart/
+Disallow: /orders/
+Disallow: /messages/
+Disallow: /login/
+Disallow: /register/
+Disallow: /profile/
+Disallow: /wishlist/
+
+# Social card scrapers — IMPORTANT: use empty `Disallow:` per the 1994 spec,
+# NOT `Allow: /`. Facebook's parser doesn't reliably understand the Allow
+# extension and may interpret a section with ONLY `Allow: /` as "block all
+# except the exact path /", which makes every product/category URL look
+# disallowed and causes the Sharing Debugger to report "403 / robots.txt
+# block" even though nginx is wide open. The empty `Disallow:` is the
+# canonical "nothing is forbidden" instruction every parser understands.
+# Reference: https://developers.facebook.com/docs/sharing/webmasters/crawler/
+
+User-agent: facebookexternalhit
+Disallow:
+
+User-agent: facebookcatalog
+Disallow:
+
+User-agent: Twitterbot
+Disallow:
+
+User-agent: LinkedInBot
+Disallow:
+
+User-agent: WhatsApp
+Disallow:
+
+User-agent: Slackbot
+Disallow:
+
+User-agent: Slackbot-LinkExpanding
+Disallow:
+
+User-agent: Discordbot
+Disallow:
+
+User-agent: TelegramBot
+Disallow:
+
+Host: https://teka.cd
+Sitemap: https://teka.cd/sitemap.xml
