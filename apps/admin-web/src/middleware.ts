@@ -15,13 +15,22 @@ export default function middleware(request: NextRequest) {
   );
 
   if (isProtected && !hasToken) {
-    const loginUrl = new URL('/admin/login', request.url);
+    // Use nextUrl.clone() so the basePath (if any) is preserved automatically.
+    // Hardcoding `/admin/login` only works in dev where basePath='/admin'; in
+    // prod the app is served at admin.teka.cd root and the prefix produces a
+    // 404 (admin.teka.cd/admin/login).
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = '/login';
+    loginUrl.search = '';
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   if (isAuthOnly && hasToken) {
-    return NextResponse.redirect(new URL('/admin/dashboard', request.url));
+    const dashboardUrl = request.nextUrl.clone();
+    dashboardUrl.pathname = '/dashboard';
+    dashboardUrl.search = '';
+    return NextResponse.redirect(dashboardUrl);
   }
 
   return NextResponse.next();
