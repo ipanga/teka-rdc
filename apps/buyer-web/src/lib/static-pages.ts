@@ -2,14 +2,13 @@
  * Single source of truth for the 8 static content pages.
  *
  * The DB stores ONE row per page, keyed by an English "canonical" slug (the
- * column name didn't change for the FR-only refactor — DB schema is preserved
- * per the API-contract constraint). The URL slug below is what users see in
- * the address bar:
+ * column name was kept stable across refactors). The URL slug below is what
+ * users see in the address bar:
  *
- *   /a-propos          ─→ DB row { slug: 'about', title: { fr, en }, content: { fr, en } }
+ *   /a-propos          ─→ DB row { slug: 'about', title: '…', content: '…' }
  *
- * Routes resolve via `app/[locale]/[slug]/page.tsx`, which uses the helpers
- * below to translate URL slug → canonical (DB) slug.
+ * Routes resolve via `app/[slug]/page.tsx`, which uses the helpers below to
+ * translate URL slug → canonical (DB) slug.
  *
  * Adding a new page: add an entry to PAGE_DEFINITIONS — generateStaticParams,
  * the sitemap, the footer and the redirects all derive from it.
@@ -24,10 +23,6 @@ export type CanonicalSlug =
   | 'how-to-buy'
   | 'how-to-sell'
   | 'contact';
-
-// `Locale` kept exported so legacy call-sites that imported the type still
-// compile. Always 'fr' since the monolingual refactor.
-export type Locale = 'fr';
 
 interface PageDefinition {
   /** Stored in `content_pages.slug` — never changes; used for API lookups. */
@@ -62,14 +57,14 @@ export function canonicalToUrlSlug(canonical: CanonicalSlug): string {
   return def?.urlSlug ?? canonical;
 }
 
-/** Path for a static page (no locale prefix in monolingual mode). */
+/** Path for a static page. */
 export function pathForCanonical(canonical: CanonicalSlug): string {
   return `/${canonicalToUrlSlug(canonical)}`;
 }
 
 /** All URL slugs — drives generateStaticParams + the sitemap. */
-export function allStaticPageParams(): Array<{ locale: 'fr'; slug: string }> {
-  return PAGE_DEFINITIONS.map((p) => ({ locale: 'fr' as const, slug: p.urlSlug }));
+export function allStaticPageParams(): Array<{ slug: string }> {
+  return PAGE_DEFINITIONS.map((p) => ({ slug: p.urlSlug }));
 }
 
 /**

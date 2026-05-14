@@ -1,30 +1,11 @@
 import { z } from 'zod';
 import { DRC_PHONE_REGEX } from '../constants/phone';
 
-export const otpRequestSchema = z.object({
-  phone: z.string().regex(DRC_PHONE_REGEX, 'Numéro de téléphone invalide. Format: +243XXXXXXXXX'),
-});
-
-export const otpVerifySchema = z.object({
-  phone: z.string().regex(DRC_PHONE_REGEX, 'Numéro de téléphone invalide'),
-  code: z.string().length(6, 'Le code doit contenir 6 chiffres').regex(/^\d{6}$/, 'Le code doit contenir uniquement des chiffres'),
-});
-
-export const registerSchema = z.object({
-  phone: z.string().regex(DRC_PHONE_REGEX, 'Numéro de téléphone invalide'),
-  code: z.string().length(6, 'Code requis'),
-  firstName: z.string().min(2, 'Le prénom doit contenir au moins 2 caractères').max(50),
-  lastName: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').max(50),
-});
-
-export const loginSchema = z.object({
-  phone: z.string().regex(DRC_PHONE_REGEX, 'Numéro de téléphone invalide'),
-  code: z.string().length(6, 'Code requis'),
-});
-
-export const refreshTokenSchema = z.object({
-  refreshToken: z.string().min(1, 'Token de rafraîchissement requis'),
-});
+// ---------------------------------------------------------------------------
+// Email + password — the primary auth surface for all roles since the
+// 2026-05-12 buyer-email refactor. /v1/auth/register/buyer creates BUYER;
+// /v1/auth/register/email creates SELLER; admins are seeded out-of-band.
+// ---------------------------------------------------------------------------
 
 // Password rules: 8–72 chars, at least one letter and one digit.
 // 72 cap matches bcrypt's internal truncation.
@@ -35,7 +16,11 @@ export const passwordSchema = z
   .regex(/[A-Za-z]/, 'Le mot de passe doit contenir au moins une lettre')
   .regex(/\d/, 'Le mot de passe doit contenir au moins un chiffre');
 
-const emailSchema = z.string().trim().toLowerCase().email('Adresse email invalide');
+const emailSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .email('Adresse email invalide');
 
 export const emailLoginSchema = z.object({
   email: emailSchema,
@@ -45,8 +30,14 @@ export const emailLoginSchema = z.object({
 export const emailRegisterSchema = z.object({
   email: emailSchema,
   password: passwordSchema,
-  firstName: z.string().min(2, 'Le prénom doit contenir au moins 2 caractères').max(50),
-  lastName: z.string().min(2, 'Le nom doit contenir au moins 2 caractères').max(50),
+  firstName: z
+    .string()
+    .min(2, 'Le prénom doit contenir au moins 2 caractères')
+    .max(50),
+  lastName: z
+    .string()
+    .min(2, 'Le nom doit contenir au moins 2 caractères')
+    .max(50),
 });
 
 export const passwordResetRequestSchema = z.object({
@@ -58,13 +49,36 @@ export const passwordResetConfirmSchema = z.object({
   newPassword: passwordSchema,
 });
 
-export const googleLoginSchema = z.object({
-  idToken: z.string().min(1, 'Jeton Google requis'),
+export const refreshTokenSchema = z.object({
+  refreshToken: z.string().min(1, 'Token de rafraîchissement requis'),
 });
 
-export const emailOtpFallbackSchema = z.object({
-  phone: z.string().regex(DRC_PHONE_REGEX, 'Numéro de téléphone invalide'),
+// ---------------------------------------------------------------------------
+// Buyer migration (legacy PHONE_OTP buyer → email + password).
+// Three steps: migrate-check (phone lookup) → migrate-link-email (stash email
+// + send setup link) → setup-password (consume JWT, set email + password).
+// ---------------------------------------------------------------------------
+
+export const buyerMigrateCheckSchema = z.object({
+  phone: z
+    .string()
+    .regex(DRC_PHONE_REGEX, 'Numéro de téléphone invalide. Format: +243XXXXXXXXX'),
 });
+
+export const buyerMigrateLinkEmailSchema = z.object({
+  phone: z.string().regex(DRC_PHONE_REGEX, 'Numéro de téléphone invalide'),
+  email: emailSchema,
+});
+
+export const buyerPasswordSetupSchema = z.object({
+  token: z.string().min(1, 'Token requis'),
+  password: passwordSchema,
+});
+
+// ---------------------------------------------------------------------------
+// Seller migration (legacy PHONE_OTP seller → email + password).
+// Same shape as buyer migration since OTP was removed from this flow too.
+// ---------------------------------------------------------------------------
 
 export const sellerMigrateCheckSchema = z.object({
   email: emailSchema,
@@ -72,7 +86,6 @@ export const sellerMigrateCheckSchema = z.object({
 
 export const sellerMigrateLinkEmailSchema = z.object({
   phone: z.string().regex(DRC_PHONE_REGEX, 'Numéro de téléphone invalide'),
-  code: z.string().length(6, 'Code requis'),
   email: emailSchema,
 });
 

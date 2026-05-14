@@ -14,9 +14,6 @@ import {
 import type { Response, Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
-import { RequestOtpDto } from './dto/request-otp.dto';
-import { VerifyOtpDto } from './dto/verify-otp.dto';
-import { RegisterDto } from './dto/register.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { EmailLoginDto } from './dto/email-login.dto';
 import { EmailRegisterDto } from './dto/email-register.dto';
@@ -25,6 +22,9 @@ import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
 import { SellerMigrateCheckDto } from './dto/seller-migrate-check.dto';
 import { SellerMigrateLinkEmailDto } from './dto/seller-migrate-link-email.dto';
 import { SellerPasswordSetupDto } from './dto/seller-password-setup.dto';
+import { BuyerMigrateCheckDto } from './dto/buyer-migrate-check.dto';
+import { BuyerMigrateLinkEmailDto } from './dto/buyer-migrate-link-email.dto';
+import { BuyerPasswordSetupDto } from './dto/buyer-password-setup.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
@@ -36,58 +36,29 @@ export class AuthController {
   ) {}
 
   // ---------------------------------------------------------------------------
-  // Phone OTP (preserved)
+  // Email + password registration. Role is server-assigned (never trust the
+  // client): /register/buyer creates BUYER, /register/email creates SELLER.
+  // Admins are seeded out-of-band — there is no admin register endpoint.
   // ---------------------------------------------------------------------------
 
   @Public()
-  @Post('otp/request')
-  @HttpCode(HttpStatus.OK)
-  async requestOtp(@Body() dto: RequestOtpDto) {
-    return this.authService.requestOtp(dto.phone);
-  }
-
-  @Public()
-  @Post('otp/verify')
-  @HttpCode(HttpStatus.OK)
-  async verifyOtp(@Body() dto: VerifyOtpDto) {
-    return this.authService.verifyOtp(dto.phone, dto.code);
-  }
-
-  @Public()
-  @Post('register')
-  async register(
-    @Body() dto: RegisterDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const result = await this.authService.register(dto);
-    this.setAuthCookies(res, result.tokens);
-    return result;
-  }
-
-  @Public()
-  @Post('login')
-  @HttpCode(HttpStatus.OK)
-  async login(
-    @Body() dto: VerifyOtpDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const result = await this.authService.login(dto.phone, dto.code);
-    this.setAuthCookies(res, result.tokens);
-    return result;
-  }
-
-  // ---------------------------------------------------------------------------
-  // Email + password — seller self-service registration + login. Buyers use
-  // phone OTP; admins are seeded out-of-band.
-  // ---------------------------------------------------------------------------
-
-  @Public()
-  @Post('register/email')
-  async registerWithEmail(
+  @Post('register/buyer')
+  async registerBuyer(
     @Body() dto: EmailRegisterDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.registerWithEmail(dto);
+    const result = await this.authService.registerBuyerWithEmail(dto);
+    this.setAuthCookies(res, result.tokens);
+    return result;
+  }
+
+  @Public()
+  @Post('register/email')
+  async registerSeller(
+    @Body() dto: EmailRegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.registerSellerWithEmail(dto);
     this.setAuthCookies(res, result.tokens);
     return result;
   }
@@ -122,7 +93,37 @@ export class AuthController {
   }
 
   // ---------------------------------------------------------------------------
-  // Seller migration
+  // Buyer migration (legacy PHONE_OTP buyer → email + password).
+  // ---------------------------------------------------------------------------
+
+  @Public()
+  @Post('buyer/migrate-check')
+  @HttpCode(HttpStatus.OK)
+  async buyerMigrateCheck(@Body() dto: BuyerMigrateCheckDto) {
+    return this.authService.migrateBuyerCheck(dto);
+  }
+
+  @Public()
+  @Post('buyer/migrate-link-email')
+  @HttpCode(HttpStatus.OK)
+  async buyerMigrateLinkEmail(@Body() dto: BuyerMigrateLinkEmailDto) {
+    return this.authService.migrateBuyerLinkEmail(dto);
+  }
+
+  @Public()
+  @Post('buyer/setup-password')
+  @HttpCode(HttpStatus.OK)
+  async buyerSetupPassword(
+    @Body() dto: BuyerPasswordSetupDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.setupBuyerPassword(dto);
+    this.setAuthCookies(res, result.tokens);
+    return result;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Seller migration (legacy PHONE_OTP seller → email + password).
   // ---------------------------------------------------------------------------
 
   @Public()

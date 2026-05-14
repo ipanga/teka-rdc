@@ -9,69 +9,107 @@ class AuthRepository {
 
   AuthRepository(this._dio, this._tokenStorage);
 
-  Future<Map<String, dynamic>> requestOtp(String phone) async {
-    final response = await _dio.post(
-      '/v1/auth/otp/request',
-      data: {'phone': phone},
-    );
-    return response.data['data'] ?? response.data;
-  }
+  // Email + password ——————————————————————————————————————————————————————————
 
-  // Buyers authenticate via phone + SMS OTP only. The email-OTP fallback and
-  // Google login paths were removed to enforce strict role boundaries —
-  // Google is sellers-only, email is not a buyer login surface.
-
-  Future<Map<String, dynamic>> verifyOtp(String phone, String code) async {
+  Future<Map<String, dynamic>> loginWithEmail(
+    String email,
+    String password,
+  ) async {
     final response = await _dio.post(
-      '/v1/auth/otp/verify',
-      data: {'phone': phone, 'code': code},
-    );
-    return response.data['data'] ?? response.data;
-  }
-
-  Future<Map<String, dynamic>> login(String phone, String code) async {
-    final response = await _dio.post(
-      '/v1/auth/login',
-      data: {'phone': phone, 'code': code},
+      '/v1/auth/login/email',
+      data: {'email': email, 'password': password},
     );
     final data = response.data['data'] ?? response.data;
-
     if (data['tokens'] != null) {
       await _tokenStorage.saveTokens(
         data['tokens']['accessToken'],
         data['tokens']['refreshToken'],
       );
     }
-
     return data;
   }
 
-  Future<Map<String, dynamic>> register(
-    String phone,
-    String code,
+  Future<Map<String, dynamic>> registerBuyerWithEmail(
+    String email,
+    String password,
     String firstName,
     String lastName,
   ) async {
     final response = await _dio.post(
-      '/v1/auth/register',
+      '/v1/auth/register/buyer',
       data: {
-        'phone': phone,
-        'code': code,
+        'email': email,
+        'password': password,
         'firstName': firstName,
         'lastName': lastName,
       },
     );
     final data = response.data['data'] ?? response.data;
-
     if (data['tokens'] != null) {
       await _tokenStorage.saveTokens(
         data['tokens']['accessToken'],
         data['tokens']['refreshToken'],
       );
     }
-
     return data;
   }
+
+  Future<void> requestPasswordReset(String email) async {
+    await _dio.post(
+      '/v1/auth/password-reset/request',
+      data: {'email': email},
+    );
+  }
+
+  Future<void> confirmPasswordReset(String token, String newPassword) async {
+    await _dio.post(
+      '/v1/auth/password-reset/confirm',
+      data: {'token': token, 'newPassword': newPassword},
+    );
+  }
+
+  // Buyer migration ———————————————————————————————————————————————————————————
+
+  /// Returns `{ migration: 'needs_email_setup' | 'already_migrated' | 'unknown' }`.
+  Future<Map<String, dynamic>> migrateBuyerCheck(String phone) async {
+    final response = await _dio.post(
+      '/v1/auth/buyer/migrate-check',
+      data: {'phone': phone},
+    );
+    return response.data['data'] ?? response.data;
+  }
+
+  Future<Map<String, dynamic>> migrateBuyerLinkEmail({
+    required String phone,
+    required String email,
+  }) async {
+    final response = await _dio.post(
+      '/v1/auth/buyer/migrate-link-email',
+      data: {'phone': phone, 'email': email},
+    );
+    return response.data['data'] ?? response.data;
+  }
+
+  /// Consumes the 24h setup JWT, sets the password, issues fresh tokens.
+  Future<Map<String, dynamic>> setupBuyerPassword(
+    String token,
+    String password,
+  ) async {
+    final response = await _dio.post(
+      '/v1/auth/buyer/setup-password',
+      data: {'token': token, 'password': password},
+    );
+    final data = response.data['data'] ?? response.data;
+    if (data['tokens'] != null) {
+      await _tokenStorage.saveTokens(
+        data['tokens']['accessToken'],
+        data['tokens']['refreshToken'],
+      );
+    }
+    return data;
+  }
+
+  // Session ———————————————————————————————————————————————————————————————————
 
   Future<Map<String, dynamic>?> getCurrentUser() async {
     try {

@@ -266,28 +266,23 @@ export const mockPrismaService: Record<string, any> = {
     count: jest.fn(),
   },
 
-  // OTP tables
-  otp: {
-    findFirst: jest.fn(),
-    findMany: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-    deleteMany: jest.fn(),
-    count: jest.fn(),
-  },
+  // Password reset
   passwordResetToken: {
     findFirst: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
   },
-  otpRateLimit: {
-    findFirst: jest.fn(),
-    findMany: jest.fn(),
-    create: jest.fn(),
-    delete: jest.fn(),
-    deleteMany: jest.fn(),
-    count: jest.fn(),
+
+  // Migration tables (PHONE_OTP → EMAIL_PASSWORD upgrade paths)
+  buyerMigration: {
+    findUnique: jest.fn(),
+    upsert: jest.fn(),
+    update: jest.fn(),
+  },
+  sellerMigration: {
+    findUnique: jest.fn(),
+    upsert: jest.fn(),
+    update: jest.fn(),
   },
 
   // Prisma client methods

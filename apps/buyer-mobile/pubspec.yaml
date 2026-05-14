@@ -19,7 +19,6 @@ dependencies:
   shared_preferences: ^2.5.3
   google_fonts: ^6.2.1
   flutter_secure_storage: ^10.0.0
-  pin_code_fields: ^9.1.0
   cached_network_image: ^3.4.1
 
 dev_dependencies:

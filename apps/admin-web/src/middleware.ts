@@ -1,28 +1,10 @@
-import createIntlMiddleware from 'next-intl/middleware';
 import { NextRequest, NextResponse } from 'next/server';
-import { routing } from './i18n/routing';
-
-const intlMiddleware = createIntlMiddleware(routing);
 
 const protectedRoutes = ['/dashboard'];
 const authOnlyRoutes = ['/login'];
 
-function stripLocalePrefix(pathname: string): string {
-  for (const locale of routing.locales) {
-    if (pathname.startsWith(`/${locale}/`)) {
-      return pathname.slice(locale.length + 1);
-    }
-    if (pathname === `/${locale}`) {
-      return '/';
-    }
-  }
-  return pathname;
-}
-
 export default function middleware(request: NextRequest) {
-  const response = intlMiddleware(request);
-
-  const pathname = stripLocalePrefix(request.nextUrl.pathname);
+  const { pathname } = request.nextUrl;
   const hasToken = request.cookies.has('teka_access_token');
 
   const isProtected = protectedRoutes.some(
@@ -40,7 +22,7 @@ export default function middleware(request: NextRequest) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
     loginUrl.search = '';
-    loginUrl.searchParams.set('redirect', request.nextUrl.pathname);
+    loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
   }
 
@@ -51,7 +33,7 @@ export default function middleware(request: NextRequest) {
     return NextResponse.redirect(dashboardUrl);
   }
 
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {

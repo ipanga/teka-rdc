@@ -1,5 +1,9 @@
 import { User } from './user';
 
+// PHONE_OTP is preserved on the enum for historical accounts (legacy buyers
+// not yet migrated to email+password). GOOGLE is preserved for any account
+// that was created via the removed Google OAuth path. No new accounts use
+// either provider.
 export type AuthProvider = 'PHONE_OTP' | 'EMAIL_PASSWORD' | 'GOOGLE';
 
 export interface AuthTokens {
@@ -8,34 +12,15 @@ export interface AuthTokens {
   expiresIn: number;
 }
 
-export interface OtpRequestDto {
-  phone: string;
-}
-
-export interface OtpVerifyDto {
-  phone: string;
-  code: string;
-}
-
-export interface OtpVerifyResponse {
-  verified: boolean;
-  exists: boolean;
-}
-
-export interface RegisterDto {
-  phone: string;
-  code: string;
-  firstName: string;
-  lastName: string;
-}
-
 export interface LoginResponse {
   user: User;
   tokens: AuthTokens;
 }
 
-// Email + password — seller self-service registration + login. Buyers use
-// phone OTP; admins are seeded out-of-band.
+// ---------------------------------------------------------------------------
+// Email + password (buyer, seller, admin all share this surface).
+// ---------------------------------------------------------------------------
+
 export interface EmailLoginDto {
   email: string;
   password: string;
@@ -48,7 +33,6 @@ export interface EmailRegisterDto {
   lastName: string;
 }
 
-// Password reset
 export interface PasswordResetRequestDto {
   email: string;
 }
@@ -58,14 +42,40 @@ export interface PasswordResetConfirmDto {
   newPassword: string;
 }
 
-// Seller migration
+// ---------------------------------------------------------------------------
+// Buyer migration (legacy PHONE_OTP → EMAIL_PASSWORD).
+// ---------------------------------------------------------------------------
+
+export interface BuyerMigrateCheckDto {
+  phone: string;
+}
+
+export interface BuyerMigrateLinkEmailDto {
+  phone: string;
+  email: string;
+}
+
+export interface BuyerPasswordSetupDto {
+  token: string;
+  password: string;
+}
+
+export type BuyerMigrationResponse =
+  | { migration: 'unknown' }
+  | { migration: 'needs_email_setup' }
+  | { migration: 'already_migrated' }
+  | { migration: 'email_setup_sent' };
+
+// ---------------------------------------------------------------------------
+// Seller migration (same shape — OTP step removed in May 2026 refactor).
+// ---------------------------------------------------------------------------
+
 export interface SellerMigrateCheckDto {
   email: string;
 }
 
 export interface SellerMigrateLinkEmailDto {
   phone: string;
-  code: string;
   email: string;
 }
 
@@ -76,5 +86,5 @@ export interface SellerPasswordSetupDto {
 
 export type SellerMigrationResponse =
   | { migration: 'email_setup_sent' }
-  | { migration: 'email_required'; maskedPhone: string }
+  | { migration: 'email_required'; maskedPhone: string | null }
   | { migration: 'already_migrated' };

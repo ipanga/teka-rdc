@@ -69,18 +69,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<Map<String, dynamic>> requestOtp(String phone) async {
-    return _authRepository.requestOtp(phone);
-  }
+  // Email + password ——————————————————————————————————————————————————————————
 
-  Future<Map<String, dynamic>> verifyOtp(String phone, String code) async {
-    return _authRepository.verifyOtp(phone, code);
-  }
-
-  Future<void> login(String phone, String code) async {
+  Future<void> loginWithEmail(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final data = await _authRepository.login(phone, code);
+      final data = await _authRepository.loginWithEmail(email, password);
       state = state.copyWith(
         status: AuthStatus.authenticated,
         user: data['user'],
@@ -92,20 +86,56 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> register(
-    String phone,
-    String code,
+  Future<void> registerBuyerWithEmail(
+    String email,
+    String password,
     String firstName,
     String lastName,
   ) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final data = await _authRepository.register(
-        phone,
-        code,
+      final data = await _authRepository.registerBuyerWithEmail(
+        email,
+        password,
         firstName,
         lastName,
       );
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        user: data['user'],
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      rethrow;
+    }
+  }
+
+  Future<void> requestPasswordReset(String email) async {
+    await _authRepository.requestPasswordReset(email);
+  }
+
+  Future<void> confirmPasswordReset(String token, String newPassword) async {
+    await _authRepository.confirmPasswordReset(token, newPassword);
+  }
+
+  // Buyer migration ———————————————————————————————————————————————————————————
+
+  Future<Map<String, dynamic>> migrateBuyerCheck(String phone) async {
+    return _authRepository.migrateBuyerCheck(phone);
+  }
+
+  Future<Map<String, dynamic>> migrateBuyerLinkEmail({
+    required String phone,
+    required String email,
+  }) async {
+    return _authRepository.migrateBuyerLinkEmail(phone: phone, email: email);
+  }
+
+  Future<void> setupBuyerPassword(String token, String password) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final data = await _authRepository.setupBuyerPassword(token, password);
       state = state.copyWith(
         status: AuthStatus.authenticated,
         user: data['user'],

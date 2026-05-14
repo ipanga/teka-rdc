@@ -1,4 +1,11 @@
 import type { Metadata, Viewport } from 'next';
+import { NextIntlClientProvider } from 'next-intl';
+import { getMessages } from 'next-intl/server';
+import { Inter } from 'next/font/google';
+import { AuthProvider } from '@/components/providers/auth-provider';
+import './globals.css';
+
+const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-inter' });
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -42,10 +49,6 @@ export const metadata: Metadata = {
       'max-snippet': -1,
     },
   },
-  verification: {
-    // Add real values when available
-    // google: 'your-google-verification-code',
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -53,10 +56,31 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  const messages = await getMessages();
+
+  return (
+    <html lang="fr" className={inter.variable}>
+      <body className="font-sans antialiased">
+        <NextIntlClientProvider messages={messages}>
+          <AuthProvider>{children}</AuthProvider>
+        </NextIntlClientProvider>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                  navigator.serviceWorker.register('/sw.js').catch(() => {});
+                });
+              }
+            `,
+          }}
+        />
+      </body>
+    </html>
+  );
 }

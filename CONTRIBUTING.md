@@ -28,11 +28,70 @@ gh pr create --base main --head develop \
   --title "Release: <short summary>" \
   --body "What's included / what changed since last main"
 
-# Review, then merge on GitHub (squash or merge commit per your preference)
-gh pr merge --squash                  # or --merge / --rebase
+# Use --merge (real merge commit). DO NOT --squash — see the "Why merge, not
+# squash" note below.
+gh pr merge --merge
 ```
 
 After merging, `main` is the new deployable tip.
+
+### Hotfixes that go straight to `main`
+
+Sometimes an SEO/security/payment fix can't wait for a develop release. The
+flow:
+
+```bash
+git checkout -b fix/<topic> origin/main      # branch from main, NOT develop
+# ...make + commit changes...
+git push -u origin fix/<topic>
+gh pr create --base main --head fix/<topic>  # PR direct to main
+gh pr merge --merge                          # merge after review
+```
+
+**Then immediately back-merge** `main → develop` so develop doesn't fall
+behind:
+
+```bash
+git checkout -B sync-from-main origin/develop
+git merge origin/main --no-edit              # resolve any conflicts
+git push -u origin sync-from-main
+gh pr create --base develop --head sync-from-main \
+  --title "Sync develop ← main" --body ""
+gh pr merge --merge
+```
+
+Skipping the back-merge is what produced the persistent `Main` PR conflict
+on 2026-04-28. Always close the loop.
+
+## Why merge, not squash
+
+GitHub's "Squash and merge" rewrites a feature branch's commits into a
+single new commit on the target branch — with a brand-new SHA. The
+original commits keep their SHAs on the feature branch.
+
+For a one-way `feature → main` flow that's harmless. But for our
+two-branch `develop ↔ main` flow it causes a permanent divergence:
+
+- `develop` has commits `A B C` (the original feature-branch SHAs)
+- `main` has commit `S` (the squash, same content but different SHA)
+- A later back-merge `main → develop` sees `S` on main and `A B C` on
+  develop, treats them as unrelated histories, and produces phantom
+  conflicts on every line either side has touched.
+
+**Use "Create a merge commit" (`gh pr merge --merge`) for every PR**.
+This preserves SHAs across both branches, so back-merges are clean.
+
+If a PR has noisy intermediate commits and you'd really prefer a single
+clean commit, **rebase locally** (`git rebase -i origin/<base>`) before
+opening the PR — that compresses on the source side without changing
+SHAs after merge.
+
+If you ever see a back-merge PR stuck in a `DIRTY` state with conflicts
+on lines that both branches actually agree about, that's the squash-vs-
+real-merge SHA mismatch. Close that PR and open a fresh one from a
+brand-new branch off `develop` that does `git merge origin/main`; the
+fresh-branch commits don't carry the squash baggage and the conflict
+surface shrinks to whatever genuinely differs.
 
 ## Local safety net
 

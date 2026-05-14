@@ -52,86 +52,56 @@ All health endpoints are exempt from rate limiting.
 
 ## Auth — `/v1/auth`
 
-Role boundaries are strict (see `docs/architecture.md § Authentication — overview`): phone OTP is buyers-only, email/password is sellers + admins. Rejected requests return 403 with a role-specific error code.
+All roles authenticate with **email + password** since the May 2026 refactor. Buyers register at `/v1/auth/register/buyer`; sellers at `/v1/auth/register/email`; admins are seeded out-of-band. Login is shared at `/v1/auth/login/email`. See `docs/architecture.md § Authentication — overview` for the full flow.
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/v1/auth/otp/request` | Public | Request SMS OTP for a phone number (via Orange DRC SMS) |
-| POST | `/v1/auth/otp/verify` | Public | Verify OTP code |
-| POST | `/v1/auth/register` | Public | Register buyer account via phone OTP + name |
-| POST | `/v1/auth/login` | Public | Buyer login with phone + OTP. 409 `SELLER_MIGRATION_REQUIRED` for phone-only sellers; 403 `ADMIN_PHONE_AUTH_DISABLED` for admins |
-| POST | `/v1/auth/register/email` | Public | Register a seller account with email + password |
-| POST | `/v1/auth/login/email` | Public | Seller / admin login with email + password. 403 `BUYER_EMAIL_AUTH_DISABLED` for buyers |
-| POST | `/v1/auth/password-reset/request` | Public | Always 200 — no enumeration. Sends reset link if account exists |
-| POST | `/v1/auth/password-reset/confirm` | Public | Consume reset token + set new password; revokes all refresh tokens |
-| POST | `/v1/auth/seller/migrate-check` | Public | Step 1 of seller migration. Returns `email_setup_sent` / `email_required` / `already_migrated` |
-| POST | `/v1/auth/seller/migrate-link-email` | Public | Seller with no email on file verifies via phone OTP and associates an email |
-| POST | `/v1/auth/seller/setup-password` | Public | Consume 24h setup JWT, sets hash, issues cookies |
-| POST | `/v1/auth/refresh` | Public | Refresh tokens. Replay-safe: revokes all tokens on replay |
-| POST | `/v1/auth/logout` | Bearer | Logout and invalidate refresh token |
-| GET | `/v1/auth/me` | Bearer | Get current user profile |
-| POST | `/v1/auth/email/send-verification` | Bearer | Send email verification link |
-| GET | `/v1/auth/email/verify?token=...` | Public | Verify email from link |
+| POST | `/v1/auth/register/buyer` | Public | Register a buyer account with email + password. Server assigns `role=BUYER`. |
+| POST | `/v1/auth/register/email` | Public | Register a seller account with email + password. Server assigns `role=SELLER`. |
+| POST | `/v1/auth/login/email` | Public | Login with email + password (any role). Generic "Email ou mot de passe invalide" on any failure. |
+| POST | `/v1/auth/password-reset/request` | Public | Always 200 — no enumeration. Sends reset link if account exists. |
+| POST | `/v1/auth/password-reset/confirm` | Public | Consume reset token + set new password; revokes all refresh tokens. |
+| POST | `/v1/auth/buyer/migrate-check` | Public | Step 1 of buyer migration. Phone lookup → `needs_email_setup` / `already_migrated` / `unknown`. |
+| POST | `/v1/auth/buyer/migrate-link-email` | Public | Step 2 — stash email on BuyerMigration, send 24h setup link. Always neutral 200. |
+| POST | `/v1/auth/buyer/setup-password` | Public | Step 3 — consume setup JWT, set email + password, issue cookies. |
+| POST | `/v1/auth/seller/migrate-check` | Public | Email lookup → `email_setup_sent` / `email_required` / `already_migrated`. |
+| POST | `/v1/auth/seller/migrate-link-email` | Public | Phone + email → setup link to email. No OTP step (removed May 2026). |
+| POST | `/v1/auth/seller/setup-password` | Public | Consume 24h setup JWT, set password, issue cookies. |
+| POST | `/v1/auth/refresh` | Public | Refresh tokens. Replay-safe: revokes all tokens on replay. |
+| POST | `/v1/auth/logout` | Bearer | Logout and invalidate refresh token. |
+| GET | `/v1/auth/me` | Bearer | Get current user profile. |
+| POST | `/v1/auth/email/send-verification` | Bearer | Send email verification link. |
+| GET | `/v1/auth/email/verify?token=...` | Public | Verify email from link. |
 
-> **Removed endpoints**:
-> - `POST /v1/auth/otp/request-email` (email-OTP fallback for buyers) — removed when buyer auth was locked to phone-only.
-> - `POST /v1/auth/login/google` (Google OAuth) — removed when seller auth was simplified to email/password only. Clients calling either receive 404.
+> **Removed endpoints (return 404)** — covered by 404-assertion tests in `auth.e2e-spec.ts`:
+> - `POST /v1/auth/otp/request`, `POST /v1/auth/otp/verify` — phone-OTP (May 2026).
+> - `POST /v1/auth/register` — phone-OTP buyer register (May 2026).
+> - `POST /v1/auth/login` — phone-OTP login (May 2026).
+> - `POST /v1/auth/login/google` — Google OAuth (April 2026).
+> - `POST /v1/auth/otp/request-email` — email-OTP fallback (April 2026).
 
-### Request OTP
+### Email + password
 ```json
-POST /v1/auth/otp/request
-{
-  "phone": "+243XXXXXXXXX"
-}
-```
-Rate limited: max 3 requests per phone per 10 minutes.
+POST /v1/auth/register/buyer
+{ "email": "buyer@example.com", "password": "Secret123", "firstName": "Jean", "lastName": "Mukendi" }
+// Creates role=BUYER, authProvider=EMAIL_PASSWORD, phone=null.
 
-### Verify OTP
-```json
-POST /v1/auth/otp/verify
-{
-  "phone": "+243XXXXXXXXX",
-  "code": "123456"
-}
-```
-
-### Register
-```json
-POST /v1/auth/register
-{
-  "phone": "+243XXXXXXXXX",
-  "firstName": "Jean",
-  "lastName": "Mukendi",
-  "otpCode": "123456"
-}
-```
-
-### Refresh Token
-```json
-POST /v1/auth/refresh
-{
-  "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
-}
-```
-Also accepts refresh token from `teka_refresh_token` cookie.
-
-### Email + password (sellers + admins)
-```json
 POST /v1/auth/register/email
 { "email": "vendeur@example.com", "password": "Secret123", "firstName": "Jean", "lastName": "Mukendi" }
 // Creates role=SELLER. Admins are seeded out-of-band — there is no public admin registration endpoint.
 
 POST /v1/auth/login/email
-{ "email": "vendeur@example.com", "password": "Secret123" }
-// Accepts role=SELLER / ADMIN / SUPPORT / FINANCE. Buyers → 403 BUYER_EMAIL_AUTH_DISABLED.
+{ "email": "anyone@example.com", "password": "Secret123" }
+// Accepts any role.
 ```
 Password rules: min 8 / max 72 characters, at least one letter + one digit.
 Error messages are generic to avoid user enumeration (`"Email ou mot de passe invalide"`).
+On registration, a verification email is sent in the background; the user is logged in immediately (soft verification).
 
 ### Password reset
 ```json
 POST /v1/auth/password-reset/request
-{ "email": "vendeur@example.com" }
+{ "email": "anyone@example.com" }
 // Response: always 200 — "Si un compte existe, un email de réinitialisation a été envoyé."
 
 POST /v1/auth/password-reset/confirm
@@ -140,26 +110,51 @@ POST /v1/auth/password-reset/confirm
 Token TTL controlled by `PASSWORD_RESET_EXPIRY_MINUTES` (default 60).
 On confirm, all of the user's refresh tokens are revoked and `authProvider` is set to `EMAIL_PASSWORD`.
 
+### Buyer migration (legacy PHONE_OTP buyers)
+```json
+POST /v1/auth/buyer/migrate-check
+{ "phone": "+243XXXXXXXXX" }
+// → { "migration": "needs_email_setup" }   // legacy PHONE_OTP buyer
+// or { "migration": "already_migrated" }   // already on EMAIL_PASSWORD
+// or { "migration": "unknown" }            // no match (enumeration-safe)
 
-### Seller migration (existing phone-only sellers)
+POST /v1/auth/buyer/migrate-link-email
+{ "phone": "+243XXXXXXXXX", "email": "buyer@example.com" }
+// → { "migration": "email_setup_sent" }   // always neutral 200
+// (BuyerMigration.tempEmail = email; setup link sent to email; User.email NOT yet updated)
+
+POST /v1/auth/buyer/setup-password
+{ "token": "<24h buyer_password_setup JWT>", "password": "NewSecret123" }
+// → { "user": {...}, "tokens": {...} } (also sets httpOnly cookies)
+// Atomic: sets User.email = tempEmail, passwordHash, authProvider=EMAIL_PASSWORD,
+// emailVerified=true; clears tempEmail; revokes all refresh tokens.
+```
+Setup token TTL controlled by `BUYER_SETUP_EXPIRY_HOURS` (default 24).
+
+### Seller migration (legacy PHONE_OTP sellers)
 ```json
 POST /v1/auth/seller/migrate-check
 { "email": "vendeur@example.com" }
 // → { "migration": "email_setup_sent" }
-// or { "migration": "email_required", "maskedPhone": "+243*******23" }
+// or { "migration": "email_required", "maskedPhone": null }
 // or { "migration": "already_migrated" }
 
-// If email_required — seller verifies phone + attaches email
+// If email_required — seller provides phone + new email (no OTP step since May 2026)
 POST /v1/auth/seller/migrate-link-email
-{ "phone": "+243XXXXXXXXX", "code": "123456", "email": "vendeur@example.com" }
+{ "phone": "+243XXXXXXXXX", "email": "vendeur@example.com" }
 // → { "migration": "email_setup_sent" }
 
-// User clicks the email link and lands on the password-setup page
 POST /v1/auth/seller/setup-password
 { "token": "<24h seller_password_setup JWT>", "password": "NewSecret123" }
-// → { "user": {...}, "tokens": {...} } (also sets httpOnly cookies)
 ```
 Setup token TTL controlled by `SELLER_SETUP_EXPIRY_HOURS` (default 24).
+
+### Refresh Token
+```json
+POST /v1/auth/refresh
+{ "refreshToken": "eyJhbGciOiJIUzI1NiIs..." }
+```
+Also accepts refresh token from `teka_refresh_token` cookie.
 
 ---
 

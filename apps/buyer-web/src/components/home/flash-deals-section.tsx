@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
-import { Link } from '@/i18n/navigation';
+import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
 import { formatCDF } from '@/lib/format';
 import type { FlashDeal } from '@/lib/types';
