@@ -64,9 +64,15 @@ export default async function Page({ params }: Props) {
   if (!category) notFound();
 
   const name = category.name || '';
+  // Hour-precision timestamp — hints FB/LinkedIn/etc. to refresh their
+  // per-URL scrape cache. React 19 hoists <meta> tags into <head>.
+  const ogUpdated = new Date(
+    Math.floor(Date.now() / 3_600_000) * 3_600_000,
+  ).toISOString();
 
   return (
     <>
+      <meta property="og:updated_time" content={ogUpdated} />
       <JsonLd
         data={{
           '@context': 'https://schema.org',
