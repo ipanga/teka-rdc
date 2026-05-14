@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Link } from '@/i18n/navigation';
+import Link from 'next/link';
 import { useCartStore } from '@/lib/cart-store';
 import { useAuthStore } from '@/lib/auth-store';
 

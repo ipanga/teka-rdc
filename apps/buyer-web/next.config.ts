@@ -58,13 +58,15 @@ const nextConfig: NextConfig = {
       }
     }
 
-    // Strip legacy /en/* prefixes from the bilingual era. Use `:path+`
-    // (one-or-more) — `:path*` (zero-or-more) also matches `/en` alone, and
-    // Next.js emits a malformed `Location: ` (empty header) for that case,
-    // which Googlebot can't follow. The bare `/en` → `/` rule handles the
-    // no-path case explicitly.
+    // Legacy /en/* + /fr/* prefixes from when URLs had a locale segment.
+    // The platform is monolingual now; strip the prefix and redirect to the
+    // un-prefixed path. `:path+` (one-or-more) — `:path*` (zero-or-more) also
+    // matches `/en` alone, and Next.js emits a malformed `Location:` (empty
+    // header) for that case, which Googlebot can't follow.
     out.push({ source: '/en/:path+', destination: '/:path+', permanent: true });
     out.push({ source: '/en', destination: '/', permanent: true });
+    out.push({ source: '/fr/:path+', destination: '/:path+', permanent: true });
+    out.push({ source: '/fr', destination: '/', permanent: true });
 
     // Legacy /products/<slug> URLs (in use until 2026-04-26) → /<slug>.
     // Preserves Google index entries + any external product-link shares.

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
-import { useRouter } from '@/i18n/navigation';
+import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api-client';
 import type { Banner } from '@/lib/types';
 

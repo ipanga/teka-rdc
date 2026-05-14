@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, useCallback, FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
-import { Link, useRouter } from '@/i18n/navigation';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { useCityStore } from '@/lib/city-store';
 import { CartBadge } from '@/components/cart/cart-badge';

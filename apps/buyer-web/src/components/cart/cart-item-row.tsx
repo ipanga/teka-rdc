@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
-import { Link } from '@/i18n/navigation';
+import Link from 'next/link';
 import { useCartStore } from '@/lib/cart-store';
 import { formatCDF } from '@/lib/format';
 import type { CartItem } from '@/lib/types';
