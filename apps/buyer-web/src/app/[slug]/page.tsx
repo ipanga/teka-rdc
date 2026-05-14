@@ -29,6 +29,7 @@ interface ProductData {
   totalReviews: number;
   quantity: number;
   condition: string;
+  updatedAt?: string;
   images: Array<{ url: string }>;
   seller: {
     businessName?: string;
@@ -225,12 +226,15 @@ export default async function Page({ params }: Props) {
     const page = await serverFetch<ApiContentPage>(`/v1/content/${canonical}`);
     if (page && page.status === 'PUBLISHED') {
       return (
-        <ContentPageView
-          slug={canonicalToUrlSlug(canonical)}
-          canonical={canonical}
-          title={pickStr(page.title)}
-          body={pickStr(page.content)}
-        />
+        <>
+          <OgUpdatedTime />
+          <ContentPageView
+            slug={canonicalToUrlSlug(canonical)}
+            canonical={canonical}
+            title={pickStr(page.title)}
+            body={pickStr(page.content)}
+          />
+        </>
       );
     }
   }
@@ -294,6 +298,7 @@ export default async function Page({ params }: Props) {
 
     return (
       <>
+        <OgUpdatedTime value={product.updatedAt} />
         <JsonLd data={productJsonLd} />
         <JsonLd data={breadcrumbJsonLd} />
         <ProductDetailPage />
@@ -302,4 +307,20 @@ export default async function Page({ params }: Props) {
   }
 
   notFound();
+}
+
+/**
+ * Emits `<meta property="og:updated_time">` into the document head (React 19
+ * hoists `<meta>` tags from anywhere in the tree). Forces Facebook, LinkedIn,
+ * and similar crawlers to invalidate their per-URL scrape cache on the next
+ * encounter — they treat a changed `og:updated_time` as a signal that the
+ * content has been republished. Without this, FB's stale "cached 403" verdict
+ * for a URL can persist for 24–48h even after the underlying issue is fixed.
+ *
+ * Default value: an hour-precision timestamp so the page stays cache-friendly
+ * (same value across consecutive renders within the hour, fresh value after).
+ */
+function OgUpdatedTime({ value }: { value?: string }) {
+  const stamp = value ?? new Date(Math.floor(Date.now() / 3_600_000) * 3_600_000).toISOString();
+  return <meta property="og:updated_time" content={stamp} />;
 }
