@@ -317,10 +317,15 @@ export default async function Page({ params }: Props) {
  * content has been republished. Without this, FB's stale "cached 403" verdict
  * for a URL can persist for 24–48h even after the underlying issue is fixed.
  *
- * Default value: an hour-precision timestamp so the page stays cache-friendly
- * (same value across consecutive renders within the hour, fresh value after).
+ * Uses Math.max(product.updatedAt, hour-precision now) so the timestamp is
+ * always at least as fresh as the current hour — guarantees FB sees a value
+ * newer than any previously-cached state, regardless of how old the product
+ * row is in the DB. Hour precision keeps Next.js prerender / CDN caches
+ * cohesive within the same hour.
  */
 function OgUpdatedTime({ value }: { value?: string }) {
-  const stamp = value ?? new Date(Math.floor(Date.now() / 3_600_000) * 3_600_000).toISOString();
+  const now = Math.floor(Date.now() / 3_600_000) * 3_600_000;
+  const product = value ? Date.parse(value) : 0;
+  const stamp = new Date(Math.max(now, Number.isFinite(product) ? product : 0)).toISOString();
   return <meta property="og:updated_time" content={stamp} />;
 }
