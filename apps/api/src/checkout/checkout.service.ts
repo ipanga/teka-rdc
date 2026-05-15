@@ -146,7 +146,9 @@ export class CheckoutService {
 
           // Estimate delivery fee — use city name if available, fall back to location string
           const fromTown =
-            sellerProfile?.city?.name ?? sellerProfile?.location ?? 'Lubumbashi';
+            sellerProfile?.city?.name ??
+            sellerProfile?.location ??
+            'Lubumbashi';
           const deliveryEstimate = await this.deliveryZonesService.estimateFee(
             fromTown,
             address.town,

@@ -20,8 +20,12 @@ describe('Auth (e2e)', () => {
 
   // ---------------------------------------------------------------------------
   // Removed endpoints — assert 404 so a regression that re-adds them is caught.
-  // Phone-OTP auth was removed in the 2026-05-12 buyer email refactor; Google
-  // login was removed earlier (April 2026); email-OTP fallback also removed.
+  // - Phone-OTP auth removed 2026-05-12 (re-introduced for buyers only via
+  //   WhatsApp OTP on 2026-05-15 — see /buyer/otp/* below).
+  // - Google login removed April 2026.
+  // - Email-OTP fallback removed earlier.
+  // - Buyer email+password endpoints (register/buyer, buyer/migrate-*,
+  //   buyer/setup-password) removed 2026-05-15 in favor of WhatsApp OTP.
   // ---------------------------------------------------------------------------
   describe('Removed endpoints return 404', () => {
     it.each([
@@ -41,9 +45,35 @@ describe('Auth (e2e)', () => {
           lastName: 'Y',
         },
       ],
-      ['POST', '/api/v1/auth/login', { phone: '+243999000001', code: '123456' }],
+      [
+        'POST',
+        '/api/v1/auth/login',
+        { phone: '+243999000001', code: '123456' },
+      ],
       ['POST', '/api/v1/auth/login/google', { idToken: 'whatever' }],
       ['POST', '/api/v1/auth/otp/request-email', { phone: '+243999000001' }],
+      // Removed 2026-05-15 — buyer auth migrated to WhatsApp OTP.
+      [
+        'POST',
+        '/api/v1/auth/register/buyer',
+        {
+          email: 'b@x.cd',
+          password: 'GoodPass123',
+          firstName: 'A',
+          lastName: 'B',
+        },
+      ],
+      ['POST', '/api/v1/auth/buyer/migrate-check', { phone: '+243999000001' }],
+      [
+        'POST',
+        '/api/v1/auth/buyer/migrate-link-email',
+        { phone: '+243999000001', email: 'b@x.cd' },
+      ],
+      [
+        'POST',
+        '/api/v1/auth/buyer/setup-password',
+        { token: 'whatever', password: 'GoodPass123' },
+      ],
     ])('%s %s returns 404', async (method, url, body) => {
       await request(app.getHttpServer())
         [method.toLowerCase() as 'post'](url)
@@ -53,107 +83,10 @@ describe('Auth (e2e)', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // POST /api/v1/auth/register/buyer — email + password buyer registration
-  // ---------------------------------------------------------------------------
-  describe('POST /api/v1/auth/register/buyer', () => {
-    it('rejects empty body', async () => {
-      await request(app.getHttpServer())
-        .post('/api/v1/auth/register/buyer')
-        .send({})
-        .expect(400);
-    });
-
-    it('rejects invalid email', async () => {
-      await request(app.getHttpServer())
-        .post('/api/v1/auth/register/buyer')
-        .send({
-          email: 'not-an-email',
-          password: 'GoodPass123',
-          firstName: 'Jean',
-          lastName: 'Kabeya',
-        })
-        .expect(400);
-    });
-
-    it('rejects weak password (no digit)', async () => {
-      await request(app.getHttpServer())
-        .post('/api/v1/auth/register/buyer')
-        .send({
-          email: 'buyer@example.cd',
-          password: 'OnlyLetters',
-          firstName: 'Jean',
-          lastName: 'Kabeya',
-        })
-        .expect(400);
-    });
-
-    it('rejects when email already taken', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue({
-        id: 'existing-id',
-        email: 'taken@example.cd',
-      });
-
-      await request(app.getHttpServer())
-        .post('/api/v1/auth/register/buyer')
-        .send({
-          email: 'taken@example.cd',
-          password: 'GoodPass123',
-          firstName: 'Jean',
-          lastName: 'Kabeya',
-        })
-        .expect(409);
-    });
-
-    it('creates a buyer with role=BUYER and authProvider=EMAIL_PASSWORD', async () => {
-      const mockUser = {
-        id: '10000000-0000-0000-0000-000000000099',
-        phone: null,
-        email: 'newbuyer@example.cd',
-        firstName: 'Jean',
-        lastName: 'Kabeya',
-        role: 'BUYER',
-        status: 'ACTIVE',
-        authProvider: 'EMAIL_PASSWORD',
-        emailVerified: false,
-        passwordHash: 'hashed',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      // First findUnique = email-uniqueness check (returns null)
-      // Subsequent calls for sendEmailVerification etc. also return the user
-      mockPrismaService.user.findUnique
-        .mockResolvedValueOnce(null)
-        .mockResolvedValue(mockUser);
-      mockPrismaService.user.create.mockResolvedValue(mockUser);
-      mockPrismaService.user.update.mockResolvedValue(mockUser);
-      mockPrismaService.refreshToken.create.mockResolvedValue({});
-
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/register/buyer')
-        .send({
-          email: 'newbuyer@example.cd',
-          password: 'GoodPass123',
-          firstName: 'Jean',
-          lastName: 'Kabeya',
-        })
-        .expect(201);
-
-      expect(res.body.success).toBe(true);
-      expect(res.body.data.user.role).toBe('BUYER');
-      expect(res.body.data.user.authProvider).toBe('EMAIL_PASSWORD');
-      expect(res.body.data.tokens.accessToken).toBeDefined();
-      expect(res.body.data.tokens.refreshToken).toBeDefined();
-      expect(mockPrismaService.user.create).toHaveBeenCalledTimes(1);
-      const createArgs = mockPrismaService.user.create.mock.calls[0][0];
-      expect(createArgs.data.role).toBe('BUYER');
-      expect(createArgs.data.phone).toBeNull();
-      expect(createArgs.data.authProvider).toBe('EMAIL_PASSWORD');
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // POST /api/v1/auth/login/email — now accepts BUYER (previously rejected)
+  // POST /api/v1/auth/login/email — sellers and admins. Buyer email login
+  // is soft-deprecated (the endpoint still exists for the 3-day-window
+  // email+password buyer cohort to keep them from being locked out, but the
+  // buyer-web no longer links here).
   // ---------------------------------------------------------------------------
   describe('POST /api/v1/auth/login/email', () => {
     it('rejects invalid credentials with 401', async () => {
@@ -217,9 +150,9 @@ describe('Auth (e2e)', () => {
         .send({ email: 'contact@teka.cd' })
         .expect(200);
 
-      expect(
-        mockPrismaService.passwordResetToken.create,
-      ).toHaveBeenCalledTimes(1);
+      expect(mockPrismaService.passwordResetToken.create).toHaveBeenCalledTimes(
+        1,
+      );
     });
 
     it('returns 200 + creates token for SELLER', async () => {
@@ -239,19 +172,19 @@ describe('Auth (e2e)', () => {
         .send({ email: 'seller@example.cd' })
         .expect(200);
 
-      expect(
-        mockPrismaService.passwordResetToken.create,
-      ).toHaveBeenCalledTimes(1);
+      expect(mockPrismaService.passwordResetToken.create).toHaveBeenCalledTimes(
+        1,
+      );
     });
 
-    it('returns 200 + creates token for BUYER (post-refactor — was excluded before)', async () => {
+    it('returns 200 but does NOT create token for BUYER (2026-05-15: buyers have no password)', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue({
         id: 'buyer-id',
         email: 'buyer@example.cd',
         role: 'BUYER',
         status: 'ACTIVE',
-        authProvider: 'EMAIL_PASSWORD',
-        passwordHash: 'hashed',
+        authProvider: 'PHONE_OTP',
+        passwordHash: null,
         deletedAt: null,
       });
       mockPrismaService.passwordResetToken.create.mockResolvedValue({});
@@ -263,7 +196,7 @@ describe('Auth (e2e)', () => {
 
       expect(
         mockPrismaService.passwordResetToken.create,
-      ).toHaveBeenCalledTimes(1);
+      ).not.toHaveBeenCalled();
     });
 
     it('returns 200 (enumeration-safe) for unknown email', async () => {
@@ -281,162 +214,278 @@ describe('Auth (e2e)', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // Buyer migration (PHONE_OTP legacy → email+password). Three-step flow:
-  // migrate-check → migrate-link-email → setup-password.
+  // Buyer WhatsApp OTP — primary buyer auth surface since 2026-05-15.
   // ---------------------------------------------------------------------------
-  describe('POST /api/v1/auth/buyer/migrate-check', () => {
+  describe('POST /api/v1/auth/buyer/otp/request', () => {
     it('rejects invalid phone format', async () => {
       await request(app.getHttpServer())
-        .post('/api/v1/auth/buyer/migrate-check')
+        .post('/api/v1/auth/buyer/otp/request')
         .send({ phone: 'not-a-phone' })
         .expect(400);
     });
 
-    it('returns "unknown" for non-existent phone (enumeration-safe)', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue(null);
+    it('issues OTP for valid phone (mock provider emits DEV code)', async () => {
+      mockPrismaService.otpRateLimit.deleteMany.mockResolvedValue({ count: 0 });
+      mockPrismaService.otpRateLimit.findFirst.mockResolvedValue(null);
+      mockPrismaService.otpRateLimit.create.mockResolvedValue({});
+      mockPrismaService.otp.deleteMany.mockResolvedValue({ count: 0 });
+      mockPrismaService.otp.create.mockResolvedValue({});
 
       const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/buyer/migrate-check')
+        .post('/api/v1/auth/buyer/otp/request')
         .send({ phone: '+243999000001' })
         .expect(200);
 
-      expect(res.body.data.migration).toBe('unknown');
+      expect(res.body.data.expiresInSeconds).toBe(300);
+      expect(mockPrismaService.otp.create).toHaveBeenCalled();
     });
 
-    it('returns "needs_email_setup" for legacy PHONE_OTP buyer', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue({
-        id: 'buyer-id',
+    it('returns 429 when rate limit ceiling is exceeded', async () => {
+      mockPrismaService.otpRateLimit.deleteMany.mockResolvedValue({ count: 0 });
+      // Existing window already at max attempts.
+      mockPrismaService.otpRateLimit.findFirst.mockResolvedValue({
+        id: 'rate-id',
         phone: '+243999000001',
-        email: null,
-        role: 'BUYER',
-        authProvider: 'PHONE_OTP',
-        passwordHash: null,
-        deletedAt: null,
+        count: 3,
+        expiresAt: new Date(Date.now() + 60_000),
       });
 
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/buyer/migrate-check')
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/otp/request')
         .send({ phone: '+243999000001' })
-        .expect(200);
+        .expect(429);
+    });
+  });
 
-      expect(res.body.data.migration).toBe('needs_email_setup');
+  describe('POST /api/v1/auth/buyer/otp/verify', () => {
+    it('rejects wrong code with 401', async () => {
+      mockPrismaService.otp.findFirst.mockResolvedValue({
+        id: 'otp-1',
+        phone: '+243999000001',
+        // sha256('000000') — won't match the submitted '123456'
+        code: '91b4d142823f7d20c5f08df69122de43f35f057a988d9619f6d3138485c9a203',
+        attempts: 0,
+        expiresAt: new Date(Date.now() + 300_000),
+        createdAt: new Date(),
+      });
+      mockPrismaService.otp.update.mockResolvedValue({});
+
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/otp/verify')
+        .send({ phone: '+243999000001', code: '123456' })
+        .expect(401);
     });
 
-    it('returns "already_migrated" for buyer with EMAIL_PASSWORD + hash', async () => {
-      mockPrismaService.user.findUnique.mockResolvedValue({
-        id: 'buyer-id',
+    it('logs in existing buyer on correct code', async () => {
+      const buyer = {
+        id: 'buyer-1',
         phone: '+243999000001',
-        email: 'buyer@example.cd',
+        email: null,
+        firstName: 'Jean',
+        lastName: 'Kabeya',
         role: 'BUYER',
+        status: 'ACTIVE',
+        authProvider: 'PHONE_OTP',
+        phoneVerified: true,
+        deletedAt: null,
+      };
+      mockPrismaService.otp.findFirst.mockResolvedValue({
+        id: 'otp-1',
+        phone: '+243999000001',
+        // sha256('123456')
+        code: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92',
+        attempts: 0,
+        expiresAt: new Date(Date.now() + 300_000),
+        createdAt: new Date(),
+      });
+      mockPrismaService.otp.deleteMany.mockResolvedValue({ count: 1 });
+      mockPrismaService.user.findFirst.mockResolvedValue(buyer);
+      mockPrismaService.user.update.mockResolvedValue(buyer);
+      mockPrismaService.refreshToken.create.mockResolvedValue({});
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/otp/verify')
+        .send({ phone: '+243999000001', code: '123456' })
+        .expect(200);
+
+      expect(res.body.data.user.id).toBe('buyer-1');
+      expect(res.body.data.user.role).toBe('BUYER');
+      expect(res.body.data.tokens.accessToken).toBeDefined();
+      // No user creation on existing-phone path.
+      expect(mockPrismaService.user.create).not.toHaveBeenCalled();
+    });
+
+    it('creates a new BUYER when phone is unknown', async () => {
+      mockPrismaService.otp.findFirst.mockResolvedValue({
+        id: 'otp-1',
+        phone: '+243999000002',
+        code: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92',
+        attempts: 0,
+        expiresAt: new Date(Date.now() + 300_000),
+        createdAt: new Date(),
+      });
+      mockPrismaService.otp.deleteMany.mockResolvedValue({ count: 1 });
+      mockPrismaService.user.findFirst.mockResolvedValue(null);
+      const newUser = {
+        id: 'new-buyer',
+        phone: '+243999000002',
+        role: 'BUYER',
+        status: 'ACTIVE',
+        authProvider: 'PHONE_OTP',
+        phoneVerified: true,
+        deletedAt: null,
+      };
+      mockPrismaService.user.create.mockResolvedValue(newUser);
+      mockPrismaService.user.update.mockResolvedValue(newUser);
+      mockPrismaService.refreshToken.create.mockResolvedValue({});
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/otp/verify')
+        .send({
+          phone: '+243999000002',
+          code: '123456',
+          firstName: 'Nouvelle',
+          lastName: 'Acheteuse',
+        })
+        .expect(200);
+
+      expect(res.body.data.user.role).toBe('BUYER');
+      expect(mockPrismaService.user.create).toHaveBeenCalledTimes(1);
+      const createArgs = mockPrismaService.user.create.mock.calls[0][0];
+      expect(createArgs.data.phone).toBe('+243999000002');
+      expect(createArgs.data.authProvider).toBe('PHONE_OTP');
+    });
+
+    it('signs into seller account when phone belongs to a seller (decision #3)', async () => {
+      const seller = {
+        id: 'seller-1',
+        phone: '+243999000003',
+        email: 'seller@example.cd',
+        role: 'SELLER',
+        status: 'ACTIVE',
         authProvider: 'EMAIL_PASSWORD',
         passwordHash: 'hashed',
         deletedAt: null,
+      };
+      mockPrismaService.otp.findFirst.mockResolvedValue({
+        id: 'otp-1',
+        phone: '+243999000003',
+        code: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92',
+        attempts: 0,
+        expiresAt: new Date(Date.now() + 300_000),
+        createdAt: new Date(),
+      });
+      mockPrismaService.otp.deleteMany.mockResolvedValue({ count: 1 });
+      mockPrismaService.user.findFirst.mockResolvedValue(seller);
+      mockPrismaService.user.update.mockResolvedValue(seller);
+      mockPrismaService.refreshToken.create.mockResolvedValue({});
+
+      const res = await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/otp/verify')
+        .send({ phone: '+243999000003', code: '123456' })
+        .expect(200);
+
+      expect(res.body.data.user.role).toBe('SELLER');
+      expect(mockPrismaService.user.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('POST /api/v1/auth/buyer/otp/resend', () => {
+    it('rejects invalid phone format', async () => {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/otp/resend')
+        .send({ phone: 'bad' })
+        .expect(400);
+    });
+
+    it('returns 429 when resend cooldown not yet elapsed', async () => {
+      mockPrismaService.otp.findFirst.mockResolvedValue({
+        id: 'otp-1',
+        phone: '+243999000001',
+        code: 'whatever',
+        attempts: 0,
+        expiresAt: new Date(Date.now() + 290_000),
+        createdAt: new Date(Date.now() - 5_000), // 5s ago, under 30s cooldown
       });
 
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/buyer/migrate-check')
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/otp/resend')
         .send({ phone: '+243999000001' })
-        .expect(200);
-
-      expect(res.body.data.migration).toBe('already_migrated');
+        .expect(429);
     });
   });
 
-  describe('POST /api/v1/auth/buyer/migrate-link-email', () => {
-    it('rejects invalid email', async () => {
-      await request(app.getHttpServer())
-        .post('/api/v1/auth/buyer/migrate-link-email')
-        .send({ phone: '+243999000001', email: 'not-an-email' })
-        .expect(400);
-    });
-
-    it('returns neutral 200 for unknown phone (enumeration-safe)', async () => {
+  // ---------------------------------------------------------------------------
+  // Buyer claim flow — for email-only legacy buyers (User.phone IS NULL).
+  // ---------------------------------------------------------------------------
+  describe('POST /api/v1/auth/buyer/claim/request', () => {
+    it('returns neutral 200 for unknown email (enumeration-safe)', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(null);
 
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/buyer/migrate-link-email')
-        .send({
-          phone: '+243999000001',
-          email: 'someone@example.cd',
-        })
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/claim/request')
+        .send({ email: 'unknown@example.cd' })
         .expect(200);
 
-      expect(res.body.data.migration).toBe('email_setup_sent');
       expect(mockPrismaService.buyerMigration.upsert).not.toHaveBeenCalled();
     });
 
-    it('stashes tempEmail in BuyerMigration and sends setup link', async () => {
-      mockPrismaService.user.findUnique
-        // 1st: lookup by phone → existing buyer
-        .mockResolvedValueOnce({
-          id: 'buyer-id',
-          phone: '+243999000001',
-          email: null,
-          role: 'BUYER',
-          authProvider: 'PHONE_OTP',
-          passwordHash: null,
-          deletedAt: null,
-        })
-        // 2nd: email-uniqueness check → no conflict
-        .mockResolvedValueOnce(null);
+    it('upserts BuyerMigration + sends email for an email-only BUYER', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'buyer-1',
+        email: 'orphan@example.cd',
+        role: 'BUYER',
+        phone: null,
+        deletedAt: null,
+      });
       mockPrismaService.buyerMigration.upsert.mockResolvedValue({});
 
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/buyer/migrate-link-email')
-        .send({
-          phone: '+243999000001',
-          email: 'newbuyer@example.cd',
-        })
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/claim/request')
+        .send({ email: 'orphan@example.cd' })
         .expect(200);
 
-      expect(res.body.data.migration).toBe('email_setup_sent');
       expect(mockPrismaService.buyerMigration.upsert).toHaveBeenCalledTimes(1);
-      const upsertArgs =
-        mockPrismaService.buyerMigration.upsert.mock.calls[0][0];
-      expect(upsertArgs.create.tempEmail).toBe('newbuyer@example.cd');
     });
 
-    it('silently refuses when chosen email is owned by another user', async () => {
-      mockPrismaService.user.findUnique
-        .mockResolvedValueOnce({
-          id: 'buyer-id',
-          phone: '+243999000001',
-          role: 'BUYER',
-          authProvider: 'PHONE_OTP',
-          passwordHash: null,
-          deletedAt: null,
-        })
-        .mockResolvedValueOnce({
-          id: 'OTHER-USER',
-          email: 'taken@example.cd',
-          deletedAt: null,
-        });
+    it('does nothing for buyer that already has a phone', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        id: 'buyer-1',
+        email: 'has-phone@example.cd',
+        role: 'BUYER',
+        phone: '+243999000099',
+        deletedAt: null,
+      });
 
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/buyer/migrate-link-email')
-        .send({
-          phone: '+243999000001',
-          email: 'taken@example.cd',
-        })
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/claim/request')
+        .send({ email: 'has-phone@example.cd' })
         .expect(200);
 
-      expect(res.body.data.migration).toBe('email_setup_sent');
       expect(mockPrismaService.buyerMigration.upsert).not.toHaveBeenCalled();
     });
   });
 
-  describe('POST /api/v1/auth/buyer/setup-password', () => {
-    it('rejects invalid token', async () => {
+  describe('POST /api/v1/auth/buyer/claim/verify', () => {
+    it('rejects an invalid token with 400', async () => {
       await request(app.getHttpServer())
-        .post('/api/v1/auth/buyer/setup-password')
-        .send({ token: 'not-a-jwt', password: 'GoodPass123' })
+        .post('/api/v1/auth/buyer/claim/verify')
+        .send({
+          token: 'not-a-jwt',
+          phone: '+243999000001',
+          code: '123456',
+        })
         .expect(400);
     });
 
-    it('rejects weak password', async () => {
+    it('rejects invalid OTP code shape with 400', async () => {
       await request(app.getHttpServer())
-        .post('/api/v1/auth/buyer/setup-password')
-        .send({ token: 'whatever', password: 'short' })
+        .post('/api/v1/auth/buyer/claim/verify')
+        .send({
+          token: 'whatever',
+          phone: '+243999000001',
+          code: 'abc',
+        })
         .expect(400);
     });
   });

@@ -3,45 +3,44 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/storage/secure_storage.dart';
 
+/// Buyer authentication via WhatsApp OTP (Gupshup) since 2026-05-15.
+/// The previous email+password buyer flow lived here from 2026-05-12 to
+/// 2026-05-15 — its repository methods (loginWithEmail, registerBuyer*,
+/// migrateBuyer*, setupBuyerPassword) were removed in favor of OTP +
+/// the email-only "claim" flow.
 class AuthRepository {
   final Dio _dio;
   final TokenStorage _tokenStorage;
 
   AuthRepository(this._dio, this._tokenStorage);
 
-  // Email + password ——————————————————————————————————————————————————————————
+  // Buyer WhatsApp OTP ————————————————————————————————————————————————————————
 
-  Future<Map<String, dynamic>> loginWithEmail(
-    String email,
-    String password,
-  ) async {
+  /// Issues a 6-digit OTP via WhatsApp (Gupshup). Server returns
+  /// `{ expiresInSeconds, cooldownSeconds }`.
+  Future<Map<String, dynamic>> requestBuyerOtp(String phone) async {
     final response = await _dio.post(
-      '/v1/auth/login/email',
-      data: {'email': email, 'password': password},
+      '/v1/auth/buyer/otp/request',
+      data: {'phone': phone},
     );
-    final data = response.data['data'] ?? response.data;
-    if (data['tokens'] != null) {
-      await _tokenStorage.saveTokens(
-        data['tokens']['accessToken'],
-        data['tokens']['refreshToken'],
-      );
-    }
-    return data;
+    return response.data['data'] ?? response.data;
   }
 
-  Future<Map<String, dynamic>> registerBuyerWithEmail(
-    String email,
-    String password,
-    String firstName,
-    String lastName,
-  ) async {
+  /// Verifies the OTP and either signs into an existing User (any role) or
+  /// creates a new BUYER. Persists access + refresh tokens on success.
+  Future<Map<String, dynamic>> verifyBuyerOtp({
+    required String phone,
+    required String code,
+    String? firstName,
+    String? lastName,
+  }) async {
     final response = await _dio.post(
-      '/v1/auth/register/buyer',
+      '/v1/auth/buyer/otp/verify',
       data: {
-        'email': email,
-        'password': password,
-        'firstName': firstName,
-        'lastName': lastName,
+        'phone': phone,
+        'code': code,
+        if (firstName != null && firstName.isNotEmpty) 'firstName': firstName,
+        if (lastName != null && lastName.isNotEmpty) 'lastName': lastName,
       },
     );
     final data = response.data['data'] ?? response.data;
@@ -54,50 +53,35 @@ class AuthRepository {
     return data;
   }
 
-  Future<void> requestPasswordReset(String email) async {
-    await _dio.post(
-      '/v1/auth/password-reset/request',
-      data: {'email': email},
-    );
-  }
-
-  Future<void> confirmPasswordReset(String token, String newPassword) async {
-    await _dio.post(
-      '/v1/auth/password-reset/confirm',
-      data: {'token': token, 'newPassword': newPassword},
-    );
-  }
-
-  // Buyer migration ———————————————————————————————————————————————————————————
-
-  /// Returns `{ migration: 'needs_email_setup' | 'already_migrated' | 'unknown' }`.
-  Future<Map<String, dynamic>> migrateBuyerCheck(String phone) async {
+  Future<Map<String, dynamic>> resendBuyerOtp(String phone) async {
     final response = await _dio.post(
-      '/v1/auth/buyer/migrate-check',
+      '/v1/auth/buyer/otp/resend',
       data: {'phone': phone},
     );
     return response.data['data'] ?? response.data;
   }
 
-  Future<Map<String, dynamic>> migrateBuyerLinkEmail({
-    required String phone,
-    required String email,
-  }) async {
-    final response = await _dio.post(
-      '/v1/auth/buyer/migrate-link-email',
-      data: {'phone': phone, 'email': email},
+  // Buyer claim flow (email-only legacy buyers) ——————————————————————————————
+
+  /// Step 1 of /reclamer-compte: emails a magic link to the legacy buyer's
+  /// inbox. Always 200 (enumeration-safe).
+  Future<void> requestBuyerClaim(String email) async {
+    await _dio.post(
+      '/v1/auth/buyer/claim/request',
+      data: {'email': email},
     );
-    return response.data['data'] ?? response.data;
   }
 
-  /// Consumes the 24h setup JWT, sets the password, issues fresh tokens.
-  Future<Map<String, dynamic>> setupBuyerPassword(
-    String token,
-    String password,
-  ) async {
+  /// Step 2 of /reclamer-compte: verifies the magic-link JWT + a fresh OTP
+  /// and attaches the phone to the existing User.
+  Future<Map<String, dynamic>> verifyBuyerClaim({
+    required String token,
+    required String phone,
+    required String code,
+  }) async {
     final response = await _dio.post(
-      '/v1/auth/buyer/setup-password',
-      data: {'token': token, 'password': password},
+      '/v1/auth/buyer/claim/verify',
+      data: {'token': token, 'phone': phone, 'code': code},
     );
     final data = response.data['data'] ?? response.data;
     if (data['tokens'] != null) {

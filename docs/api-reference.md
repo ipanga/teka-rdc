@@ -52,18 +52,19 @@ All health endpoints are exempt from rate limiting.
 
 ## Auth — `/v1/auth`
 
-All roles authenticate with **email + password** since the May 2026 refactor. Buyers register at `/v1/auth/register/buyer`; sellers at `/v1/auth/register/email`; admins are seeded out-of-band. Login is shared at `/v1/auth/login/email`. See `docs/architecture.md § Authentication — overview` for the full flow.
+Authentication is role-specific since 2026-05-15: **sellers + admins use email + password**, **buyers use WhatsApp OTP via Gupshup**. Sellers register at `/v1/auth/register/email`; admins are seeded out-of-band; buyers register implicitly on first WhatsApp OTP verify. Login: `/v1/auth/login/email` for sellers + admins, `/v1/auth/buyer/otp/*` for buyers. See `docs/architecture.md § Authentication` for the full flow.
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/v1/auth/register/buyer` | Public | Register a buyer account with email + password. Server assigns `role=BUYER`. |
+| POST | `/v1/auth/buyer/otp/request` | Public | Issue 6-digit OTP, deliver via WhatsApp (Gupshup template). sha256-hashed in DB. Rate-limited 3 / 600s. |
+| POST | `/v1/auth/buyer/otp/verify` | Public | Verify OTP → find-or-create User by phone, issue tokens + cookies. Optional `firstName/lastName` on first verify. |
+| POST | `/v1/auth/buyer/otp/resend` | Public | Re-issue OTP. 30s minimum cooldown between resends. Returns `{ expiresInSeconds, cooldownSeconds }`. |
+| POST | `/v1/auth/buyer/claim/request` | Public | Step 1 of email-only legacy claim. Always neutral 200. Emails a 24h magic link if a matching email-only buyer exists. |
+| POST | `/v1/auth/buyer/claim/verify` | Public | Step 2 — verify magic-link JWT + fresh OTP, attach phone to existing User, revoke refresh tokens, issue new ones. |
 | POST | `/v1/auth/register/email` | Public | Register a seller account with email + password. Server assigns `role=SELLER`. |
-| POST | `/v1/auth/login/email` | Public | Login with email + password (any role). Generic "Email ou mot de passe invalide" on any failure. |
-| POST | `/v1/auth/password-reset/request` | Public | Always 200 — no enumeration. Sends reset link if account exists. |
+| POST | `/v1/auth/login/email` | Public | Login with email + password (sellers + admins; soft-deprecated edge case for legacy email-buyer cohort 2026-05-12 → 2026-05-15). |
+| POST | `/v1/auth/password-reset/request` | Public | Always 200. Sends reset link only for ADMIN/SELLER; buyers have no password to reset (use `/v1/auth/buyer/claim/request` instead). |
 | POST | `/v1/auth/password-reset/confirm` | Public | Consume reset token + set new password; revokes all refresh tokens. |
-| POST | `/v1/auth/buyer/migrate-check` | Public | Step 1 of buyer migration. Phone lookup → `needs_email_setup` / `already_migrated` / `unknown`. |
-| POST | `/v1/auth/buyer/migrate-link-email` | Public | Step 2 — stash email on BuyerMigration, send 24h setup link. Always neutral 200. |
-| POST | `/v1/auth/buyer/setup-password` | Public | Step 3 — consume setup JWT, set email + password, issue cookies. |
 | POST | `/v1/auth/seller/migrate-check` | Public | Email lookup → `email_setup_sent` / `email_required` / `already_migrated`. |
 | POST | `/v1/auth/seller/migrate-link-email` | Public | Phone + email → setup link to email. No OTP step (removed May 2026). |
 | POST | `/v1/auth/seller/setup-password` | Public | Consume 24h setup JWT, set password, issue cookies. |
@@ -74,25 +75,80 @@ All roles authenticate with **email + password** since the May 2026 refactor. Bu
 | GET | `/v1/auth/email/verify?token=...` | Public | Verify email from link. |
 
 > **Removed endpoints (return 404)** — covered by 404-assertion tests in `auth.e2e-spec.ts`:
-> - `POST /v1/auth/otp/request`, `POST /v1/auth/otp/verify` — phone-OTP (May 2026).
+> - `POST /v1/auth/otp/request`, `POST /v1/auth/otp/verify` — original phone-OTP (May 2026; the new buyer OTP lives under `/v1/auth/buyer/otp/*`).
 > - `POST /v1/auth/register` — phone-OTP buyer register (May 2026).
 > - `POST /v1/auth/login` — phone-OTP login (May 2026).
 > - `POST /v1/auth/login/google` — Google OAuth (April 2026).
 > - `POST /v1/auth/otp/request-email` — email-OTP fallback (April 2026).
+> - `POST /v1/auth/register/buyer` — email+password buyer register (2026-05-15; replaced by WhatsApp OTP).
+> - `POST /v1/auth/buyer/migrate-check`, `POST /v1/auth/buyer/migrate-link-email`, `POST /v1/auth/buyer/setup-password` — phone→email migration (2026-05-15; replaced by `/v1/auth/buyer/claim/*`).
 
-### Email + password
+### Buyer WhatsApp OTP (since 2026-05-15)
 ```json
-POST /v1/auth/register/buyer
-{ "email": "buyer@example.com", "password": "Secret123", "firstName": "Jean", "lastName": "Mukendi" }
-// Creates role=BUYER, authProvider=EMAIL_PASSWORD, phone=null.
+POST /v1/auth/buyer/otp/request
+{ "phone": "+243990000001" }
+// → 200 { "expiresInSeconds": 300, "cooldownSeconds": 30 }
+// → 400 if phone shape !~ /^\+243\d{9}$/
+// → 429 if rate-limited (3 requests / 600s window per phone)
 
+POST /v1/auth/buyer/otp/verify
+{
+  "phone": "+243990000001",
+  "code": "123456",
+  "firstName": "Jean",     // optional — captured only if creating a new buyer
+  "lastName":  "Mukendi"    // optional
+}
+// → 200 { "user": {...}, "tokens": {...} } (also sets httpOnly cookies)
+// → 401 on wrong/expired code
+// Behavior:
+//   - phone matches an existing User (any role): log in. If role=SELLER,
+//     buyer-web redirects to SELLER_WEB_URL (global phone uniqueness).
+//   - no User with phone: create role=BUYER, authProvider=PHONE_OTP,
+//     phoneVerified=true, status=ACTIVE.
+
+POST /v1/auth/buyer/otp/resend
+{ "phone": "+243990000001" }
+// → 200 { "expiresInSeconds": 300, "cooldownSeconds": 30 }
+// → 429 if within the 30s cooldown since last issue
+```
+OTP delivery uses Gupshup's WhatsApp Business template API. Code is generated locally (`crypto.randomInt`, 6 digits zero-padded) and stored as **sha256** hex; the plaintext code never touches the database. In dev with `WHATSAPP_PROVIDER=mock`, the code is the constant `123456` (also written to API stdout as `[MOCK WHATSAPP OTP] phone=... code=...`).
+
+### Buyer claim flow (legacy email-only buyers)
+The 2026-05-12 → 2026-05-15 email+password buyer cohort has `User.phone IS NULL`. They attach a phone via this two-step flow:
+```json
+POST /v1/auth/buyer/claim/request
+{ "email": "orphan@example.com" }
+// → 200 { "message": "Si un compte correspond, un email vous a été envoyé." }
+// Enumeration-safe: returns identical response whether or not the email exists.
+// If a match exists (BUYER + phone=null): emails a 24h JWT magic link to
+// ${BUYER_WEB_URL}/reclamer-compte/confirmer?token=<jwt>
+
+POST /v1/auth/buyer/claim/verify
+{
+  "token":  "<24h buyer_phone_claim JWT>",
+  "phone":  "+243990000001",
+  "code":   "123456"
+}
+// → 200 { "user": {...}, "tokens": {...} }  (sets httpOnly cookies)
+// → 400 if token invalid/expired/wrong-type
+// → 401 if OTP wrong
+// → 409 if another user already holds this phone (user is directed to
+//        WhatsApp OTP login for the conflicting account).
+// Atomic: User.phone = phone, phoneVerified=true; BuyerMigration.tempPhone
+// cleared + setupCompleted set; all refresh tokens revoked.
+```
+
+### Email + password (sellers + admins)
+```json
 POST /v1/auth/register/email
 { "email": "vendeur@example.com", "password": "Secret123", "firstName": "Jean", "lastName": "Mukendi" }
 // Creates role=SELLER. Admins are seeded out-of-band — there is no public admin registration endpoint.
 
 POST /v1/auth/login/email
 { "email": "anyone@example.com", "password": "Secret123" }
-// Accepts any role.
+// Accepts SELLER, ADMIN. The 2026-05-12 → 2026-05-15 email-buyer cohort
+// can also log in here as a soft-deprecated path while they remain
+// unclaimed.
 ```
 Password rules: min 8 / max 72 characters, at least one letter + one digit.
 Error messages are generic to avoid user enumeration (`"Email ou mot de passe invalide"`).
@@ -109,27 +165,6 @@ POST /v1/auth/password-reset/confirm
 ```
 Token TTL controlled by `PASSWORD_RESET_EXPIRY_MINUTES` (default 60).
 On confirm, all of the user's refresh tokens are revoked and `authProvider` is set to `EMAIL_PASSWORD`.
-
-### Buyer migration (legacy PHONE_OTP buyers)
-```json
-POST /v1/auth/buyer/migrate-check
-{ "phone": "+243XXXXXXXXX" }
-// → { "migration": "needs_email_setup" }   // legacy PHONE_OTP buyer
-// or { "migration": "already_migrated" }   // already on EMAIL_PASSWORD
-// or { "migration": "unknown" }            // no match (enumeration-safe)
-
-POST /v1/auth/buyer/migrate-link-email
-{ "phone": "+243XXXXXXXXX", "email": "buyer@example.com" }
-// → { "migration": "email_setup_sent" }   // always neutral 200
-// (BuyerMigration.tempEmail = email; setup link sent to email; User.email NOT yet updated)
-
-POST /v1/auth/buyer/setup-password
-{ "token": "<24h buyer_password_setup JWT>", "password": "NewSecret123" }
-// → { "user": {...}, "tokens": {...} } (also sets httpOnly cookies)
-// Atomic: sets User.email = tempEmail, passwordHash, authProvider=EMAIL_PASSWORD,
-// emailVerified=true; clears tempEmail; revokes all refresh tokens.
-```
-Setup token TTL controlled by `BUYER_SETUP_EXPIRY_HOURS` (default 24).
 
 ### Seller migration (legacy PHONE_OTP sellers)
 ```json

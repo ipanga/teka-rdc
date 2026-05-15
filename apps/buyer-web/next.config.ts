@@ -79,6 +79,16 @@ const nextConfig: NextConfig = {
     // Legacy /search → /recherche (FR-only platform; route renamed for SEO).
     out.push({ source: '/search', destination: '/recherche', permanent: true });
 
+    // Buyer auth route refactor (2026-05-15): email+password buyer auth was
+    // replaced by WhatsApp OTP. Old English-slug routes redirect to the new
+    // French-slug routes; password-flow URLs redirect to the OTP login.
+    out.push({ source: '/login',           destination: '/connexion',        permanent: true });
+    out.push({ source: '/register',        destination: '/connexion',        permanent: true });
+    out.push({ source: '/migrate',         destination: '/reclamer-compte',  permanent: true });
+    out.push({ source: '/forgot-password', destination: '/connexion',        permanent: false });
+    out.push({ source: '/setup-password',  destination: '/connexion',        permanent: false });
+    out.push({ source: '/reset-password',  destination: '/connexion',        permanent: false });
+
     return out;
   },
 };

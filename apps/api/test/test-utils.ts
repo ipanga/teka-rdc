@@ -273,7 +273,9 @@ export const mockPrismaService: Record<string, any> = {
     update: jest.fn(),
   },
 
-  // Migration tables (PHONE_OTP → EMAIL_PASSWORD upgrade paths)
+  // Migration tables. buyerMigration is repurposed for the email-only claim
+  // flow (legacy buyer attaches a phone via /reclamer-compte). sellerMigration
+  // is unchanged (PHONE_OTP seller → EMAIL_PASSWORD upgrade).
   buyerMigration: {
     findUnique: jest.fn(),
     upsert: jest.fn(),
@@ -285,10 +287,33 @@ export const mockPrismaService: Record<string, any> = {
     update: jest.fn(),
   },
 
+  // Buyer WhatsApp OTP (restored 2026-05-15)
+  otp: {
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    deleteMany: jest.fn(),
+  },
+  otpRateLimit: {
+    findFirst: jest.fn(),
+    findUnique: jest.fn(),
+    create: jest.fn(),
+    upsert: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    deleteMany: jest.fn(),
+  },
+
   // Prisma client methods
   $queryRaw: jest.fn().mockResolvedValue([{ '?column?': 1 }]),
   $executeRaw: jest.fn().mockResolvedValue(0),
-  $transaction: jest.fn((fn: Function) => fn(mockPrismaService)),
+  // Prisma supports both array-style ($transaction([op1, op2])) and
+  // callback-style ($transaction(async (tx) => ...)) — handle both shapes.
+  $transaction: jest.fn((arg: unknown) =>
+    Array.isArray(arg) ? Promise.all(arg) : (arg as any)(mockPrismaService),
+  ),
   $connect: jest.fn(),
   $disconnect: jest.fn(),
   onModuleInit: jest.fn(),
@@ -332,7 +357,7 @@ export function resetMocks() {
   jest.clearAllMocks();
   // Restore default Prisma $queryRaw behavior (used by health check)
   mockPrismaService.$queryRaw.mockResolvedValue([{ '?column?': 1 }]);
-  mockPrismaService.$transaction.mockImplementation((fn: Function) =>
-    fn(mockPrismaService),
+  mockPrismaService.$transaction.mockImplementation((arg: unknown) =>
+    Array.isArray(arg) ? Promise.all(arg) : (arg as any)(mockPrismaService),
   );
 }

@@ -62,8 +62,32 @@ export const envValidationSchema = Joi.object({
   AT_USERNAME: Joi.string().default('teka_rdc'),
   AT_SENDER_ID: Joi.string().default('TekaRDC'),
 
-  // OTP
+  // OTP (used by buyer WhatsApp OTP auth — restored 2026-05-15)
   OTP_EXPIRY_MINUTES: Joi.number().default(5),
+
+  // WhatsApp (buyer OTP auth via Gupshup, 2026-05-15)
+  WHATSAPP_PROVIDER: Joi.string().valid('gupshup', 'mock').default('mock'),
+  GUPSHUP_API_KEY: Joi.string().when('WHATSAPP_PROVIDER', {
+    is: 'gupshup',
+    then: Joi.when('NODE_ENV', {
+      is: 'production',
+      then: Joi.required(),
+      otherwise: Joi.string().allow('').default(''),
+    }),
+    otherwise: Joi.string().allow('').default(''),
+  }),
+  GUPSHUP_APP_NAME: Joi.string().allow('').default(''),
+  GUPSHUP_SOURCE_NUMBER: Joi.string().allow('').default(''),
+  GUPSHUP_BASE_URL: Joi.string().default('https://api.gupshup.io/sm/api/v1'),
+  GUPSHUP_OTP_TEMPLATE_ID: Joi.string().when('WHATSAPP_PROVIDER', {
+    is: 'gupshup',
+    then: Joi.when('NODE_ENV', {
+      is: 'production',
+      then: Joi.required(),
+      otherwise: Joi.string().allow('').default(''),
+    }),
+    otherwise: Joi.string().allow('').default(''),
+  }),
 
   // Email (Resend)
   RESEND_API_KEY: Joi.string().when('NODE_ENV', {
@@ -106,6 +130,7 @@ export const envValidationSchema = Joi.object({
   BCRYPT_ROUNDS: Joi.number().min(10).max(14).default(12),
   PASSWORD_RESET_EXPIRY_MINUTES: Joi.number().default(60),
   SELLER_SETUP_EXPIRY_HOURS: Joi.number().default(24),
+  BUYER_SETUP_EXPIRY_HOURS: Joi.number().default(24),
 
   // Public base URLs (for emails & redirects)
   BUYER_WEB_URL: Joi.string().default('http://localhost:5001'),

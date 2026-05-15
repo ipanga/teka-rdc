@@ -181,16 +181,10 @@ export function Header() {
           ) : (
             <div className="flex items-center gap-2">
               <Link
-                href="/login"
+                href="/connexion"
                 className="text-sm px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
               >
                 {t('login')}
-              </Link>
-              <Link
-                href="/register"
-                className="text-sm px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors"
-              >
-                {t('register')}
               </Link>
             </div>
           )}
@@ -359,20 +353,20 @@ export function Header() {
                 </button>
               </>
             ) : (
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2">
                 <Link
-                  href="/login"
+                  href="/connexion"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex-1 text-sm text-center px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                  className="text-sm text-center px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                 >
                   {t('login')}
                 </Link>
                 <Link
-                  href="/register"
+                  href="/reclamer-compte"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex-1 text-sm text-center px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors"
+                  className="text-sm text-center px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors"
                 >
-                  {t('register')}
+                  {t('claim')}
                 </Link>
               </div>
             )}

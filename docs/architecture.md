@@ -96,35 +96,86 @@ teka-rdc/
 
 ### Authentication — overview
 
-Teka RDC uses **email + password for all roles** (buyers, sellers, admins) since the May 2026 refactor. `User.authProvider` is `EMAIL_PASSWORD` for all new accounts. The legacy `PHONE_OTP` and `GOOGLE` enum values still appear on existing accounts created before May 2026 (buyers) or April 2026 (Google), but no code path creates new ones.
+Authentication is **role-specific since 2026-05-15**: sellers + admins authenticate with email + password (unchanged from the May 12 refactor); buyers authenticate with WhatsApp OTP via Gupshup (replacing the 3-day email+password experiment).
 
 | Role | Registration | Login |
 |---|---|---|
-| **Buyer** | `POST /v1/auth/register/buyer` | `POST /v1/auth/login/email` |
-| **Seller** | `POST /v1/auth/register/email` | `POST /v1/auth/login/email` |
+| **Buyer** | Implicit on first OTP verify | `POST /v1/auth/buyer/otp/{request, verify, resend}` |
+| **Seller** | `POST /v1/auth/register/email` → admin approval | `POST /v1/auth/login/email` |
 | **Admin** | Seeded out-of-band (see `docs/deployment.md § 5b`) | `POST /v1/auth/login/email` |
 
-All three roles authenticate through the same email-login endpoint, the same password-reset flow (`/v1/auth/password-reset/{request, confirm}`), and the same `generateTokens` helper. Refresh-token replay detection and cookie semantics (`teka_access_token`, `teka_refresh_token`) are uniform across roles.
+`User.authProvider` is `PHONE_OTP` for buyers created via OTP, `EMAIL_PASSWORD` for sellers + admins + the 3-day-window legacy email-buyer cohort. The `GOOGLE` enum value remains on historical accounts only. Refresh-token replay detection and cookie semantics (`teka_access_token`, `teka_refresh_token`) are uniform across roles.
 
-`User.phone` is `String? @unique`. Email-registered users have `phone = null` until they add one via the address / profile screen.
+**Phone uniqueness is global** (`User.phone @unique`). If a buyer enters a phone that is already attached to a seller, the OTP verify signs them into the seller account; buyer-web detects `role === 'SELLER'` and redirects to `SELLER_WEB_URL`.
+
+`User.phone` is `String? @unique`. Only the email-only legacy cohort (registered 2026-05-12 → 2026-05-15) has `phone = null` until they complete the claim flow (`/v1/auth/buyer/claim/*`).
 
 ### Removed auth endpoints (all return 404)
 
 The following were retired in earlier refactors and explicitly assert 404 in `apps/api/test/auth.e2e-spec.ts` so a regression that re-adds them is caught:
 
-- `POST /v1/auth/otp/request`, `POST /v1/auth/otp/verify` — phone-OTP request/verify (May 2026).
+- `POST /v1/auth/otp/request`, `POST /v1/auth/otp/verify` — original phone-OTP (May 2026; the new buyer OTP lives at `/v1/auth/buyer/otp/*`).
 - `POST /v1/auth/register` — phone+OTP buyer register (May 2026).
 - `POST /v1/auth/login` — phone+OTP login (May 2026).
 - `POST /v1/auth/login/google` — Google OAuth (April 2026).
 - `POST /v1/auth/otp/request-email` — email-OTP fallback (April 2026).
+- `POST /v1/auth/register/buyer` — email+password buyer register (2026-05-15).
+- `POST /v1/auth/buyer/{migrate-check, migrate-link-email, setup-password}` — phone→email migration (2026-05-15; replaced by claim flow).
 
-### Authentication — Email + password flow
+### Authentication — Buyer WhatsApp OTP flow (Gupshup)
 
 ```
-1. POST /v1/auth/register/buyer  (or /register/email for sellers)
-     { email, password, firstName, lastName }
-   → bcrypt hash (BCRYPT_ROUNDS=12 default), User created with role assigned
-     server-side based on endpoint, authProvider=EMAIL_PASSWORD, phone=null
+1. POST /v1/auth/buyer/otp/request { phone: "+243XXXXXXXXX" }
+   → assertRateLimit(phone): 3 requests / 600s window per phone (429 if exceeded)
+   → crypto.randomInt(6 digits, zero-padded)
+   → Otp row replaced for the phone: sha256(code), expiresAt = now + 5min
+   → WhatsappService.sendOtp(phone, code) → Gupshup template message API
+   → 200 { expiresInSeconds: 300, cooldownSeconds: 30 }
+
+2. POST /v1/auth/buyer/otp/verify { phone, code, firstName?, lastName? }
+   → Otp.findFirst({ phone, expiresAt > now })
+   → constant-time sha256 compare; on mismatch, attempts++ (delete row at 5)
+   → on match: delete row (one-shot, replay-safe)
+   → User.findFirst({ phone, deletedAt: null }):
+     - existing user (any role): generateTokens, lastLoginAt = now
+     - no user: create role=BUYER, authProvider=PHONE_OTP, phoneVerified=true
+   → setAuthCookies(res, tokens); 200 { user, tokens }
+
+3. POST /v1/auth/buyer/otp/resend { phone }
+   → assertResendCooldown: 30s minimum since last Otp.createdAt (429 if early)
+   → assertRateLimit; then issue a fresh OTP
+```
+
+In dev (`WHATSAPP_PROVIDER=mock` + `NODE_ENV !== production`), the code is the constant `123456` so e2e tests work without provisioning Gupshup. The mock provider logs `[MOCK WHATSAPP OTP] phone=... code=...` to API stdout.
+
+### Authentication — Buyer claim flow (email-only legacy cohort)
+
+The 2026-05-12 → 2026-05-15 email+password buyer window left some buyers with `User.phone IS NULL`. They attach a phone via this two-step flow:
+
+```
+1. POST /v1/auth/buyer/claim/request { email }
+   → enumeration-safe (always 200)
+   → if BUYER + email + phone=null match: sign JWT { sub, type: 'buyer_phone_claim' }
+     with 24h TTL (BUYER_SETUP_EXPIRY_HOURS); upsert BuyerMigration.claimEmailSent;
+     email a magic link to ${BUYER_WEB_URL}/reclamer-compte/confirmer?token=<jwt>
+
+2. POST /v1/auth/buyer/claim/verify { token, phone, code }
+   → verify JWT signature + type + expiry (400 on fail)
+   → BuyerOtpService.verifyOtpInternal(phone, code) (401 on fail)
+   → check phone collision: User.findFirst({ phone, id != self }) → 409
+   → transaction:
+     User.update({ phone, phoneVerified: true })
+     BuyerMigration.upsert({ tempPhone: null, setupCompleted: now })
+     refreshToken.updateMany({ revokedAt: now })
+   → setAuthCookies; 200 { user, tokens }
+```
+
+### Authentication — Email + password flow (sellers + admins)
+
+```
+1. POST /v1/auth/register/email { email, password, firstName, lastName }
+   → bcrypt hash (BCRYPT_ROUNDS=12 default), User created with role=SELLER,
+     authProvider=EMAIL_PASSWORD, phone=null
    → Verification email dispatched via Resend (fire-and-forget — soft
      verification, user is logged in immediately)
 
@@ -133,57 +184,76 @@ The following were retired in earlier refactors and explicitly assert 404 in `ap
      (constant-time, no user enumeration)
    → Suspended/banned accounts: 403
 
-3. Forgot password:
+3. Forgot password (sellers + admins only):
    POST /v1/auth/password-reset/request { email } — always 200
-   → PasswordResetToken row (sha256 hash of raw token) with 60min TTL
-   → Reset link emailed (BUYER_WEB_URL / SELLER_WEB_URL / ADMIN_WEB_URL
-     chosen by user.role)
+   → ADMIN/SELLER match: PasswordResetToken row (sha256 hash) with 60min TTL,
+     reset link emailed (SELLER_WEB_URL / ADMIN_WEB_URL chosen by user.role)
+   → BUYER match: neutral 200 but no token created (buyers have no password)
 
 4. POST /v1/auth/password-reset/confirm { token, newPassword }
    → Atomic: update hash + revoke all refresh tokens + consume reset token +
      flip authProvider to EMAIL_PASSWORD + emailVerified=true
 ```
 
-### Authentication — Migration flows (legacy PHONE_OTP → EMAIL_PASSWORD)
+### Authentication — Seller migration (legacy PHONE_OTP → EMAIL_PASSWORD)
 
-Both buyer and seller migration use the same shape; the OTP step that existed in the original seller migration was removed when OTP infrastructure was deleted. The chosen email is stashed on `{Buyer,Seller}Migration.tempEmail` and only committed to `User.email` when the setup link is clicked (limits hijack risk for a stolen phone number).
+The OTP step that existed in the original seller migration was removed when OTP infrastructure was first deleted (May 2026). The chosen email is stashed on `SellerMigration.tempEmail` and only committed to `User.email` when the setup link is clicked (limits hijack risk).
 
 ```
-Buyer migration:
-1. POST /v1/auth/buyer/migrate-check { phone: "+243XXXXXXXXX" }
-   → { migration: 'needs_email_setup' | 'already_migrated' | 'unknown' }
-2. POST /v1/auth/buyer/migrate-link-email { phone, email }
-   → BuyerMigration.tempEmail = email; sendBuyerSetupEmail(email, 24h JWT)
+1. POST /v1/auth/seller/migrate-check { email }
+   → { migration: 'email_setup_sent' | 'already_migrated' | 'email_required' }
+2. POST /v1/auth/seller/migrate-link-email { phone, email }
+   → SellerMigration.tempEmail = email; sendSellerSetupEmail(email, 24h JWT)
    → { migration: 'email_setup_sent' } (neutral 200 regardless of existence)
-3. User clicks email → /setup-password?token=...
-4. POST /v1/auth/buyer/setup-password { token, password }
+3. User clicks email → /seller/setup-password?token=...
+4. POST /v1/auth/seller/setup-password { token, password }
    → Transaction: set User.email = tempEmail, passwordHash, passwordSetAt,
      authProvider=EMAIL_PASSWORD, emailVerified=true; clear tempEmail;
-     mark BuyerMigration.setupCompleted; revoke all refresh tokens; issue cookies.
-
-Seller migration mirrors this exactly with /v1/auth/seller/{migrate-check,
-migrate-link-email, setup-password}.
+     mark SellerMigration.setupCompleted; revoke all refresh tokens; issue cookies.
 ```
 
-### Phone-input UX (address + delivery contact)
+(The previous buyer migration flow at `/v1/auth/buyer/migrate-*` was deleted on 2026-05-15. Email-only legacy buyers now use the claim flow above.)
 
-Phone is no longer collected at registration. It is still collected on the **address / delivery-contact / seller-profile** surfaces. Users type 9 digits of their DRC number (or 10 with leading `0`); the `+243` prefix is added by the system before calling the API. Single source of truth: `normalizeDrcPhone()` in `packages/shared/src/utils/phone.ts` (web) and `apps/buyer-mobile/lib/core/utils/phone.dart` (Flutter). Backend DTOs that accept phone enforce `^\+243\d{9}$`.
+### OTP storage (PostgreSQL — restored 2026-05-15)
 
-### SMS provider abstraction (notification-only)
-
-SMS is no longer used for authentication. The `SmsService` + provider abstraction stays alive for **order status notifications, payment confirmations, and admin broadcasts**.
+`Otp` and `OtpRateLimit` tables were originally deleted on 2026-05-12 and restored when buyer auth reverted to WhatsApp OTP. The restored shape stores **sha256** of the OTP — never plaintext — to harden against DB exfiltration.
 
 ```
-apps/api/src/sms/
+otps:             id | phone | code (sha256 hex) | attempts | expiresAt | createdAt
+otp_rate_limits:  id | phone | count             | expiresAt | createdAt
+```
+
+Cleanup is lazy: every rate-limit check `deleteMany` expired rows for the phone before reading. Verification deletes the row on success (one-shot) or at `attempts >= 5`.
+
+### Phone-input UX (buyer auth + delivery contact)
+
+For buyers since 2026-05-15, phone is **both** the auth identifier (entered at `/connexion`) and the delivery contact. For sellers + admins it remains delivery-only (collected on address / seller-profile surfaces). Users type 9 digits of their DRC number (or 10 with leading `0`); the `+243` prefix is added by the system before calling the API. Single source of truth: `normalizeDrcPhone()` in `packages/shared/src/utils/phone.ts` (web) and `apps/buyer-mobile/lib/core/utils/phone.dart` (Flutter). Backend DTOs that accept phone enforce `^\+243\d{9}$`.
+
+### Messaging provider abstractions (two surfaces)
+
+Two completely separate provider stacks. **`SmsService`** = notifications only (orders, payments, broadcasts). **`WhatsappService`** = buyer OTP only.
+
+```
+apps/api/src/sms/                          ← notification SMS
 ├── interfaces/sms-provider.interface.ts   (SmsProvider { sendSms(phone, msg) })
 ├── providers/
 │   ├── orange-drc.provider.ts             (OAuth2 token cache, 401 → invalidate + retry once)
 │   ├── africas-talking.provider.ts        (legacy, kept for rollback)
 │   └── mock-sms.provider.ts               (dev + test — logs to console)
-├── sms.service.ts                         (facade; builds French message, dispatches)
+├── sms.service.ts                         (facade; dispatches per provider)
 └── sms.module.ts                          (DI factory keyed on SMS_PROVIDER env)
+
+apps/api/src/whatsapp/                     ← buyer OTP (restored 2026-05-15)
+├── interfaces/whatsapp-provider.interface.ts
+│                                          (WhatsappProvider { sendOtpTemplate(phone, code) })
+├── providers/
+│   ├── gupshup-whatsapp.provider.ts       (POST /sm/api/v1/template/msg; strips leading +)
+│   └── mock-whatsapp.provider.ts          (dev + test — logs `[MOCK WHATSAPP OTP]`)
+├── whatsapp.service.ts                    (facade)
+└── whatsapp.module.ts                     (DI factory keyed on WHATSAPP_PROVIDER env)
 ```
-Mirrors the existing `payments/interfaces/payment-provider.interface.ts` pattern.
+
+Both factories share the same `warnIfMockInProd` discipline (loud startup ERROR if a mock provider is selected in production). The two stacks never call each other; adding an SMS template never touches WhatsApp code and vice versa.
 
 
 ### Product Lifecycle

@@ -2,9 +2,10 @@ import { z } from 'zod';
 import { DRC_PHONE_REGEX } from '../constants/phone';
 
 // ---------------------------------------------------------------------------
-// Email + password — the primary auth surface for all roles since the
-// 2026-05-12 buyer-email refactor. /v1/auth/register/buyer creates BUYER;
+// Email + password — auth surface for sellers and admins.
 // /v1/auth/register/email creates SELLER; admins are seeded out-of-band.
+// Buyers authenticate via WhatsApp OTP (see buyerOtp*Schema below) since
+// the 2026-05-15 reversal of the 2026-05-12 buyer email refactor.
 // ---------------------------------------------------------------------------
 
 // Password rules: 8–72 chars, at least one letter and one digit.
@@ -54,30 +55,61 @@ export const refreshTokenSchema = z.object({
 });
 
 // ---------------------------------------------------------------------------
-// Buyer migration (legacy PHONE_OTP buyer → email + password).
-// Three steps: migrate-check (phone lookup) → migrate-link-email (stash email
-// + send setup link) → setup-password (consume JWT, set email + password).
+// Buyer WhatsApp OTP authentication (2026-05-15).
+// Single two-step flow: /buyer/otp/request (issue) → /buyer/otp/verify
+// (find-or-create user). Resend has its own endpoint to keep the cooldown
+// response separate.
 // ---------------------------------------------------------------------------
 
-export const buyerMigrateCheckSchema = z.object({
+export const buyerOtpRequestSchema = z.object({
   phone: z
     .string()
-    .regex(DRC_PHONE_REGEX, 'Numéro de téléphone invalide. Format: +243XXXXXXXXX'),
+    .regex(
+      DRC_PHONE_REGEX,
+      'Numéro de téléphone invalide. Format: +243XXXXXXXXX',
+    ),
 });
 
-export const buyerMigrateLinkEmailSchema = z.object({
+export const buyerOtpVerifySchema = z.object({
   phone: z.string().regex(DRC_PHONE_REGEX, 'Numéro de téléphone invalide'),
+  code: z.string().regex(/^\d{6}$/, 'Code à 6 chiffres requis'),
+  firstName: z
+    .string()
+    .min(2, 'Le prénom doit contenir au moins 2 caractères')
+    .max(50)
+    .optional(),
+  lastName: z
+    .string()
+    .min(2, 'Le nom doit contenir au moins 2 caractères')
+    .max(50)
+    .optional(),
+});
+
+export const buyerOtpResendSchema = z.object({
+  phone: z.string().regex(DRC_PHONE_REGEX, 'Numéro de téléphone invalide'),
+});
+
+// ---------------------------------------------------------------------------
+// Buyer claim flow (email-only legacy buyers attaching a phone).
+// Used by the 2026-05-12..05-15 cohort that registered with email+password
+// before WhatsApp OTP became the canonical buyer flow. Step 1 emails a
+// magic link; step 2 (rendered from the link) verifies the JWT + a fresh
+// WhatsApp OTP and attaches the phone to the existing User.
+// ---------------------------------------------------------------------------
+
+export const buyerClaimRequestSchema = z.object({
   email: emailSchema,
 });
 
-export const buyerPasswordSetupSchema = z.object({
+export const buyerClaimVerifySchema = z.object({
   token: z.string().min(1, 'Token requis'),
-  password: passwordSchema,
+  phone: z.string().regex(DRC_PHONE_REGEX, 'Numéro de téléphone invalide'),
+  code: z.string().regex(/^\d{6}$/, 'Code à 6 chiffres requis'),
 });
 
 // ---------------------------------------------------------------------------
 // Seller migration (legacy PHONE_OTP seller → email + password).
-// Same shape as buyer migration since OTP was removed from this flow too.
+// Same shape since OTP was removed from this flow.
 // ---------------------------------------------------------------------------
 
 export const sellerMigrateCheckSchema = z.object({

@@ -19,9 +19,6 @@ import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
 import { SellerMigrateCheckDto } from './dto/seller-migrate-check.dto';
 import { SellerMigrateLinkEmailDto } from './dto/seller-migrate-link-email.dto';
 import { SellerPasswordSetupDto } from './dto/seller-password-setup.dto';
-import { BuyerMigrateCheckDto } from './dto/buyer-migrate-check.dto';
-import { BuyerMigrateLinkEmailDto } from './dto/buyer-migrate-link-email.dto';
-import { BuyerPasswordSetupDto } from './dto/buyer-password-setup.dto';
 import {
   generateResetToken,
   hashPassword,
@@ -29,7 +26,7 @@ import {
   verifyPassword,
 } from './utils/password.util';
 
-type AssignableRole = 'BUYER' | 'SELLER';
+type AssignableRole = 'SELLER';
 
 export interface AuthTokens {
   accessToken: string;
@@ -49,17 +46,13 @@ export class AuthService {
   ) {}
 
   // ---------------------------------------------------------------------------
-  // Email + password — registration (role-parameterised), login, password reset.
+  // Email + password — seller registration, login (sellers + admins), and
+  // password reset (sellers + admins).
   //
-  // Buyer and seller registration share the same DTO + flow; they differ only
-  // in the role assigned and the verification email's destination (buyer setup
-  // vs. seller setup template). Admins are seeded out-of-band and bootstrap
-  // their first password via /password-reset/request.
+  // Buyers authenticate via WhatsApp OTP since 2026-05-15 — see
+  // BuyerOtpService + BuyerClaimService. Admins are seeded out-of-band and
+  // bootstrap their first password via /password-reset/request.
   // ---------------------------------------------------------------------------
-
-  async registerBuyerWithEmail(dto: EmailRegisterDto) {
-    return this.registerWithEmailForRole(dto, 'BUYER');
-  }
 
   async registerSellerWithEmail(dto: EmailRegisterDto) {
     return this.registerWithEmailForRole(dto, 'SELLER');
@@ -143,180 +136,6 @@ export class AuthService {
     });
 
     return { user: this.sanitizeUser(user), tokens };
-  }
-
-  // ---------------------------------------------------------------------------
-  // Buyer migration (phone-OTP legacy buyer → email + password).
-  //
-  // Threat model: phone-only as a possession factor is weak. We mitigate by
-  // never updating User.email at the migrate-link step — we stash the chosen
-  // email on BuyerMigration.tempEmail and only commit it on setup-password
-  // (i.e. the user proves they control the email by clicking the link). An
-  // attacker who knows a buyer's phone could request a link to their own
-  // email, but they cannot complete the takeover without clicking — and the
-  // real owner gets no email, just an undisturbed account.
-  // ---------------------------------------------------------------------------
-
-  async migrateBuyerCheck(dto: BuyerMigrateCheckDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { phone: dto.phone, deletedAt: null },
-    });
-
-    // Always return 200 with a neutral shape — avoid enumeration.
-    if (!user || user.role !== 'BUYER') {
-      return { migration: 'unknown' as const };
-    }
-
-    if (user.passwordHash && user.authProvider !== 'PHONE_OTP') {
-      return { migration: 'already_migrated' as const };
-    }
-
-    return { migration: 'needs_email_setup' as const };
-  }
-
-  async migrateBuyerLinkEmail(dto: BuyerMigrateLinkEmailDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { phone: dto.phone, deletedAt: null },
-    });
-
-    // Neutral response — don't reveal whether the phone exists.
-    if (!user || user.role !== 'BUYER') {
-      return { migration: 'email_setup_sent' as const };
-    }
-
-    // If a *different* user already owns the chosen email, refuse silently
-    // (still neutral 200 response so we don't leak account existence).
-    const emailOwner = await this.prisma.user.findUnique({
-      where: { email: dto.email, deletedAt: null },
-    });
-    if (emailOwner && emailOwner.id !== user.id) {
-      this.logger.warn(
-        `Buyer migration aborted: email ${dto.email} already owned by ${emailOwner.id}`,
-      );
-      return { migration: 'email_setup_sent' as const };
-    }
-
-    await this.prisma.buyerMigration.upsert({
-      where: { userId: user.id },
-      create: {
-        userId: user.id,
-        tempEmail: dto.email,
-        setupEmailSent: new Date(),
-      },
-      update: {
-        tempEmail: dto.email,
-        setupEmailSent: new Date(),
-      },
-    });
-
-    await this.sendBuyerSetupLink(user.id, dto.email);
-    return { migration: 'email_setup_sent' as const };
-  }
-
-  async setupBuyerPassword(dto: BuyerPasswordSetupDto) {
-    let payload: { sub?: string; type?: string };
-    try {
-      payload = this.jwtService.verify(dto.token, {
-        secret: this.configService.get('JWT_SECRET'),
-      });
-    } catch {
-      throw new BadRequestException('Lien de configuration invalide ou expiré');
-    }
-
-    if (payload.type !== 'buyer_password_setup' || !payload.sub) {
-      throw new BadRequestException('Lien de configuration invalide');
-    }
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub, deletedAt: null },
-    });
-    if (!user || user.role !== 'BUYER') {
-      throw new BadRequestException('Compte acheteur introuvable');
-    }
-
-    const migration = await this.prisma.buyerMigration.findUnique({
-      where: { userId: user.id },
-    });
-    if (!migration?.tempEmail) {
-      throw new BadRequestException(
-        'Aucune adresse email en attente pour ce compte',
-      );
-    }
-
-    // Double-check the chosen email hasn't been claimed by another user
-    // between migrate-link-email and now.
-    const emailOwner = await this.prisma.user.findUnique({
-      where: { email: migration.tempEmail, deletedAt: null },
-    });
-    if (emailOwner && emailOwner.id !== user.id) {
-      throw new ConflictException(
-        'Cet email est désormais utilisé par un autre compte',
-      );
-    }
-
-    const rounds = this.configService.get<number>('BCRYPT_ROUNDS', 12);
-    const passwordHash = await hashPassword(dto.password, rounds);
-
-    await this.prisma.$transaction([
-      this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          email: migration.tempEmail,
-          passwordHash,
-          passwordSetAt: new Date(),
-          authProvider: 'EMAIL_PASSWORD',
-          emailVerified: true,
-        },
-      }),
-      this.prisma.buyerMigration.update({
-        where: { userId: user.id },
-        data: {
-          tempEmail: null,
-          setupCompleted: new Date(),
-        },
-      }),
-      this.prisma.refreshToken.updateMany({
-        where: { userId: user.id, revokedAt: null },
-        data: { revokedAt: new Date() },
-      }),
-    ]);
-
-    const refreshed = await this.prisma.user.findUnique({
-      where: { id: user.id },
-    });
-    const tokens = await this.generateTokens(
-      refreshed!.id,
-      refreshed!.role,
-      refreshed!.phone,
-    );
-    await this.prisma.user.update({
-      where: { id: refreshed!.id },
-      data: { lastLoginAt: new Date() },
-    });
-
-    return { user: this.sanitizeUser(refreshed), tokens };
-  }
-
-  private async sendBuyerSetupLink(userId: string, email: string) {
-    const expiryHours = this.configService.get<number>(
-      'BUYER_SETUP_EXPIRY_HOURS',
-      24,
-    );
-    const token = this.jwtService.sign(
-      { sub: userId, type: 'buyer_password_setup' },
-      {
-        secret: this.configService.get('JWT_SECRET'),
-        expiresIn: `${expiryHours}h`,
-      },
-    );
-
-    const buyerWebUrl = this.configService.get(
-      'BUYER_WEB_URL',
-      'http://localhost:5001',
-    );
-    const setupUrl = `${buyerWebUrl}/setup-password?token=${token}`;
-
-    await this.emailService.sendBuyerSetupEmail(email, setupUrl);
   }
 
   // ---------------------------------------------------------------------------
@@ -507,18 +326,16 @@ export class AuthService {
       where: { email: dto.email, deletedAt: null },
     });
 
-    // Always respond 200 regardless of existence (avoid enumeration). Send
-    // the reset email for any role that uses email — buyers, sellers, admins.
+    // Always respond 200 regardless of existence (avoid enumeration). Email
+    // password reset only applies to sellers + admins since 2026-05-15;
+    // buyers authenticate via WhatsApp OTP and have no password to reset.
+    // A legacy email+password buyer from the 2026-05-12..05-15 window who
+    // attempts password reset gets a neutral 200 — they're redirected to
+    // /reclamer-compte (the claim flow) instead.
     //
-    // Don't gate on `user.passwordHash`: the very first admin login (and the
-    // first buyer/seller login post-migration if they haven't completed setup)
-    // goes through forgot-password *because* they don't have a password yet.
-    if (
-      user &&
-      (user.role === 'ADMIN' ||
-        user.role === 'SELLER' ||
-        user.role === 'BUYER')
-    ) {
+    // Don't gate on `user.passwordHash`: the very first admin login goes
+    // through forgot-password *because* they don't have a password yet.
+    if (user && (user.role === 'ADMIN' || user.role === 'SELLER')) {
       const expiryMinutes = this.configService.get<number>(
         'PASSWORD_RESET_EXPIRY_MINUTES',
         60,
@@ -721,6 +538,24 @@ export class AuthService {
   // ---------------------------------------------------------------------------
   // Internals
   // ---------------------------------------------------------------------------
+
+  /**
+   * Public wrapper around generateTokens — used by BuyerOtpService and
+   * BuyerClaimService to issue tokens after a successful WhatsApp OTP
+   * verification, without duplicating refresh-token persistence logic.
+   */
+  async generateTokensForUser(
+    userId: string,
+    role: string,
+    phone: string | null,
+  ): Promise<AuthTokens> {
+    return this.generateTokens(userId, role, phone);
+  }
+
+  /** Public wrapper around sanitizeUser for cross-service reuse. */
+  sanitize(user: any) {
+    return this.sanitizeUser(user);
+  }
 
   private async generateTokens(
     userId: string,

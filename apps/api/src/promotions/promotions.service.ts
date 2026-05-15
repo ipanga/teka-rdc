@@ -187,7 +187,8 @@ export class PromotionsService {
 
     if (dto.type !== undefined) data.type = dto.type;
     if (dto.title !== undefined) data.title = dto.title;
-    if (dto.description !== undefined) data.description = dto.description ?? null;
+    if (dto.description !== undefined)
+      data.description = dto.description ?? null;
     if (dto.discountPercent !== undefined)
       data.discountPercent = dto.discountPercent;
     if (dto.discountCDF !== undefined)
