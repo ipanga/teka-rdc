@@ -1,0 +1,143 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../providers/auth_provider.dart';
+
+class OtpVerifyScreen extends ConsumerStatefulWidget {
+  final String phone;
+  const OtpVerifyScreen({super.key, required this.phone});
+
+  @override
+  ConsumerState<OtpVerifyScreen> createState() => _OtpVerifyScreenState();
+}
+
+class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
+  final _codeController = TextEditingController();
+  final _focusNode = FocusNode();
+  String? _error;
+  Timer? _ticker;
+  int _cooldown = 30;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
+    _startCooldown();
+  }
+
+  void _startCooldown() {
+    _ticker?.cancel();
+    setState(() => _cooldown = 30);
+    _ticker = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) return;
+      setState(() => _cooldown = _cooldown > 0 ? _cooldown - 1 : 0);
+      if (_cooldown == 0) t.cancel();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    _codeController.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit(String code) async {
+    if (code.length != 6) return;
+    setState(() => _error = null);
+    try {
+      await ref.read(authProvider.notifier).verifyOtp(
+            phone: widget.phone,
+            code: code,
+          );
+      if (!mounted) return;
+      context.go('/');
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = e.toString());
+    }
+  }
+
+  Future<void> _resend() async {
+    if (_cooldown > 0) return;
+    setState(() => _error = null);
+    try {
+      await ref.read(authProvider.notifier).resendOtp(widget.phone);
+      _startCooldown();
+    } catch (e) {
+      setState(() => _error = e.toString());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isLoading = ref.watch(authProvider).isLoading;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Code WhatsApp')),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Saisissez le code envoyé au ${widget.phone}'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _codeController,
+                focusNode: _focusNode,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(6),
+                ],
+                style: const TextStyle(
+                  fontSize: 24,
+                  letterSpacing: 8,
+                  fontWeight: FontWeight.w600,
+                ),
+                textAlign: TextAlign.center,
+                onChanged: (v) {
+                  if (v.length == 6) _submit(v);
+                },
+                decoration: const InputDecoration(
+                  labelText: 'Code à 6 chiffres',
+                  border: OutlineInputBorder(),
+                  counterText: '',
+                ),
+              ),
+              if (_error != null) ...[
+                const SizedBox(height: 8),
+                Text(_error!, style: const TextStyle(color: Colors.red)),
+              ],
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  TextButton(
+                    onPressed: () => context.pop(),
+                    child: const Text('← Modifier le numéro'),
+                  ),
+                  TextButton(
+                    onPressed: _cooldown > 0 || isLoading ? null : _resend,
+                    child: Text(
+                      _cooldown > 0
+                          ? 'Renvoyer dans ${_cooldown}s'
+                          : 'Renvoyer le code',
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

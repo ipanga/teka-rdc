@@ -69,73 +69,67 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // Email + password ——————————————————————————————————————————————————————————
+  // Buyer WhatsApp OTP ————————————————————————————————————————————————————————
 
-  Future<void> loginWithEmail(String email, String password) async {
+  Future<Map<String, dynamic>> requestOtp(String phone) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final data = await _authRepository.loginWithEmail(email, password);
-      state = state.copyWith(
-        status: AuthStatus.authenticated,
-        user: data['user'],
-        isLoading: false,
-      );
+      final data = await _authRepository.requestBuyerOtp(phone);
+      state = state.copyWith(isLoading: false);
+      return data;
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
       rethrow;
     }
   }
 
-  Future<void> registerBuyerWithEmail(
-    String email,
-    String password,
-    String firstName,
-    String lastName,
-  ) async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      final data = await _authRepository.registerBuyerWithEmail(
-        email,
-        password,
-        firstName,
-        lastName,
-      );
-      state = state.copyWith(
-        status: AuthStatus.authenticated,
-        user: data['user'],
-        isLoading: false,
-      );
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-      rethrow;
-    }
-  }
-
-  Future<void> requestPasswordReset(String email) async {
-    await _authRepository.requestPasswordReset(email);
-  }
-
-  Future<void> confirmPasswordReset(String token, String newPassword) async {
-    await _authRepository.confirmPasswordReset(token, newPassword);
-  }
-
-  // Buyer migration ———————————————————————————————————————————————————————————
-
-  Future<Map<String, dynamic>> migrateBuyerCheck(String phone) async {
-    return _authRepository.migrateBuyerCheck(phone);
-  }
-
-  Future<Map<String, dynamic>> migrateBuyerLinkEmail({
+  Future<void> verifyOtp({
     required String phone,
-    required String email,
+    required String code,
+    String? firstName,
+    String? lastName,
   }) async {
-    return _authRepository.migrateBuyerLinkEmail(phone: phone, email: email);
-  }
-
-  Future<void> setupBuyerPassword(String token, String password) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final data = await _authRepository.setupBuyerPassword(token, password);
+      final data = await _authRepository.verifyBuyerOtp(
+        phone: phone,
+        code: code,
+        firstName: firstName,
+        lastName: lastName,
+      );
+      state = state.copyWith(
+        status: AuthStatus.authenticated,
+        user: data['user'],
+        isLoading: false,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+      rethrow;
+    }
+  }
+
+  Future<Map<String, dynamic>> resendOtp(String phone) async {
+    return _authRepository.resendBuyerOtp(phone);
+  }
+
+  // Buyer claim flow ——————————————————————————————————————————————————————————
+
+  Future<void> requestClaim(String email) async {
+    await _authRepository.requestBuyerClaim(email);
+  }
+
+  Future<void> verifyClaim({
+    required String token,
+    required String phone,
+    required String code,
+  }) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final data = await _authRepository.verifyBuyerClaim(
+        token: token,
+        phone: phone,
+        code: code,
+      );
       state = state.copyWith(
         status: AuthStatus.authenticated,
         user: data['user'],

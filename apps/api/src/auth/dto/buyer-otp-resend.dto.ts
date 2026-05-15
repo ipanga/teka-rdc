@@ -1,6 +1,6 @@
 import { IsString, Matches } from 'class-validator';
 
-export class BuyerMigrateCheckDto {
+export class BuyerOtpResendDto {
   @IsString()
   @Matches(/^\+243\d{9}$/, { message: 'Numéro de téléphone invalide' })
   phone: string;

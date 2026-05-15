@@ -36,7 +36,8 @@ cp .env.production.example .env.production
 Edit `.env.production` with your actual values. See the [Environment Variables Reference](#environment-variables-reference) section below for all required variables.
 
 **External services to provision before first deploy:**
-- **Orange DRC SMS** — Register at [developer.orange.com](https://developer.orange.com/apis/sms/getting-started), create a sandbox app first to test, then production. Note the client id, secret, and the sender address assigned to your account. Fill `ORANGE_CLIENT_ID`, `ORANGE_CLIENT_SECRET`, `ORANGE_SENDER_ADDRESS` in `.env.production`.
+- **Orange DRC SMS (notifications)** — Register at [developer.orange.com](https://developer.orange.com/apis/sms/getting-started), create a sandbox app first to test, then production. Note the client id, secret, and the sender address assigned to your account. Fill `ORANGE_CLIENT_ID`, `ORANGE_CLIENT_SECRET`, `ORANGE_SENDER_ADDRESS` in `.env.production`. SMS is for order/payment notifications and admin broadcasts only.
+- **Gupshup WhatsApp (buyer OTP auth)** — Sign up at [gupshup.io](https://www.gupshup.io/), create a WhatsApp Business app, register your sending number, and **submit an authentication template** in French for one-time codes. Template approval typically takes 24–48h (sometimes longer for new accounts). Once approved, copy the template UUID and fill `GUPSHUP_API_KEY`, `GUPSHUP_APP_NAME`, `GUPSHUP_SOURCE_NUMBER`, `GUPSHUP_OTP_TEMPLATE_ID` in `.env.production`, then flip `WHATSAPP_PROVIDER=mock → gupshup` and recreate the api container. **Buyer auth fails closed until this step is complete** — keep `WHATSAPP_PROVIDER=mock` in production (which fails every login attempt with a loud startup warning) only as a deliberate pause; never ship to real users without the approved template.
 - **Resend** — Sign up at [resend.com](https://resend.com/), verify your sending domain (`teka.cd`), grab an API key into `RESEND_API_KEY`.
 - **Flexpay** — Real production credentials for `FLEXPAY_API_KEY`, `FLEXPAY_MERCHANT_ID`, `FLEXPAY_WEBHOOK_SECRET`. Flip `PAYMENT_MOCK_MODE=false` only after a webhook round-trip has been verified on staging.
 - **Google Cloud Console** — For the OAuth web client used by the three web apps, add **every** production origin under *Authorized JavaScript origins*:
@@ -214,6 +215,13 @@ Expected health response:
 | `AT_API_KEY` | Yes (if `SMS_PROVIDER=africas_talking`) | Africa's Talking API key — kept as rollback fallback |
 | `AT_USERNAME` | No | Africa's Talking username (default: `teka_rdc`) |
 | `AT_SENDER_ID` | No | Africa's Talking sender ID (default: `TekaRDC`) |
+| `WHATSAPP_PROVIDER` | No | Buyer OTP provider: `gupshup` (prod) or `mock` (dev/staging). Selecting `mock` in production emits a loud startup ERROR and fails every buyer OTP delivery. |
+| `GUPSHUP_API_KEY` | Yes (if `WHATSAPP_PROVIDER=gupshup` in prod) | Gupshup API key from the Gupshup app dashboard |
+| `GUPSHUP_APP_NAME` | No | Gupshup app name (the `src.name` field on the template send) |
+| `GUPSHUP_SOURCE_NUMBER` | No | WhatsApp Business sender number (E.164, e.g. `+243XXXXXXXXX`). Gupshup strips the leading `+` automatically. |
+| `GUPSHUP_BASE_URL` | No | Gupshup REST base URL (default: `https://api.gupshup.io/sm/api/v1`) |
+| `GUPSHUP_OTP_TEMPLATE_ID` | Yes (if `WHATSAPP_PROVIDER=gupshup` in prod) | UUID of the approved authentication template. Template body must contain exactly one parameter (`{{1}}`) for the 6-digit OTP code. |
+| `BUYER_SETUP_EXPIRY_HOURS` | No | TTL for the `/reclamer-compte` claim link JWT (default: `24`). |
 | `RESEND_API_KEY` | Yes | Resend.com API key for transactional emails (verification, reset, seller setup) |
 | `EMAIL_FROM` | No | Sender email address (default: `Teka RDC <noreply@teka.cd>`) |
 | `GOOGLE_WEB_CLIENT_ID` | Yes | Google OAuth 2.0 Client ID — Web app (from Google Cloud Console) |

@@ -68,7 +68,8 @@ export class BrowseService {
     // though the catalog has 152 products.
     for (const root of roots) {
       const subTotal = root.subcategories.reduce(
-        (sum, sub) => sum + ((sub as { productCount?: number }).productCount ?? 0),
+        (sum, sub) =>
+          sum + ((sub as { productCount?: number }).productCount ?? 0),
         0,
       );
       root.productCount = root.productCount + subTotal;

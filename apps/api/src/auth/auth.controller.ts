@@ -14,6 +14,8 @@ import {
 import type { Response, Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
+import { BuyerOtpService } from './buyer-otp.service';
+import { BuyerClaimService } from './buyer-claim.service';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { EmailLoginDto } from './dto/email-login.dto';
 import { EmailRegisterDto } from './dto/email-register.dto';
@@ -22,9 +24,11 @@ import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
 import { SellerMigrateCheckDto } from './dto/seller-migrate-check.dto';
 import { SellerMigrateLinkEmailDto } from './dto/seller-migrate-link-email.dto';
 import { SellerPasswordSetupDto } from './dto/seller-password-setup.dto';
-import { BuyerMigrateCheckDto } from './dto/buyer-migrate-check.dto';
-import { BuyerMigrateLinkEmailDto } from './dto/buyer-migrate-link-email.dto';
-import { BuyerPasswordSetupDto } from './dto/buyer-password-setup.dto';
+import { BuyerOtpRequestDto } from './dto/buyer-otp-request.dto';
+import { BuyerOtpVerifyDto } from './dto/buyer-otp-verify.dto';
+import { BuyerOtpResendDto } from './dto/buyer-otp-resend.dto';
+import { BuyerClaimRequestDto } from './dto/buyer-claim-request.dto';
+import { BuyerClaimVerifyDto } from './dto/buyer-claim-verify.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
@@ -32,25 +36,17 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 export class AuthController {
   constructor(
     private authService: AuthService,
+    private buyerOtpService: BuyerOtpService,
+    private buyerClaimService: BuyerClaimService,
     private configService: ConfigService,
   ) {}
 
   // ---------------------------------------------------------------------------
-  // Email + password registration. Role is server-assigned (never trust the
-  // client): /register/buyer creates BUYER, /register/email creates SELLER.
+  // Email + password registration (sellers + admins only since 2026-05-15).
+  // Buyers authenticate via WhatsApp OTP (see buyer/otp/* below). Role is
+  // server-assigned (never trust the client). /register/email creates SELLER.
   // Admins are seeded out-of-band — there is no admin register endpoint.
   // ---------------------------------------------------------------------------
-
-  @Public()
-  @Post('register/buyer')
-  async registerBuyer(
-    @Body() dto: EmailRegisterDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const result = await this.authService.registerBuyerWithEmail(dto);
-    this.setAuthCookies(res, result.tokens);
-    return result;
-  }
 
   @Public()
   @Post('register/email')
@@ -93,31 +89,66 @@ export class AuthController {
   }
 
   // ---------------------------------------------------------------------------
-  // Buyer migration (legacy PHONE_OTP buyer → email + password).
+  // Buyer WhatsApp OTP — primary buyer auth surface since 2026-05-15.
+  // Replaces the previous /register/buyer + /buyer/migrate-* endpoints.
   // ---------------------------------------------------------------------------
 
   @Public()
-  @Post('buyer/migrate-check')
+  @Post('buyer/otp/request')
   @HttpCode(HttpStatus.OK)
-  async buyerMigrateCheck(@Body() dto: BuyerMigrateCheckDto) {
-    return this.authService.migrateBuyerCheck(dto);
+  async buyerOtpRequest(@Body() dto: BuyerOtpRequestDto) {
+    return this.buyerOtpService.requestOtp(dto.phone);
   }
 
   @Public()
-  @Post('buyer/migrate-link-email')
+  @Post('buyer/otp/verify')
   @HttpCode(HttpStatus.OK)
-  async buyerMigrateLinkEmail(@Body() dto: BuyerMigrateLinkEmailDto) {
-    return this.authService.migrateBuyerLinkEmail(dto);
-  }
-
-  @Public()
-  @Post('buyer/setup-password')
-  @HttpCode(HttpStatus.OK)
-  async buyerSetupPassword(
-    @Body() dto: BuyerPasswordSetupDto,
+  async buyerOtpVerify(
+    @Body() dto: BuyerOtpVerifyDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.setupBuyerPassword(dto);
+    const result = await this.buyerOtpService.verifyOtp(
+      dto.phone,
+      dto.code,
+      dto.firstName,
+      dto.lastName,
+    );
+    this.setAuthCookies(res, result.tokens);
+    return result;
+  }
+
+  @Public()
+  @Post('buyer/otp/resend')
+  @HttpCode(HttpStatus.OK)
+  async buyerOtpResend(@Body() dto: BuyerOtpResendDto) {
+    return this.buyerOtpService.resendOtp(dto.phone);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Buyer claim flow — for the ~3-day cohort that registered with
+  // email+password between 2026-05-12 and 2026-05-15 and therefore has no
+  // phone on file. Two-step: email lookup + magic link → phone + OTP.
+  // ---------------------------------------------------------------------------
+
+  @Public()
+  @Post('buyer/claim/request')
+  @HttpCode(HttpStatus.OK)
+  async buyerClaimRequest(@Body() dto: BuyerClaimRequestDto) {
+    return this.buyerClaimService.requestClaim(dto.email);
+  }
+
+  @Public()
+  @Post('buyer/claim/verify')
+  @HttpCode(HttpStatus.OK)
+  async buyerClaimVerify(
+    @Body() dto: BuyerClaimVerifyDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.buyerClaimService.verifyClaim(
+      dto.token,
+      dto.phone,
+      dto.code,
+    );
     this.setAuthCookies(res, result.tokens);
     return result;
   }
@@ -237,7 +268,13 @@ export class AuthController {
 
   private clearAuthCookies(res: Response) {
     const domain = this.configService.get<string>('COOKIE_DOMAIN') || undefined;
-    res.clearCookie('teka_access_token', { path: '/', ...(domain ? { domain } : {}) });
-    res.clearCookie('teka_refresh_token', { path: '/', ...(domain ? { domain } : {}) });
+    res.clearCookie('teka_access_token', {
+      path: '/',
+      ...(domain ? { domain } : {}),
+    });
+    res.clearCookie('teka_refresh_token', {
+      path: '/',
+      ...(domain ? { domain } : {}),
+    });
   }
 }

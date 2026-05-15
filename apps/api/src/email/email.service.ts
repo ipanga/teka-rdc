@@ -5,6 +5,7 @@ import { passwordResetTemplate } from './templates/password-reset.template';
 import { welcomeTemplate } from './templates/welcome.template';
 import { sellerSetupTemplate } from './templates/seller-setup.template';
 import { buyerSetupTemplate } from './templates/buyer-setup.template';
+import { buyerClaimTemplate } from './templates/buyer-claim.template';
 import {
   contactFormTemplate,
   type ContactFormEmailInput,
@@ -71,16 +72,23 @@ export class EmailService {
     return this.sendEmail(email, subject, html);
   }
 
-  async sendBuyerSetupEmail(
-    email: string,
-    setupUrl: string,
-  ): Promise<boolean> {
+  async sendBuyerSetupEmail(email: string, setupUrl: string): Promise<boolean> {
     const expiryHours = this.configService.get<number>(
       'BUYER_SETUP_EXPIRY_HOURS',
       24,
     );
     const subject = 'Configurez votre compte Teka RDC';
     const html = buyerSetupTemplate(setupUrl, expiryHours);
+    return this.sendEmail(email, subject, html);
+  }
+
+  async sendBuyerClaimEmail(email: string, claimUrl: string): Promise<boolean> {
+    const expiryHours = this.configService.get<number>(
+      'BUYER_SETUP_EXPIRY_HOURS',
+      24,
+    );
+    const subject = 'Réclamez votre compte Teka RDC';
+    const html = buyerClaimTemplate(claimUrl, expiryHours);
     return this.sendEmail(email, subject, html);
   }
 

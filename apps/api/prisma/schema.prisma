@@ -363,6 +363,13 @@ model BuyerMigration {
   setupEmailSent DateTime?
   setupCompleted DateTime?
   tempEmail      String?
+  // Holds the phone an email-only buyer is claiming via /reclamer-compte
+  // after WhatsApp OTP verification but before commit. Cleared once
+  // committed to users.phone.
+  tempPhone      String?
+  // Timestamp of the last claim-flow email send (distinct from
+  // setupEmailSent so we can throttle resends without losing legacy state).
+  claimEmailSent DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -907,6 +914,35 @@ model SystemSetting {
 
   @@index([key])
   @@map("system_settings")
+}
+
+// Buyer WhatsApp OTP auth (restored 2026-05-15 after May 12 deletion).
+// `code` stores sha256 hex of the 6-digit OTP — never plaintext. The
+// original pre-deletion shape stored the plaintext code; this restoration
+// hardens against DB exfiltration.
+model Otp {
+  id        String   @id @default(uuid()) @db.Uuid
+  phone     String
+  code      String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+  @@index([expiresAt])
+  @@map("otps")
+}
+
+model OtpRateLimit {
+  id        String   @id @default(uuid()) @db.Uuid
+  phone     String
+  count     Int      @default(1)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+  @@index([expiresAt])
+  @@map("otp_rate_limits")
 }
 
 model NotificationBroadcast {

@@ -1,4 +1,11 @@
-import { Body, Controller, HttpCode, HttpStatus, Ip, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Ip,
+  Post,
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { Public } from '../common/decorators/public.decorator';
 import { ContactService } from './contact.service';

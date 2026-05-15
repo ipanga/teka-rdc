@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
-import '../../features/auth/presentation/screens/forgot_password_screen.dart';
-import '../../features/auth/presentation/screens/login_screen.dart';
-import '../../features/auth/presentation/screens/migrate_screen.dart';
-import '../../features/auth/presentation/screens/register_screen.dart';
-import '../../features/auth/presentation/screens/reset_password_screen.dart';
-import '../../features/auth/presentation/screens/setup_password_screen.dart';
+import '../../features/auth/presentation/screens/otp_request_screen.dart';
+import '../../features/auth/presentation/screens/otp_verify_screen.dart';
+import '../../features/auth/presentation/screens/claim_request_screen.dart';
+import '../../features/auth/presentation/screens/claim_verify_screen.dart';
 import '../../features/city/presentation/providers/city_provider.dart';
 import '../../features/city/presentation/screens/city_selection_screen.dart';
 import '../../features/cart/presentation/screens/cart_screen.dart';
@@ -43,8 +41,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Still loading, don't redirect
       if (isLoading) return null;
 
-      // Not authenticated and not on auth route -> redirect to login
-      if (!isAuth && !isAuthRoute) return '/auth/login';
+      // Not authenticated and not on auth route -> redirect to OTP login
+      if (!isAuth && !isAuthRoute) return '/auth/connexion';
 
       // Authenticated and on auth route -> redirect to home
       if (isAuth && isAuthRoute) return '/';
@@ -67,33 +65,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const CitySelectionScreen(),
       ),
       GoRoute(
-        path: '/auth/login',
-        builder: (context, state) => const LoginScreen(),
+        path: '/auth/connexion',
+        builder: (context, state) => const OtpRequestScreen(),
       ),
       GoRoute(
-        path: '/auth/register',
-        builder: (context, state) => const RegisterScreen(),
-      ),
-      GoRoute(
-        path: '/auth/forgot-password',
-        builder: (context, state) => const ForgotPasswordScreen(),
-      ),
-      GoRoute(
-        path: '/auth/reset-password',
+        path: '/auth/otp',
         builder: (context, state) {
-          final token = state.uri.queryParameters['token'];
-          return ResetPasswordScreen(token: token);
+          final extra = state.extra as Map<String, dynamic>?;
+          final phone = (extra?['phone'] as String?) ?? '';
+          return OtpVerifyScreen(phone: phone);
         },
       ),
       GoRoute(
-        path: '/auth/migrate',
-        builder: (context, state) => const MigrateScreen(),
+        path: '/auth/reclamer-compte',
+        builder: (context, state) => const ClaimRequestScreen(),
       ),
       GoRoute(
-        path: '/auth/setup-password',
+        path: '/auth/reclamer-compte/confirmer',
         builder: (context, state) {
           final token = state.uri.queryParameters['token'];
-          return SetupPasswordScreen(token: token);
+          return ClaimVerifyScreen(token: token);
         },
       ),
       GoRoute(

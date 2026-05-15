@@ -16,14 +16,6 @@ export class SmsService {
     this.logger.log(`SMS provider active: ${this.provider.name}`);
   }
 
-  async sendOtp(phone: string, code: string): Promise<boolean> {
-    const message = `Votre code Teka RDC: ${code}. Valide ${this.configService.get(
-      'OTP_EXPIRY_MINUTES',
-      5,
-    )} minutes. Ne partagez ce code avec personne.`;
-    return this.dispatch(phone, message);
-  }
-
   async sendSms(phone: string, message: string): Promise<boolean> {
     return this.dispatch(phone, message);
   }

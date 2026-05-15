@@ -124,10 +124,7 @@ export class CitiesService {
   /**
    * Admin: update a commune.
    */
-  async updateCommune(
-    id: string,
-    data: { name?: string; sortOrder?: number },
-  ) {
+  async updateCommune(id: string, data: { name?: string; sortOrder?: number }) {
     const commune = await this.prisma.commune.findUnique({ where: { id } });
     if (!commune) {
       throw new NotFoundException('Commune non trouvée');

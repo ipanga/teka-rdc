@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Définir mon mot de passe',
+  title: 'Confirmer mon compte',
   robots: { index: false, follow: false },
 };
 

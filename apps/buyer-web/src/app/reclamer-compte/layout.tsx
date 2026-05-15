@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Migrer mon compte',
+  title: 'Réclamer mon compte',
   robots: { index: false, follow: false },
 };
 
