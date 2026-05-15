@@ -19,9 +19,12 @@ export class GupshupWhatsappProvider implements WhatsappProvider {
     this.apiKey = configService.get<string>('GUPSHUP_API_KEY', '');
     this.appName = configService.get<string>('GUPSHUP_APP_NAME', '');
     this.sourceNumber = configService.get<string>('GUPSHUP_SOURCE_NUMBER', '');
+    // Default to the /wa/ (WhatsApp Business) API path. The older /sm/
+    // (social messaging) path returns 401 "Portal User Not Found With
+    // APIKey" for accounts on Gupshup's newer app-level partner tokens.
     this.apiBase = configService.get<string>(
       'GUPSHUP_BASE_URL',
-      'https://api.gupshup.io/sm/api/v1',
+      'https://api.gupshup.io/wa/api/v1',
     );
     this.otpTemplateId = configService.get<string>(
       'GUPSHUP_OTP_TEMPLATE_ID',

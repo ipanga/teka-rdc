@@ -78,7 +78,7 @@ export const envValidationSchema = Joi.object({
   }),
   GUPSHUP_APP_NAME: Joi.string().allow('').default(''),
   GUPSHUP_SOURCE_NUMBER: Joi.string().allow('').default(''),
-  GUPSHUP_BASE_URL: Joi.string().default('https://api.gupshup.io/sm/api/v1'),
+  GUPSHUP_BASE_URL: Joi.string().default('https://api.gupshup.io/wa/api/v1'),
   GUPSHUP_OTP_TEMPLATE_ID: Joi.string().when('WHATSAPP_PROVIDER', {
     is: 'gupshup',
     then: Joi.when('NODE_ENV', {
