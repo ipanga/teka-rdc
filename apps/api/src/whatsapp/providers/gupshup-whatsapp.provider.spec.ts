@@ -6,7 +6,7 @@ function makeConfig(overrides: Record<string, string> = {}): ConfigService {
     GUPSHUP_API_KEY: 'test-key',
     GUPSHUP_APP_NAME: 'teka_rdc',
     GUPSHUP_SOURCE_NUMBER: '+243990000000',
-    GUPSHUP_BASE_URL: 'https://api.gupshup.io/sm/api/v1',
+    GUPSHUP_BASE_URL: 'https://api.gupshup.io/wa/api/v1',
     GUPSHUP_OTP_TEMPLATE_ID: 'tpl-1234',
     ...overrides,
   };

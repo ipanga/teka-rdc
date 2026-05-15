@@ -219,7 +219,7 @@ Expected health response:
 | `GUPSHUP_API_KEY` | Yes (if `WHATSAPP_PROVIDER=gupshup` in prod) | Gupshup API key from the Gupshup app dashboard |
 | `GUPSHUP_APP_NAME` | No | Gupshup app name (the `src.name` field on the template send) |
 | `GUPSHUP_SOURCE_NUMBER` | No | WhatsApp Business sender number (E.164, e.g. `+243XXXXXXXXX`). Gupshup strips the leading `+` automatically. |
-| `GUPSHUP_BASE_URL` | No | Gupshup REST base URL (default: `https://api.gupshup.io/sm/api/v1`) |
+| `GUPSHUP_BASE_URL` | No | Gupshup WhatsApp Business API base URL (default: `https://api.gupshup.io/wa/api/v1`). The legacy `/sm/` path returns 401 "Portal User Not Found With APIKey" for accounts on app-level partner tokens (post Feb 2026). |
 | `GUPSHUP_OTP_TEMPLATE_ID` | Yes (if `WHATSAPP_PROVIDER=gupshup` in prod) | UUID of the approved authentication template. Template body must contain exactly one parameter (`{{1}}`) for the 6-digit OTP code. |
 | `BUYER_SETUP_EXPIRY_HOURS` | No | TTL for the `/reclamer-compte` claim link JWT (default: `24`). |
 | `RESEND_API_KEY` | Yes | Resend.com API key for transactional emails (verification, reset, seller setup) |

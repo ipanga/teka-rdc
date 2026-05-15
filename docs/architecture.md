@@ -247,7 +247,7 @@ apps/api/src/whatsapp/                     ← buyer OTP (restored 2026-05-15)
 ├── interfaces/whatsapp-provider.interface.ts
 │                                          (WhatsappProvider { sendOtpTemplate(phone, code) })
 ├── providers/
-│   ├── gupshup-whatsapp.provider.ts       (POST /sm/api/v1/template/msg; strips leading +)
+│   ├── gupshup-whatsapp.provider.ts       (POST /wa/api/v1/template/msg; strips leading +)
 │   └── mock-whatsapp.provider.ts          (dev + test — logs `[MOCK WHATSAPP OTP]`)
 ├── whatsapp.service.ts                    (facade)
 └── whatsapp.module.ts                     (DI factory keyed on WHATSAPP_PROVIDER env)
