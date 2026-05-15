@@ -2,7 +2,14 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    // Override base (which targets ESNext for bundlers): emit CommonJS with
+    // Node-style resolution so `dist/index.js` is directly loadable by the
+    // API's `node dist/main.js` runtime. Next.js apps consume via
+    // `transpilePackages` which handles CJS fine, so this doesn't regress
+    // buyer-web / seller-web / admin-web.
+    "module": "CommonJS",
+    "moduleResolution": "Node10"
   },
   "include": ["src/**/*"]
 }

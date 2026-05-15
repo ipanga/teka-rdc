@@ -1,10 +1,7 @@
 import { ConfigService } from '@nestjs/config';
 import { createHash } from 'crypto';
+import { DEV_OTP_CODE } from '@teka/shared';
 import { BuyerOtpService } from './buyer-otp.service';
-
-// Duplicated from buyer-otp.service.ts (which inlines the constants for
-// runtime ESM compatibility). Keep in sync.
-const DEV_OTP_CODE = '123456';
 
 function makeConfig(env: Record<string, string> = {}): ConfigService {
   const defaults: Record<string, string> = {

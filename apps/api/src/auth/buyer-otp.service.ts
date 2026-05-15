@@ -9,21 +9,17 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHash, randomInt, timingSafeEqual } from 'crypto';
+import {
+  DEV_OTP_CODE,
+  OTP_EXPIRY_MINUTES,
+  OTP_LENGTH,
+  OTP_MAX_ATTEMPTS,
+  OTP_RATE_LIMIT_MAX,
+  OTP_RATE_LIMIT_WINDOW_SECONDS,
+} from '@teka/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { AuthService, AuthTokens } from './auth.service';
-
-// OTP constants are duplicated here rather than imported from @teka/shared
-// because the API runs vanilla `node dist/main.js` and @teka/shared's
-// package.json `main` points at `src/index.ts` (TypeScript source, used by
-// Next.js `transpilePackages` only — not loadable by Node directly). Keep
-// in sync with `packages/shared/src/constants/auth.ts`.
-const OTP_LENGTH = 6;
-const OTP_EXPIRY_MINUTES = 5;
-const OTP_MAX_ATTEMPTS = 5;
-const OTP_RATE_LIMIT_MAX = 3;
-const OTP_RATE_LIMIT_WINDOW_SECONDS = 600; // 10 minutes
-const DEV_OTP_CODE = '123456';
 
 export interface RequestOtpResult {
   expiresInSeconds: number;
