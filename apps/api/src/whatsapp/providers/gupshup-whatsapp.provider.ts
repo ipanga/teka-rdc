@@ -52,12 +52,36 @@ export class GupshupWhatsappProvider implements WhatsappProvider {
     const destination = phone.replace(/^\+/, '');
     const source = this.sourceNumber.replace(/^\+/, '');
 
+    // Meta-spec components payload. The legacy `{ id, params: [code] }`
+    // shorthand only fills body placeholders — the COPY_CODE button has a
+    // separate parameter slot. Without the explicit `button` component, the
+    // WhatsApp client renders the button text as the unsubstituted literal
+    // `{{1}}` (rendered by some clients as `{}`), so tapping "Copy code"
+    // copies an empty placeholder instead of the OTP. Including the body
+    // and button components binds the OTP to both.
+    const templatePayload = {
+      id: this.otpTemplateId,
+      params: [code],
+      components: [
+        {
+          type: 'body',
+          parameters: [{ type: 'text', text: code }],
+        },
+        {
+          type: 'button',
+          sub_type: 'copy_code',
+          index: 0,
+          parameters: [{ type: 'coupon_code', coupon_code: code }],
+        },
+      ],
+    };
+
     const body = new URLSearchParams({
       channel: 'whatsapp',
       source,
       destination,
       'src.name': this.appName,
-      template: JSON.stringify({ id: this.otpTemplateId, params: [code] }),
+      template: JSON.stringify(templatePayload),
     });
 
     try {

@@ -1,8 +1,8 @@
 # Teka RDC — Development Progress
 
-## Current Phase: Buyer UI/UX Redesign (Rakuten-inspired, cosmetic-only)
-## Current Task: PR #2 (Homepage + product cards) — awaiting merge of PR #70
-## Status: PR #1 (#69) MERGED & deployed. PR #2 (#70) OPEN, all CI green — merge blocked by auto-classifier, awaiting user approval.
+## Current Phase: Buyer UI/UX Redesign (Rakuten-inspired, cosmetic-only) — COMPLETE
+## Current Task: — (initiative shipped 2026-05-16, all 5 PRs landed)
+## Status: All 5 PRs MERGED & DEPLOYED — #69 (tokens) → #70 (homepage) → #71 (conversion path) → #72 (account/auth/search) → #73 (Flutter). Prod healthy.
 ## Last Updated: 2026-05-16
 
 **Detailed redesign tracker**: [`tasks/buyer-ui-redesign-progress.md`](./tasks/buyer-ui-redesign-progress.md) — per-PR status, file lists, verification gates, and the resumption protocol.
