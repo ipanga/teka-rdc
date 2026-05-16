@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { normalizeDrcPhone } from '@teka/shared';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { useAuthStore, type User } from '@/lib/auth-store';
+import { Button, Card, Input, Label, cn } from '@/components/ui';
 
 type Step = 'phone' | 'code';
 
@@ -32,17 +33,15 @@ function ConnexionInner() {
 
   const codeRef = useRef<HTMLInputElement | null>(null);
 
-  // Countdown ticker
   useEffect(() => {
     if (step !== 'code') return;
-    const t = setInterval(() => {
+    const id = setInterval(() => {
       setCooldownLeft((c) => (c > 0 ? c - 1 : 0));
       setExpiresLeft((c) => (c > 0 ? c - 1 : 0));
     }, 1000);
-    return () => clearInterval(t);
+    return () => clearInterval(id);
   }, [step]);
 
-  // Auto-focus the code field on step transition
   useEffect(() => {
     if (step === 'code') codeRef.current?.focus();
   }, [step]);
@@ -131,13 +130,21 @@ function ConnexionInner() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex items-center justify-center bg-surface-muted px-4 py-12">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-xl shadow-lg border border-border p-8">
+        {/* Brand mark above the card — small wordmark */}
+        <div className="text-center mb-5">
+          <Link href="/" className="inline-block">
+            <span className="text-2xl font-extrabold text-primary tracking-tight">teka</span>
+            <span className="text-2xl font-bold text-foreground tracking-tight">.cd</span>
+          </Link>
+        </div>
+
+        <Card padding="lg" variant="elevated">
           {step === 'phone' ? (
             <>
               <div className="text-center mb-6">
-                <h1 className="text-2xl font-bold text-foreground">
+                <h1 className="text-2xl font-bold text-foreground tracking-tight">
                   {t('otpPhoneTitle')}
                 </h1>
                 <p className="text-muted-foreground mt-2 text-sm">
@@ -146,21 +153,16 @@ function ConnexionInner() {
               </div>
 
               {error && (
-                <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                <div className="mb-4 p-3 rounded-lg bg-destructive-subtle border border-destructive/30 text-destructive text-sm">
                   {error}
                 </div>
               )}
 
               <form onSubmit={handlePhoneSubmit} className="space-y-4">
                 <div>
-                  <label
-                    htmlFor="phone"
-                    className="block text-sm font-medium text-foreground mb-1"
-                  >
-                    {t('otpPhoneLabel')}
-                  </label>
-                  <div className="flex items-stretch rounded-lg border border-input bg-background focus-within:ring-2 focus-within:ring-ring">
-                    <span className="px-3 flex items-center text-muted-foreground text-sm border-r border-input">
+                  <Label htmlFor="phone">{t('otpPhoneLabel')}</Label>
+                  <div className="flex items-stretch rounded-lg border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:border-transparent">
+                    <span className="px-3 flex items-center text-muted-foreground text-sm border-r border-input bg-surface-muted/60 rounded-l-lg font-medium">
                       +243
                     </span>
                     <input
@@ -174,49 +176,48 @@ function ConnexionInner() {
                       }
                       placeholder={t('otpPhonePlaceholder')}
                       autoComplete="tel"
-                      className="flex-1 px-3 py-2 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none rounded-r-lg"
+                      className="flex-1 px-3 py-2 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none rounded-r-lg text-sm"
                       required
                     />
                   </div>
                 </div>
 
-                <details className="text-sm text-muted-foreground">
-                  <summary className="cursor-pointer">
+                <details className="text-sm text-muted-foreground group">
+                  <summary className="cursor-pointer select-none hover:text-foreground transition-colors">
                     {t('otpFirstTime')}
                   </summary>
                   <div className="mt-3 grid grid-cols-2 gap-3">
-                    <input
+                    <Input
                       type="text"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
                       placeholder={t('otpFirstName')}
                       autoComplete="given-name"
-                      className="px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     />
-                    <input
+                    <Input
                       type="text"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
                       placeholder={t('otpLastName')}
                       autoComplete="family-name"
-                      className="px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                   </div>
                 </details>
 
-                <button
+                <Button
                   type="submit"
                   disabled={isLoading || !rawPhone}
-                  className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  size="lg"
+                  className="w-full"
                 >
                   {isLoading ? '...' : t('otpSendCode')}
-                </button>
+                </Button>
               </form>
 
               <div className="mt-6 text-center text-sm">
                 <Link
                   href="/reclamer-compte"
-                  className="text-primary hover:underline"
+                  className="text-primary hover:text-primary-hover hover:underline underline-offset-4 font-medium"
                 >
                   {t('claimTitle')}
                 </Link>
@@ -225,7 +226,7 @@ function ConnexionInner() {
           ) : (
             <>
               <div className="text-center mb-6">
-                <h1 className="text-2xl font-bold text-foreground">
+                <h1 className="text-2xl font-bold text-foreground tracking-tight">
                   {t('otpCodeTitle')}
                 </h1>
                 <p className="text-muted-foreground mt-2 text-sm">
@@ -234,24 +235,19 @@ function ConnexionInner() {
               </div>
 
               {error && (
-                <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                <div className="mb-4 p-3 rounded-lg bg-destructive-subtle border border-destructive/30 text-destructive text-sm">
                   {error}
                 </div>
               )}
               {info && (
-                <div className="mb-4 p-3 rounded-lg bg-success/10 text-foreground text-sm">
+                <div className="mb-4 p-3 rounded-lg bg-success-subtle border border-success/30 text-success text-sm">
                   {info}
                 </div>
               )}
 
               <div className="space-y-4">
                 <div>
-                  <label
-                    htmlFor="code"
-                    className="block text-sm font-medium text-foreground mb-1"
-                  >
-                    {t('otpCodeLabel')}
-                  </label>
+                  <Label htmlFor="code">{t('otpCodeLabel')}</Label>
                   <input
                     ref={codeRef}
                     id="code"
@@ -267,7 +263,11 @@ function ConnexionInner() {
                       }
                     }}
                     autoComplete="one-time-code"
-                    className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground text-center tracking-[0.5em] text-xl focus:outline-none focus:ring-2 focus:ring-ring"
+                    className={cn(
+                      'w-full px-3 py-3 rounded-lg border border-input bg-background text-foreground',
+                      'text-center font-mono tracking-[0.5em] text-2xl font-semibold',
+                      'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-transparent',
+                    )}
                   />
                 </div>
 
@@ -275,7 +275,7 @@ function ConnexionInner() {
                   <button
                     type="button"
                     onClick={() => setStep('phone')}
-                    className="text-muted-foreground hover:underline"
+                    className="text-muted-foreground hover:text-foreground hover:underline underline-offset-4 transition-colors"
                   >
                     ← {t('otpPhoneLabel')}
                   </button>
@@ -283,7 +283,7 @@ function ConnexionInner() {
                     type="button"
                     onClick={handleResend}
                     disabled={cooldownLeft > 0 || isLoading}
-                    className="text-primary hover:underline disabled:text-muted-foreground disabled:no-underline disabled:cursor-not-allowed"
+                    className="text-primary hover:text-primary-hover hover:underline underline-offset-4 font-medium disabled:text-muted-foreground disabled:no-underline disabled:cursor-not-allowed transition-colors"
                   >
                     {cooldownLeft > 0
                       ? t('otpResendIn', { seconds: cooldownLeft })
@@ -300,7 +300,7 @@ function ConnexionInner() {
               </div>
             </>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );

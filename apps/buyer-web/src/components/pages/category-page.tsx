@@ -14,6 +14,7 @@ import {
 } from '@/components/product/product-filters';
 import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
+import { Button, Card, Container } from '@/components/ui';
 import type { BrowseCategory, BrowseProduct, CursorPagination } from '@/lib/types';
 
 interface CategoryPageProps {
@@ -39,13 +40,11 @@ export default function CategoryPage({ categoryUuid }: CategoryPageProps = {}) {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
-  // Filter state
   const [condition, setCondition] = useState<ConditionFilter>('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
 
-  // Refs to read current filter state in callbacks without causing re-renders
   const filtersRef = useRef({ condition, minPrice, maxPrice, sortBy });
   filtersRef.current = { condition, minPrice, maxPrice, sortBy };
 
@@ -73,7 +72,6 @@ export default function CategoryPage({ categoryUuid }: CategoryPageProps = {}) {
     return res.data;
   }
 
-  // Initial load when categoryId changes
   useEffect(() => {
     setIsLoading(true);
     setProducts([]);
@@ -83,7 +81,6 @@ export default function CategoryPage({ categoryUuid }: CategoryPageProps = {}) {
     setMaxPrice('');
     setSortBy('newest');
 
-    // Fetch category info
     apiFetch<BrowseCategory[]>('/v1/browse/categories')
       .then((res) => {
         const found = findCategory(res.data, categoryId);
@@ -91,7 +88,6 @@ export default function CategoryPage({ categoryUuid }: CategoryPageProps = {}) {
       })
       .catch(() => {});
 
-    // Fetch products with default filters
     const qs = new URLSearchParams();
     qs.set('categoryId', categoryId);
     qs.set('sortBy', 'newest');
@@ -153,76 +149,57 @@ export default function CategoryPage({ categoryUuid }: CategoryPageProps = {}) {
     }
   }
 
-  const categoryName = category ? (category.name ?? '') : '';
+  const categoryName = category ? category.name ?? '' : '';
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-surface-muted">
       <Header />
 
-      <main className="flex-1 max-w-7xl mx-auto px-4 py-6 w-full">
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-          <Link href="/" className="hover:text-primary transition-colors">
-            {tCat('title')}
-          </Link>
-          <span>/</span>
-          {category && (
-            <span className="text-foreground font-medium">{categoryName}</span>
-          )}
-        </nav>
-
-        {/* Title + mobile filter toggle */}
-        <div className="flex items-center justify-between mb-6">
-          <h1 className="text-xl md:text-2xl font-bold text-foreground">
-            {categoryName || tCat('title')}
-            {pagination && (
-              <span className="text-base font-normal text-muted-foreground ml-2">
-                ({t('results', { count: pagination.total })})
-              </span>
+      <main className="flex-1">
+        <Container className="py-6 md:py-10">
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-5 overflow-x-auto">
+            <Link href="/" className="hover:text-primary transition-colors shrink-0">
+              {tCat('title')}
+            </Link>
+            <span>/</span>
+            {category && (
+              <span className="text-foreground font-medium truncate">{categoryName}</span>
             )}
-          </h1>
-          <button
-            onClick={() => setShowMobileFilters(!showMobileFilters)}
-            className="md:hidden px-4 py-2 border border-border rounded-lg text-sm text-foreground hover:bg-muted transition-colors"
-          >
-            {t('filters')}
-          </button>
-        </div>
+          </nav>
 
-        <div className="flex gap-6">
-          {/* Sidebar filters - desktop */}
-          <aside className="hidden md:block w-64 shrink-0">
-            <div className="sticky top-20 bg-white rounded-lg border border-border p-4">
-              <ProductFilters
-                condition={condition}
-                onConditionChange={setCondition}
-                minPrice={minPrice}
-                onMinPriceChange={setMinPrice}
-                maxPrice={maxPrice}
-                onMaxPriceChange={setMaxPrice}
-                sortBy={sortBy}
-                onSortChange={setSortBy}
-                onApply={handleApplyFilters}
-                onClear={handleClearFilters}
-              />
-            </div>
-          </aside>
+          {/* Title + mobile filter toggle */}
+          <div className="flex items-center justify-between gap-3 mb-6">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
+              {categoryName || tCat('title')}
+              {pagination && (
+                <span className="text-base font-normal text-muted-foreground ml-2">
+                  ({t('results', { count: pagination.total })})
+                </span>
+              )}
+            </h1>
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => setShowMobileFilters(!showMobileFilters)}
+              className="md:hidden shrink-0"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 6h18M6 12h12M9 18h6"
+                />
+              </svg>
+              {t('filters')}
+            </Button>
+          </div>
 
-          {/* Mobile filters overlay */}
-          {showMobileFilters && (
-            <div className="md:hidden fixed inset-0 z-40 bg-black/50">
-              <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-6 max-h-[70vh] overflow-y-auto">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-foreground">{t('filters')}</h3>
-                  <button
-                    onClick={() => setShowMobileFilters(false)}
-                    className="p-1 text-muted-foreground hover:text-foreground"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
+          <div className="flex gap-6">
+            {/* Sidebar filters - desktop */}
+            <aside className="hidden md:block w-64 shrink-0">
+              <Card padding="md" className="sticky top-20">
                 <ProductFilters
                   condition={condition}
                   onConditionChange={setCondition}
@@ -235,28 +212,72 @@ export default function CategoryPage({ categoryUuid }: CategoryPageProps = {}) {
                   onApply={handleApplyFilters}
                   onClear={handleClearFilters}
                 />
-              </div>
-            </div>
-          )}
+              </Card>
+            </aside>
 
-          {/* Product grid */}
-          <div className="flex-1 min-w-0">
-            <ProductGrid products={products} isLoading={isLoading} />
-
-            {/* Load more */}
-            {pagination?.hasMore && !isLoading && (
-              <div className="mt-8 text-center">
-                <button
-                  onClick={handleLoadMore}
-                  disabled={isLoadingMore}
-                  className="px-8 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            {/* Mobile filters drawer */}
+            {showMobileFilters && (
+              <div className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm">
+                <div
+                  className="absolute bottom-0 left-0 right-0 bg-surface rounded-t-2xl shadow-xl flex flex-col max-h-[85vh]"
+                  style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
                 >
-                  {isLoadingMore ? t('loading') : t('loadMore')}
-                </button>
+                  <div className="flex items-center justify-between p-4 border-b border-border">
+                    <h3 className="text-lg font-bold text-foreground tracking-tight">
+                      {t('filters')}
+                    </h3>
+                    <button
+                      onClick={() => setShowMobileFilters(false)}
+                      className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-surface-hover rounded-lg transition-colors"
+                      aria-label="Close"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-4">
+                    <ProductFilters
+                      condition={condition}
+                      onConditionChange={setCondition}
+                      minPrice={minPrice}
+                      onMinPriceChange={setMinPrice}
+                      maxPrice={maxPrice}
+                      onMaxPriceChange={setMaxPrice}
+                      sortBy={sortBy}
+                      onSortChange={setSortBy}
+                      onApply={handleApplyFilters}
+                      onClear={handleClearFilters}
+                    />
+                  </div>
+                </div>
               </div>
             )}
+
+            {/* Product grid */}
+            <div className="flex-1 min-w-0">
+              <ProductGrid products={products} isLoading={isLoading} />
+
+              {pagination?.hasMore && !isLoading && (
+                <div className="mt-8 text-center">
+                  <Button
+                    variant="default"
+                    size="lg"
+                    onClick={handleLoadMore}
+                    disabled={isLoadingMore}
+                  >
+                    {isLoadingMore ? t('loading') : t('loadMore')}
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        </Container>
       </main>
 
       <Footer />
@@ -264,7 +285,6 @@ export default function CategoryPage({ categoryUuid }: CategoryPageProps = {}) {
   );
 }
 
-/** Recursively find a category by ID in the tree */
 function findCategory(
   categories: BrowseCategory[],
   id: string,

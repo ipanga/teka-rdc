@@ -3,9 +3,11 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { normalizeDrcPhone } from '@teka/shared';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { useAuthStore, type User } from '@/lib/auth-store';
+import { Button, Card, Label, cn } from '@/components/ui';
 
 type Step = 'phone' | 'code';
 
@@ -30,9 +32,19 @@ function ConfirmerInner() {
 
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4">
-        <div className="w-full max-w-md bg-white rounded-xl shadow-lg border border-border p-8 text-center text-sm text-destructive">
-          {t('invalidOrExpiredLink')}
+      <div className="min-h-screen flex items-center justify-center bg-surface-muted px-4 py-12">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-5">
+            <Link href="/" className="inline-block">
+              <span className="text-2xl font-extrabold text-primary tracking-tight">teka</span>
+              <span className="text-2xl font-bold text-foreground tracking-tight">.cd</span>
+            </Link>
+          </div>
+          <Card padding="lg" variant="elevated" className="text-center">
+            <div className="p-3 rounded-lg bg-destructive-subtle border border-destructive/30 text-destructive text-sm">
+              {t('invalidOrExpiredLink')}
+            </div>
+          </Card>
         </div>
       </div>
     );
@@ -87,11 +99,18 @@ function ConfirmerInner() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex items-center justify-center bg-surface-muted px-4 py-12">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-xl shadow-lg border border-border p-8">
+        <div className="text-center mb-5">
+          <Link href="/" className="inline-block">
+            <span className="text-2xl font-extrabold text-primary tracking-tight">teka</span>
+            <span className="text-2xl font-bold text-foreground tracking-tight">.cd</span>
+          </Link>
+        </div>
+
+        <Card padding="lg" variant="elevated">
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-foreground">
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">
               {t('claimConfirmTitle')}
             </h1>
             <p className="text-muted-foreground mt-2 text-sm">
@@ -100,7 +119,7 @@ function ConfirmerInner() {
           </div>
 
           {error && (
-            <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+            <div className="mb-4 p-3 rounded-lg bg-destructive-subtle border border-destructive/30 text-destructive text-sm">
               {error}
             </div>
           )}
@@ -108,14 +127,9 @@ function ConfirmerInner() {
           {step === 'phone' ? (
             <form onSubmit={handlePhoneSubmit} className="space-y-4">
               <div>
-                <label
-                  htmlFor="phone"
-                  className="block text-sm font-medium text-foreground mb-1"
-                >
-                  {t('otpPhoneLabel')}
-                </label>
-                <div className="flex items-stretch rounded-lg border border-input bg-background focus-within:ring-2 focus-within:ring-ring">
-                  <span className="px-3 flex items-center text-muted-foreground text-sm border-r border-input">
+                <Label htmlFor="phone">{t('otpPhoneLabel')}</Label>
+                <div className="flex items-stretch rounded-lg border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:border-transparent">
+                  <span className="px-3 flex items-center text-muted-foreground text-sm border-r border-input bg-surface-muted/60 rounded-l-lg font-medium">
                     +243
                   </span>
                   <input
@@ -129,28 +143,24 @@ function ConfirmerInner() {
                     }
                     placeholder={t('otpPhonePlaceholder')}
                     autoComplete="tel"
-                    className="flex-1 px-3 py-2 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none rounded-r-lg"
+                    className="flex-1 px-3 py-2 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none rounded-r-lg text-sm"
                     required
                   />
                 </div>
               </div>
-              <button
+              <Button
                 type="submit"
                 disabled={isLoading || !rawPhone}
-                className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                size="lg"
+                className="w-full"
               >
                 {isLoading ? '...' : t('otpSendCode')}
-              </button>
+              </Button>
             </form>
           ) : (
             <div className="space-y-4">
               <div>
-                <label
-                  htmlFor="code"
-                  className="block text-sm font-medium text-foreground mb-1"
-                >
-                  {t('otpCodeLabel')}
-                </label>
+                <Label htmlFor="code">{t('otpCodeLabel')}</Label>
                 <input
                   ref={codeRef}
                   id="code"
@@ -164,19 +174,23 @@ function ConfirmerInner() {
                     if (v.length === 6) void submitCode(v);
                   }}
                   autoComplete="one-time-code"
-                  className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground text-center tracking-[0.5em] text-xl focus:outline-none focus:ring-2 focus:ring-ring"
+                  className={cn(
+                    'w-full px-3 py-3 rounded-lg border border-input bg-background text-foreground',
+                    'text-center font-mono tracking-[0.5em] text-2xl font-semibold',
+                    'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-transparent',
+                  )}
                 />
               </div>
               <button
                 type="button"
                 onClick={() => setStep('phone')}
-                className="block w-full text-sm text-center text-muted-foreground hover:underline"
+                className="block w-full text-sm text-center text-muted-foreground hover:text-foreground hover:underline underline-offset-4 transition-colors"
               >
                 ← {t('otpPhoneLabel')}
               </button>
             </div>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );
