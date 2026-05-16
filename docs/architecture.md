@@ -255,6 +255,18 @@ apps/api/src/whatsapp/                     ← buyer OTP (restored 2026-05-15)
 
 Both factories share the same `warnIfMockInProd` discipline (loud startup ERROR if a mock provider is selected in production). The two stacks never call each other; adding an SMS template never touches WhatsApp code and vice versa.
 
+### Frontend design tokens (web + mobile)
+
+The buyer surfaces share a token-driven design system anchored on Rakuten France's official corporate red (`#BF0000`, PANTONE 485 C). Tokens live in two authoritative files that must be kept in sync when adjusting:
+
+```
+apps/buyer-web/src/app/globals.css           ← Tailwind v4 @theme inline {}
+apps/buyer-mobile/lib/core/theme/teka_colors.dart  ← Flutter Color constants
+apps/buyer-mobile/lib/core/theme/app_theme.dart    ← Flutter ThemeData
+```
+
+The web exposes the full tonal scale (`--color-primary-50` through `--color-primary-900`, with `--color-primary` aliased to the `600` step) plus semantic neutrals, status colors (success / warning / destructive / info — each with a `*-subtle` background variant), explicit radius (sm/md/lg/xl/2xl/full), shadow (xs/sm/md/lg/xl) and typography vars. UI primitives at `apps/buyer-web/src/components/ui/` (Button, Badge, Card, Input, Label, Container, SectionHeader) consume these tokens via Tailwind utilities + `class-variance-authority` for variant composition. The set is intentionally small — domain components (`ProductCard`, `CartItemRow`, …) live under `components/{product,cart,…}/` and compose the primitives.
+
 
 ### Product Lifecycle
 

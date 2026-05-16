@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@teka/shared": "workspace:*",
+    "class-variance-authority": "^0.7.1",
     "next": "15.5.18",
     "next-intl": "^4.9.2",
     "react": "19.1.0",

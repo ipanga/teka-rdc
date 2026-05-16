@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import Link from 'next/link';
+import { Badge } from '@/components/ui';
 import { useCartStore } from '@/lib/cart-store';
 import { useAuthStore } from '@/lib/auth-store';
 
@@ -47,9 +48,13 @@ export function CartBadge() {
         />
       </svg>
       {totalItems > 0 && (
-        <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-primary rounded-full">
+        <Badge
+          variant="discount"
+          size="sm"
+          className="absolute -top-1 -right-1 min-w-5 h-5 px-1 justify-center shadow-sm"
+        >
           {totalItems > 99 ? '99+' : totalItems}
-        </span>
+        </Badge>
       )}
     </Link>
   );
