@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useCartStore } from '@/lib/cart-store';
 import { formatCDF } from '@/lib/format';
+import { cn } from '@/components/ui';
 import type { CartItem } from '@/lib/types';
 
 interface CartItemRowProps {
@@ -22,8 +23,6 @@ export function CartItemRow({ item }: CartItemRowProps) {
   const title = product.title;
   const maxStock = product.quantity;
   const thumbnailUrl = product.image?.thumbnailUrl || product.image?.url;
-
-  // Subtotal = unitPrice * quantity
   const subtotalCentimes = BigInt(product.priceCDF) * BigInt(quantity);
 
   async function handleQuantityChange(newQty: number) {
@@ -41,18 +40,18 @@ export function CartItemRow({ item }: CartItemRowProps) {
   }
 
   return (
-    <div className="flex gap-3 py-4 border-b border-border last:border-0">
+    <div className="flex gap-3 md:gap-4 py-4 border-b border-border last:border-0">
       {/* Product image */}
       <Link
         href={`/${item.productId}`}
-        className="relative w-20 h-20 md:w-24 md:h-24 bg-muted rounded-lg overflow-hidden shrink-0"
+        className="relative w-20 h-20 md:w-28 md:h-28 bg-surface-muted rounded-lg overflow-hidden shrink-0 border border-border"
       >
         {thumbnailUrl ? (
           <Image
             src={thumbnailUrl}
             alt={title}
             fill
-            sizes="96px"
+            sizes="(max-width: 768px) 80px, 112px"
             className="object-cover"
           />
         ) : (
@@ -70,42 +69,50 @@ export function CartItemRow({ item }: CartItemRowProps) {
       </Link>
 
       {/* Product info */}
-      <div className="flex-1 min-w-0">
-        <Link
-          href={`/${item.productId}`}
-          className="text-sm font-medium text-foreground hover:text-primary transition-colors line-clamp-2"
-        >
-          {title}
-        </Link>
+      <div className="flex-1 min-w-0 flex flex-col justify-between">
+        <div>
+          <Link
+            href={`/${item.productId}`}
+            className="text-sm md:text-base font-medium text-foreground hover:text-primary transition-colors line-clamp-2 leading-snug"
+          >
+            {title}
+          </Link>
+          <p className="text-xs text-muted-foreground mt-1">
+            {t('seller')}: <span className="font-medium">{product.seller.businessName}</span>
+          </p>
+          <p className="text-base md:text-lg font-bold text-primary mt-1.5">
+            {formatCDF(product.priceCDF)}
+          </p>
+        </div>
 
-        <p className="text-xs text-muted-foreground mt-1">
-          {t('seller')}: {product.seller.businessName}
-        </p>
-
-        <p className="text-sm font-semibold text-primary mt-1">
-          {formatCDF(product.priceCDF)}
-        </p>
-
-        {/* Quantity controls */}
-        <div className="flex items-center gap-3 mt-2">
-          <div className="flex items-center border border-border rounded-lg">
+        {/* Quantity + remove */}
+        <div className="flex items-center gap-3 mt-3">
+          <div className="inline-flex items-center border border-border rounded-lg overflow-hidden">
             <button
+              type="button"
               onClick={() => handleQuantityChange(quantity - 1)}
               disabled={quantity <= 1 || isUpdating}
-              className="w-8 h-8 flex items-center justify-center text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-l-lg"
+              className={cn(
+                'w-8 h-8 flex items-center justify-center text-foreground',
+                'hover:bg-surface-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors',
+              )}
               aria-label="Decrease quantity"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
               </svg>
             </button>
-            <span className="w-10 text-center text-sm font-medium text-foreground">
+            <span className="w-10 text-center text-sm font-semibold text-foreground border-x border-border h-8 flex items-center justify-center">
               {quantity}
             </span>
             <button
+              type="button"
               onClick={() => handleQuantityChange(quantity + 1)}
               disabled={quantity >= maxStock || isUpdating}
-              className="w-8 h-8 flex items-center justify-center text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors rounded-r-lg"
+              className={cn(
+                'w-8 h-8 flex items-center justify-center text-foreground',
+                'hover:bg-surface-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors',
+              )}
               aria-label="Increase quantity"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -117,7 +124,7 @@ export function CartItemRow({ item }: CartItemRowProps) {
           <button
             onClick={handleRemove}
             disabled={isUpdating}
-            className="text-xs text-destructive hover:text-destructive/80 transition-colors disabled:opacity-40"
+            className="text-xs text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40 underline-offset-4 hover:underline"
           >
             {t('remove')}
           </button>
@@ -125,8 +132,9 @@ export function CartItemRow({ item }: CartItemRowProps) {
       </div>
 
       {/* Subtotal */}
-      <div className="text-right shrink-0">
-        <p className="text-sm font-semibold text-foreground">
+      <div className="text-right shrink-0 self-start">
+        <p className="text-xs text-muted-foreground hidden md:block">{t('subtotal')}</p>
+        <p className="text-base md:text-lg font-bold text-foreground mt-0.5">
           {formatCDF(subtotalCentimes.toString())}
         </p>
       </div>
