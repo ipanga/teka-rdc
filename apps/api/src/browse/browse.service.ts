@@ -138,10 +138,14 @@ export class BrowseService {
     }
 
     if (query.search) {
+      // `title` and `description` were flattened from JSONB (`{ fr, en }`)
+      // to plain strings in the May 2026 monolingual refactor. The previous
+      // JSONB path filter (`{ path: ['fr'], string_contains: ... }`) errored
+      // with 500 against String columns. Use Prisma's plain insensitive
+      // contains filter instead.
       where.OR = [
-        { title: { path: ['fr'], string_contains: query.search } },
-        { title: { path: ['en'], string_contains: query.search } },
-        { description: { path: ['fr'], string_contains: query.search } },
+        { title: { contains: query.search, mode: 'insensitive' } },
+        { description: { contains: query.search, mode: 'insensitive' } },
       ];
     }
 
