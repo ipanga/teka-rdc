@@ -1,7 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const protectedRoutes = ['/profile', '/addresses', '/orders', '/checkout'];
-const authOnlyRoutes = ['/login', '/register'];
+// Auth-gated buyer routes. `/wishlist` and `/messages` were missing before
+// — the pages hit auth-required APIs (`GET /v1/wishlist`,
+// `GET /v1/conversations`) which 401, but the client silently rendered the
+// empty state. Users had no signal they needed to log in.
+const protectedRoutes = [
+  '/profile',
+  '/addresses',
+  '/orders',
+  '/checkout',
+  '/wishlist',
+  '/messages',
+];
+
+// Routes that redirect logged-in users back to home. `/login` and
+// `/register` don't exist as routes since the May 2026 monolingual +
+// WhatsApp-OTP refactor — the real auth surfaces are `/connexion` and
+// `/reclamer-compte`.
+const authOnlyRoutes = ['/connexion', '/reclamer-compte'];
 
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -15,7 +31,10 @@ export default function middleware(request: NextRequest) {
   );
 
   if (isProtected && !hasToken) {
-    const loginUrl = new URL('/login', request.url);
+    // Go straight to /connexion. The previous code redirected to /login,
+    // which 301'd to /connexion via next.config redirects — an unnecessary
+    // extra hop on every protected-route hit.
+    const loginUrl = new URL('/connexion', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
   }
