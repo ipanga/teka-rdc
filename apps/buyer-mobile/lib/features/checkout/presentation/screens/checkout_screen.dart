@@ -646,7 +646,7 @@ class _PaymentStepState extends State<_PaymentStep> {
               Expanded(
                 child: _ProviderTile(
                   label: l10n.checkoutMpesa,
-                  color: const Color(0xFF4CAF50),
+                  color: TekaColors.paymentMpesa,
                   isSelected: widget.selectedProvider == 'M_PESA',
                   onTap: () => widget.onSelectProvider('M_PESA'),
                 ),
@@ -655,7 +655,7 @@ class _PaymentStepState extends State<_PaymentStep> {
               Expanded(
                 child: _ProviderTile(
                   label: l10n.checkoutAirtelMoney,
-                  color: const Color(0xFFE53935),
+                  color: TekaColors.paymentAirtel,
                   isSelected: widget.selectedProvider == 'AIRTEL_MONEY',
                   onTap: () => widget.onSelectProvider('AIRTEL_MONEY'),
                 ),
@@ -664,7 +664,7 @@ class _PaymentStepState extends State<_PaymentStep> {
               Expanded(
                 child: _ProviderTile(
                   label: l10n.checkoutOrangeMoney,
-                  color: const Color(0xFFF57C00),
+                  color: TekaColors.paymentOrange,
                   isSelected: widget.selectedProvider == 'ORANGE_MONEY',
                   onTap: () => widget.onSelectProvider('ORANGE_MONEY'),
                 ),
@@ -719,34 +719,36 @@ class _ProviderTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
         decoration: BoxDecoration(
           border: Border.all(
-            color: isSelected ? color : TekaColors.border,
-            width: isSelected ? 2 : 1,
+            color: isSelected ? TekaColors.tekaRed : TekaColors.border,
+            width: isSelected ? 1.5 : 1,
           ),
-          borderRadius: BorderRadius.circular(8),
-          color: isSelected ? color.withOpacity(0.08) : null,
+          borderRadius: BorderRadius.circular(10),
+          color: isSelected ? TekaColors.tekaRedSubtle : TekaColors.surface,
         ),
         child: Column(
           children: [
-            Icon(
-              isSelected
-                  ? Icons.radio_button_checked
-                  : Icons.radio_button_off,
-              color: isSelected ? color : TekaColors.mutedForeground,
-              size: 20,
+            // Provider accent dot — keeps brand color identification
+            Container(
+              width: 10,
+              height: 10,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+              ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               label,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? color : TekaColors.foreground,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? TekaColors.tekaRed : TekaColors.foreground,
               ),
             ),
           ],

@@ -27,7 +27,7 @@ class CartItemTile extends StatelessWidget {
     final maxStock = item.product.quantity;
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: const BoxDecoration(
         border: Border(
           bottom: BorderSide(color: TekaColors.border, width: 0.5),
@@ -36,54 +36,49 @@ class CartItemTile extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Product thumbnail
+          // Product thumbnail — larger (96dp matches web 24-tailwind)
           ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: SizedBox(
-              width: 80,
-              height: 80,
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              width: 96,
+              height: 96,
+              decoration: BoxDecoration(
+                color: TekaColors.surfaceMuted,
+                border: Border.all(color: TekaColors.border),
+                borderRadius: BorderRadius.circular(10),
+              ),
               child: imageUrl != null && imageUrl.isNotEmpty
                   ? CachedNetworkImage(
                       imageUrl: imageUrl,
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(
-                        color: TekaColors.muted,
-                        child: const Center(
-                          child: SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
+                      placeholder: (context, url) => const Center(
+                        child: SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                       ),
-                      errorWidget: (context, url, error) => Container(
-                        color: TekaColors.muted,
-                        child: const Icon(
-                          Icons.image_not_supported_outlined,
-                          color: TekaColors.mutedForeground,
-                          size: 24,
-                        ),
+                      errorWidget: (context, url, error) => const Icon(
+                        Icons.image_not_supported_outlined,
+                        color: TekaColors.mutedForeground,
+                        size: 28,
                       ),
                     )
-                  : Container(
-                      color: TekaColors.muted,
-                      child: const Icon(
-                        Icons.image_outlined,
-                        color: TekaColors.mutedForeground,
-                        size: 24,
-                      ),
+                  : const Icon(
+                      Icons.image_outlined,
+                      color: TekaColors.mutedForeground,
+                      size: 28,
                     ),
             ),
           ),
 
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
 
           // Product info
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Title
                 Text(
                   title,
                   maxLines: 2,
@@ -91,45 +86,44 @@ class CartItemTile extends StatelessWidget {
                   style: const TextStyle(
                     color: TekaColors.foreground,
                     fontSize: 14,
-                    height: 1.3,
+                    fontWeight: FontWeight.w500,
+                    height: 1.35,
                   ),
                 ),
-                const SizedBox(height: 4),
-
-                // Unit price
-                Text(
-                  unitPrice,
-                  style: const TextStyle(
-                    color: TekaColors.tekaRed,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-
-                // Seller name
                 if (item.product.sellerName != null &&
                     item.product.sellerName!.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(top: 2),
+                    padding: const EdgeInsets.only(top: 4),
                     child: Text(
                       item.product.sellerName!,
                       style: const TextStyle(
                         color: TekaColors.mutedForeground,
                         fontSize: 12,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                const SizedBox(height: 6),
+                Text(
+                  unitPrice,
+                  style: const TextStyle(
+                    color: TekaColors.tekaRed,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 10),
 
-                const SizedBox(height: 8),
-
-                // Quantity controls + subtotal + remove
+                // Stepper + subtotal + remove
                 Row(
                   children: [
-                    // Quantity selector
+                    // Quantity stepper
                     Container(
                       decoration: BoxDecoration(
                         border: Border.all(color: TekaColors.border),
-                        borderRadius: BorderRadius.circular(6),
+                        borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -137,19 +131,19 @@ class CartItemTile extends StatelessWidget {
                           _QuantityButton(
                             icon: Icons.remove,
                             onPressed: item.quantity > 1
-                                ? () =>
-                                    onQuantityChanged(item.quantity - 1)
+                                ? () => onQuantityChanged(item.quantity - 1)
                                 : null,
                           ),
                           Container(
-                            constraints: const BoxConstraints(minWidth: 36),
-                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            constraints: const BoxConstraints(minWidth: 40),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 4),
                             alignment: Alignment.center,
                             child: Text(
                               '${item.quantity}',
                               style: const TextStyle(
                                 fontSize: 14,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                                 color: TekaColors.foreground,
                               ),
                             ),
@@ -158,8 +152,7 @@ class CartItemTile extends StatelessWidget {
                             icon: Icons.add,
                             onPressed:
                                 maxStock > 0 && item.quantity < maxStock
-                                    ? () =>
-                                        onQuantityChanged(item.quantity + 1)
+                                    ? () => onQuantityChanged(item.quantity + 1)
                                     : null,
                           ),
                         ],
@@ -168,26 +161,25 @@ class CartItemTile extends StatelessWidget {
 
                     const Spacer(),
 
-                    // Subtotal
                     Text(
                       subtotal,
                       style: const TextStyle(
                         color: TekaColors.foreground,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
 
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 4),
 
-                    // Remove button
                     IconButton(
                       onPressed: onRemove,
                       icon: const Icon(
                         Icons.delete_outline,
-                        color: TekaColors.destructive,
+                        color: TekaColors.mutedForeground,
                         size: 20,
                       ),
+                      tooltip: 'Supprimer',
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(
                         minWidth: 32,
@@ -216,15 +208,16 @@ class _QuantityButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onPressed,
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.all(6),
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        width: 32,
+        height: 32,
+        alignment: Alignment.center,
         child: Icon(
           icon,
           size: 16,
-          color: onPressed != null
-              ? TekaColors.foreground
-              : TekaColors.border,
+          color:
+              onPressed != null ? TekaColors.foreground : TekaColors.borderStrong,
         ),
       ),
     );

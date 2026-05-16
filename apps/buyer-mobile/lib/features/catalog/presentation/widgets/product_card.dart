@@ -22,16 +22,11 @@ class ProductCard extends StatelessWidget {
     return GestureDetector(
       onTap: () => context.push('/products/${product.id}'),
       child: Card(
-        clipBehavior: Clip.antiAlias,
-        elevation: 1,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: TekaColors.border, width: 0.5),
-        ),
+        // Card theme provides border + 12dp radius globally.
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image
+            // Image with overlaid badges
             AspectRatio(
               aspectRatio: 1,
               child: Stack(
@@ -42,7 +37,7 @@ class ProductCard extends StatelessWidget {
                       imageUrl: imageUrl,
                       fit: BoxFit.cover,
                       placeholder: (context, url) => Container(
-                        color: TekaColors.muted,
+                        color: TekaColors.surfaceMuted,
                         child: const Center(
                           child: SizedBox(
                             width: 24,
@@ -52,7 +47,7 @@ class ProductCard extends StatelessWidget {
                         ),
                       ),
                       errorWidget: (context, url, error) => Container(
-                        color: TekaColors.muted,
+                        color: TekaColors.surfaceMuted,
                         child: const Icon(
                           Icons.image_not_supported_outlined,
                           color: TekaColors.mutedForeground,
@@ -62,63 +57,43 @@ class ProductCard extends StatelessWidget {
                     )
                   else
                     Container(
-                      color: TekaColors.muted,
+                      color: TekaColors.surfaceMuted,
                       child: const Icon(
                         Icons.image_outlined,
                         color: TekaColors.mutedForeground,
                         size: 32,
                       ),
                     ),
-                  // Condition badge
-                  Positioned(
-                    top: 6,
-                    left: 6,
-                    child: _ConditionBadge(
-                      condition: product.condition,
-                      l10n: l10n,
-                    ),
-                  ),
-                  // Low stock / out of stock badge
+                  // Out-of-stock solid badge top-left
                   if (product.isOutOfStock)
                     Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: Container(
-                        color: Colors.black54,
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Text(
-                          l10n.productOutOfStock,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                      top: 8,
+                      left: 8,
+                      child: _Pill(
+                        label: l10n.productOutOfStock,
+                        background: TekaColors.foreground,
+                        foreground: Colors.white,
                       ),
                     )
-                  else if (product.isLowStock)
+                  // Otherwise condition pill top-left
+                  else
                     Positioned(
-                      bottom: 6,
-                      right: 6,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: TekaColors.warning,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          l10n.productLowStock,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                      top: 8,
+                      left: 8,
+                      child: _ConditionBadge(
+                        condition: product.condition,
+                        l10n: l10n,
+                      ),
+                    ),
+                  // Low stock warning bottom-right
+                  if (!product.isOutOfStock && product.isLowStock)
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: _Pill(
+                        label: l10n.productLowStock,
+                        background: TekaColors.warning,
+                        foreground: Colors.white,
                       ),
                     ),
                 ],
@@ -126,41 +101,43 @@ class ProductCard extends StatelessWidget {
             ),
             // Product info
             Padding(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title
                   Text(
                     title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: TekaColors.foreground,
-                          height: 1.3,
-                        ),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      height: 1.35,
+                      color: TekaColors.foreground,
+                    ),
                   ),
-                  const SizedBox(height: 4),
-                  // Price
+                  const SizedBox(height: 6),
                   Text(
                     price,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          color: TekaColors.tekaRed,
-                          fontWeight: FontWeight.bold,
-                        ),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: TekaColors.tekaRed,
+                      letterSpacing: -0.2,
+                    ),
                   ),
-                  const SizedBox(height: 2),
-                  // Seller
                   if (product.seller.businessName != null &&
-                      product.seller.businessName!.isNotEmpty)
+                      product.seller.businessName!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
                     Text(
                       product.seller.businessName!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: TekaColors.mutedForeground,
-                          ),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: TekaColors.mutedForeground,
+                      ),
                     ),
+                  ],
                 ],
               ),
             ),
@@ -181,18 +158,40 @@ class _ConditionBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final isNew =
         condition.toUpperCase() == 'NEW' || condition.toUpperCase() == 'NEUF';
+    return _Pill(
+      label: isNew ? l10n.productConditionNew : l10n.productConditionUsed,
+      background: isNew ? TekaColors.successSubtle : TekaColors.warningSubtle,
+      foreground: isNew ? TekaColors.success : TekaColors.warning,
+    );
+  }
+}
+
+class _Pill extends StatelessWidget {
+  final String label;
+  final Color background;
+  final Color foreground;
+
+  const _Pill({
+    required this.label,
+    required this.background,
+    required this.foreground,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: isNew ? TekaColors.success : TekaColors.warning,
-        borderRadius: BorderRadius.circular(4),
+        color: background,
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        isNew ? l10n.productConditionNew : l10n.productConditionUsed,
-        style: const TextStyle(
-          color: Colors.white,
+        label,
+        style: TextStyle(
+          color: foreground,
           fontSize: 10,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.2,
         ),
       ),
     );

@@ -1,14 +1,75 @@
 import 'package:flutter/material.dart';
 
+/// Teka design tokens — mirrors the web `@theme inline` block at
+/// `apps/buyer-web/src/app/globals.css`. The brand red is Rakuten France's
+/// official corporate red (#BF0000, PANTONE 485 C — Rakuten Brand Guideline
+/// v2.5). Keep web and mobile in sync when adjusting.
 class TekaColors {
   TekaColors._();
-  static const Color tekaRed = Color(0xFFBF0000);
-  static const Color success = Color(0xFF16A34A);
-  static const Color warning = Color(0xFFF59E0B);
-  static const Color destructive = Color(0xFFEF4444);
+
+  // === Brand red — Rakuten 485 C tonal scale ===========================
+  static const Color tekaRed50 = Color(0xFFFFF5F5);
+  static const Color tekaRed100 = Color(0xFFFFE3E3);
+  static const Color tekaRed200 = Color(0xFFFFC9C9);
+  static const Color tekaRed300 = Color(0xFFFFA8A8);
+  static const Color tekaRed400 = Color(0xFFFF6B6B);
+  static const Color tekaRed500 = Color(0xFFE53935);
+  static const Color tekaRed600 = Color(0xFFBF0000); // canonical brand red
+  static const Color tekaRed700 = Color(0xFFA60000);
+  static const Color tekaRed800 = Color(0xFF8A0000);
+  static const Color tekaRed900 = Color(0xFF660000);
+  static const Color tekaRed = tekaRed600;
+  static const Color tekaRedHover = tekaRed700;
+  static const Color tekaRedPressed = tekaRed800;
+  static const Color tekaRedSubtle = tekaRed50;
+
+  // === Neutrals (slate scale) ==========================================
   static const Color background = Color(0xFFFFFFFF);
-  static const Color foreground = Color(0xFF1E293B);
+  static const Color foreground = Color(0xFF1E293B); // slate-800
+  static const Color surface = Color(0xFFFFFFFF);
+  static const Color surfaceMuted = Color(0xFFF1F5F9); // slate-100
+  static const Color surfaceHover = Color(0xFFF8FAFC); // slate-50
   static const Color muted = Color(0xFFF1F5F9);
-  static const Color mutedForeground = Color(0xFF64748B);
-  static const Color border = Color(0xFFE2E8F0);
+  static const Color mutedForeground = Color(0xFF64748B); // slate-500
+  static const Color border = Color(0xFFE2E8F0); // slate-200
+  static const Color borderStrong = Color(0xFFCBD5E1); // slate-300
+
+  // === Semantic status colors ==========================================
+  static const Color success = Color(0xFF16A34A);
+  static const Color successSubtle = Color(0xFFDCFCE7);
+  static const Color warning = Color(0xFFF59E0B);
+  static const Color warningSubtle = Color(0xFFFEF3C7);
+  static const Color destructive = Color(0xFFEF4444);
+  static const Color destructiveSubtle = Color(0xFFFEE2E2);
+  static const Color info = Color(0xFF2563EB);
+  static const Color infoSubtle = Color(0xFFDBEAFE);
+
+  // === Order status semantic colors ====================================
+  // Single source of truth for order-status colors. Mirrors the web
+  // `<OrderStatusBadge>` mapping at apps/buyer-web/src/components/orders/.
+  static Color orderStatusColor(String status) {
+    switch (status.toUpperCase()) {
+      case 'PENDING':
+        return warning;
+      case 'CONFIRMED':
+      case 'PROCESSING':
+        return info;
+      case 'SHIPPED':
+      case 'OUT_FOR_DELIVERY':
+        return const Color(0xFF8B5CF6); // purple-500 — keeps SHIPPED visual
+      case 'DELIVERED':
+        return success;
+      case 'CANCELLED':
+      case 'RETURNED':
+        return destructive;
+      default:
+        return mutedForeground;
+    }
+  }
+
+  // === Mobile Money provider colors ====================================
+  // Used by checkout payment-provider tiles.
+  static const Color paymentMpesa = Color(0xFF4CAF50); // M-Pesa green
+  static const Color paymentAirtel = Color(0xFFE53935); // Airtel red
+  static const Color paymentOrange = Color(0xFFF57C00); // Orange Money orange
 }

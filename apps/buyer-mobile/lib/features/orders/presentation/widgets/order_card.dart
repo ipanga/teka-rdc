@@ -15,110 +15,104 @@ class OrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final sellerName =
-        order.seller?.sellerProfile?.businessName ??
+    final sellerName = order.seller?.sellerProfile?.businessName ??
         [order.seller?.firstName, order.seller?.lastName]
             .where((s) => s != null && s.isNotEmpty)
             .join(' ');
     final dateStr = _formatDate(order.createdAt);
 
-    return InkWell(
-      onTap: () => context.push('/orders/${order.id}'),
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          border: Border.all(color: TekaColors.border),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Order number + status badge
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.orderNumber(order.orderNumber),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          color: TekaColors.foreground,
+    return Card(
+      child: InkWell(
+        onTap: () => context.push('/orders/${order.id}'),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.orderNumber(order.orderNumber),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: TekaColors.foreground,
+                            letterSpacing: -0.1,
+                          ),
                         ),
+                        const SizedBox(height: 2),
+                        Text(
+                          dateStr,
+                          style: const TextStyle(
+                            color: TekaColors.mutedForeground,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  OrderStatusBadge(status: order.status),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              if (sellerName.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.storefront_outlined,
+                        size: 14,
+                        color: TekaColors.mutedForeground,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        dateStr,
-                        style: const TextStyle(
-                          color: TekaColors.mutedForeground,
-                          fontSize: 12,
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          sellerName,
+                          style: const TextStyle(
+                            color: TekaColors.mutedForeground,
+                            fontSize: 13,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
                 ),
-                OrderStatusBadge(status: order.status),
-              ],
-            ),
-            const SizedBox(height: 10),
 
-            // Seller name
-            if (sellerName.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.storefront_outlined,
-                      size: 14,
+              const Divider(height: 1),
+              const SizedBox(height: 10),
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    l10n.orderItems(order.itemCount),
+                    style: const TextStyle(
                       color: TekaColors.mutedForeground,
+                      fontSize: 13,
                     ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        sellerName,
-                        style: const TextStyle(
-                          color: TekaColors.mutedForeground,
-                          fontSize: 13,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                  ),
+                  Text(
+                    formatCDF(order.totalCDF),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 15,
+                      color: TekaColors.tekaRed,
+                      letterSpacing: -0.2,
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-
-            // Divider
-            const Divider(height: 1, color: TekaColors.border),
-            const SizedBox(height: 8),
-
-            // Total + item count
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  l10n.orderItems(order.itemCount),
-                  style: const TextStyle(
-                    color: TekaColors.mutedForeground,
-                    fontSize: 13,
-                  ),
-                ),
-                Text(
-                  formatCDF(order.totalCDF),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                    color: TekaColors.tekaRed,
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
