@@ -11,13 +11,13 @@ class OrderStatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final label = _statusLabel(l10n, status);
-    final color = _statusColor(status);
+    final color = TekaColors.orderStatusColor(status);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         label,
@@ -50,26 +50,6 @@ class OrderStatusBadge extends StatelessWidget {
         return l10n.orderStatusRETURNED;
       default:
         return status;
-    }
-  }
-
-  static Color _statusColor(String status) {
-    switch (status.toUpperCase()) {
-      case 'PENDING':
-        return TekaColors.warning;
-      case 'CONFIRMED':
-      case 'PROCESSING':
-        return const Color(0xFF3B82F6); // blue
-      case 'SHIPPED':
-      case 'OUT_FOR_DELIVERY':
-        return const Color(0xFF8B5CF6); // purple
-      case 'DELIVERED':
-        return TekaColors.success;
-      case 'CANCELLED':
-      case 'RETURNED':
-        return TekaColors.destructive;
-      default:
-        return TekaColors.mutedForeground;
     }
   }
 }
