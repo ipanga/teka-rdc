@@ -8,6 +8,7 @@ import { Footer } from '@/components/layout/footer';
 import { ProductGrid } from '@/components/product/product-grid';
 import { BannerCarousel } from '@/components/home/banner-carousel';
 import { FlashDealsSection } from '@/components/home/flash-deals-section';
+import { Container, SectionHeader, buttonVariants } from '@/components/ui';
 import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
 import { CitySelectorModal } from '@/components/city/city-selector-modal';
@@ -25,7 +26,7 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
   const [loadingNewest, setLoadingNewest] = useState(true);
 
   // City store
-  const { selectedCity, initFromStorage, fetchCities, showSelector, openSelector } = useCityStore();
+  const { selectedCity, initFromStorage, fetchCities, openSelector } = useCityStore();
   const [cityInitialized, setCityInitialized] = useState(false);
 
   // Initialize city from localStorage on mount
@@ -56,21 +57,21 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
 
     // Fetch popular products (filtered by city)
     setLoadingPopular(true);
-    apiFetch<{ data: BrowseProduct[] }>(`/v1/browse/products?sortBy=popularity&limit=8${cityParam}`)
+    apiFetch<{ data: BrowseProduct[] }>(`/v1/browse/products?sortBy=popularity&limit=10${cityParam}`)
       .then((res) => setPopularProducts(res.data.data))
       .catch(() => {})
       .finally(() => setLoadingPopular(false));
 
     // Fetch newest products (filtered by city)
     setLoadingNewest(true);
-    apiFetch<{ data: BrowseProduct[] }>(`/v1/browse/products?sortBy=newest&limit=8${cityParam}`)
+    apiFetch<{ data: BrowseProduct[] }>(`/v1/browse/products?sortBy=newest&limit=10${cityParam}`)
       .then((res) => setNewestProducts(res.data.data))
       .catch(() => {})
       .finally(() => setLoadingNewest(false));
   }, [selectedCity, cityInitialized]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-surface-muted">
       <Header />
       <CitySelectorModal />
 
@@ -78,21 +79,21 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
         {/* Banner Carousel — replaces static hero when banners are available */}
         <BannerCarousel
           fallback={
-            <section className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground">
-              <div className="max-w-7xl mx-auto px-4 py-12 md:py-20 text-center">
-                <h1 className="text-3xl md:text-5xl font-bold mb-3">
+            <section className="bg-gradient-to-br from-primary-700 via-primary to-primary-500 text-primary-foreground">
+              <Container className="py-12 md:py-20 text-center">
+                <h1 className="text-3xl md:text-5xl font-bold mb-3 tracking-tight">
                   {serverH1 || t('title')}
                 </h1>
-                <p className="text-lg md:text-xl opacity-90 mb-6">
+                <p className="text-lg md:text-xl opacity-90 mb-6 max-w-2xl mx-auto">
                   {t('subtitle', { city: selectedCity ? selectedCity.name : 'Congo' })}
                 </p>
                 <Link
                   href="/categories"
-                  className="inline-block px-6 py-3 bg-white text-primary font-semibold rounded-lg hover:bg-white/90 transition-colors"
+                  className={buttonVariants({ variant: 'secondary', size: 'lg' })}
                 >
                   {t('cta')}
                 </Link>
-              </div>
+              </Container>
             </section>
           }
         />
@@ -101,67 +102,65 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
         <FlashDealsSection />
 
         {/* Categories Section */}
-        <section className="max-w-7xl mx-auto px-4 py-8 md:py-12">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl md:text-2xl font-bold text-foreground">
-              {tCat('title')}
-            </h2>
-            <Link
-              href="/categories"
-              className="text-sm text-primary hover:underline font-medium"
-            >
-              {tCat('viewAll')}
-            </Link>
-          </div>
+        <section className="bg-background">
+          <Container className="py-10 md:py-14">
+            <SectionHeader
+              title={tCat('title')}
+              viewAllHref="/categories"
+              viewAllLabel={tCat('viewAll')}
+            />
 
-          {loadingCategories ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="bg-white rounded-lg border border-border p-4 animate-pulse">
-                  <div className="w-12 h-12 bg-muted rounded-full mx-auto mb-3" />
-                  <div className="h-4 bg-muted rounded w-3/4 mx-auto" />
-                </div>
-              ))}
-            </div>
-          ) : categories.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
-              {tCat('noCategories')}
-            </p>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {categories.slice(0, 12).map((cat) => (
-                <Link
-                  key={cat.id}
-                  href={cat.slug ? `/categorie/${cat.slug}` : `/categories/${cat.id}`}
-                  className="group bg-white rounded-lg border border-border p-4 text-center hover:shadow-md hover:border-primary/30 transition-all"
-                >
-                  <div className="text-3xl mb-2">{cat.emoji || '📦'}</div>
-                  <h3 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2">
-                    {(cat.name ?? '')}
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {tCat('productCount', { count: cat.productCount })}
-                  </p>
-                </Link>
-              ))}
-            </div>
-          )}
+            {loadingCategories ? (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="bg-surface rounded-xl border border-border p-4 animate-pulse">
+                    <div className="w-12 h-12 bg-muted rounded-full mx-auto mb-3" />
+                    <div className="h-4 bg-muted rounded w-3/4 mx-auto" />
+                  </div>
+                ))}
+              </div>
+            ) : categories.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">
+                {tCat('noCategories')}
+              </p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+                {categories.slice(0, 12).map((cat) => (
+                  <Link
+                    key={cat.id}
+                    href={cat.slug ? `/categorie/${cat.slug}` : `/categories/${cat.id}`}
+                    className="group bg-surface rounded-xl border border-border p-4 text-center shadow-xs hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  >
+                    <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">
+                      {cat.emoji || '📦'}
+                    </div>
+                    <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
+                      {cat.name ?? ''}
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {tCat('productCount', { count: cat.productCount })}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </Container>
         </section>
 
         {/* Popular Products Section */}
-        <section className="max-w-7xl mx-auto px-4 py-8 md:py-12">
-          <h2 className="text-xl md:text-2xl font-bold text-foreground mb-6">
-            {tProd('popularProducts')}
-          </h2>
-          <ProductGrid products={popularProducts} isLoading={loadingPopular} />
+        <section className="bg-surface-muted">
+          <Container className="py-10 md:py-14">
+            <SectionHeader title={tProd('popularProducts')} />
+            <ProductGrid products={popularProducts} isLoading={loadingPopular} />
+          </Container>
         </section>
 
         {/* Newest Products Section */}
-        <section className="max-w-7xl mx-auto px-4 py-8 md:py-12">
-          <h2 className="text-xl md:text-2xl font-bold text-foreground mb-6">
-            {tProd('newestProducts')}
-          </h2>
-          <ProductGrid products={newestProducts} isLoading={loadingNewest} />
+        <section className="bg-background">
+          <Container className="py-10 md:py-14">
+            <SectionHeader title={tProd('newestProducts')} />
+            <ProductGrid products={newestProducts} isLoading={loadingNewest} />
+          </Container>
         </section>
       </main>
 
