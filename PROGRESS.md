@@ -1,9 +1,25 @@
 # Teka RDC — Development Progress
 
-## Current Phase: Authentication Refactor
-## Current Task: Mobile Google sign-in integration + E2E tests (deferred follow-up)
-## Status: Backend + Web complete; Mobile email+migration flows complete; Google native SDK + deep links deferred
-## Last Updated: 2026-04-22
+## Current Phase: Buyer UI/UX Redesign (Rakuten-inspired, cosmetic-only)
+## Current Task: PR #2 (Homepage + product cards) — awaiting merge of PR #70
+## Status: PR #1 (#69) MERGED & deployed. PR #2 (#70) OPEN, all CI green — merge blocked by auto-classifier, awaiting user approval.
+## Last Updated: 2026-05-16
+
+**Detailed redesign tracker**: [`tasks/buyer-ui-redesign-progress.md`](./tasks/buyer-ui-redesign-progress.md) — per-PR status, file lists, verification gates, and the resumption protocol.
+
+**Plan source**: `/Users/Apple/.claude/plans/partitioned-nibbling-spark.md` (5 phased PRs, brand red `#BF0000`).
+
+### Resumption protocol (always do this first when picking up work)
+1. Read `tasks/buyer-ui-redesign-progress.md` — find the first non-`[x]` checkbox.
+2. Read the plan above for the active PR's full spec.
+3. `gh pr list --state all --search 'Rakuten refresh' --json number,state,title,mergedAt`
+4. `git log --oneline -15 && git status`
+5. Continue from that first non-`[x]` line. Tick boxes as you finish each one.
+
+### Previous initiative — Buyer WhatsApp OTP refactor (2026-05-15)
+Tracker: [`tasks/buyer-whatsapp-otp-progress.md`](./tasks/buyer-whatsapp-otp-progress.md). All milestones COMPLETED — shipped via PRs #65/#66/#67/#68. OTP delivery verified end-to-end through Gupshup `/wa/api/v1/template/msg`.
+
+### Previous-previous initiative — Authentication Refactor
 
 **Detailed auth tracker**: [`tasks/auth-refactor-progress.md`](./tasks/auth-refactor-progress.md) — per-milestone status with deferred items called out.
 
