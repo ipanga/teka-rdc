@@ -11,10 +11,12 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: '#BF0000',
     lang: 'fr',
     categories: ['shopping', 'business'],
+    // SVG wordmark used for all icon sizes. The previous `/icons/icon-*.png`
+    // PNG variants did not exist in `public/` and caused a manifest 404 +
+    // console warning on every page load. SVG icons render crisply at any
+    // DPI and are supported by all modern PWA targets.
     icons: [
-      { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-      { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-      { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { src: '/logo.svg', sizes: 'any', type: 'image/svg+xml' },
     ],
   };
 }

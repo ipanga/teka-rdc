@@ -229,7 +229,7 @@ export default function ProductDetailPage() {
                 <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
                   {title}
                 </h1>
-                <WishlistButton productId={productId} className="shrink-0 mt-1" />
+                <WishlistButton productId={product.id} className="shrink-0 mt-1" />
               </div>
 
               {/* Price block */}
@@ -420,8 +420,10 @@ export default function ProductDetailPage() {
             </Card>
           )}
 
-          {/* Reviews section */}
-          <ProductReviews productId={productId} />
+          {/* Reviews section — the reviews API only accepts UUIDs
+              (ParseUUIDPipe), but `productId` from the URL may be a slug. Pass
+              the resolved UUID from the fetched product instead. */}
+          <ProductReviews productId={product.id} />
         </Container>
       </main>
 
