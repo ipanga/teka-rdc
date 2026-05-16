@@ -13,6 +13,7 @@ import {
 } from '@/components/product/product-filters';
 import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
+import { Button, Card, Container } from '@/components/ui';
 import type { BrowseProduct, CursorPagination } from '@/lib/types';
 
 function SearchContent() {
@@ -27,7 +28,6 @@ function SearchContent() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
-  // Filter state
   const [condition, setCondition] = useState<ConditionFilter>('');
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
@@ -60,7 +60,6 @@ function SearchContent() {
     return res.data;
   }
 
-  // Fetch when query changes (initial load and new searches)
   useEffect(() => {
     setIsLoading(true);
     setProducts([]);
@@ -131,66 +130,46 @@ function SearchContent() {
   }
 
   return (
-    <main className="flex-1 max-w-7xl mx-auto px-4 py-6 w-full">
-      {/* Title */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-foreground">
-            {t('title')}
-          </h1>
-          {query && pagination && !isLoading && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {pagination.total > 0
-                ? t('results', { count: pagination.total, query })
-                : t('noResults', { query })}
-            </p>
-          )}
-          {query && isLoading && (
-            <p className="text-sm text-muted-foreground mt-1">{t('searching')}</p>
-          )}
-        </div>
-        <button
-          onClick={() => setShowMobileFilters(!showMobileFilters)}
-          className="md:hidden px-4 py-2 border border-border rounded-lg text-sm text-foreground hover:bg-muted transition-colors"
-        >
-          {tProd('filters')}
-        </button>
-      </div>
-
-      <div className="flex gap-6">
-        {/* Sidebar filters - desktop */}
-        <aside className="hidden md:block w-64 shrink-0">
-          <div className="sticky top-20 bg-white rounded-lg border border-border p-4">
-            <ProductFilters
-              condition={condition}
-              onConditionChange={setCondition}
-              minPrice={minPrice}
-              onMinPriceChange={setMinPrice}
-              maxPrice={maxPrice}
-              onMaxPriceChange={setMaxPrice}
-              sortBy={sortBy}
-              onSortChange={setSortBy}
-              onApply={handleApplyFilters}
-              onClear={handleClearFilters}
-            />
+    <main className="flex-1">
+      <Container className="py-6 md:py-10">
+        <div className="flex items-start justify-between gap-3 mb-6">
+          <div className="min-w-0">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
+              {t('title')}
+            </h1>
+            {query && pagination && !isLoading && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {pagination.total > 0
+                  ? t('results', { count: pagination.total, query })
+                  : t('noResults', { query })}
+              </p>
+            )}
+            {query && isLoading && (
+              <p className="text-sm text-muted-foreground mt-1">{t('searching')}</p>
+            )}
           </div>
-        </aside>
+          <Button
+            variant="outline"
+            size="md"
+            onClick={() => setShowMobileFilters(!showMobileFilters)}
+            className="md:hidden shrink-0"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M3 6h18M6 12h12M9 18h6"
+              />
+            </svg>
+            {tProd('filters')}
+          </Button>
+        </div>
 
-        {/* Mobile filters overlay */}
-        {showMobileFilters && (
-          <div className="md:hidden fixed inset-0 z-40 bg-black/50">
-            <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-6 max-h-[70vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-foreground">{tProd('filters')}</h3>
-                <button
-                  onClick={() => setShowMobileFilters(false)}
-                  className="p-1 text-muted-foreground hover:text-foreground"
-                >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+        <div className="flex gap-6">
+          {/* Sidebar filters - desktop */}
+          <aside className="hidden md:block w-64 shrink-0">
+            <Card padding="md" className="sticky top-20">
               <ProductFilters
                 condition={condition}
                 onConditionChange={setCondition}
@@ -203,53 +182,99 @@ function SearchContent() {
                 onApply={handleApplyFilters}
                 onClear={handleClearFilters}
               />
-            </div>
-          </div>
-        )}
+            </Card>
+          </aside>
 
-        {/* Product grid */}
-        <div className="flex-1 min-w-0">
-          <ProductGrid products={products} isLoading={isLoading} />
-
-          {/* Load more */}
-          {pagination?.hasMore && !isLoading && (
-            <div className="mt-8 text-center">
-              <button
-                onClick={handleLoadMore}
-                disabled={isLoadingMore}
-                className="px-8 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          {/* Mobile filters drawer */}
+          {showMobileFilters && (
+            <div className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm">
+              <div
+                className="absolute bottom-0 left-0 right-0 bg-surface rounded-t-2xl shadow-xl flex flex-col max-h-[85vh]"
+                style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
               >
-                {isLoadingMore ? tProd('loading') : tProd('loadMore')}
-              </button>
+                <div className="flex items-center justify-between p-4 border-b border-border">
+                  <h3 className="text-lg font-bold text-foreground tracking-tight">
+                    {tProd('filters')}
+                  </h3>
+                  <button
+                    onClick={() => setShowMobileFilters(false)}
+                    className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-surface-hover rounded-lg transition-colors"
+                    aria-label="Close"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4">
+                  <ProductFilters
+                    condition={condition}
+                    onConditionChange={setCondition}
+                    minPrice={minPrice}
+                    onMinPriceChange={setMinPrice}
+                    maxPrice={maxPrice}
+                    onMaxPriceChange={setMaxPrice}
+                    sortBy={sortBy}
+                    onSortChange={setSortBy}
+                    onApply={handleApplyFilters}
+                    onClear={handleClearFilters}
+                  />
+                </div>
+              </div>
             </div>
           )}
+
+          {/* Product grid */}
+          <div className="flex-1 min-w-0">
+            <ProductGrid products={products} isLoading={isLoading} />
+
+            {pagination?.hasMore && !isLoading && (
+              <div className="mt-8 text-center">
+                <Button
+                  variant="default"
+                  size="lg"
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
+                >
+                  {isLoadingMore ? tProd('loading') : tProd('loadMore')}
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </Container>
     </main>
   );
 }
 
 export default function SearchPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-surface-muted">
       <Header />
       <Suspense
         fallback={
-          <main className="flex-1 max-w-7xl mx-auto px-4 py-6 w-full">
-            <div className="animate-pulse">
-              <div className="h-8 bg-muted rounded w-48 mb-6" />
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={i} className="bg-white rounded-lg border border-border overflow-hidden">
-                    <div className="aspect-square bg-muted" />
-                    <div className="p-3 space-y-2">
-                      <div className="h-4 bg-muted rounded w-3/4" />
-                      <div className="h-5 bg-muted rounded w-1/2" />
-                    </div>
-                  </div>
-                ))}
+          <main className="flex-1">
+            <Container className="py-6 md:py-10">
+              <div className="animate-pulse">
+                <div className="h-8 bg-muted rounded w-48 mb-6" />
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <Card key={i} padding="none" className="overflow-hidden">
+                      <div className="aspect-square bg-muted" />
+                      <div className="p-3 space-y-2">
+                        <div className="h-4 bg-muted rounded w-3/4" />
+                        <div className="h-5 bg-muted rounded w-1/2" />
+                      </div>
+                    </Card>
+                  ))}
+                </div>
               </div>
-            </div>
+            </Container>
           </main>
         }
       >

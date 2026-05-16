@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { apiFetch } from '@/lib/api-client';
 import { useAuthStore } from '@/lib/auth-store';
+import { cn } from '@/components/ui';
 import type { Message, Conversation, PaginatedMessages, PaginatedConversations } from '@/lib/types';
 
 function formatMessageTime(dateStr: string): string {
@@ -213,19 +214,21 @@ export default function MessageThreadPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex flex-col bg-background">
+      <div className="min-h-screen flex flex-col bg-surface-muted">
         <Header />
         <main className="flex-1 flex flex-col max-w-2xl mx-auto w-full">
-          <div className="p-4 border-b border-border">
+          <div className="p-4 border-b border-border bg-surface">
             <div className="animate-pulse h-6 bg-muted rounded w-32" />
           </div>
           <div className="flex-1 p-4 space-y-3">
             {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className={`animate-pulse flex ${i % 2 === 0 ? 'justify-start' : 'justify-end'}`}
+                className={cn('animate-pulse flex', i % 2 === 0 ? 'justify-start' : 'justify-end')}
               >
-                <div className={`h-10 bg-muted rounded-xl ${i % 2 === 0 ? 'w-2/3' : 'w-1/2'}`} />
+                <div
+                  className={cn('h-10 bg-muted rounded-2xl', i % 2 === 0 ? 'w-2/3' : 'w-1/2')}
+                />
               </div>
             ))}
           </div>
@@ -235,44 +238,39 @@ export default function MessageThreadPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-surface-muted">
       <Header />
 
       <main className="flex-1 flex flex-col max-w-2xl mx-auto w-full">
         {/* Chat header */}
-        <div className="flex items-center gap-3 p-4 border-b border-border bg-white sticky top-16 z-10">
+        <div className="flex items-center gap-3 p-4 border-b border-border bg-surface sticky top-16 z-10 shadow-xs">
           <Link
             href="/messages"
-            className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
+            className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-surface-hover rounded-lg transition-colors"
+            aria-label="Retour"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
-          <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center shrink-0">
-            <span className="text-sm font-semibold text-muted-foreground">
-              {getOtherPartyName().charAt(0).toUpperCase()}
-            </span>
+          <div className="w-10 h-10 bg-primary-subtle text-primary rounded-full flex items-center justify-center shrink-0 text-sm font-bold">
+            {getOtherPartyName().charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-sm font-semibold text-foreground truncate">
+            <h1 className="text-sm font-semibold text-foreground truncate tracking-tight">
               {getOtherPartyName()}
             </h1>
           </div>
         </div>
 
         {/* Messages area */}
-        <div
-          ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto p-4 space-y-3"
-        >
-          {/* Load older */}
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-2">
           {hasMore && (
             <div className="text-center py-2">
               <button
                 onClick={loadOlderMessages}
                 disabled={loadingOlder}
-                className="text-sm text-primary hover:underline disabled:opacity-50"
+                className="text-sm text-primary hover:text-primary-hover hover:underline underline-offset-4 font-medium disabled:opacity-50"
               >
                 {loadingOlder ? (
                   <svg className="animate-spin w-4 h-4 mx-auto" fill="none" viewBox="0 0 24 24">
@@ -295,22 +293,21 @@ export default function MessageThreadPage() {
           {messages.map((msg) => {
             const isMine = msg.senderId === user?.id;
             return (
-              <div
-                key={msg.id}
-                className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}
-              >
+              <div key={msg.id} className={cn('flex', isMine ? 'justify-end' : 'justify-start')}>
                 <div
-                  className={`max-w-[75%] px-4 py-2.5 rounded-2xl ${
+                  className={cn(
+                    'max-w-[75%] px-4 py-2.5 rounded-2xl shadow-xs',
                     isMine
                       ? 'bg-primary text-primary-foreground rounded-br-md'
-                      : 'bg-muted text-foreground rounded-bl-md'
-                  }`}
+                      : 'bg-surface text-foreground rounded-bl-md border border-border',
+                  )}
                 >
                   <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
                   <p
-                    className={`text-[10px] mt-1 ${
-                      isMine ? 'text-primary-foreground/70' : 'text-muted-foreground'
-                    }`}
+                    className={cn(
+                      'text-[10px] mt-1',
+                      isMine ? 'text-primary-foreground/70' : 'text-muted-foreground',
+                    )}
                   >
                     {formatMessageTime(msg.createdAt)}
                   </p>
@@ -323,7 +320,10 @@ export default function MessageThreadPage() {
         </div>
 
         {/* Input area */}
-        <div className="p-3 border-t border-border bg-white sticky bottom-0">
+        <div
+          className="p-3 border-t border-border bg-surface sticky bottom-0 shadow-xs"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+        >
           <div className="flex items-end gap-2">
             <textarea
               value={messageText}
@@ -331,13 +331,13 @@ export default function MessageThreadPage() {
               onKeyDown={handleKeyDown}
               placeholder={t('typePlaceholder')}
               rows={1}
-              className="flex-1 px-4 py-2.5 border border-input rounded-xl bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm resize-none max-h-32 overflow-y-auto"
+              className="flex-1 px-4 py-2.5 border border-input rounded-xl bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-transparent text-sm resize-none max-h-32 overflow-y-auto"
               style={{ minHeight: '42px' }}
             />
             <button
               onClick={handleSend}
               disabled={!messageText.trim() || isSending}
-              className="p-2.5 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+              className="w-11 h-11 inline-flex items-center justify-center bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover active:bg-primary-pressed transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0 shadow-sm"
               aria-label={t('send')}
             >
               {isSending ? (

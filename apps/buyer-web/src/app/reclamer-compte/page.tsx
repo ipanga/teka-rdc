@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
+import { Button, Card, Input, Label, buttonVariants } from '@/components/ui';
 
 export default function ReclamerComptePage() {
   const t = useTranslations('Auth');
@@ -31,26 +32,42 @@ export default function ReclamerComptePage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex items-center justify-center bg-surface-muted px-4 py-12">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-xl shadow-lg border border-border p-8">
+        <div className="text-center mb-5">
+          <Link href="/" className="inline-block">
+            <span className="text-2xl font-extrabold text-primary tracking-tight">teka</span>
+            <span className="text-2xl font-bold text-foreground tracking-tight">.cd</span>
+          </Link>
+        </div>
+
+        <Card padding="lg" variant="elevated">
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-foreground">
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">
               {t('claimTitle')}
             </h1>
-            <p className="text-muted-foreground mt-2 text-sm">
-              {t('claimIntro')}
-            </p>
+            <p className="text-muted-foreground mt-2 text-sm">{t('claimIntro')}</p>
           </div>
 
           {submitted ? (
             <div className="space-y-4">
-              <div className="p-4 rounded-lg bg-success/10 text-foreground text-sm">
-                {t('claimSent')}
+              <div className="p-4 rounded-lg bg-success-subtle border border-success/30 text-sm">
+                <div className="flex items-start gap-2">
+                  <svg
+                    className="w-5 h-5 text-success shrink-0 mt-0.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="text-foreground">{t('claimSent')}</span>
+                </div>
               </div>
               <Link
                 href="/connexion"
-                className="block w-full py-2.5 px-4 text-center bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90"
+                className={buttonVariants({ variant: 'default', size: 'lg', className: 'w-full' })}
               >
                 ← {t('otpPhoneTitle')}
               </Link>
@@ -58,39 +75,34 @@ export default function ReclamerComptePage() {
           ) : (
             <>
               {error && (
-                <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                <div className="mb-4 p-3 rounded-lg bg-destructive-subtle border border-destructive/30 text-destructive text-sm">
                   {error}
                 </div>
               )}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label
-                    htmlFor="email"
-                    className="block text-sm font-medium text-foreground mb-1"
-                  >
-                    {t('claimEmailLabel')}
-                  </label>
-                  <input
+                  <Label htmlFor="email">{t('claimEmailLabel')}</Label>
+                  <Input
                     id="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     autoComplete="email"
                     required
-                    className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
-                <button
+                <Button
                   type="submit"
                   disabled={isLoading || !email}
-                  className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                  size="lg"
+                  className="w-full"
                 >
                   {isLoading ? '...' : t('claimSubmit')}
-                </button>
+                </Button>
               </form>
             </>
           )}
-        </div>
+        </Card>
       </div>
     </div>
   );
