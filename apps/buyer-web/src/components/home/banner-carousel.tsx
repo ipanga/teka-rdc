@@ -126,7 +126,7 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
   // Don't render anything if loading or no banners
   if (loading) {
     return (
-      <div className="w-full h-[200px] md:h-[400px] bg-muted animate-pulse" />
+      <div className="w-full aspect-[4/3] md:aspect-[16/6] bg-muted animate-pulse" />
     );
   }
 
@@ -154,7 +154,7 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
           return (
             <div
               key={banner.id}
-              className={`relative w-full flex-shrink-0 snap-start h-[200px] md:h-[400px] ${
+              className={`relative w-full flex-shrink-0 snap-start aspect-[4/3] md:aspect-[16/6] ${
                 hasLink ? 'cursor-pointer' : ''
               }`}
               onClick={() => handleBannerClick(banner)}
@@ -177,22 +177,22 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
                 priority={banners.indexOf(banner) === 0}
               />
 
-              {/* Dark gradient overlay at bottom */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+              {/* Dark gradient overlay at bottom (Rakuten-style soft, longer fade) */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-transparent" />
 
               {/* Title/subtitle overlay */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 md:p-8 text-white">
-                <h2 className="text-lg md:text-3xl font-bold mb-1 md:mb-2 line-clamp-2">
+              <div className="absolute bottom-0 left-0 right-0 p-4 md:p-10 text-white max-w-4xl">
+                <h2 className="text-xl md:text-4xl font-bold mb-1 md:mb-3 tracking-tight line-clamp-2">
                   {title}
                 </h2>
                 {subtitle && (
-                  <p className="text-sm md:text-lg opacity-90 line-clamp-2">
+                  <p className="text-sm md:text-lg opacity-90 line-clamp-2 mb-3 md:mb-4">
                     {subtitle}
                   </p>
                 )}
                 {hasLink && (
-                  <span className="inline-block mt-2 md:mt-3 text-xs md:text-sm font-medium bg-white/20 hover:bg-white/30 backdrop-blur-sm px-3 py-1.5 md:px-4 md:py-2 rounded-lg transition-colors">
-                    {t('shopNow')}
+                  <span className="inline-flex items-center gap-2 text-sm md:text-base font-semibold bg-primary hover:bg-primary-hover text-primary-foreground px-4 py-2 md:px-6 md:py-2.5 rounded-lg shadow-md transition-colors">
+                    {t('shopNow')} <span aria-hidden>→</span>
                   </span>
                 )}
               </div>
@@ -203,7 +203,7 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
 
       {/* Dot indicators */}
       {banners.length > 1 && (
-        <div className="absolute bottom-3 md:bottom-5 left-1/2 -translate-x-1/2 flex items-center gap-2">
+        <div className="absolute bottom-3 md:bottom-5 right-4 md:right-8 flex items-center gap-1.5">
           {banners.map((_, index) => (
             <button
               key={index}
@@ -211,10 +211,10 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
                 e.stopPropagation();
                 goToDot(index);
               }}
-              className={`w-2 h-2 md:w-2.5 md:h-2.5 rounded-full transition-all duration-300 ${
+              className={`h-1.5 rounded-full transition-all duration-300 ${
                 index === currentIndex
-                  ? 'bg-white w-5 md:w-6'
-                  : 'bg-white/50 hover:bg-white/80'
+                  ? 'bg-white w-6 md:w-8'
+                  : 'bg-white/50 hover:bg-white/80 w-1.5'
               }`}
               aria-label={`Slide ${index + 1}`}
             />

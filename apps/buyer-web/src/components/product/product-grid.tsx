@@ -11,7 +11,7 @@ interface ProductGridProps {
 
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-lg border border-border overflow-hidden animate-pulse">
+    <div className="bg-surface rounded-xl border border-border overflow-hidden animate-pulse">
       <div className="aspect-square bg-muted" />
       <div className="p-3 space-y-2">
         <div className="h-4 bg-muted rounded w-3/4" />
@@ -28,8 +28,8 @@ export function ProductGrid({ products, isLoading }: ProductGridProps) {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {Array.from({ length: 8 }).map((_, i) => (
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
+        {Array.from({ length: 10 }).map((_, i) => (
           <SkeletonCard key={i} />
         ))}
       </div>
@@ -38,7 +38,7 @@ export function ProductGrid({ products, isLoading }: ProductGridProps) {
 
   if (products.length === 0) {
     return (
-      <div className="py-12 text-center">
+      <div className="py-16 text-center">
         <svg
           className="mx-auto w-16 h-16 text-muted-foreground mb-4"
           fill="none"
@@ -58,7 +58,7 @@ export function ProductGrid({ products, isLoading }: ProductGridProps) {
   }
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
       {products.map((product) => (
         <ProductCard key={product.id} product={product} />
       ))}

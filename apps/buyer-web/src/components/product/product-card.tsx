@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { Badge } from '@/components/ui';
 import { formatCDF } from '@/lib/format';
 import type { BrowseProduct } from '@/lib/types';
 
@@ -15,21 +16,22 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const title = product.title;
   const imageUrl = product.image?.thumbnailUrl || product.image?.url;
+  const outOfStock = product.quantity <= 0;
 
   return (
     <Link
       href={`/${product.slug || product.id}`}
-      className="group block bg-white rounded-lg border border-border overflow-hidden hover:shadow-lg transition-shadow duration-200"
+      className="group block bg-surface rounded-xl border border-border overflow-hidden shadow-xs hover:shadow-lg hover:border-border-strong transition-all duration-200 hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       {/* Image */}
-      <div className="relative aspect-square bg-muted overflow-hidden">
+      <div className="relative aspect-square bg-surface-muted overflow-hidden">
         {imageUrl ? (
           <Image
             src={imageUrl}
             alt={title}
             fill
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-            className="object-cover group-hover:scale-105 transition-transform duration-200"
+            className="object-cover group-hover:scale-105 transition-transform duration-300"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground">
@@ -44,27 +46,32 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
         )}
 
-        {/* Condition badge */}
-        <span
-          className={`absolute top-2 left-2 px-2 py-0.5 text-xs font-medium rounded ${
-            product.condition === 'NEW'
-              ? 'bg-success text-white'
-              : 'bg-warning text-white'
-          }`}
+        {/* Top-left: stock badge (only when out of stock) */}
+        {outOfStock && (
+          <Badge variant="solid" size="sm" className="absolute top-2 left-2 shadow-sm">
+            {t('outOfStock')}
+          </Badge>
+        )}
+
+        {/* Top-right: condition badge */}
+        <Badge
+          variant={product.condition === 'NEW' ? 'new' : 'used'}
+          size="sm"
+          className="absolute top-2 right-2 shadow-sm"
         >
           {t(`condition_${product.condition}`)}
-        </span>
+        </Badge>
       </div>
 
       {/* Info */}
-      <div className="p-3">
-        <h3 className="text-sm font-medium text-foreground line-clamp-2 min-h-[2.5rem]">
+      <div className="p-3 space-y-1.5">
+        <h3 className="text-sm font-medium text-foreground line-clamp-2 min-h-[2.5rem] leading-snug">
           {title}
         </h3>
-        <p className="mt-1 text-base font-bold text-primary">
+        <p className="text-lg font-bold text-primary tracking-tight">
           {formatCDF(product.priceCDF)}
         </p>
-        <p className="mt-1 text-xs text-muted-foreground truncate">
+        <p className="text-xs text-muted-foreground truncate group-hover:text-foreground transition-colors">
           {product.seller.businessName}
         </p>
       </div>
