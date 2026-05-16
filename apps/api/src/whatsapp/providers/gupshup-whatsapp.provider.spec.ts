@@ -90,4 +90,38 @@ describe('GupshupWhatsappProvider', () => {
     expect(result.ok).toBe(false);
     expect(result.error).toBe('network down');
   });
+
+  it('binds the OTP to both the body and the COPY_CODE button', async () => {
+    // Regression: without the explicit `button` component, the COPY_CODE
+    // button in the WhatsApp authentication template copied the literal
+    // `{{1}}` placeholder (rendered as `{}` in some clients) instead of
+    // the OTP value. The fix sends a Meta-spec `components` array binding
+    // the same OTP to both the body and the button.
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ messageId: 'gs-1', status: 'submitted' }), {
+        status: 200,
+      }),
+    );
+    const provider = new GupshupWhatsappProvider(makeConfig());
+
+    await provider.sendOtpTemplate('+243999000001', '654321');
+
+    const body = (fetchMock.mock.calls[0][1] as RequestInit).body as string;
+    const params = new URLSearchParams(body);
+    const tpl = JSON.parse(params.get('template') ?? '{}');
+
+    expect(tpl.id).toBe('tpl-1234');
+    expect(tpl.components).toEqual([
+      {
+        type: 'body',
+        parameters: [{ type: 'text', text: '654321' }],
+      },
+      {
+        type: 'button',
+        sub_type: 'copy_code',
+        index: 0,
+        parameters: [{ type: 'coupon_code', coupon_code: '654321' }],
+      },
+    ]);
+  });
 });
