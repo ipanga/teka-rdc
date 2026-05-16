@@ -362,6 +362,16 @@ Post-phase work (chronological, kept in `PROGRESS.md` + memory):
 - **Empty states:** Design meaningful empty states with CTAs (no products? → browse categories)
 - **Error states:** User-friendly error messages in French, with retry actions
 
+### Design system (web + mobile)
+
+The brand red is **`#BF0000`** (Rakuten France official, PANTONE 485 C). The tonal scale is `--color-primary-50` … `--color-primary-900` in `apps/buyer-web/src/app/globals.css`; `--color-primary` always points at the 600 step. **Don't introduce new hex literals for the brand color** — use the token (`bg-primary`, `text-primary`, `--color-primary-700` for hover states, etc.).
+
+**Authoritative token sources (keep in sync when adjusting):**
+- Web: `apps/buyer-web/src/app/globals.css` — `@theme inline {}` block. Defines color scale, neutrals, status colors, radius (sm/md/lg/xl/2xl/full), shadow (xs/sm/md/lg/xl), typography vars.
+- Mobile: `apps/buyer-mobile/lib/core/theme/teka_colors.dart` + `app_theme.dart`.
+
+**Web UI primitives:** `apps/buyer-web/src/components/ui/` — small in-repo set built on Tailwind v4 + `class-variance-authority`. Exports: `Button`, `Badge`, `Card`/`CardHeader`/`CardContent`/`CardFooter`, `Input`, `Label`, `Container`, `SectionHeader`. **No shadcn** — these primitives are intentionally minimal; add new ones only when a pattern repeats ≥3 times. Domain components (`ProductCard`, `CartItemRow`, etc.) live under `components/{product,cart,...}/` and consume these primitives.
+
 ---
 
 ## 10. IMPORTANT RULES

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { useCityStore } from '@/lib/city-store';
 import { CartBadge } from '@/components/cart/cart-badge';
+import { buttonVariants } from '@/components/ui';
 import { apiFetch } from '@/lib/api-client';
 
 export function Header() {
@@ -182,7 +183,7 @@ export function Header() {
             <div className="flex items-center gap-2">
               <Link
                 href="/connexion"
-                className="text-sm px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                className={buttonVariants({ variant: 'default', size: 'md' })}
               >
                 {t('login')}
               </Link>
@@ -357,14 +358,14 @@ export function Header() {
                 <Link
                   href="/connexion"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="text-sm text-center px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                  className={buttonVariants({ variant: 'default', size: 'md' })}
                 >
                   {t('login')}
                 </Link>
                 <Link
                   href="/reclamer-compte"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="text-sm text-center px-4 py-2 border border-primary text-primary rounded-lg hover:bg-primary hover:text-primary-foreground transition-colors"
+                  className={buttonVariants({ variant: 'outline', size: 'md' })}
                 >
                   {t('claim')}
                 </Link>
