@@ -47,9 +47,12 @@ export class CloudinaryService {
             return;
           }
 
+          // f_auto lets Cloudinary serve AVIF/WebP/JPEG based on the
+          // requesting browser's Accept header — newer than f_webp which
+          // forces WebP even when AVIF would be smaller.
           const thumbnailUrl = result.secure_url.replace(
             '/upload/',
-            '/upload/w_300,h_300,c_fill,f_webp/',
+            '/upload/w_300,h_300,c_fill,f_auto,q_auto/',
           );
 
           resolve({
@@ -74,6 +77,29 @@ export class CloudinaryService {
       this.logger.error(
         `Cloudinary delete failed for ${cloudinaryId}: ${error}`,
       );
+    }
+  }
+
+  /**
+   * Bulk-destroy up to 100 Cloudinary assets in a single API call.
+   * Used by cascade-deletion paths (hard-delete product, etc.) to keep
+   * storage in sync with the DB. Logs partial failures but never throws
+   * — orphaned Cloudinary assets are a cost issue, not a correctness one,
+   * and the DB-side delete must complete regardless.
+   */
+  async deleteImages(cloudinaryIds: string[]): Promise<void> {
+    if (cloudinaryIds.length === 0) return;
+    // Cloudinary's delete_resources caps at 100 ids per call.
+    const CHUNK = 100;
+    for (let i = 0; i < cloudinaryIds.length; i += CHUNK) {
+      const batch = cloudinaryIds.slice(i, i + CHUNK);
+      try {
+        await cloudinary.api.delete_resources(batch);
+      } catch (error) {
+        this.logger.error(
+          `Cloudinary bulk delete failed for ${batch.length} ids: ${error}`,
+        );
+      }
     }
   }
 }
