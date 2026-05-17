@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/utils/image_compress.dart';
 import 'models/attribute_model.dart';
 import 'models/product_model.dart';
 
@@ -100,10 +101,15 @@ class ProductsRepository {
 
   Future<ProductImageModel> uploadImage(
       String productId, File imageFile) async {
+    // Compress to ≤500 KB WebP before upload. image_picker already does
+    // a coarse 1200×1200 q=80 pass, but recent phone cameras still
+    // exceed 500 KB after that — and DRC 2G/3G uploads are where this
+    // hurts most.
+    final compressed = await compressImageForUpload(imageFile);
     final formData = FormData.fromMap({
-      'image': await MultipartFile.fromFile(
-        imageFile.path,
-        filename: imageFile.path.split('/').last,
+      'image': MultipartFile.fromBytes(
+        compressed.bytes,
+        filename: compressed.filename,
       ),
     });
     final response = await _dio.post(
