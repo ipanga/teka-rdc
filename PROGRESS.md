@@ -1,9 +1,47 @@
 # Teka RDC — Development Progress
 
 ## Current Phase: — (no active initiative; awaiting next direction)
-## Last completed: COOKIE_DOMAIN production env fix + full authenticated re-verification — RESOLVED 2026-05-17
-## Status: All four buyer bugs fully verified end-to-end in prod (authenticated user). Cart badge real-time (7→8 in 1.6s, no reload), cart thumbnails (8/8 render), /checkout no-redirect (loaded with stepper). Root-cause discovery: PR #81 + #83 code fixes were inert in production because `COOKIE_DOMAIN` env var was missing from .env.production — auth cookies were scoped to api.teka.cd only, invisible to teka.cd middleware. After `COOKIE_DOMAIN=.teka.cd` was added + api restarted + nginx reloaded + user re-logged in, all three flows work as designed.
+## Last completed: Cloudinary media lifecycle — PR A (server) + PR B (client compression) — SHIPPED 2026-05-17
+## Status: PR A (#89→#90) and PR B (#91→#92) both deployed and prod-smoked. Hard-delete product endpoint registered + auth-guarded. seller-web bundle loads cleanly with browser-image-compression added. Compression library wired into seller-web image uploader + seller-mobile products repository. Real upload size verification deferred to next seller-on-prod test (smoke required actual seller login + product image drop).
 ## Last Updated: 2026-05-17
+
+### Initiative — Cloudinary media lifecycle + client compression (2026-05-17)
+
+**Scope discovery**: Audit revealed actual upload surface is much smaller than the brief suggested. Only TWO file-upload entry points exist across the whole stack:
+1. `seller-web/src/components/product/image-uploader.tsx` → `POST /v1/sellers/products/:id/images`
+2. `seller-mobile/lib/features/products/.../product_images_screen.dart` → same endpoint
+
+Buyer-web/buyer-mobile have no avatar upload UI. Admin banner page accepts URL paste only (no `cloudinaryId` stored). `SellerProfile` has no logo field. So the work focused on the product image lifecycle where real uploads happen.
+
+**PR A — Server-side lifecycle (PR #89, released via #90)**:
+- `CloudinaryService.deleteImages(ids[])` bulk helper — wraps `delete_resources` in 100-id chunks, logs partial failures but never throws (orphan assets are a cost issue, not correctness; failing the caller's DB delete would be worse).
+- New `DELETE /v1/sellers/products/:id/hard` endpoint — `/hard` suffix makes destructive intent obvious at the call site. Owner-scoped. Collects all image cloudinaryIds, deletes the Product row (FK cascade removes ProductImage rows), then bulk-destroys Cloudinary. DB-first ordering so a Cloudinary blip can't roll back the local delete.
+- Existing soft-archive flow (`DELETE /v1/sellers/products/:id`) UNCHANGED: per locked decision, archive stays reversible (images kept), only hard-delete purges.
+- Safe for order history: `OrderItem` snapshots title + image URL at order time.
+- Thumbnail URL template: `f_webp` → `f_auto,q_auto`. Cloudinary now serves AVIF/WebP/JPEG based on requester's Accept header.
+- Upload MIME guard: JPEG/PNG/WebP/GIF only on `POST /v1/sellers/products/:id/images`. 5 MB ceiling kept as defence-in-depth.
+- e2e: 90/90 pass (5 new auth-guard tests for hard-delete and existing routes).
+
+**PR B — Client compression (PR #91, released via #92)**:
+- seller-web: `browser-image-compression` (~6 KB gzipped). `lib/image-compress.ts` wraps the library with `compressImageForUpload(file)` → ≤500 KB WebP (skips GIF + already-small files). Fail-safe: returns original on any error.
+- seller-mobile: `flutter_image_compress ^2.3.0`. `lib/core/utils/image_compress.dart` mirrors web helper. Returns `CompressedImage { bytes, filename, mimeType }` so dio MultipartFile gets the right `.webp` extension. `ProductsRepository.uploadImage` switched to `MultipartFile.fromBytes`.
+- Cleanup bundled in: stale `app_localizations_en.dart` removed (leftover from May 2026 monolingual refactor — pub get noticed the EN .arb was gone).
+
+**Explicit non-goals (called out in PR bodies)**:
+- Avatar upload UI on buyer-web / buyer-mobile (none exists today)
+- Seller logo upload (no `SellerProfile.logo` field exists)
+- Banner image cleanup (admin pastes URL, no `cloudinaryId` stored — needs schema migration)
+- Soft-delete user → cascade-purge products' Cloudinary (would break order history thumbnails)
+
+**Prod smoke (post-deploy)**:
+- seller.teka.cd loads cleanly (compression dep didn't break the build)
+- `DELETE /v1/sellers/products/:id/hard` returns 401 unauthenticated (route exists, auth-guarded)
+- `api.teka.cd/api/v1/browse/products?limit=1` returns 200 with `image: { url, thumbnailUrl }` shape using the new `f_auto,q_auto` template
+
+**Awaiting real-seller verification**:
+- seller-web: drop a 3+ MB JPEG → confirm devtools shows ≤500 KB compressed `.webp` payload uploaded
+- seller-mobile: pick a fresh camera photo → confirm dio request body weight matches compressed size
+- Hard-delete: invoke from a seller account, confirm Cloudinary asset is destroyed (via Cloudinary console)
 
 ### Infrastructure fix — COOKIE_DOMAIN missing in prod (2026-05-17)
 
