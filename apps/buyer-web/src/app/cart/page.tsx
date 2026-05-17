@@ -250,7 +250,7 @@ export default function CartPage() {
                   </div>
 
                   <Link
-                    href={user ? '/checkout' : '/login?redirect=/cart'}
+                    href={user ? '/checkout' : '/connexion?redirect=/cart'}
                     className={buttonVariants({ variant: 'default', size: 'lg', className: 'w-full' })}
                   >
                     {t('checkout')}
