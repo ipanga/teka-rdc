@@ -1,9 +1,26 @@
 # Teka RDC — Development Progress
 
 ## Current Phase: — (no active initiative; awaiting next direction)
-## Last completed: Cart badge + cart images + checkout redirect — SHIPPED 2026-05-17 via PR #83 + release #84
-## Status: All three bugs deployed. Middleware refresh-token fix verified in prod (refresh-token-only session reaches /checkout; no-cookie request still redirects to /connexion). Cart API now returns totalItems + product.image structured object + Flutter-shape top-level fields. Awaiting real-buyer verification of badge increment, cart thumbnails, and 16+ min idle checkout.
+## Last completed: Guest cart thumbnail hydration — SHIPPED 2026-05-17 via PR #85 + release #86 (follow-up to PR #83/#84)
+## Status: All four buyer bugs in this batch deployed and prod-verified. Guest cart thumbnail confirmed rendering on teka.cd/cart with seeded product. Middleware refresh-token fix verified (refresh-token-only session reaches /checkout; no-cookie request still redirects). Awaiting real-buyer verification of authenticated badge increment + 16+ min idle checkout.
 ## Last Updated: 2026-05-17
+
+### Hotfix #3 — Guest cart thumbnail hydration (2026-05-17, follow-up to #2)
+
+**Symptom**: After PR #84 deployed, prod smoke of `/cart` as a guest still showed placeholder icons instead of product thumbnails — even though PR #83's server-side cart serializer was live and working.
+
+**Root cause**: `apps/buyer-web/src/app/cart/page.tsx::loadGuestCart` typed its API call as `BrowseProduct` (which has `image: { url, thumbnailUrl } | null`) but actually hits `/v1/browse/products/:id` which returns `ProductDetail` (with `images: ProductImage[]` — the full gallery). Reading `p.image` was always `undefined` → `CartItemRow` rendered the placeholder icon for every guest item. The authenticated path (PR #83's serializer) was fine; only the guest hydration was broken.
+
+**Fix** (1 file): `apps/buyer-web/src/app/cart/page.tsx` — type the response as `ProductDetail`, reshape `images[0]` to the `{ url, thumbnailUrl }` object `CartItemRow` consumes. Same transformation PR #83's server-side serializer already does for the authenticated path.
+
+**Ship cycle**:
+- PR #85 (fix → develop), 7/7 checks green, merged.
+- PR #86 (release develop → main), 10/10 checks green, merged.
+- Back-merged main → develop (commit 809a2df).
+- Prod deploy run 25985230566 succeeded.
+- Prod smoke verified: `/cart` as guest now renders the Cloudinary thumbnail for the seeded product. Screenshot confirms full cart row (image + title + seller + price + "Passer la commande" CTA).
+
+**Pre-existing seed-data quirk surfaced**: sample products use Cloudinary demo placeholder images (`cld-sample-*.jpg`) — fruit bowls, not real product photos. Documented in memory; replace by uploading real assets to teka-rdc Cloudinary cloud and updating `seedSampleProducts()`.
 
 ### Hotfix #2 — Cart badge real-time, cart images, checkout redirect (2026-05-17)
 
