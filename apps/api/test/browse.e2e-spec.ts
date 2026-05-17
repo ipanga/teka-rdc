@@ -83,6 +83,21 @@ describe('Browse (e2e)', () => {
       expect(res.body.success).toBe(true);
     });
 
+    it('builds a plain-string OR filter for search (regression — JSONB path errored 500 against String columns)', async () => {
+      mockPrismaService.product.findMany.mockResolvedValue([]);
+      mockPrismaService.product.count.mockResolvedValue(0);
+
+      await request(app.getHttpServer())
+        .get('/api/v1/browse/products?search=xbox')
+        .expect(200);
+
+      const findManyArgs = mockPrismaService.product.findMany.mock.calls[0][0];
+      expect(findManyArgs.where.OR).toEqual([
+        { title: { contains: 'xbox', mode: 'insensitive' } },
+        { description: { contains: 'xbox', mode: 'insensitive' } },
+      ]);
+    });
+
     it('should accept condition filter', async () => {
       mockPrismaService.product.findMany.mockResolvedValue([]);
       mockPrismaService.product.count.mockResolvedValue(0);
