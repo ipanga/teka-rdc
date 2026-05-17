@@ -81,6 +81,13 @@ two-branch `develop ↔ main` flow it causes a permanent divergence:
 **Use "Create a merge commit" (`gh pr merge --merge`) for every PR**.
 This preserves SHAs across both branches, so back-merges are clean.
 
+As of 2026-05-17 the GitHub ruleset for `main` enforces this — the
+"Squash and merge" / "Rebase and merge" buttons no longer appear in the
+PR UI on `main`. The on-disk source-of-truth lives in
+[`scripts/ruleset-main.json`](./scripts/ruleset-main.json); to push a
+change to the live ruleset run `gh api -X PUT
+repos/ipanga/teka-rdc/rulesets/15451167 --input scripts/ruleset-main.json`.
+
 If a PR has noisy intermediate commits and you'd really prefer a single
 clean commit, **rebase locally** (`git rebase -i origin/<base>`) before
 opening the PR — that compresses on the source side without changing
