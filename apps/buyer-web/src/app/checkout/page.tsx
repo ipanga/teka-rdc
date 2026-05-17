@@ -28,6 +28,15 @@ type CheckoutStep = 'address' | 'payment' | 'review';
 
 const STEP_ORDER: CheckoutStep[] = ['address', 'payment', 'review'];
 
+// Mobile Money (M-Pesa / Airtel / Orange) is intentionally hidden in the UI
+// for now — only "Paiement à la livraison" (COD) is offered. The backend
+// payment-provider abstraction (PaymentProvider interface, Flexpay impl,
+// CheckoutService MM branch, MOBILE_MONEY enum value, MM webhook handlers)
+// stays fully in place so a re-enable is a one-line frontend flip rather
+// than a re-implementation. To re-enable: set this to true and the MM
+// tile + provider sub-card come back, no other change needed.
+const ENABLE_MOBILE_MONEY = false;
+
 export default function CheckoutPage() {
   const t = useTranslations('Checkout');
   const tCart = useTranslations('Cart');
@@ -663,65 +672,70 @@ export default function CheckoutPage() {
                   title={t('cod')}
                 />
 
-                {/* Mobile Money */}
-                <PaymentTile
-                  selected={paymentMethod === 'MOBILE_MONEY'}
-                  onSelect={() => setPaymentMethod('MOBILE_MONEY')}
-                  name="payment"
-                  value="MOBILE_MONEY"
-                  icon={
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3"
-                      />
-                    </svg>
-                  }
-                  title={t('mobileMoney')}
-                  subtitle="M-Pesa, Airtel Money, Orange Money"
-                />
+                {/* Mobile Money tile + provider sub-card. Hidden until
+                    the platform re-enables Mobile Money — see the
+                    ENABLE_MOBILE_MONEY constant near the top of this file. */}
+                {ENABLE_MOBILE_MONEY && (
+                  <>
+                    <PaymentTile
+                      selected={paymentMethod === 'MOBILE_MONEY'}
+                      onSelect={() => setPaymentMethod('MOBILE_MONEY')}
+                      name="payment"
+                      value="MOBILE_MONEY"
+                      icon={
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3"
+                          />
+                        </svg>
+                      }
+                      title={t('mobileMoney')}
+                      subtitle="M-Pesa, Airtel Money, Orange Money"
+                    />
 
-                {/* Provider sub-selection */}
-                {paymentMethod === 'MOBILE_MONEY' && (
-                  <Card padding="md" className="ml-0 sm:ml-4 bg-surface-muted/40">
-                    <p className="text-sm font-semibold text-foreground mb-3 tracking-tight">
-                      {t('selectProvider')}
-                    </p>
+                    {paymentMethod === 'MOBILE_MONEY' && (
+                      <Card padding="md" className="ml-0 sm:ml-4 bg-surface-muted/40">
+                        <p className="text-sm font-semibold text-foreground mb-3 tracking-tight">
+                          {t('selectProvider')}
+                        </p>
 
-                    <div className="space-y-2 mb-4">
-                      <ProviderTile
-                        accent="green"
-                        selected={mobileMoneyProvider === 'M_PESA'}
-                        onSelect={() => setMobileMoneyProvider('M_PESA')}
-                        label={t('mpesa')}
-                      />
-                      <ProviderTile
-                        accent="red"
-                        selected={mobileMoneyProvider === 'AIRTEL_MONEY'}
-                        onSelect={() => setMobileMoneyProvider('AIRTEL_MONEY')}
-                        label={t('airtelMoney')}
-                      />
-                      <ProviderTile
-                        accent="orange"
-                        selected={mobileMoneyProvider === 'ORANGE_MONEY'}
-                        onSelect={() => setMobileMoneyProvider('ORANGE_MONEY')}
-                        label={t('orangeMoney')}
-                      />
-                    </div>
+                        <div className="space-y-2 mb-4">
+                          <ProviderTile
+                            accent="green"
+                            selected={mobileMoneyProvider === 'M_PESA'}
+                            onSelect={() => setMobileMoneyProvider('M_PESA')}
+                            label={t('mpesa')}
+                          />
+                          <ProviderTile
+                            accent="red"
+                            selected={mobileMoneyProvider === 'AIRTEL_MONEY'}
+                            onSelect={() => setMobileMoneyProvider('AIRTEL_MONEY')}
+                            label={t('airtelMoney')}
+                          />
+                          <ProviderTile
+                            accent="orange"
+                            selected={mobileMoneyProvider === 'ORANGE_MONEY'}
+                            onSelect={() => setMobileMoneyProvider('ORANGE_MONEY')}
+                            label={t('orangeMoney')}
+                          />
+                        </div>
 
-                    <div>
-                      <Label htmlFor="ck-payer-phone">{t('payerPhone')}</Label>
-                      <Input
-                        id="ck-payer-phone"
-                        type="tel"
-                        value={payerPhone}
-                        onChange={(e) => setPayerPhone(e.target.value)}
-                        placeholder={t('payerPhonePlaceholder')}
-                      />
-                    </div>
-                  </Card>
+                        <div>
+                          <Label htmlFor="ck-payer-phone">{t('payerPhone')}</Label>
+                          <Input
+                            id="ck-payer-phone"
+                            type="tel"
+                            value={payerPhone}
+                            onChange={(e) => setPayerPhone(e.target.value)}
+                            placeholder={t('payerPhonePlaceholder')}
+                          />
+                        </div>
+                      </Card>
+                    )}
+                  </>
                 )}
               </div>
 
