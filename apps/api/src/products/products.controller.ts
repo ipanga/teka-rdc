@@ -62,6 +62,18 @@ export class ProductsController {
     return this.productsService.archive(userId, id);
   }
 
+  // Hard-delete. Lives at /hard to make the call site obviously
+  // destructive — `DELETE /v1/sellers/products/:id` continues to do the
+  // reversible archive. This endpoint purges the Cloudinary assets and
+  // removes the Product row outright.
+  @Delete(':id/hard')
+  hardDelete(
+    @CurrentUser('userId') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.productsService.hardDelete(userId, id);
+  }
+
   @Patch(':id/submit')
   submit(
     @CurrentUser('userId') userId: string,
