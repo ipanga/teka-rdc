@@ -33,6 +33,7 @@ const CART_ITEM_INCLUDE = {
           },
           images: {
             select: {
+              url: true,
               thumbnailUrl: true,
             },
             orderBy: { displayOrder: 'asc' as const },
@@ -52,9 +53,11 @@ export class CartService {
   /**
    * Gets the user's cart, creating one if it doesn't exist.
    * Automatically removes stale items (deleted or inactive products).
+   * Returns the serialized contract shape (totalItems + totalCDF at root,
+   * product.image as a structured object).
    */
   async getCart(userId: string) {
-    const cart = await this.findOrCreateCart(userId);
+    let cart = await this.findOrCreateCart(userId);
 
     // Clean stale items (product deleted or no longer ACTIVE)
     const staleItemIds = cart.items
@@ -69,12 +72,10 @@ export class CartService {
       await this.prisma.cartItem.deleteMany({
         where: { id: { in: staleItemIds } },
       });
-
-      // Re-fetch clean cart
-      return this.findOrCreateCart(userId);
+      cart = await this.findOrCreateCart(userId);
     }
 
-    return cart;
+    return this.serializeCart(cart);
   }
 
   /**
@@ -290,10 +291,11 @@ export class CartService {
 
   /**
    * Returns a cart summary grouped by seller, with subtotals.
-   * Used by the checkout flow.
+   * Used by the checkout flow. Operates on raw Prisma cart to avoid
+   * round-tripping through the JSON-friendly serializer.
    */
   async getCartSummary(userId: string) {
-    const cart = await this.getCart(userId);
+    const cart = await this.findOrCreateCart(userId);
 
     if (cart.items.length === 0) {
       return {
@@ -394,5 +396,94 @@ export class CartService {
     }
 
     return product;
+  }
+
+  /**
+   * Shapes the raw Prisma cart into the contract the frontends were built
+   * against. Without this, buyer-web reads `totalItems` as undefined (badge
+   * never renders) and `product.image` as undefined (cart thumbnails blank),
+   * and buyer-mobile reads `product.thumbnailUrl` / `sellerName` as null
+   * (Flutter model expects them at the product top level).
+   *
+   * Keeps both image shapes (`image` object for web, `thumbnailUrl` string for
+   * Flutter) and both seller shapes (`seller.businessName` for web,
+   * `sellerName` for Flutter) in the same payload — extra ~40 bytes per item,
+   * zero client churn.
+   */
+  private serializeCart(cart: {
+    id: string;
+    userId: string;
+    createdAt: Date;
+    updatedAt: Date;
+    items: Array<{
+      id: string;
+      productId: string;
+      quantity: number;
+      createdAt: Date;
+      product: {
+        id: string;
+        title: string;
+        priceCDF: bigint;
+        priceUSD: bigint | null;
+        quantity: number;
+        condition: string;
+        sellerId: string;
+        seller: {
+          sellerProfile: { businessName: string } | null;
+        } | null;
+        images: Array<{ url: string; thumbnailUrl: string }>;
+      };
+    }>;
+  }) {
+    let totalItems = 0;
+    let totalCDF = BigInt(0);
+
+    const items = cart.items.map((item) => {
+      totalItems += item.quantity;
+      totalCDF += item.product.priceCDF * BigInt(item.quantity);
+
+      const firstImage = item.product.images[0] ?? null;
+      const businessName =
+        item.product.seller?.sellerProfile?.businessName ?? 'Vendeur';
+
+      return {
+        id: item.id,
+        productId: item.productId,
+        quantity: item.quantity,
+        createdAt: item.createdAt,
+        product: {
+          id: item.product.id,
+          title: item.product.title,
+          priceCDF: item.product.priceCDF,
+          priceUSD: item.product.priceUSD,
+          quantity: item.product.quantity,
+          condition: item.product.condition,
+          sellerId: item.product.sellerId,
+          // Web: structured image object (matches BrowseProduct shape).
+          image: firstImage
+            ? { url: firstImage.url, thumbnailUrl: firstImage.thumbnailUrl }
+            : null,
+          // Flutter: top-level thumbnailUrl + sellerName (matches the
+          // existing CartItemProduct.fromJson contract).
+          thumbnailUrl: firstImage?.thumbnailUrl ?? null,
+          sellerName: businessName,
+          // Web also reads product.seller.businessName.
+          seller: {
+            id: item.product.sellerId,
+            businessName,
+          },
+        },
+      };
+    });
+
+    return {
+      id: cart.id,
+      userId: cart.userId,
+      items,
+      totalItems,
+      totalCDF,
+      createdAt: cart.createdAt,
+      updatedAt: cart.updatedAt,
+    };
   }
 }
