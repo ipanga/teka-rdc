@@ -1,9 +1,34 @@
 # Teka RDC — Development Progress
 
 ## Current Phase: — (no active initiative; awaiting next direction)
-## Last completed: Payment simplification + messaging removal + seller/admin auth parity — SHIPPED 2026-05-17 (PRs #95→#97, #96+#98→#99)
-## Status: All three threads of the latest brief deployed + prod-smoked. Mobile Money UI hidden on checkout (COD only); buyer↔seller messaging removed across 5 surfaces with API 410 GONE; auth refresh-on-401 + middleware refresh-token gate ported from buyer-web to seller-web + admin-web. PDP shows "Contacter le support Teka RDC" CTA linking to /contact.
+## Last completed: admin/seller /login cross-subdomain bypass — FIXED 2026-05-17 (PR #100 → #101)
+## Status: admin.teka.cd/login + seller.teka.cd/login both render the login form again (verified in prod). Buyer cookies leaking across .teka.cd no longer satisfy the seller/admin middleware's session check (authOnly /login → /dashboard redirect removed). Defense-in-depth: dashboard layouts now check user.role and logout+redirect wrong-role users.
 ## Last Updated: 2026-05-17
+
+### Hotfix — admin/seller /login bypass via cross-subdomain cookies (2026-05-17, PR #100 → #101)
+
+**Symptom**: Clicking the "Connexion / Login" button on `admin.teka.cd` or `seller.teka.cd` opened the dashboard directly instead of showing the login form. Buyers who'd logged into teka.cd were silently landing on broken admin/seller dashboards.
+
+**Root cause** (regression from interactions between today's earlier work):
+- PR #95 (earlier today) added refresh-token fallback to seller-web + admin-web middleware (so 15-min access token expiry doesn't kick people out)
+- The COOKIE_DOMAIN=.teka.cd infra fix (also earlier today) made cookies cross-subdomain-visible
+- Combined: buyer cookies on .teka.cd satisfied the middleware's `hasSession` check on seller.teka.cd / admin.teka.cd → triggered the `if (isAuthOnly && hasSession) → /dashboard` redirect
+- Dashboard layouts didn't check role, so wrong-role users briefly saw the dashboard chrome before APIs started 403'ing
+
+**Fix** (4 files, defense in depth):
+- `apps/{seller,admin}-web/src/middleware.ts` — removed the authOnly `/login → /dashboard` redirect. The login form renders unconditionally; `/dashboard` protection (redirect to /login when no cookie) unchanged.
+- `apps/{seller,admin}-web/src/app/dashboard/layout.tsx` — wait for `/me`, then verify `user.role === 'SELLER'` (or `'ADMIN'`). Wrong role → `logout()` (clears wrong-role cookies) → `router.replace('/login')`. Spinner shown until check passes; never flashes dashboard for a wrong-role user.
+
+**Ship cycle**: PR #100 → PR #101 → main → deploy run 25997178223 succeeded. Back-merged main → develop.
+
+**Prod smoke verified**:
+- `admin.teka.cd/login`: login form renders even with `teka_session=1` hint cookie present ✓
+- `seller.teka.cd/login`: login form renders ✓
+
+**Out of scope** (called out for posterity):
+- Adding a per-role cookie at login (e.g. `teka_role=ADMIN`) would let the middleware do the role gate at the edge. Cleaner architecturally, but new contract across API + 3 web apps. Client-side gate is smaller and equally effective for this surface area.
+
+### Previous initiative — Payment simplification + messaging removal + auth parity (2026-05-17, 4 PRs)
 
 ### Initiative — Payment simplification + messaging removal + auth parity (2026-05-17, 4 PRs)
 
