@@ -1,8 +1,8 @@
 # Teka RDC — Development Progress
 
-## Current Phase: Buyer audit + OTP fix + stability batch — COMPLETE
-## Current Task: — (initiative shipped 2026-05-17; user verification of OTP Copy Code button pending)
-## Status: 7 audit PRs landed (#74 #75 #76 #77 #78 #79 #80). 2 P0 + 4 P1 + 3 P2 fixed. 5 regression e2e tests added. Flutter parity confirmed clean. Prod healthy.
+## Current Phase: — (no active initiative; awaiting next direction)
+## Last completed: Buyer audit + OTP fix + stability — CLOSED 2026-05-17
+## Status: 7 audit PRs landed (#74 #75 #76 #77 #78 #79 #80). 2 P0 + 4 P1 + 3 P2 fixed. 5 regression e2e tests added. OTP Copy Code user-verified in prod. Final prod smoke clean (zero console messages on guest pageload). Flutter parity verified — no mobile changes needed.
 ## Last Updated: 2026-05-17
 
 **Detailed audit tracker**: [`tasks/buyer-audit-progress.md`](./tasks/buyer-audit-progress.md) — per-finding log with severity, status, PR# refs.
