@@ -264,6 +264,23 @@ export class AuthController {
       path: '/',
       ...(domain ? { domain } : {}),
     });
+
+    // Non-HttpOnly "session hint" cookie. The two cookies above are HttpOnly
+    // (correct — never expose tokens to JS), so the buyer-web auth store
+    // can't tell whether a session exists without calling /v1/auth/me. That
+    // call returned 401 on every guest page load, generating console noise
+    // and an unnecessary round-trip on slow 2G/3G connections. This hint
+    // cookie carries no auth value — just a boolean flag the frontend
+    // checks before issuing the /me call. Lifetime matches the refresh
+    // token so the hint accurately reflects session lifetime.
+    res.cookie('teka_session', '1', {
+      httpOnly: false,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+      ...(domain ? { domain } : {}),
+    });
   }
 
   private clearAuthCookies(res: Response) {
@@ -273,6 +290,10 @@ export class AuthController {
       ...(domain ? { domain } : {}),
     });
     res.clearCookie('teka_refresh_token', {
+      path: '/',
+      ...(domain ? { domain } : {}),
+    });
+    res.clearCookie('teka_session', {
       path: '/',
       ...(domain ? { domain } : {}),
     });

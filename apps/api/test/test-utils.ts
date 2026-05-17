@@ -177,6 +177,8 @@ export const mockPrismaService: Record<string, any> = {
     create: jest.fn(),
     update: jest.fn(),
     count: jest.fn(),
+    aggregate: jest.fn(),
+    groupBy: jest.fn(),
   },
   wishlistItem: {
     findUnique: jest.fn(),
