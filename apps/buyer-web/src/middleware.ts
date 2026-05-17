@@ -21,7 +21,17 @@ const authOnlyRoutes = ['/connexion', '/reclamer-compte'];
 
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const hasToken = request.cookies.has('teka_access_token');
+
+  // Treat the user as authenticated if they hold either an access token
+  // (15 min TTL) OR a refresh token (7 day TTL). The access token expires
+  // every 15 minutes, so gating on it alone kicked logged-in users to
+  // /connexion mid-session — most visibly when clicking "Passer la commande"
+  // 16+ minutes after login. The refresh token is the real session signal;
+  // if it's present, apiFetch will silently mint a new access token on the
+  // next API call (see api-client.ts auto-refresh).
+  const hasSession =
+    request.cookies.has('teka_access_token') ||
+    request.cookies.has('teka_refresh_token');
 
   const isProtected = protectedRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
@@ -30,7 +40,7 @@ export default function middleware(request: NextRequest) {
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
 
-  if (isProtected && !hasToken) {
+  if (isProtected && !hasSession) {
     // Go straight to /connexion. The previous code redirected to /login,
     // which 301'd to /connexion via next.config redirects — an unnecessary
     // extra hop on every protected-route hit.
@@ -39,7 +49,7 @@ export default function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isAuthOnly && hasToken) {
+  if (isAuthOnly && hasSession) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 

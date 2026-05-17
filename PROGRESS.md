@@ -1,9 +1,35 @@
 # Teka RDC — Development Progress
 
 ## Current Phase: — (no active initiative; awaiting next direction)
-## Last completed: Buyer audit + OTP fix + stability — CLOSED 2026-05-17
-## Status: 7 audit PRs landed (#74 #75 #76 #77 #78 #79 #80). 2 P0 + 4 P1 + 3 P2 fixed. 5 regression e2e tests added. OTP Copy Code user-verified in prod. Final prod smoke clean (zero console messages on guest pageload). Flutter parity verified — no mobile changes needed.
+## Last completed: Buyer session-loss hotfix (auto-refresh on 401 + hint-cookie heal) — SHIPPED 2026-05-17 via PR #81 + release #82
+## Status: Fix deployed to prod. Smoke clean: guest /me 401 (no refresh attempt), homepage + browse endpoints all 200, /v1/auth/refresh alive. Awaiting real-buyer verification (log in → navigate via logo 3-4× and 16+ min between actions).
 ## Last Updated: 2026-05-17
+
+### Hotfix — Buyer session loss after navigation (2026-05-17)
+
+**Symptom**: Buyer logs in → adds to cart → clicks logo → opens product → adds to cart → clicks logo → appears logged out.
+
+**Root cause** (two compounding bugs):
+1. `apiFetch` had no 401-refresh logic. When the 15-min access token expired mid-session, `/v1/auth/me` returned 401 → `auth-store` set `user=null` → header flipped to "Se connecter" even though the 7-day refresh token was still valid.
+2. PR #80's hint-cookie gate in `fetchUser` skipped `/me` entirely when `teka_session` cookie was missing. That perf win locked out every session that predated #80 (valid tokens, no hint cookie, treated as guest).
+
+**Fix** (3 files, +116 / -24):
+- `apps/buyer-web/src/lib/api-client.ts` — `apiFetch` auto-refreshes once on 401 via `POST /v1/auth/refresh`. Refresh attempts coalesced via module-level promise so N concurrent 401s share one refresh call (no refresh-token rotation race). Loop-guarded against refresh endpoint itself. Hint-cookie gated so guests don't waste round-trips.
+- `apps/api/src/auth/auth.controller.ts` — `GET /v1/auth/me` re-issues the `teka_session` hint cookie on every success (new `refreshSessionHint` private helper). Auto-heals pre-PR#80 sessions on next /me call.
+- `apps/buyer-web/src/lib/auth-store.ts` — removed PR #80's hint-cookie gate from `fetchUser`. Always calls /me on AuthProvider mount; auto-refresh handles expired tokens; 1-round-trip guest cost is acceptable.
+
+**Ship cycle**:
+- PR #81 (fix → develop), 6/6 checks green, merged.
+- PR #82 (release develop → main), all checks green, merged.
+- Back-merged main → develop (commit c2b2a5b).
+- Prod deploy run 25983908861 succeeded. Prod smoke confirmed: guest `/me` 401, no refresh follow-up (correct gate), `/v1/auth/refresh` returns 400 with no token (alive + validating).
+
+**Not changed**: existing auth architecture, cart logic, API contracts, SEO/SSR, all flows. Only the recovery path on token expiry is new.
+
+**Flutter parity**: Not affected — buyer-mobile uses dio with its own interceptor pipeline and doesn't share the buyer-web access-token expiry path. If a similar symptom shows up on mobile, the equivalent fix is a dio interceptor that retries on 401 via `/v1/auth/refresh`.
+
+### Previous closeout — Buyer audit + OTP fix + stability — CLOSED 2026-05-17
+- 7 audit PRs landed (#74 #75 #76 #77 #78 #79 #80). 2 P0 + 4 P1 + 3 P2 fixed. 5 regression e2e tests added. OTP Copy Code user-verified in prod. Final prod smoke clean (zero console messages on guest pageload). Flutter parity verified — no mobile changes needed.
 
 **Detailed audit tracker**: [`tasks/buyer-audit-progress.md`](./tasks/buyer-audit-progress.md) — per-finding log with severity, status, PR# refs.
 
