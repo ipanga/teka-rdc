@@ -323,8 +323,27 @@ export class BrowseService {
       });
     }
 
+    // Flatten the seller shape to match the list endpoint and the
+    // BrowseSeller type used by buyer-web. Prior to this fix the detail
+    // endpoint returned the raw Prisma include
+    // (`seller: { id, firstName, lastName, sellerProfile: { businessName } }`),
+    // while the list endpoint returned `{ id, businessName }`. The buyer-web
+    // cart hydration assumed list-shape; reading `seller.businessName` was
+    // undefined, which crashed the cart page (`undefined.trim()`). The PDP
+    // also rendered an empty "VENDEUR" label for the same reason.
+    const { seller, ...rest } = product;
+    const sellerFullName = [seller.firstName, seller.lastName]
+      .filter(Boolean)
+      .join(' ');
+    const sellerFlat = {
+      id: seller.id,
+      businessName:
+        seller.sellerProfile?.businessName || sellerFullName || 'Vendeur',
+    };
+
     return {
-      ...product,
+      ...rest,
+      seller: sellerFlat,
       breadcrumb,
     };
   }
