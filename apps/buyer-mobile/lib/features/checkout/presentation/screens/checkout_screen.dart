@@ -15,6 +15,13 @@ import '../../../city/data/models/commune_model.dart';
 import '../../data/models/checkout_model.dart';
 import '../providers/checkout_provider.dart';
 
+// Mobile Money (M-Pesa / Airtel / Orange) is intentionally hidden in the
+// UI for now — only "Paiement à la livraison" (COD) is offered. The
+// backend payment-provider abstraction stays fully in place so a
+// re-enable is a one-line flip rather than a re-implementation. Mirrors
+// the same constant on apps/buyer-web/src/app/checkout/page.tsx.
+const bool _enableMobileMoney = false;
+
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
 
@@ -610,6 +617,11 @@ class _PaymentStepState extends State<_PaymentStep> {
           isSelected: widget.selectedMethod == 'COD',
           onTap: () => widget.onSelect('COD'),
         ),
+
+        // Mobile Money tile + provider block — hidden until the platform
+        // re-enables Mobile Money. See _enableMobileMoney const at the
+        // top of this file.
+        if (_enableMobileMoney) ...[
         const SizedBox(height: 8),
         _PaymentOption(
           title: l10n.checkoutMobileMoney,
@@ -697,6 +709,7 @@ class _PaymentStepState extends State<_PaymentStep> {
             style: const TextStyle(fontSize: 14),
           ),
         ],
+        ], // close `if (_enableMobileMoney) ...[`
       ],
     );
   }
