@@ -228,35 +228,40 @@ class ProductDetailScreen extends ConsumerWidget {
                                   ],
                                 ),
                                 const SizedBox(height: 12),
-                                // Contact seller button
-                                if (product.seller.id != null &&
-                                    product.seller.id!.isNotEmpty)
-                                  SizedBox(
-                                    width: double.infinity,
-                                    child: OutlinedButton.icon(
-                                      onPressed: () {
-                                        context.push(
-                                          '/messages/new',
-                                          extra: {
-                                            'sellerId': product.seller.id,
-                                          },
-                                        );
-                                      },
-                                      icon: const Icon(
-                                        Icons.chat_bubble_outline,
-                                        size: 18,
-                                      ),
-                                      label: Text(l10n.contactSeller),
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: TekaColors.tekaRed,
-                                        side: const BorderSide(
-                                          color: TekaColors.tekaRed,
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 10),
-                                      ),
+                                // Direct buyer↔seller messaging retired
+                                // 2026-05-17 — buyers contact Teka RDC
+                                // support instead. The seller name + city
+                                // shown above are the entire seller card now.
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: TekaColors.surface,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: TekaColors.border,
                                     ),
                                   ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.support_agent_outlined,
+                                        size: 18,
+                                        color: TekaColors.tekaRed,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          l10n.contactSupport,
+                                          style: const TextStyle(
+                                            color: TekaColors.foreground,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                                 const SizedBox(height: 16),
                                 const Divider(color: TekaColors.border),
                                 const SizedBox(height: 12),

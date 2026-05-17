@@ -17,8 +17,6 @@ import '../../features/checkout/presentation/screens/checkout_screen.dart';
 import '../../features/checkout/presentation/screens/checkout_success_screen.dart';
 import '../../features/checkout/presentation/screens/payment_pending_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
-import '../../features/messaging/presentation/screens/chat_screen.dart';
-import '../../features/messaging/presentation/screens/conversations_screen.dart';
 import '../../features/orders/presentation/screens/order_detail_screen.dart';
 import '../../features/orders/presentation/screens/orders_screen.dart';
 import '../../features/content/presentation/screens/content_page_screen.dart';
@@ -149,22 +147,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/wishlist',
         builder: (context, state) => const WishlistScreen(),
       ),
-      GoRoute(
-        path: '/messages',
-        builder: (context, state) => const ConversationsScreen(),
-      ),
-      GoRoute(
-        path: '/messages/:id',
-        builder: (context, state) {
-          final conversationId = state.pathParameters['id']!;
-          final extra = state.extra as Map<String, dynamic>?;
-          final sellerId = extra?['sellerId'] as String?;
-          return ChatScreen(
-            conversationId: conversationId,
-            sellerId: sellerId,
-          );
-        },
-      ),
+      // /messages and /messages/:id retired 2026-05-17 — direct buyer↔
+      // seller messaging removed in favour of "Contacter le support".
       GoRoute(
         path: '/products/:id/reviews',
         builder: (context, state) {

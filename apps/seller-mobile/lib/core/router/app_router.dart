@@ -12,8 +12,6 @@ import '../../features/auth/presentation/screens/wrong_role_screen.dart';
 import '../../features/earnings/presentation/screens/earnings_screen.dart';
 import '../../features/earnings/presentation/screens/request_payout_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
-import '../../features/messaging/presentation/screens/chat_screen.dart';
-import '../../features/messaging/presentation/screens/conversations_screen.dart';
 import '../../features/orders/presentation/screens/order_detail_screen.dart';
 import '../../features/orders/presentation/screens/orders_list_screen.dart';
 import '../../features/products/presentation/screens/product_detail_screen.dart';
@@ -173,18 +171,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const SellerReviewsScreen(),
       ),
 
-      // Messaging routes
-      GoRoute(
-        path: '/messages',
-        builder: (context, state) => const ConversationsScreen(),
-      ),
-      GoRoute(
-        path: '/messages/:id',
-        builder: (context, state) {
-          final id = state.pathParameters['id']!;
-          return ChatScreen(conversationId: id);
-        },
-      ),
+      // /messages and /messages/:id retired 2026-05-17 — direct buyer↔
+      // seller messaging removed in favour of "Contacter le support".
     ],
   );
 });

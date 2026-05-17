@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -19,8 +19,11 @@ import type { ProductDetail } from '@/lib/types';
 export default function ProductDetailPage() {
   const t = useTranslations('Products');
   const tCat = useTranslations('Categories');
-  const tMsg = useTranslations('Messaging');
-  const router = useRouter();
+  // 'Messaging' translation namespace stays in messages/fr.json (with a
+  // deprecation comment there); only the in-app references were removed
+  // when direct buyer↔seller messaging was retired on 2026-05-17. Buyers
+  // now reach Teka RDC support via /contact instead.
+  const tSupport = useTranslations('Support');
   const params = useParams<{ slug: string }>();
   const productId = params.slug;
   const user = useAuthStore((s) => s.user);
@@ -32,24 +35,7 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartFeedback, setCartFeedback] = useState(false);
-  const [contactingSeller, setContactingSeller] = useState(false);
   const addItem = useCartStore((s) => s.addItem);
-
-  async function handleContactSeller(sellerId: string) {
-    if (!user || contactingSeller) return;
-    setContactingSeller(true);
-    try {
-      const res = await apiFetch<{ id: string }>('/v1/messages', {
-        method: 'POST',
-        body: JSON.stringify({ sellerId, content: '...' }),
-      });
-      router.push(`/messages/${res.data.id}` as '/messages/${string}');
-    } catch {
-      router.push('/messages');
-    } finally {
-      setContactingSeller(false);
-    }
-  }
 
   useEffect(() => {
     setIsLoading(true);
@@ -323,30 +309,24 @@ export default function ProductDetailPage() {
                 <p className="text-sm font-semibold text-foreground mt-0.5">
                   {product.seller.businessName}
                 </p>
-                {user && (
-                  <button
-                    onClick={() => handleContactSeller(product.seller.id)}
-                    disabled={contactingSeller}
-                    className="mt-2 inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary-hover transition-colors font-medium disabled:opacity-50"
-                  >
-                    {contactingSeller ? (
-                      <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                    ) : (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"
-                        />
-                      </svg>
-                    )}
-                    {tMsg('contactSeller')}
-                  </button>
-                )}
+                {/* Direct buyer↔seller chat retired 2026-05-17. Questions
+                    about a product or order now flow through Teka RDC
+                    support — single channel, faster moderation, clearer
+                    dispute trail. */}
+                <Link
+                  href="/contact"
+                  className="mt-2 inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary-hover transition-colors font-medium"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
+                    />
+                  </svg>
+                  {tSupport('contactSupport')}
+                </Link>
               </Card>
 
               {/* Category link */}

@@ -6,6 +6,8 @@ import {
   Query,
   Body,
   ParseUUIDPipe,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { MessagingService } from './messaging.service';
 import { SendMessageDto } from './dto/send-message.dto';
@@ -13,75 +15,89 @@ import { ConversationQueryDto } from './dto/conversation-query.dto';
 import { MessagesQueryDto } from './dto/messages-query.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
+/**
+ * Buyer↔seller direct messaging was removed from the product surface on
+ * 2026-05-17. Per the new policy, buyers contact Teka RDC customer
+ * service instead of the seller directly (cleaner support flow, fewer
+ * dispute surfaces, and the existing "Contacter le support" page covers
+ * the use case).
+ *
+ * The controllers below stay registered so any in-flight clients on an
+ * old build get a deterministic 410 Gone with a French message rather
+ * than a confusing 404. The MessagingService methods, the Prisma
+ * Conversation + Message models, and all DB rows are preserved untouched
+ * — historical conversations remain readable for audit + support and
+ * the feature can be re-enabled by reverting this single file.
+ */
+const REMOVED_MESSAGE =
+  'La messagerie directe acheteur-vendeur a été supprimée. ' +
+  'Pour toute question, contactez le support Teka RDC.';
+
+function throwGone(): never {
+  throw new HttpException(
+    {
+      success: false,
+      error: {
+        status: HttpStatus.GONE,
+        code: 'MESSAGING_REMOVED',
+        message: REMOVED_MESSAGE,
+      },
+    },
+    HttpStatus.GONE,
+  );
+}
+
 @Controller('v1/messages')
 export class MessagingController {
-  constructor(private messagingService: MessagingService) {}
-
-  /**
-   * Send a message. Requires either conversationId or sellerId in body.
-   */
-  @Post()
-  async sendMessage(
-    @CurrentUser('sub') userId: string,
-    @Body() dto: SendMessageDto,
-  ) {
-    const data = await this.messagingService.sendMessage(userId, dto);
-    return { success: true, data };
+  // Constructor signature preserved so the DI graph + module wiring don't
+  // need to change. The service is dormant; deleting it would touch
+  // messaging.module.ts + the export of MessagingService.
+  constructor(private messagingService: MessagingService) {
+    void this.messagingService;
   }
 
-  /**
-   * Get total unread message count across all conversations.
-   * Note: This route is defined before ':id' routes to avoid parameter conflict.
-   */
+  @Post()
+  sendMessage(
+    @CurrentUser('sub') _userId: string,
+    @Body() _dto: SendMessageDto,
+  ) {
+    throwGone();
+  }
+
   @Get('unread-count')
-  async getUnreadCount(@CurrentUser('sub') userId: string) {
-    const data = await this.messagingService.getUnreadCount(userId);
-    return { success: true, data };
+  getUnreadCount(@CurrentUser('sub') _userId: string) {
+    throwGone();
   }
 }
 
 @Controller('v1/conversations')
 export class ConversationsController {
-  constructor(private messagingService: MessagingService) {}
+  constructor(private messagingService: MessagingService) {
+    void this.messagingService;
+  }
 
-  /**
-   * List all conversations for the logged-in user (paginated).
-   */
   @Get()
-  async getConversations(
-    @CurrentUser('sub') userId: string,
-    @Query() query: ConversationQueryDto,
+  getConversations(
+    @CurrentUser('sub') _userId: string,
+    @Query() _query: ConversationQueryDto,
   ) {
-    const result = await this.messagingService.getConversations(userId, query);
-    return { success: true, ...result };
+    throwGone();
   }
 
-  /**
-   * Get messages for a specific conversation (cursor-paginated).
-   */
   @Get(':id/messages')
-  async getMessages(
-    @CurrentUser('sub') userId: string,
-    @Param('id', ParseUUIDPipe) conversationId: string,
-    @Query() query: MessagesQueryDto,
+  getMessages(
+    @CurrentUser('sub') _userId: string,
+    @Param('id', ParseUUIDPipe) _conversationId: string,
+    @Query() _query: MessagesQueryDto,
   ) {
-    const result = await this.messagingService.getMessages(
-      userId,
-      conversationId,
-      query,
-    );
-    return { success: true, ...result };
+    throwGone();
   }
 
-  /**
-   * Mark all messages in a conversation as read.
-   */
   @Post(':id/read')
-  async markAsRead(
-    @CurrentUser('sub') userId: string,
-    @Param('id', ParseUUIDPipe) conversationId: string,
+  markAsRead(
+    @CurrentUser('sub') _userId: string,
+    @Param('id', ParseUUIDPipe) _conversationId: string,
   ) {
-    const data = await this.messagingService.markAsRead(userId, conversationId);
-    return { success: true, data };
+    throwGone();
   }
 }

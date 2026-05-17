@@ -11,7 +11,6 @@ import '../../catalog/presentation/providers/catalog_provider.dart';
 import '../../catalog/presentation/widgets/category_chip.dart';
 import '../../catalog/presentation/widgets/product_card.dart';
 import '../../city/presentation/providers/city_provider.dart';
-import '../../messaging/presentation/providers/messaging_provider.dart';
 import '../data/models/banner_model.dart';
 import '../data/models/flash_deal_model.dart';
 import 'providers/banner_provider.dart';
@@ -76,7 +75,6 @@ class HomeScreen extends ConsumerWidget {
             tooltip: l10n.wishlistTitle,
             onPressed: () => context.push('/wishlist'),
           ),
-          const _MessagesIconButton(),
           const _CartIconButton(),
           IconButton(
             icon: const Icon(Icons.search),
@@ -290,50 +288,8 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _MessagesIconButton extends ConsumerWidget {
-  const _MessagesIconButton();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final unreadCount = ref.watch(
-        messagingProvider.select((state) => state.unreadCount));
-
-    return IconButton(
-      icon: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          const Icon(Icons.chat_bubble_outline),
-          if (unreadCount > 0)
-            Positioned(
-              right: -6,
-              top: -4,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: TekaColors.tekaRed,
-                  shape: BoxShape.circle,
-                ),
-                constraints: const BoxConstraints(
-                  minWidth: 18,
-                  minHeight: 18,
-                ),
-                child: Text(
-                  unreadCount > 99 ? '99+' : '$unreadCount',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-        ],
-      ),
-      onPressed: () => context.push('/messages'),
-    );
-  }
-}
+// _MessagesIconButton removed 2026-05-17 — direct buyer↔seller messaging
+// retired in favour of "Contacter le support".
 
 class _CartIconButton extends ConsumerWidget {
   const _CartIconButton();

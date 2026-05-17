@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/teka_colors.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
-import '../../messaging/presentation/providers/messaging_provider.dart';
 import '../../orders/data/models/order_model.dart';
 import '../../orders/presentation/providers/orders_provider.dart';
 import '../../products/data/models/product_model.dart';
@@ -21,26 +20,14 @@ class HomeScreen extends ConsumerWidget {
     final authState = ref.watch(authProvider);
     final productsState = ref.watch(sellerProductsProvider);
     final ordersState = ref.watch(sellerOrdersProvider);
-    final unreadCount = ref.watch(unreadCountProvider);
     final userName = authState.user?['firstName'] as String? ?? '';
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Teka Vendeur'),
         actions: [
-          // Messages icon with unread badge
-          IconButton(
-            icon: Badge(
-              isLabelVisible: unreadCount > 0,
-              label: Text(
-                unreadCount > 99 ? '99+' : unreadCount.toString(),
-                style: const TextStyle(fontSize: 10),
-              ),
-              child: const Icon(Icons.chat_outlined),
-            ),
-            tooltip: l10n.messagesTitle,
-            onPressed: () => context.push('/messages'),
-          ),
+          // Messages icon retired 2026-05-17 — direct buyer↔seller
+          // messaging removed in favour of "Contacter le support".
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: l10n.authLogout,
@@ -94,10 +81,6 @@ class HomeScreen extends ConsumerWidget {
 
             // Promotions card
             _buildPromotionsCard(context, l10n),
-            const SizedBox(height: 12),
-
-            // Messages card
-            _buildMessagesCard(context, l10n, unreadCount),
             const SizedBox(height: 20),
 
             // Quick actions
@@ -460,68 +443,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMessagesCard(
-      BuildContext context, AppLocalizations l10n, int unreadCount) {
-    return InkWell(
-      onTap: () => context.push('/messages'),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.blue.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.chat_outlined,
-                  color: Colors.blue, size: 24),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    l10n.messagesTitle,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                    ),
-                  ),
-                  if (unreadCount > 0)
-                    Text(
-                      '$unreadCount ${l10n.unreadMessages.toLowerCase()}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.blue,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    )
-                  else
-                    Text(
-                      l10n.conversations,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: TekaColors.mutedForeground,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right,
-                color: TekaColors.mutedForeground),
-          ],
-        ),
-      ),
-    );
-  }
+  // _buildMessagesCard removed 2026-05-17 with the messaging feature.
 
   Widget _buildEmptyProducts(BuildContext context, AppLocalizations l10n) {
     return Container(
