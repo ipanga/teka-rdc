@@ -1114,6 +1114,12 @@ abstract class AppLocalizations {
   /// **'Contacter le vendeur'**
   String get contactSeller;
 
+  /// No description provided for @contactSupport.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pour toute question, contactez le support Teka RDC.'**
+  String get contactSupport;
+
   /// No description provided for @you.
   ///
   /// In fr, this message translates to:

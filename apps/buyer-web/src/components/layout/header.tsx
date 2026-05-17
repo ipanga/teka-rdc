@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, FormEvent } from 'react';
+import { useState, FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -8,7 +8,6 @@ import { useAuthStore } from '@/lib/auth-store';
 import { useCityStore } from '@/lib/city-store';
 import { CartBadge } from '@/components/cart/cart-badge';
 import { buttonVariants } from '@/components/ui';
-import { apiFetch } from '@/lib/api-client';
 
 export function Header() {
   const t = useTranslations('Header');
@@ -19,26 +18,12 @@ export function Header() {
   const { selectedCity, openSelector } = useCityStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const unreadPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const fetchUnreadCount = useCallback(async () => {
-    if (!user) return;
-    try {
-      const res = await apiFetch<{ count: number }>('/v1/messages/unread-count');
-      setUnreadCount(res.data.count);
-    } catch {
-      // ignore
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchUnreadCount();
-    unreadPollRef.current = setInterval(fetchUnreadCount, 30000);
-    return () => {
-      if (unreadPollRef.current) clearInterval(unreadPollRef.current);
-    };
-  }, [fetchUnreadCount]);
+  // Direct buyer↔seller messaging removed on 2026-05-17 — buyers now
+  // contact Teka RDC support instead of the seller (see /contact). The
+  // header messages icon + unread-count polling were removed with the
+  // feature; the API endpoint returns 410 GONE if any old client still
+  // calls /v1/messages/unread-count.
 
   function handleSearch(e: FormEvent) {
     e.preventDefault();
@@ -144,31 +129,6 @@ export function Header() {
                   />
                 </svg>
               </Link>
-              {/* Messages icon */}
-              <Link
-                href="/messages"
-                className="relative p-2 text-foreground hover:text-primary transition-colors"
-                aria-label="Messages"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={1.5}
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z"
-                  />
-                </svg>
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-primary rounded-full">
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </span>
-                )}
-              </Link>
               <span className="text-sm text-foreground">
                 {user.firstName || t('myAccount')}
               </span>
@@ -204,20 +164,6 @@ export function Header() {
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
                 </svg>
-              </Link>
-              <Link
-                href="/messages"
-                className="relative p-1.5 text-foreground hover:text-primary transition-colors"
-                aria-label="Messages"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
-                </svg>
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center w-4 h-4 text-[9px] font-bold text-white bg-primary rounded-full">
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </span>
-                )}
               </Link>
             </>
           )}
@@ -327,21 +273,6 @@ export function Header() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
                   </svg>
                   {t('wishlist')}
-                </Link>
-                <Link
-                  href="/messages"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.625 12a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H8.25m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0H12m4.125 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 0 1-2.555-.337A5.972 5.972 0 0 1 5.41 20.97a5.969 5.969 0 0 1-.474-.065 4.48 4.48 0 0 0 .978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25Z" />
-                  </svg>
-                  {t('messages')}
-                  {unreadCount > 0 && (
-                    <span className="flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-primary rounded-full">
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </span>
-                  )}
                 </Link>
                 <button
                   onClick={() => {

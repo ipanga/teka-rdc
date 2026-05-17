@@ -1,12 +1,9 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
-import { useRouter } from 'next/navigation';
-import { apiFetch } from '@/lib/api-client';
 
 interface NavItem {
   href: string;
@@ -22,28 +19,9 @@ export function Sidebar() {
   const logout = useAuthStore((s) => s.logout);
   const router = useRouter();
 
-  const [unreadCount, setUnreadCount] = useState(0);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    const fetchUnread = async () => {
-      try {
-        const res = await apiFetch<{ count: number }>('/v1/messages/unread-count');
-        setUnreadCount(res.data?.count ?? (typeof res.data === 'number' ? (res.data as unknown as number) : 0));
-      } catch {
-        // Silently ignore
-      }
-    };
-
-    fetchUnread();
-    pollRef.current = setInterval(fetchUnread, 30000);
-
-    return () => {
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-      }
-    };
-  }, []);
+  // Direct buyer\u2194seller messaging was removed on 2026-05-17 \u2014 the
+  // Messages nav item + unread-count polling were removed with it.
+  // Buyer questions now reach Teka RDC support instead of the seller.
 
   const navItems: NavItem[] = [
     { href: '/dashboard', label: t('dashboard'), icon: '\u2302' },
@@ -52,7 +30,6 @@ export function Sidebar() {
     { href: '/dashboard/earnings', label: t('earnings'), icon: '\uD83D\uDCB0' },
     { href: '/dashboard/reviews', label: t('reviews'), icon: '\u2605' },
     { href: '/dashboard/promotions', label: t('promotions'), icon: '\uD83C\uDFF7' },
-    { href: '/dashboard/messages', label: t('messages'), icon: '\u2709', badge: unreadCount },
   ];
 
   const handleLogout = async () => {
