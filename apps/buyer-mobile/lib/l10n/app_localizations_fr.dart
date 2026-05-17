@@ -537,6 +537,10 @@ class AppLocalizationsFr extends AppLocalizations {
   String get contactSeller => 'Contacter le vendeur';
 
   @override
+  String get contactSupport =>
+      'Pour toute question, contactez le support Teka RDC.';
+
+  @override
   String get you => 'Vous';
 
   @override

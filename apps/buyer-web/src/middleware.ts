@@ -1,16 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Auth-gated buyer routes. `/wishlist` and `/messages` were missing before
-// — the pages hit auth-required APIs (`GET /v1/wishlist`,
-// `GET /v1/conversations`) which 401, but the client silently rendered the
-// empty state. Users had no signal they needed to log in.
+// Auth-gated buyer routes. `/messages` was removed on 2026-05-17 when
+// direct buyer↔seller messaging was retired in favour of "Contacter le
+// support Teka RDC". `/wishlist` stays auth-gated — its API still 401s
+// without a session.
 const protectedRoutes = [
   '/profile',
   '/addresses',
   '/orders',
   '/checkout',
   '/wishlist',
-  '/messages',
 ];
 
 // Routes that redirect logged-in users back to home. `/login` and
