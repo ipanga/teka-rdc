@@ -1,9 +1,15 @@
 # Teka RDC — Development Progress
 
-## Current Phase: Buyer UI/UX Redesign (Rakuten-inspired, cosmetic-only) — COMPLETE
-## Current Task: — (initiative shipped 2026-05-16, all 5 PRs landed)
-## Status: All 5 PRs MERGED & DEPLOYED — #69 (tokens) → #70 (homepage) → #71 (conversion path) → #72 (account/auth/search) → #73 (Flutter). Prod healthy.
-## Last Updated: 2026-05-16
+## Current Phase: Buyer audit + OTP fix + stability batch — COMPLETE
+## Current Task: — (initiative shipped 2026-05-17; user verification of OTP Copy Code button pending)
+## Status: 7 audit PRs landed (#74 #75 #76 #77 #78 #79 #80). 2 P0 + 4 P1 + 3 P2 fixed. 5 regression e2e tests added. Flutter parity confirmed clean. Prod healthy.
+## Last Updated: 2026-05-17
+
+**Detailed audit tracker**: [`tasks/buyer-audit-progress.md`](./tasks/buyer-audit-progress.md) — per-finding log with severity, status, PR# refs.
+
+### Previous initiative — Buyer UI/UX Redesign (Rakuten-inspired) — COMPLETE 2026-05-16
+- 5 PRs landed: #69 (tokens) → #70 (homepage) → #71 (conversion path) → #72 (account/auth/search) → #73 (Flutter).
+- Tracker: [`tasks/buyer-ui-redesign-progress.md`](./tasks/buyer-ui-redesign-progress.md).
 
 **Detailed redesign tracker**: [`tasks/buyer-ui-redesign-progress.md`](./tasks/buyer-ui-redesign-progress.md) — per-PR status, file lists, verification gates, and the resumption protocol.
 
