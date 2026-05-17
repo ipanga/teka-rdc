@@ -52,28 +52,27 @@ export class GupshupWhatsappProvider implements WhatsappProvider {
     const destination = phone.replace(/^\+/, '');
     const source = this.sourceNumber.replace(/^\+/, '');
 
-    // Meta-spec components payload. The legacy `{ id, params: [code] }`
-    // shorthand only fills body placeholders — the COPY_CODE button has a
-    // separate parameter slot. Without the explicit `button` component, the
-    // WhatsApp client renders the button text as the unsubstituted literal
-    // `{{1}}` (rendered by some clients as `{}`), so tapping "Copy code"
-    // copies an empty placeholder instead of the OTP. Including the body
-    // and button components binds the OTP to both.
+    // Authentication-template binding for Gupshup's /wa/api/v1/template/msg.
+    //
+    // The template has two placeholders that both render `{{1}}` in WhatsApp:
+    // one in the body ("Votre code de vérification est {{1}}") and one in
+    // the COPY_CODE button (its copied text). Gupshup's `params` shorthand
+    // fills placeholders in their order of occurrence in the template
+    // definition — so to fill BOTH we must pass the OTP twice:
+    //   params: [code /* body */, code /* COPY_CODE button */]
+    //
+    // History:
+    //   - PR #74 sent only `params: [code]` plus a Meta-spec `components`
+    //     array. The body filled (params[0]) but the button kept the
+    //     literal `{{1}}` (rendered as `{}`) — Gupshup's v1 endpoint
+    //     silently ignores `components`. Confirmed by user paste-test.
+    //   - This PR drops `components` and uses the duplicated-params form,
+    //     which is the documented behaviour of `params` per Gupshup
+    //     ("Array of placeholders/variables in the template in the order
+    //     of occurrence").
     const templatePayload = {
       id: this.otpTemplateId,
-      params: [code],
-      components: [
-        {
-          type: 'body',
-          parameters: [{ type: 'text', text: code }],
-        },
-        {
-          type: 'button',
-          sub_type: 'copy_code',
-          index: 0,
-          parameters: [{ type: 'coupon_code', coupon_code: code }],
-        },
-      ],
+      params: [code, code],
     };
 
     const body = new URLSearchParams({
