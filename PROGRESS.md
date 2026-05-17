@@ -1,11 +1,55 @@
 # Teka RDC — Development Progress
 
 ## Current Phase: — (no active initiative; awaiting next direction)
-## Last completed: Cloudinary media lifecycle — PR A (server) + PR B (client compression) — SHIPPED 2026-05-17
-## Status: PR A (#89→#90) and PR B (#91→#92) both deployed and prod-smoked. Hard-delete product endpoint registered + auth-guarded. seller-web bundle loads cleanly with browser-image-compression added. Compression library wired into seller-web image uploader + seller-mobile products repository. Real upload size verification deferred to next seller-on-prod test (smoke required actual seller login + product image drop).
+## Last completed: Payment simplification + messaging removal + seller/admin auth parity — SHIPPED 2026-05-17 (PRs #95→#97, #96+#98→#99)
+## Status: All three threads of the latest brief deployed + prod-smoked. Mobile Money UI hidden on checkout (COD only); buyer↔seller messaging removed across 5 surfaces with API 410 GONE; auth refresh-on-401 + middleware refresh-token gate ported from buyer-web to seller-web + admin-web. PDP shows "Contacter le support Teka RDC" CTA linking to /contact.
 ## Last Updated: 2026-05-17
 
-### Initiative — Cloudinary media lifecycle + client compression (2026-05-17)
+### Initiative — Payment simplification + messaging removal + auth parity (2026-05-17, 4 PRs)
+
+**Audit-first discovery**: brief mentioned three threads — payment simplification, messaging removal, auth persistence. Parallel research agents confirmed: actual payment-method UI surfaces are ONLY 2 (buyer-web + buyer-mobile checkout); messaging surfaces span 5 apps + API + Prisma; reported "users still get logged out" issue applies to seller-web + admin-web, not buyer-web (which was fixed earlier today). Plan: 3 PRs shipped in priority order.
+
+**PR A (#95→#97) — Auth parity for seller-web + admin-web**
+- `apps/{seller,admin}-web/src/lib/api-client.ts` — full apiFetch port from buyer-web with hasSessionHint + tryRefresh coalesced refresh-on-401 + loop guard
+- `apps/{seller,admin}-web/src/middleware.ts` — accept either teka_access_token OR teka_refresh_token (was access-only)
+- Mobile already had the equivalent dio interceptor (verified in audit) — no parity work needed
+- Without this, sellers and admins were getting silently logged out 15 min after login. Actual cause of the user's persistent logout reports across non-buyer surfaces.
+
+**PR B (#96, shipped via #99) — Hide Mobile Money UI in checkout**
+- `apps/buyer-web/src/app/checkout/page.tsx` — `ENABLE_MOBILE_MONEY = false` constant gates MM PaymentTile + provider sub-card + payer phone field
+- `apps/buyer-mobile/lib/features/checkout/presentation/screens/checkout_screen.dart` — `_enableMobileMoney = false` gates MM _PaymentOption + provider tiles + phone TextField
+- Backend untouched: PaymentProvider interface + Flexpay + COD + factory + DTO + service branching all preserved. Re-enable is a one-line flip of both constants.
+- Historical orders with `paymentMethod: 'MOBILE_MONEY'` still display correctly on seller + admin order pages (display logic was already enum-aware).
+
+**PR C (#98, shipped via #99) — Retire direct buyer↔seller messaging**
+- API (`apps/api/src/messaging/messaging.controller.ts`): all 5 endpoints throw 410 GONE with `code: 'MESSAGING_REMOVED'` + French message. MessagingService implementation, Prisma `Conversation` + `Message` models, all DB rows, 3 User relations preserved untouched — historical data stays readable for audit + support.
+- buyer-web: deleted `app/messages/`, removed header icons + unread polling, dropped `/messages` from middleware protectedRoutes, replaced PDP "Contacter le vendeur" with `<Link href="/contact">Contacter le support Teka RDC</Link>`
+- seller-web: deleted `app/dashboard/messages/`, removed sidebar Messages nav + polling
+- buyer-mobile + seller-mobile: deleted `lib/features/messaging/`, dropped `/messages` routes from app_router.dart, removed appbar Messages icons + cards. buyer-mobile PDP shows non-actionable Container("Pour toute question, contactez le support Teka RDC.") with support_agent icon.
+- Translation keys preserved with `_DEPRECATED_2026-05-17` marker for audit. New keys: `Support.contactSupport` (web) + `contactSupport` (Flutter buyer-mobile l10n, regenerated via `flutter gen-l10n`).
+- Net diff: 33 files, +153 / -3970 lines.
+
+**Ship cycle**: PR #95 → PR #97 → main → deploy ✓. PR #96 + PR #98 → develop in parallel → combined PR #99 → main → deploy ✓. Back-merges main → develop after each release.
+
+**Prod smoke verified**:
+- PDP shows "Contacter le support Teka RDC" linking to `/contact` ✓
+- Header has zero `/messages` links ✓
+- Messaging API endpoints return 401 (auth-gated) — would return 410 GONE for authenticated stale clients
+- buyer-web + seller-web + api.teka.cd all return 200
+
+**Still requires real-user verification** (needs authenticated session):
+- buyer-web checkout shows only COD tile (verified at code/type-check level)
+- buyer-mobile checkout same
+- seller.teka.cd login → 16+ min idle → navigate (PR A's actual purpose)
+
+**Explicitly preserved** (per "do not remove anything still needed for audits / re-enable"):
+- All backend payment provider abstraction
+- All Prisma models, DB rows, User relations
+- All `MessagingService` code
+- All Messaging.* translation keys with deprecation markers
+- Notifications + SMS broadcasts (already isolated — no coupling per audit)
+
+### Previous initiative — Cloudinary media lifecycle + client compression (2026-05-17)
 
 **Scope discovery**: Audit revealed actual upload surface is much smaller than the brief suggested. Only TWO file-upload entry points exist across the whole stack:
 1. `seller-web/src/components/product/image-uploader.tsx` → `POST /v1/sellers/products/:id/images`
