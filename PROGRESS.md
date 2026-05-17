@@ -1,11 +1,54 @@
 # Teka RDC — Development Progress
 
 ## Current Phase: — (no active initiative; awaiting next direction)
-## Last completed: Buyer session-loss hotfix (auto-refresh on 401 + hint-cookie heal) — SHIPPED 2026-05-17 via PR #81 + release #82
-## Status: Fix deployed to prod. Smoke clean: guest /me 401 (no refresh attempt), homepage + browse endpoints all 200, /v1/auth/refresh alive. Awaiting real-buyer verification (log in → navigate via logo 3-4× and 16+ min between actions).
+## Last completed: Cart badge + cart images + checkout redirect — SHIPPED 2026-05-17 via PR #83 + release #84
+## Status: All three bugs deployed. Middleware refresh-token fix verified in prod (refresh-token-only session reaches /checkout; no-cookie request still redirects to /connexion). Cart API now returns totalItems + product.image structured object + Flutter-shape top-level fields. Awaiting real-buyer verification of badge increment, cart thumbnails, and 16+ min idle checkout.
 ## Last Updated: 2026-05-17
 
-### Hotfix — Buyer session loss after navigation (2026-05-17)
+### Hotfix #2 — Cart badge real-time, cart images, checkout redirect (2026-05-17)
+
+**Symptoms** (reported together by user):
+1. Cart icon doesn't update count when adding products
+2. Product photos missing in cart page
+3. Clicking "Passer la commande" redirects authenticated buyers to /connexion
+
+**Root causes** (all server-side contract problems):
+
+1. **Cart badge** — `useCartStore.fetchCart` sets `totalItems: res.data.totalItems`, but the cart API never returned that field. `undefined > 0` is `false`, so the badge stopped rendering after login (guest path computed totals locally, masking the bug pre-login).
+
+2. **Cart images** — Cart API returned raw Prisma shape `product.images = [{ thumbnailUrl }]`. Both frontends expected something else:
+   - buyer-web: `product.image?.thumbnailUrl` (singular structured object)
+   - buyer-mobile: `product.thumbnailUrl` + `product.sellerName` at the product top level
+   Both rendered placeholder icons.
+
+3. **Checkout redirect** — `middleware.ts` gated `/checkout` on `teka_access_token` cookie. That cookie's maxAge is 15 minutes. Any buyer clicking checkout ≥16 minutes after login was bounced to /connexion, even though the 7-day refresh token was still alive and apiFetch's auto-refresh (PR #81) would have silently restored the session on the first request.
+
+**Fix** (2 files):
+
+- `apps/api/src/cart/cart.service.ts` — new private `serializeCart` helper called from every cart-returning method (`getCart`, `addItem`, `updateQuantity`, `removeItem`, `clearCart`, `mergeGuestCart`). Output shape satisfies both frontends in one payload:
+  - root: `totalItems` (sum of item.quantity) + `totalCDF` (BigInt centimes, auto-string via main.ts BigInt.prototype.toJSON polyfill)
+  - per product: `image: { url, thumbnailUrl } | null` (web BrowseProduct shape) AND top-level `thumbnailUrl` + `sellerName` + `sellerId` (Flutter CartItemProduct.fromJson)
+  - Prisma `images` select now grabs both `url` + `thumbnailUrl` (was thumbnailUrl only)
+  - `getCartSummary` (used internally by checkout) keeps reading raw Prisma via `findOrCreateCart` to avoid double-serialization
+- `apps/buyer-web/src/middleware.ts` — `hasSession` accepts either `teka_access_token` OR `teka_refresh_token`. The refresh token is the real session signal; if present, page renders and `apiFetch` mints a new access token on the first request.
+
+**Ship cycle**:
+- PR #83 (fix → develop), 7/7 checks green, merged.
+- PR #84 (release develop → main), 10/10 checks green, merged.
+- Back-merged main → develop (commit afff312).
+- Prod deploy run 25984817507 succeeded.
+- Prod smoke verified:
+  - Browse endpoint exposes `image: { url, thumbnailUrl }` (confirms canonical contract).
+  - `/checkout` with refresh-token-only cookie returns 200 (was 307 → /connexion before fix).
+  - `/checkout` with no cookies returns opaqueredirect (negative path intact — no security regression).
+
+**Not changed**: zero client code changes — buyer-web and buyer-mobile contracts were already correct, the API was lying. Existing auth/cart flows, API surface, SEO, JSON-LD, sitemap all untouched.
+
+**Flutter parity**:
+- Bugs 1 + 2: no Flutter changes needed — model already reads the fields the new API shape provides.
+- Bug 3: Flutter checkout has no middleware-level redirect, so no parity fix. (If the access token expires mid-session, the Flutter dio call fails — but that's a broader concern about adding a dio auto-refresh interceptor, deferred until it becomes an issue.)
+
+### Hotfix #1 — Buyer session loss after navigation (2026-05-17)
 
 **Symptom**: Buyer logs in → adds to cart → clicks logo → opens product → adds to cart → clicks logo → appears logged out.
 

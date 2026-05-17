@@ -11,7 +11,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { apiFetch } from '@/lib/api-client';
 import { formatCDF } from '@/lib/format';
 import { Card, Container, buttonVariants } from '@/components/ui';
-import type { CartItem, GuestCartItem, BrowseProduct } from '@/lib/types';
+import type { CartItem, GuestCartItem, ProductDetail } from '@/lib/types';
 
 export default function CartPage() {
   const t = useTranslations('Cart');
@@ -60,8 +60,14 @@ export default function CartPage() {
       const hydratedItems: CartItem[] = [];
       for (const gi of guestItems) {
         try {
-          const res = await apiFetch<BrowseProduct>(`/v1/browse/products/${gi.productId}`);
+          // The detail endpoint returns the full `images: ProductImage[]`
+          // gallery, not the singular `image` shape used by the product-list
+          // endpoint. Pick the first image and reshape it so CartItemRow,
+          // which reads `product.image?.thumbnailUrl`, can render the
+          // thumbnail (was falling through to the placeholder icon).
+          const res = await apiFetch<ProductDetail>(`/v1/browse/products/${gi.productId}`);
           const p = res.data;
+          const firstImage = p.images?.[0] ?? null;
           hydratedItems.push({
             productId: gi.productId,
             quantity: Math.min(gi.quantity, p.quantity),
@@ -72,7 +78,9 @@ export default function CartPage() {
               priceUSD: p.priceUSD,
               quantity: p.quantity,
               condition: p.condition,
-              image: p.image,
+              image: firstImage
+                ? { url: firstImage.url, thumbnailUrl: firstImage.thumbnailUrl }
+                : null,
               seller: p.seller,
             },
           });
