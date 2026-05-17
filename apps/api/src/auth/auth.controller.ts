@@ -216,7 +216,17 @@ export class AuthController {
   }
 
   @Get('me')
-  async getProfile(@CurrentUser('userId') userId: string) {
+  async getProfile(
+    @CurrentUser('userId') userId: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    // Auto-heal the session-hint cookie. Users whose sessions predate the
+    // teka_session cookie (added in PR #80) have valid access/refresh
+    // tokens but no hint cookie — the buyer-web auth-store then short-
+    // circuits the /me call and renders them as logged out. Re-issuing
+    // the hint cookie on every successful /me restores parity for those
+    // sessions without forcing a re-login.
+    this.refreshSessionHint(res);
     return this.authService.getProfile(userId);
   }
 
@@ -294,6 +304,22 @@ export class AuthController {
       ...(domain ? { domain } : {}),
     });
     res.clearCookie('teka_session', {
+      path: '/',
+      ...(domain ? { domain } : {}),
+    });
+  }
+
+  // Idempotent helper: re-sets the non-HttpOnly session-hint cookie with
+  // the canonical attributes. Called by /me to auto-heal pre-PR#80
+  // sessions and to bump the cookie's TTL on every active session check.
+  private refreshSessionHint(res: Response) {
+    const isProduction = this.configService.get('NODE_ENV') === 'production';
+    const domain = this.configService.get<string>('COOKIE_DOMAIN') || undefined;
+    res.cookie('teka_session', '1', {
+      httpOnly: false,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/',
       ...(domain ? { domain } : {}),
     });
