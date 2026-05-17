@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
+import { compressImageForUpload } from '@/lib/image-compress';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5050/api';
 
@@ -36,8 +37,13 @@ export function ImageUploader({ productId, images, onImagesChange, readOnly }: I
     setError('');
 
     try {
+      // Compress to ≤500 KB WebP before upload. Saves 2G/3G bandwidth
+      // for sellers in DRC and cuts Cloudinary storage. No-op for files
+      // already under the threshold or for GIFs (animation preserved).
+      const fileToUpload = await compressImageForUpload(file);
+
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('image', fileToUpload);
 
       const res = await fetch(`${API_BASE}/v1/sellers/products/${productId}/images`, {
         method: 'POST',
