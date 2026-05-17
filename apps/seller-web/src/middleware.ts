@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const protectedRoutes = ['/dashboard'];
-const authOnlyRoutes = ['/login'];
 
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -18,9 +17,6 @@ export default function middleware(request: NextRequest) {
   const isProtected = protectedRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
-  const isAuthOnly = authOnlyRoutes.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`),
-  );
 
   if (isProtected && !hasSession) {
     // Use nextUrl.clone() so the basePath (if any) is preserved automatically.
@@ -34,12 +30,11 @@ export default function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isAuthOnly && hasSession) {
-    const dashboardUrl = request.nextUrl.clone();
-    dashboardUrl.pathname = '/dashboard';
-    dashboardUrl.search = '';
-    return NextResponse.redirect(dashboardUrl);
-  }
+  // NOTE: no authOnly /login → /dashboard redirect on this surface.
+  // COOKIE_DOMAIN=.teka.cd makes buyer cookies visible to seller.teka.cd
+  // middleware, so cookie-presence alone is not enough to decide a user
+  // is a seller. Render the login form unconditionally; the dashboard
+  // layout itself does the role gate and bounces wrong-role users.
 
   return NextResponse.next();
 }
