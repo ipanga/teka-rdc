@@ -334,6 +334,44 @@ export class ProductsService {
   }
 
   /**
+   * Hard-deletes a product and purges its Cloudinary assets. Owner-scoped.
+   * Bypasses the soft-delete path entirely — the Product row goes away and
+   * the ProductImage FK cascade removes its image records. Cloudinary
+   * destruction happens after the DB transaction so a network blip on
+   * Cloudinary's side doesn't roll back the local delete (orphans are
+   * recoverable via a sweep job; a stuck DB record is much worse).
+   *
+   * Safe re: order history because OrderItem snapshots product title +
+   * image URL at order time — past orders keep their thumbnails even
+   * after the source product is gone.
+   */
+  async hardDelete(sellerId: string, productId: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId, sellerId },
+      include: { images: { select: { cloudinaryId: true } } },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Produit non trouvé');
+    }
+
+    const cloudinaryIds = product.images.map((img) => img.cloudinaryId);
+
+    await this.prisma.product.delete({ where: { id: productId } });
+
+    if (cloudinaryIds.length > 0) {
+      await this.cloudinary.deleteImages(cloudinaryIds);
+    }
+
+    this.logger.log(
+      `Product ${productId} hard-deleted by seller ${sellerId} ` +
+        `(${cloudinaryIds.length} Cloudinary assets purged)`,
+    );
+
+    return { deleted: true, purgedAssets: cloudinaryIds.length };
+  }
+
+  /**
    * Uploads an image to a product via Cloudinary.
    */
   async uploadImage(
@@ -360,10 +398,30 @@ export class ProductsService {
       );
     }
 
-    // Validate file size (5 MB)
+    // Validate file size (5 MB). Clients SHOULD have already compressed to
+    // ≤500 KB, but we keep the 5 MB ceiling as defence-in-depth — leaves
+    // room for an admin uploading a high-quality cover from a desktop tool
+    // while still rejecting accidental 50 MB drops.
     if (file.size > 5 * 1024 * 1024) {
       throw new BadRequestException(
         "La taille de l'image ne doit pas dépasser 5 Mo",
+      );
+    }
+
+    // MIME guard. Header is client-supplied so this is only the first
+    // line of defense — Cloudinary will reject non-image binaries on its
+    // own when we hand it the buffer, but failing fast here saves a
+    // network round-trip to Cloudinary on obvious garbage.
+    const ALLOWED_MIME = new Set([
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/webp',
+      'image/gif',
+    ]);
+    if (!ALLOWED_MIME.has(file.mimetype)) {
+      throw new BadRequestException(
+        "Format d'image non supporté. Formats acceptés : JPEG, PNG, WebP, GIF.",
       );
     }
 
