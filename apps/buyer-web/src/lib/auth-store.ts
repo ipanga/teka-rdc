@@ -30,21 +30,19 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoading: true,
   setUser: (user) => set({ user, isLoading: false }),
   fetchUser: async () => {
-    // The access/refresh tokens are HttpOnly, so JS can't see them. The API
-    // sets a non-HttpOnly companion `teka_session=1` cookie alongside login
-    // — read it here to skip the /v1/auth/me round-trip when the user is
-    // clearly logged out. Eliminates the 401 console noise on every guest
-    // page load and saves a request on slow 2G/3G connections.
-    if (typeof document !== 'undefined') {
-      const hasSession = document.cookie
-        .split(';')
-        .map((c) => c.trim())
-        .some((c) => c.startsWith('teka_session=') && c !== 'teka_session=');
-      if (!hasSession) {
-        set({ user: null, isLoading: false });
-        return;
-      }
-    }
+    // Always call /me on AuthProvider mount. apiFetch transparently
+    // auto-refreshes on 401 (via /v1/auth/refresh), so a successful /me
+    // here means the session is healthy. A failure means the user is
+    // genuinely logged out (refresh token also dead or never present).
+    //
+    // The previous PR #80 short-circuit (skip /me when the
+    // `teka_session=1` hint cookie was missing) was a perf win for
+    // guests but locked out users whose sessions predated that PR — they
+    // had valid tokens but no hint cookie, so the short-circuit set them
+    // to user=null and they appeared logged out. The 1-round-trip cost
+    // for guest cold loads is acceptable; /me returns ~200 bytes. Guests
+    // pay one 401 console line per cold load (same as pre-PR#80); the
+    // priority is correctness over silencing that noise.
     try {
       const res = await apiFetch<User>('/v1/auth/me');
       set({ user: res.data, isLoading: false });
