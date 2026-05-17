@@ -91,12 +91,17 @@ describe('GupshupWhatsappProvider', () => {
     expect(result.error).toBe('network down');
   });
 
-  it('binds the OTP to both the body and the COPY_CODE button', async () => {
-    // Regression: without the explicit `button` component, the COPY_CODE
-    // button in the WhatsApp authentication template copied the literal
-    // `{{1}}` placeholder (rendered as `{}` in some clients) instead of
-    // the OTP value. The fix sends a Meta-spec `components` array binding
-    // the same OTP to both the body and the button.
+  it('duplicates the OTP in params so both body and COPY_CODE button bind', async () => {
+    // Regression: PR #74 sent only `params: [code]` plus a Meta-spec
+    // `components` array — Gupshup's v1 endpoint silently ignored
+    // `components`, the body filled but the COPY_CODE button kept the
+    // literal `{{1}}` placeholder (rendered as `{}` in the WhatsApp
+    // client), so tapping "Copier le code" copied empty braces.
+    //
+    // This test enforces the working shape: `params: [code, code]`. The
+    // template definition has two `{{1}}` placeholders (one in the body,
+    // one in the COPY_CODE button text), and Gupshup fills them in
+    // order-of-occurrence — so we pass the OTP twice.
     fetchMock.mockResolvedValue(
       new Response(JSON.stringify({ messageId: 'gs-1', status: 'submitted' }), {
         status: 200,
@@ -111,17 +116,9 @@ describe('GupshupWhatsappProvider', () => {
     const tpl = JSON.parse(params.get('template') ?? '{}');
 
     expect(tpl.id).toBe('tpl-1234');
-    expect(tpl.components).toEqual([
-      {
-        type: 'body',
-        parameters: [{ type: 'text', text: '654321' }],
-      },
-      {
-        type: 'button',
-        sub_type: 'copy_code',
-        index: 0,
-        parameters: [{ type: 'coupon_code', coupon_code: '654321' }],
-      },
-    ]);
+    expect(tpl.params).toEqual(['654321', '654321']);
+    // Components were tried in PR #74 and ignored by Gupshup — make sure
+    // we don't accidentally regress to that pattern.
+    expect(tpl.components).toBeUndefined();
   });
 });
