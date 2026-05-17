@@ -221,6 +221,48 @@ describe('Browse (e2e)', () => {
         .get('/api/v1/browse/products/not-a-real-slug')
         .expect(404);
     });
+
+    it('flattens the seller shape to { id, businessName } matching BrowseSeller', async () => {
+      // Regression — the detail endpoint previously returned the raw Prisma
+      // include `{ id, firstName, lastName, sellerProfile: { businessName } }`,
+      // while the list endpoint returned the flat `{ id, businessName }`. The
+      // buyer-web cart hydration assumed list-shape; reading
+      // `seller.businessName` was undefined → cart page crashed with
+      // `Cannot read properties of undefined (reading 'trim')`.
+      mockPrismaService.product.findFirst.mockResolvedValue({
+        id: '30000000-0000-0000-0000-000000000001',
+        slug: 'sample-product',
+        title: 'Sample Product',
+        description: 'desc',
+        priceCDF: '100000',
+        priceUSD: null,
+        quantity: 5,
+        condition: 'NEW',
+        status: 'ACTIVE',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        category: null,
+        images: [],
+        specifications: [],
+        seller: {
+          id: 'seller-1',
+          firstName: 'John',
+          lastName: 'Doe',
+          sellerProfile: { businessName: 'Acme Shop' },
+        },
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/browse/products/sample-product')
+        .expect(200);
+
+      expect(res.body.data.seller).toEqual({
+        id: 'seller-1',
+        businessName: 'Acme Shop',
+      });
+      expect(res.body.data.seller.firstName).toBeUndefined();
+      expect(res.body.data.seller.sellerProfile).toBeUndefined();
+    });
   });
 
   // ---------------------------------------------------------------------------

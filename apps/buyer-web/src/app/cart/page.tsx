@@ -177,7 +177,13 @@ export default function CartPage() {
                       sum + BigInt(item.product.priceCDF) * BigInt(item.quantity),
                     BigInt(0),
                   );
-                  const initial = group.sellerName.trim().charAt(0).toUpperCase() || '?';
+                  // Defensive: `sellerName` should always come from
+                  // `BrowseSeller.businessName`, but if the API ever returns
+                  // an undefined we fall back to a dash rather than crashing
+                  // the whole cart. A prior detail-endpoint shape mismatch
+                  // surfaced exactly this crash.
+                  const safeSellerName = (group.sellerName ?? '').trim();
+                  const initial = safeSellerName.charAt(0).toUpperCase() || '?';
 
                   return (
                     <Card key={sellerId} padding="sm">
@@ -192,7 +198,7 @@ export default function CartPage() {
                         <div className="flex-1 min-w-0">
                           <p className="text-xs text-muted-foreground">{t('seller')}</p>
                           <p className="text-sm font-semibold text-foreground truncate">
-                            {group.sellerName}
+                            {safeSellerName || '—'}
                           </p>
                         </div>
                       </div>
