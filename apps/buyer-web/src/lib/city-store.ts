@@ -48,6 +48,12 @@ export const useCityStore = create<CityState>((set, get) => ({
   },
 
   fetchCities: async () => {
+    // Short-circuit when the list is already loaded. Both city-selector-modal
+    // and home-page call fetchCities() on mount, so on a cold load we used
+    // to make two identical GET /v1/cities requests. Idempotent: subsequent
+    // calls become a no-op until the page is reloaded.
+    const { cities, isLoading } = get();
+    if (cities.length > 0 || isLoading) return;
     set({ isLoading: true });
     try {
       const res = await apiFetch<City[]>('/v1/cities');
