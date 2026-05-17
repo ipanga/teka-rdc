@@ -1,9 +1,29 @@
 # Teka RDC — Development Progress
 
 ## Current Phase: — (no active initiative; awaiting next direction)
-## Last completed: Guest cart thumbnail hydration — SHIPPED 2026-05-17 via PR #85 + release #86 (follow-up to PR #83/#84)
-## Status: All four buyer bugs in this batch deployed and prod-verified. Guest cart thumbnail confirmed rendering on teka.cd/cart with seeded product. Middleware refresh-token fix verified (refresh-token-only session reaches /checkout; no-cookie request still redirects). Awaiting real-buyer verification of authenticated badge increment + 16+ min idle checkout.
+## Last completed: COOKIE_DOMAIN production env fix + full authenticated re-verification — RESOLVED 2026-05-17
+## Status: All four buyer bugs fully verified end-to-end in prod (authenticated user). Cart badge real-time (7→8 in 1.6s, no reload), cart thumbnails (8/8 render), /checkout no-redirect (loaded with stepper). Root-cause discovery: PR #81 + #83 code fixes were inert in production because `COOKIE_DOMAIN` env var was missing from .env.production — auth cookies were scoped to api.teka.cd only, invisible to teka.cd middleware. After `COOKIE_DOMAIN=.teka.cd` was added + api restarted + nginx reloaded + user re-logged in, all three flows work as designed.
 ## Last Updated: 2026-05-17
+
+### Infrastructure fix — COOKIE_DOMAIN missing in prod (2026-05-17)
+
+**Discovery**: After PRs #81/#83/#85 shipped and all code-level smoke passed, the authenticated /checkout flow STILL redirected to /connexion. Inspection from a live logged-in session showed:
+- `/v1/auth/me` returned 200 (cookies present on api.teka.cd)
+- `document.cookie` on teka.cd was empty — no `teka_session` hint cookie reaching teka.cd
+- Manually setting a `.teka.cd`-scoped cookie via JS worked fine (no browser block)
+
+**Root cause**: `.env.production` on the deploy VPS had no `COOKIE_DOMAIN` entry. `apps/api/src/auth/auth.controller.ts::setAuthCookies` reads `COOKIE_DOMAIN` and falls back to `undefined` (cookie defaults to request host). Auth cookies were therefore scoped to `api.teka.cd` only and never reached `teka.cd` middleware. All three PRs' code was correct — they couldn't take effect because the cookies they relied on weren't visible.
+
+**Fix**: Added `COOKIE_DOMAIN=.teka.cd` to `/home/deploy/teka-rdc/.env.production`. Recreated api container via `docker compose up -d api` (picks up new env). Reloaded nginx (`nginx -s reload`) to repoint at the new api container IP. User re-logged in to get fresh `.teka.cd`-scoped cookies (old api.teka.cd-scoped cookies are still in browsers but unused since middleware/server now issues new ones).
+
+**Pre-existing source-of-truth**: CLAUDE.md § 3 already documents `COOKIE_DOMAIN` (empty in dev, `.teka.cd` in prod for cross-subdomain cookies). The local `.env.production` file was missing the line. `.env.production` is gitignored so this drift wasn't catchable via CI.
+
+**Final verification** (after the fix landed, logged-in user `+243814250002`, BUYER role):
+- Bug #1 (badge real-time): 7 → 8 in 1.6 seconds after add-to-cart, no reload. ✅
+- Bug #2 (cart thumbnails): 8/8 items rendered Cloudinary thumbnails, 0 placeholder SVGs. ✅
+- Bug #3 (/checkout no redirect): page loaded with title "Commander | Teka RDC", stepper "Adresse → Paiement → Récapitulatif", authenticated nav ("Mon compte" / "Se déconnecter"). ✅
+
+**Follow-up to consider**: add a startup-time warning in `apps/api/src/main.ts` — if `NODE_ENV=production` AND `COOKIE_DOMAIN` is missing OR is not a leading-dot parent domain of the API URL, log a loud `[BOOT WARNING] COOKIE_DOMAIN is not set — cross-subdomain auth will silently fail.` Optional crash-on-boot for stronger safety net. Not shipped yet; user-discretion follow-up.
 
 ### Hotfix #3 — Guest cart thumbnail hydration (2026-05-17, follow-up to #2)
 
