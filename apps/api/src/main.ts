@@ -12,7 +12,43 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter';
   return this.toString();
 };
 
+/**
+ * Loud boot-time guard for cross-subdomain cookie config. We learned the hard
+ * way on 2026-05-17: the .env.production file on the deploy VPS had no
+ * COOKIE_DOMAIN entry, so setAuthCookies fell back to undefined (cookie
+ * scoped to api.teka.cd only). teka.cd middleware then never saw the auth
+ * cookies and bounced every authenticated buyer to /connexion. Three PRs
+ * shipped correct code that was silently inert because of this drift.
+ *
+ * Catch the misconfig at boot, not after users complain.
+ */
+function assertProductionCookieDomain() {
+  if (process.env.NODE_ENV !== 'production') return;
+  const cookieDomain = process.env.COOKIE_DOMAIN;
+  if (!cookieDomain) {
+    console.error(
+      '\n══════════════════════════════════════════════════════════════════\n' +
+        '  [BOOT] FATAL: COOKIE_DOMAIN is not set in production.\n' +
+        '  Auth cookies will be scoped to the request host only, breaking\n' +
+        '  cross-subdomain auth (e.g. teka.cd middleware cannot see cookies\n' +
+        '  set by api.teka.cd). Add `COOKIE_DOMAIN=.teka.cd` to .env.production\n' +
+        '  and restart this container.\n' +
+        '══════════════════════════════════════════════════════════════════\n',
+    );
+    process.exit(1);
+  }
+  if (!cookieDomain.startsWith('.')) {
+    console.warn(
+      '\n[BOOT WARNING] COOKIE_DOMAIN is set to "' +
+        cookieDomain +
+        '" — for cross-subdomain auth it must start with a leading dot ' +
+        '(e.g. ".teka.cd"). Continuing anyway, but auth may not work across subdomains.\n',
+    );
+  }
+}
+
 async function bootstrap() {
+  assertProductionCookieDomain();
   const app = await NestFactory.create(AppModule);
 
   // Global prefix

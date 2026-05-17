@@ -1,9 +1,46 @@
 # Teka RDC — Development Progress
 
 ## Current Phase: — (no active initiative; awaiting next direction)
-## Last completed: Cart badge + cart images + checkout redirect — SHIPPED 2026-05-17 via PR #83 + release #84
-## Status: All three bugs deployed. Middleware refresh-token fix verified in prod (refresh-token-only session reaches /checkout; no-cookie request still redirects to /connexion). Cart API now returns totalItems + product.image structured object + Flutter-shape top-level fields. Awaiting real-buyer verification of badge increment, cart thumbnails, and 16+ min idle checkout.
+## Last completed: COOKIE_DOMAIN production env fix + full authenticated re-verification — RESOLVED 2026-05-17
+## Status: All four buyer bugs fully verified end-to-end in prod (authenticated user). Cart badge real-time (7→8 in 1.6s, no reload), cart thumbnails (8/8 render), /checkout no-redirect (loaded with stepper). Root-cause discovery: PR #81 + #83 code fixes were inert in production because `COOKIE_DOMAIN` env var was missing from .env.production — auth cookies were scoped to api.teka.cd only, invisible to teka.cd middleware. After `COOKIE_DOMAIN=.teka.cd` was added + api restarted + nginx reloaded + user re-logged in, all three flows work as designed.
 ## Last Updated: 2026-05-17
+
+### Infrastructure fix — COOKIE_DOMAIN missing in prod (2026-05-17)
+
+**Discovery**: After PRs #81/#83/#85 shipped and all code-level smoke passed, the authenticated /checkout flow STILL redirected to /connexion. Inspection from a live logged-in session showed:
+- `/v1/auth/me` returned 200 (cookies present on api.teka.cd)
+- `document.cookie` on teka.cd was empty — no `teka_session` hint cookie reaching teka.cd
+- Manually setting a `.teka.cd`-scoped cookie via JS worked fine (no browser block)
+
+**Root cause**: `.env.production` on the deploy VPS had no `COOKIE_DOMAIN` entry. `apps/api/src/auth/auth.controller.ts::setAuthCookies` reads `COOKIE_DOMAIN` and falls back to `undefined` (cookie defaults to request host). Auth cookies were therefore scoped to `api.teka.cd` only and never reached `teka.cd` middleware. All three PRs' code was correct — they couldn't take effect because the cookies they relied on weren't visible.
+
+**Fix**: Added `COOKIE_DOMAIN=.teka.cd` to `/home/deploy/teka-rdc/.env.production`. Recreated api container via `docker compose up -d api` (picks up new env). Reloaded nginx (`nginx -s reload`) to repoint at the new api container IP. User re-logged in to get fresh `.teka.cd`-scoped cookies (old api.teka.cd-scoped cookies are still in browsers but unused since middleware/server now issues new ones).
+
+**Pre-existing source-of-truth**: CLAUDE.md § 3 already documents `COOKIE_DOMAIN` (empty in dev, `.teka.cd` in prod for cross-subdomain cookies). The local `.env.production` file was missing the line. `.env.production` is gitignored so this drift wasn't catchable via CI.
+
+**Final verification** (after the fix landed, logged-in user `+243814250002`, BUYER role):
+- Bug #1 (badge real-time): 7 → 8 in 1.6 seconds after add-to-cart, no reload. ✅
+- Bug #2 (cart thumbnails): 8/8 items rendered Cloudinary thumbnails, 0 placeholder SVGs. ✅
+- Bug #3 (/checkout no redirect): page loaded with title "Commander | Teka RDC", stepper "Adresse → Paiement → Récapitulatif", authenticated nav ("Mon compte" / "Se déconnecter"). ✅
+
+**Follow-up to consider**: add a startup-time warning in `apps/api/src/main.ts` — if `NODE_ENV=production` AND `COOKIE_DOMAIN` is missing OR is not a leading-dot parent domain of the API URL, log a loud `[BOOT WARNING] COOKIE_DOMAIN is not set — cross-subdomain auth will silently fail.` Optional crash-on-boot for stronger safety net. Not shipped yet; user-discretion follow-up.
+
+### Hotfix #3 — Guest cart thumbnail hydration (2026-05-17, follow-up to #2)
+
+**Symptom**: After PR #84 deployed, prod smoke of `/cart` as a guest still showed placeholder icons instead of product thumbnails — even though PR #83's server-side cart serializer was live and working.
+
+**Root cause**: `apps/buyer-web/src/app/cart/page.tsx::loadGuestCart` typed its API call as `BrowseProduct` (which has `image: { url, thumbnailUrl } | null`) but actually hits `/v1/browse/products/:id` which returns `ProductDetail` (with `images: ProductImage[]` — the full gallery). Reading `p.image` was always `undefined` → `CartItemRow` rendered the placeholder icon for every guest item. The authenticated path (PR #83's serializer) was fine; only the guest hydration was broken.
+
+**Fix** (1 file): `apps/buyer-web/src/app/cart/page.tsx` — type the response as `ProductDetail`, reshape `images[0]` to the `{ url, thumbnailUrl }` object `CartItemRow` consumes. Same transformation PR #83's server-side serializer already does for the authenticated path.
+
+**Ship cycle**:
+- PR #85 (fix → develop), 7/7 checks green, merged.
+- PR #86 (release develop → main), 10/10 checks green, merged.
+- Back-merged main → develop (commit 809a2df).
+- Prod deploy run 25985230566 succeeded.
+- Prod smoke verified: `/cart` as guest now renders the Cloudinary thumbnail for the seeded product. Screenshot confirms full cart row (image + title + seller + price + "Passer la commande" CTA).
+
+**Pre-existing seed-data quirk surfaced**: sample products use Cloudinary demo placeholder images (`cld-sample-*.jpg`) — fruit bowls, not real product photos. Documented in memory; replace by uploading real assets to teka-rdc Cloudinary cloud and updating `seedSampleProducts()`.
 
 ### Hotfix #2 — Cart badge real-time, cart images, checkout redirect (2026-05-17)
 
