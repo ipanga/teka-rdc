@@ -2944,22 +2944,43 @@ async function seedPlatformBaseline(adminId: string) {
 // ============================================================================
 
 const TEKA_OFFICIEL_USER_ID = '10000000-0000-0000-0000-000000999999';
+// Phone stays on the User row for delivery / rider contact (per Rule 13
+// in CLAUDE.md) but is no longer an auth identifier for sellers.
 const TEKA_OFFICIEL_SELLER_PHONE = '+243800000000';
-const TEKA_OFFICIEL_SELLER_EMAIL = 'officiel@teka.cd';
+// Email migrated 2026-05-18: officiel@teka.cd → ipanga@outlook.fr (the
+// real platform operator). Update is keyed on id so re-running seed
+// propagates the change to existing rows.
+const TEKA_OFFICIEL_SELLER_EMAIL = 'ipanga@outlook.fr';
+// Deterministic dev/test password. Devs can log in as the platform
+// seller via seller-web /login with this email + password. In prod the
+// real operator should immediately use /forgot-password to set their own
+// password — this hash exists so a fresh seed always yields a working
+// login. NOT a secret; lives in source.
+const TEKA_OFFICIEL_DEV_PASSWORD = 'TekaDev2026!';
 
 const LUBUMBASHI_CITY_ID = '01000000-0000-0000-0000-000000000001';
 const KOLWEZI_CITY_ID = '01000000-0000-0000-0000-000000000002';
 
 /**
  * Provision the platform-owned seller account ("Teka RDC Officiel"). Owner
- * of the initial sample catalog. Idempotent.
+ * of the initial sample catalog. Idempotent — re-running seed propagates
+ * email + auth-provider changes to the existing User row.
  */
 async function seedTekaOfficielSeller(adminId: string): Promise<string> {
   console.log('Seeding "Teka RDC Officiel" platform seller...');
 
+  const bcrypt = await import('bcrypt');
+  const passwordHash = await bcrypt.hash(TEKA_OFFICIEL_DEV_PASSWORD, 10);
+
   await prisma.user.upsert({
     where: { id: TEKA_OFFICIEL_USER_ID },
-    update: {},
+    update: {
+      email: TEKA_OFFICIEL_SELLER_EMAIL,
+      authProvider: 'EMAIL_PASSWORD',
+      emailVerified: true,
+      passwordHash,
+      passwordSetAt: new Date(),
+    },
     create: {
       id: TEKA_OFFICIEL_USER_ID,
       phone: TEKA_OFFICIEL_SELLER_PHONE,
@@ -2971,6 +2992,8 @@ async function seedTekaOfficielSeller(adminId: string): Promise<string> {
       phoneVerified: true,
       emailVerified: true,
       authProvider: 'EMAIL_PASSWORD',
+      passwordHash,
+      passwordSetAt: new Date(),
     },
   });
 
