@@ -38,7 +38,7 @@ interface ProductDetail {
     user?: {
       firstName?: string | null;
       lastName?: string | null;
-      phone: string;
+      phone: string | null;
     };
   };
   category?: {
@@ -354,7 +354,7 @@ export default function ProductDetailPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Téléphone</span>
-                      <span className="text-foreground">{product.seller.user.phone}</span>
+                      <span className="text-foreground">{product.seller.user.phone ?? '—'}</span>
                     </div>
                   </>
                 )}

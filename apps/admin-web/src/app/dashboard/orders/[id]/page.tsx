@@ -32,7 +32,7 @@ interface OrderBuyer {
   id: string;
   firstName?: string | null;
   lastName?: string | null;
-  phone: string;
+  phone: string | null;
   email?: string | null;
 }
 
@@ -42,7 +42,7 @@ interface OrderSeller {
   user?: {
     firstName?: string | null;
     lastName?: string | null;
-    phone: string;
+    phone: string | null;
     email?: string | null;
   };
 }
@@ -404,7 +404,7 @@ export default function OrderDetailPage() {
                 </p>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">{t('phone')}</span>
-                  <span className="text-foreground">{order.buyer.phone}</span>
+                  <span className="text-foreground">{order.buyer.phone ?? '—'}</span>
                 </div>
                 {order.buyer.email && (
                   <div className="flex justify-between">
@@ -430,7 +430,7 @@ export default function OrderDetailPage() {
                   <>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">{t('phone')}</span>
-                      <span className="text-foreground">{order.seller.user.phone}</span>
+                      <span className="text-foreground">{order.seller.user.phone ?? '—'}</span>
                     </div>
                     {order.seller.user.email && (
                       <div className="flex justify-between">

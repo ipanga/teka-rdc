@@ -10,7 +10,7 @@ interface SellerApplication {
   user: {
     firstName?: string | null;
     lastName?: string | null;
-    phone: string;
+    phone: string | null;
   };
   businessName: string;
   status: string;
@@ -132,7 +132,7 @@ export default function SellersPage() {
                   <td className="px-4 py-3 text-sm text-foreground">
                     {seller.user.firstName} {seller.user.lastName}
                   </td>
-                  <td className="px-4 py-3 text-sm text-foreground">{seller.user.phone}</td>
+                  <td className="px-4 py-3 text-sm text-foreground">{seller.user.phone ?? '—'}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
                       seller.status === 'APPROVED'

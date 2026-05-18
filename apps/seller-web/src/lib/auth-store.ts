@@ -3,14 +3,13 @@ import { apiFetch } from './api-client';
 
 export interface User {
   id: string;
-  phone: string;
+  phone: string | null;
   email?: string | null;
   firstName?: string | null;
   lastName?: string | null;
   role: string;
   status: string;
   avatar?: string | null;
-  locale: string;
   phoneVerified: boolean;
   emailVerified: boolean;
 }
