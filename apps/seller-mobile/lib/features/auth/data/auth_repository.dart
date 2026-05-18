@@ -65,54 +65,9 @@ class AuthRepository {
     );
   }
 
-  // Seller migration ——————————————————————————————————————————————————————————
-
-  /// Returns one of: { migration: 'email_setup_sent' | 'email_required' | 'already_migrated', maskedPhone? }
-  Future<Map<String, dynamic>> migrateSellerCheck(String email) async {
-    final response = await _dio.post(
-      '/v1/auth/seller/migrate-check',
-      data: {'email': email},
-    );
-    return response.data['data'] ?? response.data;
-  }
-
-  Future<Map<String, dynamic>> migrateSellerLinkEmail({
-    required String phone,
-    required String code,
-    required String email,
-  }) async {
-    final response = await _dio.post(
-      '/v1/auth/seller/migrate-link-email',
-      data: {'phone': phone, 'code': code, 'email': email},
-    );
-    return response.data['data'] ?? response.data;
-  }
-
-  /// Consumes the 24h setup JWT, sets the password, and issues tokens.
-  Future<Map<String, dynamic>> setupSellerPassword(String token, String password) async {
-    final response = await _dio.post(
-      '/v1/auth/seller/setup-password',
-      data: {'token': token, 'password': password},
-    );
-    final data = response.data['data'] ?? response.data;
-    if (data['tokens'] != null) {
-      await _tokenStorage.saveTokens(
-        data['tokens']['accessToken'],
-        data['tokens']['refreshToken'],
-      );
-    }
-    return data;
-  }
-
-  // Phone OTP (kept for migration flow only) ——————————————————————————————————
-
-  Future<Map<String, dynamic>> requestOtp(String phone) async {
-    final response = await _dio.post(
-      '/v1/auth/otp/request',
-      data: {'phone': phone},
-    );
-    return response.data['data'] ?? response.data;
-  }
+  // Seller migration + phone OTP retired 2026-05-18 — legacy SMS→email
+  // migration flow removed. Sellers register fresh via register() above
+  // or recover via forgotPassword/resetPassword.
 
   // Session ———————————————————————————————————————————————————————————————————
 

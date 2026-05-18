@@ -1,9 +1,48 @@
 # Teka RDC — Development Progress
 
 ## Current Phase: — (no active initiative; awaiting next direction)
-## Last completed: admin/seller /login cross-subdomain bypass — FIXED 2026-05-17 (PR #100 → #101)
-## Status: admin.teka.cd/login + seller.teka.cd/login both render the login form again (verified in prod). Buyer cookies leaking across .teka.cd no longer satisfy the seller/admin middleware's session check (authOnly /login → /dashboard redirect removed). Defense-in-depth: dashboard layouts now check user.role and logout+redirect wrong-role users.
-## Last Updated: 2026-05-17
+## Last completed: Seller auth cleanup + platform-seller email migration (2026-05-18, branch feat/seller-auth-cleanup-migration)
+## Status: All legacy SMS→email seller migration code purged from API + seller-web + seller-mobile. 3 DTOs, 2 seller-web pages, 2 Flutter screens, 4 service methods, and 4 router/repository entries removed. `seed.ts` now provisions the "Teka RDC Officiel" platform seller with `ipanga@outlook.fr` + bcrypt-hashed dev password on both create AND update branches. Type-check clean across API + seller-web; flutter analyze clean. 90/90 API e2e tests green.
+## Last Updated: 2026-05-18
+
+### Initiative — Seller auth cleanup + platform-seller email migration (2026-05-18, branch feat/seller-auth-cleanup-migration)
+
+**Brief**: Sellers must authenticate ONLY via email + password. Remove all remaining legacy SMS-based seller authentication code. Migrate the "Teka RDC Officiel" platform seller account to `ipanga@outlook.fr` without disturbing historical data (orders, product ownership, audit trails). Must NOT touch buyer WhatsApp OTP flow.
+
+**Scope of removal (API)**:
+- `apps/api/src/auth/auth.controller.ts` — dropped `sellerMigrateCheck`, `sellerMigrateLinkEmail`, `sellerSetupPassword` handlers + DTO imports.
+- `apps/api/src/auth/auth.service.ts` — dropped `migrateSellerCheck()`, `migrateSellerLinkEmail()`, `setupSellerPassword()`, private `sendSellerSetupLink()`.
+- `apps/api/src/auth/dto/seller-{migrate-check,migrate-link-email,password-setup}.dto.ts` — deleted (3 files).
+- `SellerMigration` Prisma model **kept** (historical rows / audit). `AuthProvider` enum keeps `PHONE_OTP` (buyer WhatsApp OTP path still uses it).
+
+**Scope of removal (seller-web)**:
+- `apps/seller-web/src/app/migrate/` + `apps/seller-web/src/app/setup-password/` — deleted.
+- `apps/seller-web/src/app/login/page.tsx` — removed the `/migrate` link (forgot-password stays).
+
+**Scope of removal (seller-mobile)**:
+- `apps/seller-mobile/lib/features/auth/presentation/screens/{migrate,setup_password}_screen.dart` — deleted (2 files).
+- `apps/seller-mobile/lib/features/auth/data/auth_repository.dart` — dropped `migrateSellerCheck`, `migrateSellerLinkEmail`, `setupSellerPassword`, `requestOtp`.
+- `apps/seller-mobile/lib/features/auth/presentation/providers/auth_provider.dart` — dropped matching provider methods.
+- `apps/seller-mobile/lib/core/router/app_router.dart` — dropped `/auth/migrate` + `/auth/setup-password` routes.
+
+**Platform-seller migration (declarative, via seed.ts)**:
+- `apps/api/prisma/seed.ts:seedTekaOfficielSeller()` — constants `TEKA_OFFICIEL_SELLER_EMAIL='ipanga@outlook.fr'` + `TEKA_OFFICIEL_DEV_PASSWORD='TekaDev2026!'`. Dynamic `bcrypt` import + `bcrypt.hash(password, 10)` runs once per seed. Upsert now writes `email`, `authProvider='EMAIL_PASSWORD'`, `emailVerified=true`, `passwordHash`, `passwordSetAt=new Date()` on BOTH create AND update branches (previous `update: {}` would not have migrated an existing row).
+- Phone field (`+243800000000`) preserved — required for delivery contact + retains uniqueness with historical rows. UserId `10000000-0000-0000-0000-000000999999` unchanged → SellerProfile, Product ownership, and Order references all untouched.
+
+**Verification**:
+- `pnpm --filter api type-check` — clean
+- `pnpm --filter seller-web type-check` — clean
+- `pnpm --filter api test:e2e` — 90/90 passing (no test referenced the dropped endpoints)
+- Flutter analyze (seller-mobile) — clean
+
+**Prod data migration** (seed does not run on prod): provide the user with one-off SQL after merge to:
+1. Update the existing `users` row (`id = '10000000-0000-0000-0000-000000999999'`) to set `email='ipanga@outlook.fr'`, `authProvider='EMAIL_PASSWORD'`, `emailVerified=true`, `passwordHash=<bcrypt('TekaDev2026!', 10)>`, `passwordSetAt=NOW()`.
+2. Trigger `/v1/auth/password-reset/request` for ipanga@outlook.fr to rotate to a real password via the standard reset flow.
+
+**Out of scope (intentional)**:
+- `SellerMigration` Prisma model retained (historical reference).
+- `email.service.ts:sendSellerSetupEmail` method retained (no callers, but harmless dead method — leave for next janitorial sweep).
+- `PHONE_OTP` enum value retained (buyer WhatsApp OTP creates these records).
 
 ### Hotfix — admin/seller /login bypass via cross-subdomain cookies (2026-05-17, PR #100 → #101)
 
