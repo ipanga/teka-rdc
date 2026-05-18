@@ -1,9 +1,46 @@
 # Teka RDC — Development Progress
 
 ## Current Phase: — (no active initiative; awaiting next direction)
-## Last completed: Seller auth cleanup + platform-seller email migration (2026-05-18, branch feat/seller-auth-cleanup-migration)
-## Status: All legacy SMS→email seller migration code purged from API + seller-web + seller-mobile. 3 DTOs, 2 seller-web pages, 2 Flutter screens, 4 service methods, and 4 router/repository entries removed. `seed.ts` now provisions the "Teka RDC Officiel" platform seller with `ipanga@outlook.fr` + bcrypt-hashed dev password on both create AND update branches. Type-check clean across API + seller-web; flutter analyze clean. 90/90 API e2e tests green.
+## Last completed: admin-web audit + nullable-phone/locale type alignment (2026-05-18, PR #105 → #106 → prod)
+## Status: Comprehensive admin-web audit after May 12-18 platform refactors. Surface largely clean — only 3 confirmed issues (all type-definition drift). Fixed and shipped. admin.teka.cd renders email-only login form, no Google/phone tabs, middleware redirects work.
 ## Last Updated: 2026-05-18
+
+### Initiative — Admin dashboard audit + sync (2026-05-18, PR #105 → #106)
+
+**Brief**: Full review/sync/validation of admin dashboard after the May 12-18 platform refactors (buyer WhatsApp OTP, phone-OTP removal, monolingual FR-only, Google OAuth removal, seller SMS-migration cleanup). Browser-test locally with Docker. Modify only what's necessary.
+
+**Audit method**: Read-only Explore subagent mapped all admin-web pages, endpoints, auth flow, and grepped for stale references to removed surfaces.
+
+**Confirmed issues (3 — all type-definition drift)**:
+1. `User.phone` is `String?` since 2026-05-12 but admin-web typed it as `string` in 6 places (auth-store + 5 dashboard pages). Email-only buyer cohort (2026-05-12 → 2026-05-15) has null phone until they complete /reclamer-compte; admin previously rendered a blank cell.
+2. `User.locale` was dropped during the May monolingual collapse but the type still declared it on all 3 web apps' auth stores (admin-web, seller-web, buyer-web).
+3. Cross-platform parity: also fixed `locale` field in seller-web + buyer-web auth stores (buyer-web `phone` was already correct).
+
+**Changes**:
+- `apps/admin-web/src/lib/auth-store.ts`: phone → nullable, drop locale
+- `apps/admin-web/src/app/dashboard/{users,sellers,orders,orders/[id],products/[id]}/page.tsx`: phone interfaces → nullable, render `?? '—'` fallbacks
+- `apps/{buyer,seller}-web/src/lib/auth-store.ts`: drop stale locale field
+- 8 files, +14/-17. No runtime behavior change beyond rendering `—` instead of blank cells.
+
+**Audit findings — CLEAN (no fix needed)**:
+- Auth middleware accepts access OR refresh token (parity with seller-web after PR #95→#97)
+- Login: email-only, no phone tab, no Google OAuth, no `/migrate` link
+- Dashboard role gate logs out non-ADMIN users (PR #100 → #101 still working)
+- `apiFetch` has hasSessionHint + coalesced refresh-on-401 (parity)
+- Zero references to removed surfaces: Conversation/Message, seller migration endpoints, Google OAuth, `[locale]` routing, Mobile Money UI
+- Cloudinary lifecycle handled API-side; admin delete doesn't need extra
+- Stats queries don't reference dropped models
+
+**Verification**:
+- `pnpm --filter {admin,seller,buyer}-web type-check`: clean
+- `pnpm --filter admin-web build`: clean
+- Local Docker rebuild + smoke on `/admin/login`: email-only form renders, no console errors, middleware correctly redirects `/dashboard/*` → `/login?redirect=...` for unauthenticated users
+- CI green on both #105 and #106 (lint, type-check, API e2e 90/90, both Flutter analyses, all 4 docker-build-check stages)
+- Local dev DB at `postgresql-congofoot.alwaysdata.net` was unreachable during smoke — blocked post-login browser walk-through; CI build pipeline + the trivial-safety of the diff (pure type-level + render guards) substituted for that
+
+**Ship cycle**: PR #105 → develop ✓ → PR #106 → main ✓ → deploy `26055805939` succeeded (1m13s) → back-merge main→develop ✓. Prod smoke: `https://admin.teka.cd/login` returns 200.
+
+### Initiative — Seller auth cleanup + platform-seller email migration (2026-05-18, branch feat/seller-auth-cleanup-migration)
 
 ### Initiative — Seller auth cleanup + platform-seller email migration (2026-05-18, branch feat/seller-auth-cleanup-migration)
 
