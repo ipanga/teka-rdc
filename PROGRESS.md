@@ -1,9 +1,73 @@
 # Teka RDC — Development Progress
 
 ## Current Phase: — (no active initiative; awaiting next direction)
-## Last completed: Payment simplification + messaging removal + seller/admin auth parity — SHIPPED 2026-05-17 (PRs #95→#97, #96+#98→#99)
-## Status: All three threads of the latest brief deployed + prod-smoked. Mobile Money UI hidden on checkout (COD only); buyer↔seller messaging removed across 5 surfaces with API 410 GONE; auth refresh-on-401 + middleware refresh-token gate ported from buyer-web to seller-web + admin-web. PDP shows "Contacter le support Teka RDC" CTA linking to /contact.
-## Last Updated: 2026-05-17
+## Last completed: Seller auth cleanup + platform-seller email migration (2026-05-18, branch feat/seller-auth-cleanup-migration)
+## Status: All legacy SMS→email seller migration code purged from API + seller-web + seller-mobile. 3 DTOs, 2 seller-web pages, 2 Flutter screens, 4 service methods, and 4 router/repository entries removed. `seed.ts` now provisions the "Teka RDC Officiel" platform seller with `ipanga@outlook.fr` + bcrypt-hashed dev password on both create AND update branches. Type-check clean across API + seller-web; flutter analyze clean. 90/90 API e2e tests green.
+## Last Updated: 2026-05-18
+
+### Initiative — Seller auth cleanup + platform-seller email migration (2026-05-18, branch feat/seller-auth-cleanup-migration)
+
+**Brief**: Sellers must authenticate ONLY via email + password. Remove all remaining legacy SMS-based seller authentication code. Migrate the "Teka RDC Officiel" platform seller account to `ipanga@outlook.fr` without disturbing historical data (orders, product ownership, audit trails). Must NOT touch buyer WhatsApp OTP flow.
+
+**Scope of removal (API)**:
+- `apps/api/src/auth/auth.controller.ts` — dropped `sellerMigrateCheck`, `sellerMigrateLinkEmail`, `sellerSetupPassword` handlers + DTO imports.
+- `apps/api/src/auth/auth.service.ts` — dropped `migrateSellerCheck()`, `migrateSellerLinkEmail()`, `setupSellerPassword()`, private `sendSellerSetupLink()`.
+- `apps/api/src/auth/dto/seller-{migrate-check,migrate-link-email,password-setup}.dto.ts` — deleted (3 files).
+- `SellerMigration` Prisma model **kept** (historical rows / audit). `AuthProvider` enum keeps `PHONE_OTP` (buyer WhatsApp OTP path still uses it).
+
+**Scope of removal (seller-web)**:
+- `apps/seller-web/src/app/migrate/` + `apps/seller-web/src/app/setup-password/` — deleted.
+- `apps/seller-web/src/app/login/page.tsx` — removed the `/migrate` link (forgot-password stays).
+
+**Scope of removal (seller-mobile)**:
+- `apps/seller-mobile/lib/features/auth/presentation/screens/{migrate,setup_password}_screen.dart` — deleted (2 files).
+- `apps/seller-mobile/lib/features/auth/data/auth_repository.dart` — dropped `migrateSellerCheck`, `migrateSellerLinkEmail`, `setupSellerPassword`, `requestOtp`.
+- `apps/seller-mobile/lib/features/auth/presentation/providers/auth_provider.dart` — dropped matching provider methods.
+- `apps/seller-mobile/lib/core/router/app_router.dart` — dropped `/auth/migrate` + `/auth/setup-password` routes.
+
+**Platform-seller migration (declarative, via seed.ts)**:
+- `apps/api/prisma/seed.ts:seedTekaOfficielSeller()` — constants `TEKA_OFFICIEL_SELLER_EMAIL='ipanga@outlook.fr'` + `TEKA_OFFICIEL_DEV_PASSWORD='TekaDev2026!'`. Dynamic `bcrypt` import + `bcrypt.hash(password, 10)` runs once per seed. Upsert now writes `email`, `authProvider='EMAIL_PASSWORD'`, `emailVerified=true`, `passwordHash`, `passwordSetAt=new Date()` on BOTH create AND update branches (previous `update: {}` would not have migrated an existing row).
+- Phone field (`+243800000000`) preserved — required for delivery contact + retains uniqueness with historical rows. UserId `10000000-0000-0000-0000-000000999999` unchanged → SellerProfile, Product ownership, and Order references all untouched.
+
+**Verification**:
+- `pnpm --filter api type-check` — clean
+- `pnpm --filter seller-web type-check` — clean
+- `pnpm --filter api test:e2e` — 90/90 passing (no test referenced the dropped endpoints)
+- Flutter analyze (seller-mobile) — clean
+
+**Prod data migration** (seed does not run on prod): provide the user with one-off SQL after merge to:
+1. Update the existing `users` row (`id = '10000000-0000-0000-0000-000000999999'`) to set `email='ipanga@outlook.fr'`, `authProvider='EMAIL_PASSWORD'`, `emailVerified=true`, `passwordHash=<bcrypt('TekaDev2026!', 10)>`, `passwordSetAt=NOW()`.
+2. Trigger `/v1/auth/password-reset/request` for ipanga@outlook.fr to rotate to a real password via the standard reset flow.
+
+**Out of scope (intentional)**:
+- `SellerMigration` Prisma model retained (historical reference).
+- `email.service.ts:sendSellerSetupEmail` method retained (no callers, but harmless dead method — leave for next janitorial sweep).
+- `PHONE_OTP` enum value retained (buyer WhatsApp OTP creates these records).
+
+### Hotfix — admin/seller /login bypass via cross-subdomain cookies (2026-05-17, PR #100 → #101)
+
+**Symptom**: Clicking the "Connexion / Login" button on `admin.teka.cd` or `seller.teka.cd` opened the dashboard directly instead of showing the login form. Buyers who'd logged into teka.cd were silently landing on broken admin/seller dashboards.
+
+**Root cause** (regression from interactions between today's earlier work):
+- PR #95 (earlier today) added refresh-token fallback to seller-web + admin-web middleware (so 15-min access token expiry doesn't kick people out)
+- The COOKIE_DOMAIN=.teka.cd infra fix (also earlier today) made cookies cross-subdomain-visible
+- Combined: buyer cookies on .teka.cd satisfied the middleware's `hasSession` check on seller.teka.cd / admin.teka.cd → triggered the `if (isAuthOnly && hasSession) → /dashboard` redirect
+- Dashboard layouts didn't check role, so wrong-role users briefly saw the dashboard chrome before APIs started 403'ing
+
+**Fix** (4 files, defense in depth):
+- `apps/{seller,admin}-web/src/middleware.ts` — removed the authOnly `/login → /dashboard` redirect. The login form renders unconditionally; `/dashboard` protection (redirect to /login when no cookie) unchanged.
+- `apps/{seller,admin}-web/src/app/dashboard/layout.tsx` — wait for `/me`, then verify `user.role === 'SELLER'` (or `'ADMIN'`). Wrong role → `logout()` (clears wrong-role cookies) → `router.replace('/login')`. Spinner shown until check passes; never flashes dashboard for a wrong-role user.
+
+**Ship cycle**: PR #100 → PR #101 → main → deploy run 25997178223 succeeded. Back-merged main → develop.
+
+**Prod smoke verified**:
+- `admin.teka.cd/login`: login form renders even with `teka_session=1` hint cookie present ✓
+- `seller.teka.cd/login`: login form renders ✓
+
+**Out of scope** (called out for posterity):
+- Adding a per-role cookie at login (e.g. `teka_role=ADMIN`) would let the middleware do the role gate at the edge. Cleaner architecturally, but new contract across API + 3 web apps. Client-side gate is smaller and equally effective for this surface area.
+
+### Previous initiative — Payment simplification + messaging removal + auth parity (2026-05-17, 4 PRs)
 
 ### Initiative — Payment simplification + messaging removal + auth parity (2026-05-17, 4 PRs)
 

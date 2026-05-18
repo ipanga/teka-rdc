@@ -119,9 +119,9 @@ export default function SellerLoginPage() {
               <Link href="/forgot-password" className="text-primary hover:underline">
                 {t('forgotPassword')}
               </Link>
-              <Link href="/migrate" className="text-muted-foreground hover:underline">
-                {t('migrateTitle')}
-              </Link>
+              {/* /migrate link removed 2026-05-18 — legacy SMS→email
+                  migration flow retired. Sellers register fresh via
+                  /register or recover via /forgot-password. */}
             </div>
           </form>
         </div>

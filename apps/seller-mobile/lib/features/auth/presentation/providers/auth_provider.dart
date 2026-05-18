@@ -127,38 +127,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _authRepository.confirmPasswordReset(token, newPassword);
   }
 
-  // Seller migration ——————————————————————————————————————————————————————————
-
-  Future<Map<String, dynamic>> migrateSellerCheck(String email) {
-    return _authRepository.migrateSellerCheck(email);
-  }
-
-  Future<Map<String, dynamic>> migrateSellerLinkEmail({
-    required String phone,
-    required String code,
-    required String email,
-  }) {
-    return _authRepository.migrateSellerLinkEmail(
-      phone: phone,
-      code: code,
-      email: email,
-    );
-  }
-
-  Future<void> setupSellerPassword(String token, String password) async {
-    state = state.copyWith(isLoading: true, error: null);
-    try {
-      final data = await _authRepository.setupSellerPassword(token, password);
-      _applyLoggedInUser(data['user'] as Map<String, dynamic>?);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-      rethrow;
-    }
-  }
-
-  Future<Map<String, dynamic>> requestOtp(String phone) {
-    return _authRepository.requestOtp(phone);
-  }
+  // Seller migration + phone OTP retired 2026-05-18 (repository methods
+  // removed; this surface no longer exposes them).
 
   Future<void> logout() async {
     await _authRepository.logout();

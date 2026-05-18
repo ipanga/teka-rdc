@@ -21,9 +21,6 @@ import { EmailLoginDto } from './dto/email-login.dto';
 import { EmailRegisterDto } from './dto/email-register.dto';
 import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
 import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
-import { SellerMigrateCheckDto } from './dto/seller-migrate-check.dto';
-import { SellerMigrateLinkEmailDto } from './dto/seller-migrate-link-email.dto';
-import { SellerPasswordSetupDto } from './dto/seller-password-setup.dto';
 import { BuyerOtpRequestDto } from './dto/buyer-otp-request.dto';
 import { BuyerOtpVerifyDto } from './dto/buyer-otp-verify.dto';
 import { BuyerOtpResendDto } from './dto/buyer-otp-resend.dto';
@@ -153,35 +150,14 @@ export class AuthController {
     return result;
   }
 
-  // ---------------------------------------------------------------------------
-  // Seller migration (legacy PHONE_OTP seller → email + password).
-  // ---------------------------------------------------------------------------
-
-  @Public()
-  @Post('seller/migrate-check')
-  @HttpCode(HttpStatus.OK)
-  async sellerMigrateCheck(@Body() dto: SellerMigrateCheckDto) {
-    return this.authService.migrateSellerCheck(dto);
-  }
-
-  @Public()
-  @Post('seller/migrate-link-email')
-  @HttpCode(HttpStatus.OK)
-  async sellerMigrateLinkEmail(@Body() dto: SellerMigrateLinkEmailDto) {
-    return this.authService.migrateSellerLinkEmail(dto);
-  }
-
-  @Public()
-  @Post('seller/setup-password')
-  @HttpCode(HttpStatus.OK)
-  async sellerSetupPassword(
-    @Body() dto: SellerPasswordSetupDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const result = await this.authService.setupSellerPassword(dto);
-    this.setAuthCookies(res, result.tokens);
-    return result;
-  }
+  // Seller migration (legacy PHONE_OTP seller → email + password) was
+  // retired on 2026-05-18. The only seller account that ever existed
+  // (the platform seller) was data-migrated directly to email +
+  // password; no live caller of these endpoints remains. If a stale
+  // client tries `/v1/auth/seller/migrate-*`, NestJS now returns 404
+  // (route not registered) — that's the correct deprecation signal,
+  // matching the same approach used when phone-OTP auth was first
+  // dropped (CLAUDE.md § 12).
 
   // ---------------------------------------------------------------------------
   // Refresh / logout / profile / email verification

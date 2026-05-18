@@ -4,10 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
-import '../../features/auth/presentation/screens/migrate_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/reset_password_screen.dart';
-import '../../features/auth/presentation/screens/setup_password_screen.dart';
 import '../../features/auth/presentation/screens/wrong_role_screen.dart';
 import '../../features/earnings/presentation/screens/earnings_screen.dart';
 import '../../features/earnings/presentation/screens/request_payout_screen.dart';
@@ -74,17 +72,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      GoRoute(
-        path: '/auth/migrate',
-        builder: (context, state) => const MigrateScreen(),
-      ),
-      GoRoute(
-        path: '/auth/setup-password',
-        builder: (context, state) {
-          final token = state.uri.queryParameters['token'];
-          return SetupPasswordScreen(token: token);
-        },
-      ),
+      // /auth/migrate and /auth/setup-password retired 2026-05-18 —
+      // legacy SMS→email migration flow removed. Sellers register fresh
+      // via /auth/register or recover via /auth/forgot-password.
       GoRoute(
         path: '/auth/forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
