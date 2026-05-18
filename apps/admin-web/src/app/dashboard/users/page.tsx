@@ -6,7 +6,7 @@ import { apiFetch } from '@/lib/api-client';
 
 interface User {
   id: string;
-  phone: string;
+  phone: string | null;
   email?: string | null;
   firstName?: string | null;
   lastName?: string | null;
@@ -113,7 +113,7 @@ export default function UsersPage() {
                   <td className="px-4 py-3 text-sm text-foreground">
                     {user.firstName} {user.lastName}
                   </td>
-                  <td className="px-4 py-3 text-sm text-foreground">{user.phone}</td>
+                  <td className="px-4 py-3 text-sm text-foreground">{user.phone ?? '—'}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
                       user.role === 'ADMIN'

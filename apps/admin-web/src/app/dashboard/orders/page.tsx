@@ -10,7 +10,7 @@ interface OrderBuyer {
   id: string;
   firstName?: string | null;
   lastName?: string | null;
-  phone: string;
+  phone: string | null;
 }
 
 interface OrderSeller {
@@ -242,7 +242,7 @@ export default function OrdersPage() {
                   </td>
                   <td className="px-4 py-3 text-sm text-foreground">
                     {order.buyer
-                      ? `${order.buyer.firstName || ''} ${order.buyer.lastName || ''}`.trim() || order.buyer.phone
+                      ? `${order.buyer.firstName || ''} ${order.buyer.lastName || ''}`.trim() || order.buyer.phone || '—'
                       : '-'}
                   </td>
                   <td className="px-4 py-3 text-sm text-foreground">

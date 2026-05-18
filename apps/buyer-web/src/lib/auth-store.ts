@@ -12,7 +12,6 @@ export interface User {
   role: string;
   status: string;
   avatar?: string | null;
-  locale: string;
   phoneVerified: boolean;
   emailVerified: boolean;
 }
