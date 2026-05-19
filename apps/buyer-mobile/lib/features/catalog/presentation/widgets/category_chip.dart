@@ -15,8 +15,7 @@ class CategoryChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final locale = Localizations.localeOf(context).languageCode;
-    final name = category.localizedName(locale);
+    final name = category.name;
     final emoji = category.emoji ?? '';
 
     return GestureDetector(

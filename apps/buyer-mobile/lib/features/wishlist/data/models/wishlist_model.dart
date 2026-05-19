@@ -26,7 +26,7 @@ class WishlistItemModel {
 
 class WishlistProductModel {
   final String id;
-  final Map<String, dynamic> title;
+  final String title;
   final String priceCDF;
   final String? priceUSD;
   final String condition;
@@ -67,9 +67,7 @@ class WishlistProductModel {
 
     return WishlistProductModel(
       id: json['id'] as String,
-      title: json['title'] is Map
-          ? Map<String, dynamic>.from(json['title'] as Map)
-          : {'fr': json['title']?.toString() ?? ''},
+      title: json['title']?.toString() ?? '',
       priceCDF: json['priceCDF']?.toString() ?? '0',
       priceUSD: json['priceUSD']?.toString(),
       condition: json['condition'] as String? ?? 'NEW',
@@ -84,13 +82,6 @@ class WishlistProductModel {
           : double.tryParse(json['avgRating']?.toString() ?? ''),
       totalReviews: json['totalReviews'] as int?,
     );
-  }
-
-  String localizedTitle(String locale) {
-    return title[locale] as String? ??
-        title['fr'] as String? ??
-        title['en'] as String? ??
-        '';
   }
 
   bool get isOutOfStock => quantity <= 0;

@@ -19,20 +19,19 @@ class ContentPageScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
-    final locale = Localizations.localeOf(context).languageCode;
     final pageAsync = ref.watch(contentPageProvider(slug));
 
     return Scaffold(
       appBar: AppBar(
         title: pageAsync.when(
-          data: (page) => Text(page.localizedTitle(locale)),
+          data: (page) => Text(page.title),
           loading: () => Text(l10n.contentPages),
           error: (_, __) => Text(l10n.contentPages),
         ),
       ),
       body: pageAsync.when(
         data: (page) {
-          final content = page.localizedContent(locale);
+          final content = page.content;
 
           if (content.isEmpty) {
             return Center(
@@ -62,7 +61,7 @@ class ContentPageScreen extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  page.localizedTitle(locale),
+                  page.title,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: TekaColors.foreground,

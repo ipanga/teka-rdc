@@ -81,7 +81,7 @@ class OrderModel {
 class OrderItemModel {
   final String id;
   final String productId;
-  final Map<String, dynamic> productTitle;
+  final String productTitle;
   final String? productImage;
   final int quantity;
   final String unitPriceCDF;
@@ -105,9 +105,7 @@ class OrderItemModel {
     return OrderItemModel(
       id: json['id'] as String,
       productId: json['productId'] as String? ?? '',
-      productTitle: json['productTitle'] is Map
-          ? Map<String, dynamic>.from(json['productTitle'] as Map)
-          : {'fr': json['productTitle']?.toString() ?? ''},
+      productTitle: json['productTitle']?.toString() ?? '',
       productImage: json['productImage'] as String?,
       quantity: json['quantity'] as int? ?? 1,
       unitPriceCDF: json['unitPriceCDF']?.toString() ?? '0',
@@ -115,13 +113,6 @@ class OrderItemModel {
       totalCDF: json['totalCDF']?.toString() ?? '0',
       totalUSD: json['totalUSD']?.toString(),
     );
-  }
-
-  String localizedTitle(String locale) {
-    return productTitle[locale] as String? ??
-        productTitle['fr'] as String? ??
-        productTitle['en'] as String? ??
-        '';
   }
 }
 

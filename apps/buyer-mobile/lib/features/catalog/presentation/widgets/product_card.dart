@@ -14,8 +14,7 @@ class ProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final locale = Localizations.localeOf(context).languageCode;
-    final title = product.localizedTitle(locale);
+    final title = product.title;
     final price = formatCDF(product.priceCDF);
     final imageUrl = product.image?.thumbnailUrl ?? product.image?.url;
 

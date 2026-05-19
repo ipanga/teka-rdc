@@ -1,7 +1,7 @@
 class ContentPageModel {
   final String slug;
-  final Map<String, String> title;
-  final Map<String, String> content;
+  final String title;
+  final String content;
   final String? status;
 
   const ContentPageModel({
@@ -14,34 +14,16 @@ class ContentPageModel {
   factory ContentPageModel.fromJson(Map<String, dynamic> json) {
     return ContentPageModel(
       slug: json['slug'] as String? ?? '',
-      title: _parseTranslationMap(json['title']),
-      content: _parseTranslationMap(json['content']),
+      title: json['title']?.toString() ?? '',
+      content: json['content']?.toString() ?? '',
       status: json['status'] as String?,
     );
-  }
-
-  String localizedTitle(String locale) {
-    return title[locale] ?? title['fr'] ?? title['en'] ?? '';
-  }
-
-  String localizedContent(String locale) {
-    return content[locale] ?? content['fr'] ?? content['en'] ?? '';
-  }
-
-  static Map<String, String> _parseTranslationMap(dynamic value) {
-    if (value is Map) {
-      return value.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
-    }
-    if (value is String) {
-      return {'fr': value};
-    }
-    return {'fr': ''};
   }
 }
 
 class ContentPageSummary {
   final String slug;
-  final Map<String, String> title;
+  final String title;
 
   const ContentPageSummary({
     required this.slug,
@@ -51,21 +33,7 @@ class ContentPageSummary {
   factory ContentPageSummary.fromJson(Map<String, dynamic> json) {
     return ContentPageSummary(
       slug: json['slug'] as String? ?? '',
-      title: _parseTranslationMap(json['title']),
+      title: json['title']?.toString() ?? '',
     );
-  }
-
-  String localizedTitle(String locale) {
-    return title[locale] ?? title['fr'] ?? title['en'] ?? '';
-  }
-
-  static Map<String, String> _parseTranslationMap(dynamic value) {
-    if (value is Map) {
-      return value.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
-    }
-    if (value is String) {
-      return {'fr': value};
-    }
-    return {'fr': ''};
   }
 }
