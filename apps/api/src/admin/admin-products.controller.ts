@@ -17,13 +17,15 @@ export class AdminProductsController {
   constructor(private adminProductsService: AdminProductsService) {}
 
   @Get()
-  async findPending(
+  async findAll(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
+    @Query('status') status?: string,
   ) {
-    return this.adminProductsService.findPendingProducts(
+    return this.adminProductsService.findProducts(
       page ? Number(page) : undefined,
       limit ? Number(limit) : undefined,
+      status,
     );
   }
 
