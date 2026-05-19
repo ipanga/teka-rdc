@@ -1,9 +1,43 @@
 # Teka RDC — Development Progress
 
 ## Current Phase: — (no active initiative; awaiting next direction)
-## Last completed: jsonb→text migration script + dev DB migrated (2026-05-19, PR #111 → #112)
-## Status: Investigation of JSON-rendered titles on dev admin/seller UIs uncovered a Prisma schema/DB drift: 12 translatable columns were declared `String` in schema but still `jsonb` in dev DB. Prisma was silently stringifying JSONB on read. Dev DB migrated via the new idempotent script. Prod DB ran the script and reported all 12 columns already `text` — prod was already correct, only dev was drifting.
+## Last completed: Admin user-management split into Acheteurs / Vendeurs / Administrateurs (2026-05-19, PR #114 → #115)
+## Status: Sidebar's old `Utilisateurs` (mixed roles) + `Vendeurs` (broken — called 404'd endpoints) replaced with 3 role-scoped pages. /sellers rewritten with KYC + account status columns and inline Approve/Reject calling the correct endpoint. Browser-verified end-to-end on local Docker with a real approve action. Deployed to prod.
 ## Last Updated: 2026-05-19
+
+### Initiative — Admin user-management split (2026-05-19, PR #114 → #115)
+
+**Brief**: From the larger admin audit, replace the muddled `Utilisateurs` (mixed BUYER+SELLER+ADMIN) and broken `Vendeurs` (was an application queue, called 404'd endpoints, never actually worked) with 3 clean role-scoped pages.
+
+**New surfaces**:
+- `/dashboard/buyers` — BUYER list with status filter (Actifs / Suspendus / Bannis), search by name/email/phone.
+- `/dashboard/sellers` (rewritten) — SELLER list joining `sellerProfile`. Dual status columns: KYC `applicationStatus` (PENDING / APPROVED / REJECTED) + account `status` (ACTIVE / SUSPENDED / BANNED). Filter tabs: Tous / En attente / Approuvés / Rejetés / Suspendus. Inline Approve / Reject buttons (with reason modal) on PENDING rows, calling the correct `PATCH /v1/admin/sellers/applications/:applicationId` endpoint.
+- `/dashboard/admins` — ADMIN read-only list with last-login column.
+
+**API change**: `admin-users.service.findAllUsers` now selects `sellerProfile { id, businessName, applicationStatus, rejectionReason }`. Null for non-SELLER users. Backward compatible.
+
+**Bonus bug fix uncovered during the work**: the old `/dashboard/sellers` page was calling `/v1/admin/sellers?status=` (404 — controller only exposes `/v1/admin/sellers/applications`) and the Approve/Reject buttons called phantom `/v1/admin/sellers/:id/approve` POST endpoints. The seller-approval workflow had been completely broken; the rewrite is the first version that actually works.
+
+**Routes**:
+- New: `/dashboard/{buyers,sellers,admins}` (sellers URL repurposed)
+- Removed: `/dashboard/users` (file deleted)
+- Redirect: `next.config.ts` adds 308 from `/dashboard/users → /dashboard/buyers`
+- Sidebar: replaces 2 entries with 3 (Acheteurs / Vendeurs / Administrateurs)
+- `messages/fr.json`: new `Buyers` and `Admins` namespaces; rewritten `Sellers` namespace
+
+**Verification**:
+- `pnpm --filter {api,admin-web} type-check`: clean
+- `pnpm --filter api test:e2e`: 90/90 passing
+- Local Docker smoke against dev DB (1 buyer, 2 sellers, 1 admin):
+  - /buyers: Jean Mulamba (Actif) visible
+  - /sellers: both sellers with correct dual-status; Marie's pending application approved end-to-end (PATCH succeeded, row updated to "Approuvé", buttons disappeared, page refreshed)
+  - /admins: Admin Teka (Actif, last-login today)
+  - /users → /buyers 308 redirect verified
+- Prod smoke after deploy: all 3 new routes return 307 (auth redirect to login — route exists, middleware protects correctly); /users returns 308 (redirect rule active).
+
+**Ship cycle**: PR #114 → develop ✓ → PR #115 → main ✓ → deploy `26123825619` succeeded → back-merge main → develop ✓.
+
+### Initiative — jsonb→text migration for monolingual French (2026-05-19, PR #111 → #112)
 
 ### Initiative — jsonb→text migration for monolingual French (2026-05-19, PR #111 → #112)
 
