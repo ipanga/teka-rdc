@@ -1,9 +1,46 @@
 # Teka RDC — Development Progress
 
 ## Current Phase: — (no active initiative; awaiting next direction)
-## Last completed: Admin Produits + Seller Mes produits empty-list bugs (2026-05-19, PR #108 → #109 → prod)
-## Status: Two independent root causes diagnosed + fixed. Admin /produits was a moderation queue (hardcoded PENDING_REVIEW filter); now a full product catalogue with status tabs (Tous/En attente/Actifs/Rejetés/Archivés/Brouillons). Seller /mes-produits had a response-shape mismatch (read `products`/`meta` instead of `data`/`pagination`). Smoked end-to-end in local Docker against dev DB; both fixes verified.
+## Last completed: jsonb→text migration script + dev DB migrated (2026-05-19, PR #111 → #112)
+## Status: Investigation of JSON-rendered titles on dev admin/seller UIs uncovered a Prisma schema/DB drift: 12 translatable columns were declared `String` in schema but still `jsonb` in dev DB. Prisma was silently stringifying JSONB on read. Dev DB migrated via the new idempotent script. Prod DB ran the script and reported all 12 columns already `text` — prod was already correct, only dev was drifting.
 ## Last Updated: 2026-05-19
+
+### Initiative — jsonb→text migration for monolingual French (2026-05-19, PR #111 → #112)
+
+**Brief**: After PR #108/#109 fixed the empty product lists, dev admin UI was rendering product titles + category names as raw `{"en":"...","fr":"..."}` JSON. User asked to fully strip multilingual support from the data layer.
+
+**Root cause** (investigation went deeper than the original brief): the May 2026 monolingual refactor updated the Prisma schema to declare 12 translatable columns as `String`, but **no ALTER TABLE was run on the dev DB**. The Postgres columns were still `jsonb` holding `{en, fr}` objects. Prisma's client silently stringifies JSONB on read when the schema declares String — which is why every translatable field rendered as raw JSON.
+
+Verified via `information_schema` on dev DB — 12 columns affected:
+- `products.{title, description}`
+- `categories.{name, description}`
+- `cities.name`, `communes.name`
+- `banners.{title, subtitle}`
+- `promotions.{title, description}`
+- `content_pages.{title, content}`
+
+**Fix** — one-shot migration script at `apps/api/prisma/scripts/migrate-jsonb-to-text.ts`:
+
+```sql
+ALTER TABLE <t>
+ALTER COLUMN <c> TYPE text
+USING COALESCE(<c>->>'fr', <c>->>'en', <c>::text)
+```
+
+- Atomic per-column (data conversion + type change in one statement)
+- Idempotent (skips columns already `text`)
+- COALESCE preserves data for any malformed rows (.fr → .en → raw JSONB text fallback)
+
+**Verification — dev DB**: all 12 columns migrated `jsonb → text`. Sample data: `products.title = "Tecno Spark 10 Pro - 128Go"` (plain, not JSON). Browser smoke on admin /Produits + seller /Mes Produits — every title, category, city renders as plain French. No JSON visible.
+
+**Verification — prod DB**: ran the same script; **all 12 columns reported "already text, skipping"**. Prod had been migrated at some earlier point (likely an earlier `prisma db push` that ran the ALTER when the schema was first changed, OR a manual migration). The user-visible JSON-rendering issue was dev-only — prod has been correct all along. Script committed as a safety net + documentation against future drift.
+
+**Ship cycle**: PR #111 → develop ✓ → PR #112 → main ✓ → deploy `26119949796` succeeded → back-merge main→develop ✓ → prod migration ran idempotently (all skipped). User confirmed products visible on prod admin Produits.
+
+**Out of scope (deferred)**:
+- Flutter mobile model defensive parsing — `buyer-mobile/lib/features/catalog/data/models/{product,category}_model.dart` wrap incoming `title`/`name` strings in `{ 'fr': value }` maps. Tolerates plain strings, so functionally fine; simplification to plain `String` is a separate cleanup PR.
+
+### Initiative — Product list empty bugs (2026-05-19, PR #108 → #109)
 
 ### Initiative — Product list empty bugs (2026-05-19, PR #108 → #109)
 
