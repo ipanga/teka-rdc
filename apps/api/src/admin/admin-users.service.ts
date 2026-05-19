@@ -50,6 +50,17 @@ export class AdminUsersService {
           emailVerified: true,
           createdAt: true,
           lastLoginAt: true,
+          // Needed by the admin Vendeurs page to render KYC status + approve/
+          // reject inline. Null for non-SELLER users; clients that don't need
+          // this field can ignore it.
+          sellerProfile: {
+            select: {
+              id: true,
+              businessName: true,
+              applicationStatus: true,
+              rejectionReason: true,
+            },
+          },
         },
       }),
       this.prisma.user.count({ where }),
