@@ -36,13 +36,15 @@ interface Product {
 
 interface PaginatedResponse {
   data: Product[];
-  meta: {
+  pagination: {
     total: number;
     page: number;
     limit: number;
     totalPages: number;
   };
 }
+
+type StatusFilter = '' | 'PENDING_REVIEW' | 'ACTIVE' | 'REJECTED' | 'ARCHIVED' | 'DRAFT';
 
 export default function ProductModerationPage() {
   const t = useTranslations('Moderation');
@@ -52,6 +54,7 @@ export default function ProductModerationPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Rejection modal state
@@ -68,16 +71,17 @@ export default function ProductModerationPage() {
     setIsLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
+      if (statusFilter) params.set('status', statusFilter);
       const res = await apiFetch<PaginatedResponse>(`/v1/admin/products?${params}`);
       const rd = res.data;
       if (Array.isArray(rd)) { setProducts(rd); setTotalPages(1); }
-      else { setProducts(rd.data); setTotalPages(rd.meta?.totalPages ?? 1); }
+      else { setProducts(rd.data); setTotalPages(rd.pagination?.totalPages ?? 1); }
     } catch {
       // Error handled by apiFetch
     } finally {
       setIsLoading(false);
     }
-  }, [page]);
+  }, [page, statusFilter]);
 
   useEffect(() => {
     fetchProducts();
@@ -157,6 +161,32 @@ export default function ProductModerationPage() {
           <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">{t('pendingProducts')}</p>
         </div>
+      </div>
+
+      <div className="flex gap-2 mb-6 flex-wrap">
+        {([
+          { value: '', label: t('filterAll') },
+          { value: 'PENDING_REVIEW', label: t('filterPending') },
+          { value: 'ACTIVE', label: t('filterActive') },
+          { value: 'REJECTED', label: t('filterRejected') },
+          { value: 'ARCHIVED', label: t('filterArchived') },
+          { value: 'DRAFT', label: t('filterDraft') },
+        ] as { value: StatusFilter; label: string }[]).map((tab) => (
+          <button
+            key={tab.value}
+            onClick={() => {
+              setStatusFilter(tab.value);
+              setPage(1);
+            }}
+            className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+              statusFilter === tab.value
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'bg-background text-foreground border-border hover:bg-muted'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       <div className="bg-white rounded-xl border border-border overflow-hidden">
@@ -242,17 +272,23 @@ export default function ProductModerationPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                        product.status === 'APPROVED'
+                        product.status === 'ACTIVE'
                           ? 'bg-success/10 text-success'
                           : product.status === 'REJECTED'
                             ? 'bg-destructive/10 text-destructive'
-                            : 'bg-warning/10 text-warning'
+                            : product.status === 'PENDING_REVIEW'
+                              ? 'bg-warning/10 text-warning'
+                              : 'bg-secondary text-secondary-foreground'
                       }`}>
-                        {product.status === 'APPROVED'
-                          ? t('status_approved')
+                        {product.status === 'ACTIVE'
+                          ? t('status_active')
                           : product.status === 'REJECTED'
                             ? t('status_rejected')
-                            : t('status_pending')}
+                            : product.status === 'PENDING_REVIEW'
+                              ? t('status_pending')
+                              : product.status === 'ARCHIVED'
+                                ? t('status_archived')
+                                : t('status_draft')}
                       </span>
                     </td>
                     <td className="px-4 py-3">

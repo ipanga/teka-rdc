@@ -11,17 +11,25 @@ export class AdminProductsService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Returns a paginated list of PENDING_REVIEW products
+   * Returns a paginated list of products for admin oversight,
    * with first image, category, and seller info.
+   *
+   * When `status` is omitted, returns ALL products regardless of status —
+   * the admin "Produits" page is a full catalogue view, not a moderation
+   * queue. Pass `status=PENDING_REVIEW` to get the moderation subset.
+   * Approve/Reject actions still gate on PENDING_REVIEW server-side.
    */
-  async findPendingProducts(page: number = 1, limit: number = 20) {
+  async findProducts(page: number = 1, limit: number = 20, status?: string) {
     page = Math.max(1, page);
     limit = Math.min(Math.max(1, limit), 100);
     const skip = (page - 1) * limit;
 
+    const allowedStatuses = Object.values(ProductStatus) as string[];
     const where = {
-      status: ProductStatus.PENDING_REVIEW,
       deletedAt: null,
+      ...(status && allowedStatuses.includes(status)
+        ? { status: status as ProductStatus }
+        : {}),
     };
 
     const [data, total] = await Promise.all([

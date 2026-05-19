@@ -47,7 +47,7 @@ class ProductsRepository {
     );
     final data = response.data;
     final itemsRaw = data['data'] as List<dynamic>? ?? [];
-    final meta = data['meta'] as Map<String, dynamic>? ?? {};
+    final meta = data['pagination'] as Map<String, dynamic>? ?? {};
 
     final items = itemsRaw
         .map((e) => SellerProductModel.fromJson(e as Map<String, dynamic>))
