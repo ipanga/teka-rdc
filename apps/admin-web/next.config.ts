@@ -18,6 +18,14 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'res.cloudinary.com' },
     ],
   },
+  async redirects() {
+    return [
+      // /dashboard/users was the mixed buyers+sellers+admins list. Replaced
+      // by the role-scoped trio Acheteurs / Vendeurs / Administrateurs.
+      // Redirect any bookmarks to Acheteurs (the most common admin task).
+      { source: '/dashboard/users', destination: '/dashboard/buyers', permanent: true },
+    ];
+  },
 };
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
