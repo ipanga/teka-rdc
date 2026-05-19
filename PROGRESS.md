@@ -1,9 +1,61 @@
 # Teka RDC — Development Progress
 
 ## Current Phase: — (no active initiative; awaiting next direction)
-## Last completed: admin-web audit + nullable-phone/locale type alignment (2026-05-18, PR #105 → #106 → prod)
-## Status: Comprehensive admin-web audit after May 12-18 platform refactors. Surface largely clean — only 3 confirmed issues (all type-definition drift). Fixed and shipped. admin.teka.cd renders email-only login form, no Google/phone tabs, middleware redirects work.
-## Last Updated: 2026-05-18
+## Last completed: Admin Produits + Seller Mes produits empty-list bugs (2026-05-19, PR #108 → #109 → prod)
+## Status: Two independent root causes diagnosed + fixed. Admin /produits was a moderation queue (hardcoded PENDING_REVIEW filter); now a full product catalogue with status tabs (Tous/En attente/Actifs/Rejetés/Archivés/Brouillons). Seller /mes-produits had a response-shape mismatch (read `products`/`meta` instead of `data`/`pagination`). Smoked end-to-end in local Docker against dev DB; both fixes verified.
+## Last Updated: 2026-05-19
+
+### Initiative — Product list empty bugs (2026-05-19, PR #108 → #109)
+
+**Brief**: Two reported bugs — admin "Produits" menu shows empty list despite products in DB; seller "Mes produits" shows empty list. Larger brief also requested user-management refactor + profile management systems (deferred — out of scope for this PR per user sign-off).
+
+**Diagnosis** (read-only Explore subagent + direct code reading + dev DB queries):
+
+**Bug 1 — admin /produits empty**
+- Root cause: `apps/api/src/admin/admin-products.service.ts:23` hardcoded `where: { status: ProductStatus.PENDING_REVIEW }`. Page was effectively a moderation queue mislabeled "Produits".
+- Dev DB had 24 products (16 ACTIVE, 3 PENDING_REVIEW, 3 DRAFT, 1 REJECTED, 1 ARCHIVED) — only 3 visible to admin even though all 24 exist.
+
+**Bug 2 — seller /mes-produits empty**
+- Root cause: pure response-shape mismatch.
+- API at `products.service.ts:findSellerProducts` returns `{ data: [...], pagination: {...} }` (the canonical shape used everywhere else in the codebase).
+- seller-web at `dashboard/products/page.tsx:64-65` read `res.data.products` + `res.data.meta` — both keys are undefined → `setProducts(undefined || [])` always empty.
+- seller-mobile at `products_repository.dart:48-50` correctly read `data['data']` for items but `data['meta']` for pagination (pagination defaulted to zeros on mobile but items rendered).
+
+**Fix** (per user sign-off — all 3 questions): Full list + status filter; fix frontends to match API; ship just these two bugs.
+
+API:
+- `admin-products.service.ts`: `findPendingProducts(page, limit)` → `findProducts(page, limit, status?)`. When `status` omitted, returns all statuses. Status whitelisted against `ProductStatus` enum (invalid value falls back to all — no SQL injection).
+- `admin-products.controller.ts` @Get() handler exposes `?status=` query param.
+
+admin-web:
+- Status filter tabs: Tous / En attente / Actifs / Rejetés / Archivés / Brouillons
+- Status badge renders all 6 ProductStatus values (was only APPROVED/REJECTED/pending)
+- Approve/Reject buttons remain gated to PENDING_REVIEW rows (existing service logic unchanged)
+- Response-shape parity: read `pagination` not `meta`
+- 6 new FR translation keys
+
+seller-web:
+- `seller-web/.../products/page.tsx`: read `res.data.data` + `res.data.pagination`. Update `ProductsResponse` type.
+
+seller-mobile:
+- `products_repository.dart`: read `data['pagination']`.
+
+**Verification** (local Docker, dev DB):
+- `pnpm --filter {api,admin-web,seller-web} type-check`: clean
+- `pnpm --filter api test:e2e`: 90/90 passing
+- `flutter analyze` (seller-mobile): no new warnings
+- Browser smoke (admin@teka.cd ADMIN + marie@shop.cd SELLER, with temporary COOKIE_DOMAIN= override for localhost):
+  - Admin /Produits: 24 listed; "En attente" → 3; "Actifs" → 16; "Rejetés" → 1; "Brouillons" → 3; "Archivés" → 1
+  - Approve/Reject buttons gate to PENDING_REVIEW only
+  - Seller (Marie) /Mes Produits: all 11 of her products listed across all statuses with correct prices and actions
+
+**Ship cycle**: PR #108 → develop ✓ → PR #109 → main ✓ → deploy `26117131092` succeeded → back-merge main→develop ✓. Prod smoke: admin.teka.cd/login + seller.teka.cd/login → 200; api.teka.cd /admin/products + /sellers/products → 401 (auth working).
+
+**Out of scope (flagged for follow-up)**:
+- Product titles render as `{"en":"...","fr":"..."}` JSON strings (seed-data shape from before the May 2026 monolingual refactor). Pre-existing — affects buyer-web SEO too. Separate cleanup PR.
+- Larger architecture asks from the brief (user-management refactor into Buyers/Sellers/Admins split; profile management systems for buyer+seller+admin). Each is multi-PR scope; needs separate plan.
+
+### Initiative — Admin dashboard audit + sync (2026-05-18, PR #105 → #106)
 
 ### Initiative — Admin dashboard audit + sync (2026-05-18, PR #105 → #106)
 
