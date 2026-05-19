@@ -21,8 +21,9 @@ export function Sidebar() {
 
   const navItems: NavItem[] = [
     { href: '/dashboard', label: t('dashboard'), icon: '\u2302' },
-    { href: '/dashboard/users', label: t('users'), icon: '\u2637' },
+    { href: '/dashboard/buyers', label: t('buyers'), icon: '\u2637' },
     { href: '/dashboard/sellers', label: t('sellers'), icon: '\u2606' },
+    { href: '/dashboard/admins', label: t('admins'), icon: '\u272a' },
     { href: '/dashboard/categories', label: t('categories'), icon: '\u2630' },
     { href: '/dashboard/products', label: t('products'), icon: '\u2610' },
     { href: '/dashboard/orders', label: t('orders'), icon: '\uD83D\uDCE6' },
