@@ -25,8 +25,8 @@ interface Product {
 }
 
 interface ProductsResponse {
-  products: Product[];
-  meta?: {
+  data: Product[];
+  pagination?: {
     total: number;
     page: number;
     limit: number;
@@ -61,8 +61,8 @@ export default function ProductsListPage() {
         params.set('status', statusFilter);
       }
       const res = await apiFetch<ProductsResponse>(`/v1/sellers/products?${params}`);
-      setProducts(res.data.products || []);
-      setTotalPages(res.data.meta?.totalPages ?? 1);
+      setProducts(res.data.data || []);
+      setTotalPages(res.data.pagination?.totalPages ?? 1);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
