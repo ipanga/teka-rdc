@@ -19,6 +19,7 @@ import '../../features/checkout/presentation/screens/payment_pending_screen.dart
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/orders/presentation/screens/order_detail_screen.dart';
 import '../../features/orders/presentation/screens/orders_screen.dart';
+import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/content/presentation/screens/content_page_screen.dart';
 import '../../features/reviews/presentation/screens/product_reviews_screen.dart';
 import '../../features/wishlist/presentation/screens/wishlist_screen.dart';
@@ -146,6 +147,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/wishlist',
         builder: (context, state) => const WishlistScreen(),
+      ),
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => const ProfileScreen(),
       ),
       // /messages and /messages/:id retired 2026-05-17 — direct buyer↔
       // seller messaging removed in favour of "Contacter le support".

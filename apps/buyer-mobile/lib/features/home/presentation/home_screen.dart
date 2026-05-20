@@ -81,12 +81,9 @@ class HomeScreen extends ConsumerWidget {
             onPressed: () => context.push('/search'),
           ),
           IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: l10n.authLogout,
-            onPressed: () async {
-              await ref.read(authProvider.notifier).logout();
-              if (context.mounted) context.go('/auth/login');
-            },
+            icon: const Icon(Icons.person_outline),
+            tooltip: l10n.profileTitle,
+            onPressed: () => context.push('/profile'),
           ),
         ],
       ),
