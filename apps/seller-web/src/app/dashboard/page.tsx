@@ -13,9 +13,12 @@ interface ProductStats {
   draft: number;
 }
 
+// Canonical paginated response shape across all admin/seller APIs.
+// Used to be `{ products, meta }` here — that didn't match the API's
+// `{ data, pagination }` envelope, so stats cards silently rendered 0.
 interface ProductsResponse {
-  products: SellerProduct[];
-  meta?: {
+  data: SellerProduct[];
+  pagination?: {
     total: number;
     page: number;
     limit: number;
@@ -27,7 +30,6 @@ export default function SellerDashboardPage() {
   const t = useTranslations('Dashboard');
   const tEarnings = useTranslations('Earnings');
   const tReviews = useTranslations('Reviews');
-  const tMessaging = useTranslations('Messaging');
   const [stats, setStats] = useState<ProductStats>({ total: 0, active: 0, pending: 0, draft: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [wallet, setWallet] = useState<SellerWallet | null>(null);
@@ -37,7 +39,6 @@ export default function SellerDashboardPage() {
     totalReviews: 0,
   });
   const [reviewStatsLoading, setReviewStatsLoading] = useState(true);
-  const [unreadMessages, setUnreadMessages] = useState(0);
 
   const formatPrice = (centimes: string) => {
     const amount = Number(centimes) / 100;
@@ -53,17 +54,17 @@ export default function SellerDashboardPage() {
     async function loadStats() {
       try {
         const [allRes, activeRes, pendingRes, draftRes] = await Promise.allSettled([
-          apiFetch<{ meta?: { total?: number } }>('/v1/sellers/products?page=1&limit=1'),
-          apiFetch<{ meta?: { total?: number } }>('/v1/sellers/products?page=1&limit=1&status=ACTIVE'),
-          apiFetch<{ meta?: { total?: number } }>('/v1/sellers/products?page=1&limit=1&status=PENDING_REVIEW'),
-          apiFetch<{ meta?: { total?: number } }>('/v1/sellers/products?page=1&limit=1&status=DRAFT'),
+          apiFetch<{ pagination?: { total?: number } }>('/v1/sellers/products?page=1&limit=1'),
+          apiFetch<{ pagination?: { total?: number } }>('/v1/sellers/products?page=1&limit=1&status=ACTIVE'),
+          apiFetch<{ pagination?: { total?: number } }>('/v1/sellers/products?page=1&limit=1&status=PENDING_REVIEW'),
+          apiFetch<{ pagination?: { total?: number } }>('/v1/sellers/products?page=1&limit=1&status=DRAFT'),
         ]);
 
         setStats({
-          total: allRes.status === 'fulfilled' ? (allRes.value.data.meta?.total ?? 0) : 0,
-          active: activeRes.status === 'fulfilled' ? (activeRes.value.data.meta?.total ?? 0) : 0,
-          pending: pendingRes.status === 'fulfilled' ? (pendingRes.value.data.meta?.total ?? 0) : 0,
-          draft: draftRes.status === 'fulfilled' ? (draftRes.value.data.meta?.total ?? 0) : 0,
+          total: allRes.status === 'fulfilled' ? (allRes.value.data.pagination?.total ?? 0) : 0,
+          active: activeRes.status === 'fulfilled' ? (activeRes.value.data.pagination?.total ?? 0) : 0,
+          pending: pendingRes.status === 'fulfilled' ? (pendingRes.value.data.pagination?.total ?? 0) : 0,
+          draft: draftRes.status === 'fulfilled' ? (draftRes.value.data.pagination?.total ?? 0) : 0,
         });
       } catch {
         // Stats stay at 0
@@ -86,7 +87,7 @@ export default function SellerDashboardPage() {
     async function loadReviewStats() {
       try {
         const res = await apiFetch<ProductsResponse>('/v1/sellers/products?page=1&limit=100&status=ACTIVE');
-        const prods = res.data.products || [];
+        const prods = res.data.data || [];
         let totalReviews = 0;
         let ratingSum = 0;
         let ratedCount = 0;
@@ -110,19 +111,9 @@ export default function SellerDashboardPage() {
       }
     }
 
-    async function loadUnreadMessages() {
-      try {
-        const res = await apiFetch<{ count: number }>('/v1/messages/unread-count');
-        setUnreadMessages(res.data?.count ?? (typeof res.data === 'number' ? (res.data as unknown as number) : 0));
-      } catch {
-        // Unread stays at 0
-      }
-    }
-
     loadStats();
     loadWallet();
     loadReviewStats();
-    loadUnreadMessages();
   }, []);
 
   const renderStars = (rating: number) => {
@@ -184,9 +175,8 @@ export default function SellerDashboardPage() {
         ))}
       </div>
 
-      {/* Reviews + Messages cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-        {/* Reviews stats card */}
+      {/* Reviews stats */}
+      <div className="mb-8">
         <Link
           href="/dashboard/reviews"
           className="block bg-white rounded-xl border border-border p-5 hover:shadow-sm transition-shadow"
@@ -210,28 +200,6 @@ export default function SellerDashboardPage() {
             ) : (
               `${reviewStats.totalReviews} ${tReviews('totalReviews').toLowerCase()}`
             )}
-          </p>
-        </Link>
-
-        {/* Messages card */}
-        <Link
-          href="/dashboard/messages"
-          className="block bg-white rounded-xl border border-border p-5 hover:shadow-sm transition-shadow"
-        >
-          <h3 className="text-sm font-medium text-muted-foreground">{tMessaging('title')}</h3>
-          <div className="flex items-center gap-3 mt-2">
-            <span className="text-3xl">{'\u2709'}</span>
-            {unreadMessages > 0 && (
-              <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full bg-primary text-primary-foreground text-sm font-bold">
-                {unreadMessages > 99 ? '99+' : unreadMessages}
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            {unreadMessages > 0
-              ? `${unreadMessages} ${tMessaging('unread')}`
-              : tMessaging('conversations')
-            }
           </p>
         </Link>
       </div>
