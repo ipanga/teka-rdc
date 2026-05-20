@@ -23,7 +23,7 @@ class ProductImageModel {
 
 class BrowseProductModel {
   final String id;
-  final Map<String, dynamic> title;
+  final String title;
   final String priceCDF;
   final String? priceUSD;
   final String condition;
@@ -47,9 +47,7 @@ class BrowseProductModel {
   factory BrowseProductModel.fromJson(Map<String, dynamic> json) {
     return BrowseProductModel(
       id: json['id'] as String,
-      title: json['title'] is Map
-          ? Map<String, dynamic>.from(json['title'] as Map)
-          : {'fr': json['title'].toString()},
+      title: json['title']?.toString() ?? '',
       priceCDF: json['priceCDF']?.toString() ?? '0',
       priceUSD: json['priceUSD']?.toString(),
       condition: json['condition'] as String? ?? 'NEW',
@@ -62,10 +60,6 @@ class BrowseProductModel {
       ),
       categoryId: json['categoryId'] as String?,
     );
-  }
-
-  String localizedTitle(String locale) {
-    return title[locale] as String? ?? title['fr'] as String? ?? title['en'] as String? ?? '';
   }
 
   bool get isLowStock => quantity > 0 && quantity < 5;
@@ -88,8 +82,8 @@ class BrowseProductSeller {
 
 class ProductDetailModel {
   final String id;
-  final Map<String, dynamic> title;
-  final Map<String, dynamic>? description;
+  final String title;
+  final String? description;
   final String priceCDF;
   final String? priceUSD;
   final String condition;
@@ -118,14 +112,8 @@ class ProductDetailModel {
   factory ProductDetailModel.fromJson(Map<String, dynamic> json) {
     return ProductDetailModel(
       id: json['id'] as String,
-      title: json['title'] is Map
-          ? Map<String, dynamic>.from(json['title'] as Map)
-          : {'fr': json['title'].toString()},
-      description: json['description'] is Map
-          ? Map<String, dynamic>.from(json['description'] as Map)
-          : json['description'] != null
-              ? {'fr': json['description'].toString()}
-              : null,
+      title: json['title']?.toString() ?? '',
+      description: json['description']?.toString(),
       priceCDF: json['priceCDF']?.toString() ?? '0',
       priceUSD: json['priceUSD']?.toString(),
       condition: json['condition'] as String? ?? 'NEW',
@@ -155,18 +143,6 @@ class ProductDetailModel {
     );
   }
 
-  String localizedTitle(String locale) {
-    return title[locale] as String? ?? title['fr'] as String? ?? title['en'] as String? ?? '';
-  }
-
-  String localizedDescription(String locale) {
-    if (description == null) return '';
-    return description![locale] as String? ??
-        description!['fr'] as String? ??
-        description!['en'] as String? ??
-        '';
-  }
-
   bool get isLowStock => quantity > 0 && quantity < 5;
   bool get isOutOfStock => quantity <= 0;
 }
@@ -187,41 +163,29 @@ class ProductSpecification {
 
 class ProductCategory {
   final String id;
-  final Map<String, dynamic> name;
+  final String name;
 
   const ProductCategory({required this.id, required this.name});
 
   factory ProductCategory.fromJson(Map<String, dynamic> json) {
     return ProductCategory(
       id: json['id'] as String,
-      name: json['name'] is Map
-          ? Map<String, dynamic>.from(json['name'] as Map)
-          : {'fr': json['name'].toString()},
+      name: json['name']?.toString() ?? '',
     );
-  }
-
-  String localizedName(String locale) {
-    return name[locale] as String? ?? name['fr'] as String? ?? name['en'] as String? ?? '';
   }
 }
 
 class BreadcrumbItem {
   final String id;
-  final Map<String, dynamic> name;
+  final String name;
 
   const BreadcrumbItem({required this.id, required this.name});
 
   factory BreadcrumbItem.fromJson(Map<String, dynamic> json) {
     return BreadcrumbItem(
       id: json['id'] as String,
-      name: json['name'] is Map
-          ? Map<String, dynamic>.from(json['name'] as Map)
-          : {'fr': json['name'].toString()},
+      name: json['name']?.toString() ?? '',
     );
-  }
-
-  String localizedName(String locale) {
-    return name[locale] as String? ?? name['fr'] as String? ?? name['en'] as String? ?? '';
   }
 }
 

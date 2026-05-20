@@ -27,8 +27,7 @@ class HomeScreen extends ConsumerWidget {
     final authState = ref.watch(authProvider);
     final userName = authState.user?['firstName'] as String? ?? '';
     final cityState = ref.watch(cityProvider);
-    final locale = Localizations.localeOf(context).languageCode;
-    final cityName = cityState.selectedCity?.getLocalizedName(locale);
+    final cityName = cityState.selectedCity?.name;
     final categories = ref.watch(categoriesProvider);
     final popular = ref.watch(popularProductsProvider);
     final newest = ref.watch(newestProductsProvider);

@@ -1,6 +1,6 @@
 class FlashDealProduct {
   final String id;
-  final Map<String, String> title;
+  final String title;
   final String priceCDF; // BigInt as string (centimes)
   final List<String> imageUrls;
 
@@ -27,32 +27,18 @@ class FlashDealProduct {
 
     return FlashDealProduct(
       id: json['id'] as String,
-      title: _parseTranslationMap(json['title']),
+      title: json['title']?.toString() ?? '',
       priceCDF: json['priceCDF']?.toString() ?? '0',
       imageUrls: urls,
     );
   }
 
-  String localizedTitle(String locale) {
-    return title[locale] ?? title['fr'] ?? title['en'] ?? '';
-  }
-
   String? get firstImageUrl => imageUrls.isNotEmpty ? imageUrls.first : null;
-
-  static Map<String, String> _parseTranslationMap(dynamic value) {
-    if (value is Map) {
-      return value.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
-    }
-    if (value is String) {
-      return {'fr': value};
-    }
-    return {'fr': ''};
-  }
 }
 
 class FlashDealModel {
   final String id;
-  final Map<String, String> title;
+  final String title;
   final int? discountPercent;
   final String? discountCDF; // BigInt as string (centimes)
   final String startsAt;
@@ -72,7 +58,7 @@ class FlashDealModel {
   factory FlashDealModel.fromJson(Map<String, dynamic> json) {
     return FlashDealModel(
       id: json['id'] as String,
-      title: _parseTranslationMap(json['title']),
+      title: json['title']?.toString() ?? '',
       discountPercent: json['discountPercent'] as int?,
       discountCDF: json['discountCDF']?.toString(),
       startsAt: json['startsAt']?.toString() ?? '',
@@ -81,10 +67,6 @@ class FlashDealModel {
         json['product'] as Map<String, dynamic>? ?? {},
       ),
     );
-  }
-
-  String localizedTitle(String locale) {
-    return title[locale] ?? title['fr'] ?? title['en'] ?? '';
   }
 
   /// Whether this deal is currently active
@@ -116,15 +98,5 @@ class FlashDealModel {
       return result > 0 ? result : 0;
     }
     return original;
-  }
-
-  static Map<String, String> _parseTranslationMap(dynamic value) {
-    if (value is Map) {
-      return value.map((k, v) => MapEntry(k.toString(), v?.toString() ?? ''));
-    }
-    if (value is String) {
-      return {'fr': value};
-    }
-    return {'fr': ''};
   }
 }

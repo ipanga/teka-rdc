@@ -1027,8 +1027,7 @@ class _ReviewStep extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              cartState.items[i].product
-                                  .localizedTitle(locale),
+                              cartState.items[i].product.title,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -1309,8 +1308,8 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
 
     final data = <String, dynamic>{
       'province': _selectedCity!.province,
-      'town': _selectedCity!.name['fr'] ?? '',
-      'neighborhood': _selectedCommune!.name['fr'] ?? '',
+      'town': _selectedCity!.name,
+      'neighborhood': _selectedCommune!.name,
       'cityId': _selectedCity!.id,
       'communeId': _selectedCommune!.id,
     };
@@ -1339,7 +1338,6 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
   @override
   Widget build(BuildContext context) {
     final l10n = widget.l10n;
-    final locale = Localizations.localeOf(context).languageCode;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -1418,7 +1416,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                         .map((city) => DropdownMenuItem(
                               value: city.id,
                               child: Text(
-                                '${city.getLocalizedName(locale)} (${city.province})',
+                                '${city.name} (${city.province})',
                                 style: const TextStyle(fontSize: 14),
                               ),
                             ))
@@ -1478,7 +1476,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                           .map((commune) => DropdownMenuItem(
                                 value: commune.id,
                                 child: Text(
-                                  commune.getLocalizedName(locale),
+                                  commune.name,
                                   style: const TextStyle(fontSize: 14),
                                 ),
                               ))

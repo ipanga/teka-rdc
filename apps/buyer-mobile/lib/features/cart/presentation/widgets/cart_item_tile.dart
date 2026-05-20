@@ -6,21 +6,19 @@ import '../../data/models/cart_model.dart';
 
 class CartItemTile extends StatelessWidget {
   final CartItemModel item;
-  final String locale;
   final ValueChanged<int> onQuantityChanged;
   final VoidCallback onRemove;
 
   const CartItemTile({
     super.key,
     required this.item,
-    required this.locale,
     required this.onQuantityChanged,
     required this.onRemove,
   });
 
   @override
   Widget build(BuildContext context) {
-    final title = item.product.localizedTitle(locale);
+    final title = item.product.title;
     final unitPrice = formatCDF(item.product.priceCDF);
     final subtotal = formatCDF(item.subtotalCDF);
     final imageUrl = item.product.thumbnailUrl;

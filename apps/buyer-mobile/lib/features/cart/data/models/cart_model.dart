@@ -70,7 +70,7 @@ class CartItemModel {
 }
 
 class CartItemProduct {
-  final Map<String, dynamic> title;
+  final String title;
   final String priceCDF;
   final String? priceUSD;
   final int quantity; // stock quantity
@@ -90,9 +90,7 @@ class CartItemProduct {
 
   factory CartItemProduct.fromJson(Map<String, dynamic> json) {
     return CartItemProduct(
-      title: json['title'] is Map
-          ? Map<String, dynamic>.from(json['title'] as Map)
-          : {'fr': json['title']?.toString() ?? ''},
+      title: json['title']?.toString() ?? '',
       priceCDF: json['priceCDF']?.toString() ?? '0',
       priceUSD: json['priceUSD']?.toString(),
       quantity: json['quantity'] as int? ?? 0,
@@ -100,12 +98,5 @@ class CartItemProduct {
       sellerId: json['sellerId'] as String?,
       sellerName: json['sellerName'] as String?,
     );
-  }
-
-  String localizedTitle(String locale) {
-    return title[locale] as String? ??
-        title['fr'] as String? ??
-        title['en'] as String? ??
-        '';
   }
 }

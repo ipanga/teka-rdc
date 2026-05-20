@@ -20,7 +20,6 @@ class ProductDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
-    final locale = Localizations.localeOf(context).languageCode;
     final productAsync = ref.watch(productDetailProvider(productId));
 
     return Scaffold(
@@ -32,8 +31,8 @@ class ProductDetailScreen extends ConsumerWidget {
       ),
       body: productAsync.when(
         data: (product) {
-          final title = product.localizedTitle(locale);
-          final description = product.localizedDescription(locale);
+          final title = product.title;
+          final description = product.description ?? '';
           final price = formatCDF(product.priceCDF);
           final priceUSD = product.priceUSD != null
               ? formatUSD(product.priceUSD!)
@@ -87,8 +86,7 @@ class ProductDetailScreen extends ConsumerWidget {
                                             ),
                                           ),
                                         Text(
-                                          product.breadcrumb[i]
-                                              .localizedName(locale),
+                                          product.breadcrumb[i].name,
                                           style: const TextStyle(
                                             color: TekaColors.mutedForeground,
                                             fontSize: 12,
