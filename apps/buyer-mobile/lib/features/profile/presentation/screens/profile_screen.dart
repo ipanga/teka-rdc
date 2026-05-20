@@ -25,8 +25,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _loading = true;
   bool _uploading = false;
   bool _saving = false;
+  bool _notifSaving = false;
 
   BuyerProfile? _user;
+  NotificationPrefs? _notifPrefs;
 
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
@@ -48,16 +50,60 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _load() async {
     try {
-      final me = await ref.read(profileRepositoryProvider).getMe();
+      final repo = ref.read(profileRepositoryProvider);
+      final me = await repo.getMe();
+      // Notification prefs are best-effort — failure shouldn't block the
+      // profile screen from rendering. Defaults are all-on.
+      NotificationPrefs prefs;
+      try {
+        prefs = await repo.getNotificationPrefs();
+      } catch (_) {
+        prefs = const NotificationPrefs(
+          smsOrderUpdates: true,
+          smsBroadcasts: true,
+        );
+      }
       if (!mounted) return;
       setState(() {
         _user = me;
+        _notifPrefs = prefs;
         _firstNameCtrl.text = me.firstName ?? '';
         _lastNameCtrl.text = me.lastName ?? '';
         _emailCtrl.text = me.email ?? '';
       });
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _updateNotifPref({
+    bool? smsOrderUpdates,
+    bool? smsBroadcasts,
+  }) async {
+    final l10n = AppLocalizations.of(context)!;
+    final previous = _notifPrefs;
+    setState(() {
+      _notifPrefs = NotificationPrefs(
+        smsOrderUpdates: smsOrderUpdates ?? previous?.smsOrderUpdates ?? true,
+        smsBroadcasts: smsBroadcasts ?? previous?.smsBroadcasts ?? true,
+      );
+      _notifSaving = true;
+    });
+    try {
+      final next = await ref
+          .read(profileRepositoryProvider)
+          .updateNotificationPrefs(
+            smsOrderUpdates: smsOrderUpdates,
+            smsBroadcasts: smsBroadcasts,
+          );
+      if (!mounted) return;
+      setState(() => _notifPrefs = next);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _notifPrefs = previous);
+      _toast(l10n.profileNotifError, error: true);
+    } finally {
+      if (mounted) setState(() => _notifSaving = false);
     }
   }
 
@@ -266,6 +312,42 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         _saving ? l10n.profileSaving : l10n.profileSave,
                       ),
                     ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Notifications
+            _Section(
+              title: l10n.profileSectionNotifications,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    l10n.profileNotificationsHint,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: TekaColors.mutedForeground,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(l10n.profileNotifOrderUpdates),
+                    subtitle: Text(l10n.profileNotifOrderUpdatesDesc),
+                    value: _notifPrefs?.smsOrderUpdates ?? true,
+                    onChanged: _notifSaving
+                        ? null
+                        : (v) => _updateNotifPref(smsOrderUpdates: v),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(l10n.profileNotifBroadcasts),
+                    subtitle: Text(l10n.profileNotifBroadcastsDesc),
+                    value: _notifPrefs?.smsBroadcasts ?? true,
+                    onChanged: _notifSaving
+                        ? null
+                        : (v) => _updateNotifPref(smsBroadcasts: v),
                   ),
                 ],
               ),

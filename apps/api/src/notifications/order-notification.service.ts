@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationPrefsService } from '../users/notification-prefs.service';
 
 /**
  * Handles SMS notifications for order lifecycle events.
@@ -8,14 +9,18 @@ import { PrismaService } from '../prisma/prisma.service';
  * and never throw. This ensures notifications never block or break
  * the main order flow.
  *
- * Currently uses Logger to output SMS messages. When Africa's Talking
- * is integrated, swap the `sendSms` helper to call the real SMS gateway.
+ * Respects per-user opt-out via NotificationPrefsService — users who set
+ * `smsOrderUpdates = false` skip these sends. Default is opt-in (NULL
+ * prefs or missing key both resolve to true).
  */
 @Injectable()
 export class OrderNotificationService {
   private readonly logger = new Logger(OrderNotificationService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationPrefs: NotificationPrefsService,
+  ) {}
 
   /**
    * Notifies buyer and seller that a new order has been placed.
@@ -30,8 +35,11 @@ export class OrderNotificationService {
       const subtotalCDF = this.formatCDF(enriched.subtotalCDF);
       const itemCount = items.length;
 
-      // SMS to buyer
-      if (buyer?.phone) {
+      // SMS to buyer (respects per-user opt-out)
+      if (
+        buyer?.phone &&
+        (await this.notificationPrefs.shouldSendOrderUpdates(buyer.id))
+      ) {
         const buyerMsg =
           `Votre commande ${orderNumber} a été passée avec succès. ` +
           `Montant: ${totalCDF} FC. ` +
@@ -39,11 +47,14 @@ export class OrderNotificationService {
         this.sendSms(buyer.phone, buyerMsg);
       }
 
-      // SMS to seller
-      if (seller?.phone) {
-        const businessName = seller.sellerProfile?.businessName
-          ? ` (${seller.sellerProfile.businessName})`
-          : '';
+      // SMS to seller (respects per-user opt-out)
+      if (
+        seller?.phone &&
+        (await this.notificationPrefs.shouldSendOrderUpdates(seller.id))
+      ) {
+        // Note: businessName previously inlined here was unused after the
+        // 2026-03 SMS template trim. Kept the seller variable for the
+        // opt-out check; the SMS body itself doesn't reference businessName.
         const sellerMsg =
           `Nouvelle commande ${orderNumber} reçue ! ` +
           `${itemCount} article(s) pour ${subtotalCDF} FC. ` +
@@ -68,7 +79,10 @@ export class OrderNotificationService {
 
       const { orderNumber, buyer } = enriched;
 
-      if (buyer?.phone) {
+      if (
+        buyer?.phone &&
+        (await this.notificationPrefs.shouldSendOrderUpdates(buyer.id))
+      ) {
         const msg =
           `Bonne nouvelle ! Votre commande ${orderNumber} a été confirmée par le vendeur. ` +
           `Préparation en cours.`;
@@ -95,7 +109,10 @@ export class OrderNotificationService {
       const neighborhood = deliveryAddress?.neighborhood ?? '';
       const locationParts = [town, neighborhood].filter(Boolean).join(', ');
 
-      if (buyer?.phone) {
+      if (
+        buyer?.phone &&
+        (await this.notificationPrefs.shouldSendOrderUpdates(buyer.id))
+      ) {
         const msg =
           `Votre commande ${orderNumber} a été expédiée ! ` +
           `Livraison prévue à ${locationParts}.`;
@@ -119,7 +136,10 @@ export class OrderNotificationService {
 
       const { orderNumber, buyer } = enriched;
 
-      if (buyer?.phone) {
+      if (
+        buyer?.phone &&
+        (await this.notificationPrefs.shouldSendOrderUpdates(buyer.id))
+      ) {
         const msg =
           `Votre commande ${orderNumber} a été livrée. ` +
           `Merci pour votre achat sur Teka !`;
@@ -149,11 +169,17 @@ export class OrderNotificationService {
         `La commande ${orderNumber} a été annulée. ` +
         `Raison: ${displayReason}.`;
 
-      if (buyer?.phone) {
+      if (
+        buyer?.phone &&
+        (await this.notificationPrefs.shouldSendOrderUpdates(buyer.id))
+      ) {
         this.sendSms(buyer.phone, msg);
       }
 
-      if (seller?.phone) {
+      if (
+        seller?.phone &&
+        (await this.notificationPrefs.shouldSendOrderUpdates(seller.id))
+      ) {
         this.sendSms(seller.phone, msg);
       }
     } catch (error) {
