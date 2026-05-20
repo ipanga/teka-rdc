@@ -30,6 +30,7 @@ export function Sidebar() {
     { href: '/dashboard/earnings', label: t('earnings'), icon: '\uD83D\uDCB0' },
     { href: '/dashboard/reviews', label: t('reviews'), icon: '\u2605' },
     { href: '/dashboard/promotions', label: t('promotions'), icon: '\uD83C\uDFF7' },
+    { href: '/dashboard/profile', label: t('profile'), icon: '\uD83D\uDC64' },
   ];
 
   const handleLogout = async () => {
