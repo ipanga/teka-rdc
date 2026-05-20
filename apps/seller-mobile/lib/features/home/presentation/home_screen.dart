@@ -531,7 +531,6 @@ class _RecentProductItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final priceFormat = NumberFormat('#,###', 'fr');
 
     return Card(
@@ -559,7 +558,7 @@ class _RecentProductItem extends StatelessWidget {
           ),
         ),
         title: Text(
-          product.getLocalizedTitle(l10n.localeName),
+          product.title,
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,

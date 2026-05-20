@@ -20,7 +20,7 @@ class DynamicAttributeField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = attribute.getLocalizedName(locale);
+    final label = attribute.name;
     final l10n = AppLocalizations.of(context)!;
 
     switch (attribute.type) {

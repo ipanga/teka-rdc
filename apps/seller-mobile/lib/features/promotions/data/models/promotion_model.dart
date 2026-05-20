@@ -1,30 +1,16 @@
 class PromotionProduct {
   final String id;
-  final Map<String, String> title;
+  final String title;
 
   const PromotionProduct({
     required this.id,
     required this.title,
   });
 
-  String getLocalizedTitle(String locale) {
-    return title[locale] ?? title['fr'] ?? title.values.firstOrNull ?? '';
-  }
-
   factory PromotionProduct.fromJson(Map<String, dynamic> json) {
-    final titleRaw = json['title'];
-    Map<String, String> titleMap;
-    if (titleRaw is Map) {
-      titleMap = titleRaw.map((k, v) => MapEntry(k.toString(), v.toString()));
-    } else if (titleRaw is String) {
-      titleMap = {'fr': titleRaw};
-    } else {
-      titleMap = {'fr': ''};
-    }
-
     return PromotionProduct(
       id: json['id'] as String? ?? '',
-      title: titleMap,
+      title: json['title']?.toString() ?? '',
     );
   }
 }
@@ -32,8 +18,8 @@ class PromotionProduct {
 class PromotionModel {
   final String id;
   final String type;
-  final Map<String, String> title;
-  final Map<String, String>? description;
+  final String title;
+  final String? description;
   final int? discountPercent;
   final String? discountCDF;
   final String status;
@@ -60,17 +46,6 @@ class PromotionModel {
     this.product,
   });
 
-  String getLocalizedTitle(String locale) {
-    return title[locale] ?? title['fr'] ?? title.values.firstOrNull ?? '';
-  }
-
-  String? getLocalizedDescription(String locale) {
-    if (description == null || description!.isEmpty) return null;
-    return description![locale] ??
-        description!['fr'] ??
-        description!.values.firstOrNull;
-  }
-
   DateTime get startsAtDate => DateTime.parse(startsAt);
   DateTime get endsAtDate => DateTime.parse(endsAt);
   DateTime get createdAtDate => DateTime.parse(createdAt);
@@ -86,30 +61,14 @@ class PromotionModel {
   }
 
   factory PromotionModel.fromJson(Map<String, dynamic> json) {
-    Map<String, String> parseTranslatable(dynamic raw) {
-      if (raw is Map) {
-        return raw.map((k, v) => MapEntry(k.toString(), v.toString()));
-      } else if (raw is String) {
-        return {'fr': raw};
-      }
-      return {'fr': ''};
-    }
-
-    final descRaw = json['description'];
-    Map<String, String>? descMap;
-    if (descRaw is Map && descRaw.isNotEmpty) {
-      descMap = descRaw.map((k, v) => MapEntry(k.toString(), v.toString()));
-    } else if (descRaw is String && descRaw.isNotEmpty) {
-      descMap = {'fr': descRaw};
-    }
-
+    final descStr = json['description']?.toString();
     final productRaw = json['product'] as Map<String, dynamic>?;
 
     return PromotionModel(
       id: json['id'] as String? ?? '',
       type: json['type'] as String? ?? 'PROMOTION',
-      title: parseTranslatable(json['title']),
-      description: descMap,
+      title: json['title']?.toString() ?? '',
+      description: descStr != null && descStr.isNotEmpty ? descStr : null,
       discountPercent: json['discountPercent'] as int?,
       discountCDF: json['discountCDF']?.toString(),
       status: json['status'] as String? ?? 'DRAFT',

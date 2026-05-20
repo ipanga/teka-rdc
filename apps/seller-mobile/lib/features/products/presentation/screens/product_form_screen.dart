@@ -43,12 +43,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   void initState() {
     super.initState();
     final p = widget.product;
-    // Platform is French-only since May 2026. The model's parseTranslatable
-    // still wraps plain-string API responses into a {fr: value} map for
-    // backward compatibility with older rows; read .['fr'] here too.
-    _titleFrController = TextEditingController(text: p?.title['fr'] ?? '');
+    _titleFrController = TextEditingController(text: p?.title ?? '');
     _descriptionFrController =
-        TextEditingController(text: p?.description['fr'] ?? '');
+        TextEditingController(text: p?.description ?? '');
     _priceCDFController = TextEditingController(
       text: p != null ? p.priceCDFDisplay.toString() : '',
     );
