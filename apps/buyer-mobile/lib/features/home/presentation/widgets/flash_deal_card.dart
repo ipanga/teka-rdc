@@ -52,7 +52,6 @@ class _FlashDealCardState extends State<FlashDealCard> {
 
   @override
   Widget build(BuildContext context) {
-    final locale = Localizations.localeOf(context).languageCode;
     final deal = widget.deal;
     final product = deal.product;
     final imageUrl = product.firstImageUrl;
@@ -133,7 +132,7 @@ class _FlashDealCardState extends State<FlashDealCard> {
                   children: [
                     // Product title
                     Text(
-                      product.localizedTitle(locale),
+                      product.title,
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,

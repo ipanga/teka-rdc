@@ -233,7 +233,7 @@ class _CityCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
-                    city.getLocalizedName(locale),
+                    city.name,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           fontWeight:
                               isSelected ? FontWeight.w600 : FontWeight.w500,

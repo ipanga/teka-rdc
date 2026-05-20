@@ -13,7 +13,6 @@ class CartScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
-    final locale = Localizations.localeOf(context).languageCode;
     final cartState = ref.watch(cartProvider);
 
     return Scaffold(
@@ -45,7 +44,6 @@ class CartScreen extends ConsumerWidget {
                       final item = cartState.items[index];
                       return CartItemTile(
                         item: item,
-                        locale: locale,
                         onQuantityChanged: (newQuantity) {
                           ref
                               .read(cartProvider.notifier)

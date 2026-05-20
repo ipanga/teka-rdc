@@ -160,8 +160,8 @@ class _BannerSlide extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = banner.localizedTitle(locale);
-    final subtitle = banner.localizedSubtitle(locale);
+    final title = banner.title;
+    final subtitle = banner.subtitle;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),

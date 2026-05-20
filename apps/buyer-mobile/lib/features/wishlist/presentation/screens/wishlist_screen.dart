@@ -194,8 +194,7 @@ class _WishlistProductCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final product = item.product;
-    final title =
-        product?.localizedTitle(locale) ?? '';
+    final title = product?.title ?? '';
     final price = formatCDF(product?.priceCDF ?? '0');
     final imageUrl = product?.image;
     final isOutOfStock = product?.isOutOfStock ?? false;
