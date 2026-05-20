@@ -1,9 +1,40 @@
 # Teka RDC — Development Progress
 
 ## Current Phase: — (no active initiative; awaiting next direction)
-## Last completed: Admin user-management split into Acheteurs / Vendeurs / Administrateurs (2026-05-19, PR #114 → #115)
-## Status: Sidebar's old `Utilisateurs` (mixed roles) + `Vendeurs` (broken — called 404'd endpoints) replaced with 3 role-scoped pages. /sellers rewritten with KYC + account status columns and inline Approve/Reject calling the correct endpoint. Browser-verified end-to-end on local Docker with a real approve action. Deployed to prod.
-## Last Updated: 2026-05-19
+## Last completed: Flutter buyer-mobile cleanup — drop multilingual Map+localized helpers (2026-05-20, PR #117 → #118)
+## Status: 10 buyer-mobile models simplified from `Map<String, dynamic>` + `localized*(locale)` helpers to plain `String` after the jsonb→text migration (PR #112) made the API serve plain French. 23 files touched, -251 / +57 net. Flutter analyze clean. Code-only change — no runtime/UX impact.
+## Last Updated: 2026-05-20
+
+### Initiative — Flutter buyer-mobile multilingual cleanup (2026-05-20, PR #117 → #118)
+
+**Brief**: Post-migration cleanup. After the jsonb→text DB migration (PR #111 → #112), the API serves plain French strings for every translatable field. The defensive `{ 'fr': value }` Map wrapping in the Flutter buyer-mobile models was protecting against a shape the API no longer returns — pure dead weight.
+
+**Models simplified (10 — audit identified 2, found 8 more during the work)**:
+- `catalog/product_model.dart` — BrowseProductModel.title, ProductDetailModel.title/description, ProductCategory.name, BreadcrumbItem.name
+- `catalog/category_model.dart` — CategoryModel.name
+- `home/banner_model.dart` — title, subtitle
+- `home/flash_deal_model.dart` — FlashDealProduct.title + FlashDealModel.title
+- `content/content_page_model.dart` — title, content (both classes)
+- `cart/cart_model.dart` — CartItemProduct.title
+- `orders/order_model.dart` — OrderItemModel.productTitle
+- `wishlist/wishlist_model.dart` — WishlistProductModel.title
+- `city/city_model.dart` — CityModel.name (audit missed)
+- `city/commune_model.dart` — CommuneModel.name (audit missed)
+
+Each dropped: `Map<String, ...>` typed field → `String?`/`String`; `is Map ? Map.from(...) : { 'fr': value }` parsing branch → `json[k]?.toString()`; `localized*(locale)` / `getLocalizedName(locale)` helper; private `_parseTranslationMap` where present.
+
+**Call sites updated (12 files)**: product_card, product_detail_screen (3 calls), category_chip, checkout_screen (3 calls — including the form-submit `data.town`/`neighborhood` which were `name['fr']`), banner_carousel, flash_deal_card, content_page_screen (3 calls), order_detail_screen (`item.localizedTitle` → `item.productTitle`), wishlist_screen, home_screen, cart_screen, city_selection_screen.
+
+Unused `locale` local variables were removed (cart_screen, product_detail_screen, content_page_screen, category_chip, flash_deal_card, home_screen, checkout_screen inner widget). `CartItemTile` no longer takes a `locale` constructor argument.
+
+**Verification**:
+- `flutter analyze` (buyer-mobile): zero errors, zero warnings from this refactor (18 pre-existing `deprecated_member_use` infos remain — `withOpacity`/`groupValue` etc, unrelated)
+- CI: lint, type-check, API e2e 90/90, both Flutter analyses, all 4 docker-build-check stages — all green
+- Net diff: -251 / +57 lines across 23 files
+
+**Ship cycle**: PR #117 → develop ✓ → PR #118 → main ✓ → deploy `26139068828` succeeded → back-merge main → develop ✓. Web prod unaffected (no web files changed); next mobile APK build picks up the changes — distribution is manual via Play Store / direct download, not part of the web deploy pipeline.
+
+### Initiative — Admin user-management split (2026-05-19, PR #114 → #115)
 
 ### Initiative — Admin user-management split (2026-05-19, PR #114 → #115)
 
