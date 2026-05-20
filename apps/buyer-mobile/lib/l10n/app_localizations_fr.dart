@@ -671,4 +671,63 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get cancel => 'Annuler';
+
+  @override
+  String get profileTitle => 'Mon profil';
+
+  @override
+  String get profileSubtitle => 'Gerez vos informations personnelles';
+
+  @override
+  String get profileSectionAvatar => 'Photo de profil';
+
+  @override
+  String get profileSectionPersonal => 'Informations personnelles';
+
+  @override
+  String get profileUploadAvatar => 'Changer la photo';
+
+  @override
+  String get profileUploading => 'Envoi en cours...';
+
+  @override
+  String get profileUploadError => 'Erreur lors de l\'envoi de la photo';
+
+  @override
+  String get profileFirstName => 'Prenom';
+
+  @override
+  String get profileLastName => 'Nom';
+
+  @override
+  String get profileEmail => 'Email';
+
+  @override
+  String get profileEmailHint =>
+      'Optionnel — utilise pour les confirmations de commande.';
+
+  @override
+  String get profilePhone => 'Numero WhatsApp';
+
+  @override
+  String get profilePhoneHint =>
+      'Numero de connexion a votre compte. Contactez le support pour le modifier.';
+
+  @override
+  String get profileSave => 'Enregistrer';
+
+  @override
+  String get profileSaving => 'Enregistrement...';
+
+  @override
+  String get profileSaveSuccess => 'Profil mis a jour';
+
+  @override
+  String get profileSaveError => 'Erreur lors de l\'enregistrement';
+
+  @override
+  String get profileViewOrders => 'Voir mes commandes';
+
+  @override
+  String get profileViewWishlist => 'Voir mes favoris';
 }
