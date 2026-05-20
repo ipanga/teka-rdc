@@ -147,7 +147,7 @@ class HomeScreen extends ConsumerWidget {
               context.go('/earnings');
               break;
             case 4:
-              // Profile placeholder
+              context.go('/profile');
               break;
           }
         },

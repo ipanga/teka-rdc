@@ -17,6 +17,7 @@ import '../../features/products/presentation/screens/product_form_screen.dart';
 import '../../features/products/presentation/screens/product_images_screen.dart';
 import '../../features/products/presentation/screens/products_list_screen.dart';
 import '../../features/products/data/models/product_model.dart';
+import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/promotions/presentation/screens/create_promotion_screen.dart';
 import '../../features/promotions/presentation/screens/promotions_list_screen.dart';
 import '../../features/reviews/presentation/screens/seller_reviews_screen.dart';
@@ -159,6 +160,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/reviews',
         builder: (context, state) => const SellerReviewsScreen(),
+      ),
+
+      // Profile
+      GoRoute(
+        path: '/profile',
+        builder: (context, state) => const ProfileScreen(),
       ),
 
       // /messages and /messages/:id retired 2026-05-17 — direct buyer↔
