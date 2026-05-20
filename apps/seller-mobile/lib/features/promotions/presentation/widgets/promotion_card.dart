@@ -18,12 +18,11 @@ class PromotionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final locale = l10n.localeName;
     final dateFormat = DateFormat('dd/MM/yyyy', 'fr');
     final priceFormat = NumberFormat('#,###', 'fr');
 
-    final productTitle = promotion.product?.getLocalizedTitle(locale) ??
-        promotion.getLocalizedTitle(locale);
+    final productTitle = promotion.product?.title ??
+        promotion.title;
     final isFlashDeal = promotion.type == 'FLASH_DEAL';
 
     return Container(

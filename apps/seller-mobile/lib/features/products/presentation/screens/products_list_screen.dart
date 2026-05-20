@@ -239,7 +239,7 @@ class _ProductListItem extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      product.getLocalizedTitle(l10n.localeName),
+                      product.title,
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,

@@ -101,8 +101,6 @@ class SellerReviewsScreen extends ConsumerWidget {
     AppLocalizations l10n,
     SellerReviewsState state,
   ) {
-    final locale = l10n.localeName;
-
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
@@ -120,7 +118,7 @@ class SellerReviewsScreen extends ConsumerWidget {
             return DropdownMenuItem<String>(
               value: product.id,
               child: Text(
-                product.getLocalizedTitle(locale),
+                product.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

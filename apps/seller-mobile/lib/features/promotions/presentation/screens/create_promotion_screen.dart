@@ -23,9 +23,7 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
   String _promotionType = 'PROMOTION';
   String? _selectedProductId;
   final _titleFrController = TextEditingController();
-  final _titleEnController = TextEditingController();
   final _descriptionFrController = TextEditingController();
-  final _descriptionEnController = TextEditingController();
   final _discountValueController = TextEditingController();
 
   bool _isPercentage = true;
@@ -62,9 +60,7 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
   @override
   void dispose() {
     _titleFrController.dispose();
-    _titleEnController.dispose();
     _descriptionFrController.dispose();
-    _descriptionEnController.dispose();
     _discountValueController.dispose();
     super.dispose();
   }
@@ -72,7 +68,6 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final locale = l10n.localeName;
     final dateFormat = DateFormat('dd/MM/yyyy', 'fr');
 
     return Scaffold(
@@ -151,7 +146,7 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                           return DropdownMenuItem<String>(
                             value: product.id,
                             child: Text(
-                              product.getLocalizedTitle(locale),
+                              product.title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -165,7 +160,7 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Title FR
+                  // Title (French — platform is monolingual since May 2026)
                   TextFormField(
                     controller: _titleFrController,
                     decoration: InputDecoration(
@@ -183,36 +178,11 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Title EN
-                  TextFormField(
-                    controller: _titleEnController,
-                    decoration: InputDecoration(
-                      labelText: l10n.titleEn,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Description FR
+                  // Description (French)
                   TextFormField(
                     controller: _descriptionFrController,
                     decoration: InputDecoration(
                       labelText: l10n.descriptionFr,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Description EN
-                  TextFormField(
-                    controller: _descriptionEnController,
-                    decoration: InputDecoration(
-                      labelText: l10n.descriptionEn,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -452,24 +422,9 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
 
     setState(() => _isSaving = true);
 
-    final title = <String, String>{
-      'fr': _titleFrController.text.trim(),
-    };
-    if (_titleEnController.text.trim().isNotEmpty) {
-      title['en'] = _titleEnController.text.trim();
-    }
-
-    Map<String, String>? description;
-    if (_descriptionFrController.text.trim().isNotEmpty ||
-        _descriptionEnController.text.trim().isNotEmpty) {
-      description = {};
-      if (_descriptionFrController.text.trim().isNotEmpty) {
-        description['fr'] = _descriptionFrController.text.trim();
-      }
-      if (_descriptionEnController.text.trim().isNotEmpty) {
-        description['en'] = _descriptionEnController.text.trim();
-      }
-    }
+    // Platform is French-only since May 2026; API DTO accepts plain strings.
+    final title = _titleFrController.text.trim();
+    final description = _descriptionFrController.text.trim();
 
     final data = <String, dynamic>{
       'type': _promotionType,
@@ -479,7 +434,7 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
       'endsAt': _endDate!.toIso8601String(),
     };
 
-    if (description != null) {
+    if (description.isNotEmpty) {
       data['description'] = description;
     }
 
