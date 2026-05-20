@@ -24,9 +24,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _titleFrController;
-  late final TextEditingController _titleEnController;
   late final TextEditingController _descriptionFrController;
-  late final TextEditingController _descriptionEnController;
   late final TextEditingController _priceCDFController;
   late final TextEditingController _priceUSDController;
   late final TextEditingController _quantityController;
@@ -45,12 +43,12 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   void initState() {
     super.initState();
     final p = widget.product;
+    // Platform is French-only since May 2026. The model's parseTranslatable
+    // still wraps plain-string API responses into a {fr: value} map for
+    // backward compatibility with older rows; read .['fr'] here too.
     _titleFrController = TextEditingController(text: p?.title['fr'] ?? '');
-    _titleEnController = TextEditingController(text: p?.title['en'] ?? '');
     _descriptionFrController =
         TextEditingController(text: p?.description['fr'] ?? '');
-    _descriptionEnController =
-        TextEditingController(text: p?.description['en'] ?? '');
     _priceCDFController = TextEditingController(
       text: p != null ? p.priceCDFDisplay.toString() : '',
     );
@@ -104,9 +102,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   @override
   void dispose() {
     _titleFrController.dispose();
-    _titleEnController.dispose();
     _descriptionFrController.dispose();
-    _descriptionEnController.dispose();
     _priceCDFController.dispose();
     _priceUSDController.dispose();
     _quantityController.dispose();
@@ -140,7 +136,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Title FR
+            // Title (French — platform is monolingual since May 2026)
             TextFormField(
               controller: _titleFrController,
               decoration: InputDecoration(
@@ -150,38 +146,14 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   v == null || v.trim().isEmpty ? l10n.titleFr : null,
               textInputAction: TextInputAction.next,
             ),
-            const SizedBox(height: 12),
-
-            // Title EN (optional)
-            TextFormField(
-              controller: _titleEnController,
-              decoration: InputDecoration(
-                labelText: l10n.titleEn,
-                hintText: '(${l10n.titleEn})',
-              ),
-              textInputAction: TextInputAction.next,
-            ),
             const SizedBox(height: 16),
 
-            // Description FR
+            // Description (French)
             TextFormField(
               controller: _descriptionFrController,
               decoration: InputDecoration(
                 labelText: l10n.descriptionFr,
                 alignLabelWithHint: true,
-              ),
-              maxLines: 4,
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 12),
-
-            // Description EN
-            TextFormField(
-              controller: _descriptionEnController,
-              decoration: InputDecoration(
-                labelText: l10n.descriptionEn,
-                alignLabelWithHint: true,
-                hintText: '(${l10n.descriptionEn})',
               ),
               maxLines: 4,
               textInputAction: TextInputAction.next,
@@ -371,19 +343,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       final l10n = AppLocalizations.of(context)!;
       final repository = ref.read(productsRepositoryProvider);
 
-      // Build title map
-      final title = <String, String>{'fr': _titleFrController.text.trim()};
-      if (_titleEnController.text.trim().isNotEmpty) {
-        title['en'] = _titleEnController.text.trim();
-      }
-
-      // Build description map
-      final description = <String, String>{
-        'fr': _descriptionFrController.text.trim()
-      };
-      if (_descriptionEnController.text.trim().isNotEmpty) {
-        description['en'] = _descriptionEnController.text.trim();
-      }
+      // API DTOs (create-product.dto.ts, update-product.dto.ts) declare
+      // `title: string` and `description: string` — submit plain French.
+      final title = _titleFrController.text.trim();
+      final description = _descriptionFrController.text.trim();
 
       // Price in centimes
       final priceCDFAmount = int.parse(_priceCDFController.text.trim());

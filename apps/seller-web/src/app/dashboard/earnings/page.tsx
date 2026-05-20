@@ -4,38 +4,20 @@ import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
-import type { SellerWallet, SellerEarning, Payout, MobileMoneyProvider } from '@/lib/types';
-
-interface EarningsResponse {
-  earnings: SellerEarning[];
-  meta?: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-}
-
-interface PayoutsResponse {
-  payouts: Payout[];
-  meta?: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-}
+import type { SellerWallet, SellerEarning, Payout } from '@/lib/types';
 
 type ActiveTab = 'earnings' | 'payouts';
 
 const LIMIT = 20;
-const MIN_PAYOUT_CENTIMES = 500000; // 5,000 CDF in centimes
 
-const OPERATORS: { value: MobileMoneyProvider; label: string }[] = [
-  { value: 'M_PESA', label: 'M-Pesa (Vodacom)' },
-  { value: 'AIRTEL_MONEY', label: 'Airtel Money' },
-  { value: 'ORANGE_MONEY', label: 'Orange Money' },
-];
+// Display labels for historical payout methods. The API still emits these
+// values on existing rows; we just don't expose the request flow until the
+// payout product is re-enabled (the request form was hidden 2026-05-20).
+const PAYOUT_METHOD_LABELS: Record<string, string> = {
+  M_PESA: 'M-Pesa (Vodacom)',
+  AIRTEL_MONEY: 'Airtel Money',
+  ORANGE_MONEY: 'Orange Money',
+};
 
 export default function EarningsPage() {
   const t = useTranslations('Earnings');
@@ -60,15 +42,11 @@ export default function EarningsPage() {
   const [payoutsPage, setPayoutsPage] = useState(1);
   const [payoutsTotalPages, setPayoutsTotalPages] = useState(1);
 
-  // Payout form state
-  const [showPayoutForm, setShowPayoutForm] = useState(false);
-  const [payoutOperator, setPayoutOperator] = useState<MobileMoneyProvider>('M_PESA');
-  const [payoutPhone, setPayoutPhone] = useState('');
-  const [payoutSubmitting, setPayoutSubmitting] = useState(false);
+  // Payout request flow is hidden until the payout product is re-enabled.
+  // Wallet balance + earnings + past-payouts list remain visible.
 
-  // Error & success
+  // Error
   const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
 
   const formatPrice = (centimes: string) => {
     const amount = Number(centimes) / 100;
@@ -106,7 +84,10 @@ export default function EarningsPage() {
     }
   }, []);
 
-  // Load earnings
+  // Load earnings. The /sellers/earnings + /sellers/payouts endpoints
+  // flatten the envelope to `{ success, data: [...], meta: {...} }` (see
+  // payouts.controller.ts:88,118) instead of the canonical
+  // `{ data: { data, pagination } }` used elsewhere — read accordingly.
   const loadEarnings = useCallback(async () => {
     setEarningsLoading(true);
     setError('');
@@ -115,9 +96,12 @@ export default function EarningsPage() {
         page: String(earningsPage),
         limit: String(LIMIT),
       });
-      const res = await apiFetch<EarningsResponse>(`/v1/sellers/earnings?${params}`);
-      setEarnings(res.data.earnings || []);
-      setEarningsTotalPages(res.data.meta?.totalPages ?? 1);
+      const res = await apiFetch<SellerEarning[]>(`/v1/sellers/earnings?${params}`) as {
+        data: SellerEarning[];
+        meta?: { totalPages?: number };
+      };
+      setEarnings(res.data ?? []);
+      setEarningsTotalPages(res.meta?.totalPages ?? 1);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -127,7 +111,6 @@ export default function EarningsPage() {
     }
   }, [earningsPage]);
 
-  // Load payouts
   const loadPayouts = useCallback(async () => {
     setPayoutsLoading(true);
     setError('');
@@ -136,9 +119,12 @@ export default function EarningsPage() {
         page: String(payoutsPage),
         limit: String(LIMIT),
       });
-      const res = await apiFetch<PayoutsResponse>(`/v1/sellers/payouts?${params}`);
-      setPayouts(res.data.payouts || []);
-      setPayoutsTotalPages(res.data.meta?.totalPages ?? 1);
+      const res = await apiFetch<Payout[]>(`/v1/sellers/payouts?${params}`) as {
+        data: Payout[];
+        meta?: { totalPages?: number };
+      };
+      setPayouts(res.data ?? []);
+      setPayoutsTotalPages(res.meta?.totalPages ?? 1);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -164,39 +150,6 @@ export default function EarningsPage() {
     }
   }, [activeTab, loadPayouts]);
 
-  const canRequestPayout = wallet && Number(wallet.balanceCDF) >= MIN_PAYOUT_CENTIMES;
-
-  const handlePayoutSubmit = async () => {
-    if (!payoutPhone.trim() || payoutSubmitting) return;
-    setPayoutSubmitting(true);
-    setError('');
-    setSuccessMessage('');
-
-    try {
-      await apiFetch('/v1/sellers/payouts', {
-        method: 'POST',
-        body: JSON.stringify({
-          payoutMethod: payoutOperator,
-          payoutPhone: payoutPhone.trim(),
-        }),
-      });
-      setSuccessMessage(t('payoutRequested'));
-      setShowPayoutForm(false);
-      setPayoutPhone('');
-      setPayoutOperator('M_PESA');
-      loadWallet();
-      if (activeTab === 'payouts') {
-        loadPayouts();
-      }
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      }
-    } finally {
-      setPayoutSubmitting(false);
-    }
-  };
-
   const getPayoutStatusStyle = (status: string) => {
     switch (status) {
       case 'REQUESTED':
@@ -214,30 +167,19 @@ export default function EarningsPage() {
     }
   };
 
-  const getPayoutMethodLabel = (method: string) => {
-    const found = OPERATORS.find((op) => op.value === method);
-    return found ? found.label : method;
-  };
+  const getPayoutMethodLabel = (method: string) => PAYOUT_METHOD_LABELS[method] ?? method;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
-        <button
-          onClick={() => setShowPayoutForm(true)}
-          disabled={!canRequestPayout}
-          className="inline-flex items-center px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {t('requestPayout')}
-        </button>
       </div>
 
-      {/* Success message */}
-      {successMessage && (
-        <div className="mb-4 p-3 rounded-lg bg-success/10 text-success text-sm">
-          {successMessage}
-        </div>
-      )}
+      {/* Payout request hidden — the payout flow is temporarily disabled.
+          Wallet balance + earnings + past-payouts remain visible. */}
+      <div className="mb-4 p-3 rounded-lg bg-muted/60 border border-border text-muted-foreground text-sm">
+        {t('payoutTemporarilyUnavailable')}
+      </div>
 
       {/* Error message */}
       {error && (
@@ -280,83 +222,7 @@ export default function EarningsPage() {
         </div>
       </div>
 
-      {/* Minimum balance notice */}
-      {wallet && !canRequestPayout && (
-        <div className="mb-4 p-3 rounded-lg bg-warning/10 text-warning text-sm">
-          {t('minimumBalance')}
-        </div>
-      )}
-
-      {/* Payout form modal */}
-      {showPayoutForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-foreground mb-4">{t('payoutForm')}</h3>
-
-            <div className="space-y-4">
-              {/* Current balance */}
-              <div>
-                <p className="text-sm text-muted-foreground">{t('currentBalance')}</p>
-                <p className="text-lg font-bold text-foreground">
-                  {formatPrice(wallet?.balanceCDF ?? '0')}
-                </p>
-              </div>
-
-              {/* Operator select */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  {t('selectOperator')}
-                </label>
-                <select
-                  value={payoutOperator}
-                  onChange={(e) => setPayoutOperator(e.target.value as MobileMoneyProvider)}
-                  className="w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                >
-                  {OPERATORS.map((op) => (
-                    <option key={op.value} value={op.value}>
-                      {op.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Phone number */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  {t('payoutPhone')}
-                </label>
-                <input
-                  type="tel"
-                  value={payoutPhone}
-                  onChange={(e) => setPayoutPhone(e.target.value)}
-                  placeholder={t('payoutPhonePlaceholder')}
-                  className="w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowPayoutForm(false);
-                  setPayoutPhone('');
-                  setPayoutOperator('M_PESA');
-                }}
-                className="px-4 py-2 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted transition-colors"
-              >
-                {tOrders('cancel')}
-              </button>
-              <button
-                onClick={handlePayoutSubmit}
-                disabled={!payoutPhone.trim() || payoutSubmitting}
-                className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
-              >
-                {payoutSubmitting ? '...' : t('submit')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Payout request flow + minimum-balance notice removed; see banner above. */}
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 border-b border-border">

@@ -982,6 +982,18 @@ abstract class AppLocalizations {
   /// **'Solde minimum: 5 000 CDF'**
   String get payoutMinimumBalance;
 
+  /// No description provided for @payoutTemporarilyUnavailable.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les demandes de virement sont temporairement indisponibles. Votre solde et l\'historique restent visibles. Contactez le support pour toute question.'**
+  String get payoutTemporarilyUnavailable;
+
+  /// No description provided for @commonBack.
+  ///
+  /// In fr, this message translates to:
+  /// **'Retour'**
+  String get commonBack;
+
   /// No description provided for @payoutSuccess.
   ///
   /// In fr, this message translates to:
