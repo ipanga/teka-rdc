@@ -249,5 +249,25 @@
   "addressError": "Erreur lors de l'enregistrement",
   "cityRequired": "Selectionnez une ville",
   "communeRequired": "Selectionnez une commune",
-  "cancel": "Annuler"
+  "cancel": "Annuler",
+
+  "profileTitle": "Mon profil",
+  "profileSubtitle": "Gerez vos informations personnelles",
+  "profileSectionAvatar": "Photo de profil",
+  "profileSectionPersonal": "Informations personnelles",
+  "profileUploadAvatar": "Changer la photo",
+  "profileUploading": "Envoi en cours...",
+  "profileUploadError": "Erreur lors de l'envoi de la photo",
+  "profileFirstName": "Prenom",
+  "profileLastName": "Nom",
+  "profileEmail": "Email",
+  "profileEmailHint": "Optionnel — utilise pour les confirmations de commande.",
+  "profilePhone": "Numero WhatsApp",
+  "profilePhoneHint": "Numero de connexion a votre compte. Contactez le support pour le modifier.",
+  "profileSave": "Enregistrer",
+  "profileSaving": "Enregistrement...",
+  "profileSaveSuccess": "Profil mis a jour",
+  "profileSaveError": "Erreur lors de l'enregistrement",
+  "profileViewOrders": "Voir mes commandes",
+  "profileViewWishlist": "Voir mes favoris"
 }

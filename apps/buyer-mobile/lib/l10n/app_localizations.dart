@@ -1383,6 +1383,120 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Annuler'**
   String get cancel;
+
+  /// No description provided for @profileTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mon profil'**
+  String get profileTitle;
+
+  /// No description provided for @profileSubtitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Gerez vos informations personnelles'**
+  String get profileSubtitle;
+
+  /// No description provided for @profileSectionAvatar.
+  ///
+  /// In fr, this message translates to:
+  /// **'Photo de profil'**
+  String get profileSectionAvatar;
+
+  /// No description provided for @profileSectionPersonal.
+  ///
+  /// In fr, this message translates to:
+  /// **'Informations personnelles'**
+  String get profileSectionPersonal;
+
+  /// No description provided for @profileUploadAvatar.
+  ///
+  /// In fr, this message translates to:
+  /// **'Changer la photo'**
+  String get profileUploadAvatar;
+
+  /// No description provided for @profileUploading.
+  ///
+  /// In fr, this message translates to:
+  /// **'Envoi en cours...'**
+  String get profileUploading;
+
+  /// No description provided for @profileUploadError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Erreur lors de l\'envoi de la photo'**
+  String get profileUploadError;
+
+  /// No description provided for @profileFirstName.
+  ///
+  /// In fr, this message translates to:
+  /// **'Prenom'**
+  String get profileFirstName;
+
+  /// No description provided for @profileLastName.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nom'**
+  String get profileLastName;
+
+  /// No description provided for @profileEmail.
+  ///
+  /// In fr, this message translates to:
+  /// **'Email'**
+  String get profileEmail;
+
+  /// No description provided for @profileEmailHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Optionnel — utilise pour les confirmations de commande.'**
+  String get profileEmailHint;
+
+  /// No description provided for @profilePhone.
+  ///
+  /// In fr, this message translates to:
+  /// **'Numero WhatsApp'**
+  String get profilePhone;
+
+  /// No description provided for @profilePhoneHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Numero de connexion a votre compte. Contactez le support pour le modifier.'**
+  String get profilePhoneHint;
+
+  /// No description provided for @profileSave.
+  ///
+  /// In fr, this message translates to:
+  /// **'Enregistrer'**
+  String get profileSave;
+
+  /// No description provided for @profileSaving.
+  ///
+  /// In fr, this message translates to:
+  /// **'Enregistrement...'**
+  String get profileSaving;
+
+  /// No description provided for @profileSaveSuccess.
+  ///
+  /// In fr, this message translates to:
+  /// **'Profil mis a jour'**
+  String get profileSaveSuccess;
+
+  /// No description provided for @profileSaveError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Erreur lors de l\'enregistrement'**
+  String get profileSaveError;
+
+  /// No description provided for @profileViewOrders.
+  ///
+  /// In fr, this message translates to:
+  /// **'Voir mes commandes'**
+  String get profileViewOrders;
+
+  /// No description provided for @profileViewWishlist.
+  ///
+  /// In fr, this message translates to:
+  /// **'Voir mes favoris'**
+  String get profileViewWishlist;
 }
 
 class _AppLocalizationsDelegate
