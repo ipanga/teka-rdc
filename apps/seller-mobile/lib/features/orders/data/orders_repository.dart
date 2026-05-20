@@ -43,7 +43,7 @@ class SellerOrdersRepository {
     );
     final data = response.data;
     final itemsRaw = data['data'] as List<dynamic>? ?? [];
-    final meta = data['meta'] as Map<String, dynamic>? ?? {};
+    final meta = data['pagination'] as Map<String, dynamic>? ?? {};
 
     final items = itemsRaw
         .map((e) => SellerOrderModel.fromJson(e as Map<String, dynamic>))

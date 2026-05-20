@@ -1,6 +1,5 @@
 export type PaymentStatus = 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'REFUNDED';
 export type PayoutStatus = 'REQUESTED' | 'APPROVED' | 'PROCESSING' | 'COMPLETED' | 'REJECTED';
-export type MobileMoneyProvider = 'M_PESA' | 'AIRTEL_MONEY' | 'ORANGE_MONEY';
 
 export interface SellerWallet {
   balanceCDF: string;
@@ -70,41 +69,6 @@ export interface SellerProduct {
   quantity: number;
   reviewCount?: number;
   averageRating?: number;
-  createdAt: string;
-}
-
-export interface Conversation {
-  id: string;
-  lastMessage?: {
-    id: string;
-    content: string;
-    senderId: string;
-    createdAt: string;
-  } | null;
-  buyer?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  };
-  seller?: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  };
-  product?: {
-    id: string;
-    title: string;
-  } | null;
-  unreadCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface Message {
-  id: string;
-  content: string;
-  senderId: string;
-  conversationId: string;
   createdAt: string;
 }
 

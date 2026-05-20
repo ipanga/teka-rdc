@@ -233,6 +233,7 @@
     "submit": "Envoyer la demande",
     "minimumBalance": "Le solde minimum pour un virement est de 5 000 CDF",
     "payoutRequested": "Demande de virement envoyée avec succès",
+    "payoutTemporarilyUnavailable": "Les demandes de virement sont temporairement indisponibles. Votre solde et l'historique restent visibles ci-dessous. Contactez le support pour toute question.",
     "tabs": {
       "earnings": "Gains",
       "payouts": "Virements"

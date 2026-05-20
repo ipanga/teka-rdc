@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../providers/earnings_provider.dart';
@@ -49,8 +48,6 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen>
     }
 
     final wallet = state.wallet;
-    final balanceCDF = wallet?.balanceCDFDisplay ?? 0;
-    final canRequestPayout = balanceCDF >= 5000;
 
     return Scaffold(
       appBar: AppBar(
@@ -93,31 +90,23 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen>
                 ),
                 const SizedBox(height: 12),
 
-                // Request payout button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed:
-                        canRequestPayout
-                            ? () => context.push('/earnings/request-payout')
-                            : null,
-                    icon: const Icon(Icons.send),
-                    label: Text(l10n.earningsRequestPayout),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
+                // Payout request flow is hidden until the payout product is
+                // re-enabled. Wallet balance + earnings + past payouts list
+                // remain visible.
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: TekaColors.muted,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                ),
-                if (!canRequestPayout) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    l10n.payoutMinimumBalance,
+                  child: Text(
+                    l10n.payoutTemporarilyUnavailable,
                     style: const TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       color: TekaColors.mutedForeground,
                     ),
                   ),
-                ],
+                ),
                 const SizedBox(height: 12),
               ],
             ),
