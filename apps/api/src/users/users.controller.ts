@@ -1,4 +1,14 @@
-import { Controller, Get, Patch, Delete, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Post,
+  Delete,
+  Body,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -18,6 +28,20 @@ export class UsersController {
     @Body() dto: UpdateProfileDto,
   ) {
     return this.usersService.updateProfile(userId, dto);
+  }
+
+  /**
+   * Upload a new avatar for the current user. Multipart form field `image`.
+   * Open to any authenticated role (buyer / seller / admin all share the
+   * same User.avatar column). Returns `{ avatar: <url> }`.
+   */
+  @Post('avatar')
+  @UseInterceptors(FileInterceptor('image'))
+  async uploadAvatar(
+    @CurrentUser('userId') userId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.usersService.uploadAvatar(userId, file);
   }
 
   @Delete('profile')
