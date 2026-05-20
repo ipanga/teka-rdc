@@ -94,6 +94,7 @@ export class BuyerClaimService {
     token: string,
     phone: string,
     code: string,
+    device?: { userAgent?: string; ipAddress?: string },
   ): Promise<ClaimVerifyResult> {
     let payload: { sub?: string; type?: string };
     try {
@@ -165,6 +166,7 @@ export class BuyerClaimService {
       refreshed!.id,
       refreshed!.role,
       refreshed!.phone,
+      device,
     );
     await this.prisma.user.update({
       where: { id: refreshed!.id },

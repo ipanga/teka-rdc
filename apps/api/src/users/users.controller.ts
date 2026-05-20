@@ -5,12 +5,14 @@ import {
   Post,
   Delete,
   Body,
+  Param,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UsersService } from './users.service';
 import { NotificationPrefsService } from './notification-prefs.service';
+import { SessionsService } from './sessions.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { NotificationPrefsDto } from './dto/notification-prefs.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -20,6 +22,7 @@ export class UsersController {
   constructor(
     private usersService: UsersService,
     private notificationPrefs: NotificationPrefsService,
+    private sessions: SessionsService,
   ) {}
 
   @Get('profile')
@@ -70,5 +73,43 @@ export class UsersController {
     @Body() dto: NotificationPrefsDto,
   ) {
     return this.notificationPrefs.update(userId, dto);
+  }
+
+  /**
+   * Active sessions for the current user — drives the "Appareils" card
+   * on every profile page. The row whose id matches the caller's `jti`
+   * (the access token's session id) is marked `current: true`.
+   */
+  @Get('sessions')
+  async listSessions(
+    @CurrentUser('userId') userId: string,
+    @CurrentUser('jti') jti: string,
+  ) {
+    return this.sessions.list(userId, jti);
+  }
+
+  /**
+   * Revoke a single non-current session. The current session refuses
+   * self-revocation (400) — callers should hit /v1/auth/logout for that.
+   */
+  @Delete('sessions/:id')
+  async revokeSession(
+    @CurrentUser('userId') userId: string,
+    @CurrentUser('jti') jti: string,
+    @Param('id') id: string,
+  ) {
+    return this.sessions.revoke(userId, id, jti);
+  }
+
+  /**
+   * Bulk-revoke every active session except the caller's. The "logout
+   * everywhere else" button on profile pages.
+   */
+  @Delete('sessions')
+  async revokeOtherSessions(
+    @CurrentUser('userId') userId: string,
+    @CurrentUser('jti') jti: string,
+  ) {
+    return this.sessions.revokeAllExceptCurrent(userId, jti);
   }
 }

@@ -50,9 +50,13 @@ export class AuthController {
   @Post('register/email')
   async registerSeller(
     @Body() dto: EmailRegisterDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.registerSellerWithEmail(dto);
+    const result = await this.authService.registerSellerWithEmail(
+      dto,
+      this.extractDevice(req),
+    );
     this.setAuthCookies(res, result.tokens);
     return result;
   }
@@ -62,9 +66,13 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async loginWithEmail(
     @Body() dto: EmailLoginDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const result = await this.authService.loginWithEmail(dto);
+    const result = await this.authService.loginWithEmail(
+      dto,
+      this.extractDevice(req),
+    );
     this.setAuthCookies(res, result.tokens);
     return result;
   }
@@ -118,6 +126,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async buyerOtpVerify(
     @Body() dto: BuyerOtpVerifyDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.buyerOtpService.verifyOtp(
@@ -125,6 +134,7 @@ export class AuthController {
       dto.code,
       dto.firstName,
       dto.lastName,
+      this.extractDevice(req),
     );
     this.setAuthCookies(res, result.tokens);
     return result;
@@ -155,12 +165,14 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async buyerClaimVerify(
     @Body() dto: BuyerClaimVerifyDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.buyerClaimService.verifyClaim(
       dto.token,
       dto.phone,
       dto.code,
+      this.extractDevice(req),
     );
     this.setAuthCookies(res, result.tokens);
     return result;
@@ -191,7 +203,10 @@ export class AuthController {
     if (!token) {
       throw new BadRequestException('Token de rafraîchissement requis');
     }
-    const tokens = await this.authService.refreshTokens(token);
+    const tokens = await this.authService.refreshTokens(
+      token,
+      this.extractDevice(req),
+    );
     this.setAuthCookies(res, tokens);
     return { tokens };
   }
@@ -315,5 +330,20 @@ export class AuthController {
       path: '/',
       ...(domain ? { domain } : {}),
     });
+  }
+
+  // Pulls User-Agent + client IP from the request so the auth service can
+  // persist them on the issued RefreshToken row (used by the "Appareils"
+  // sessions list on profile pages, added 2026-05-20). Both fields are
+  // best-effort — missing values stay null and the UI renders a fallback.
+  // Express's `req.ip` honours the `trust proxy` setting that's enabled in
+  // main.ts, so behind nginx the value is the real client IP, not the
+  // proxy's.
+  private extractDevice(req: Request) {
+    const userAgent = req.headers['user-agent'];
+    return {
+      userAgent: typeof userAgent === 'string' ? userAgent : undefined,
+      ipAddress: req.ip ?? undefined,
+    };
   }
 }

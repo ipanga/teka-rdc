@@ -18,6 +18,14 @@ interface MeResponse {
   lastLoginAt: string | null;
 }
 
+interface SessionDto {
+  id: string;
+  createdAt: string;
+  ipAddress: string | null;
+  deviceInfo: string | null;
+  current: boolean;
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api.teka.cd/api';
 
 export default function AdminProfilePage() {
@@ -47,6 +55,11 @@ export default function AdminProfilePage() {
   const [smsBroadcasts, setSmsBroadcasts] = useState(true);
   const [notifSaving, setNotifSaving] = useState(false);
 
+  // Active sessions ("Appareils connectés")
+  const [sessions, setSessions] = useState<SessionDto[] | null>(null);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionAction, setSessionAction] = useState<string | null>(null);
+
   const loadMe = useCallback(async () => {
     try {
       const res = await apiFetch<MeResponse>('/v1/auth/me');
@@ -74,7 +87,51 @@ export default function AdminProfilePage() {
     }
   }, []);
 
-  useEffect(() => { loadMe(); loadNotificationPrefs(); }, [loadMe, loadNotificationPrefs]);
+  const loadSessions = useCallback(async () => {
+    setSessionsLoading(true);
+    try {
+      const res = await apiFetch<SessionDto[]>('/v1/users/sessions');
+      setSessions(res.data);
+    } catch {
+      setSessions([]);
+      showFeedback('error', t('sessionsLoadError'));
+    } finally {
+      setSessionsLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    loadMe();
+    loadNotificationPrefs();
+    loadSessions();
+  }, [loadMe, loadNotificationPrefs, loadSessions]);
+
+  const revokeSession = async (id: string) => {
+    setSessionAction(id);
+    try {
+      await apiFetch(`/v1/users/sessions/${id}`, { method: 'DELETE' });
+      setSessions((prev) => prev?.filter((s) => s.id !== id) ?? null);
+      showFeedback('success', t('sessionRevoked'));
+    } catch {
+      showFeedback('error', t('sessionRevokeError'));
+    } finally {
+      setSessionAction(null);
+    }
+  };
+
+  const revokeAllOtherSessions = async () => {
+    setSessionAction('all');
+    try {
+      const res = await apiFetch<{ revoked: number }>('/v1/users/sessions', { method: 'DELETE' });
+      setSessions((prev) => prev?.filter((s) => s.current) ?? null);
+      showFeedback('success', t('sessionRevokedAll', { count: res.data.revoked }));
+    } catch {
+      showFeedback('error', t('sessionRevokeError'));
+    } finally {
+      setSessionAction(null);
+    }
+  };
 
   const updateNotifPref = async (key: 'smsOrderUpdates' | 'smsBroadcasts', value: boolean) => {
     if (key === 'smsOrderUpdates') setSmsOrderUpdates(value);
@@ -380,6 +437,69 @@ export default function AdminProfilePage() {
             onChange={(v) => updateNotifPref('smsBroadcasts', v)}
           />
         </div>
+      </section>
+
+      {/* Sessions */}
+      <section className="mt-6 bg-white rounded-xl border border-border p-6">
+        <div className="flex items-start justify-between gap-4 mb-2">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">{t('sectionSessions')}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{t('sessionsHint')}</p>
+          </div>
+          {sessions && sessions.some((s) => !s.current) && (
+            <button
+              type="button"
+              onClick={revokeAllOtherSessions}
+              disabled={sessionAction !== null}
+              className="shrink-0 text-xs font-medium text-destructive hover:underline disabled:opacity-50"
+            >
+              {sessionAction === 'all' ? t('sessionRevoking') : t('sessionRevokeAll')}
+            </button>
+          )}
+        </div>
+        {sessionsLoading && !sessions ? (
+          <div className="space-y-2 mt-3">
+            <div className="h-14 bg-muted rounded animate-pulse" />
+            <div className="h-14 bg-muted rounded animate-pulse" />
+          </div>
+        ) : sessions && sessions.length > 0 ? (
+          <ul className="divide-y divide-border mt-3">
+            {sessions.map((s) => (
+              <li key={s.id} className="flex items-center justify-between gap-3 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-foreground flex items-center gap-2">
+                    {s.ipAddress ? t('sessionIp', { ip: s.ipAddress }) : t('sessionIpUnknown')}
+                    {s.current && (
+                      <span className="inline-block px-2 py-0.5 text-[10px] font-medium rounded-full bg-primary/10 text-primary">
+                        {t('sessionCurrent')}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {t('sessionConnectedOn', {
+                      date: new Date(s.createdAt).toLocaleString('fr-FR', {
+                        dateStyle: 'short',
+                        timeStyle: 'short',
+                      }),
+                    })}
+                  </div>
+                </div>
+                {!s.current && (
+                  <button
+                    type="button"
+                    onClick={() => revokeSession(s.id)}
+                    disabled={sessionAction !== null}
+                    className="shrink-0 text-xs font-medium text-destructive hover:underline disabled:opacity-50"
+                  >
+                    {sessionAction === s.id ? t('sessionRevoking') : t('sessionRevoke')}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-muted-foreground mt-3">{t('sessionsEmpty')}</p>
+        )}
       </section>
     </div>
   );

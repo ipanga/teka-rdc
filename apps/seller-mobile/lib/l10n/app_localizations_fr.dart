@@ -655,6 +655,52 @@ class AppLocalizationsFr extends AppLocalizations {
   String get profileNotifError => 'Erreur lors de la mise a jour';
 
   @override
+  String get profileSectionSessions => 'Appareils connectes';
+
+  @override
+  String get profileSessionsHint =>
+      'Liste des appareils actuellement connectes a votre compte. Revoquez ceux que vous ne reconnaissez pas.';
+
+  @override
+  String get profileSessionCurrent => 'Cet appareil';
+
+  @override
+  String profileSessionConnectedOn(String date) {
+    return 'Connecte le $date';
+  }
+
+  @override
+  String profileSessionIp(String ip) {
+    return 'IP $ip';
+  }
+
+  @override
+  String get profileSessionIpUnknown => 'IP inconnue';
+
+  @override
+  String get profileSessionRevoke => 'Deconnecter';
+
+  @override
+  String get profileSessionRevokeAll => 'Deconnecter les autres appareils';
+
+  @override
+  String get profileSessionRevoking => 'Deconnexion...';
+
+  @override
+  String get profileSessionRevoked => 'Appareil deconnecte';
+
+  @override
+  String get profileSessionRevokeError =>
+      'Impossible de deconnecter cet appareil';
+
+  @override
+  String get profileSessionsEmpty => 'Aucun autre appareil connecte';
+
+  @override
+  String get profileSessionsLoadError =>
+      'Impossible de charger la liste des appareils';
+
+  @override
   String get reviewsTitle => 'Avis clients';
 
   @override
