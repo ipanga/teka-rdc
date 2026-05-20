@@ -129,9 +129,12 @@ export function Header() {
                   />
                 </svg>
               </Link>
-              <span className="text-sm text-foreground">
+              <Link
+                href="/profil"
+                className="text-sm text-foreground hover:text-primary transition-colors"
+              >
                 {user.firstName || t('myAccount')}
-              </span>
+              </Link>
               <button
                 onClick={handleLogout}
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -261,9 +264,13 @@ export function Header() {
           <div className="flex flex-col gap-2 pt-2 border-t border-border">
             {user ? (
               <>
-                <span className="text-sm text-foreground">
+                <Link
+                  href="/profil"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="text-sm text-foreground hover:text-primary transition-colors"
+                >
                   {user.firstName || t('myAccount')}
-                </span>
+                </Link>
                 <Link
                   href="/wishlist"
                   onClick={() => setMobileMenuOpen(false)}

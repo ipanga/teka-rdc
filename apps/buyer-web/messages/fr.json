@@ -164,6 +164,27 @@
     "howToBuy": "Comment acheter",
     "howToSell": "Comment vendre"
   },
+  "Profile": {
+    "title": "Mon profil",
+    "subtitle": "Gérez vos informations personnelles",
+    "sectionAvatar": "Photo de profil",
+    "sectionPersonal": "Informations personnelles",
+    "uploadAvatar": "Changer la photo",
+    "uploading": "Envoi en cours...",
+    "uploadError": "Erreur lors de l'envoi de la photo",
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "email": "Email",
+    "emailHint": "Optionnel — utilisé pour les confirmations de commande.",
+    "phone": "Numéro WhatsApp",
+    "phoneHint": "Numéro de connexion à votre compte. Contactez le support pour le modifier.",
+    "save": "Enregistrer",
+    "saving": "Enregistrement...",
+    "saveSuccess": "Profil mis à jour",
+    "saveError": "Erreur lors de l'enregistrement",
+    "viewOrders": "Voir mes commandes",
+    "viewWishlist": "Voir ma liste de souhaits"
+  },
   "Cart": {
     "title": "Panier",
     "empty": "Votre panier est vide",
