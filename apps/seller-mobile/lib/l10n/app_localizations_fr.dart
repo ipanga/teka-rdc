@@ -631,6 +631,30 @@ class AppLocalizationsFr extends AppLocalizations {
   String get profileLogout => 'Se deconnecter';
 
   @override
+  String get profileSectionNotifications => 'Notifications';
+
+  @override
+  String get profileNotificationsHint =>
+      'Choisissez les SMS que vous voulez recevoir. Les codes de verification restent toujours envoyes.';
+
+  @override
+  String get profileNotifOrderUpdates => 'Mises a jour de commande';
+
+  @override
+  String get profileNotifOrderUpdatesDesc =>
+      'Confirmation, expedition, livraison, annulation';
+
+  @override
+  String get profileNotifBroadcasts => 'Annonces et promotions';
+
+  @override
+  String get profileNotifBroadcastsDesc =>
+      'Messages marketing envoyes par l\'equipe Teka';
+
+  @override
+  String get profileNotifError => 'Erreur lors de la mise a jour';
+
+  @override
   String get reviewsTitle => 'Avis clients';
 
   @override

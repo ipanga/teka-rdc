@@ -113,7 +113,15 @@
     "passwordMismatch": "Les deux mots de passe ne correspondent pas",
     "changePassword": "Modifier le mot de passe",
     "passwordChangeSuccess": "Mot de passe modifié avec succès. Les autres appareils ont été déconnectés.",
-    "passwordChangeError": "Erreur lors de la modification du mot de passe"
+    "passwordChangeError": "Erreur lors de la modification du mot de passe",
+    "sectionNotifications": "Notifications",
+    "notificationsHint": "Choisissez les SMS que vous voulez recevoir. Les emails de sécurité restent toujours envoyés.",
+    "notifOrderUpdates": "Mises à jour de commande",
+    "notifOrderUpdatesDesc": "Confirmation, expédition, livraison, annulation",
+    "notifBroadcasts": "Annonces et promotions",
+    "notifBroadcastsDesc": "Messages marketing envoyés par l'équipe",
+    "notifSaved": "Préférences enregistrées",
+    "notifError": "Erreur lors de la mise à jour"
   },
   "Dashboard": {
     "title": "Tableau de bord",

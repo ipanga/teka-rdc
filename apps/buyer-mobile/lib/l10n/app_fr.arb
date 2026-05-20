@@ -269,5 +269,12 @@
   "profileSaveSuccess": "Profil mis a jour",
   "profileSaveError": "Erreur lors de l'enregistrement",
   "profileViewOrders": "Voir mes commandes",
-  "profileViewWishlist": "Voir mes favoris"
+  "profileViewWishlist": "Voir mes favoris",
+  "profileSectionNotifications": "Notifications",
+  "profileNotificationsHint": "Choisissez les SMS que vous voulez recevoir. Les codes WhatsApp restent toujours envoyes.",
+  "profileNotifOrderUpdates": "Mises a jour de commande",
+  "profileNotifOrderUpdatesDesc": "Confirmation, expedition, livraison, annulation",
+  "profileNotifBroadcasts": "Annonces et promotions",
+  "profileNotifBroadcastsDesc": "Messages marketing envoyes par l'equipe Teka",
+  "profileNotifError": "Erreur lors de la mise a jour"
 }

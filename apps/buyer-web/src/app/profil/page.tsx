@@ -36,6 +36,11 @@ export default function BuyerProfilePage() {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Notification preferences (auto-save on toggle)
+  const [smsOrderUpdates, setSmsOrderUpdates] = useState(true);
+  const [smsBroadcasts, setSmsBroadcasts] = useState(true);
+  const [notifSaving, setNotifSaving] = useState(false);
+
   const loadMe = useCallback(async () => {
     try {
       const res = await apiFetch<MeResponse>('/v1/auth/me');
@@ -52,7 +57,38 @@ export default function BuyerProfilePage() {
     }
   }, [router]);
 
-  useEffect(() => { loadMe(); }, [loadMe]);
+  const loadNotificationPrefs = useCallback(async () => {
+    try {
+      const res = await apiFetch<{ smsOrderUpdates: boolean; smsBroadcasts: boolean }>(
+        '/v1/users/notification-prefs',
+      );
+      setSmsOrderUpdates(res.data.smsOrderUpdates);
+      setSmsBroadcasts(res.data.smsBroadcasts);
+    } catch {
+      // Defaults stay all-on
+    }
+  }, []);
+
+  useEffect(() => { loadMe(); loadNotificationPrefs(); }, [loadMe, loadNotificationPrefs]);
+
+  const updateNotifPref = async (key: 'smsOrderUpdates' | 'smsBroadcasts', value: boolean) => {
+    if (key === 'smsOrderUpdates') setSmsOrderUpdates(value);
+    else setSmsBroadcasts(value);
+    setNotifSaving(true);
+    try {
+      await apiFetch('/v1/users/notification-prefs', {
+        method: 'PATCH',
+        body: JSON.stringify({ [key]: value }),
+      });
+      showFeedback('success', t('notifSaved'));
+    } catch {
+      if (key === 'smsOrderUpdates') setSmsOrderUpdates(!value);
+      else setSmsBroadcasts(!value);
+      showFeedback('error', t('notifError'));
+    } finally {
+      setNotifSaving(false);
+    }
+  };
 
   // Soft client-side gate while loadMe runs. authProvider check could be
   // added later if we want to make this strictly buyer-only — for now any
@@ -232,6 +268,28 @@ export default function BuyerProfilePage() {
         </form>
       </section>
 
+      {/* Notifications */}
+      <section className="mb-6 bg-white rounded-xl border border-border p-6">
+        <h2 className="text-base font-semibold text-foreground mb-2">{t('sectionNotifications')}</h2>
+        <p className="text-sm text-muted-foreground mb-4">{t('notificationsHint')}</p>
+        <div className="space-y-3">
+          <NotifToggle
+            label={t('notifOrderUpdates')}
+            description={t('notifOrderUpdatesDesc')}
+            checked={smsOrderUpdates}
+            disabled={notifSaving}
+            onChange={(v) => updateNotifPref('smsOrderUpdates', v)}
+          />
+          <NotifToggle
+            label={t('notifBroadcasts')}
+            description={t('notifBroadcastsDesc')}
+            checked={smsBroadcasts}
+            disabled={notifSaving}
+            onChange={(v) => updateNotifPref('smsBroadcasts', v)}
+          />
+        </div>
+      </section>
+
       {/* Quick links */}
       <section className="bg-white rounded-xl border border-border p-6">
         <div className="flex flex-col gap-3">
@@ -250,5 +308,44 @@ export default function BuyerProfilePage() {
         </div>
       </section>
     </div>
+  );
+}
+
+function NotifToggle({
+  label,
+  description,
+  checked,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  description: string;
+  checked: boolean;
+  disabled: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className="flex items-start justify-between gap-4 py-2 cursor-pointer">
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium text-foreground">{label}</div>
+        <div className="text-xs text-muted-foreground mt-0.5">{description}</div>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${
+          checked ? 'bg-primary' : 'bg-muted'
+        }`}
+      >
+        <span
+          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${
+            checked ? 'translate-x-5' : 'translate-x-0.5'
+          }`}
+        />
+      </button>
+    </label>
   );
 }

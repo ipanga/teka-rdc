@@ -199,6 +199,15 @@ model User {
   phoneVerified Boolean @default(false)
   emailVerified Boolean @default(false)
 
+  // Notification preferences (added 2026-05-20). Nullable = opted-in by
+  // default for backward compatibility; rows added before this column
+  // existed are treated as all-on. Shape is documented in
+  // `notification-prefs.dto.ts` and enforced via NotificationPrefsService:
+  //   { smsOrderUpdates?: bool, smsBroadcasts?: bool }
+  // Transactional sends (OTP, password reset, email verify) are not
+  // opt-out-able and ignore this column.
+  notificationPrefs Json?
+
   // Timestamps & soft delete
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt

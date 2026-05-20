@@ -145,6 +145,46 @@ class ProfileRepository {
       },
     );
   }
+
+  /// GET /v1/users/notification-prefs — resolved prefs with defaults
+  /// applied (server-side). Returns { smsOrderUpdates, smsBroadcasts }.
+  Future<NotificationPrefs> getNotificationPrefs() async {
+    final response = await _dio.get('/v1/users/notification-prefs');
+    final data = response.data['data'] as Map<String, dynamic>;
+    return NotificationPrefs(
+      smsOrderUpdates: data['smsOrderUpdates'] as bool? ?? true,
+      smsBroadcasts: data['smsBroadcasts'] as bool? ?? true,
+    );
+  }
+
+  /// PATCH /v1/users/notification-prefs — accepts partial body; server
+  /// merges into stored prefs and returns the resolved set.
+  Future<NotificationPrefs> updateNotificationPrefs({
+    bool? smsOrderUpdates,
+    bool? smsBroadcasts,
+  }) async {
+    final body = <String, dynamic>{};
+    if (smsOrderUpdates != null) body['smsOrderUpdates'] = smsOrderUpdates;
+    if (smsBroadcasts != null) body['smsBroadcasts'] = smsBroadcasts;
+    final response = await _dio.patch(
+      '/v1/users/notification-prefs',
+      data: body,
+    );
+    final data = response.data['data'] as Map<String, dynamic>;
+    return NotificationPrefs(
+      smsOrderUpdates: data['smsOrderUpdates'] as bool? ?? true,
+      smsBroadcasts: data['smsBroadcasts'] as bool? ?? true,
+    );
+  }
+}
+
+class NotificationPrefs {
+  final bool smsOrderUpdates;
+  final bool smsBroadcasts;
+  const NotificationPrefs({
+    required this.smsOrderUpdates,
+    required this.smsBroadcasts,
+  });
 }
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
