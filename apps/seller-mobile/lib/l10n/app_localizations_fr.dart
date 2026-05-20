@@ -515,6 +515,122 @@ class AppLocalizationsFr extends AppLocalizations {
   String get paymentFailed => 'Echoue';
 
   @override
+  String get profileTitle => 'Mon profil';
+
+  @override
+  String get profileSubtitle =>
+      'Gerez vos informations personnelles et celles de votre boutique';
+
+  @override
+  String get profileSectionAvatar => 'Photo de profil';
+
+  @override
+  String get profileSectionPersonal => 'Informations personnelles';
+
+  @override
+  String get profileSectionBusiness => 'Informations de la boutique';
+
+  @override
+  String get profileSectionPassword => 'Mot de passe';
+
+  @override
+  String get profileUploadAvatar => 'Changer la photo';
+
+  @override
+  String get profileUploading => 'Envoi en cours...';
+
+  @override
+  String get profileUploadError => 'Erreur lors de l\'envoi de la photo';
+
+  @override
+  String get profileFirstName => 'Prenom';
+
+  @override
+  String get profileLastName => 'Nom';
+
+  @override
+  String get profileEmail => 'Email';
+
+  @override
+  String get profileEmailHint =>
+      'Modifier votre email vous demandera de le re-verifier.';
+
+  @override
+  String get profilePhone => 'Telephone (livraison)';
+
+  @override
+  String get profilePhoneHint =>
+      'Utilise pour la communication avec les livreurs.';
+
+  @override
+  String get profileBusinessName => 'Nom de la boutique';
+
+  @override
+  String get profileLocation => 'Localisation';
+
+  @override
+  String get profileDescription => 'Description';
+
+  @override
+  String get profileDescriptionPlaceholder =>
+      'Decrivez votre boutique en quelques phrases...';
+
+  @override
+  String get profileSave => 'Enregistrer';
+
+  @override
+  String get profileSaving => 'Enregistrement...';
+
+  @override
+  String get profileSaveSuccess => 'Profil mis a jour';
+
+  @override
+  String get profileSaveError => 'Erreur lors de l\'enregistrement';
+
+  @override
+  String get profileApplicationPending =>
+      'Votre demande d\'inscription est en cours de revision. Vous pourrez modifier les informations de la boutique une fois la demande approuvee.';
+
+  @override
+  String get profileApplicationRejected =>
+      'Votre demande a ete rejetee. Contactez le support pour en savoir plus.';
+
+  @override
+  String get profilePasswordHint =>
+      'Modifier votre mot de passe vous deconnectera de tous vos autres appareils.';
+
+  @override
+  String get profileCurrentPassword => 'Mot de passe actuel';
+
+  @override
+  String get profileNewPassword => 'Nouveau mot de passe';
+
+  @override
+  String get profileConfirmPassword => 'Confirmer le nouveau mot de passe';
+
+  @override
+  String get profilePasswordRules =>
+      'Au moins 8 caracteres, avec lettres et chiffres.';
+
+  @override
+  String get profilePasswordMismatch =>
+      'Les deux mots de passe ne correspondent pas';
+
+  @override
+  String get profileChangePassword => 'Modifier le mot de passe';
+
+  @override
+  String get profilePasswordChangeSuccess =>
+      'Mot de passe modifie avec succes. Les autres appareils ont ete deconnectes.';
+
+  @override
+  String get profilePasswordChangeError =>
+      'Erreur lors de la modification du mot de passe';
+
+  @override
+  String get profileLogout => 'Se deconnecter';
+
+  @override
   String get reviewsTitle => 'Avis clients';
 
   @override
