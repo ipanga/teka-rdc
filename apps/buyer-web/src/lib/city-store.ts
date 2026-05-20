@@ -71,8 +71,24 @@ export const useCityStore = create<CityState>((set, get) => ({
     const stored = localStorage.getItem(STORAGE_CITY_KEY);
     if (stored) {
       try {
-        const city = JSON.parse(stored) as City;
-        set({ selectedCity: city });
+        const parsed = JSON.parse(stored) as unknown;
+        // Guard against stale data from before the May 2026 monolingual
+        // refactor — back then `city.name` was a `{en, fr}` Map, which still
+        // lives in some users' localStorage and would crash the home page's
+        // next-intl interpolation (`t('subtitle', { city: city.name })`)
+        // with a React #31 + INVALID_MESSAGE error. Discard anything that
+        // doesn't match the current plain-string shape.
+        const isCurrentShape =
+          typeof parsed === 'object' &&
+          parsed !== null &&
+          typeof (parsed as { id?: unknown }).id === 'string' &&
+          typeof (parsed as { name?: unknown }).name === 'string';
+        if (isCurrentShape) {
+          set({ selectedCity: parsed as City });
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+          localStorage.removeItem(STORAGE_CITY_KEY);
+        }
       } catch {
         // Invalid JSON, clear it
         localStorage.removeItem(STORAGE_KEY);
