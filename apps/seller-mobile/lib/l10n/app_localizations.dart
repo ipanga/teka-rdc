@@ -1072,6 +1072,216 @@ abstract class AppLocalizations {
   /// **'Echoue'**
   String get paymentFailed;
 
+  /// No description provided for @profileTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mon profil'**
+  String get profileTitle;
+
+  /// No description provided for @profileSubtitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Gerez vos informations personnelles et celles de votre boutique'**
+  String get profileSubtitle;
+
+  /// No description provided for @profileSectionAvatar.
+  ///
+  /// In fr, this message translates to:
+  /// **'Photo de profil'**
+  String get profileSectionAvatar;
+
+  /// No description provided for @profileSectionPersonal.
+  ///
+  /// In fr, this message translates to:
+  /// **'Informations personnelles'**
+  String get profileSectionPersonal;
+
+  /// No description provided for @profileSectionBusiness.
+  ///
+  /// In fr, this message translates to:
+  /// **'Informations de la boutique'**
+  String get profileSectionBusiness;
+
+  /// No description provided for @profileSectionPassword.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mot de passe'**
+  String get profileSectionPassword;
+
+  /// No description provided for @profileUploadAvatar.
+  ///
+  /// In fr, this message translates to:
+  /// **'Changer la photo'**
+  String get profileUploadAvatar;
+
+  /// No description provided for @profileUploading.
+  ///
+  /// In fr, this message translates to:
+  /// **'Envoi en cours...'**
+  String get profileUploading;
+
+  /// No description provided for @profileUploadError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Erreur lors de l\'envoi de la photo'**
+  String get profileUploadError;
+
+  /// No description provided for @profileFirstName.
+  ///
+  /// In fr, this message translates to:
+  /// **'Prenom'**
+  String get profileFirstName;
+
+  /// No description provided for @profileLastName.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nom'**
+  String get profileLastName;
+
+  /// No description provided for @profileEmail.
+  ///
+  /// In fr, this message translates to:
+  /// **'Email'**
+  String get profileEmail;
+
+  /// No description provided for @profileEmailHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Modifier votre email vous demandera de le re-verifier.'**
+  String get profileEmailHint;
+
+  /// No description provided for @profilePhone.
+  ///
+  /// In fr, this message translates to:
+  /// **'Telephone (livraison)'**
+  String get profilePhone;
+
+  /// No description provided for @profilePhoneHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Utilise pour la communication avec les livreurs.'**
+  String get profilePhoneHint;
+
+  /// No description provided for @profileBusinessName.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nom de la boutique'**
+  String get profileBusinessName;
+
+  /// No description provided for @profileLocation.
+  ///
+  /// In fr, this message translates to:
+  /// **'Localisation'**
+  String get profileLocation;
+
+  /// No description provided for @profileDescription.
+  ///
+  /// In fr, this message translates to:
+  /// **'Description'**
+  String get profileDescription;
+
+  /// No description provided for @profileDescriptionPlaceholder.
+  ///
+  /// In fr, this message translates to:
+  /// **'Decrivez votre boutique en quelques phrases...'**
+  String get profileDescriptionPlaceholder;
+
+  /// No description provided for @profileSave.
+  ///
+  /// In fr, this message translates to:
+  /// **'Enregistrer'**
+  String get profileSave;
+
+  /// No description provided for @profileSaving.
+  ///
+  /// In fr, this message translates to:
+  /// **'Enregistrement...'**
+  String get profileSaving;
+
+  /// No description provided for @profileSaveSuccess.
+  ///
+  /// In fr, this message translates to:
+  /// **'Profil mis a jour'**
+  String get profileSaveSuccess;
+
+  /// No description provided for @profileSaveError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Erreur lors de l\'enregistrement'**
+  String get profileSaveError;
+
+  /// No description provided for @profileApplicationPending.
+  ///
+  /// In fr, this message translates to:
+  /// **'Votre demande d\'inscription est en cours de revision. Vous pourrez modifier les informations de la boutique une fois la demande approuvee.'**
+  String get profileApplicationPending;
+
+  /// No description provided for @profileApplicationRejected.
+  ///
+  /// In fr, this message translates to:
+  /// **'Votre demande a ete rejetee. Contactez le support pour en savoir plus.'**
+  String get profileApplicationRejected;
+
+  /// No description provided for @profilePasswordHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Modifier votre mot de passe vous deconnectera de tous vos autres appareils.'**
+  String get profilePasswordHint;
+
+  /// No description provided for @profileCurrentPassword.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mot de passe actuel'**
+  String get profileCurrentPassword;
+
+  /// No description provided for @profileNewPassword.
+  ///
+  /// In fr, this message translates to:
+  /// **'Nouveau mot de passe'**
+  String get profileNewPassword;
+
+  /// No description provided for @profileConfirmPassword.
+  ///
+  /// In fr, this message translates to:
+  /// **'Confirmer le nouveau mot de passe'**
+  String get profileConfirmPassword;
+
+  /// No description provided for @profilePasswordRules.
+  ///
+  /// In fr, this message translates to:
+  /// **'Au moins 8 caracteres, avec lettres et chiffres.'**
+  String get profilePasswordRules;
+
+  /// No description provided for @profilePasswordMismatch.
+  ///
+  /// In fr, this message translates to:
+  /// **'Les deux mots de passe ne correspondent pas'**
+  String get profilePasswordMismatch;
+
+  /// No description provided for @profileChangePassword.
+  ///
+  /// In fr, this message translates to:
+  /// **'Modifier le mot de passe'**
+  String get profileChangePassword;
+
+  /// No description provided for @profilePasswordChangeSuccess.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mot de passe modifie avec succes. Les autres appareils ont ete deconnectes.'**
+  String get profilePasswordChangeSuccess;
+
+  /// No description provided for @profilePasswordChangeError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Erreur lors de la modification du mot de passe'**
+  String get profilePasswordChangeError;
+
+  /// No description provided for @profileLogout.
+  ///
+  /// In fr, this message translates to:
+  /// **'Se deconnecter'**
+  String get profileLogout;
+
   /// No description provided for @reviewsTitle.
   ///
   /// In fr, this message translates to:
