@@ -31,6 +31,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   ProfileUser? _user;
   NotificationPrefs? _notifPrefs;
 
+  List<SessionDto>? _sessions;
+  bool _sessionsLoading = false;
+  String? _sessionAction;
+
   // Form state
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl = TextEditingController();
@@ -95,6 +99,61 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       });
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+    _loadSessions();
+  }
+
+  Future<void> _loadSessions() async {
+    if (!mounted) return;
+    setState(() => _sessionsLoading = true);
+    try {
+      final list =
+          await ref.read(profileRepositoryProvider).listSessions();
+      if (!mounted) return;
+      setState(() => _sessions = list);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _sessions = const <SessionDto>[]);
+      final l10n = AppLocalizations.of(context)!;
+      _toast(l10n.profileSessionsLoadError, error: true);
+    } finally {
+      if (mounted) setState(() => _sessionsLoading = false);
+    }
+  }
+
+  Future<void> _revokeSession(String id) async {
+    final l10n = AppLocalizations.of(context)!;
+    setState(() => _sessionAction = id);
+    try {
+      await ref.read(profileRepositoryProvider).revokeSession(id);
+      if (!mounted) return;
+      setState(
+        () => _sessions = _sessions?.where((s) => s.id != id).toList(),
+      );
+      _toast(l10n.profileSessionRevoked);
+    } catch (_) {
+      if (!mounted) return;
+      _toast(l10n.profileSessionRevokeError, error: true);
+    } finally {
+      if (mounted) setState(() => _sessionAction = null);
+    }
+  }
+
+  Future<void> _revokeAllOtherSessions() async {
+    final l10n = AppLocalizations.of(context)!;
+    setState(() => _sessionAction = 'all');
+    try {
+      await ref.read(profileRepositoryProvider).revokeAllOtherSessions();
+      if (!mounted) return;
+      setState(
+        () => _sessions = _sessions?.where((s) => s.current).toList(),
+      );
+      _toast(l10n.profileSessionRevoked);
+    } catch (_) {
+      if (!mounted) return;
+      _toast(l10n.profileSessionRevokeError, error: true);
+    } finally {
+      if (mounted) setState(() => _sessionAction = null);
     }
   }
 
@@ -546,6 +605,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 ],
               ),
             ),
+
+            // Sessions
+            _SessionsCard(
+              sessions: _sessions,
+              loading: _sessionsLoading,
+              action: _sessionAction,
+              onRevoke: _revokeSession,
+              onRevokeAll: _revokeAllOtherSessions,
+            ),
           ],
         ),
       ),
@@ -606,5 +674,205 @@ class _Banner extends StatelessWidget {
         style: TextStyle(fontSize: 12, color: color),
       ),
     );
+  }
+}
+
+/// Mirrors the web "Appareils connectes" section.
+class _SessionsCard extends StatelessWidget {
+  final List<SessionDto>? sessions;
+  final bool loading;
+  final String? action;
+  final Future<void> Function(String id) onRevoke;
+  final Future<void> Function() onRevokeAll;
+
+  const _SessionsCard({
+    required this.sessions,
+    required this.loading,
+    required this.action,
+    required this.onRevoke,
+    required this.onRevokeAll,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final hasOthers = sessions?.any((s) => !s.current) ?? false;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: TekaColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.profileSectionSessions,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: TekaColors.foreground,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      l10n.profileSessionsHint,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: TekaColors.mutedForeground,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (hasOthers)
+                TextButton(
+                  onPressed: action != null ? null : onRevokeAll,
+                  style: TextButton.styleFrom(
+                    foregroundColor: TekaColors.destructive,
+                    padding: EdgeInsets.zero,
+                    minimumSize: const Size(0, 32),
+                  ),
+                  child: Text(
+                    action == 'all'
+                        ? l10n.profileSessionRevoking
+                        : l10n.profileSessionRevokeAll,
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (loading && sessions == null)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else if (sessions == null || sessions!.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                l10n.profileSessionsEmpty,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: TekaColors.mutedForeground,
+                ),
+              ),
+            )
+          else
+            ...List.generate(sessions!.length, (i) {
+              final s = sessions![i];
+              final dateLabel = _formatDate(s.createdAt);
+              return Column(
+                children: [
+                  if (i > 0)
+                    const Divider(height: 1, color: TekaColors.border),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      s.ipAddress != null
+                                          ? l10n.profileSessionIp(s.ipAddress!)
+                                          : l10n.profileSessionIpUnknown,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: TekaColors.foreground,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  if (s.current) ...[
+                                    const SizedBox(width: 6),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        // Brand-red 10% subtle tint (mirrors
+                                        // primary/10 on web; seller-mobile's
+                                        // TekaColors palette is minimal so
+                                        // we inline the alpha here).
+                                        color: TekaColors.tekaRed
+                                            .withValues(alpha: 0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        l10n.profileSessionCurrent,
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w500,
+                                          color: TekaColors.tekaRed,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                l10n.profileSessionConnectedOn(dateLabel),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: TekaColors.mutedForeground,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (!s.current)
+                          TextButton(
+                            onPressed:
+                                action != null ? null : () => onRevoke(s.id),
+                            style: TextButton.styleFrom(
+                              foregroundColor: TekaColors.destructive,
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size(0, 32),
+                            ),
+                            child: Text(
+                              action == s.id
+                                  ? l10n.profileSessionRevoking
+                                  : l10n.profileSessionRevoke,
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            }),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime d) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(d.day)}/${two(d.month)}/${d.year} ${two(d.hour)}:${two(d.minute)}';
   }
 }

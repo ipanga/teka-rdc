@@ -1324,6 +1324,84 @@ abstract class AppLocalizations {
   /// **'Erreur lors de la mise a jour'**
   String get profileNotifError;
 
+  /// No description provided for @profileSectionSessions.
+  ///
+  /// In fr, this message translates to:
+  /// **'Appareils connectes'**
+  String get profileSectionSessions;
+
+  /// No description provided for @profileSessionsHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Liste des appareils actuellement connectes a votre compte. Revoquez ceux que vous ne reconnaissez pas.'**
+  String get profileSessionsHint;
+
+  /// No description provided for @profileSessionCurrent.
+  ///
+  /// In fr, this message translates to:
+  /// **'Cet appareil'**
+  String get profileSessionCurrent;
+
+  /// No description provided for @profileSessionConnectedOn.
+  ///
+  /// In fr, this message translates to:
+  /// **'Connecte le {date}'**
+  String profileSessionConnectedOn(String date);
+
+  /// No description provided for @profileSessionIp.
+  ///
+  /// In fr, this message translates to:
+  /// **'IP {ip}'**
+  String profileSessionIp(String ip);
+
+  /// No description provided for @profileSessionIpUnknown.
+  ///
+  /// In fr, this message translates to:
+  /// **'IP inconnue'**
+  String get profileSessionIpUnknown;
+
+  /// No description provided for @profileSessionRevoke.
+  ///
+  /// In fr, this message translates to:
+  /// **'Deconnecter'**
+  String get profileSessionRevoke;
+
+  /// No description provided for @profileSessionRevokeAll.
+  ///
+  /// In fr, this message translates to:
+  /// **'Deconnecter les autres appareils'**
+  String get profileSessionRevokeAll;
+
+  /// No description provided for @profileSessionRevoking.
+  ///
+  /// In fr, this message translates to:
+  /// **'Deconnexion...'**
+  String get profileSessionRevoking;
+
+  /// No description provided for @profileSessionRevoked.
+  ///
+  /// In fr, this message translates to:
+  /// **'Appareil deconnecte'**
+  String get profileSessionRevoked;
+
+  /// No description provided for @profileSessionRevokeError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Impossible de deconnecter cet appareil'**
+  String get profileSessionRevokeError;
+
+  /// No description provided for @profileSessionsEmpty.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucun autre appareil connecte'**
+  String get profileSessionsEmpty;
+
+  /// No description provided for @profileSessionsLoadError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Impossible de charger la liste des appareils'**
+  String get profileSessionsLoadError;
+
   /// No description provided for @reviewsTitle.
   ///
   /// In fr, this message translates to:

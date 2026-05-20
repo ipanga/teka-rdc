@@ -48,6 +48,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       role: user.role,
       phone: user.phone,
       email: user.email,
+      // `jti` is the RefreshToken.id of the session that issued this access
+      // token (both tokens share the same tokenId at issue time — see
+      // AuthService.generateTokens). Sessions endpoints read it to mark the
+      // current device + reject self-revocation.
+      jti: payload.jti,
     };
   }
 }
