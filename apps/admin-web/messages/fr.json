@@ -105,7 +105,15 @@
     "saving": "Enregistrement...",
     "saveSuccess": "Profil mis à jour",
     "saveError": "Erreur lors de l'enregistrement",
-    "passwordChangeNote": "La modification du mot de passe sera disponible dans une prochaine version. En attendant, utilisez le lien \"Mot de passe oublié\" sur la page de connexion."
+    "passwordHint": "Modifier votre mot de passe vous déconnectera de tous vos autres appareils.",
+    "currentPassword": "Mot de passe actuel",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le nouveau mot de passe",
+    "passwordRules": "Au moins 8 caractères, avec lettres et chiffres.",
+    "passwordMismatch": "Les deux mots de passe ne correspondent pas",
+    "changePassword": "Modifier le mot de passe",
+    "passwordChangeSuccess": "Mot de passe modifié avec succès. Les autres appareils ont été déconnectés.",
+    "passwordChangeError": "Erreur lors de la modification du mot de passe"
   },
   "Dashboard": {
     "title": "Tableau de bord",

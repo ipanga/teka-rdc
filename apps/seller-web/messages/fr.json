@@ -103,7 +103,17 @@
     "saveSuccess": "Profil mis à jour",
     "saveError": "Erreur lors de l'enregistrement",
     "applicationPending": "Votre demande d'inscription est en cours de révision. Vous pourrez modifier les informations de la boutique une fois la demande approuvée.",
-    "applicationRejected": "Votre demande a été rejetée. Contactez le support pour en savoir plus."
+    "applicationRejected": "Votre demande a été rejetée. Contactez le support pour en savoir plus.",
+    "sectionPassword": "Mot de passe",
+    "passwordHint": "Modifier votre mot de passe vous déconnectera de tous vos autres appareils.",
+    "currentPassword": "Mot de passe actuel",
+    "newPassword": "Nouveau mot de passe",
+    "confirmPassword": "Confirmer le nouveau mot de passe",
+    "passwordRules": "Au moins 8 caractères, avec lettres et chiffres.",
+    "passwordMismatch": "Les deux mots de passe ne correspondent pas",
+    "changePassword": "Modifier le mot de passe",
+    "passwordChangeSuccess": "Mot de passe modifié avec succès. Les autres appareils ont été déconnectés.",
+    "passwordChangeError": "Erreur lors de la modification du mot de passe"
   },
   "Dashboard": {
     "title": "Espace Vendeur",

@@ -48,6 +48,12 @@ export default function SellerProfilePage() {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Password change form state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+
   const loadMe = useCallback(async () => {
     try {
       const res = await apiFetch<MeResponse>('/v1/auth/me');
@@ -128,6 +134,30 @@ export default function SellerProfilePage() {
       showFeedback('error', msg);
     } finally {
       setSavingPersonal(false);
+    }
+  };
+
+  const changePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      showFeedback('error', t('passwordMismatch'));
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await apiFetch('/v1/auth/password/change', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      showFeedback('success', t('passwordChangeSuccess'));
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.message : t('passwordChangeError');
+      showFeedback('error', msg);
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -332,6 +362,62 @@ export default function SellerProfilePage() {
             className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {savingBusiness ? t('saving') : t('save')}
+          </button>
+        </form>
+      </section>
+
+      {/* Password change */}
+      <section className="mt-6 bg-white rounded-xl border border-border p-6">
+        <h2 className="text-base font-semibold text-foreground mb-2">{t('sectionPassword')}</h2>
+        <p className="text-sm text-muted-foreground mb-4">{t('passwordHint')}</p>
+        <form onSubmit={changePassword} className="space-y-4 max-w-md">
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">{t('currentPassword')}</label>
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+              className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">{t('newPassword')}</label>
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              minLength={8}
+              className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            <p className="text-xs text-muted-foreground mt-1">{t('passwordRules')}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">{t('confirmPassword')}</label>
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              minLength={8}
+              className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={
+              changingPassword ||
+              !currentPassword ||
+              newPassword.length < 8 ||
+              !confirmPassword
+            }
+            className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {changingPassword ? t('saving') : t('changePassword')}
           </button>
         </form>
       </section>

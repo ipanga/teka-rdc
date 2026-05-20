@@ -21,6 +21,7 @@ import { EmailLoginDto } from './dto/email-login.dto';
 import { EmailRegisterDto } from './dto/email-register.dto';
 import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
 import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
+import { PasswordChangeDto } from './dto/password-change.dto';
 import { BuyerOtpRequestDto } from './dto/buyer-otp-request.dto';
 import { BuyerOtpVerifyDto } from './dto/buyer-otp-verify.dto';
 import { BuyerOtpResendDto } from './dto/buyer-otp-resend.dto';
@@ -83,6 +84,21 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async confirmPasswordReset(@Body() dto: PasswordResetConfirmDto) {
     return this.authService.confirmPasswordReset(dto);
+  }
+
+  /**
+   * In-app password change for an authenticated user. Sellers + admins.
+   * Authentication is the default global JwtAuthGuard — no @Public/@Roles
+   * needed; any logged-in user can hit this. Service layer rejects buyers
+   * (no password, WhatsApp OTP since 2026-05-15) with a 400.
+   */
+  @Post('password/change')
+  @HttpCode(HttpStatus.OK)
+  async changePassword(
+    @CurrentUser('userId') userId: string,
+    @Body() dto: PasswordChangeDto,
+  ) {
+    return this.authService.changePassword(userId, dto);
   }
 
   // ---------------------------------------------------------------------------

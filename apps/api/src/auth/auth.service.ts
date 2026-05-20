@@ -16,6 +16,7 @@ import { EmailLoginDto } from './dto/email-login.dto';
 import { EmailRegisterDto } from './dto/email-register.dto';
 import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
 import { PasswordResetConfirmDto } from './dto/password-reset-confirm.dto';
+import { PasswordChangeDto } from './dto/password-change.dto';
 import {
   generateResetToken,
   hashPassword,
@@ -235,6 +236,64 @@ export class AuthService {
     ]);
 
     return { message: 'Mot de passe réinitialisé avec succès' };
+  }
+
+  /**
+   * In-app password change for an authenticated user. Verifies the current
+   * password, hashes the new one, and revokes all refresh tokens (forces
+   * other devices to re-login). Only allowed for users with a password —
+   * buyers (WhatsApp OTP) are rejected with a 400 since there's nothing to
+   * change.
+   *
+   * The current cookie/session continues to work because cookie-based access
+   * tokens are stateless JWTs unaffected by the refresh-token revocation
+   * (they expire on their own at 15 min). Other devices that still hold a
+   * refresh token will fail their next /auth/refresh call.
+   */
+  async changePassword(userId: string, dto: PasswordChangeDto) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId, deletedAt: null },
+    });
+    if (!user) {
+      throw new UnauthorizedException('Session invalide');
+    }
+    if (!user.passwordHash) {
+      throw new BadRequestException(
+        'Aucun mot de passe sur ce compte (connexion par OTP). Le changement de mot de passe ne s\'applique pas.',
+      );
+    }
+
+    const matches = await verifyPassword(dto.currentPassword, user.passwordHash);
+    if (!matches) {
+      throw new BadRequestException('Mot de passe actuel incorrect');
+    }
+
+    // Guard against accidental no-op churn — bcrypt is expensive and
+    // refresh-token revocation would log the user out of all other devices
+    // for no reason.
+    const sameAsOld = await verifyPassword(dto.newPassword, user.passwordHash);
+    if (sameAsOld) {
+      throw new BadRequestException(
+        'Le nouveau mot de passe doit être différent de l\'actuel',
+      );
+    }
+
+    const rounds = this.configService.get<number>('BCRYPT_ROUNDS', 12);
+    const passwordHash = await hashPassword(dto.newPassword, rounds);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: userId },
+        data: { passwordHash, passwordSetAt: new Date() },
+      }),
+      // Revoke all existing refresh tokens — other devices need to re-login.
+      this.prisma.refreshToken.updateMany({
+        where: { userId, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+
+    return { message: 'Mot de passe modifié avec succès' };
   }
 
   // ---------------------------------------------------------------------------
