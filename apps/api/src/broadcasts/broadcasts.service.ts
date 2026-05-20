@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SmsService } from '../sms/sms.service';
+import { NotificationPrefsService } from '../users/notification-prefs.service';
 import {
   NotificationBroadcastStatus,
   UserRole,
@@ -21,6 +22,7 @@ export class BroadcastsService {
   constructor(
     private prisma: PrismaService,
     private smsService: SmsService,
+    private notificationPrefs: NotificationPrefsService,
   ) {}
 
   /**
@@ -256,6 +258,14 @@ export class BroadcastsService {
         for (const user of users) {
           // Skip users without a phone on file (email-only buyers).
           if (!user.phone) {
+            continue;
+          }
+          // Respect per-user broadcast opt-out (Phase 7a). Users who flipped
+          // smsBroadcasts=false in their profile are excluded; the row is
+          // not counted as sent or failed.
+          if (
+            !(await this.notificationPrefs.shouldSendBroadcasts(user.id))
+          ) {
             continue;
           }
           try {

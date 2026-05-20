@@ -1282,6 +1282,48 @@ abstract class AppLocalizations {
   /// **'Se deconnecter'**
   String get profileLogout;
 
+  /// No description provided for @profileSectionNotifications.
+  ///
+  /// In fr, this message translates to:
+  /// **'Notifications'**
+  String get profileSectionNotifications;
+
+  /// No description provided for @profileNotificationsHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Choisissez les SMS que vous voulez recevoir. Les codes de verification restent toujours envoyes.'**
+  String get profileNotificationsHint;
+
+  /// No description provided for @profileNotifOrderUpdates.
+  ///
+  /// In fr, this message translates to:
+  /// **'Mises a jour de commande'**
+  String get profileNotifOrderUpdates;
+
+  /// No description provided for @profileNotifOrderUpdatesDesc.
+  ///
+  /// In fr, this message translates to:
+  /// **'Confirmation, expedition, livraison, annulation'**
+  String get profileNotifOrderUpdatesDesc;
+
+  /// No description provided for @profileNotifBroadcasts.
+  ///
+  /// In fr, this message translates to:
+  /// **'Annonces et promotions'**
+  String get profileNotifBroadcasts;
+
+  /// No description provided for @profileNotifBroadcastsDesc.
+  ///
+  /// In fr, this message translates to:
+  /// **'Messages marketing envoyes par l\'equipe Teka'**
+  String get profileNotifBroadcastsDesc;
+
+  /// No description provided for @profileNotifError.
+  ///
+  /// In fr, this message translates to:
+  /// **'Erreur lors de la mise a jour'**
+  String get profileNotifError;
+
   /// No description provided for @reviewsTitle.
   ///
   /// In fr, this message translates to:
