@@ -26,7 +26,7 @@ class ProductImageModel {
 
 class CategoryModel {
   final String id;
-  final Map<String, String> name;
+  final String name;
   final String? emoji;
   final List<CategoryModel> subcategories;
 
@@ -37,21 +37,7 @@ class CategoryModel {
     this.subcategories = const [],
   });
 
-  String getLocalizedName(String locale) {
-    return name[locale] ?? name['fr'] ?? name.values.firstOrNull ?? '';
-  }
-
   factory CategoryModel.fromJson(Map<String, dynamic> json) {
-    final nameRaw = json['name'];
-    Map<String, String> nameMap;
-    if (nameRaw is Map) {
-      nameMap = nameRaw.map((k, v) => MapEntry(k.toString(), v.toString()));
-    } else if (nameRaw is String) {
-      nameMap = {'fr': nameRaw};
-    } else {
-      nameMap = {'fr': ''};
-    }
-
     final subcategoriesRaw = json['subcategories'] as List<dynamic>?;
     final subcategories = subcategoriesRaw
             ?.map((e) => CategoryModel.fromJson(e as Map<String, dynamic>))
@@ -60,7 +46,7 @@ class CategoryModel {
 
     return CategoryModel(
       id: json['id'] as String,
-      name: nameMap,
+      name: json['name']?.toString() ?? '',
       emoji: json['emoji'] as String?,
       subcategories: subcategories,
     );
@@ -79,14 +65,8 @@ class ProductSpecificationModel {
   });
 
   factory ProductSpecificationModel.fromJson(Map<String, dynamic> json) {
-    final attrNameRaw = json['attributeName'] ?? json['attribute']?['name'];
-    String? attrName;
-    if (attrNameRaw is Map) {
-      attrName = (attrNameRaw['fr'] ?? attrNameRaw.values.firstOrNull)?.toString();
-    } else if (attrNameRaw is String) {
-      attrName = attrNameRaw;
-    }
-
+    final attrName = (json['attributeName'] ?? json['attribute']?['name'])
+        ?.toString();
     return ProductSpecificationModel(
       attributeId: json['attributeId'] as String?,
       attributeName: attrName,
@@ -152,8 +132,8 @@ String productConditionToApi(ProductCondition condition) {
 
 class SellerProductModel {
   final String id;
-  final Map<String, String> title;
-  final Map<String, String> description;
+  final String title;
+  final String description;
   final String categoryId;
   final String priceCDF;
   final String? priceUSD;
@@ -185,17 +165,6 @@ class SellerProductModel {
     this.updatedAt,
   });
 
-  String getLocalizedTitle(String locale) {
-    return title[locale] ?? title['fr'] ?? title.values.firstOrNull ?? '';
-  }
-
-  String getLocalizedDescription(String locale) {
-    return description[locale] ??
-        description['fr'] ??
-        description.values.firstOrNull ??
-        '';
-  }
-
   /// Display price in CDF (convert from centimes string)
   int get priceCDFDisplay {
     final centimes = int.tryParse(priceCDF) ?? 0;
@@ -217,15 +186,6 @@ class SellerProductModel {
   }
 
   factory SellerProductModel.fromJson(Map<String, dynamic> json) {
-    Map<String, String> parseTranslatable(dynamic raw) {
-      if (raw is Map) {
-        return raw.map((k, v) => MapEntry(k.toString(), v.toString()));
-      } else if (raw is String) {
-        return {'fr': raw};
-      }
-      return {'fr': ''};
-    }
-
     final imagesRaw = json['images'] as List<dynamic>?;
     final images = imagesRaw
             ?.map((e) => ProductImageModel.fromJson(e as Map<String, dynamic>))
@@ -243,8 +203,8 @@ class SellerProductModel {
 
     return SellerProductModel(
       id: json['id'] as String,
-      title: parseTranslatable(json['title']),
-      description: parseTranslatable(json['description']),
+      title: json['title']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
       categoryId: json['categoryId'] as String? ?? '',
       priceCDF: json['priceCDF']?.toString() ?? '0',
       priceUSD: json['priceUSD']?.toString(),

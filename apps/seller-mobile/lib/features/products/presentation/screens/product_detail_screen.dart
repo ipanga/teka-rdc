@@ -130,7 +130,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
         // Title
         Text(
-          product.getLocalizedTitle(locale),
+          product.title,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
               ),
@@ -197,7 +197,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   size: 16, color: TekaColors.mutedForeground),
               const SizedBox(width: 4),
               Text(
-                product.category!.getLocalizedName(locale),
+                product.category!.name,
                 style: const TextStyle(
                     fontSize: 13, color: TekaColors.mutedForeground),
               ),
@@ -206,11 +206,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         const SizedBox(height: 16),
 
         // Description
-        if (product.getLocalizedDescription(locale).isNotEmpty) ...[
+        if (product.description.isNotEmpty) ...[
           const Divider(),
           const SizedBox(height: 8),
           Text(
-            product.getLocalizedDescription(locale),
+            product.description,
             style: const TextStyle(fontSize: 14, height: 1.5),
           ),
           const SizedBox(height: 16),

@@ -1,9 +1,44 @@
 # Teka RDC — Development Progress
 
 ## Current Phase: — (no active initiative; awaiting next direction)
-## Last completed: Flutter buyer-mobile cleanup — drop multilingual Map+localized helpers (2026-05-20, PR #117 → #118)
-## Status: 10 buyer-mobile models simplified from `Map<String, dynamic>` + `localized*(locale)` helpers to plain `String` after the jsonb→text migration (PR #112) made the API serve plain French. 23 files touched, -251 / +57 net. Flutter analyze clean. Code-only change — no runtime/UX impact.
+## Last completed: Seller-platform cleanup — 5 silent bugs + dead code (2026-05-20, PR #120 → #121)
+## Status: Audit-driven cleanup of seller-web + seller-mobile. 5 silent response-shape bugs fixed (most visible: seller dashboard's 4 stat cards always rendered 0). MM payout request UI hidden per user decision (backend intact, trivially reversible). Dead Conversation/Message/MobileMoneyProvider types deleted. Net: -569 / +127 LOC across 11 files. All CI green, deployed to prod.
 ## Last Updated: 2026-05-20
+
+### Initiative — Seller-platform cleanup (2026-05-20, PR #120 → #121)
+
+**Brief**: Full review of seller-web + seller-mobile against the May 2026 platform changes (messaging removal, COD-only buyer payments, monolingual French, jsonb→text). Audit-first; targeted fixes. Profile management deferred as its own initiative.
+
+**Audit method**: Two parallel Explore subagents (one per surface), then cross-platform drift synthesis. Found 5 confirmed bugs and 1 dead-types pile.
+
+**Bugs fixed (all silent in prod until now)**:
+
+1. **seller-web `/dashboard` stat cards always 0** — read `res.data.meta.total` but API returns `data.pagination.total`. All 4 cards (Total / Active / Pending / Drafts) silently rendered 0 even when sellers had products. Plus `loadReviewStats()` read `res.data.products` instead of `res.data.data` (rating calc always returned 0/0). Plus dead `/v1/messages/unread-count` API call + dead `/dashboard/messages` link (both gone since the 2026-05-17 messaging removal).
+
+2. **seller-web `/dashboard/earnings` lists silently empty** — `/sellers/earnings` and `/sellers/payouts` endpoints flatten their envelope to `{ success, data: [...], meta: {...} }` (see payouts.controller.ts:88,118) instead of the canonical nested shape. The page was reading `res.data.earnings`/`payouts` and `res.data.meta` — both wrong. Tabs silently showed "Aucun gain" / "Aucun virement" for everyone.
+
+3. **seller-mobile `orders_repository.dart:46`** — `data['meta']` → `data['pagination']`. Same bug pattern as the products fix in PR #108.
+
+4. **seller-mobile `product_form_screen.dart`** — form still had `_titleEnController` + `_descriptionEnController` and submitted `{ fr, en }` Map to a DTO that expects plain `string`. Any submit would fail validation. Fix: drop EN fields + their dispose() + the modal sections + the Map building in the submit handler.
+
+5. **MM payout request UI hidden (web + mobile)** — per user decision. Wallet balance + earnings + past-payouts list remain visible. Backend (POST `/v1/sellers/payouts` + historical methods) untouched — trivial UI-only re-enable. New `payoutTemporarilyUnavailable` translation key on both surfaces. seller-mobile's `request_payout_screen.dart` collapsed from 276 lines to a 50-line "info" screen (deep-link safe).
+
+**Staleness removed**: `Conversation`, `Message`, `MobileMoneyProvider` types from `seller-web/lib/types.ts`. Inline `PAYOUT_METHOD_LABELS` lookup replaces the `MobileMoneyProvider` enum-based one for displaying historical payouts.
+
+**Verification**:
+- `pnpm --filter {api,seller-web} type-check`: clean
+- `pnpm --filter api test:e2e`: 90/90 passing
+- `flutter analyze` (seller-mobile): 14 pre-existing `deprecated_member_use` + `use_build_context_synchronously` infos; zero errors/warnings from this refactor
+- CI: lint, type-check, API e2e, both Flutter analyses, all docker-build-check stages — all green
+- Prod smoke: `seller.teka.cd/dashboard` → 307 (auth redirect, route working); `/v1/messages/unread-count` → 401 (endpoint deleted, auth wall behind it)
+
+**Out of scope (flagged for future PRs)**:
+- **Profile management** still missing on web + mobile (separate initiative, multi-PR scope)
+- seller-mobile models still use the `Map<String, dynamic>` + `getLocalizedTitle/Description(locale)` pattern (product, category, attribute, promotion). buyer-mobile got the equivalent cleanup in PR #117; seller-mobile is a separate follow-up. The defensive `parseTranslatable` makes them tolerate plain-string API responses so they keep working.
+
+**Ship cycle**: PR #120 → develop ✓ → PR #121 → main ✓ → deploy `26173659447` succeeded → back-merge main → develop ✓.
+
+### Initiative — Flutter buyer-mobile multilingual cleanup (2026-05-20, PR #117 → #118)
 
 ### Initiative — Flutter buyer-mobile multilingual cleanup (2026-05-20, PR #117 → #118)
 

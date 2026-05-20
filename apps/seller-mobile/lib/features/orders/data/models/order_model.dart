@@ -148,7 +148,7 @@ class OrderAddressModel {
 class OrderItemModel {
   final String id;
   final String productId;
-  final Map<String, String> productTitle;
+  final String productTitle;
   final String? productImage;
   final int quantity;
   final String unitPriceCDF;
@@ -164,13 +164,6 @@ class OrderItemModel {
     required this.totalCDF,
   });
 
-  String getLocalizedTitle(String locale) {
-    return productTitle[locale] ??
-        productTitle['fr'] ??
-        productTitle.values.firstOrNull ??
-        '';
-  }
-
   int get unitPriceCDFDisplay {
     final centimes = int.tryParse(unitPriceCDF) ?? 0;
     return centimes ~/ 100;
@@ -182,18 +175,11 @@ class OrderItemModel {
   }
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) {
-    Map<String, String> parseTranslatable(dynamic raw) {
-      if (raw is Map) {
-        return raw.map((k, v) => MapEntry(k.toString(), v.toString()));
-      } else if (raw is String) {
-        return {'fr': raw};
-      }
-      return {'fr': ''};
-    }
-
-    // Try to extract product title from nested product object or direct field
+    // Try to extract product title from nested product object or direct field.
+    // Both are plain strings post-monolingual refactor (May 2026).
     final productRaw = json['product'] as Map<String, dynamic>?;
-    final titleRaw = json['productTitle'] ?? productRaw?['title'];
+    final titleStr =
+        (json['productTitle'] ?? productRaw?['title'])?.toString() ?? '';
     final imageRaw =
         json['productImage'] ?? productRaw?['coverImageUrl'];
 
@@ -216,7 +202,7 @@ class OrderItemModel {
       id: json['id'] as String? ?? '',
       productId:
           json['productId'] as String? ?? productRaw?['id'] as String? ?? '',
-      productTitle: parseTranslatable(titleRaw),
+      productTitle: titleStr,
       productImage: imageUrl,
       quantity: json['quantity'] as int? ?? 1,
       unitPriceCDF: json['unitPriceCDF']?.toString() ??

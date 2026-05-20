@@ -44,10 +44,10 @@ class CategorySelector extends ConsumerWidget {
     return categoriesAsync.whenOrNull(
       data: (categories) {
         for (final cat in categories) {
-          if (cat.id == selectedCategoryId) return cat.getLocalizedName('fr');
+          if (cat.id == selectedCategoryId) return cat.name;
           for (final sub in cat.subcategories) {
             if (sub.id == selectedCategoryId) {
-              return '${cat.getLocalizedName('fr')} > ${sub.getLocalizedName('fr')}';
+              return '${cat.name} > ${sub.name}';
             }
           }
         }
@@ -175,7 +175,7 @@ class _CategoryListState extends State<_CategoryList> {
                   ? Text(category.emoji!, style: const TextStyle(fontSize: 24))
                   : const Icon(Icons.category_outlined),
               title: Text(
-                category.getLocalizedName('fr'),
+                category.name,
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
               trailing: hasSubs
@@ -210,7 +210,7 @@ class _CategoryListState extends State<_CategoryList> {
                       ? Text(sub.emoji!,
                           style: const TextStyle(fontSize: 20))
                       : const Icon(Icons.subdirectory_arrow_right, size: 20),
-                  title: Text(sub.getLocalizedName('fr')),
+                  title: Text(sub.name),
                   trailing: widget.selectedId == sub.id
                       ? const Icon(Icons.check, color: TekaColors.success)
                       : null,

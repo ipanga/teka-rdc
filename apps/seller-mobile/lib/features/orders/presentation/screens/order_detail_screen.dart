@@ -455,7 +455,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
   Widget _buildOrderItem(BuildContext context, AppLocalizations l10n,
       OrderItemModel item, String locale) {
     final priceFormat = NumberFormat('#,###', 'fr');
-    final title = item.getLocalizedTitle(locale);
+    final title = item.productTitle;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
