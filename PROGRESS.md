@@ -1,9 +1,34 @@
 # Teka RDC — Development Progress
 
 ## Current Phase: — (no active initiative; awaiting next direction)
-## Last completed: Seller-platform cleanup — 5 silent bugs + dead code (2026-05-20, PR #120 → #121)
-## Status: Audit-driven cleanup of seller-web + seller-mobile. 5 silent response-shape bugs fixed (most visible: seller dashboard's 4 stat cards always rendered 0). MM payout request UI hidden per user decision (backend intact, trivially reversible). Dead Conversation/Message/MobileMoneyProvider types deleted. Net: -569 / +127 LOC across 11 files. All CI green, deployed to prod.
+## Last completed: seller-mobile multilingual cleanup — mirror of PR #117 (2026-05-20, PR #123 → #124)
+## Status: 4 seller-mobile models simplified from `Map<String, dynamic>` + `localized*(locale)` helpers to plain `String`. Bilingual fields dropped from create-promotion form. 14 files touched, -208 / +47 net. Flutter analyze clean. Mobile-only change.
 ## Last Updated: 2026-05-20
+
+### Initiative — seller-mobile multilingual cleanup (2026-05-20, PR #123 → #124)
+
+**Brief**: Mirror of PR #117 (buyer-mobile cleanup) for the seller-mobile app. After the jsonb→text DB migration (PR #112), the API serves plain French for every translatable field; the defensive `{ 'fr': value }` Map wrapping in 4 seller-mobile models was preserving a shape the API no longer returns.
+
+Also drops bilingual fields from the create-promotion form (same fix that shipped to the product form in PR #120).
+
+**Models simplified (4)**:
+- `features/products/data/models/attribute_model.dart` — AttributeModel.name: Map → String. Drop `getLocalizedName`.
+- `features/products/data/models/product_model.dart` — CategoryModel.name; SellerProductModel.title + description; ProductSpecificationModel.attributeName simplified. Drop `getLocalizedName`, `getLocalizedTitle`, `getLocalizedDescription`, `parseTranslatable`.
+- `features/promotions/data/models/promotion_model.dart` — PromotionProduct.title; PromotionModel.title + description. Drop `getLocalizedTitle` x2, `getLocalizedDescription`, `parseTranslatable`.
+- `features/orders/data/models/order_model.dart` — OrderItemModel.productTitle: Map → String. Drop `getLocalizedTitle`, `parseTranslatable`. Inline nested-product fallback as `.toString()`.
+
+**Call sites updated (8 files, ~15 sites)**: home_screen, products_list_screen, product_detail_screen (4 calls), category_selector (4 calls), dynamic_attribute_field, create_promotion_screen (bilingual form removal + Map-building drop), promotion_card, order_detail_screen (`item.title` → `item.productTitle`), seller_reviews_screen, product_form_screen.
+
+Unused `locale` / `l10n` locals removed from 5 sites.
+
+**Verification**:
+- `flutter analyze` (seller-mobile): 32 pre-existing `deprecated_member_use` + `use_build_context_synchronously` infos. Zero errors, zero warnings from this refactor.
+- CI: lint, type-check, API e2e, both Flutter analyses, all docker-build-check stages — all green
+- Net diff: -208 / +47 lines across 14 files
+
+**Ship cycle**: PR #123 → develop ✓ → PR #124 → main ✓ → deploy `26175543769` succeeded → back-merge main → develop ✓. Web prod unaffected (no web files changed); next mobile APK build picks up the simplifications.
+
+### Initiative — Seller-platform cleanup (2026-05-20, PR #120 → #121)
 
 ### Initiative — Seller-platform cleanup (2026-05-20, PR #120 → #121)
 
