@@ -176,6 +176,55 @@ class ProfileRepository {
       smsBroadcasts: data['smsBroadcasts'] as bool? ?? true,
     );
   }
+
+  /// GET /v1/users/sessions — list of active refresh-token sessions.
+  Future<List<SessionDto>> listSessions() async {
+    final response = await _dio.get('/v1/users/sessions');
+    final list = response.data['data'] as List<dynamic>;
+    return list
+        .cast<Map<String, dynamic>>()
+        .map(SessionDto.fromJson)
+        .toList(growable: false);
+  }
+
+  /// DELETE /v1/users/sessions/:id — revoke a single non-current session.
+  Future<void> revokeSession(String id) async {
+    await _dio.delete('/v1/users/sessions/$id');
+  }
+
+  /// DELETE /v1/users/sessions — revoke all sessions except the caller's.
+  /// Returns the count of revoked rows for UI feedback.
+  Future<int> revokeAllOtherSessions() async {
+    final response = await _dio.delete('/v1/users/sessions');
+    final data = response.data['data'] as Map<String, dynamic>;
+    return data['revoked'] as int? ?? 0;
+  }
+}
+
+class SessionDto {
+  final String id;
+  final DateTime createdAt;
+  final String? ipAddress;
+  final String? deviceInfo;
+  final bool current;
+
+  const SessionDto({
+    required this.id,
+    required this.createdAt,
+    required this.ipAddress,
+    required this.deviceInfo,
+    required this.current,
+  });
+
+  factory SessionDto.fromJson(Map<String, dynamic> json) {
+    return SessionDto(
+      id: json['id'] as String,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+      ipAddress: json['ipAddress'] as String?,
+      deviceInfo: json['deviceInfo'] as String?,
+      current: json['current'] as bool? ?? false,
+    );
+  }
 }
 
 class NotificationPrefs {

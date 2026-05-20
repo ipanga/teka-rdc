@@ -52,13 +52,17 @@ export class AuthService {
   // bootstrap their first password via /password-reset/request.
   // ---------------------------------------------------------------------------
 
-  async registerSellerWithEmail(dto: EmailRegisterDto) {
-    return this.registerWithEmailForRole(dto, 'SELLER');
+  async registerSellerWithEmail(
+    dto: EmailRegisterDto,
+    device?: { userAgent?: string; ipAddress?: string },
+  ) {
+    return this.registerWithEmailForRole(dto, 'SELLER', device);
   }
 
   private async registerWithEmailForRole(
     dto: EmailRegisterDto,
     role: AssignableRole,
+    device?: { userAgent?: string; ipAddress?: string },
   ) {
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -95,7 +99,12 @@ export class AuthService {
       );
     });
 
-    const tokens = await this.generateTokens(user.id, user.role, user.phone);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.role,
+      user.phone,
+      device,
+    );
     await this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
@@ -104,7 +113,10 @@ export class AuthService {
     return { user: this.sanitizeUser(user), tokens };
   }
 
-  async loginWithEmail(dto: EmailLoginDto) {
+  async loginWithEmail(
+    dto: EmailLoginDto,
+    device?: { userAgent?: string; ipAddress?: string },
+  ) {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email, deletedAt: null },
     });
@@ -127,7 +139,12 @@ export class AuthService {
       throw new ForbiddenException('Votre compte a été suspendu.');
     }
 
-    const tokens = await this.generateTokens(user.id, user.role, user.phone);
+    const tokens = await this.generateTokens(
+      user.id,
+      user.role,
+      user.phone,
+      device,
+    );
     await this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
@@ -300,7 +317,10 @@ export class AuthService {
   // Refresh / logout / profile / email verification
   // ---------------------------------------------------------------------------
 
-  async refreshTokens(refreshToken: string) {
+  async refreshTokens(
+    refreshToken: string,
+    device?: { userAgent?: string; ipAddress?: string },
+  ) {
     try {
       const payload = this.jwtService.verify(refreshToken, {
         secret: this.configService.get('JWT_REFRESH_SECRET'),
@@ -344,7 +364,21 @@ export class AuthService {
         throw new UnauthorizedException('Compte non trouvé ou banni');
       }
 
-      return this.generateTokens(user.id, user.role, user.phone);
+      // Carry forward the prior session's device info if the refresh call
+      // didn't supply one (e.g. background refresh from a service worker
+      // where the User-Agent header is unreliable). Falls back to the
+      // stored row's deviceInfo/ipAddress.
+      const effectiveDevice = device ?? {
+        userAgent: storedToken.deviceInfo ?? undefined,
+        ipAddress: storedToken.ipAddress ?? undefined,
+      };
+
+      return this.generateTokens(
+        user.id,
+        user.role,
+        user.phone,
+        effectiveDevice,
+      );
     } catch (error) {
       if (
         error instanceof UnauthorizedException ||
@@ -426,13 +460,16 @@ export class AuthService {
    * Public wrapper around generateTokens — used by BuyerOtpService and
    * BuyerClaimService to issue tokens after a successful WhatsApp OTP
    * verification, without duplicating refresh-token persistence logic.
+   * Pass `device` to attribute the issued RefreshToken row to a specific
+   * device — drives the "Appareils" list on profile pages.
    */
   async generateTokensForUser(
     userId: string,
     role: string,
     phone: string | null,
+    device?: { userAgent?: string; ipAddress?: string },
   ): Promise<AuthTokens> {
-    return this.generateTokens(userId, role, phone);
+    return this.generateTokens(userId, role, phone, device);
   }
 
   /** Public wrapper around sanitizeUser for cross-service reuse. */
@@ -444,6 +481,7 @@ export class AuthService {
     userId: string,
     role: string,
     phone: string | null,
+    device?: { userAgent?: string; ipAddress?: string },
   ): Promise<AuthTokens> {
     const tokenId = randomUUID();
     const payload = { sub: userId, role, phone, jti: tokenId };
@@ -468,6 +506,11 @@ export class AuthService {
         userId,
         tokenHash,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        // Phase 7b: capture User-Agent + IP for the "Appareils" list. Both
+        // are nullable — older rows (issued before 2026-05-20) stay NULL
+        // and the UI renders "—" / "Appareil inconnu" for them.
+        deviceInfo: device?.userAgent?.slice(0, 500) ?? null,
+        ipAddress: device?.ipAddress ?? null,
       },
     });
 

@@ -68,6 +68,7 @@ export class BuyerOtpService {
     code: string,
     firstName?: string,
     lastName?: string,
+    device?: { userAgent?: string; ipAddress?: string },
   ): Promise<VerifyOtpResult> {
     const verified = await this.verifyOtpInternal(phone, code);
     if (!verified) {
@@ -83,6 +84,7 @@ export class BuyerOtpService {
       user.id,
       user.role,
       user.phone,
+      device,
     );
     await this.prisma.user.update({
       where: { id: user.id },

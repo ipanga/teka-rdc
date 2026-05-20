@@ -191,7 +191,21 @@
     "notifBroadcasts": "Annonces et promotions",
     "notifBroadcastsDesc": "Messages marketing envoyés par l'équipe Teka",
     "notifSaved": "Préférences enregistrées",
-    "notifError": "Erreur lors de la mise à jour"
+    "notifError": "Erreur lors de la mise à jour",
+    "sectionSessions": "Appareils connectés",
+    "sessionsHint": "Liste des appareils actuellement connectés à votre compte. Révoquez ceux que vous ne reconnaissez pas.",
+    "sessionCurrent": "Cet appareil",
+    "sessionConnectedOn": "Connecté le {date}",
+    "sessionIp": "IP {ip}",
+    "sessionIpUnknown": "IP inconnue",
+    "sessionRevoke": "Déconnecter",
+    "sessionRevokeAll": "Déconnecter les autres appareils",
+    "sessionRevoking": "Déconnexion...",
+    "sessionRevoked": "Appareil déconnecté",
+    "sessionRevokedAll": "{count, plural, =0 {Aucun autre appareil} one {1 appareil déconnecté} other {# appareils déconnectés}}",
+    "sessionRevokeError": "Impossible de déconnecter cet appareil",
+    "sessionsEmpty": "Aucun autre appareil connecté",
+    "sessionsLoadError": "Impossible de charger la liste des appareils"
   },
   "Cart": {
     "title": "Panier",
