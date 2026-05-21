@@ -82,10 +82,22 @@ jobs:
             fi
 
             echo "▶ applying $REL_PATH"
-            # Outer double-quotes let the host shell interpolate
-            # $MIGRATION_FILE; inner \$DATABASE_URL is escaped so it
-            # expands inside the api container (where DATABASE_URL is
-            # loaded from .env.production).
-            $COMPOSE exec -T api sh -c "psql \"\$DATABASE_URL\" -f $REL_PATH"
+            # Parse DATABASE_URL with Node (JS URL handles `@` in the
+            # password correctly, libpq does not) and feed psql the
+            # unambiguous PG* env vars instead of the URL. Without this
+            # detour, prod DBs with `@` in the password parse psql's
+            # host as `<password-tail>@<real-host>` and fail to resolve.
+            $COMPOSE exec -T api sh -c '
+              set -e
+              eval "$(node -e "
+                const u = new URL(process.env.DATABASE_URL);
+                console.log(\"export PGHOST=\" + JSON.stringify(u.hostname));
+                console.log(\"export PGPORT=\" + (u.port || \"5432\"));
+                console.log(\"export PGUSER=\" + JSON.stringify(decodeURIComponent(u.username)));
+                console.log(\"export PGPASSWORD=\" + JSON.stringify(decodeURIComponent(u.password)));
+                console.log(\"export PGDATABASE=\" + JSON.stringify(u.pathname.slice(1).replace(/\\?.*/, \"\")));
+              ")"
+              psql -f '"$REL_PATH"'
+            '
 
             echo "✓ migration applied"
