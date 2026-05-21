@@ -219,6 +219,7 @@ model User {
   approvedSellers     SellerProfile[] @relation("SellerApprover")
   addresses           Address[]
   refreshTokens       RefreshToken[]
+  deviceTokens        DeviceToken[]
   products            Product[]       @relation("SellerProducts")
   cart                Cart?
   buyerOrders         Order[]         @relation("BuyerOrders")
@@ -975,4 +976,28 @@ model NotificationBroadcast {
   @@index([segment])
   @@index([createdAt])
   @@map("notification_broadcasts")
+}
+
+// FCM/APNs registration. One row per (user, device). `token` is unique
+// globally — if a token re-registers under a different user (rare:
+// shared device), we reassign rather than duplicate. `isActive=false`
+// marks tokens that FCM reported as invalid on the most recent send;
+// they stay in the table for forensic purposes but are skipped on fan-out.
+model DeviceToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  token      String   @unique
+  platform   String   // 'android' | 'ios' | 'web'
+  deviceInfo String?  // User-Agent or "<manufacturer> <model>" string
+  appVersion String?  // e.g. "1.4.0+27"
+  isActive   Boolean  @default(true)
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, isActive])
+  @@map("device_tokens")
 }

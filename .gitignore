@@ -51,3 +51,17 @@ pnpm-debug.log*
 *.tsbuildinfo
 .claude/
 tasks/
+
+# Firebase / APNs credentials — must NEVER be committed.
+# Restore from local backup (~/Desktop/teka-rdc/) or GitHub Secrets if lost.
+google-services.json
+GoogleService-Info.plist
+*.p8
+firebase-adminsdk*.json
+firebase-admin-sdk*.json
+**/secrets/
+apps/api/secrets/
+apps/buyer-mobile/android/app/google-services.json
+apps/buyer-mobile/ios/Runner/GoogleService-Info.plist
+apps/seller-mobile/android/app/google-services.json
+apps/seller-mobile/ios/Runner/GoogleService-Info.plist
