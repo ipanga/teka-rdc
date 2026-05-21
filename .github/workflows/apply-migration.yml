@@ -1,0 +1,91 @@
+# One-off prod database migration runner.
+#
+# `apps/api/prisma/migrations/manual/*.sql` files ship inside the api
+# image (Dockerfile COPYs the prisma/ dir) but are not auto-applied at
+# deploy time — they're intentionally manual so each schema change is a
+# conscious operator action. Until this workflow existed, applying meant
+# SSHing in and running a multi-token `docker compose ... exec api sh -c
+# 'psql ...'` line that had bitten us twice with paste-collapsed `\sh`
+# escaping. This workflow uses `workflow_dispatch` to wrap that into a
+# point-and-click form: Actions tab → "Apply prod migration" → Run
+# workflow → paste the migration filename.
+#
+# Concurrency-locked against itself + the production-deploy group: you
+# can't fire a migration while a deploy is mid-rollout, and two
+# migrations can't run simultaneously.
+#
+# Anyone with write access to the repo can fire this. We don't gate it
+# behind a GitHub Environment approval because that's not the security
+# model the deploy workflow uses either — protecting against malicious
+# inside actors is the job of repo permissions + branch protection, not
+# this workflow.
+name: Apply prod migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      migration:
+        description: 'Migration filename in apps/api/prisma/migrations/manual/ (e.g. 2026-05-21_device_tokens.sql)'
+        required: true
+        type: string
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate migration filename (defence in depth)
+        env:
+          MIGRATION_INPUT: ${{ inputs.migration }}
+        run: |
+          # Bare filename only — no path traversal (..), no slashes, no
+          # leading dashes, must end in .sql. We pass this string
+          # through SSH to a shell, so locking it down protects against
+          # both accident and accidental injection.
+          if [[ ! "$MIGRATION_INPUT" =~ ^[A-Za-z0-9._-]+\.sql$ ]]; then
+            echo "::error::Migration filename must match ^[A-Za-z0-9._-]+\\.sql\$ — got: $MIGRATION_INPUT"
+            exit 1
+          fi
+          if [[ "$MIGRATION_INPUT" == -* ]]; then
+            echo "::error::Migration filename must not begin with a dash"
+            exit 1
+          fi
+          echo "MIGRATION_FILE=$MIGRATION_INPUT" >> "$GITHUB_ENV"
+
+      - name: SSH apply
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          command_timeout: 5m
+          envs: MIGRATION_FILE
+          script: |
+            set -euo pipefail
+
+            cd /home/deploy/teka-rdc
+
+            COMPOSE="docker compose --env-file .env.production -f docker-compose.prod.yml"
+
+            # Verify the file is bundled inside the api image before we
+            # attempt psql — gives a friendly error rather than a vague
+            # `psql: ... No such file or directory` deep in the run.
+            REL_PATH="prisma/migrations/manual/$MIGRATION_FILE"
+            if ! $COMPOSE exec -T api test -f "$REL_PATH"; then
+              echo "::error::Migration not found inside api image: $REL_PATH"
+              echo "Available manual migrations:"
+              $COMPOSE exec -T api ls prisma/migrations/manual || true
+              exit 1
+            fi
+
+            echo "▶ applying $REL_PATH"
+            # Outer double-quotes let the host shell interpolate
+            # $MIGRATION_FILE; inner \$DATABASE_URL is escaped so it
+            # expands inside the api container (where DATABASE_URL is
+            # loaded from .env.production).
+            $COMPOSE exec -T api sh -c "psql \"\$DATABASE_URL\" -f $REL_PATH"
+
+            echo "✓ migration applied"
