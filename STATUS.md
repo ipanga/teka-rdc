@@ -6,7 +6,21 @@
 
 ## Active initiative
 
-**None.** Sentry pipeline is fully wired in code + ops; only the DSN is missing.
+**Push notifications for buyer** (started 2026-05-21). Multi-PR initiative — full plan in the message that kicked it off; 5 PRs estimated.
+
+- **PR A (in this branch)** — Backend `DeviceToken` model + manual SQL migration; `firebase-admin` install; `PushModule` with `PushService` (gated by `GOOGLE_APPLICATION_CREDENTIALS`, no-op fallback); `POST /v1/users/device-tokens` + `DELETE /v1/users/device-tokens/:token`; wired into `OrderNotificationService` as parallel send next to existing SMS at all 5 buyer-facing order events. `.gitignore` covers all Firebase/APNs credential file patterns.
+- **PR B (next)** — Flutter `firebase_core` + `firebase_messaging` + `flutter_local_notifications`, init + permission + token register on cold start, foreground/background handlers, tap → go_router navigation, Android config (google-services.json placed locally, gradle plugin applied).
+- **PR C** — iOS scaffold (`flutter create --platforms=ios .`), GoogleService-Info.plist placement, Push Notifications + Background Modes capabilities, APNs .p8 already uploaded to Firebase Console (manual step done 2026-05-21).
+- **PR D** — CI/CD secret injection. Base64-encode the three credential files into GitHub Secrets; deploy workflow writes them to `/home/deploy/teka-rdc/secrets/` at deploy time; `docker-compose.prod.yml` mounts that path into the api container at `/secrets/firebase-admin-sdk.json`.
+- **PR E** — Runbook + integration into more events (delivery updates, cart reminders). Web push documented as future work only.
+
+**Dev DB migration is pending** — the classifier blocked auto-apply on the cloud dev DB. To apply locally: `psql "$DATABASE_URL" -f apps/api/prisma/migrations/manual/2026-05-21_device_tokens.sql`.
+
+Last shipped today (2026-05-21):
+- **Sentry repo prep** (PRs #148 → #149) — workflow tag, verify endpoint, runbook.
+- **Sentry error tracking** (PRs #144 → #146) — SDK + filter wiring.
+- **Android bundle ID rename** (PRs #145 → #146) — `com.tootiye.{teka, tekaseller}`.
+- **Profile management** (PRs #138–#143, 2026-05-20 → 2026-05-21).
 
 > **Operator next step (single manual task):** create the Sentry project at sentry.io, then follow `docs/sentry.md` § "First-time setup". After that, `GET /v1/health/sentry-test` (admin-auth) should produce a visible event in the Sentry Issues tab within ~30 seconds.
 
@@ -18,11 +32,11 @@ Last shipped today (2026-05-21):
 
 ## In-flight PRs
 
-None.
+None yet — PR A about to open.
 
 ## In-flight local branches
 
-None.
+- `feat/push-notifications-backend` — PR A (current).
 
 ## Next candidates
 

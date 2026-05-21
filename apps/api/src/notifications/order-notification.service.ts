@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationPrefsService } from '../users/notification-prefs.service';
+import { PushService, PushPayload } from '../push/push.service';
 
 /**
  * Handles SMS notifications for order lifecycle events.
@@ -20,6 +21,7 @@ export class OrderNotificationService {
   constructor(
     private prisma: PrismaService,
     private notificationPrefs: NotificationPrefsService,
+    private pushService: PushService,
   ) {}
 
   /**
@@ -35,16 +37,23 @@ export class OrderNotificationService {
       const subtotalCDF = this.formatCDF(enriched.subtotalCDF);
       const itemCount = items.length;
 
-      // SMS to buyer (respects per-user opt-out)
-      if (
-        buyer?.phone &&
-        (await this.notificationPrefs.shouldSendOrderUpdates(buyer.id))
-      ) {
+      // Buyer notifications (SMS + push, gated by the same opt-out pref)
+      const shouldNotifyBuyer = buyer?.id
+        ? await this.notificationPrefs.shouldSendOrderUpdates(buyer.id)
+        : false;
+      if (shouldNotifyBuyer && buyer.phone) {
         const buyerMsg =
           `Votre commande ${orderNumber} a été passée avec succès. ` +
           `Montant: ${totalCDF} FC. ` +
           `Nous vous tiendrons informé de l'avancement.`;
         this.sendSms(buyer.phone, buyerMsg);
+      }
+      if (shouldNotifyBuyer) {
+        this.sendPushToBuyer(buyer.id, {
+          title: 'Commande enregistrée',
+          body: `Commande ${orderNumber} — ${totalCDF} FC. Nous vous tiendrons informé.`,
+          data: { orderId: enriched.id, screen: 'order-details' },
+        });
       }
 
       // SMS to seller (respects per-user opt-out)
@@ -79,14 +88,21 @@ export class OrderNotificationService {
 
       const { orderNumber, buyer } = enriched;
 
-      if (
-        buyer?.phone &&
-        (await this.notificationPrefs.shouldSendOrderUpdates(buyer.id))
-      ) {
+      const shouldNotifyBuyer = buyer?.id
+        ? await this.notificationPrefs.shouldSendOrderUpdates(buyer.id)
+        : false;
+      if (shouldNotifyBuyer && buyer.phone) {
         const msg =
           `Bonne nouvelle ! Votre commande ${orderNumber} a été confirmée par le vendeur. ` +
           `Préparation en cours.`;
         this.sendSms(buyer.phone, msg);
+      }
+      if (shouldNotifyBuyer) {
+        this.sendPushToBuyer(buyer.id, {
+          title: 'Commande confirmée',
+          body: `${orderNumber} a été confirmée par le vendeur. Préparation en cours.`,
+          data: { orderId: enriched.id, screen: 'order-details' },
+        });
       }
     } catch (error) {
       this.logger.error(
@@ -109,14 +125,23 @@ export class OrderNotificationService {
       const neighborhood = deliveryAddress?.neighborhood ?? '';
       const locationParts = [town, neighborhood].filter(Boolean).join(', ');
 
-      if (
-        buyer?.phone &&
-        (await this.notificationPrefs.shouldSendOrderUpdates(buyer.id))
-      ) {
+      const shouldNotifyBuyer = buyer?.id
+        ? await this.notificationPrefs.shouldSendOrderUpdates(buyer.id)
+        : false;
+      if (shouldNotifyBuyer && buyer.phone) {
         const msg =
           `Votre commande ${orderNumber} a été expédiée ! ` +
           `Livraison prévue à ${locationParts}.`;
         this.sendSms(buyer.phone, msg);
+      }
+      if (shouldNotifyBuyer) {
+        this.sendPushToBuyer(buyer.id, {
+          title: 'Commande expédiée',
+          body: locationParts
+            ? `${orderNumber} est en route vers ${locationParts}.`
+            : `${orderNumber} est en route.`,
+          data: { orderId: enriched.id, screen: 'order-details' },
+        });
       }
     } catch (error) {
       this.logger.error(
@@ -136,14 +161,21 @@ export class OrderNotificationService {
 
       const { orderNumber, buyer } = enriched;
 
-      if (
-        buyer?.phone &&
-        (await this.notificationPrefs.shouldSendOrderUpdates(buyer.id))
-      ) {
+      const shouldNotifyBuyer = buyer?.id
+        ? await this.notificationPrefs.shouldSendOrderUpdates(buyer.id)
+        : false;
+      if (shouldNotifyBuyer && buyer.phone) {
         const msg =
           `Votre commande ${orderNumber} a été livrée. ` +
           `Merci pour votre achat sur Teka !`;
         this.sendSms(buyer.phone, msg);
+      }
+      if (shouldNotifyBuyer) {
+        this.sendPushToBuyer(buyer.id, {
+          title: 'Commande livrée',
+          body: `${orderNumber} a été livrée. Merci pour votre achat sur Teka !`,
+          data: { orderId: enriched.id, screen: 'order-details' },
+        });
       }
     } catch (error) {
       this.logger.error(
@@ -169,11 +201,18 @@ export class OrderNotificationService {
         `La commande ${orderNumber} a été annulée. ` +
         `Raison: ${displayReason}.`;
 
-      if (
-        buyer?.phone &&
-        (await this.notificationPrefs.shouldSendOrderUpdates(buyer.id))
-      ) {
+      const shouldNotifyBuyer = buyer?.id
+        ? await this.notificationPrefs.shouldSendOrderUpdates(buyer.id)
+        : false;
+      if (shouldNotifyBuyer && buyer.phone) {
         this.sendSms(buyer.phone, msg);
+      }
+      if (shouldNotifyBuyer) {
+        this.sendPushToBuyer(buyer.id, {
+          title: 'Commande annulée',
+          body: `${orderNumber} a été annulée. Raison : ${displayReason}.`,
+          data: { orderId: enriched.id, screen: 'order-details' },
+        });
       }
 
       if (
@@ -276,6 +315,25 @@ export class OrderNotificationService {
    */
   private sendSms(phone: string, message: string): void {
     this.logger.log(`[SMS -> ${phone}] ${message}`);
+  }
+
+  /**
+   * Fan out an FCM push to every active device token belonging to the
+   * buyer. Fire-and-forget: PushService catches its own errors and
+   * returns a no-op summary when GOOGLE_APPLICATION_CREDENTIALS isn't
+   * configured. We don't await — the order-status code path must never
+   * be blocked by FCM latency.
+   *
+   * Same gate as SMS (`shouldSendOrderUpdates`) on purpose: users
+   * expect one toggle for "tell me about my orders," not separate SMS
+   * and push toggles. Future PR can split if user research demands it.
+   */
+  private sendPushToBuyer(buyerId: string, payload: PushPayload): void {
+    void this.pushService.sendToUser(buyerId, payload).catch((err) => {
+      this.logger.warn(
+        `push send failed for buyer ${buyerId}: ${err?.message ?? err}`,
+      );
+    });
   }
 
   /**
