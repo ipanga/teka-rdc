@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import * as Sentry from '@sentry/node';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -45,6 +46,16 @@ export class HttpExceptionFilter implements ExceptionFilter {
           url: request.url,
           message,
         });
+        // 5xx HttpExceptions are server-side bugs (e.g. ServiceUnavailable
+        // thrown explicitly by health checks, BadGateway from a failed
+        // upstream). Capture them too — silently swallowing these was
+        // exactly the kind of gap Sentry is supposed to close. 4xx are
+        // client-driven and stay out of Sentry to avoid noise.
+        Sentry.captureException(exception, {
+          tags: { method: request.method, status: String(status) },
+          extra: { url: request.url },
+          user: { id: (request as any).user?.sub ?? 'anonymous' },
+        });
       }
     } else {
       this.logger.error('Unhandled exception', {
@@ -55,7 +66,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
           exception instanceof Error ? exception.message : String(exception),
         stack: exception instanceof Error ? exception.stack : undefined,
       });
-      // TODO: Sentry.captureException(exception);
+      Sentry.captureException(exception, {
+        tags: { method: request.method, kind: 'unhandled' },
+        extra: { url: request.url },
+        user: { id: (request as any).user?.sub ?? 'anonymous' },
+      });
     }
 
     response.status(status).json({

@@ -210,6 +210,7 @@ Key categories (see `.env.example` for the full list with comments):
 - **Payments** — `FLEXPAY_API_URL`, `FLEXPAY_API_KEY`, `FLEXPAY_MERCHANT_ID`, `FLEXPAY_CALLBACK_URL`, `FLEXPAY_WEBHOOK_SECRET`, `PAYMENT_MOCK_MODE` (toggles mock vs. real provider in the DI factory)
 - **Media & email** — `CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`
 - **Service URLs & CORS** — `API_URL`, `BUYER_WEB_URL`, `SELLER_WEB_URL`, `ADMIN_WEB_URL`, `CORS_ORIGINS`
+- **Error monitoring** — `SENTRY_DSN` (empty in dev → `Sentry.init` is skipped and `captureException` is a no-op; set in prod once a Sentry project DSN is provisioned), `SENTRY_RELEASE` (optional, populate with the git short-sha so errors group per-release).
 
 Removed and **not** in use any longer: `REDIS_URL` (Redis dropped Mar 2026), `OTP_EXPIRY_MINUTES` (OTP infrastructure deleted May 2026), `GOOGLE_*_CLIENT_ID` (Google OAuth removed Apr 2026).
 

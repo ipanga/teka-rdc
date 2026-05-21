@@ -1,3 +1,7 @@
+// MUST be the first import — see ./instrument.ts. Sentry's SDK monkey-
+// patches node primitives at init time; importing it later means
+// auto-instrumentation misses requests issued before init runs.
+import './instrument';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
