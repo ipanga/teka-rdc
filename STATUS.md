@@ -16,6 +16,13 @@
 
 **Dev DB migration is pending** — the classifier blocked auto-apply on the cloud dev DB. To apply locally: `psql "$DATABASE_URL" -f apps/api/prisma/migrations/manual/2026-05-21_device_tokens.sql`.
 
+**Prod DB migration is pending** — first prod-apply attempt hit `psql: not found` (api image was Node-on-Alpine without postgresql-client). Add-psql fix is in flight on the `chore/api-image-add-psql` branch; once that deploys, run from the VPS:
+```sh
+docker compose --env-file .env.production -f docker-compose.prod.yml exec api \
+  sh -c 'psql "$DATABASE_URL" -f prisma/migrations/manual/2026-05-21_device_tokens.sql'
+```
+(Path is relative to the api container's WORKDIR `/app/apps/api`; the earlier instruction used the wrong absolute `/app/prisma/...`.)
+
 Last shipped today (2026-05-21):
 - **Sentry repo prep** (PRs #148 → #149) — workflow tag, verify endpoint, runbook.
 - **Sentry error tracking** (PRs #144 → #146) — SDK + filter wiring.
@@ -32,11 +39,11 @@ Last shipped today (2026-05-21):
 
 ## In-flight PRs
 
-None yet — PR A about to open.
+- **#150** (merged 2026-05-21) → **#151** (merged + deployed 2026-05-21) — PR A backend foundation. **Migration not yet applied** (see notes above).
 
 ## In-flight local branches
 
-- `feat/push-notifications-backend` — PR A (current).
+- `chore/api-image-add-psql` — adds `postgresql-client` to the api Dockerfile so the documented `docker compose exec api sh -c 'psql ...'` migration workflow works in prod. Unblocks the pending DeviceToken migration.
 
 ## Next candidates
 

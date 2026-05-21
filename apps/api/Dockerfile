@@ -17,6 +17,12 @@ RUN cd packages/shared && pnpm build
 RUN cd apps/api && npx prisma generate && pnpm build
 
 FROM node:20-alpine AS runner
+# postgresql-client provides `psql` for one-shot manual migrations via
+# `docker compose exec api sh -c 'psql "$DATABASE_URL" -f ...'`. Added
+# 2026-05-21 after the DeviceToken migration hit `psql: not found` on
+# the prod image. ~7 MB bloat, keeps the documented migration workflow
+# in CLAUDE.md and docs/ working without a separate one-shot container.
+RUN apk add --no-cache postgresql-client
 WORKDIR /app
 # Preserve the full pnpm workspace structure for module resolution
 COPY --from=build /app/node_modules ./node_modules
