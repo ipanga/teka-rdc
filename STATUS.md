@@ -6,17 +6,18 @@
 
 ## Active initiative
 
-**None.**
+**Android bundle ID rename** (started 2026-05-21). Switch both Flutter apps from the placeholder `cd.teka.{buyer,seller}_mobile` IDs to the production `com.tootiye.{teka, tekaseller}` namespace, ahead of Play Store submission. Scope is intentionally Android-only — neither app has an `ios/` folder yet, neither has `firebase_core` in `pubspec.yaml`, and CI doesn't build either platform. iOS + Firebase + push-notification wiring is a separate future initiative.
 
-Last shipped: **profile management** (PRs #138–#143, 2026-05-20 → 2026-05-21) — notification preferences (Phase 7a), session management (Phase 7b), and the trust-proxy follow-up that made `req.ip` return the real client IP instead of the nginx docker address.
+Touched: `applicationId` + `namespace` in both `build.gradle.kts`, Kotlin source dirs moved (`kotlin/cd/teka/{buyer,seller}_mobile/` → `kotlin/com/tootiye/{teka,tekaseller}/`), `MainActivity.kt` package declaration in each. `pubspec.yaml` `name:` left alone — that's the Dart package identifier, not the bundle ID, and renaming it would break every `package:buyer_mobile/…` import in the codebase.
 
 ## In-flight PRs
 
-None.
+- **#144** `feat(api): wire Sentry error capture` — open against `develop`, CI passing, awaiting merge instruction.
 
 ## In-flight local branches
 
-None.
+- `feat/sentry-error-tracking` — PR #144 (above).
+- `feat/android-bundle-id-rename` — current branch, this initiative.
 
 ## Next candidates
 
