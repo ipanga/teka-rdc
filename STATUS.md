@@ -43,7 +43,7 @@ Last shipped today (2026-05-21):
 
 ## In-flight local branches
 
-- `chore/api-image-add-psql` — adds `postgresql-client` to the api Dockerfile so the documented `docker compose exec api sh -c 'psql ...'` migration workflow works in prod. Unblocks the pending DeviceToken migration.
+- `chore/ops-migration-workflow` — adds a `workflow_dispatch` GitHub Action (`.github/workflows/apply-migration.yml`) that wraps the prod migration command in point-and-click form so we stop hitting the paste-collapsed `\sh` shell-escaping bug.
 
 ## Next candidates
 
