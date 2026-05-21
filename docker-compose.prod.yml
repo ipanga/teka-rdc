@@ -26,6 +26,12 @@ services:
   api:
     image: ghcr.io/ipanga/teka-rdc/api:latest
     env_file: .env.production
+    environment:
+      # Override SENTRY_RELEASE from `.env.production` (which only carries
+      # an empty placeholder) with the git SHA the deploy workflow exports
+      # before invoking compose. Empty fallback keeps local `docker compose
+      # -f docker-compose.prod.yml up` working without the SHA.
+      - SENTRY_RELEASE=${SENTRY_RELEASE:-}
     networks:
       - frontend
       - backend
