@@ -6,26 +6,23 @@
 
 ## Active initiative
 
-**Sentry repo prep** (started 2026-05-21). Followup to #144: pre-stage everything that doesn't need a Sentry account so the moment a DSN is provisioned, verification is a single curl away. Scope:
+**None.** Sentry pipeline is fully wired in code + ops; only the DSN is missing.
 
-- **Auto-populated `SENTRY_RELEASE`** — deploy workflow exports `${{ github.sha }}` before invoking compose; `docker-compose.prod.yml` interpolates it into the api service's `environment:`. Errors will group per-release in Sentry's Releases tab automatically.
-- **`GET /v1/health/sentry-test`** — admin-only, throws a deterministic `Error` (routes through `kind: unhandled` in the filter) so an operator can verify the pipeline with one curl after the DSN lands.
-- **`docs/sentry.md`** — runbook: DSN provisioning, first-time setup, verification, alert tuning, quota, day-2 ops, code references.
+> **Operator next step (single manual task):** create the Sentry project at sentry.io, then follow `docs/sentry.md` § "First-time setup". After that, `GET /v1/health/sentry-test` (admin-auth) should produce a visible event in the Sentry Issues tab within ~30 seconds.
 
-`SENTRY_DSN` itself stays empty until the user creates a Sentry project at sentry.io. The SDK already ships as a no-op in that state (from PR #144), so this PR has zero runtime effect until the DSN is set on the VPS.
-
-Last shipped today (2026-05-21, release PR #146):
-- **Sentry error tracking** (#144) — `@sentry/node` v10, `Sentry.init` in `apps/api/src/instrument.ts`, `captureException` on unhandled + 5xx.
-- **Android bundle ID rename** (#145) — `com.tootiye.teka` / `com.tootiye.tekaseller`.
-- **Profile management** (PRs #138–#143).
+Last shipped today (2026-05-21):
+- **Sentry repo prep** (PRs #148 → #149) — `SENTRY_RELEASE` auto-tag on every deploy, `GET /v1/health/sentry-test` admin endpoint, `docs/sentry.md` runbook.
+- **Sentry error tracking** (PRs #144 → #146) — `@sentry/node` v10, `Sentry.init` in `instrument.ts`, `captureException` on unhandled + 5xx.
+- **Android bundle ID rename** (PRs #145 → #146) — `com.tootiye.teka` / `com.tootiye.tekaseller`.
+- **Profile management** (PRs #138–#143, 2026-05-20 → 2026-05-21).
 
 ## In-flight PRs
 
-None yet — this branch will become a PR shortly.
+None.
 
 ## In-flight local branches
 
-- `feat/sentry-prep-workflow-test-runbook` — current branch, this initiative.
+None.
 
 ## Next candidates
 
