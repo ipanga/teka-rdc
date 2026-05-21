@@ -114,6 +114,12 @@ jobs:
             echo "${{ secrets.GITHUB_TOKEN }}" \
               | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
+            # Export SENTRY_RELEASE so docker-compose.prod.yml's
+            # `${SENTRY_RELEASE:-}` interpolation on the api service picks
+            # up the deploy SHA. Sentry's UI then groups errors per-release
+            # (Releases tab) so we can see when a regression first appeared.
+            export SENTRY_RELEASE="${{ github.sha }}"
+
             # `--env-file .env.production` handles yaml interpolation for every
             # compose invocation below. We do NOT shell-source the file:
             # `.env.production` is compose-format (unquoted values with spaces
