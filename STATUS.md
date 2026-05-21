@@ -6,21 +6,26 @@
 
 ## Active initiative
 
-**Sentry error tracking** (started 2026-05-21, PR #144 about to merge). Closes the TODO that left `apps/api/src/common/filters/http-exception.filter.ts` without centralized error capture for 5+ months. Scope: `@sentry/node` v10, init in `apps/api/src/instrument.ts` (must be the first import in `main.ts` per Sentry SDK v8+ semantics), `captureException` on both 5xx HttpExceptions and unhandled errors with `{ method, status, kind, url, user.id }` tags. Errors-only — `tracesSampleRate: 0`, no perf tracing in this PR.
+**Sentry repo prep** (started 2026-05-21). Followup to #144: pre-stage everything that doesn't need a Sentry account so the moment a DSN is provisioned, verification is a single curl away. Scope:
 
-Gated by `SENTRY_DSN` env var — when unset, `init` is skipped and `captureException` is a no-op. Safe to merge before a Sentry project DSN exists; ship the DSN to the VPS `.env.production` separately.
+- **Auto-populated `SENTRY_RELEASE`** — deploy workflow exports `${{ github.sha }}` before invoking compose; `docker-compose.prod.yml` interpolates it into the api service's `environment:`. Errors will group per-release in Sentry's Releases tab automatically.
+- **`GET /v1/health/sentry-test`** — admin-only, throws a deterministic `Error` (routes through `kind: unhandled` in the filter) so an operator can verify the pipeline with one curl after the DSN lands.
+- **`docs/sentry.md`** — runbook: DSN provisioning, first-time setup, verification, alert tuning, quota, day-2 ops, code references.
 
-Last shipped (also today, 2026-05-21):
-- **Android bundle ID rename** (PR #145) — both Flutter apps now use `com.tootiye.teka` (buyer) / `com.tootiye.tekaseller` (seller). Android-only — iOS + Firebase + push are separate future initiatives.
-- **Profile management** (PRs #138–#143, 2026-05-20 → 2026-05-21) — notification prefs (Phase 7a), session management (Phase 7b), trust-proxy follow-up.
+`SENTRY_DSN` itself stays empty until the user creates a Sentry project at sentry.io. The SDK already ships as a no-op in that state (from PR #144), so this PR has zero runtime effect until the DSN is set on the VPS.
+
+Last shipped today (2026-05-21, release PR #146):
+- **Sentry error tracking** (#144) — `@sentry/node` v10, `Sentry.init` in `apps/api/src/instrument.ts`, `captureException` on unhandled + 5xx.
+- **Android bundle ID rename** (#145) — `com.tootiye.teka` / `com.tootiye.tekaseller`.
+- **Profile management** (PRs #138–#143).
 
 ## In-flight PRs
 
-- **#144** `feat(api): wire Sentry error capture` — this branch, about to merge.
+None yet — this branch will become a PR shortly.
 
 ## In-flight local branches
 
-- `feat/sentry-error-tracking` — PR #144 (above).
+- `feat/sentry-prep-workflow-test-runbook` — current branch, this initiative.
 
 ## Next candidates
 
