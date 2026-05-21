@@ -1,4 +1,4 @@
-package cd.teka.seller_mobile
+package com.tootiye.tekaseller
 
 import io.flutter.embedding.android.FlutterActivity
 

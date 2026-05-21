@@ -6,19 +6,21 @@
 
 ## Active initiative
 
-**Sentry error tracking** (started 2026-05-21). Closes the TODO that left `apps/api/src/common/filters/http-exception.filter.ts` without centralized error capture for 5+ months. Scope: `@sentry/node` v10, init in `apps/api/src/instrument.ts` (must be the first import in `main.ts` per Sentry SDK v8+ semantics), `captureException` on both 5xx HttpExceptions and unhandled errors with `{ method, status, kind, url, user.id }` tags. Errors-only — `tracesSampleRate: 0`, no perf tracing in this PR.
+**Sentry error tracking** (started 2026-05-21, PR #144 about to merge). Closes the TODO that left `apps/api/src/common/filters/http-exception.filter.ts` without centralized error capture for 5+ months. Scope: `@sentry/node` v10, init in `apps/api/src/instrument.ts` (must be the first import in `main.ts` per Sentry SDK v8+ semantics), `captureException` on both 5xx HttpExceptions and unhandled errors with `{ method, status, kind, url, user.id }` tags. Errors-only — `tracesSampleRate: 0`, no perf tracing in this PR.
 
 Gated by `SENTRY_DSN` env var — when unset, `init` is skipped and `captureException` is a no-op. Safe to merge before a Sentry project DSN exists; ship the DSN to the VPS `.env.production` separately.
 
-Last shipped: **profile management** (PRs #138–#143, 2026-05-20 → 2026-05-21).
+Last shipped (also today, 2026-05-21):
+- **Android bundle ID rename** (PR #145) — both Flutter apps now use `com.tootiye.teka` (buyer) / `com.tootiye.tekaseller` (seller). Android-only — iOS + Firebase + push are separate future initiatives.
+- **Profile management** (PRs #138–#143, 2026-05-20 → 2026-05-21) — notification prefs (Phase 7a), session management (Phase 7b), trust-proxy follow-up.
 
 ## In-flight PRs
 
-None yet.
+- **#144** `feat(api): wire Sentry error capture` — this branch, about to merge.
 
 ## In-flight local branches
 
-- `feat/sentry-error-tracking` — Sentry SDK install + filter wiring + env scaffolding.
+- `feat/sentry-error-tracking` — PR #144 (above).
 
 ## Next candidates
 
