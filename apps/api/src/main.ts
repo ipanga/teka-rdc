@@ -54,6 +54,13 @@ async function bootstrap() {
   // Global prefix
   app.setGlobalPrefix('api');
 
+  // Trust the single nginx hop in front of the API so `req.ip` returns the
+  // real client IP from X-Forwarded-For instead of the proxy's docker IP.
+  // Phase 7b (#140) exposed sessions to users, and without this every row's
+  // IP rendered as `::ffff:172.18.0.x` (nginx's internal docker address).
+  // `1` = trust exactly one hop, which matches our nginx → api topology.
+  app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
   // Security
   app.use(helmet());
   app.use(compression());
