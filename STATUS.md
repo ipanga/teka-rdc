@@ -32,4 +32,6 @@ Surfaced by a 2026-05-21 code-rot audit. Not yet committed to any of them — pi
 
 ## Recently archived plans
 
-- `~/.claude/plans/partitioned-nibbling-spark.md` — Rakuten redesign, executed in PRs #67–#73 (2026-05-XX). **Do not re-execute.** The plan file persisted across sessions and almost got re-implemented today; future sessions should treat its presence as historical, not a backlog item.
+- `~/.claude/plans/archive/partitioned-nibbling-spark.shipped.md` — Rakuten redesign, executed in PRs #67–#73 (2026-05-XX). **Do not re-execute.** Moved out of the live plans dir into `archive/` on 2026-05-21 after almost being re-implemented from scratch in a fresh session. Any plan file in `~/.claude/plans/archive/` with a `.shipped.md` suffix is historical — read for context only.
+
+> **Other untouched files in `~/.claude/plans/`** (e.g. `calm-soaring-emerson.md`, `fix-ios-push-mighty-nebula.md`, etc.) have unknown status. They are not necessarily in-flight — cross-reference each against git log + this file before treating one as a backlog item.
