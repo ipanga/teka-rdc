@@ -210,6 +210,7 @@ Key categories (see `.env.example` for the full list with comments):
 - **Payments** — `FLEXPAY_API_URL`, `FLEXPAY_API_KEY`, `FLEXPAY_MERCHANT_ID`, `FLEXPAY_CALLBACK_URL`, `FLEXPAY_WEBHOOK_SECRET`, `PAYMENT_MOCK_MODE` (toggles mock vs. real provider in the DI factory)
 - **Media & email** — `CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`
 - **Service URLs & CORS** — `API_URL`, `BUYER_WEB_URL`, `SELLER_WEB_URL`, `ADMIN_WEB_URL`, `CORS_ORIGINS`
+- **Error monitoring** — `SENTRY_DSN` (empty in dev → `Sentry.init` is skipped and `captureException` is a no-op; set in prod once a Sentry project DSN is provisioned), `SENTRY_RELEASE` (optional, populate with the git short-sha so errors group per-release).
 
 Removed and **not** in use any longer: `REDIS_URL` (Redis dropped Mar 2026), `OTP_EXPIRY_MINUTES` (OTP infrastructure deleted May 2026), `GOOGLE_*_CLIENT_ID` (Google OAuth removed Apr 2026).
 
@@ -300,11 +301,14 @@ Maintain a `PROGRESS.md` file at the project root. Update it after completing ea
 
 When resuming work (after interruption or new session):
 
-1. **Read `CLAUDE.md`** (this file) for full project context
-2. **Read `PROGRESS.md`** to know exactly where you stopped
-3. **Check git log** (`git log --oneline -20`) for recent commits
-4. **Run tests** (`npm test` in api/) to verify current state
-5. **Continue from the next uncompleted sub-task**
+1. **Read `STATUS.md`** at repo root *first*. It is the single source of truth for what is in-flight right now (active initiative, open PRs, next candidates). Updated in the same commit that starts or ends an initiative — so it should never drift. If `## Active initiative` says "None," there is no in-flight work; don't infer one from stale plan files or memory.
+2. **Read `CLAUDE.md`** (this file) for full project context if `STATUS.md` didn't make the situation clear.
+3. **Read `PROGRESS.md`** for the chronological history of completed work.
+4. **Check git log** (`git log --oneline -20`) for recent commits.
+5. **Run tests** (`pnpm test` in `apps/api`) to verify current state.
+6. **Continue from the next uncompleted sub-task** — or, if `STATUS.md` says no active initiative, ask the user what to start.
+
+Plan files in `~/.claude/plans/*.md` are session artifacts that may persist after the plan has shipped. Cross-reference any plan you find against `STATUS.md` and git history before executing it — don't treat the file's existence as evidence the work is pending.
 
 ### 7.3 Git Discipline
 

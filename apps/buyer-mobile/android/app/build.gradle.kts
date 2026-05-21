@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "cd.teka.buyer_mobile"
+    namespace = "com.tootiye.teka"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -20,8 +20,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "cd.teka.buyer_mobile"
+        applicationId = "com.tootiye.teka"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
