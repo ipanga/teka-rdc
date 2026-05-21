@@ -6,18 +6,21 @@
 
 ## Active initiative
 
-**Android bundle ID rename** (started 2026-05-21). Switch both Flutter apps from the placeholder `cd.teka.{buyer,seller}_mobile` IDs to the production `com.tootiye.{teka, tekaseller}` namespace, ahead of Play Store submission. Scope is intentionally Android-only — neither app has an `ios/` folder yet, neither has `firebase_core` in `pubspec.yaml`, and CI doesn't build either platform. iOS + Firebase + push-notification wiring is a separate future initiative.
+**Sentry error tracking** (started 2026-05-21, PR #144 about to merge). Closes the TODO that left `apps/api/src/common/filters/http-exception.filter.ts` without centralized error capture for 5+ months. Scope: `@sentry/node` v10, init in `apps/api/src/instrument.ts` (must be the first import in `main.ts` per Sentry SDK v8+ semantics), `captureException` on both 5xx HttpExceptions and unhandled errors with `{ method, status, kind, url, user.id }` tags. Errors-only — `tracesSampleRate: 0`, no perf tracing in this PR.
 
-Touched: `applicationId` + `namespace` in both `build.gradle.kts`, Kotlin source dirs moved (`kotlin/cd/teka/{buyer,seller}_mobile/` → `kotlin/com/tootiye/{teka,tekaseller}/`), `MainActivity.kt` package declaration in each. `pubspec.yaml` `name:` left alone — that's the Dart package identifier, not the bundle ID, and renaming it would break every `package:buyer_mobile/…` import in the codebase.
+Gated by `SENTRY_DSN` env var — when unset, `init` is skipped and `captureException` is a no-op. Safe to merge before a Sentry project DSN exists; ship the DSN to the VPS `.env.production` separately.
+
+Last shipped (also today, 2026-05-21):
+- **Android bundle ID rename** (PR #145) — both Flutter apps now use `com.tootiye.teka` (buyer) / `com.tootiye.tekaseller` (seller). Android-only — iOS + Firebase + push are separate future initiatives.
+- **Profile management** (PRs #138–#143, 2026-05-20 → 2026-05-21) — notification prefs (Phase 7a), session management (Phase 7b), trust-proxy follow-up.
 
 ## In-flight PRs
 
-- **#144** `feat(api): wire Sentry error capture` — open against `develop`, CI passing, awaiting merge instruction.
+- **#144** `feat(api): wire Sentry error capture` — this branch, about to merge.
 
 ## In-flight local branches
 
 - `feat/sentry-error-tracking` — PR #144 (above).
-- `feat/android-bundle-id-rename` — current branch, this initiative.
 
 ## Next candidates
 
@@ -25,11 +28,10 @@ Surfaced by a 2026-05-21 code-rot audit. Not yet committed to any of them — pi
 
 | # | Candidate | Effort | Why |
 |---|---|---|---|
-| 1 | **Wire Sentry error capture** in `apps/api/src/common/filters/http-exception.filter.ts` (line ~58) | S | TODO stub since launch. 5+ months in prod with no centralized error monitoring. |
-| 2 | **Real popularity metric** for `GET /v1/browse/products?sort=popularity` (currently falls back to `createdAt desc` per browse.service.ts line ~169) | M | UX gap — buyers see only newest, no real "best-selling" or "trending" surface. Requires a schema column + a sales/views-weighted score + a backfill. |
-| 3 | Mark `AuthProvider.GOOGLE` + retired `PHONE_OTP` paths as `@deprecated` in `packages/shared/src/types/auth.ts` and `constants/auth.ts` | M | Dead enum members still type-allowed. Add JSDoc `@deprecated`, plan removal for Q3. |
-| 4 | Move retired-endpoint e2e tests (`/v1/auth/otp/*`, seller migration) to `deprecated-e2e.spec.ts` with skip tag | M | Tests pass but the routes 404 in prod — false confidence. |
-| 5 | Bulk Flutter `InputDecoration` border modernization across both mobile apps (16 occurrences) | S | Not broken — just lagging current Material 3 idiom. |
+| 1 | **Real popularity metric** for `GET /v1/browse/products?sort=popularity` (currently falls back to `createdAt desc` per browse.service.ts line ~169) | M | UX gap — buyers see only newest, no real "best-selling" or "trending" surface. Requires a schema column + a sales/views-weighted score + a backfill. |
+| 2 | Mark `AuthProvider.GOOGLE` + retired `PHONE_OTP` paths as `@deprecated` in `packages/shared/src/types/auth.ts` and `constants/auth.ts` | M | Dead enum members still type-allowed. Add JSDoc `@deprecated`, plan removal for Q3. |
+| 3 | Move retired-endpoint e2e tests (`/v1/auth/otp/*`, seller migration) to `deprecated-e2e.spec.ts` with skip tag | M | Tests pass but the routes 404 in prod — false confidence. |
+| 4 | Bulk Flutter `InputDecoration` border modernization across both mobile apps (16 occurrences) | S | Not broken — just lagging current Material 3 idiom. |
 
 ## Recently archived plans
 
