@@ -1025,10 +1025,55 @@ Tracker: [`tasks/buyer-whatsapp-otp-progress.md`](./tasks/buyer-whatsapp-otp-pro
 
 ---
 
+## Profile Management Initiative (2026-05-20 → 2026-05-21)
+
+Two-phase user-facing surface for self-service account management on all 5 frontends. Both phases shipped via real `develop → main` merges (no squash) and live-validated in production.
+
+### Phase 7a — Notification Preferences (PRs #138, #139)
+
+- [x] **7a-A1** — Prisma: `User.notificationPrefs JSONB?` (nullable; default behavior is opt-in)
+- [x] **7a-A2** — DTO + service: `NotificationPrefsDto` (smsOrderUpdates, smsBroadcasts), `NotificationPrefsService.resolve / update / shouldSendOrderUpdates / shouldSendBroadcasts`
+- [x] **7a-A3** — Controller: `GET /v1/users/notification-prefs`, `PATCH /v1/users/notification-prefs`
+- [x] **7a-A4** — Enforcement: 6 SMS sites in `order-notification.service.ts` + the broadcast loop in `broadcasts.service.ts` now gate on `shouldSend*(userId)`
+- [x] **7a-A5** — Manual SQL migration applied to prod: `apps/api/prisma/migrations/manual/2026-05-20_user_notification_prefs.sql`
+- [x] **7a-W1..W3** — "Notifications" card on `/profil` (buyer-web), `/dashboard/profile` (seller-web, admin-web) with 2 switches + auto-save + optimistic toggle
+- [x] **7a-M1..M2** — Same card on `profile_screen.dart` (buyer-mobile, seller-mobile) with l10n keys regenerated via `flutter gen-l10n`
+
+### Phase 7b — Session Management (PRs #140, #141)
+
+- [x] **7b-A1** — `JwtStrategy.validate` returns `jti` so `@CurrentUser('jti')` works
+- [x] **7b-A2** — `generateTokens` + `generateTokensForUser` accept optional `{ userAgent, ipAddress }`; persisted to `RefreshToken.deviceInfo` (cap 500 chars) + `ipAddress`
+- [x] **7b-A3** — Plumbed `device` through all 5 callers: loginWithEmail, registerWithEmailForRole, refreshTokens, buyerOtpService.verifyOtp, buyerClaimService.verifyClaim
+- [x] **7b-A4** — Controllers add `@Req() req: Request` + `extractDevice()` helper (User-Agent + `req.ip`)
+- [x] **7b-A5** — `SessionsService` + 3 endpoints under `/v1/users`:
+  - `GET /sessions` (active rows only, current flagged)
+  - `DELETE /sessions/:id` (refuses self; 404 cross-account)
+  - `DELETE /sessions` (revoke all except current)
+- [x] **7b-W1..W3** — "Appareils connectés" card on all 3 web profile pages (list + per-row Déconnecter + bulk "Déconnecter les autres appareils")
+- [x] **7b-M1..M2** — `_SessionsCard` widget on both mobile profile screens (mirrors web parity)
+- [x] **7b-V1** — 90/90 e2e green; type-check + flutter analyze clean on all 5 frontends
+- [x] **7b-V2** — Production smoke validated: list / per-row revoke / bulk revoke all behave as designed
+
+### Follow-up — Real Client IP (PRs #142, #143)
+
+Phase 7b smoke surfaced `RefreshToken.ipAddress` was rendering as `::ffff:172.18.0.6` (nginx's internal docker IP). Express's `req.ip` returns the socket address unless the app opts into `trust proxy`.
+
+- [x] **F1** — `apps/api/src/main.ts`: `app.getHttpAdapter().getInstance().set('trust proxy', 1)` to trust the single nginx hop
+- [x] **F2** — No backfill: existing rows roll off naturally on the 7d refresh-token TTL
+- [x] **F3** — Verified post-deploy: fresh login on seller.teka.cd showed real public IP `197.250.153.149` (was previously `::ffff:172.18.0.6`)
+
+### Test coverage
+
+- API e2e: 90/90 green (was 71 pre-initiative, +19 incremental coverage across the initiative)
+- Web type-check: clean on all 3 apps
+- Flutter analyze: 0 errors on both mobile apps (pre-existing info-level deprecation warnings only)
+
+---
+
 ## ALL 8 PHASES COMPLETE
 
 The Teka RDC e-commerce marketplace is feature-complete across all 5 frontends (API, 3 web apps, 2 mobile apps) and production-ready with:
-- Full authentication (phone OTP + JWT)
+- Full authentication (email + password for sellers/admins; WhatsApp OTP via Gupshup for buyers since 2026-05-15)
 - Product catalog with categories, search, filters
 - Shopping cart, checkout, order lifecycle
 - Mobile Money payments + COD
@@ -1036,4 +1081,5 @@ The Teka RDC e-commerce marketplace is feature-complete across all 5 frontends (
 - Admin dashboard with full platform management
 - SEO, PWA, error boundaries, health checks
 - Docker production configs, SSL, documentation
-- 57 e2e test cases covering critical paths
+- 90 e2e test cases covering critical paths
+- Self-service profile management: avatar / personal info / password / notification preferences / active session list (2026-05-20)
