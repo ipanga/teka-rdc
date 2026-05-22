@@ -56,11 +56,11 @@ export class OrderNotificationService {
         });
       }
 
-      // SMS to seller (respects per-user opt-out)
-      if (
-        seller?.phone &&
-        (await this.notificationPrefs.shouldSendOrderUpdates(seller.id))
-      ) {
+      // Seller notifications (SMS + push, gated by the same opt-out pref)
+      const shouldNotifySeller = seller?.id
+        ? await this.notificationPrefs.shouldSendOrderUpdates(seller.id)
+        : false;
+      if (shouldNotifySeller && seller.phone) {
         // Note: businessName previously inlined here was unused after the
         // 2026-03 SMS template trim. Kept the seller variable for the
         // opt-out check; the SMS body itself doesn't reference businessName.
@@ -69,6 +69,13 @@ export class OrderNotificationService {
           `${itemCount} article(s) pour ${subtotalCDF} FC. ` +
           `Veuillez confirmer dans les plus brefs délais.`;
         this.sendSms(seller.phone, sellerMsg);
+      }
+      if (shouldNotifySeller) {
+        this.sendPushToSeller(seller.id, {
+          title: 'Nouvelle commande',
+          body: `Commande ${orderNumber} reçue — ${itemCount} article(s), ${subtotalCDF} FC.`,
+          data: { orderId: enriched.id, screen: 'order-details' },
+        });
       }
     } catch (error) {
       this.logger.error(
@@ -332,6 +339,20 @@ export class OrderNotificationService {
     void this.pushService.sendToUser(buyerId, payload).catch((err) => {
       this.logger.warn(
         `push send failed for buyer ${buyerId}: ${err?.message ?? err}`,
+      );
+    });
+  }
+
+  /**
+   * Same fan-out as [sendPushToBuyer] but for the seller side. Kept
+   * as a separate helper so future changes (e.g. seller-specific
+   * channel ID, different tap-target screen) can land here without
+   * touching the buyer path.
+   */
+  private sendPushToSeller(sellerId: string, payload: PushPayload): void {
+    void this.pushService.sendToUser(sellerId, payload).catch((err) => {
+      this.logger.warn(
+        `push send failed for seller ${sellerId}: ${err?.message ?? err}`,
       );
     });
   }
