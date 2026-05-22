@@ -28,7 +28,28 @@ export interface PushPayload {
   data?: Record<string, string | number | boolean | undefined>;
 }
 
-const ENABLE_ENV = 'GOOGLE_APPLICATION_CREDENTIALS';
+/**
+ * Two supported authentication shapes — pick whichever fits your
+ * secret-injection workflow:
+ *
+ *   1. `GOOGLE_APPLICATION_CREDENTIALS` (path to a service-account JSON
+ *      file). Standard Google SDK convention. Best when the file can be
+ *      mounted into the container at a known path.
+ *
+ *   2. Discrete env vars: `FIREBASE_PROJECT_ID`, `FIREBASE_PRIVATE_KEY`,
+ *      `FIREBASE_CLIENT_EMAIL`. GitHub-Secrets-friendly — no file
+ *      mounting needed; the deploy workflow just sets three env vars.
+ *      `FIREBASE_PRIVATE_KEY` typically arrives with literal `\n`
+ *      sequences (env-file or compose passing rarely unescapes them);
+ *      we normalize before handing to firebase-admin.
+ *
+ * If neither shape is configured, init is skipped and every
+ * `sendToUser` is a no-op. Safe to merge before credentials exist.
+ */
+const GAC_ENV = 'GOOGLE_APPLICATION_CREDENTIALS';
+const FIREBASE_PROJECT_ID_ENV = 'FIREBASE_PROJECT_ID';
+const FIREBASE_PRIVATE_KEY_ENV = 'FIREBASE_PRIVATE_KEY';
+const FIREBASE_CLIENT_EMAIL_ENV = 'FIREBASE_CLIENT_EMAIL';
 
 /**
  * Errors FCM returns when a token is no longer valid. We dedupe these
@@ -49,24 +70,25 @@ export class PushService implements OnModuleInit {
   constructor(private prisma: PrismaService) {}
 
   onModuleInit(): void {
-    if (!process.env[ENABLE_ENV]) {
+    const credential = this.resolveCredential();
+    if (credential === null) {
       this.logger.warn(
-        `${ENABLE_ENV} not set — push notifications are a no-op. ` +
-          'Set the env var to a Firebase Admin SDK service-account JSON path to enable.',
+        'Push notifications disabled — neither GOOGLE_APPLICATION_CREDENTIALS ' +
+          'nor the discrete FIREBASE_* env trio is set. Set one of the two ' +
+          'patterns to enable push.',
       );
       return;
     }
+
     if (admin.apps.length === 0) {
       try {
-        this.app = admin.initializeApp({
-          credential: admin.credential.applicationDefault(),
-        });
+        this.app = admin.initializeApp({ credential });
         this.logger.log(
           `firebase-admin initialized — project ${(this.app.options.credential as any)?.projectId ?? 'unknown'}`,
         );
       } catch (err) {
-        // Bad credential file is loud, not silent. Same philosophy as
-        // the production cookie-domain boot guard.
+        // Bad credential is loud, not silent. Same philosophy as the
+        // production cookie-domain boot guard.
         this.logger.error(
           `firebase-admin init failed: ${(err as Error).message}. ` +
             'Push notifications will be a no-op until this is fixed.',
@@ -76,6 +98,33 @@ export class PushService implements OnModuleInit {
     } else {
       this.app = admin.app();
     }
+  }
+
+  /**
+   * Tries the discrete-env-var shape first (more explicit, fewer
+   * deploy-time moving parts), falls back to the GAC path shape.
+   * Returns null if neither is configured.
+   */
+  private resolveCredential(): admin.credential.Credential | null {
+    const projectId = process.env[FIREBASE_PROJECT_ID_ENV];
+    const rawKey = process.env[FIREBASE_PRIVATE_KEY_ENV];
+    const clientEmail = process.env[FIREBASE_CLIENT_EMAIL_ENV];
+
+    if (projectId && rawKey && clientEmail) {
+      // env-file loaders disagree on `\n` handling. Node 22's
+      // `--env-file` unescapes inside double-quoted values; Docker
+      // Compose `env_file:` and the GitHub Actions `env:` mapping do
+      // not. Replace literal backslash-n with real newlines either
+      // way — a no-op when newlines are already real.
+      const privateKey = rawKey.replace(/\\n/g, '\n');
+      return admin.credential.cert({ projectId, privateKey, clientEmail });
+    }
+
+    if (process.env[GAC_ENV]) {
+      return admin.credential.applicationDefault();
+    }
+
+    return null;
   }
 
   isEnabled(): boolean {
