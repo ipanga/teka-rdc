@@ -23,12 +23,17 @@ import '../../features/promotions/presentation/screens/promotions_list_screen.da
 import '../../features/reviews/presentation/screens/seller_reviews_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
-
+  // Build GoRouter exactly once. Auth state changes trigger redirect
+  // re-evaluation via `refreshListenable` — they must NOT cause the
+  // entire GoRouter instance to be replaced, otherwise every transient
+  // state change (e.g. `isLoading: true → false` during login) resets
+  // navigation to `initialLocation` mid-flight and undoes any
+  // `context.push` in progress. Same bug + fix as buyer-mobile PR #162.
   return GoRouter(
     initialLocation: '/',
     refreshListenable: _AuthRefreshNotifier(ref),
     redirect: (context, state) {
+      final authState = ref.read(authProvider);
       final status = authState.status;
       final isLoading = status == AuthStatus.unknown;
       final isAuth = status == AuthStatus.authenticated;
