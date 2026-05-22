@@ -22,6 +22,19 @@ dependencies:
   cached_network_image: ^3.4.1
   image_picker: ^1.0.7
 
+  # --- Firebase Cloud Messaging (PR B, 2026-05-22) ---------------------
+  # Buyer push notifications. firebase_core auto-loads
+  # android/app/google-services.json (gitignored). iOS scaffold ships in
+  # PR C; until then firebase_options.dart is not generated — calling
+  # `Firebase.initializeApp()` with no args works on Android because the
+  # google-services Gradle plugin generates the config resources at
+  # build time.
+  firebase_core: ^4.1.1
+  firebase_messaging: ^16.0.3
+  # Surfaces FCM messages while the app is foregrounded. Android only
+  # shows system notifications for backgrounded / killed apps.
+  flutter_local_notifications: ^19.4.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -1,4 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Android 13+ runtime notification permission. Requested at runtime
+         by firebase_messaging.requestPermission(); older versions
+         (< API 33) grant automatically when notifications are first
+         posted. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
     <application
         android:label="buyer_mobile"
         android:name="${applicationName}"
@@ -30,6 +37,22 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- FCM default channel — used by `firebase_messaging` when a
+             remote notification arrives and the payload doesn't name a
+             specific channel. The channel ID is created at runtime by
+             flutter_local_notifications (see PushService.init()); the
+             two values must match. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="teka_orders"/>
+        <!-- Notification icon used when the payload doesn't carry one.
+             Must be a white-on-transparent drawable for Android 5+. We
+             reuse the launcher icon here as a placeholder — replace
+             with a proper monochrome notification asset before launch. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@mipmap/ic_launcher"/>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
