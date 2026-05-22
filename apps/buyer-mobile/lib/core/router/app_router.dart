@@ -25,13 +25,21 @@ import '../../features/reviews/presentation/screens/product_reviews_screen.dart'
 import '../../features/wishlist/presentation/screens/wishlist_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
-  final cityState = ref.watch(cityProvider);
-
+  // Build GoRouter exactly once. Auth/city state changes trigger a
+  // redirect re-evaluation via `refreshListenable` below — they must
+  // NOT cause the entire GoRouter instance to be replaced, otherwise
+  // every transient state change (e.g. `isLoading: true` → `false`
+  // during an OTP request) resets navigation to `initialLocation`
+  // mid-flight and undoes any `context.push` in progress. The provider
+  // therefore uses `ref.read` for state captured here (none currently)
+  // and the redirect callback reads fresh state via `ref.read` each
+  // time it fires.
   return GoRouter(
     initialLocation: '/',
     refreshListenable: _AuthCityRefreshNotifier(ref),
     redirect: (context, state) {
+      final authState = ref.read(authProvider);
+      final cityState = ref.read(cityProvider);
       final isAuth = authState.status == AuthStatus.authenticated;
       final isLoading = authState.status == AuthStatus.unknown;
       final isAuthRoute = state.matchedLocation.startsWith('/auth');
