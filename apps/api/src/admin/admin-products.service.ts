@@ -5,10 +5,14 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProductStatus } from '@prisma/client';
+import { SellerNotificationService } from '../notifications/seller-notification.service';
 
 @Injectable()
 export class AdminProductsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private sellerNotifications: SellerNotificationService,
+  ) {}
 
   /**
    * Returns a paginated list of products for admin oversight,
@@ -131,7 +135,7 @@ export class AdminProductsService {
       );
     }
 
-    return this.prisma.product.update({
+    const updated = await this.prisma.product.update({
       where: { id: productId },
       data: {
         status: ProductStatus.ACTIVE,
@@ -150,6 +154,16 @@ export class AdminProductsService {
         },
       },
     });
+
+    // Fire-and-forget — the service catches its own errors. Don't
+    // await; admin endpoint shouldn't wait on FCM round-trip.
+    void this.sellerNotifications.notifyProductApproved({
+      id: updated.id,
+      sellerId: updated.sellerId,
+      title: updated.title,
+    });
+
+    return updated;
   }
 
   /**
@@ -170,7 +184,7 @@ export class AdminProductsService {
       );
     }
 
-    return this.prisma.product.update({
+    const updated = await this.prisma.product.update({
       where: { id: productId },
       data: {
         status: ProductStatus.REJECTED,
@@ -189,5 +203,12 @@ export class AdminProductsService {
         },
       },
     });
+
+    void this.sellerNotifications.notifyProductRejected(
+      { id: updated.id, sellerId: updated.sellerId, title: updated.title },
+      rejectionReason,
+    );
+
+    return updated;
   }
 }
