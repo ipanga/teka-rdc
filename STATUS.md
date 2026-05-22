@@ -8,8 +8,8 @@
 
 **Push notifications for buyer** (started 2026-05-21). Multi-PR initiative — full plan in the message that kicked it off; 5 PRs estimated.
 
-- **PR A (in this branch)** — Backend `DeviceToken` model + manual SQL migration; `firebase-admin` install; `PushModule` with `PushService` (gated by `GOOGLE_APPLICATION_CREDENTIALS`, no-op fallback); `POST /v1/users/device-tokens` + `DELETE /v1/users/device-tokens/:token`; wired into `OrderNotificationService` as parallel send next to existing SMS at all 5 buyer-facing order events. `.gitignore` covers all Firebase/APNs credential file patterns.
-- **PR B (next)** — Flutter `firebase_core` + `firebase_messaging` + `flutter_local_notifications`, init + permission + token register on cold start, foreground/background handlers, tap → go_router navigation, Android config (google-services.json placed locally, gradle plugin applied).
+- **PR A (shipped + deployed + migration applied on 2026-05-21)** — Backend `DeviceToken` model + manual SQL migration; `firebase-admin` install; `PushModule` with `PushService` (gated by `GOOGLE_APPLICATION_CREDENTIALS`, no-op fallback); `POST /v1/users/device-tokens` + `DELETE /v1/users/device-tokens/:token`; wired into `OrderNotificationService` as parallel send next to existing SMS at all 5 buyer-facing order events.
+- **PR B (this branch)** — Flutter `firebase_core` + `firebase_messaging` + `flutter_local_notifications`, init + permission + token register on cold start, foreground handler with local-notification fallback, top-level background handler, Android config (google-services.json placed locally + gitignored, `com.google.gms.google-services` Gradle plugin applied, POST_NOTIFICATIONS permission, default notification channel meta-data). PushController bridges auth lifecycle: register on login, unregister on logout, re-register on token rotation. Tap-navigation hook for FCM payload deferred to PR E (needs more router context).
 - **PR C** — iOS scaffold (`flutter create --platforms=ios .`), GoogleService-Info.plist placement, Push Notifications + Background Modes capabilities, APNs .p8 already uploaded to Firebase Console (manual step done 2026-05-21).
 - **PR D** — CI/CD secret injection. Base64-encode the three credential files into GitHub Secrets; deploy workflow writes them to `/home/deploy/teka-rdc/secrets/` at deploy time; `docker-compose.prod.yml` mounts that path into the api container at `/secrets/firebase-admin-sdk.json`.
 - **PR E** — Runbook + integration into more events (delivery updates, cart reminders). Web push documented as future work only.
@@ -43,7 +43,7 @@ Last shipped today (2026-05-21):
 
 ## In-flight local branches
 
-- `chore/ops-migration-workflow` — adds a `workflow_dispatch` GitHub Action (`.github/workflows/apply-migration.yml`) that wraps the prod migration command in point-and-click form so we stop hitting the paste-collapsed `\sh` shell-escaping bug.
+- `feat/push-notifications-buyer-mobile-android` — PR B (current). Flutter FCM wiring + Android config.
 
 ## Next candidates
 
