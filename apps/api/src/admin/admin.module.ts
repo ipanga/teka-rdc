@@ -15,9 +15,10 @@ import { AdminCitiesController } from './admin-cities.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { DeliveryZonesModule } from '../delivery-zones/delivery-zones.module';
 import { CitiesModule } from '../cities/cities.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [PrismaModule, DeliveryZonesModule, CitiesModule],
+  imports: [PrismaModule, DeliveryZonesModule, CitiesModule, NotificationsModule],
   controllers: [
     AdminUsersController,
     AdminSellersController,

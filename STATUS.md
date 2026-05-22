@@ -6,9 +6,15 @@
 
 ## Active initiative
 
-**Push notifications — PR S2** (started 2026-05-22). Tiny backend-only follow-up. Wires `OrderNotificationService.notifyOrderPlaced` to push "Nouvelle commande" to the seller in parallel with the existing SMS. Mirrors the 5 buyer push integration sites that landed in PR A.
+**Push notifications — PR E lite** (started 2026-05-22). Backend-only follow-up. Adds `SellerNotificationService` with three new push events:
 
-Touched: `apps/api/src/notifications/order-notification.service.ts` only. New `sendPushToSeller` helper next to the existing `sendPushToBuyer`; gated by `shouldSendOrderUpdates(sellerId)` (same pref as the SMS path).
+- **`notifyProductApproved`** — fired from `AdminProductsService.approveProduct`. No opt-out gate; operational notification about the seller's own product.
+- **`notifyProductRejected`** — fired from `AdminProductsService.rejectProduct`. Includes the rejection reason in the body (truncated at 140 chars). No opt-out gate.
+- **`notifyNewReview`** — fired from `ReviewsService.createReview`. Gated by `shouldSendOrderUpdates(sellerId)` (closest semantic match; revisit if sellers ask for finer toggles).
+
+All three are fire-and-forget — the service catches its own errors and never throws. New `SellerNotificationService` registered in `NotificationsModule`; `AdminModule` and `ReviewsModule` import `NotificationsModule` so the service is injectable from `AdminProductsService` + `ReviewsService`.
+
+Last shipped today: **PR S2** (PRs #167 → #168) — seller "Nouvelle commande" push on order placement.
 
 ## Buyer push notifications — fully validated 2026-05-22
 
@@ -26,17 +32,17 @@ Manual migration applied to dev + prod DBs (the `device_tokens` table).
 
 ## In-flight PRs
 
-None yet — PR S2 about to open from this branch.
+None yet — PR E lite about to open from this branch.
 
 ## In-flight local branches
 
-- `feat/seller-new-order-push` — PR S2 (current).
+- `feat/seller-event-pushes-pr-e-lite` — PR E lite (current).
 
 ## Pending in the push initiative
 
 - **PR C** — iOS scaffold for both apps (`flutter create --platforms=ios .` per app, GoogleService-Info.plist placement, Push Notifications + Background Modes capabilities). APNs `.p8` already uploaded to Firebase Console (same key for buyer + seller — project-wide auth key).
 - **PR D** — CI/CD secret injection. Base64-encode the credential files into GitHub Secrets; deploy workflow writes them to `/home/deploy/teka-rdc/secrets/` at deploy time. Today the gitignored credentials only exist on the operator's Mac.
-- **PR E** — Runbook + more seller events (product approval/rejection, new reviews, stock alerts), tap-navigation routing, web push evaluation. PR S2 covers only the "new order" event.
+- **PR E (full)** — Runbook + tap-navigation routing + web push evaluation + remaining events (stock alerts, more granular order events). The product-approval/rejection + new-review events ship in PR E lite (this branch).
 
 ## Sentry — DSN still missing
 
