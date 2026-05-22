@@ -6,15 +6,11 @@
 
 ## Active initiative
 
-**Push notifications — PR D — CI/CD secret injection** (started 2026-05-22). Stops relying on local-only credential files. Three pieces:
+**Tiny fix — APK builder dynamic matrix** (started 2026-05-22). PR D's `build-mobile-apk.yml` workflow used a static 2-entry matrix with a per-step `if: gate` skip; when the operator picked `app=buyer`, a green-but-empty `build (seller)` sibling job still showed up in the run UI. Noise.
 
-- **`scripts/sync-firebase-secrets.sh`** — decodes `BUYER_GOOGLE_SERVICES_JSON_B64` + `SELLER_GOOGLE_SERVICES_JSON_B64` env vars into the gitignored Android paths. Skips missing vars silently so dev machines can still use local files.
-- **`.github/workflows/build-mobile-apk.yml`** — `workflow_dispatch` action that decodes the secrets, runs `flutter build apk`, uploads the APK as a workflow artifact. Choose buyer / seller / both + debug / release variant via the UI form.
-- **`docs/push-notifications.md`** — full runbook: architecture, backend auth (the two PushService modes), mobile credentials, encode/decode procedure, CI workflows, smoke recipes, wired events, opt-out semantics, future work.
+Replaced with a dynamic matrix expression: `${{ inputs.app == 'both' && fromJSON('["buyer","seller"]') || fromJSON(format('["{0}"]', inputs.app)) }}`. Single-app runs now only materialise the chosen job. The gate step + all the per-step `if` conditions are gone.
 
-iOS placements in the decode script are commented out — un-comment once PR C lands the `ios/` folders.
-
-Last shipped today: **PR E lite** (PRs #169 → #170) — SellerNotificationService with product-approval / product-rejection / new-review pushes.
+Last shipped today: **PR D** (PRs #171 → #172) — CI/CD secret injection script + APK builder workflow + push-notifications runbook. Operator paste of GitHub Secrets confirmed; end-to-end smoke of the workflow produced a 152 MB buyer APK artifact.
 
 ## Buyer push notifications — fully validated 2026-05-22
 
@@ -32,11 +28,11 @@ Manual migration applied to dev + prod DBs (the `device_tokens` table).
 
 ## In-flight PRs
 
-None yet — PR D about to open from this branch.
+None yet — the matrix fix is about to open from this branch.
 
 ## In-flight local branches
 
-- `feat/cicd-firebase-secret-injection` — PR D (current).
+- `fix/apk-workflow-dynamic-matrix` — APK builder matrix fix (current).
 
 ## Pending in the push initiative
 
