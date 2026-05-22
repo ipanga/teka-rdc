@@ -42,7 +42,14 @@ class PushService {
   PushService._();
   static final instance = PushService._();
 
-  final _messaging = FirebaseMessaging.instance;
+  // `late final` — defers the FirebaseMessaging.instance lookup until
+  // first access. Without this, the singleton's constructor (which is
+  // called when `PushService.instance` is first read from main.dart)
+  // would touch FirebaseMessaging BEFORE `init()` had a chance to call
+  // `Firebase.initializeApp()`, throwing `[core/no-app] No Firebase
+  // App '[DEFAULT]' has been created`. Caught during the 2026-05-22
+  // emulator smoke test.
+  late final _messaging = FirebaseMessaging.instance;
   final _local = FlutterLocalNotificationsPlugin();
 
   String? _cachedToken;
