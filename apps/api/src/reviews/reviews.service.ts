@@ -9,12 +9,16 @@ import { PrismaService } from '../prisma/prisma.service';
 import { OrderStatus, ReviewStatus } from '@prisma/client';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { ReviewQueryDto, ReviewSortOption } from './dto/review-query.dto';
+import { SellerNotificationService } from '../notifications/seller-notification.service';
 
 @Injectable()
 export class ReviewsService {
   private readonly logger = new Logger(ReviewsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private sellerNotifications: SellerNotificationService,
+  ) {}
 
   /**
    * Checks if a buyer is eligible to review a specific product.
@@ -129,6 +133,15 @@ export class ReviewsService {
     this.logger.log(
       `Review created by buyer ${buyerId} for product ${dto.productId}`,
     );
+
+    // Fire-and-forget seller push. Errors are caught + logged inside
+    // the service; we don't await so the review POST doesn't wait
+    // on FCM latency.
+    void this.sellerNotifications.notifyNewReview({
+      id: review.id,
+      rating: review.rating,
+      productId: dto.productId,
+    });
 
     return review;
   }
