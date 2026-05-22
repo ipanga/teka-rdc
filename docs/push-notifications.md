@@ -1,0 +1,186 @@
+# Push notifications runbook
+
+Operational guide for the FCM-based push system that ships:
+
+- buyer-mobile **and** seller-mobile FCM clients
+- backend fan-out via `PushService` + `OrderNotificationService` + `SellerNotificationService`
+- the standard 5 buyer order events + the seller "new order", "product approved/rejected", and "new review" events
+
+This document is the source of truth for setup, secrets management, and day-2 ops. The push initiative spans many PRs — see `STATUS.md` for the current scoreboard.
+
+## Architecture in one screenful
+
+```
+       ┌────────────────────────────┐
+       │ Buyer / seller mobile app  │   (Flutter, com.tootiye.{teka,tekaseller})
+       │ firebase_messaging         │
+       │ ↓ POST /v1/users/device-   │
+       │   tokens (on login)        │
+       └────────────┬───────────────┘
+                    │
+                    ▼
+       ┌────────────────────────────┐
+       │ api: DeviceToken table      │   (role-agnostic; any user can register)
+       └────────────┬───────────────┘
+                    │ event happens (order placed, product approved…)
+                    ▼
+       ┌────────────────────────────┐
+       │ OrderNotificationService    │
+       │ SellerNotificationService   │
+       │ → PushService.sendToUser    │
+       │   → admin.messaging().send  │
+       └────────────┬───────────────┘
+                    │
+                    ▼
+              FCM (Google) → device
+```
+
+Same Firebase project (`teka-rdc`) for both Android apps. Different `package_name` → different `mobilesdk_app_id` inside one multi-app `google-services.json`. APNs auth key is project-wide (one `.p8` covers both buyer + seller iOS once those scaffolds land).
+
+## Backend auth
+
+`PushService` (`apps/api/src/push/push.service.ts`) accepts **either**:
+
+1. **GOOGLE_APPLICATION_CREDENTIALS** — absolute path to a Firebase Admin SDK service-account JSON. Standard Google SDK pattern. Good for dev when the file lives on disk.
+2. **Discrete env trio** — `FIREBASE_PROJECT_ID` + `FIREBASE_PRIVATE_KEY` + `FIREBASE_CLIENT_EMAIL`. GitHub-Secrets-friendly. **The discrete trio wins when both are set.**
+
+When neither is configured, `PushService.sendToUser` is a no-op and every send-call returns `{ enabled: false, tokens: 0, ... }`. Safe to run without credentials — the app boots, the backend just doesn't fan out pushes.
+
+`FIREBASE_PRIVATE_KEY` may carry literal `\n` sequences. Node 22's `--env-file` unescapes them, Docker Compose `env_file:` does not. `PushService` normalizes either form via `replace(/\\n/g, '\n')` before handing to firebase-admin.
+
+### Production today
+
+`/home/deploy/teka-rdc/.env.production` on the VPS carries all three discrete env vars (set by the operator 2026-05-22). `docker compose --env-file .env.production up -d api` picks them up; expected boot log:
+
+```
+[PushService] firebase-admin initialized — project teka-rdc
+```
+
+If you see `Push notifications disabled — neither GOOGLE_APPLICATION_CREDENTIALS nor the discrete FIREBASE_* env trio is set`, the env vars never reached the container.
+
+## Mobile credentials
+
+| File | Role | Where it lives |
+|---|---|---|
+| `apps/buyer-mobile/android/app/google-services.json` | Buyer Android Firebase client config | gitignored, decoded from `BUYER_GOOGLE_SERVICES_JSON_B64` secret |
+| `apps/seller-mobile/android/app/google-services.json` | Seller Android Firebase client config | gitignored, decoded from `SELLER_GOOGLE_SERVICES_JSON_B64` secret |
+| `apps/{buyer,seller}-mobile/ios/Runner/GoogleService-Info.plist` | iOS Firebase client config | gitignored (iOS scaffold pending — PR C) |
+| `AuthKey_XXXXXXXXXX.p8` | APNs auth key | gitignored. Uploaded once to Firebase Console → Cloud Messaging → Apple app config. Not consumed by app code. |
+| Firebase Admin SDK JSON | Backend auth | NOT used directly anymore; discrete env trio replaces it in prod. The JSON file at `~/Desktop/teka-rdc/buyer/teka-rdc-firebase-adminsdk-*.json` is what you'd download from Firebase Console → Service accounts → Generate new private key if you need to rotate. |
+
+### Encoding new secrets
+
+When you receive a fresh credential file from the Firebase Console (key rotation, etc.):
+
+```sh
+# macOS — copies the base64 to clipboard, ready to paste into GitHub
+base64 -i ~/Desktop/teka-rdc/buyer/android/google-services.json | pbcopy
+```
+
+Then GitHub repo → Settings → Secrets and variables → Actions → New repository secret. Use the names listed above.
+
+### Decoding on a fresh machine
+
+`scripts/sync-firebase-secrets.sh` decodes everything from env vars at the right paths. Run it once after a fresh checkout if you don't have local files yet:
+
+```sh
+export BUYER_GOOGLE_SERVICES_JSON_B64="…paste base64…"
+export SELLER_GOOGLE_SERVICES_JSON_B64="…paste base64…"
+bash scripts/sync-firebase-secrets.sh
+# → wrote apps/buyer-mobile/android/app/google-services.json (688 bytes)
+# → wrote apps/seller-mobile/android/app/google-services.json (1234 bytes)
+```
+
+The script silently skips any variable that isn't set, so partial setups are fine.
+
+## CI workflows
+
+### `Build mobile APK` — `.github/workflows/build-mobile-apk.yml`
+
+`workflow_dispatch` action that produces an APK for either app or both, debug or release. Decodes the gitignored google-services.json from GitHub Secrets, runs `flutter build apk`, uploads as a workflow artifact.
+
+Trigger: Actions tab → "Build mobile APK" → Run workflow → pick app + variant.
+
+Requires these repo secrets:
+
+- `BUYER_GOOGLE_SERVICES_JSON_B64`
+- `SELLER_GOOGLE_SERVICES_JSON_B64`
+
+The job fails with a clear error if a required secret is missing for the selected app.
+
+### `Apply prod migration` — `.github/workflows/apply-migration.yml`
+
+Already documented in `CLAUDE.md § Prisma workflow`. Used to apply the `device_tokens` table during PR A's deploy. Mentioned here only because the push schema migration went through it.
+
+### `Deploy to production` — `.github/workflows/deploy.yml`
+
+Pre-existing. Builds api + 3 web images, SSHes to the VPS, runs the docker rollout. Sets `SENTRY_RELEASE=${{ github.sha }}` so error events tag correctly per release.
+
+## Smoke testing
+
+### Buyer — Android
+
+1. Build + install the buyer APK (`flutter build apk --debug` or the workflow above).
+2. Log in via WhatsApp OTP (mock provider in dev — read the code from `docker logs teka_rdc-api-1 | grep -i otp`).
+3. Confirm logcat shows `[PushController] token registered`.
+4. Confirm `device_tokens` row exists:
+   ```sh
+   docker compose --env-file .env.development -f docker-compose.yml exec -T api sh -c '
+     eval "$(node -e "const u=new URL(process.env.DATABASE_URL);[\"HOST\",\"PORT\",\"USER\",\"PASSWORD\",\"DATABASE\"].forEach(k=>console.log(`export PG${k}=`+JSON.stringify(decodeURIComponent(u[k.toLowerCase()]||u.pathname.slice(1)))))")"
+     psql -At -c "SELECT u.email, u.role, dt.platform, dt.\"isActive\" FROM device_tokens dt JOIN users u ON u.id=dt.\"userId\" ORDER BY dt.\"createdAt\" DESC LIMIT 3;"
+   '
+   ```
+5. Send a test push from inside the api container:
+   ```sh
+   TOKEN=… # full token from device_tokens
+   docker compose --env-file .env.development -f docker-compose.yml exec -e PUSH_TOKEN="$TOKEN" -T api node -e '
+   const admin = require("firebase-admin");
+   admin.initializeApp({ credential: admin.credential.cert({
+     projectId: process.env.FIREBASE_PROJECT_ID,
+     privateKey: (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+     clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+   })});
+   admin.messaging().send({
+     token: process.env.PUSH_TOKEN,
+     notification: { title: "Test", body: "End-to-end works" },
+   }).then(id => { console.log(id); process.exit(0); })
+     .catch(e => { console.error(e.code, e.message); process.exit(1); });
+   '
+   ```
+6. Watch `adb logcat | grep FLTFireMsgReceiver` for `broadcast received for message`.
+
+### Seller — Android
+
+Same steps, log in via email + password instead of WhatsApp OTP. The `role` column on the registered row should be `SELLER`.
+
+### iOS
+
+Pending PR C.
+
+## Wired events
+
+The set of events that fire a push today:
+
+| Event | Recipient | Source |
+|---|---|---|
+| Order placed (confirmation) | Buyer | `OrderNotificationService.notifyOrderPlaced` |
+| Order confirmed by seller | Buyer | `OrderNotificationService.notifyOrderConfirmed` |
+| Order shipped | Buyer | `OrderNotificationService.notifyOrderShipped` |
+| Order delivered | Buyer | `OrderNotificationService.notifyOrderDelivered` |
+| Order cancelled | Buyer | `OrderNotificationService.notifyOrderCancelled` |
+| **Order placed** | **Seller** | `OrderNotificationService.notifyOrderPlaced` (PR S2) |
+| **Product approved by admin** | **Seller** | `SellerNotificationService.notifyProductApproved` (PR E lite) |
+| **Product rejected by admin** | **Seller** | `SellerNotificationService.notifyProductRejected` (PR E lite) |
+| **New review from buyer** | **Seller** | `SellerNotificationService.notifyNewReview` (PR E lite) |
+
+Tap-navigation hook (`data.screen` consumed by the Flutter routers) lands in PR E full.
+
+## Opt-out
+
+`User.notificationPrefs` (JSONB) carries `smsOrderUpdates` + `smsBroadcasts` toggles. Push currently piggy-backs on `smsOrderUpdates` (one user-facing toggle covers both channels). Approval/rejection notifications skip the pref check — they're operational, not promotional. Add dedicated `pushOrderUpdates` / `pushReviewUpdates` etc. only when user research demands.
+
+## Future work
+
+- **PR C** — iOS scaffold. `flutter create --platforms=ios . --org com.tootiye` per app, drop the gitignored GoogleService-Info.plist, enable Push Notifications + Background Modes capability in Runner.xcodeproj. APNs `.p8` already uploaded.
+- **PR E full** — Tap-navigation: extend `PushController` to listen to `getInitialMessage` + `onMessageOpenedApp`, push the `data.screen` value into `go_router`. Plus stock-alert notifications once the schema gains a low-stock threshold.
+- **Web push** — Documented as future work, not currently planned. Buyer + seller web Firebase configs (for `teka.cd` and `seller.teka.cd`) are noted in the operator's docs but unused. Adding requires Firebase Web SDK + service worker + browser permission UI; trade-off vs marketing value is unclear for a DRC-targeted marketplace where mobile is the primary surface.

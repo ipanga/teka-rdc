@@ -1,0 +1,119 @@
+# One-shot mobile APK builder.
+#
+# Triggered manually from the Actions tab → "Build mobile APK" → Run
+# workflow. Use this when you want an installable APK without setting
+# up Flutter + the gitignored Firebase credentials on a fresh machine.
+#
+# Inputs:
+#   app      = buyer | seller | both         (default: buyer)
+#   variant  = debug | release               (default: debug)
+#
+# Notes
+# - The two google-services.json files are gitignored — they ship via
+#   GitHub Secrets (BUYER_GOOGLE_SERVICES_JSON_B64 +
+#   SELLER_GOOGLE_SERVICES_JSON_B64), decoded onto disk by
+#   `scripts/sync-firebase-secrets.sh` before the build runs.
+# - Release variant is signed with the debug keystore today
+#   (apps/*/android/app/build.gradle.kts: `signingConfig =
+#   signingConfigs.getByName("debug")`). Suitable for internal
+#   testing only — wire a real keystore before Play Store
+#   submission.
+# - The APK uploads as a workflow artifact named
+#   `<app>-mobile-<variant>-apk`; click the run to download.
+name: Build mobile APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Which app to build'
+        required: true
+        type: choice
+        default: buyer
+        options: [buyer, seller, both]
+      variant:
+        description: 'Build variant'
+        required: true
+        type: choice
+        default: debug
+        options: [debug, release]
+
+# Don't pile up concurrent APK builds; cancel any in-flight run when
+# a new one starts (each run uploads to the same artifact prefix).
+concurrency:
+  group: mobile-apk-${{ inputs.app }}-${{ inputs.variant }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        # Materialised below at job-step time based on `inputs.app`.
+        # Each entry produces one APK artifact.
+        app:
+          - buyer
+          - seller
+    steps:
+      - name: Skip if not selected
+        id: gate
+        run: |
+          if [ "${{ inputs.app }}" != "both" ] && [ "${{ inputs.app }}" != "${{ matrix.app }}" ]; then
+            echo "selected=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "selected=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.gate.outputs.selected == 'true'
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        if: steps.gate.outputs.selected == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        if: steps.gate.outputs.selected == 'true'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Decode Firebase secrets onto disk
+        if: steps.gate.outputs.selected == 'true'
+        env:
+          BUYER_GOOGLE_SERVICES_JSON_B64: ${{ secrets.BUYER_GOOGLE_SERVICES_JSON_B64 }}
+          SELLER_GOOGLE_SERVICES_JSON_B64: ${{ secrets.SELLER_GOOGLE_SERVICES_JSON_B64 }}
+        run: bash scripts/sync-firebase-secrets.sh
+
+      - name: Verify secret was decoded for this app
+        if: steps.gate.outputs.selected == 'true'
+        run: |
+          path="apps/${{ matrix.app }}-mobile/android/app/google-services.json"
+          if [ ! -s "$path" ]; then
+            echo "::error::$path is missing or empty — did you set ${{ matrix.app }}_GOOGLE_SERVICES_JSON_B64 in repo secrets?"
+            exit 1
+          fi
+          echo "✓ $path present ($(wc -c < "$path") bytes)"
+
+      - name: pub get
+        if: steps.gate.outputs.selected == 'true'
+        working-directory: apps/${{ matrix.app }}-mobile
+        run: flutter pub get
+
+      - name: Build ${{ inputs.variant }} APK
+        if: steps.gate.outputs.selected == 'true'
+        working-directory: apps/${{ matrix.app }}-mobile
+        run: flutter build apk --${{ inputs.variant }}
+
+      - name: Upload APK
+        if: steps.gate.outputs.selected == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app }}-mobile-${{ inputs.variant }}-apk
+          path: apps/${{ matrix.app }}-mobile/build/app/outputs/flutter-apk/app-${{ inputs.variant }}.apk
+          retention-days: 14
