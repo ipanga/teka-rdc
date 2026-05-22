@@ -6,18 +6,9 @@
 
 ## Active initiative
 
-**Push notifications for seller — PR S1** (started 2026-05-22). Mirror of the buyer-side PR B for `apps/seller-mobile`. Backend reused as-is from the buyer initiative (`DeviceToken` model + endpoints + `PushService` are role-agnostic). Same Firebase project `teka-rdc`; the multi-app `google-services.json` carries both `com.tootiye.teka` + `com.tootiye.tekaseller` entries.
+**Push notifications — PR S2** (started 2026-05-22). Tiny backend-only follow-up. Wires `OrderNotificationService.notifyOrderPlaced` to push "Nouvelle commande" to the seller in parallel with the existing SMS. Mirrors the 5 buyer push integration sites that landed in PR A.
 
-Scope of this branch:
-- `apps/seller-mobile/pubspec.yaml` — adds `firebase_core` + `firebase_messaging` + `flutter_local_notifications`.
-- `apps/seller-mobile/android/{settings,app/build}.gradle.kts` — google-services plugin + core-library desugaring + desugar dep.
-- `apps/seller-mobile/android/app/google-services.json` — copied locally from `~/Desktop/teka-rdc/seller/android/` (gitignored).
-- `AndroidManifest.xml` — `POST_NOTIFICATIONS` perm + default channel meta-data (`teka_orders`, shared with buyer for now).
-- `lib/core/push/{push_service,push_api,push_controller}.dart` — copied verbatim from buyer-mobile; backend endpoints are the same.
-- `lib/main.dart` + `lib/app.dart` — init PushService + activate controller.
-- `lib/core/router/app_router.dart` — same fix as buyer PR #162 (build GoRouter once, read state inside redirect closure) so login flow doesn't get steamrollered by router rebuilds.
-
-iOS scaffold + seller-specific notification events + CI secret injection are all separate follow-up PRs.
+Touched: `apps/api/src/notifications/order-notification.service.ts` only. New `sendPushToSeller` helper next to the existing `sendPushToBuyer`; gated by `shouldSendOrderUpdates(sellerId)` (same pref as the SMS path).
 
 ## Buyer push notifications — fully validated 2026-05-22
 
@@ -35,18 +26,17 @@ Manual migration applied to dev + prod DBs (the `device_tokens` table).
 
 ## In-flight PRs
 
-None yet — PR S1 about to open from this branch.
+None yet — PR S2 about to open from this branch.
 
 ## In-flight local branches
 
-- `feat/push-notifications-seller-mobile-android` — PR S1 (current).
+- `feat/seller-new-order-push` — PR S2 (current).
 
 ## Pending in the push initiative
 
-- **PR S2** — seller-specific notification events. `OrderNotificationService.notifyOrderPlaced` currently only SMS-pings the seller; needs a parallel push for "Nouvelle commande". Plus a future `SellerNotificationService` for product approval/rejection, reviews, stock alerts.
 - **PR C** — iOS scaffold for both apps (`flutter create --platforms=ios .` per app, GoogleService-Info.plist placement, Push Notifications + Background Modes capabilities). APNs `.p8` already uploaded to Firebase Console (same key for buyer + seller — project-wide auth key).
 - **PR D** — CI/CD secret injection. Base64-encode the credential files into GitHub Secrets; deploy workflow writes them to `/home/deploy/teka-rdc/secrets/` at deploy time. Today the gitignored credentials only exist on the operator's Mac.
-- **PR E** — Runbook + integration into more events (delivery updates, cart reminders). Web push documented as future work only.
+- **PR E** — Runbook + more seller events (product approval/rejection, new reviews, stock alerts), tap-navigation routing, web push evaluation. PR S2 covers only the "new order" event.
 
 ## Sentry — DSN still missing
 
