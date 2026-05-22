@@ -49,49 +49,37 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
+      # Dynamic matrix: when the operator selects a single app, only
+      # that matrix entry materialises — no skipped-but-still-visible
+      # sibling job in the run UI. When they select "both", both
+      # entries fan out. The first iteration (#171) used a static
+      # 2-entry matrix + per-step `if: gate` skip; that worked but
+      # always showed a green-but-empty sibling job, which was noise.
       matrix:
-        # Materialised below at job-step time based on `inputs.app`.
-        # Each entry produces one APK artifact.
-        app:
-          - buyer
-          - seller
+        app: ${{ inputs.app == 'both' && fromJSON('["buyer","seller"]') || fromJSON(format('["{0}"]', inputs.app)) }}
     steps:
-      - name: Skip if not selected
-        id: gate
-        run: |
-          if [ "${{ inputs.app }}" != "both" ] && [ "${{ inputs.app }}" != "${{ matrix.app }}" ]; then
-            echo "selected=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "selected=true" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Checkout
-        if: steps.gate.outputs.selected == 'true'
         uses: actions/checkout@v4
 
       - name: Set up Java
-        if: steps.gate.outputs.selected == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Set up Flutter
-        if: steps.gate.outputs.selected == 'true'
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
 
       - name: Decode Firebase secrets onto disk
-        if: steps.gate.outputs.selected == 'true'
         env:
           BUYER_GOOGLE_SERVICES_JSON_B64: ${{ secrets.BUYER_GOOGLE_SERVICES_JSON_B64 }}
           SELLER_GOOGLE_SERVICES_JSON_B64: ${{ secrets.SELLER_GOOGLE_SERVICES_JSON_B64 }}
         run: bash scripts/sync-firebase-secrets.sh
 
       - name: Verify secret was decoded for this app
-        if: steps.gate.outputs.selected == 'true'
         run: |
           path="apps/${{ matrix.app }}-mobile/android/app/google-services.json"
           if [ ! -s "$path" ]; then
@@ -101,17 +89,14 @@ jobs:
           echo "✓ $path present ($(wc -c < "$path") bytes)"
 
       - name: pub get
-        if: steps.gate.outputs.selected == 'true'
         working-directory: apps/${{ matrix.app }}-mobile
         run: flutter pub get
 
       - name: Build ${{ inputs.variant }} APK
-        if: steps.gate.outputs.selected == 'true'
         working-directory: apps/${{ matrix.app }}-mobile
         run: flutter build apk --${{ inputs.variant }}
 
       - name: Upload APK
-        if: steps.gate.outputs.selected == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.app }}-mobile-${{ inputs.variant }}-apk
