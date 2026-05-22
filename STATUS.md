@@ -6,15 +6,15 @@
 
 ## Active initiative
 
-**Push notifications — PR E lite** (started 2026-05-22). Backend-only follow-up. Adds `SellerNotificationService` with three new push events:
+**Push notifications — PR D — CI/CD secret injection** (started 2026-05-22). Stops relying on local-only credential files. Three pieces:
 
-- **`notifyProductApproved`** — fired from `AdminProductsService.approveProduct`. No opt-out gate; operational notification about the seller's own product.
-- **`notifyProductRejected`** — fired from `AdminProductsService.rejectProduct`. Includes the rejection reason in the body (truncated at 140 chars). No opt-out gate.
-- **`notifyNewReview`** — fired from `ReviewsService.createReview`. Gated by `shouldSendOrderUpdates(sellerId)` (closest semantic match; revisit if sellers ask for finer toggles).
+- **`scripts/sync-firebase-secrets.sh`** — decodes `BUYER_GOOGLE_SERVICES_JSON_B64` + `SELLER_GOOGLE_SERVICES_JSON_B64` env vars into the gitignored Android paths. Skips missing vars silently so dev machines can still use local files.
+- **`.github/workflows/build-mobile-apk.yml`** — `workflow_dispatch` action that decodes the secrets, runs `flutter build apk`, uploads the APK as a workflow artifact. Choose buyer / seller / both + debug / release variant via the UI form.
+- **`docs/push-notifications.md`** — full runbook: architecture, backend auth (the two PushService modes), mobile credentials, encode/decode procedure, CI workflows, smoke recipes, wired events, opt-out semantics, future work.
 
-All three are fire-and-forget — the service catches its own errors and never throws. New `SellerNotificationService` registered in `NotificationsModule`; `AdminModule` and `ReviewsModule` import `NotificationsModule` so the service is injectable from `AdminProductsService` + `ReviewsService`.
+iOS placements in the decode script are commented out — un-comment once PR C lands the `ios/` folders.
 
-Last shipped today: **PR S2** (PRs #167 → #168) — seller "Nouvelle commande" push on order placement.
+Last shipped today: **PR E lite** (PRs #169 → #170) — SellerNotificationService with product-approval / product-rejection / new-review pushes.
 
 ## Buyer push notifications — fully validated 2026-05-22
 
@@ -32,11 +32,11 @@ Manual migration applied to dev + prod DBs (the `device_tokens` table).
 
 ## In-flight PRs
 
-None yet — PR E lite about to open from this branch.
+None yet — PR D about to open from this branch.
 
 ## In-flight local branches
 
-- `feat/seller-event-pushes-pr-e-lite` — PR E lite (current).
+- `feat/cicd-firebase-secret-injection` — PR D (current).
 
 ## Pending in the push initiative
 
