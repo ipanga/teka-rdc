@@ -21,6 +21,11 @@ plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "8.11.1" apply false
     id("org.jetbrains.kotlin.android") version "2.2.20" apply false
+    // Firebase setup — google-services reads `app/google-services.json`
+    // at build time and generates `google-services.gson` resources the
+    // Firebase SDK reads on init. The file itself is gitignored (PR A);
+    // ship it via CI Secret in PR D.
+    id("com.google.gms.google-services") version "4.4.2" apply false
 }
 
 include(":app")

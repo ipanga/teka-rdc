@@ -3,6 +3,9 @@ plugins {
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    // Generates Firebase resources from app/google-services.json at build
+    // time. The version is pinned in android/settings.gradle.kts.
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -13,6 +16,10 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Required by flutter_local_notifications ≥ 14 — backports
+        // newer java.time / java.util APIs so they work on older
+        // Android API levels.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -40,4 +47,11 @@ android {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Pairs with `isCoreLibraryDesugaringEnabled = true` above. The
+    // 2.x line is the current desugar_jdk_libs branch — required by
+    // flutter_local_notifications ≥ 14.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }
