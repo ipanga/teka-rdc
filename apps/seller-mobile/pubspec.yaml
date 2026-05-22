@@ -23,6 +23,19 @@ dependencies:
   image_picker: ^1.1.2
   flutter_image_compress: ^2.3.0
 
+  # --- Firebase Cloud Messaging (PR S1, 2026-05-22) --------------------
+  # Seller push notifications. Same Firebase project (teka-rdc) as
+  # buyer-mobile — separate Android + iOS apps within it bound to
+  # `com.tootiye.tekaseller`. android/app/google-services.json carries
+  # both packages' entries (multi-app JSON); the google-services
+  # Gradle plugin picks the right one at build time based on
+  # applicationId. iOS scaffold + Firebase plist landing in a future
+  # PR; until then firebase_core init works on Android via the
+  # generated resources.
+  firebase_core: ^4.1.1
+  firebase_messaging: ^16.0.3
+  flutter_local_notifications: ^19.4.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
