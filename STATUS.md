@@ -6,13 +6,16 @@
 
 ## Active initiative
 
-**Fix — buyer home product card 7px overflow** (started 2026-05-23). Cosmetic fix surfaced during the post-#177 visual smoke: ProductCard rendered with the yellow-black "BOTTOM OVERFLOWED BY 7.0 PIXELS" warning on the buyer home screen in both "Produits populaires" (horizontal list) and "Nouveautés" (2-col grid).
+**Ops — `Run prod seed` GitHub workflow** (started 2026-05-23). Adds a `workflow_dispatch` action that runs `SEED_MODE=prod tsx prisma/seed.ts` inside the api container on the VPS. Triggered from the Actions UI with a `confirm: RUN` guardrail. Concurrency-locked against `production-deploy`.
 
-Root cause: the card's content stack (160w square image + 22px padding + ~85px text/price/seller) requires ~267px vertical space. The popular `SizedBox(height: 260)` and the grid's `childAspectRatio: 0.65` (which produced ~243h cells on a ~158w cell) both fell short. Bumped to `height: 280` and `childAspectRatio: 0.6` respectively.
+Use case: re-seed prod after seed code changes (e.g. the per-product Picsum image URLs from #181/#182 that landed today — those need a re-seed to actually flip existing rows from the stranded `res.cloudinary.com/demo/` placeholders).
+
+Prod-mode seed path is safe: stops after foundational data (cities, communes, categories, attributes, content pages, settings) + the Teka RDC Officiel platform seller + 152 sample products. Doesn't touch real users/sellers/orders/addresses — those live outside the seed UUID ranges.
 
 Last shipped today:
-- **#177 → #178** — buyer home products parse fix (sortBy enum + envelope unwrap). Confirmed working visually in the post-deploy smoke.
-- The previously-suspected "product detail Une erreur" issue **was not reproducible** after a clean install on the rebooted emulator — appears to have been stale FlutterSecureStorage state from the day's install churn. No code change shipped.
+- **#181 → #182** — seed change: per-product Picsum URLs + mutable image upsert (so re-seed actually propagates).
+- **#179 → #180** — buyer home product card 7px overflow fix.
+- **#177 → #178** — buyer home product list sortBy + envelope-parse bugs.
 
 ## Buyer push notifications — fully validated 2026-05-22
 
@@ -30,11 +33,11 @@ Manual migration applied to dev + prod DBs (the `device_tokens` table).
 
 ## In-flight PRs
 
-None yet — the card-overflow fix about to open from this branch.
+None yet — the prod-seed workflow about to open from this branch.
 
 ## In-flight local branches
 
-- `fix/buyer-home-product-card-overflow` — height/aspect-ratio fix for ProductCard (current).
+- `feat/ops-prod-seed-workflow` — workflow_dispatch action for prod seed (current).
 
 ## Pending in the push initiative
 
