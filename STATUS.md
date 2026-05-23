@@ -6,15 +6,16 @@
 
 ## Active initiative
 
-**Push notifications — PR E full — tap-navigation routing** (started 2026-05-22). Wires the FCM `data.screen` payload into both Flutter apps' `go_router`. Tapping a push now opens the relevant screen — order details for order events, product details for approval/rejection, reviews for new-review events.
+**Fix — buyer-web home products parse** (started 2026-05-23). Two real bugs in `apps/buyer-mobile` surfaced during yesterday's tap-nav smoke when the home screen displayed "Une erreur est survenue" for both "Produits populaires" and "Nouveautés" sections:
 
-What lands:
-- **`PushService`** (both apps): new `PushTapHandler` typedef + `onTap` setter. Local-notification payload is now **JSON**-encoded (was `.toString()`, which was one-way). `_initLocalNotifications` decodes the payload on tap and invokes the handler.
-- **`PushController`** (both apps): subscribes to three tap sources — foreground (via `PushService.onTap`), background (`FirebaseMessaging.onMessageOpenedApp`), killed-app (`getInitialMessage`, deferred to post-first-frame so router is ready). Each tap → `NotificationRouter.routeForData` → `appRouterProvider.push(route)`.
-- **`notification_router.dart`** (new, per-app): maps `screen + ID` payloads to go_router paths. Buyer uses `/orders/:id`, `/products/:id`, `/products/:id/reviews`. Seller uses `/orders/:id`, `/products/:id`, `/reviews` (flat list — no per-product reviews route).
-- **`docs/push-notifications.md`**: tap-navigation section + per-screen routing table updated to reflect the live behaviour.
+1. **`popularProductsProvider`** passed `sortBy: 'popular'`. The backend DTO enum is `popularity` — the request 400'd with "sortBy must be one of the following values".
+2. **`browseProducts` parser** read `responseData['data'] as List`. The API wraps responses in `{success, data: {data: [...], pagination: {...}}}` (nested envelope for paginated endpoints) — the parser cast the inner *object* to List, throwing TypeError. Even when popular was the broken one, newest also errored from this.
 
-Last shipped today: **APK matrix fix** (PRs #173 → #174) — `build-mobile-apk.yml` now uses a dynamic matrix so single-app runs don't spawn a green-but-empty sibling job.
+Both fixes touch `apps/buyer-mobile/lib/features/catalog/`. Categories + banners + flash-deals endpoints use a flat envelope (`{success, data: [...]}`) so their existing parsers are correct — bug is isolated to the paginated browse endpoint.
+
+Out of scope: a separate product-detail rendering error on the emulator (likely a model parse issue with the slug=null categories or breadcrumb fields). Defer until reproducible.
+
+Last shipped today: **PR E full** (PRs #175 → #176) — FCM tap-navigation routes via go_router on both apps. End-to-end emulator smoke confirmed.
 
 ## Buyer push notifications — fully validated 2026-05-22
 
@@ -32,11 +33,11 @@ Manual migration applied to dev + prod DBs (the `device_tokens` table).
 
 ## In-flight PRs
 
-None yet — PR E full about to open from this branch.
+None yet — the home-parse fix about to open from this branch.
 
 ## In-flight local branches
 
-- `feat/push-tap-navigation` — PR E full (current).
+- `fix/buyer-products-home-parse` — buyer-mobile home product list fix (current).
 
 ## Pending in the push initiative
 

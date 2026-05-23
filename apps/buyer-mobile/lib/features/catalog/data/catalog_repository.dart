@@ -75,25 +75,35 @@ class CatalogRepository {
     );
     final responseData = response.data;
 
-    final List<dynamic> rawList;
-    final Map<String, dynamic> paginationJson;
-
-    if (responseData is Map) {
-      rawList = responseData['data'] as List? ?? [];
-      paginationJson =
-          responseData['pagination'] as Map<String, dynamic>? ??
-              responseData['meta'] as Map<String, dynamic>? ??
-              {};
+    // The api wraps every response in `{success: bool, data: ...}`
+    // (see apps/api/src/common/interceptors/response.interceptor.ts).
+    // For list endpoints the inner `data` is `{data: [...], pagination:
+    // {...}}`. Previously this parser read `responseData['data'] as
+    // List`, which got the inner *object* and threw a TypeError — the
+    // home-screen popular + newest sections then surfaced "Une erreur"
+    // even on a successful 200. Unwrap explicitly so we can hand back
+    // the list + pagination cleanly.
+    final Map<String, dynamic>? payload;
+    if (responseData is Map &&
+        responseData['success'] == true &&
+        responseData['data'] is Map) {
+      payload = Map<String, dynamic>.from(responseData['data'] as Map);
+    } else if (responseData is Map) {
+      payload = Map<String, dynamic>.from(responseData);
     } else {
-      rawList = [];
-      paginationJson = {};
+      payload = null;
     }
+
+    final rawList = (payload?['data'] as List?) ?? const [];
+    final paginationJson = (payload?['pagination'] as Map?)?.cast<String, dynamic>() ??
+        (payload?['meta'] as Map?)?.cast<String, dynamic>() ??
+        const {};
 
     return BrowseProductsResult(
       data: rawList
           .map((e) => BrowseProductModel.fromJson(e as Map<String, dynamic>))
           .toList(),
-      pagination: PaginationMeta.fromJson(paginationJson),
+      pagination: PaginationMeta.fromJson(paginationJson.cast<String, dynamic>()),
     );
   }
 
