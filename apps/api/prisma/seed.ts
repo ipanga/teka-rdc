@@ -854,9 +854,25 @@ async function main() {
   const imgId = (n: number) => `40000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
   const specId = (n: number) => `50000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
 
-  // Cloudinary placeholder base URLs
-  const cloudImg = (name: string) => `https://res.cloudinary.com/demo/image/upload/${name}.jpg`;
-  const cloudThumb = (name: string) => `https://res.cloudinary.com/demo/image/upload/w_300,h_300,c_fill/${name}.jpg`;
+  // Picsum-seeded placeholder URLs for the primary product image
+  // table. The seed value (productId + image index) is deterministic —
+  // each product gets a stable, unique photo across re-seeds and
+  // across environments. Real product imagery (uploaded to the
+  // teka-rdc Cloudinary cloud) replaces these post-launch by
+  // overwriting the `url` / `thumbnailUrl` columns. The
+  // `cloudinaryId` stays as `picsum/<seed>` so the distinction
+  // between seeded placeholders and real assets is queryable.
+  const picsumFull = (seed: string) => `https://picsum.photos/seed/${seed}/600/600`;
+  const picsumThumb = (seed: string) => `https://picsum.photos/seed/${seed}/300/300`;
+
+  // Legacy helper kept for the Phase 4 seeder, which uses it to mint
+  // denormalized cart / order / review snapshot thumbnails (NOT
+  // product_images rows). Those snapshots capture what the buyer saw
+  // at order time, so they don't get retro-updated by image-URL
+  // changes — keeping the old Cloudinary demo URLs there preserves
+  // historical fidelity.
+  const cloudThumb = (name: string) =>
+    `https://res.cloudinary.com/demo/image/upload/w_300,h_300,c_fill/${name}.jpg`;
 
   interface ProductDef {
     n: number;
@@ -1277,20 +1293,29 @@ async function main() {
       },
     });
 
-    // Upsert images
+    // Upsert images. `update` must include url / thumbnailUrl /
+    // cloudinaryId so re-seeding after a URL change propagates the new
+    // values — the previous `update: {}` made existing rows immutable,
+    // which silently stranded the old Cloudinary demo URLs in dev DBs.
     for (let i = 0; i < prod.images.length; i++) {
       const img = prod.images[i];
       const iid = imgId(img.n);
+      // Seed value scoped per (product, image index) so each image gets
+      // a stable distinct photo.
+      const seed = `${id}-${i}`;
+      const fields = {
+        cloudinaryId: `picsum/${seed}`,
+        url: picsumFull(seed),
+        thumbnailUrl: picsumThumb(seed),
+        displayOrder: i,
+      };
       await prisma.productImage.upsert({
         where: { id: iid },
-        update: {},
+        update: fields,
         create: {
           id: iid,
           productId: id,
-          cloudinaryId: `demo/${img.name}`,
-          url: cloudImg(img.name),
-          thumbnailUrl: cloudThumb(img.name),
-          displayOrder: i,
+          ...fields,
         },
       });
     }
@@ -3029,21 +3054,18 @@ async function seedTekaOfficielSeller(adminId: string): Promise<string> {
 async function seedSampleProducts(sellerId: string): Promise<void> {
   console.log('Seeding sample product catalog (152 products)...');
 
-  // Cloudinary "demo" cloud serves a few stock images for free. Rotate
-  // through them so products don't all look identical. Real product images
-  // would be uploaded to teka-rdc cloud and the URLs swapped post-launch.
-  const SAMPLE_IMAGE_NAMES = [
-    'sample',
-    'cld-sample',
-    'cld-sample-2',
-    'cld-sample-3',
-    'cld-sample-4',
-    'cld-sample-5',
-  ];
-  const cloudUrl = (name: string) =>
-    `https://res.cloudinary.com/demo/image/upload/${name}.jpg`;
-  const cloudThumb = (name: string) =>
-    `https://res.cloudinary.com/demo/image/upload/w_300,h_300,c_fill/${name}.jpg`;
+  // Picsum-seeded placeholder URLs. Deterministic per product so every
+  // sample product gets a stable, unique photo. Real product imagery
+  // (uploaded to the teka-rdc Cloudinary cloud) replaces these
+  // post-launch by overwriting the `url` / `thumbnailUrl` columns —
+  // the `cloudinaryId` keeps a `picsum/<seed>` prefix so the
+  // distinction is queryable. The 6-image-name rotation that was here
+  // before pulled all from `res.cloudinary.com/demo/` which made every
+  // product look like the same handful of stock photos.
+  const picsumFull = (seed: string) =>
+    `https://picsum.photos/seed/${seed}/600/600`;
+  const picsumThumb = (seed: string) =>
+    `https://picsum.photos/seed/${seed}/300/300`;
 
   // 2 product variants per subcategory. Title in fr/en, optional priceUSD,
   // priceCDF in CDF (not centimes — multiplied below). descKey is a short
@@ -3314,21 +3336,28 @@ async function seedSampleProducts(sellerId: string): Promise<void> {
           },
         });
 
-        // Two product images per product, rotating through the demo pool.
+        // Two product images per product. Seed value scoped per
+        // (product, image index) so each image gets a stable distinct
+        // photo across re-seeds + environments.
         for (let i = 0; i < 2; i++) {
           imgCounter += 1;
-          const name =
-            SAMPLE_IMAGE_NAMES[(counter + i) % SAMPLE_IMAGE_NAMES.length];
+          const seed = `${productId}-${i}`;
+          const fields = {
+            cloudinaryId: `picsum/${seed}`,
+            url: picsumFull(seed),
+            thumbnailUrl: picsumThumb(seed),
+            displayOrder: i,
+          };
           await prisma.productImage.upsert({
             where: { id: seedImgId(imgCounter) },
-            update: {},
+            // Must include url/thumbnail fields so re-seed propagates
+            // URL changes — previous `update: {}` stranded existing
+            // dev DBs on the old Cloudinary demo URLs.
+            update: fields,
             create: {
               id: seedImgId(imgCounter),
               productId,
-              cloudinaryId: name,
-              url: cloudUrl(name),
-              thumbnailUrl: cloudThumb(name),
-              displayOrder: i,
+              ...fields,
             },
           });
         }
