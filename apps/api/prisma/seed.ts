@@ -45,39 +45,62 @@ async function main() {
   // USERS & SELLER PROFILES
   // ============================================================
 
-  // Admin user — required in every mode so the admin portal has at least one
-  // account to "forgot password" into. In prod, identity is driven by env vars
-  // so the seed never hard-codes a public phone/email; missing vars fail fast.
-  const requireInProd = (key: string, fallback: string): string => {
-    const v = process.env[key];
-    if (isProd && !v) {
-      throw new Error(`SEED_MODE=prod requires env var ${key}`);
+  // Admin user resolution.
+  //   Dev: always upsert the canonical seeded admin (+243999000001 / contact@teka.cd).
+  //   Prod: by default DO NOT create one — admins are seeded out-of-band per
+  //         docs/deployment.md § 5b. Re-running the seed against prod must
+  //         never create a duplicate ADMIN. Instead, look up an existing
+  //         ADMIN row and use its id as the FK for createdById/updatedById/
+  //         approvedById on platform-baseline + Teka Officiel rows.
+  //         Opt back into seeding an admin with SEED_INCLUDE_ADMIN=true,
+  //         which then requires SEED_ADMIN_PHONE + SEED_ADMIN_EMAIL.
+  const includeAdmin = !isProd || process.env.SEED_INCLUDE_ADMIN === 'true';
+  let admin: Awaited<ReturnType<typeof prisma.user.upsert>>;
+
+  if (includeAdmin) {
+    const requireWhenAdmin = (key: string, fallback: string): string => {
+      const v = process.env[key];
+      if (isProd && !v) {
+        throw new Error(`SEED_INCLUDE_ADMIN=true requires env var ${key}`);
+      }
+      return v ?? fallback;
+    };
+    const adminPhone = requireWhenAdmin('SEED_ADMIN_PHONE', '+243999000001');
+    const adminEmail = requireWhenAdmin('SEED_ADMIN_EMAIL', 'contact@teka.cd');
+    const adminFirstName = process.env.SEED_ADMIN_FIRST_NAME ?? 'Admin';
+    const adminLastName = process.env.SEED_ADMIN_LAST_NAME ?? 'Teka';
+
+    admin = await prisma.user.upsert({
+      where: { phone: adminPhone },
+      update: {},
+      create: {
+        phone: adminPhone,
+        firstName: adminFirstName,
+        lastName: adminLastName,
+        email: adminEmail,
+        role: 'ADMIN',
+        status: 'ACTIVE',
+        phoneVerified: !isProd,
+        emailVerified: !isProd,
+      },
+    });
+    console.log(`Admin user: ${admin.id}`);
+  } else {
+    const existing = await prisma.user.findFirst({
+      where: { role: 'ADMIN', status: 'ACTIVE' },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (!existing) {
+      throw new Error(
+        'SEED_MODE=prod with SEED_INCLUDE_ADMIN!=true requires at least one ' +
+          'existing ADMIN user in the database. Seed an admin out-of-band ' +
+          'first (see docs/deployment.md § 5b), or rerun with ' +
+          'SEED_INCLUDE_ADMIN=true SEED_ADMIN_PHONE=... SEED_ADMIN_EMAIL=...',
+      );
     }
-    return v ?? fallback;
-  };
-
-  const adminPhone = requireInProd('SEED_ADMIN_PHONE', '+243999000001');
-  const adminEmail = requireInProd('SEED_ADMIN_EMAIL', 'contact@teka.cd');
-  const adminFirstName = process.env.SEED_ADMIN_FIRST_NAME ?? 'Admin';
-  const adminLastName = process.env.SEED_ADMIN_LAST_NAME ?? 'Teka';
-
-  const admin = await prisma.user.upsert({
-    where: { phone: adminPhone },
-    update: {},
-    create: {
-      phone: adminPhone,
-      firstName: adminFirstName,
-      lastName: adminLastName,
-      email: adminEmail,
-      role: 'ADMIN',
-      status: 'ACTIVE',
-      // In prod the admin verifies their email + sets a password via the
-      // "forgot password" flow before first login; skip auto-verification.
-      phoneVerified: !isProd,
-      emailVerified: !isProd,
-    },
-  });
-  console.log(`Admin user: ${admin.id}`);
+    admin = existing;
+    console.log(`Using existing admin: ${admin.id}`);
+  }
 
   // Sample users — dev-only. Declared in outer scope so Phase 4-7 calls
   // below can still reference them.
