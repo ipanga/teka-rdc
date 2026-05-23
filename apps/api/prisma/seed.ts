@@ -3013,6 +3013,18 @@ const KOLWEZI_CITY_ID = '01000000-0000-0000-0000-000000000002';
  * Provision the platform-owned seller account ("Teka RDC Officiel"). Owner
  * of the initial sample catalog. Idempotent — re-running seed propagates
  * email + auth-provider changes to the existing User row.
+ *
+ * Three resolution paths (in order):
+ *   1. User with the canonical seed id exists → update its email / auth.
+ *   2. A *different* user already owns TEKA_OFFICIEL_SELLER_EMAIL (the
+ *      operator's real personal email per the 2026-05-18 migration). Adopt
+ *      that user as the platform seller — promote to SELLER role and use
+ *      their id for the SellerProfile + downstream sample products.
+ *   3. Neither exists → create fresh with the canonical seed id.
+ *
+ * Returns the resolved user id (constant in paths 1/3, dev's existing id
+ * in path 2). Callers pass this to `seedSampleProducts(sellerId)` so the
+ * 152-product catalog is owned by whichever user we ended up with.
  */
 async function seedTekaOfficielSeller(adminId: string): Promise<string> {
   console.log('Seeding "Teka RDC Officiel" platform seller...');
@@ -3020,36 +3032,66 @@ async function seedTekaOfficielSeller(adminId: string): Promise<string> {
   const bcrypt = await import('bcrypt');
   const passwordHash = await bcrypt.hash(TEKA_OFFICIEL_DEV_PASSWORD, 10);
 
-  await prisma.user.upsert({
+  const baseAuth = {
+    authProvider: 'EMAIL_PASSWORD' as const,
+    emailVerified: true,
+    passwordHash,
+    passwordSetAt: new Date(),
+  };
+
+  const byId = await prisma.user.findUnique({
     where: { id: TEKA_OFFICIEL_USER_ID },
-    update: {
-      email: TEKA_OFFICIEL_SELLER_EMAIL,
-      authProvider: 'EMAIL_PASSWORD',
-      emailVerified: true,
-      passwordHash,
-      passwordSetAt: new Date(),
-    },
-    create: {
-      id: TEKA_OFFICIEL_USER_ID,
-      phone: TEKA_OFFICIEL_SELLER_PHONE,
-      email: TEKA_OFFICIEL_SELLER_EMAIL,
-      firstName: 'Teka RDC',
-      lastName: 'Officiel',
-      role: 'SELLER',
-      status: 'ACTIVE',
-      phoneVerified: true,
-      emailVerified: true,
-      authProvider: 'EMAIL_PASSWORD',
-      passwordHash,
-      passwordSetAt: new Date(),
-    },
   });
 
+  let resolvedUserId: string;
+
+  if (byId) {
+    // Path 1: canonical user exists. Refresh auth + email.
+    await prisma.user.update({
+      where: { id: TEKA_OFFICIEL_USER_ID },
+      data: { email: TEKA_OFFICIEL_SELLER_EMAIL, ...baseAuth },
+    });
+    resolvedUserId = TEKA_OFFICIEL_USER_ID;
+  } else {
+    const byEmail = await prisma.user.findUnique({
+      where: { email: TEKA_OFFICIEL_SELLER_EMAIL },
+    });
+    if (byEmail) {
+      // Path 2: dev's personal account owns the email. Promote it and use
+      // its id for the SellerProfile + sample products.
+      await prisma.user.update({
+        where: { id: byEmail.id },
+        data: { role: 'SELLER', status: 'ACTIVE', ...baseAuth },
+      });
+      console.log(
+        `  Adopting existing user ${byEmail.id} as Teka Officiel ` +
+          `(matched on email ${TEKA_OFFICIEL_SELLER_EMAIL}).`,
+      );
+      resolvedUserId = byEmail.id;
+    } else {
+      // Path 3: fresh DB. Create with the canonical seed id.
+      await prisma.user.create({
+        data: {
+          id: TEKA_OFFICIEL_USER_ID,
+          phone: TEKA_OFFICIEL_SELLER_PHONE,
+          email: TEKA_OFFICIEL_SELLER_EMAIL,
+          firstName: 'Teka RDC',
+          lastName: 'Officiel',
+          role: 'SELLER',
+          status: 'ACTIVE',
+          phoneVerified: true,
+          ...baseAuth,
+        },
+      });
+      resolvedUserId = TEKA_OFFICIEL_USER_ID;
+    }
+  }
+
   await prisma.sellerProfile.upsert({
-    where: { userId: TEKA_OFFICIEL_USER_ID },
+    where: { userId: resolvedUserId },
     update: { applicationStatus: 'APPROVED' },
     create: {
-      userId: TEKA_OFFICIEL_USER_ID,
+      userId: resolvedUserId,
       businessName: 'Teka RDC Officiel',
       businessType: 'company',
       idNumber: 'TEKA-OFFICIEL',
@@ -3065,8 +3107,8 @@ async function seedTekaOfficielSeller(adminId: string): Promise<string> {
     },
   });
 
-  console.log(`  Teka Officiel seller ready: ${TEKA_OFFICIEL_USER_ID}`);
-  return TEKA_OFFICIEL_USER_ID;
+  console.log(`  Teka Officiel seller ready: ${resolvedUserId}`);
+  return resolvedUserId;
 }
 
 /**
