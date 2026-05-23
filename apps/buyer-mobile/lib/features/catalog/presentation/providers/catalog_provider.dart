@@ -227,8 +227,12 @@ final productDetailProvider =
 final popularProductsProvider = FutureProvider<List<BrowseProductModel>>((ref) async {
   final repository = ref.read(catalogRepositoryProvider);
   final cityId = ref.watch(cityProvider).selectedCity?.id;
+  // Backend enum is `popularity` (see browse-products-query.dto.ts).
+  // Previously sent `popular` which produced a 400 with message
+  // "sortBy must be one of the following values" — surfaced as
+  // "Une erreur" on the home screen.
   final result = await repository.browseProducts(
-    sortBy: 'popular',
+    sortBy: 'popularity',
     limit: 10,
     cityId: cityId,
   );
