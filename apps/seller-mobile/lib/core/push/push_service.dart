@@ -1,7 +1,14 @@
+import 'dart:convert';
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+/// Callback invoked when a notification is tapped. Receives the FCM
+/// `data` block. Navigation logic lives outside [PushService] — see
+/// `notification_router.dart`. Wired by [PushController] on bind.
+typedef PushTapHandler = void Function(Map<String, dynamic> data);
 
 /// FCM channel ID — referenced in three places that must stay in sync:
 ///   - here, when creating the channel
@@ -55,6 +62,13 @@ class PushService {
   String? _cachedToken;
   bool _initialized = false;
 
+  /// Set by [PushController] in `bind()`. Invoked when a notification
+  /// is tapped — either a system notification (background / killed
+  /// app, via FCM's `onMessageOpenedApp` stream — handled in the
+  /// controller) or our own foreground local notification (handled
+  /// inside `_initLocalNotifications` below).
+  PushTapHandler? onTap;
+
   /// Called once from `main.dart` before `runApp`. Idempotent — safe to
   /// invoke multiple times (e.g. on hot restart).
   Future<void> init() async {
@@ -83,7 +97,23 @@ class PushService {
   Future<void> _initLocalNotifications() async {
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
     const settings = InitializationSettings(android: androidInit);
-    await _local.initialize(settings);
+    await _local.initialize(
+      settings,
+      onDidReceiveNotificationResponse: (response) {
+        // Foreground-notification tap. Payload is the JSON-encoded
+        // FCM `data` block (see `_handleForegroundMessage`). Decode +
+        // hand off to the tap handler. Failures are swallowed — bad
+        // payload shouldn't crash the app.
+        final raw = response.payload;
+        if (raw == null || raw.isEmpty || onTap == null) return;
+        try {
+          final decoded = jsonDecode(raw) as Map<String, dynamic>;
+          onTap!(decoded);
+        } catch (e) {
+          _log('foreground-tap payload decode failed: $e');
+        }
+      },
+    );
 
     const channel = AndroidNotificationChannel(
       _channelId,
@@ -163,11 +193,12 @@ class PushService {
           priority: Priority.high,
         ),
       ),
-      // Encode the data payload as the notification payload so we can
-      // route on tap. flutter_local_notifications passes it back via
-      // its onSelectNotification callback (PR follow-up will wire that
-      // to go_router).
-      payload: message.data.isEmpty ? null : message.data.toString(),
+      // JSON-encode the data payload so the foreground-tap callback
+      // can decode it back into a Map<String, dynamic> and route
+      // accordingly. (Earlier iteration used .toString() — works for
+      // logging but is a one-way trip; no parser round-trips Dart's
+      // Map.toString() output back to a Map.)
+      payload: message.data.isEmpty ? null : jsonEncode(message.data),
     );
   }
 

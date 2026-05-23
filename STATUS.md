@@ -6,11 +6,15 @@
 
 ## Active initiative
 
-**Tiny fix — APK builder dynamic matrix** (started 2026-05-22). PR D's `build-mobile-apk.yml` workflow used a static 2-entry matrix with a per-step `if: gate` skip; when the operator picked `app=buyer`, a green-but-empty `build (seller)` sibling job still showed up in the run UI. Noise.
+**Push notifications — PR E full — tap-navigation routing** (started 2026-05-22). Wires the FCM `data.screen` payload into both Flutter apps' `go_router`. Tapping a push now opens the relevant screen — order details for order events, product details for approval/rejection, reviews for new-review events.
 
-Replaced with a dynamic matrix expression: `${{ inputs.app == 'both' && fromJSON('["buyer","seller"]') || fromJSON(format('["{0}"]', inputs.app)) }}`. Single-app runs now only materialise the chosen job. The gate step + all the per-step `if` conditions are gone.
+What lands:
+- **`PushService`** (both apps): new `PushTapHandler` typedef + `onTap` setter. Local-notification payload is now **JSON**-encoded (was `.toString()`, which was one-way). `_initLocalNotifications` decodes the payload on tap and invokes the handler.
+- **`PushController`** (both apps): subscribes to three tap sources — foreground (via `PushService.onTap`), background (`FirebaseMessaging.onMessageOpenedApp`), killed-app (`getInitialMessage`, deferred to post-first-frame so router is ready). Each tap → `NotificationRouter.routeForData` → `appRouterProvider.push(route)`.
+- **`notification_router.dart`** (new, per-app): maps `screen + ID` payloads to go_router paths. Buyer uses `/orders/:id`, `/products/:id`, `/products/:id/reviews`. Seller uses `/orders/:id`, `/products/:id`, `/reviews` (flat list — no per-product reviews route).
+- **`docs/push-notifications.md`**: tap-navigation section + per-screen routing table updated to reflect the live behaviour.
 
-Last shipped today: **PR D** (PRs #171 → #172) — CI/CD secret injection script + APK builder workflow + push-notifications runbook. Operator paste of GitHub Secrets confirmed; end-to-end smoke of the workflow produced a 152 MB buyer APK artifact.
+Last shipped today: **APK matrix fix** (PRs #173 → #174) — `build-mobile-apk.yml` now uses a dynamic matrix so single-app runs don't spawn a green-but-empty sibling job.
 
 ## Buyer push notifications — fully validated 2026-05-22
 
@@ -28,17 +32,18 @@ Manual migration applied to dev + prod DBs (the `device_tokens` table).
 
 ## In-flight PRs
 
-None yet — the matrix fix is about to open from this branch.
+None yet — PR E full about to open from this branch.
 
 ## In-flight local branches
 
-- `fix/apk-workflow-dynamic-matrix` — APK builder matrix fix (current).
+- `feat/push-tap-navigation` — PR E full (current).
 
 ## Pending in the push initiative
 
 - **PR C** — iOS scaffold for both apps (`flutter create --platforms=ios .` per app, GoogleService-Info.plist placement, Push Notifications + Background Modes capabilities). APNs `.p8` already uploaded to Firebase Console (same key for buyer + seller — project-wide auth key).
 - **PR D** — CI/CD secret injection. Base64-encode the credential files into GitHub Secrets; deploy workflow writes them to `/home/deploy/teka-rdc/secrets/` at deploy time. Today the gitignored credentials only exist on the operator's Mac.
-- **PR E (full)** — Runbook + tap-navigation routing + web push evaluation + remaining events (stock alerts, more granular order events). The product-approval/rejection + new-review events ship in PR E lite (this branch).
+- **PR C** — iOS scaffold for both apps (`flutter create --platforms=ios .` per app, GoogleService-Info.plist placement, Push Notifications + Background Modes capabilities). APNs `.p8` already uploaded.
+- **Remaining PR E work** — stock-alert pushes (needs SKU-threshold schema first) + web push evaluation. Tap-navigation + product-approval/rejection + new-review events already shipped.
 
 ## Sentry — DSN still missing
 

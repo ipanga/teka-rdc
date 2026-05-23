@@ -1,7 +1,11 @@
 import 'dart:async';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../router/app_router.dart';
+import 'notification_router.dart';
 import 'push_api.dart';
 import 'push_service.dart';
 
@@ -32,6 +36,7 @@ class PushController {
   final Ref _ref;
   ProviderSubscription<AuthState>? _authSub;
   StreamSubscription<String>? _tokenSub;
+  StreamSubscription<RemoteMessage>? _onOpenedSub;
   String? _registeredToken;
 
   void bind() {
@@ -48,6 +53,43 @@ class PushController {
     // Token-refresh stream — fires when FCM rotates the token (rare in
     // practice but does happen on reinstall / restore-from-backup).
     _tokenSub = PushService.instance.onTokenRefresh().listen(_onTokenRefresh);
+
+    // ---- Notification tap routing ----------------------------------
+    //
+    // Three sources of taps:
+    //   1. Foreground local-notification tap → PushService.onTap
+    //      (wired below; the local-notif plugin's
+    //      onDidReceiveNotificationResponse decodes the JSON payload
+    //      and calls back into us).
+    //   2. Background system-notification tap → FCM stream
+    //      `onMessageOpenedApp`. Fires when the app is in background
+    //      and the user taps the OS-tray notification.
+    //   3. Killed-app launch → `getInitialMessage`. The RemoteMessage
+    //      that launched the app (null if the user opened normally).
+    //      Deferred to post-first-frame so the GoRouter is wired
+    //      before we try to navigate.
+    PushService.instance.onTap = _handleTapData;
+    _onOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen((msg) {
+      _handleTapData(msg.data);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final initial = await FirebaseMessaging.instance.getInitialMessage();
+      if (initial != null) _handleTapData(initial.data);
+    });
+  }
+
+  void _handleTapData(Map<String, dynamic> data) {
+    final route = NotificationRouter.routeForData(data);
+    if (route == null) {
+      _log('tap ignored — no route for $data');
+      return;
+    }
+    try {
+      _ref.read(appRouterProvider).push(route);
+      _log('tap → push $route');
+    } catch (e) {
+      _log('tap navigation failed for $route: $e');
+    }
   }
 
   Future<void> _onAuthChanged(AuthState? prev, AuthState next) async {
@@ -110,6 +152,13 @@ class PushController {
   void dispose() {
     _authSub?.close();
     _tokenSub?.cancel();
+    _onOpenedSub?.cancel();
+    // Clear the foreground-tap callback so PushService doesn't hold a
+    // stale Ref reference after dispose. Defensive — providers in
+    // production typically outlive any dispose call.
+    if (identical(PushService.instance.onTap, _handleTapData)) {
+      PushService.instance.onTap = null;
+    }
   }
 
   void _log(String msg) {
