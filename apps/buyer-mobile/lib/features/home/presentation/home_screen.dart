@@ -189,7 +189,12 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     )
                   : SizedBox(
-                      height: 260,
+                      // 160 (square image) + 22 (vertical padding) + ~85
+                      // (title 2-line + 6 + price + 4 + seller) ≈ 267.
+                      // Bumped from 260 to give a few px of safety after
+                      // the home screen showed "BOTTOM OVERFLOWED BY 7.0
+                      // PIXELS" on the 2026-05-23 smoke.
+                      height: 280,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -202,7 +207,7 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ),
               loading: () => const SizedBox(
-                height: 260,
+                height: 280,
                 child: Center(
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
@@ -246,7 +251,10 @@ class HomeScreen extends ConsumerWidget {
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
-                          childAspectRatio: 0.65,
+                          // Was 0.65 → cells were ~243h on a ~158w grid
+                          // cell, but ProductCard needs ~267h. Dropped
+                          // to 0.6 to give a comfortable buffer.
+                          childAspectRatio: 0.6,
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
                         ),

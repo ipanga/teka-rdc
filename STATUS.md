@@ -6,16 +6,13 @@
 
 ## Active initiative
 
-**Fix — buyer-web home products parse** (started 2026-05-23). Two real bugs in `apps/buyer-mobile` surfaced during yesterday's tap-nav smoke when the home screen displayed "Une erreur est survenue" for both "Produits populaires" and "Nouveautés" sections:
+**Fix — buyer home product card 7px overflow** (started 2026-05-23). Cosmetic fix surfaced during the post-#177 visual smoke: ProductCard rendered with the yellow-black "BOTTOM OVERFLOWED BY 7.0 PIXELS" warning on the buyer home screen in both "Produits populaires" (horizontal list) and "Nouveautés" (2-col grid).
 
-1. **`popularProductsProvider`** passed `sortBy: 'popular'`. The backend DTO enum is `popularity` — the request 400'd with "sortBy must be one of the following values".
-2. **`browseProducts` parser** read `responseData['data'] as List`. The API wraps responses in `{success, data: {data: [...], pagination: {...}}}` (nested envelope for paginated endpoints) — the parser cast the inner *object* to List, throwing TypeError. Even when popular was the broken one, newest also errored from this.
+Root cause: the card's content stack (160w square image + 22px padding + ~85px text/price/seller) requires ~267px vertical space. The popular `SizedBox(height: 260)` and the grid's `childAspectRatio: 0.65` (which produced ~243h cells on a ~158w cell) both fell short. Bumped to `height: 280` and `childAspectRatio: 0.6` respectively.
 
-Both fixes touch `apps/buyer-mobile/lib/features/catalog/`. Categories + banners + flash-deals endpoints use a flat envelope (`{success, data: [...]}`) so their existing parsers are correct — bug is isolated to the paginated browse endpoint.
-
-Out of scope: a separate product-detail rendering error on the emulator (likely a model parse issue with the slug=null categories or breadcrumb fields). Defer until reproducible.
-
-Last shipped today: **PR E full** (PRs #175 → #176) — FCM tap-navigation routes via go_router on both apps. End-to-end emulator smoke confirmed.
+Last shipped today:
+- **#177 → #178** — buyer home products parse fix (sortBy enum + envelope unwrap). Confirmed working visually in the post-deploy smoke.
+- The previously-suspected "product detail Une erreur" issue **was not reproducible** after a clean install on the rebooted emulator — appears to have been stale FlutterSecureStorage state from the day's install churn. No code change shipped.
 
 ## Buyer push notifications — fully validated 2026-05-22
 
@@ -33,11 +30,11 @@ Manual migration applied to dev + prod DBs (the `device_tokens` table).
 
 ## In-flight PRs
 
-None yet — the home-parse fix about to open from this branch.
+None yet — the card-overflow fix about to open from this branch.
 
 ## In-flight local branches
 
-- `fix/buyer-products-home-parse` — buyer-mobile home product list fix (current).
+- `fix/buyer-home-product-card-overflow` — height/aspect-ratio fix for ProductCard (current).
 
 ## Pending in the push initiative
 
