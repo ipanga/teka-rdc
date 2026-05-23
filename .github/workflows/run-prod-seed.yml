@@ -1,0 +1,73 @@
+# Idempotent prod seed runner.
+#
+# Runs `SEED_MODE=prod tsx prisma/seed.ts` inside the api container on
+# the VPS. The prod seed path stops after foundational data (cities,
+# communes, categories, attributes, content pages, settings, the
+# Teka RDC Officiel platform seller + 152 sample products) — see the
+# `if (isProd)` early return in `apps/api/prisma/seed.ts`. It does NOT
+# touch real users / sellers / orders / addresses; those live outside
+# the seed UUID ranges and are never queried by the seed code.
+#
+# Trigger from the Actions tab → "Run prod seed" → Run workflow. The
+# `confirm` input is just a guardrail so single-click runs don't fire
+# accidentally — must be the literal string `RUN`.
+#
+# Concurrency-locked against the production-deploy group, so you can't
+# fire a seed while a deploy is rolling out (and vice versa).
+name: Run prod seed
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type RUN to confirm. Prod-mode seed is idempotent but updates ALL seeded products + images.'
+        required: true
+        type: string
+        default: ''
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate confirm input
+        run: |
+          if [ "${{ inputs.confirm }}" != "RUN" ]; then
+            echo "::error::Confirm input must be the literal string 'RUN', got: '${{ inputs.confirm }}'"
+            exit 1
+          fi
+
+      - name: SSH run seed
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # Seed touches 700+ upserts against a cloud Postgres. Allow a
+          # generous timeout — typical run is 2–4 minutes, but a slow
+          # alwaysdata response can stretch it.
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+
+            cd /home/deploy/teka-rdc
+
+            COMPOSE="docker compose --env-file .env.production -f docker-compose.prod.yml"
+
+            # tsx ships in the api image's node_modules (it's a dev dep,
+            # but the Dockerfile copies the full pnpm install — see
+            # apps/api/Dockerfile § runner). Verify before running so
+            # we get a friendly error instead of "command not found"
+            # mid-seed.
+            if ! $COMPOSE exec -T api test -x node_modules/.bin/tsx; then
+              echo "::error::tsx not found in api container at node_modules/.bin/tsx"
+              exit 1
+            fi
+
+            echo "▶ running SEED_MODE=prod tsx prisma/seed.ts"
+            $COMPOSE exec -T -e SEED_MODE=prod api node_modules/.bin/tsx prisma/seed.ts
+
+            echo "✓ prod seed completed"
