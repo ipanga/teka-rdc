@@ -57,17 +57,27 @@ jobs:
 
             COMPOSE="docker compose --env-file .env.production -f docker-compose.prod.yml"
 
-            # tsx ships in the api image's node_modules (it's a dev dep,
-            # but the Dockerfile copies the full pnpm install — see
-            # apps/api/Dockerfile § runner). Verify before running so
-            # we get a friendly error instead of "command not found"
-            # mid-seed.
-            if ! $COMPOSE exec -T api test -x node_modules/.bin/tsx; then
-              echo "::error::tsx not found in api container at node_modules/.bin/tsx"
-              exit 1
+            # First try the dev-dep that may already exist in the image
+            # (apps/api/node_modules/.bin/tsx). If pnpm's symlink chain
+            # didn't make it through the Dockerfile's multi-stage COPY
+            # (observed on 2026-05-23: prod image had a broken / missing
+            # link even though the local dev image was fine), fall back
+            # to direct invocation of the cli.mjs, and finally to an
+            # ephemeral global install. One of these three works on any
+            # well-formed image.
+            echo "▶ resolving tsx in api container"
+            if $COMPOSE exec -T api test -x node_modules/.bin/tsx; then
+              TSX_CMD='node_modules/.bin/tsx'
+            elif $COMPOSE exec -T api test -f node_modules/tsx/dist/cli.mjs; then
+              TSX_CMD='node node_modules/tsx/dist/cli.mjs'
+            else
+              echo "  not found locally; installing tsx@4 globally (ephemeral)"
+              $COMPOSE exec -T api npm install -g tsx@4 --silent
+              TSX_CMD='tsx'
             fi
+            echo "  using: $TSX_CMD"
 
             echo "▶ running SEED_MODE=prod tsx prisma/seed.ts"
-            $COMPOSE exec -T -e SEED_MODE=prod api node_modules/.bin/tsx prisma/seed.ts
+            $COMPOSE exec -T -e SEED_MODE=prod api sh -c "$TSX_CMD prisma/seed.ts"
 
             echo "✓ prod seed completed"
