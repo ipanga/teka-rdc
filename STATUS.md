@@ -1,4 +1,4 @@
-# Status — 2026-05-22
+# Status — 2026-05-23
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,13 +6,18 @@
 
 ## Active initiative
 
-**Ops — `Run prod seed` GitHub workflow** (started 2026-05-23). Adds a `workflow_dispatch` action that runs `SEED_MODE=prod tsx prisma/seed.ts` inside the api container on the VPS. Triggered from the Actions UI with a `confirm: RUN` guardrail. Concurrency-locked against `production-deploy`.
+None. Last initiative (prod-seed re-run) completed 2026-05-23.
 
-Use case: re-seed prod after seed code changes (e.g. the per-product Picsum image URLs from #181/#182 that landed today — those need a re-seed to actually flip existing rows from the stranded `res.cloudinary.com/demo/` placeholders).
+## Recently completed — 2026-05-23
 
-Prod-mode seed path is safe: stops after foundational data (cities, communes, categories, attributes, content pages, settings) + the Teka RDC Officiel platform seller + 152 sample products. Doesn't touch real users/sellers/orders/addresses — those live outside the seed UUID ranges.
+**`Run prod seed` workflow** shipped end-to-end. Re-fired prod seed, prod product_images now point at per-product picsum.photos URLs (confirmed via `GET https://api.teka.cd/api/v1/browse/products?limit=1` returning `image.url=https://picsum.photos/seed/<productId>-0/600/600`).
 
-Last shipped today:
+PRs in order:
+- **#183 → #184** — `Run prod seed` workflow_dispatch action (concurrency-locked, `confirm: RUN` guardrail).
+- **#185 → #186** — 3-tier tsx resolver in the workflow (pnpm symlink, raw cli.mjs, or ephemeral global install) after first fire hit `tsx not found` on the prod image.
+- **#187 → #188** — seed.ts: prod mode reuses the oldest existing ADMIN row via lookup instead of trying to upsert one (per `docs/deployment.md § 5b`, prod admins are seeded out-of-band; the old `requireInProd` would have either no-op'd or created a duplicate admin on every re-seed). Opt-in via `SEED_INCLUDE_ADMIN=true`.
+
+**Earlier same day:**
 - **#181 → #182** — seed change: per-product Picsum URLs + mutable image upsert (so re-seed actually propagates).
 - **#179 → #180** — buyer home product card 7px overflow fix.
 - **#177 → #178** — buyer home product list sortBy + envelope-parse bugs.
@@ -33,11 +38,11 @@ Manual migration applied to dev + prod DBs (the `device_tokens` table).
 
 ## In-flight PRs
 
-None yet — the prod-seed workflow about to open from this branch.
+None.
 
 ## In-flight local branches
 
-- `feat/ops-prod-seed-workflow` — workflow_dispatch action for prod seed (current).
+None.
 
 ## Pending in the push initiative
 

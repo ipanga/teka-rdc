@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -60,7 +61,7 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
       context.go('/');
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString());
+      setState(() => _error = _humanizeError(e, isVerify: true));
     }
   }
 
@@ -71,8 +72,37 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
       await ref.read(authProvider.notifier).resendOtp(widget.phone);
       _startCooldown();
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (!mounted) return;
+      setState(() => _error = _humanizeError(e, isVerify: false));
     }
+  }
+
+  String _humanizeError(Object e, {required bool isVerify}) {
+    if (e is DioException) {
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        return 'Connexion lente. Veuillez réessayer.';
+      }
+      if (e.type == DioExceptionType.connectionError) {
+        return 'Pas de connexion internet.';
+      }
+      final data = e.response?.data;
+      if (data is Map && data['error'] is Map) {
+        final msg = data['error']['message'];
+        if (msg is String && msg.isNotEmpty) return msg;
+      }
+      // Status-based fallback when the server gave no useful body.
+      final status = e.response?.statusCode;
+      if (status == 401 || status == 400) {
+        return isVerify
+            ? 'Code invalide ou expiré.'
+            : 'Impossible de renvoyer le code. Veuillez réessayer.';
+      }
+      if (status == 429) {
+        return 'Trop de tentatives. Veuillez patienter avant de réessayer.';
+      }
+    }
+    return 'Une erreur est survenue. Veuillez réessayer.';
   }
 
   @override
