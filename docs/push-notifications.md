@@ -173,7 +173,21 @@ The set of events that fire a push today:
 | **Product rejected by admin** | **Seller** | `SellerNotificationService.notifyProductRejected` (PR E lite) |
 | **New review from buyer** | **Seller** | `SellerNotificationService.notifyNewReview` (PR E lite) |
 
-Tap-navigation hook (`data.screen` consumed by the Flutter routers) lands in PR E full.
+**Tap-navigation routing** (PR E, 2026-05-22): each `data` payload carries a `screen` field that the Flutter clients map to a go_router path. See `apps/{buyer,seller}-mobile/lib/core/push/notification_router.dart`.
+
+| `screen` value | Required field | Buyer route | Seller route |
+|---|---|---|---|
+| `order-details` | `orderId` | `/orders/$orderId` | `/orders/$orderId` |
+| `product-details` | `productId` | `/products/$productId` | `/products/$productId` |
+| `product-reviews` | `productId` | `/products/$productId/reviews` | `/reviews` *(flat list — productId dropped; seller dashboard's reviews page filters)* |
+
+Tap sources handled:
+
+1. **Foreground** — local notification posted by `flutter_local_notifications` from `PushService._handleForegroundMessage`. Tap fires `onDidReceiveNotificationResponse`; payload is the JSON-encoded FCM `data` block.
+2. **Background** — OS-tray notification from FCM's auto-display. Tap fires `FirebaseMessaging.onMessageOpenedApp` stream.
+3. **Killed app** — `FirebaseMessaging.getInitialMessage()` returns the message that launched the app. Checked post-first-frame to ensure the GoRouter is ready before we try to navigate.
+
+Unknown `screen` values (or missing required IDs) are silently ignored — the notification still appears, it just doesn't navigate anywhere on tap.
 
 ## Opt-out
 
