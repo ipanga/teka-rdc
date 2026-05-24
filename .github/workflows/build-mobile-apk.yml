@@ -1,25 +1,36 @@
-# One-shot mobile APK builder.
+# Mobile APK builder — flavor-aware.
 #
 # Triggered manually from the Actions tab → "Build mobile APK" → Run
 # workflow. Use this when you want an installable APK without setting
 # up Flutter + the gitignored Firebase credentials on a fresh machine.
 #
 # Inputs:
-#   app      = buyer | seller | both         (default: buyer)
-#   variant  = debug | release               (default: debug)
+#   app      = buyer | seller | both                                  (default: buyer)
+#   flavor   = development | staging | production | all               (default: production)
+#   variant  = debug | release                                        (default: release)
+#
+# Matrix: when `app=both` and/or `flavor=all`, the matrix fans out to
+# build all selected combinations in parallel jobs. Single-choice
+# inputs produce a single job — no skipped-but-visible siblings.
 #
 # Notes
 # - The two google-services.json files are gitignored — they ship via
 #   GitHub Secrets (BUYER_GOOGLE_SERVICES_JSON_B64 +
 #   SELLER_GOOGLE_SERVICES_JSON_B64), decoded onto disk by
 #   `scripts/sync-firebase-secrets.sh` before the build runs.
+# - The shared secret file must contain client entries for all three
+#   package names (com.tootiye.teka, .dev, .staging — and the seller
+#   equivalents). Until separate Firebase projects exist per environment,
+#   ONE merged google-services.json per app covers all three flavors.
+#   When that infra lands, split into _DEV / _STAGING / _PROD secrets
+#   and choose the right one per matrix entry.
 # - Release variant is signed with the debug keystore today
 #   (apps/*/android/app/build.gradle.kts: `signingConfig =
 #   signingConfigs.getByName("debug")`). Suitable for internal
 #   testing only — wire a real keystore before Play Store
 #   submission.
 # - The APK uploads as a workflow artifact named
-#   `<app>-mobile-<variant>-apk`; click the run to download.
+#   `<app>-mobile-<flavor>-<variant>-apk`; click the run to download.
 name: Build mobile APK
 
 on:
@@ -31,32 +42,39 @@ on:
         type: choice
         default: buyer
         options: [buyer, seller, both]
+      flavor:
+        description: 'Which flavor to build'
+        required: true
+        type: choice
+        default: production
+        options: [development, staging, production, all]
       variant:
         description: 'Build variant'
         required: true
         type: choice
-        default: debug
+        default: release
         options: [debug, release]
 
 # Don't pile up concurrent APK builds; cancel any in-flight run when
 # a new one starts (each run uploads to the same artifact prefix).
 concurrency:
-  group: mobile-apk-${{ inputs.app }}-${{ inputs.variant }}
+  group: mobile-apk-${{ inputs.app }}-${{ inputs.flavor }}-${{ inputs.variant }}
   cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: true
-      # Dynamic matrix: when the operator selects a single app, only
-      # that matrix entry materialises — no skipped-but-still-visible
-      # sibling job in the run UI. When they select "both", both
-      # entries fan out. The first iteration (#171) used a static
-      # 2-entry matrix + per-step `if: gate` skip; that worked but
-      # always showed a green-but-empty sibling job, which was noise.
+      # Don't kill sibling flavor/app builds if one fails — staging and
+      # production are independently shippable, and dev's a developer
+      # convenience.
+      fail-fast: false
+      # Dynamic matrix: each axis collapses to a single entry when the
+      # operator picks a single value, fans out to all values when they
+      # pick the "all"/"both" sentinel.
       matrix:
         app: ${{ inputs.app == 'both' && fromJSON('["buyer","seller"]') || fromJSON(format('["{0}"]', inputs.app)) }}
+        flavor: ${{ inputs.flavor == 'all' && fromJSON('["development","staging","production"]') || fromJSON(format('["{0}"]', inputs.flavor)) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -88,17 +106,30 @@ jobs:
           fi
           echo "✓ $path present ($(wc -c < "$path") bytes)"
 
+      - name: Verify flavor config exists
+        run: |
+          cfg="apps/${{ matrix.app }}-mobile/flavors/${{ matrix.flavor }}.json"
+          if [ ! -s "$cfg" ]; then
+            echo "::error::$cfg is missing — flavor config required for --dart-define-from-file"
+            exit 1
+          fi
+          echo "✓ $cfg present"
+
       - name: pub get
         working-directory: apps/${{ matrix.app }}-mobile
         run: flutter pub get
 
-      - name: Build ${{ inputs.variant }} APK
+      - name: Build ${{ matrix.flavor }} ${{ inputs.variant }} APK
         working-directory: apps/${{ matrix.app }}-mobile
-        run: flutter build apk --${{ inputs.variant }}
+        run: |
+          flutter build apk \
+            --${{ inputs.variant }} \
+            --flavor ${{ matrix.flavor }} \
+            --dart-define-from-file=flavors/${{ matrix.flavor }}.json
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.app }}-mobile-${{ inputs.variant }}-apk
-          path: apps/${{ matrix.app }}-mobile/build/app/outputs/flutter-apk/app-${{ inputs.variant }}.apk
+          name: ${{ matrix.app }}-mobile-${{ matrix.flavor }}-${{ inputs.variant }}-apk
+          path: apps/${{ matrix.app }}-mobile/build/app/outputs/flutter-apk/app-${{ matrix.flavor }}-${{ inputs.variant }}.apk
           retention-days: 14
