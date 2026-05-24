@@ -13,6 +13,14 @@ ARG NEXT_PUBLIC_API_URL="http://localhost:5050/api"
 ARG NEXT_PUBLIC_BASE_PATH="/seller"
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
+# Sentry — see apps/buyer-web/Dockerfile for the full rationale.
+ARG NEXT_PUBLIC_SENTRY_DSN_SELLER_WEB=""
+ENV NEXT_PUBLIC_SENTRY_DSN_SELLER_WEB=$NEXT_PUBLIC_SENTRY_DSN_SELLER_WEB
+ARG SENTRY_RELEASE=""
+ENV SENTRY_RELEASE=$SENTRY_RELEASE
+ENV NEXT_PUBLIC_SENTRY_RELEASE=$SENTRY_RELEASE
+ARG SENTRY_AUTH_TOKEN=""
+ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=deps /app/apps/seller-web/node_modules ./apps/seller-web/node_modules

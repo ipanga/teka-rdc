@@ -11,6 +11,21 @@ RUN pnpm install --frozen-lockfile
 FROM base AS build
 ARG NEXT_PUBLIC_API_URL="http://localhost:5050/api"
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# Sentry client SDK DSN — baked into the browser bundle (NEXT_PUBLIC_* is
+# compile-time only). Public by design; the build-arg is sourced from a
+# GitHub Secret by deploy.yml.
+ARG NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB=""
+ENV NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB=$NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB
+# Sentry release tag (commit SHA). Read by both server-side
+# instrumentation and the source-map upload step. Empty in local builds.
+ARG SENTRY_RELEASE=""
+ENV SENTRY_RELEASE=$SENTRY_RELEASE
+ENV NEXT_PUBLIC_SENTRY_RELEASE=$SENTRY_RELEASE
+# Auth token only needed at build time for the source-map upload inside
+# `next build` (via withSentryConfig). NOT carried into the `runner`
+# stage — the runtime image must not contain Sentry credentials.
+ARG SENTRY_AUTH_TOKEN=""
+ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=deps /app/apps/buyer-web/node_modules ./apps/buyer-web/node_modules
