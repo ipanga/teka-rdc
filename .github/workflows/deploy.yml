@@ -56,13 +56,14 @@ jobs:
       #   NEXT_PUBLIC_SENTRY_DSN_<APP>  — browser SDK DSN (public, but kept
       #                                   in Secrets for rotation flexibility)
       #   SENTRY_RELEASE                — commit SHA, tags the release in Sentry
-      #   SENTRY_AUTH_TOKEN             — uploads source maps during `next build`
-      #                                   via withSentryConfig; never carried
-      #                                   into the runtime image
+      #
+      # SENTRY_AUTH_TOKEN is NOT a build-arg — it ships via the `secrets:`
+      # block on docker/build-push-action below + a `--mount=type=secret`
+      # in each Dockerfile's pnpm-build RUN. Keeps the token out of every
+      # image layer (silences Docker BuildKit's SecretsUsedInArgOrEnv lint).
       - name: Compute build args for ${{ matrix.name }}
         id: args
         env:
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           BUYER_WEB_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB }}
           SELLER_WEB_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN_SELLER_WEB }}
           ADMIN_WEB_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN_ADMIN_WEB }}
@@ -78,7 +79,6 @@ jobs:
                 echo "NEXT_PUBLIC_API_URL=https://api.teka.cd/api"
                 echo "NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB=${BUYER_WEB_DSN}"
                 echo "SENTRY_RELEASE=${{ github.sha }}"
-                echo "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}"
                 echo "__END__"
               } >> "$GITHUB_OUTPUT"
               ;;
@@ -89,7 +89,6 @@ jobs:
                 echo "NEXT_PUBLIC_BASE_PATH="
                 echo "NEXT_PUBLIC_SENTRY_DSN_SELLER_WEB=${SELLER_WEB_DSN}"
                 echo "SENTRY_RELEASE=${{ github.sha }}"
-                echo "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}"
                 echo "__END__"
               } >> "$GITHUB_OUTPUT"
               ;;
@@ -100,7 +99,6 @@ jobs:
                 echo "NEXT_PUBLIC_BASE_PATH="
                 echo "NEXT_PUBLIC_SENTRY_DSN_ADMIN_WEB=${ADMIN_WEB_DSN}"
                 echo "SENTRY_RELEASE=${{ github.sha }}"
-                echo "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}"
                 echo "__END__"
               } >> "$GITHUB_OUTPUT"
               ;;
@@ -113,6 +111,13 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: true
           build-args: ${{ steps.args.outputs.value }}
+          # Mounted as /run/secrets/sentry_auth_token inside the build,
+          # surfaced as $SENTRY_AUTH_TOKEN to the pnpm-build RUN via
+          # the `env=` modifier in each web Dockerfile's
+          # --mount=type=secret line. api's Dockerfile doesn't mount it
+          # so the secret is silently ignored for that job.
+          secrets: |
+            sentry_auth_token=${{ secrets.SENTRY_AUTH_TOKEN }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.name }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.name }}:${{ github.sha }}

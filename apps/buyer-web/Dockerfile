@@ -21,17 +21,21 @@ ENV NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB=$NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB
 ARG SENTRY_RELEASE=""
 ENV SENTRY_RELEASE=$SENTRY_RELEASE
 ENV NEXT_PUBLIC_SENTRY_RELEASE=$SENTRY_RELEASE
-# Auth token only needed at build time for the source-map upload inside
-# `next build` (via withSentryConfig). NOT carried into the `runner`
-# stage — the runtime image must not contain Sentry credentials.
-ARG SENTRY_AUTH_TOKEN=""
-ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
+# SENTRY_AUTH_TOKEN is intentionally NOT declared as ARG/ENV — it's
+# mounted as a BuildKit secret only on the `pnpm build` RUN below, so
+# the token never lands in any image layer (defense in depth: the
+# token was already only present in the `build` stage and never copied
+# to `runner`, but BuildKit's static analysis still warned
+# `SecretsUsedInArgOrEnv` on the previous ARG/ENV pattern).
+# The matching `secrets:` block lives in deploy.yml's
+# docker/build-push-action step.
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=deps /app/apps/buyer-web/node_modules ./apps/buyer-web/node_modules
 COPY . .
 RUN cd packages/shared && pnpm build
-RUN cd apps/buyer-web && pnpm build
+RUN --mount=type=secret,id=sentry_auth_token,env=SENTRY_AUTH_TOKEN \
+    cd apps/buyer-web && pnpm build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
