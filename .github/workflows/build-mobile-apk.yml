@@ -148,11 +148,11 @@ jobs:
             --dart-define=SENTRY_RELEASE=${{ github.sha }}
 
       - name: Upload Sentry debug symbols
-        # Uploads Android obfuscation mappings + native debug symbols via
-        # sentry-dart-plugin (configured in apps/<app>-mobile/sentry.properties).
-        # No-op when SENTRY_AUTH_TOKEN is unset — the plugin exits 0 with
-        # a warning. We don't gate on `if:` so a missing token shows up as
-        # a step warning rather than silently skipping.
+        # Uploads Android native debug symbols via sentry-dart-plugin
+        # (configured in apps/<app>-mobile/sentry.properties).
+        # When SENTRY_AUTH_TOKEN is unset → step warns + skips (no plugin
+        # invocation, no false-positive failure).
+        # When set → plugin runs; any non-zero exit fails the step loudly.
         working-directory: apps/${{ matrix.app }}-mobile
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -162,7 +162,7 @@ jobs:
             echo "::warning::SENTRY_AUTH_TOKEN not set — skipping symbol upload"
             exit 0
           fi
-          flutter pub run sentry_dart_plugin || true
+          flutter pub run sentry_dart_plugin
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
