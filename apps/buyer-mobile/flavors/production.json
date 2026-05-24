@@ -1,0 +1,5 @@
+{
+  "FLAVOR": "production",
+  "API_BASE_URL": "https://api.teka.cd/api",
+  "SENTRY_DSN": ""
+}
