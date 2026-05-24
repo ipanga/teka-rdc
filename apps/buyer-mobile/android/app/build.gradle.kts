@@ -36,6 +36,39 @@ android {
         versionName = flutter.versionName
     }
 
+    // Flavors. `production` keeps the existing applicationId
+    // (com.tootiye.teka — already in Play Store). `development` and
+    // `staging` get suffixed ids so all three variants can install
+    // side-by-side on the same device. app_name is generated as an
+    // Android string resource via resValue and consumed by the
+    // <application android:label="@string/app_name"> in
+    // AndroidManifest.xml.
+    //
+    // Firebase: google-services.json must contain client entries for
+    // all three package names (com.tootiye.teka, .dev, .staging). Add
+    // missing apps in Firebase Console → "Add app" → Android, then
+    // re-download the merged google-services.json. The plugin reads
+    // it once at build time and matches on applicationId.
+    flavorDimensions += "env"
+    productFlavors {
+        create("development") {
+            dimension = "env"
+            applicationIdSuffix = ".dev"
+            resValue("string", "app_name", "Teka Dev")
+        }
+        create("staging") {
+            dimension = "env"
+            applicationIdSuffix = ".staging"
+            resValue("string", "app_name", "Teka Staging")
+        }
+        create("production") {
+            dimension = "env"
+            // No applicationIdSuffix — production keeps com.tootiye.teka
+            // to match the existing Play Store listing.
+            resValue("string", "app_name", "Teka")
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.

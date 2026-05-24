@@ -35,6 +35,30 @@ android {
         versionName = flutter.versionName
     }
 
+    // Flavors. `production` keeps the existing applicationId
+    // (com.tootiye.tekaseller). `development` and `staging` get
+    // suffixed ids so all three variants can install side-by-side.
+    // Firebase: google-services.json must contain client entries for
+    // all three package names. See apps/buyer-mobile/android/app/build.gradle.kts
+    // for the same comment in full.
+    flavorDimensions += "env"
+    productFlavors {
+        create("development") {
+            dimension = "env"
+            applicationIdSuffix = ".dev"
+            resValue("string", "app_name", "Teka Seller Dev")
+        }
+        create("staging") {
+            dimension = "env"
+            applicationIdSuffix = ".staging"
+            resValue("string", "app_name", "Teka Seller Staging")
+        }
+        create("production") {
+            dimension = "env"
+            resValue("string", "app_name", "Teka Seller")
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
