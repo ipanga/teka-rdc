@@ -32,6 +32,7 @@ services:
       # before invoking compose. Empty fallback keeps local `docker compose
       # -f docker-compose.prod.yml up` working without the SHA.
       - SENTRY_RELEASE=${SENTRY_RELEASE:-}
+      - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
     networks:
       - frontend
       - backend
@@ -52,10 +53,17 @@ services:
   # === Buyer Web (Next.js) — served at https://teka.cd ===
   buyer-web:
     image: ghcr.io/ipanga/teka-rdc/buyer-web:latest
+    env_file: .env.production
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=https://api.teka.cd/api
       - API_INTERNAL_URL=http://api:5050/api
+      # Server-side Sentry DSN. Read by sentry.server.config.ts +
+      # sentry.edge.config.ts. Sourced from `.env.production` on the VPS.
+      # Empty (no-op) until provisioned.
+      - SENTRY_DSN_BUYER_WEB=${SENTRY_DSN_BUYER_WEB:-}
+      - SENTRY_RELEASE=${SENTRY_RELEASE:-}
+      - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
     depends_on:
       api:
         condition: service_healthy
@@ -73,10 +81,14 @@ services:
   # === Seller Web (Next.js) — served at https://seller.teka.cd ===
   seller-web:
     image: ghcr.io/ipanga/teka-rdc/seller-web:latest
+    env_file: .env.production
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=https://api.teka.cd/api
       - NEXT_PUBLIC_BASE_PATH=
+      - SENTRY_DSN_SELLER_WEB=${SENTRY_DSN_SELLER_WEB:-}
+      - SENTRY_RELEASE=${SENTRY_RELEASE:-}
+      - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
     depends_on:
       api:
         condition: service_healthy
@@ -93,10 +105,14 @@ services:
   # === Admin Web (Next.js) — served at https://admin.teka.cd ===
   admin-web:
     image: ghcr.io/ipanga/teka-rdc/admin-web:latest
+    env_file: .env.production
     environment:
       - NODE_ENV=production
       - NEXT_PUBLIC_API_URL=https://api.teka.cd/api
       - NEXT_PUBLIC_BASE_PATH=
+      - SENTRY_DSN_ADMIN_WEB=${SENTRY_DSN_ADMIN_WEB:-}
+      - SENTRY_RELEASE=${SENTRY_RELEASE:-}
+      - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
     depends_on:
       api:
         condition: service_healthy

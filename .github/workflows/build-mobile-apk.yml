@@ -119,13 +119,50 @@ jobs:
         working-directory: apps/${{ matrix.app }}-mobile
         run: flutter pub get
 
+      - name: Resolve per-app Sentry DSN
+        id: sentry
+        env:
+          BUYER_DSN: ${{ secrets.SENTRY_DSN_BUYER_MOBILE }}
+          SELLER_DSN: ${{ secrets.SENTRY_DSN_SELLER_MOBILE }}
+        run: |
+          # One DSN per app, same DSN across all flavors of that app —
+          # Sentry's `environment` tag (set from FLAVOR via FlavorConfig)
+          # separates them inside the project. Empty when secret unset; the
+          # Flutter SDK then skips init (no-op, build still succeeds).
+          case "${{ matrix.app }}" in
+            buyer)  echo "dsn=${BUYER_DSN}"  >> "$GITHUB_OUTPUT" ;;
+            seller) echo "dsn=${SELLER_DSN}" >> "$GITHUB_OUTPUT" ;;
+          esac
+
       - name: Build ${{ matrix.flavor }} ${{ inputs.variant }} APK
         working-directory: apps/${{ matrix.app }}-mobile
         run: |
+          # SENTRY_DSN and SENTRY_RELEASE override the empty placeholders
+          # in flavors/*.json (--dart-define is last-wins). FlavorConfig
+          # reads them and sentry_flutter init picks them up in main.dart.
           flutter build apk \
             --${{ inputs.variant }} \
             --flavor ${{ matrix.flavor }} \
-            --dart-define-from-file=flavors/${{ matrix.flavor }}.json
+            --dart-define-from-file=flavors/${{ matrix.flavor }}.json \
+            --dart-define=SENTRY_DSN=${{ steps.sentry.outputs.dsn }} \
+            --dart-define=SENTRY_RELEASE=${{ github.sha }}
+
+      - name: Upload Sentry debug symbols
+        # Uploads Android native debug symbols via sentry-dart-plugin
+        # (configured in apps/<app>-mobile/sentry.properties).
+        # When SENTRY_AUTH_TOKEN is unset → step warns + skips (no plugin
+        # invocation, no false-positive failure).
+        # When set → plugin runs; any non-zero exit fails the step loudly.
+        working-directory: apps/${{ matrix.app }}-mobile
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_RELEASE: ${{ github.sha }}
+        run: |
+          if [ -z "${SENTRY_AUTH_TOKEN}" ]; then
+            echo "::warning::SENTRY_AUTH_TOKEN not set — skipping symbol upload"
+            exit 0
+          fi
+          flutter pub run sentry_dart_plugin
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
