@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 
@@ -29,4 +30,11 @@ const nextConfig: NextConfig = {
 };
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
-export default withNextIntl(nextConfig);
+
+// See apps/buyer-web/next.config.ts for the withSentryConfig rationale.
+export default withSentryConfig(withNextIntl(nextConfig), {
+  org: 'teka-rdc',
+  project: 'teka-admin-web',
+  silent: !process.env.CI,
+  disableLogger: true,
+});

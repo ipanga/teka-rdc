@@ -10,6 +10,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.53.1",
     "@teka/shared": "workspace:*",
     "browser-image-compression": "^2.0.2",
     "next": "15.5.18",
