@@ -48,11 +48,24 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # Per-service build args. api needs none; the three web apps need the
-      # API URL baked in at build time (Next.js NEXT_PUBLIC_* are compile-time
-      # constants). seller-web and admin-web also flip the basePath to empty
-      # so they serve from their subdomain root.
+      # API URL + Sentry config baked in at build time (Next.js NEXT_PUBLIC_*
+      # are compile-time constants). seller-web and admin-web also flip the
+      # basePath to empty so they serve from their subdomain root.
+      #
+      # Sentry build-args (per web):
+      #   NEXT_PUBLIC_SENTRY_DSN_<APP>  — browser SDK DSN (public, but kept
+      #                                   in Secrets for rotation flexibility)
+      #   SENTRY_RELEASE                — commit SHA, tags the release in Sentry
+      #   SENTRY_AUTH_TOKEN             — uploads source maps during `next build`
+      #                                   via withSentryConfig; never carried
+      #                                   into the runtime image
       - name: Compute build args for ${{ matrix.name }}
         id: args
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          BUYER_WEB_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB }}
+          SELLER_WEB_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN_SELLER_WEB }}
+          ADMIN_WEB_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN_ADMIN_WEB }}
         run: |
           set -eu
           case "${{ matrix.name }}" in
@@ -63,14 +76,31 @@ jobs:
               {
                 echo "value<<__END__"
                 echo "NEXT_PUBLIC_API_URL=https://api.teka.cd/api"
+                echo "NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB=${BUYER_WEB_DSN}"
+                echo "SENTRY_RELEASE=${{ github.sha }}"
+                echo "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}"
                 echo "__END__"
               } >> "$GITHUB_OUTPUT"
               ;;
-            seller-web|admin-web)
+            seller-web)
               {
                 echo "value<<__END__"
                 echo "NEXT_PUBLIC_API_URL=https://api.teka.cd/api"
                 echo "NEXT_PUBLIC_BASE_PATH="
+                echo "NEXT_PUBLIC_SENTRY_DSN_SELLER_WEB=${SELLER_WEB_DSN}"
+                echo "SENTRY_RELEASE=${{ github.sha }}"
+                echo "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}"
+                echo "__END__"
+              } >> "$GITHUB_OUTPUT"
+              ;;
+            admin-web)
+              {
+                echo "value<<__END__"
+                echo "NEXT_PUBLIC_API_URL=https://api.teka.cd/api"
+                echo "NEXT_PUBLIC_BASE_PATH="
+                echo "NEXT_PUBLIC_SENTRY_DSN_ADMIN_WEB=${ADMIN_WEB_DSN}"
+                echo "SENTRY_RELEASE=${{ github.sha }}"
+                echo "SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN}"
                 echo "__END__"
               } >> "$GITHUB_OUTPUT"
               ;;
@@ -115,10 +145,12 @@ jobs:
               | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             # Export SENTRY_RELEASE so docker-compose.prod.yml's
-            # `${SENTRY_RELEASE:-}` interpolation on the api service picks
-            # up the deploy SHA. Sentry's UI then groups errors per-release
-            # (Releases tab) so we can see when a regression first appeared.
+            # `${SENTRY_RELEASE:-}` interpolation on all 4 services
+            # (api + 3 webs) picks up the deploy SHA. Sentry's UI then
+            # groups errors per-release (Releases tab) so we can see
+            # when a regression first appeared.
             export SENTRY_RELEASE="${{ github.sha }}"
+            export SENTRY_ENVIRONMENT="production"
 
             # `--env-file .env.production` handles yaml interpolation for every
             # compose invocation below. We do NOT shell-source the file:

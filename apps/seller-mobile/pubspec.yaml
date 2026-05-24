@@ -43,6 +43,7 @@ dev_dependencies:
   flutter_lints: ^5.0.0
   riverpod_generator: ^2.6.3
   build_runner: ^2.4.15
+  sentry_dart_plugin: ^3.3.0
 
 flutter:
   uses-material-design: true
