@@ -125,6 +125,32 @@ jobs:
     permissions:
       packages: read
     steps:
+      - uses: actions/checkout@v4
+
+      # Sync docker-compose.prod.yml to the VPS BEFORE the rolling deploy.
+      # The VPS's /home/deploy/teka-rdc/ is a flat directory, not a git
+      # checkout, so any change to the compose file in this repo never
+      # reaches prod unless someone manually scp's it. That gap caused the
+      # 2026-05-24 outage: PR #208 added `env_file: .env.production` to the
+      # 3 web services in compose, but the VPS still had the pre-PR-208
+      # file. When the operator updated `.env.production` for the Sentry
+      # rollout, the new env vars were never read by the webs, and a
+      # follow-up `up -d` recreated the api container with a stripped
+      # `.env.production` (Orange creds removed by the operator) — api
+      # crash-looped on config validation.
+      #
+      # Scope: compose file only for now. Other VPS-mounted config files
+      # (nginx/nginx.prod.conf, certbot data, .env.production itself) are
+      # still operator-managed.
+      - name: Sync docker-compose.prod.yml to VPS
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: docker-compose.prod.yml
+          target: /home/deploy/teka-rdc/
+
       - name: SSH rolling deploy
         uses: appleboy/ssh-action@v1
         with:
