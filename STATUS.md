@@ -6,11 +6,16 @@
 
 ## Active initiative
 
-None. Last initiative (compose-sync deploy fix, single PR) completed 2026-05-24 20:21 UTC.
+None. Last work today (BuildKit secret mount + instrumentation-client rename) released to main at 2026-05-24 20:49 UTC.
 
 **Next up (when ready):** Orange + Africa's Talking SMS + Flexpay removal — see "Open follow-ups from today's outage" below. This is the proper fix for the env-var saga that broke prod today.
 
 ## Recently completed — 2026-05-24
+
+**Sentry deprecation cleanups** (#215 + #216, released via #217).
+- **#215** — `SENTRY_AUTH_TOKEN` now ships via BuildKit secret mount (`RUN --mount=type=secret,id=sentry_auth_token,env=SENTRY_AUTH_TOKEN`) on the 3 web Dockerfiles, with a matching `secrets:` block on `docker/build-push-action` in `deploy.yml`. Silences the `SecretsUsedInArgOrEnv` Docker BuildKit lint that fired on every deploy. Token never lands in any image layer (was already build-stage only; now also out of metadata).
+- **#216** — `sentry.client.config.ts` → `instrumentation-client.ts` × 3 webs (via `git mv`, preserves history). Silences the `@sentry/nextjs` 10.x deprecation warning + makes the apps Turbopack-ready.
+- Post-merge deploy ran clean; both targeted warnings gone from the build log. The `disableLogger` deprecation is still present (intentionally deferred — needs verification of the exact `webpack.treeshake.removeDebugLogging` config shape for Next.js 15).
 
 **Auto-sync `docker-compose.prod.yml` on deploy** (#212 → #213). Root-cause fix for today's outage: the deploy workflow now scp's the compose file to the VPS before each rolling deploy. Single new step in `deploy.yml` using `appleboy/scp-action@v1`. First post-merge deploy ran clean.
 
@@ -69,10 +74,8 @@ PRs in order:
 
 ## Open follow-ups from the Sentry rollout
 
-- **BuildKit secret mount for `SENTRY_AUTH_TOKEN`** in the 3 Next.js Dockerfiles. Today a `SecretsUsedInArgOrEnv` lint fires on every deploy. Token never reaches the runtime image (build-stage only), but the more correct pattern is `RUN --mount=type=secret,id=SENTRY_AUTH_TOKEN …` + `secrets:` block in deploy.yml's build-push-action.
-- **`disableLogger: true` deprecation** in 3 `next.config.ts` files — Sentry now recommends `webpack.treeshake.removeDebugLogging` instead. Warning at every build.
-- **`sentry.client.config.ts` → `instrumentation-client.ts`** migration for Turbopack compatibility. Warning at every build; will become a hard requirement when Turbopack ships in stable.
-- **Sentry GitHub integration + `org:read` on the auth token** would let us re-enable `commits=true` in `sentry-dart-plugin` config and get per-commit issue resolution in the Sentry UI. Today the workflow sets `commits=false` to avoid the 403 from the missing integration.
+- **`disableLogger: true` deprecation** in 3 `next.config.ts` files — Sentry now recommends `webpack.treeshake.removeDebugLogging` instead. Warning at every build. Deferred pending verification of the exact migration path for Next.js 15 + `@sentry/nextjs` 10.x (the deprecation message names the option but not the config-tree location).
+- **Sentry GitHub integration + `org:read` on the auth token** would let us re-enable `commits=true` in `sentry-dart-plugin` config and get per-commit issue resolution in the Sentry UI. Today the workflow sets `commits=false` to avoid the 403 from the missing integration. Operator action in Sentry web UI required first.
 
 ## Open follow-ups from earlier today
 
