@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 
@@ -94,4 +95,16 @@ const nextConfig: NextConfig = {
 };
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
-export default withNextIntl(nextConfig);
+
+// Wrap with both plugins. withSentryConfig is the outer wrap so it can
+// inject the build-time source-map upload step (gated by SENTRY_AUTH_TOKEN,
+// no-op without it — wired in PR 4).
+export default withSentryConfig(withNextIntl(nextConfig), {
+  org: 'teka-rdc',
+  project: 'teka-buyer-web',
+  // Quiet build output unless we're on CI. Source-map upload + release
+  // tagging gate on SENTRY_AUTH_TOKEN — wired in PR 4. Until then this
+  // wrap is a no-op aside from setting Sentry's release metadata.
+  silent: !process.env.CI,
+  disableLogger: true,
+});
