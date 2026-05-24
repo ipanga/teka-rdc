@@ -1,11 +1,12 @@
 // Sentry client (browser) SDK bootstrap.
 //
+// Renamed from sentry.client.config.ts (deprecated in @sentry/nextjs 10.x)
+// to instrumentation-client.ts — Next.js 15's standard hook location for
+// client-side instrumentation, required for Turbopack compatibility.
+//
 // Reads NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB at build time (inlined into the
 // client bundle by Next.js). When unset, init is skipped — every captureException
 // downstream becomes a no-op. Same pattern as apps/api/src/instrument.ts.
-//
-// The build-arg flow for NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB is wired in PR 4
-// (CI source maps + release tagging). Until then this file is dormant in prod.
 import * as Sentry from '@sentry/nextjs';
 import { scrubPhones } from './sentry-scrub';
 

@@ -19,14 +19,14 @@ ENV NEXT_PUBLIC_SENTRY_DSN_ADMIN_WEB=$NEXT_PUBLIC_SENTRY_DSN_ADMIN_WEB
 ARG SENTRY_RELEASE=""
 ENV SENTRY_RELEASE=$SENTRY_RELEASE
 ENV NEXT_PUBLIC_SENTRY_RELEASE=$SENTRY_RELEASE
-ARG SENTRY_AUTH_TOKEN=""
-ENV SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN
+# SENTRY_AUTH_TOKEN — see apps/buyer-web/Dockerfile for the rationale.
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
 COPY --from=deps /app/apps/admin-web/node_modules ./apps/admin-web/node_modules
 COPY . .
 RUN cd packages/shared && pnpm build
-RUN cd apps/admin-web && pnpm build
+RUN --mount=type=secret,id=sentry_auth_token,env=SENTRY_AUTH_TOKEN \
+    cd apps/admin-web && pnpm build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
