@@ -8,7 +8,6 @@ import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { useCartStore } from '@/lib/cart-store';
-import { useAuthStore } from '@/lib/auth-store';
 import { apiFetch } from '@/lib/api-client';
 import { formatCDF } from '@/lib/format';
 import { Badge, Button, Card, Container, Input, Label, buttonVariants, cn } from '@/components/ui';
@@ -16,7 +15,6 @@ import type {
   Address,
   CartItem,
   PaymentMethod,
-  MobileMoneyProvider,
   CheckoutRequest,
   CheckoutResponse,
   DeliveryEstimate,
@@ -28,15 +26,6 @@ type CheckoutStep = 'address' | 'payment' | 'review';
 
 const STEP_ORDER: CheckoutStep[] = ['address', 'payment', 'review'];
 
-// Mobile Money (M-Pesa / Airtel / Orange) is intentionally hidden in the UI
-// for now — only "Paiement à la livraison" (COD) is offered. The backend
-// payment-provider abstraction (PaymentProvider interface, Flexpay impl,
-// CheckoutService MM branch, MOBILE_MONEY enum value, MM webhook handlers)
-// stays fully in place so a re-enable is a one-line frontend flip rather
-// than a re-implementation. To re-enable: set this to true and the MM
-// tile + provider sub-card come back, no other change needed.
-const ENABLE_MOBILE_MONEY = false;
-
 export default function CheckoutPage() {
   const t = useTranslations('Checkout');
   const tCart = useTranslations('Cart');
@@ -44,14 +33,11 @@ export default function CheckoutPage() {
   const cartItems = useCartStore((s) => s.items);
   const fetchCart = useCartStore((s) => s.fetchCart);
   const clearCart = useCartStore((s) => s.clearCart);
-  const user = useAuthStore((s) => s.user);
 
   const [step, setStep] = useState<CheckoutStep>('address');
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
-  const [mobileMoneyProvider, setMobileMoneyProvider] = useState<MobileMoneyProvider | ''>('');
-  const [payerPhone, setPayerPhone] = useState('');
   const [buyerNote, setBuyerNote] = useState('');
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(true);
   const [isPlacing, setIsPlacing] = useState(false);
@@ -75,12 +61,6 @@ export default function CheckoutPage() {
     recipientName: '',
     phone: '',
   });
-
-  useEffect(() => {
-    if (user?.phone && !payerPhone) {
-      setPayerPhone(user.phone);
-    }
-  }, [user, payerPhone]);
 
   useEffect(() => {
     fetchCart();
@@ -255,17 +235,6 @@ export default function CheckoutPage() {
   async function handlePlaceOrder() {
     if (!selectedAddressId || isPlacing) return;
 
-    if (paymentMethod === 'MOBILE_MONEY') {
-      if (!mobileMoneyProvider) {
-        setError(t('providerRequired'));
-        return;
-      }
-      if (!payerPhone.trim()) {
-        setError(t('phoneRequired'));
-        return;
-      }
-    }
-
     setIsPlacing(true);
     setError(null);
 
@@ -275,10 +244,6 @@ export default function CheckoutPage() {
       paymentMethod,
       idempotencyKey,
     };
-    if (paymentMethod === 'MOBILE_MONEY') {
-      body.mobileMoneyProvider = mobileMoneyProvider;
-      body.payerPhone = payerPhone.trim();
-    }
     if (buyerNote.trim()) {
       body.buyerNote = buyerNote.trim();
     }
@@ -315,9 +280,7 @@ export default function CheckoutPage() {
   }
 
   const canProceedToPayment = !!selectedAddressId;
-  const isMobileMoneyValid =
-    paymentMethod !== 'MOBILE_MONEY' || (!!mobileMoneyProvider && !!payerPhone.trim());
-  const canProceedToReview = canProceedToPayment && !!paymentMethod && isMobileMoneyValid;
+  const canProceedToReview = canProceedToPayment && !!paymentMethod;
 
   if (cartItems.length === 0 && !isPlacing) {
     return (
@@ -671,72 +634,6 @@ export default function CheckoutPage() {
                   }
                   title={t('cod')}
                 />
-
-                {/* Mobile Money tile + provider sub-card. Hidden until
-                    the platform re-enables Mobile Money — see the
-                    ENABLE_MOBILE_MONEY constant near the top of this file. */}
-                {ENABLE_MOBILE_MONEY && (
-                  <>
-                    <PaymentTile
-                      selected={paymentMethod === 'MOBILE_MONEY'}
-                      onSelect={() => setPaymentMethod('MOBILE_MONEY')}
-                      name="payment"
-                      value="MOBILE_MONEY"
-                      icon={
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1.5}
-                            d="M10.5 1.5H8.25A2.25 2.25 0 0 0 6 3.75v16.5a2.25 2.25 0 0 0 2.25 2.25h7.5A2.25 2.25 0 0 0 18 20.25V3.75a2.25 2.25 0 0 0-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3"
-                          />
-                        </svg>
-                      }
-                      title={t('mobileMoney')}
-                      subtitle="M-Pesa, Airtel Money, Orange Money"
-                    />
-
-                    {paymentMethod === 'MOBILE_MONEY' && (
-                      <Card padding="md" className="ml-0 sm:ml-4 bg-surface-muted/40">
-                        <p className="text-sm font-semibold text-foreground mb-3 tracking-tight">
-                          {t('selectProvider')}
-                        </p>
-
-                        <div className="space-y-2 mb-4">
-                          <ProviderTile
-                            accent="green"
-                            selected={mobileMoneyProvider === 'M_PESA'}
-                            onSelect={() => setMobileMoneyProvider('M_PESA')}
-                            label={t('mpesa')}
-                          />
-                          <ProviderTile
-                            accent="red"
-                            selected={mobileMoneyProvider === 'AIRTEL_MONEY'}
-                            onSelect={() => setMobileMoneyProvider('AIRTEL_MONEY')}
-                            label={t('airtelMoney')}
-                          />
-                          <ProviderTile
-                            accent="orange"
-                            selected={mobileMoneyProvider === 'ORANGE_MONEY'}
-                            onSelect={() => setMobileMoneyProvider('ORANGE_MONEY')}
-                            label={t('orangeMoney')}
-                          />
-                        </div>
-
-                        <div>
-                          <Label htmlFor="ck-payer-phone">{t('payerPhone')}</Label>
-                          <Input
-                            id="ck-payer-phone"
-                            type="tel"
-                            value={payerPhone}
-                            onChange={(e) => setPayerPhone(e.target.value)}
-                            placeholder={t('payerPhonePlaceholder')}
-                          />
-                        </div>
-                      </Card>
-                    )}
-                  </>
-                )}
               </div>
 
               <div className="mt-4">
@@ -816,19 +713,7 @@ export default function CheckoutPage() {
                     Modifier
                   </button>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {paymentMethod === 'COD' ? t('cod') : t('mobileMoney')}
-                </p>
-                {paymentMethod === 'MOBILE_MONEY' && mobileMoneyProvider && (
-                  <div className="text-sm text-muted-foreground mt-1 space-y-0.5">
-                    <p>
-                      {mobileMoneyProvider === 'M_PESA' && t('mpesa')}
-                      {mobileMoneyProvider === 'AIRTEL_MONEY' && t('airtelMoney')}
-                      {mobileMoneyProvider === 'ORANGE_MONEY' && t('orangeMoney')}
-                    </p>
-                    {payerPhone && <p>{payerPhone}</p>}
-                  </div>
-                )}
+                <p className="text-sm text-muted-foreground">{t('cod')}</p>
                 {buyerNote && (
                   <p className="text-xs text-muted-foreground mt-2 italic">
                     {t('buyerNote')}: {buyerNote}
@@ -990,10 +875,9 @@ interface PaymentTileProps {
   value: string;
   icon: React.ReactNode;
   title: string;
-  subtitle?: string;
 }
 
-function PaymentTile({ selected, onSelect, name, value, icon, title, subtitle }: PaymentTileProps) {
+function PaymentTile({ selected, onSelect, name, value, icon, title }: PaymentTileProps) {
   return (
     <label
       className={cn(
@@ -1016,45 +900,7 @@ function PaymentTile({ selected, onSelect, name, value, icon, title, subtitle }:
           {icon}
           <p className="text-sm font-semibold">{title}</p>
         </div>
-        {subtitle && (
-          <p className="text-xs text-muted-foreground mt-1 ml-7">{subtitle}</p>
-        )}
       </div>
-    </label>
-  );
-}
-
-interface ProviderTileProps {
-  accent: 'green' | 'red' | 'orange';
-  selected: boolean;
-  onSelect: () => void;
-  label: string;
-}
-
-function ProviderTile({ accent, selected, onSelect, label }: ProviderTileProps) {
-  const accentDot: Record<ProviderTileProps['accent'], string> = {
-    green: 'bg-green-500',
-    red: 'bg-red-500',
-    orange: 'bg-orange-500',
-  };
-  return (
-    <label
-      className={cn(
-        'flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all',
-        selected
-          ? 'border-primary bg-surface ring-1 ring-primary/30'
-          : 'border-border bg-surface hover:border-border-strong',
-      )}
-    >
-      <input
-        type="radio"
-        name="mmProvider"
-        checked={selected}
-        onChange={onSelect}
-        className="accent-primary"
-      />
-      <span className={cn('w-2.5 h-2.5 rounded-full shrink-0', accentDot[accent])} aria-hidden />
-      <span className="text-sm font-medium text-foreground">{label}</span>
     </label>
   );
 }
