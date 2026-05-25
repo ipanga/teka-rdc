@@ -1,9 +1,8 @@
 import type { Timestamps } from './common';
 
-// Mobile Money sub-providers
-export type MobileMoneyProvider = 'M_PESA' | 'AIRTEL_MONEY' | 'ORANGE_MONEY';
-
-// Transaction enums
+// Transaction enums. `TransactionProvider` keeps `FLEXPAY` for historical
+// rows (Mobile Money via Flexpay was retired 2026-05-25, PR B1/B2); new
+// transactions are created with `COD` only.
 export type TransactionType = 'PAYMENT' | 'REFUND' | 'PAYOUT';
 export type TransactionProvider = 'FLEXPAY' | 'COD' | 'MANUAL';
 export type PayoutStatus = 'REQUESTED' | 'APPROVED' | 'PROCESSING' | 'COMPLETED' | 'REJECTED';

@@ -7,20 +7,12 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../l10n/app_localizations.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../city/data/city_repository.dart';
 import '../../../city/data/models/city_model.dart';
 import '../../../city/data/models/commune_model.dart';
 import '../../data/models/checkout_model.dart';
 import '../providers/checkout_provider.dart';
-
-// Mobile Money (M-Pesa / Airtel / Orange) is intentionally hidden in the
-// UI for now — only "Paiement à la livraison" (COD) is offered. The
-// backend payment-provider abstraction stays fully in place so a
-// re-enable is a one-line flip rather than a re-implementation. Mirrors
-// the same constant on apps/buyer-web/src/app/checkout/page.tsx.
-const bool _enableMobileMoney = false;
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -135,16 +127,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
       case CheckoutStep.payment:
         return _PaymentStep(
           selectedMethod: checkoutState.paymentMethod,
-          selectedProvider: checkoutState.selectedProvider,
-          payerPhone: checkoutState.payerPhone,
           l10n: l10n,
           onSelect: (method) =>
               ref.read(checkoutProvider.notifier).selectPaymentMethod(method),
-          onSelectProvider: (provider) =>
-              ref.read(checkoutProvider.notifier).selectMobileMoneyProvider(provider),
-          onPayerPhoneChanged: (phone) =>
-              ref.read(checkoutProvider.notifier).setPayerPhone(phone),
-          userPhone: ref.read(authProvider).user?['phone'] as String?,
         );
       case CheckoutStep.review:
         return _ReviewStep(
@@ -539,66 +524,19 @@ class _AddressStep extends StatelessWidget {
   }
 }
 
-class _PaymentStep extends StatefulWidget {
+class _PaymentStep extends StatelessWidget {
   final String selectedMethod;
-  final String? selectedProvider;
-  final String payerPhone;
   final AppLocalizations l10n;
   final ValueChanged<String> onSelect;
-  final ValueChanged<String> onSelectProvider;
-  final ValueChanged<String> onPayerPhoneChanged;
-  final String? userPhone;
 
   const _PaymentStep({
     required this.selectedMethod,
-    required this.selectedProvider,
-    required this.payerPhone,
     required this.l10n,
     required this.onSelect,
-    required this.onSelectProvider,
-    required this.onPayerPhoneChanged,
-    this.userPhone,
   });
 
   @override
-  State<_PaymentStep> createState() => _PaymentStepState();
-}
-
-class _PaymentStepState extends State<_PaymentStep> {
-  late final TextEditingController _phoneController;
-  bool _phoneInitialized = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _phoneController = TextEditingController(text: widget.payerPhone);
-  }
-
-  @override
-  void didUpdateWidget(_PaymentStep oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    // Prefill phone from user profile when MM is first selected
-    if (!_phoneInitialized &&
-        widget.selectedMethod == 'MOBILE_MONEY' &&
-        widget.payerPhone.isEmpty &&
-        widget.userPhone != null &&
-        widget.userPhone!.isNotEmpty) {
-      _phoneInitialized = true;
-      _phoneController.text = widget.userPhone!;
-      widget.onPayerPhoneChanged(widget.userPhone!);
-    }
-  }
-
-  @override
-  void dispose() {
-    _phoneController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final l10n = widget.l10n;
-
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -614,159 +552,10 @@ class _PaymentStepState extends State<_PaymentStep> {
           title: l10n.checkoutCOD,
           subtitle: 'Payez a la reception de votre commande',
           icon: Icons.payments_outlined,
-          isSelected: widget.selectedMethod == 'COD',
-          onTap: () => widget.onSelect('COD'),
+          isSelected: selectedMethod == 'COD',
+          onTap: () => onSelect('COD'),
         ),
-
-        // Mobile Money tile + provider block — hidden until the platform
-        // re-enables Mobile Money. See _enableMobileMoney const at the
-        // top of this file.
-        if (_enableMobileMoney) ...[
-        const SizedBox(height: 8),
-        _PaymentOption(
-          title: l10n.checkoutMobileMoney,
-          subtitle: 'M-Pesa, Airtel Money, Orange Money',
-          icon: Icons.phone_android,
-          isSelected: widget.selectedMethod == 'MOBILE_MONEY',
-          onTap: () {
-            widget.onSelect('MOBILE_MONEY');
-            // Prefill phone on first selection
-            if (!_phoneInitialized &&
-                widget.payerPhone.isEmpty &&
-                widget.userPhone != null &&
-                widget.userPhone!.isNotEmpty) {
-              _phoneInitialized = true;
-              _phoneController.text = widget.userPhone!;
-              widget.onPayerPhoneChanged(widget.userPhone!);
-            }
-          },
-        ),
-
-        // Mobile Money provider selection
-        if (widget.selectedMethod == 'MOBILE_MONEY') ...[
-          const SizedBox(height: 16),
-          Text(
-            l10n.checkoutSelectProvider,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: TekaColors.foreground,
-                ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: _ProviderTile(
-                  label: l10n.checkoutMpesa,
-                  color: TekaColors.paymentMpesa,
-                  isSelected: widget.selectedProvider == 'M_PESA',
-                  onTap: () => widget.onSelectProvider('M_PESA'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _ProviderTile(
-                  label: l10n.checkoutAirtelMoney,
-                  color: TekaColors.paymentAirtel,
-                  isSelected: widget.selectedProvider == 'AIRTEL_MONEY',
-                  onTap: () => widget.onSelectProvider('AIRTEL_MONEY'),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _ProviderTile(
-                  label: l10n.checkoutOrangeMoney,
-                  color: TekaColors.paymentOrange,
-                  isSelected: widget.selectedProvider == 'ORANGE_MONEY',
-                  onTap: () => widget.onSelectProvider('ORANGE_MONEY'),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _phoneController,
-            onChanged: widget.onPayerPhoneChanged,
-            keyboardType: TextInputType.phone,
-            decoration: InputDecoration(
-              labelText: l10n.checkoutPayerPhone,
-              hintText: l10n.checkoutPayerPhoneHint,
-              prefixIcon: const Icon(Icons.phone_outlined),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: TekaColors.border),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: TekaColors.border),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: TekaColors.tekaRed),
-              ),
-              contentPadding: const EdgeInsets.all(12),
-            ),
-            style: const TextStyle(fontSize: 14),
-          ),
-        ],
-        ], // close `if (_enableMobileMoney) ...[`
       ],
-    );
-  }
-}
-
-class _ProviderTile extends StatelessWidget {
-  final String label;
-  final Color color;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _ProviderTile({
-    required this.label,
-    required this.color,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: isSelected ? TekaColors.tekaRed : TekaColors.border,
-            width: isSelected ? 1.5 : 1,
-          ),
-          borderRadius: BorderRadius.circular(10),
-          color: isSelected ? TekaColors.tekaRedSubtle : TekaColors.surface,
-        ),
-        child: Column(
-          children: [
-            // Provider accent dot — keeps brand color identification
-            Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? TekaColors.tekaRed : TekaColors.foreground,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -869,19 +658,6 @@ class _ReviewStep extends StatelessWidget {
     required this.onNoteChanged,
   });
 
-  static String _providerDisplayName(String provider, AppLocalizations l10n) {
-    switch (provider) {
-      case 'M_PESA':
-        return l10n.checkoutMpesa;
-      case 'AIRTEL_MONEY':
-        return l10n.checkoutAirtelMoney;
-      case 'ORANGE_MONEY':
-        return l10n.checkoutOrangeMoney;
-      default:
-        return provider;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return ListView(
@@ -930,42 +706,13 @@ class _ReviewStep extends StatelessWidget {
         _SummarySection(
           icon: Icons.payment_outlined,
           title: l10n.checkoutPaymentMethod,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                checkoutState.paymentMethod == 'COD'
-                    ? l10n.checkoutCOD
-                    : l10n.checkoutMobileMoney,
-                style: const TextStyle(
-                  color: TekaColors.foreground,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              if (checkoutState.paymentMethod == 'MOBILE_MONEY' &&
-                  checkoutState.selectedProvider != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  _providerDisplayName(checkoutState.selectedProvider!, l10n),
-                  style: const TextStyle(
-                    color: TekaColors.mutedForeground,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-              if (checkoutState.paymentMethod == 'MOBILE_MONEY' &&
-                  checkoutState.payerPhone.isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(
-                  checkoutState.payerPhone,
-                  style: const TextStyle(
-                    color: TekaColors.mutedForeground,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ],
+          child: Text(
+            l10n.checkoutCOD,
+            style: const TextStyle(
+              color: TekaColors.foreground,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
         const SizedBox(height: 12),
