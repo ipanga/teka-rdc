@@ -258,9 +258,6 @@ class AppLocalizationsFr extends AppLocalizations {
   String get checkoutCOD => 'Paiement a la livraison';
 
   @override
-  String get checkoutMobileMoney => 'Mobile Money';
-
-  @override
   String get checkoutReview => 'Recapitulatif';
 
   @override
@@ -375,24 +372,6 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get orderStatusRETURNED => 'Retournee';
-
-  @override
-  String get checkoutSelectProvider => 'Choisissez votre operateur';
-
-  @override
-  String get checkoutMpesa => 'M-Pesa (Vodacom)';
-
-  @override
-  String get checkoutAirtelMoney => 'Airtel Money';
-
-  @override
-  String get checkoutOrangeMoney => 'Orange Money';
-
-  @override
-  String get checkoutPayerPhone => 'Numero Mobile Money';
-
-  @override
-  String get checkoutPayerPhoneHint => '+243...';
 
   @override
   String get paymentPendingTitle => 'Paiement en attente';

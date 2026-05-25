@@ -580,12 +580,6 @@ abstract class AppLocalizations {
   /// **'Paiement a la livraison'**
   String get checkoutCOD;
 
-  /// No description provided for @checkoutMobileMoney.
-  ///
-  /// In fr, this message translates to:
-  /// **'Mobile Money'**
-  String get checkoutMobileMoney;
-
   /// No description provided for @checkoutReview.
   ///
   /// In fr, this message translates to:
@@ -807,42 +801,6 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Retournee'**
   String get orderStatusRETURNED;
-
-  /// No description provided for @checkoutSelectProvider.
-  ///
-  /// In fr, this message translates to:
-  /// **'Choisissez votre operateur'**
-  String get checkoutSelectProvider;
-
-  /// No description provided for @checkoutMpesa.
-  ///
-  /// In fr, this message translates to:
-  /// **'M-Pesa (Vodacom)'**
-  String get checkoutMpesa;
-
-  /// No description provided for @checkoutAirtelMoney.
-  ///
-  /// In fr, this message translates to:
-  /// **'Airtel Money'**
-  String get checkoutAirtelMoney;
-
-  /// No description provided for @checkoutOrangeMoney.
-  ///
-  /// In fr, this message translates to:
-  /// **'Orange Money'**
-  String get checkoutOrangeMoney;
-
-  /// No description provided for @checkoutPayerPhone.
-  ///
-  /// In fr, this message translates to:
-  /// **'Numero Mobile Money'**
-  String get checkoutPayerPhone;
-
-  /// No description provided for @checkoutPayerPhoneHint.
-  ///
-  /// In fr, this message translates to:
-  /// **'+243...'**
-  String get checkoutPayerPhoneHint;
 
   /// No description provided for @paymentPendingTitle.
   ///

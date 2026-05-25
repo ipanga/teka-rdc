@@ -3,16 +3,12 @@ class CheckoutRequest {
   final String paymentMethod;
   final String idempotencyKey;
   final String? buyerNote;
-  final String? mobileMoneyProvider;
-  final String? payerPhone;
 
   const CheckoutRequest({
     required this.deliveryAddressId,
     required this.paymentMethod,
     required this.idempotencyKey,
     this.buyerNote,
-    this.mobileMoneyProvider,
-    this.payerPhone,
   });
 
   Map<String, dynamic> toJson() {
@@ -23,12 +19,6 @@ class CheckoutRequest {
     };
     if (buyerNote != null && buyerNote!.isNotEmpty) {
       json['buyerNote'] = buyerNote;
-    }
-    if (mobileMoneyProvider != null && mobileMoneyProvider!.isNotEmpty) {
-      json['mobileMoneyProvider'] = mobileMoneyProvider;
-    }
-    if (payerPhone != null && payerPhone!.isNotEmpty) {
-      json['payerPhone'] = payerPhone;
     }
     return json;
   }

@@ -137,9 +137,10 @@ export type PaymentStatus =
   | 'FAILED'
   | 'REFUNDED';
 
+// MOBILE_MONEY value retained on the union for read-only display of legacy
+// orders placed before Mobile Money was retired (PR B1, 2026-05-25). The
+// checkout flow only creates `'COD'` orders.
 export type PaymentMethod = 'COD' | 'MOBILE_MONEY';
-
-export type MobileMoneyProvider = 'M_PESA' | 'AIRTEL_MONEY' | 'ORANGE_MONEY';
 
 /** Order status log entry */
 export interface OrderStatusLog {
@@ -235,8 +236,6 @@ export interface CheckoutRequest {
   paymentMethod: PaymentMethod;
   idempotencyKey: string;
   buyerNote?: string;
-  mobileMoneyProvider?: string;
-  payerPhone?: string;
 }
 
 /** Checkout response */

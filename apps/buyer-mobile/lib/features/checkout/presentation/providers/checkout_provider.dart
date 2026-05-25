@@ -9,9 +9,10 @@ class CheckoutState {
   final CheckoutStep step;
   final List<AddressModel> addresses;
   final AddressModel? selectedAddress;
-  final String paymentMethod; // 'COD' or 'MOBILE_MONEY'
-  final String? selectedProvider; // 'M_PESA', 'AIRTEL_MONEY', or 'ORANGE_MONEY'
-  final String payerPhone; // +243XXXXXXXXX
+  // Always 'COD' since Mobile Money was retired (PR B1, 2026-05-25). Field
+  // retained so legacy orders (placed when MM was active) still type-check
+  // on the read side.
+  final String paymentMethod;
   final String buyerNote;
   final List<CheckoutOrderModel> orders;
   final String? checkoutGroupId;
@@ -25,8 +26,6 @@ class CheckoutState {
     this.addresses = const [],
     this.selectedAddress,
     this.paymentMethod = 'COD',
-    this.selectedProvider,
-    this.payerPhone = '',
     this.buyerNote = '',
     this.orders = const [],
     this.checkoutGroupId,
@@ -41,8 +40,6 @@ class CheckoutState {
     List<AddressModel>? addresses,
     AddressModel? selectedAddress,
     String? paymentMethod,
-    String? selectedProvider,
-    String? payerPhone,
     String? buyerNote,
     List<CheckoutOrderModel>? orders,
     String? checkoutGroupId,
@@ -52,7 +49,6 @@ class CheckoutState {
     bool? isLoadingAddresses,
     bool clearError = false,
     bool clearAddress = false,
-    bool clearProvider = false,
   }) {
     return CheckoutState(
       step: step ?? this.step,
@@ -60,9 +56,6 @@ class CheckoutState {
       selectedAddress:
           clearAddress ? null : (selectedAddress ?? this.selectedAddress),
       paymentMethod: paymentMethod ?? this.paymentMethod,
-      selectedProvider:
-          clearProvider ? null : (selectedProvider ?? this.selectedProvider),
-      payerPhone: payerPhone ?? this.payerPhone,
       buyerNote: buyerNote ?? this.buyerNote,
       orders: orders ?? this.orders,
       checkoutGroupId: checkoutGroupId ?? this.checkoutGroupId,
@@ -75,13 +68,7 @@ class CheckoutState {
 
   bool get canProceedToPayment => selectedAddress != null;
 
-  bool get canProceedToReview {
-    if (selectedAddress == null) return false;
-    if (paymentMethod == 'MOBILE_MONEY') {
-      return selectedProvider != null && payerPhone.isNotEmpty;
-    }
-    return true;
-  }
+  bool get canProceedToReview => selectedAddress != null;
 
   bool get canPlaceOrder =>
       selectedAddress != null && !isProcessing;
@@ -144,19 +131,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
   }
 
   void selectPaymentMethod(String method) {
-    state = state.copyWith(
-      paymentMethod: method,
-      clearError: true,
-      clearProvider: method != 'MOBILE_MONEY',
-    );
-  }
-
-  void selectMobileMoneyProvider(String provider) {
-    state = state.copyWith(selectedProvider: provider, clearError: true);
-  }
-
-  void setPayerPhone(String phone) {
-    state = state.copyWith(payerPhone: phone);
+    state = state.copyWith(paymentMethod: method, clearError: true);
   }
 
   void setBuyerNote(String note) {
@@ -217,12 +192,6 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         paymentMethod: state.paymentMethod,
         idempotencyKey: idempotencyKey,
         buyerNote: state.buyerNote.isNotEmpty ? state.buyerNote : null,
-        mobileMoneyProvider: state.paymentMethod == 'MOBILE_MONEY'
-            ? state.selectedProvider
-            : null,
-        payerPhone: state.paymentMethod == 'MOBILE_MONEY'
-            ? state.payerPhone
-            : null,
       );
 
       final response = await _repository.checkout(request);
