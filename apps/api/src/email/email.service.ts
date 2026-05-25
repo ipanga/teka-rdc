@@ -10,6 +10,40 @@ import {
   contactFormTemplate,
   type ContactFormEmailInput,
 } from './templates/contact-form.template';
+import { orderConfirmedTemplate } from './templates/order-confirmed.template';
+import { orderShippedTemplate } from './templates/order-shipped.template';
+import { orderDeliveredTemplate } from './templates/order-delivered.template';
+import { orderCancelledTemplate } from './templates/order-cancelled.template';
+import { paymentConfirmedTemplate } from './templates/payment-confirmed.template';
+
+/**
+ * Buyer-facing order lifecycle events that can be emailed.
+ *
+ * Used by sendOrderNotification() as the discriminator. Each event maps to
+ * exactly one template + subject line. Adding a new event = add a case here
+ * + a template file + a switch arm.
+ */
+export type OrderEmailPayload =
+  | { event: 'order_confirmed'; orderNumber: string; orderUrl: string }
+  | {
+      event: 'order_shipped';
+      orderNumber: string;
+      orderUrl: string;
+      deliveryLocation: string;
+    }
+  | { event: 'order_delivered'; orderNumber: string; orderUrl: string }
+  | {
+      event: 'order_cancelled';
+      orderNumber: string;
+      orderUrl: string;
+      reason?: string;
+    }
+  | {
+      event: 'payment_confirmed';
+      orderNumber: string;
+      orderUrl: string;
+      amountCDF: string;
+    };
 
 @Injectable()
 export class EmailService {
@@ -99,6 +133,64 @@ export class EmailService {
     const subject = `[Contact] ${input.subject}`;
     const html = contactFormTemplate(input);
     return this.sendEmail(input.to, subject, html, { replyTo: input.replyTo });
+  }
+
+  /**
+   * Sends a buyer-facing order-lifecycle email.
+   *
+   * Used as a fallback by OrderNotificationService when push delivery has no
+   * active device token to target. Dispatches on `payload.event` to the
+   * matching template + French subject. Caller is responsible for deciding
+   * whether to send (push-vs-email gating); this method just renders + sends.
+   */
+  async sendOrderNotification(
+    email: string,
+    payload: OrderEmailPayload,
+  ): Promise<boolean> {
+    switch (payload.event) {
+      case 'order_confirmed':
+        return this.sendEmail(
+          email,
+          `Commande ${payload.orderNumber} confirmée — Teka RDC`,
+          orderConfirmedTemplate(payload.orderNumber, payload.orderUrl),
+        );
+      case 'order_shipped':
+        return this.sendEmail(
+          email,
+          `Commande ${payload.orderNumber} expédiée — Teka RDC`,
+          orderShippedTemplate(
+            payload.orderNumber,
+            payload.orderUrl,
+            payload.deliveryLocation,
+          ),
+        );
+      case 'order_delivered':
+        return this.sendEmail(
+          email,
+          `Commande ${payload.orderNumber} livrée — Teka RDC`,
+          orderDeliveredTemplate(payload.orderNumber, payload.orderUrl),
+        );
+      case 'order_cancelled':
+        return this.sendEmail(
+          email,
+          `Commande ${payload.orderNumber} annulée — Teka RDC`,
+          orderCancelledTemplate(
+            payload.orderNumber,
+            payload.orderUrl,
+            payload.reason,
+          ),
+        );
+      case 'payment_confirmed':
+        return this.sendEmail(
+          email,
+          `Paiement reçu — Commande ${payload.orderNumber} — Teka RDC`,
+          paymentConfirmedTemplate(
+            payload.orderNumber,
+            payload.orderUrl,
+            payload.amountCDF,
+          ),
+        );
+    }
   }
 
   private async sendEmail(
