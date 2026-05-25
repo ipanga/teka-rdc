@@ -1,4 +1,4 @@
-# Status — 2026-05-24
+# Status — 2026-05-25
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,9 +6,15 @@
 
 ## Active initiative
 
-None. Last work today (BuildKit secret mount + instrumentation-client rename) released to main at 2026-05-24 20:49 UTC.
+**Orange + AT SMS + Flexpay removal** (started 2026-05-25; planned).
 
-**Next up (when ready):** Orange + Africa's Talking SMS + Flexpay removal — see "Open follow-ups from today's outage" below. This is the proper fix for the env-var saga that broke prod today.
+Full PR breakdown, dependency graph, risk matrix, and rollback strategy in `~/.claude/plans/orange-flexpay-removal.md`. Summary:
+
+- **10 PRs across 4 phases.** Phase A (notification rerouting, additive) → Phase B (Flexpay deletion) → Phase C (env validation + SMS module deletion, the load-bearing change) → Phase D (cleanup).
+- **Decisions locked in:** push primary + email fallback for buyers without device tokens; manual ops bank-transfer for seller payouts; preserve historical DB rows.
+- **Pre-flight checklist** at the bottom of the plan must pass before PR A1 starts. Notably: confirm zero pending FLEXPAY transactions in prod DB; confirm `RESEND_API_KEY` is valid.
+
+**Next concrete action when resuming:** read the plan file's "Pre-flight checklist" section. If all items pass, start PR A1 (email templates + EmailService.sendOrderNotification — additive, dormant until PR A2 uses it).
 
 ## Recently completed — 2026-05-24
 
