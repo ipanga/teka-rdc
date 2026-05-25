@@ -13,7 +13,6 @@ import { PaymentsService } from '../payments/payments.service';
 import { CheckoutDto } from './dto/checkout.dto';
 import {
   OrderStatus,
-  PaymentMethod,
   PaymentStatus,
   ProductStatus,
 } from '@prisma/client';
@@ -296,55 +295,23 @@ export class CheckoutService {
       this.logger.error('Échec des notifications de commande passée', err),
     );
 
-    // Create transaction records and initiate payments
-    let paymentPending = false;
-    const externalReferences: string[] = [];
-
-    if (
-      dto.paymentMethod === PaymentMethod.MOBILE_MONEY &&
-      dto.mobileMoneyProvider &&
-      dto.payerPhone
-    ) {
-      // Initiate Mobile Money payment for each order
-      paymentPending = true;
-      for (const order of orders) {
-        try {
-          const result = await this.paymentsService.initiateOrderPayment(
-            order.id,
-            {
-              mobileMoneyProvider: dto.mobileMoneyProvider,
-              payerPhone: dto.payerPhone,
-            },
-          );
-          if (result.externalReference) {
-            externalReferences.push(result.externalReference);
-          }
-        } catch (err) {
+    // COD-only since 2026-05-26 (PR B2). Create pending COD transaction
+    // records — marked COMPLETED by SellerOrdersService on delivery.
+    for (const order of orders) {
+      this.paymentsService
+        .createCodTransaction(order.id, order.totalCDF, order.totalUSD)
+        .catch((err) =>
           this.logger.error(
-            `Payment initiation failed for order ${order.orderNumber}: ${err}`,
-          );
-        }
-      }
-    } else {
-      // COD — create pending COD transaction records
-      for (const order of orders) {
-        this.paymentsService
-          .createCodTransaction(order.id, order.totalCDF, order.totalUSD)
-          .catch((err) =>
-            this.logger.error(
-              `COD transaction creation failed for ${order.orderNumber}: ${err}`,
-            ),
-          );
-      }
+            `COD transaction creation failed for ${order.orderNumber}: ${err}`,
+          ),
+        );
     }
 
     return {
       orders,
       checkoutGroupId,
       isIdempotent: false,
-      paymentPending,
-      externalReferences:
-        externalReferences.length > 0 ? externalReferences : undefined,
+      paymentPending: false,
     };
   }
 
