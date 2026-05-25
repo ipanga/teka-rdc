@@ -20,6 +20,16 @@ export class NotificationPrefsDto {
   @IsOptional()
   @IsBoolean()
   smsBroadcasts?: boolean;
+
+  /** Admin push broadcasts (announcements, marketing). */
+  @IsOptional()
+  @IsBoolean()
+  pushBroadcasts?: boolean;
+
+  /** Admin email broadcasts (announcements, marketing). */
+  @IsOptional()
+  @IsBoolean()
+  emailBroadcasts?: boolean;
 }
 
 /**
@@ -30,9 +40,13 @@ export class NotificationPrefsDto {
 export interface ResolvedNotificationPrefs {
   smsOrderUpdates: boolean;
   smsBroadcasts: boolean;
+  pushBroadcasts: boolean;
+  emailBroadcasts: boolean;
 }
 
 export const DEFAULT_NOTIFICATION_PREFS: ResolvedNotificationPrefs = {
   smsOrderUpdates: true,
   smsBroadcasts: true,
+  pushBroadcasts: true,
+  emailBroadcasts: true,
 };

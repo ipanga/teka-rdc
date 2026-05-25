@@ -45,6 +45,14 @@ export class NotificationPrefsService {
         typeof stored.smsBroadcasts === 'boolean'
           ? stored.smsBroadcasts
           : DEFAULT_NOTIFICATION_PREFS.smsBroadcasts,
+      pushBroadcasts:
+        typeof stored.pushBroadcasts === 'boolean'
+          ? stored.pushBroadcasts
+          : DEFAULT_NOTIFICATION_PREFS.pushBroadcasts,
+      emailBroadcasts:
+        typeof stored.emailBroadcasts === 'boolean'
+          ? stored.emailBroadcasts
+          : DEFAULT_NOTIFICATION_PREFS.emailBroadcasts,
     };
   }
 
@@ -66,6 +74,14 @@ export class NotificationPrefsService {
         dto.smsBroadcasts !== undefined
           ? dto.smsBroadcasts
           : current.smsBroadcasts,
+      pushBroadcasts:
+        dto.pushBroadcasts !== undefined
+          ? dto.pushBroadcasts
+          : current.pushBroadcasts,
+      emailBroadcasts:
+        dto.emailBroadcasts !== undefined
+          ? dto.emailBroadcasts
+          : current.emailBroadcasts,
     };
     await this.prisma.user.update({
       where: { id: userId },
@@ -106,6 +122,32 @@ export class NotificationPrefsService {
     } catch (e) {
       this.logger.warn(
         `shouldSendBroadcasts(${userId}) lookup failed, defaulting to true: ${e}`,
+      );
+      return true;
+    }
+  }
+
+  async shouldSendPushBroadcasts(userId: string | null): Promise<boolean> {
+    if (!userId) return true;
+    try {
+      const prefs = await this.resolve(userId);
+      return prefs.pushBroadcasts;
+    } catch (e) {
+      this.logger.warn(
+        `shouldSendPushBroadcasts(${userId}) lookup failed, defaulting to true: ${e}`,
+      );
+      return true;
+    }
+  }
+
+  async shouldSendEmailBroadcasts(userId: string | null): Promise<boolean> {
+    if (!userId) return true;
+    try {
+      const prefs = await this.resolve(userId);
+      return prefs.emailBroadcasts;
+    } catch (e) {
+      this.logger.warn(
+        `shouldSendEmailBroadcasts(${userId}) lookup failed, defaulting to true: ${e}`,
       );
       return true;
     }
