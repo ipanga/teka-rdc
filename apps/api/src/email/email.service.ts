@@ -15,6 +15,7 @@ import { orderShippedTemplate } from './templates/order-shipped.template';
 import { orderDeliveredTemplate } from './templates/order-delivered.template';
 import { orderCancelledTemplate } from './templates/order-cancelled.template';
 import { paymentConfirmedTemplate } from './templates/payment-confirmed.template';
+import { broadcastTemplate } from './templates/broadcast.template';
 
 /**
  * Buyer-facing order lifecycle events that can be emailed.
@@ -191,6 +192,25 @@ export class EmailService {
           ),
         );
     }
+  }
+
+  /**
+   * Sends an admin-authored broadcast email.
+   *
+   * Used by BroadcastsService as one of three parallel fan-out channels
+   * (push + email + sms). Caller is responsible for opt-out checks; this
+   * method just renders + sends. Title is used as the subject line; message
+   * is rendered as the body (admin-authored newlines preserved as <br>).
+   */
+  async sendBroadcast(
+    email: string,
+    payload: { title: string; message: string },
+  ): Promise<boolean> {
+    return this.sendEmail(
+      email,
+      payload.title,
+      broadcastTemplate(payload.title, payload.message),
+    );
   }
 
   private async sendEmail(

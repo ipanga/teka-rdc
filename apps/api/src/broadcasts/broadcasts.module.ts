@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SmsModule } from '../sms/sms.module';
+import { PushModule } from '../push/push.module';
+import { EmailModule } from '../email/email.module';
 import { UsersModule } from '../users/users.module';
 import { BroadcastsService } from './broadcasts.service';
 import { BroadcastsController } from './broadcasts.controller';
 
 @Module({
-  imports: [PrismaModule, SmsModule, UsersModule],
+  imports: [PrismaModule, SmsModule, PushModule, EmailModule, UsersModule],
   controllers: [BroadcastsController],
   providers: [BroadcastsService],
   exports: [BroadcastsService],

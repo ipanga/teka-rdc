@@ -1,4 +1,13 @@
-import { IsString, IsNotEmpty, MaxLength, IsIn } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  IsString,
+  IsNotEmpty,
+  MaxLength,
+  IsIn,
+  IsOptional,
+  IsBoolean,
+  ValidateNested,
+} from 'class-validator';
 
 export const BROADCAST_SEGMENTS = [
   'ALL_BUYERS',
@@ -7,6 +16,25 @@ export const BROADCAST_SEGMENTS = [
 ] as const;
 
 export type BroadcastSegment = (typeof BROADCAST_SEGMENTS)[number];
+
+/**
+ * Per-broadcast channel toggles. When omitted, the service uses
+ * BROADCAST_DEFAULT_CHANNELS (push + email, no sms). Stored as JSON on
+ * NotificationBroadcast.channels.
+ */
+export class BroadcastChannelsDto {
+  @IsOptional()
+  @IsBoolean()
+  push?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  email?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  sms?: boolean;
+}
 
 export class CreateBroadcastDto {
   @IsString({ message: 'Le titre est requis' })
@@ -26,4 +54,9 @@ export class CreateBroadcastDto {
     message: 'Le segment doit être ALL_BUYERS, ALL_SELLERS ou ALL_USERS',
   })
   segment: BroadcastSegment;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => BroadcastChannelsDto)
+  channels?: BroadcastChannelsDto;
 }
