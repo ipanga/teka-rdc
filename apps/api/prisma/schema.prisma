@@ -960,6 +960,11 @@ model NotificationBroadcast {
   title          String
   message        String
   segment        String
+  // { push: boolean, email: boolean, sms: boolean }. NULL = service-layer
+  // default (today: push+email, no sms). Persisted per-row so an admin can
+  // override per broadcast. SMS branch is kept alive during the Orange/AT
+  // removal transition (will be ripped in PR C2).
+  channels       Json?
   status         NotificationBroadcastStatus @default(DRAFT)
   recipientCount Int                         @default(0)
   sentCount      Int                         @default(0)

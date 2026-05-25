@@ -6,14 +6,43 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SmsService } from '../sms/sms.service';
+import { PushService } from '../push/push.service';
+import { EmailService } from '../email/email.service';
 import { NotificationPrefsService } from '../users/notification-prefs.service';
 import {
   NotificationBroadcastStatus,
+  Prisma,
   UserRole,
   UserStatus,
 } from '@prisma/client';
-import { CreateBroadcastDto } from './dto/create-broadcast.dto';
+import {
+  CreateBroadcastDto,
+  BroadcastChannelsDto,
+} from './dto/create-broadcast.dto';
 import { BroadcastQueryDto } from './dto/broadcast-query.dto';
+
+/**
+ * Resolved per-broadcast channel toggles. Each flag controls whether one of
+ * the three fan-out paths fires for a given broadcast.
+ */
+export interface BroadcastChannels {
+  push: boolean;
+  email: boolean;
+  sms: boolean;
+}
+
+/**
+ * Default channels when a broadcast row has `channels = NULL` (legacy rows
+ * + new broadcasts that don't pass a `channels` payload). SMS is OFF by
+ * default during the Orange/AT removal transition; admins who want to keep
+ * using SMS must opt in explicitly per broadcast. The whole SMS branch gets
+ * ripped in PR C2 of the initiative.
+ */
+export const BROADCAST_DEFAULT_CHANNELS: BroadcastChannels = {
+  push: true,
+  email: true,
+  sms: false,
+};
 
 @Injectable()
 export class BroadcastsService {
@@ -22,6 +51,8 @@ export class BroadcastsService {
   constructor(
     private prisma: PrismaService,
     private smsService: SmsService,
+    private pushService: PushService,
+    private emailService: EmailService,
     private notificationPrefs: NotificationPrefsService,
   ) {}
 
@@ -89,6 +120,9 @@ export class BroadcastsService {
         segment: dto.segment,
         status: NotificationBroadcastStatus.DRAFT,
         createdById: userId,
+        channels: dto.channels
+          ? (this.normalizeChannelsInput(dto.channels) as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
       },
       include: {
         createdBy: {
@@ -107,7 +141,8 @@ export class BroadcastsService {
   /**
    * Admin: send a broadcast.
    * Sets status to SENDING, queries recipients by segment,
-   * then sends SMS asynchronously without blocking the response.
+   * then fans out across push/email/sms asynchronously without
+   * blocking the response.
    */
   async send(id: string) {
     const broadcast = await this.prisma.notificationBroadcast.findUnique({
@@ -127,7 +162,8 @@ export class BroadcastsService {
     // Determine role filter based on segment
     const roleFilter = this.getSegmentRoleFilter(broadcast.segment);
 
-    // Count recipients
+    // Count recipients (all active users in segment — per-channel + per-user
+    // opt-out filtering happens at fan-out time)
     const recipientCount = await this.prisma.user.count({
       where: {
         ...roleFilter,
@@ -156,20 +192,26 @@ export class BroadcastsService {
       },
     });
 
-    // Send SMS asynchronously (don't block the response)
+    const channels = this.resolveChannels(broadcast.channels);
+
+    // Fan out asynchronously (don't block the response)
     setImmediate(() => {
-      this.processBroadcastSending(id, broadcast.message, roleFilter).catch(
-        (err) => {
-          this.logger.error(
-            `Error processing broadcast ${id}`,
-            err instanceof Error ? err.message : err,
-          );
-        },
-      );
+      this.processBroadcastSending(
+        id,
+        broadcast.title,
+        broadcast.message,
+        roleFilter,
+        channels,
+      ).catch((err) => {
+        this.logger.error(
+          `Error processing broadcast ${id}`,
+          err instanceof Error ? err.message : err,
+        );
+      });
     });
 
     this.logger.log(
-      `Broadcast ${id} sending started (${recipientCount} recipients)`,
+      `Broadcast ${id} sending started (${recipientCount} recipients, channels=${JSON.stringify(channels)})`,
     );
 
     return updated;
@@ -220,20 +262,64 @@ export class BroadcastsService {
   }
 
   /**
-   * Asynchronously sends SMS to all recipients matching the role filter.
-   * Increments sentCount or failedCount, with 100ms delay between sends.
-   * Updates broadcast status to SENT when done.
+   * Coerces the stored channels JSON into a strict {push,email,sms}. NULL
+   * or malformed input falls back to BROADCAST_DEFAULT_CHANNELS for missing
+   * keys. Exported via `resolveChannels()` so the service stays readable.
+   */
+  private resolveChannels(stored: Prisma.JsonValue | null): BroadcastChannels {
+    if (stored == null || typeof stored !== 'object' || Array.isArray(stored)) {
+      return { ...BROADCAST_DEFAULT_CHANNELS };
+    }
+    const obj = stored;
+    return {
+      push:
+        typeof obj.push === 'boolean'
+          ? obj.push
+          : BROADCAST_DEFAULT_CHANNELS.push,
+      email:
+        typeof obj.email === 'boolean'
+          ? obj.email
+          : BROADCAST_DEFAULT_CHANNELS.email,
+      sms:
+        typeof obj.sms === 'boolean' ? obj.sms : BROADCAST_DEFAULT_CHANNELS.sms,
+    };
+  }
+
+  /**
+   * Strips unknown keys from the incoming DTO before persisting. We don't
+   * pre-fill defaults here — `resolveChannels()` does that at read time so
+   * the stored JSON stays a faithful record of what the admin actually
+   * picked vs. what defaulted.
+   */
+  private normalizeChannelsInput(
+    input: BroadcastChannelsDto,
+  ): Prisma.JsonObject {
+    const out: Prisma.JsonObject = {};
+    if (typeof input.push === 'boolean') out.push = input.push;
+    if (typeof input.email === 'boolean') out.email = input.email;
+    if (typeof input.sms === 'boolean') out.sms = input.sms;
+    return out;
+  }
+
+  /**
+   * Asynchronously fans out a broadcast to all recipients matching the role
+   * filter across the enabled channels. Per-user accounting: a user counts
+   * as `sent` if at least one of their enabled+opted-in+capable channels
+   * delivered successfully; `failed` if all attempted channels failed; and
+   * is skipped (no count) if zero channels were attempted (no opt-ins or
+   * no contact info).
    */
   private async processBroadcastSending(
     broadcastId: string,
+    title: string,
     message: string,
     roleFilter: { role?: UserRole },
+    channels: BroadcastChannels,
   ) {
     let sentCount = 0;
     let failedCount = 0;
 
     try {
-      // Fetch all recipients in batches of 100
       const batchSize = 100;
       let skip = 0;
       let hasMore = true;
@@ -245,7 +331,7 @@ export class BroadcastsService {
             deletedAt: null,
             status: UserStatus.ACTIVE,
           },
-          select: { id: true, phone: true },
+          select: { id: true, phone: true, email: true },
           skip,
           take: batchSize,
         });
@@ -256,34 +342,81 @@ export class BroadcastsService {
         }
 
         for (const user of users) {
-          // Skip users without a phone on file (email-only buyers).
-          if (!user.phone) {
-            continue;
-          }
-          // Respect per-user broadcast opt-out (Phase 7a). Users who flipped
-          // smsBroadcasts=false in their profile are excluded; the row is
-          // not counted as sent or failed.
+          let attempted = false;
+          let anySucceeded = false;
+
+          // Push (FCM) — primary channel for buyers + sellers with the app
           if (
-            !(await this.notificationPrefs.shouldSendBroadcasts(user.id))
+            channels.push &&
+            (await this.notificationPrefs.shouldSendPushBroadcasts(user.id))
           ) {
-            continue;
-          }
-          try {
-            const success = await this.smsService.sendSms(user.phone, message);
-            if (success) {
-              sentCount++;
-            } else {
-              failedCount++;
+            attempted = true;
+            try {
+              const result = await this.pushService.sendToUser(user.id, {
+                title,
+                body: message,
+                data: { broadcastId, kind: 'broadcast' },
+              });
+              if (result.succeeded > 0) anySucceeded = true;
+            } catch (err) {
+              this.logger.warn(
+                `Push failed for user ${user.id} on broadcast ${broadcastId}: ${
+                  err instanceof Error ? err.message : err
+                }`,
+              );
             }
-          } catch {
-            failedCount++;
-            this.logger.warn(
-              `Failed to send SMS to ${user.phone} for broadcast ${broadcastId}`,
-            );
           }
 
-          // 100ms delay between sends to avoid flooding
-          await this.delay(100);
+          // Email (Resend) — works for any user with an email on file
+          if (
+            channels.email &&
+            user.email &&
+            (await this.notificationPrefs.shouldSendEmailBroadcasts(user.id))
+          ) {
+            attempted = true;
+            try {
+              const ok = await this.emailService.sendBroadcast(user.email, {
+                title,
+                message,
+              });
+              if (ok) anySucceeded = true;
+            } catch (err) {
+              this.logger.warn(
+                `Email failed for user ${user.id} on broadcast ${broadcastId}: ${
+                  err instanceof Error ? err.message : err
+                }`,
+              );
+            }
+          }
+
+          // SMS (legacy) — kept alive during Orange/AT removal transition
+          // (ripped in PR C2). Off by default for new broadcasts; admins
+          // who still need it must opt in explicitly per broadcast.
+          if (
+            channels.sms &&
+            user.phone &&
+            (await this.notificationPrefs.shouldSendBroadcasts(user.id))
+          ) {
+            attempted = true;
+            try {
+              const ok = await this.smsService.sendSms(user.phone, message);
+              if (ok) anySucceeded = true;
+            } catch {
+              this.logger.warn(
+                `SMS failed for user ${user.id} on broadcast ${broadcastId}`,
+              );
+            }
+          }
+
+          if (attempted) {
+            if (anySucceeded) sentCount++;
+            else failedCount++;
+            // Small throttle so we don't saturate FCM / Resend / Orange in
+            // one tight loop. Push + email tolerate this fine; SMS needed
+            // it historically. Keep across all channels for symmetry.
+            await this.delay(100);
+          }
+          // else: user has no enabled+capable channel — skip silently.
         }
 
         skip += batchSize;
