@@ -3,12 +3,14 @@ import request from 'supertest';
 import { createTestApp, resetMocks } from './test-utils';
 
 /**
- * Payments — endpoint existence and auth guard tests.
+ * Payments — endpoint existence and auth guard tests for the COD-only
+ * payment surface (since 2026-05-26, PR B2 of the Orange/AT/Flexpay
+ * removal initiative).
  *
- * Verifies:
- * 1. Protected payment endpoints return 401 without authentication
- * 2. The Flexpay webhook is publicly accessible (no auth required)
- * 3. Endpoints exist at the expected paths
+ * The `POST /api/v1/payments/initiate` + `POST /api/v1/payments/webhook/flexpay`
+ * endpoints were removed with Flexpay; their absence (404) is asserted
+ * below so a future re-introduction would have to consciously update
+ * this guard.
  */
 describe('Payments (e2e)', () => {
   let app: INestApplication;
@@ -26,57 +28,21 @@ describe('Payments (e2e)', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // POST /api/v1/payments/initiate — requires BUYER role
+  // Removed endpoints — should 404
   // ---------------------------------------------------------------------------
-  describe('POST /api/v1/payments/initiate', () => {
-    it('should return 401 without authentication', () => {
+  describe('removed Mobile Money + Flexpay endpoints', () => {
+    it('POST /api/v1/payments/initiate should return 404', () => {
       return request(app.getHttpServer())
         .post('/api/v1/payments/initiate')
-        .send({
-          orderId: '70000000-0000-0000-0000-000000000001',
-          mobileMoneyProvider: 'M_PESA',
-          payerPhone: '+243999000001',
-        })
-        .expect(401);
+        .send({})
+        .expect(404);
     });
 
-    it('should return 401 with an invalid Bearer token', () => {
+    it('POST /api/v1/payments/webhook/flexpay should return 404', () => {
       return request(app.getHttpServer())
-        .post('/api/v1/payments/initiate')
-        .set('Authorization', 'Bearer invalid-token')
-        .send({
-          orderId: '70000000-0000-0000-0000-000000000001',
-          mobileMoneyProvider: 'M_PESA',
-          payerPhone: '+243999000001',
-        })
-        .expect(401);
-    });
-  });
-
-  // ---------------------------------------------------------------------------
-  // POST /api/v1/payments/webhook/flexpay — public endpoint
-  // ---------------------------------------------------------------------------
-  describe('POST /api/v1/payments/webhook/flexpay', () => {
-    it('should accept POST requests (public endpoint)', async () => {
-      const res = await request(app.getHttpServer())
         .post('/api/v1/payments/webhook/flexpay')
-        .send({ code: '0', orderNumber: 'TK-TEST-001' });
-
-      // The webhook is public and should NOT return 401 or 404
-      expect(res.status).not.toBe(401);
-      expect(res.status).not.toBe(404);
-      expect(res.status).not.toBe(405);
-    });
-
-    it('should return received:true for a request without valid signature', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/api/v1/payments/webhook/flexpay')
-        .send({ code: '0', orderNumber: 'TK-TEST-002' })
-        .expect(200);
-
-      // Response is wrapped by ResponseInterceptor: { success: true, data: { received, processed } }
-      expect(res.body.success).toBe(true);
-      expect(res.body.data).toHaveProperty('received', true);
+        .send({ code: '0', orderNumber: 'TK-TEST-001' })
+        .expect(404);
     });
   });
 
