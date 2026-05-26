@@ -9,8 +9,16 @@ import { MockSmsProvider } from './providers/mock-sms.provider';
 const smsProviderFactory = {
   provide: SMS_PROVIDER,
   useFactory: (configService: ConfigService) => {
+    // Default to 'mock' since 2026-05-26 (PR C1): the Joi schema no
+    // longer requires SMS_PROVIDER, and the operator has stripped the
+    // ORANGE_*/AT_*/SMS_PROVIDER vars from .env.production. A missing
+    // value now means "no SMS provider configured" → safe mock no-op
+    // plus the loud warnIfMockInProd error below. To re-enable real
+    // SMS, set SMS_PROVIDER=orange in .env.production + restore the
+    // ORANGE_CLIENT_ID/SECRET pair, then recreate the api container.
+    // The entire SMS branch is scheduled for removal in PR C2.
     const provider = configService
-      .get<string>('SMS_PROVIDER', 'orange')
+      .get<string>('SMS_PROVIDER', 'mock')
       .toLowerCase();
     const isProd = configService.get<string>('NODE_ENV') === 'production';
     const logger = new Logger('SmsProviderFactory');
