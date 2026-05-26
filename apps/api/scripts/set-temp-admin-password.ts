@@ -74,9 +74,15 @@ async function main() {
           authProvider: 'EMAIL_PASSWORD',
         },
       });
+      // Don't log the password — CodeQL flags clear-text logging of
+      // credentials and they're right (dev-only or not). The operator
+      // running this script either set SMOKE_ADMIN_PASSWORD themselves
+      // (so they already know it) or is using the default (visible in
+      // the script source above). No need to echo it.
       console.log(
         `Set temp password on admin id=${admin.id} (${admin.email}). ` +
-          `Login with: email=${admin.email} password=${TEMP_PASSWORD}`,
+          `Login email: ${admin.email}. ` +
+          `Password: see $SMOKE_ADMIN_PASSWORD env or the default in this file.`,
       );
     }
   } finally {
