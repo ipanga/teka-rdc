@@ -27,16 +27,32 @@ interface PaginatedResponse {
   };
 }
 
+interface BroadcastChannels {
+  push: boolean;
+  email: boolean;
+  sms: boolean;
+}
+
 interface BroadcastForm {
   title: string;
   message: string;
   segment: string;
+  channels: BroadcastChannels;
 }
+
+// Mirrors apps/api/src/broadcasts/broadcasts.service.ts BROADCAST_DEFAULT_CHANNELS.
+// SMS is opt-in only — kept available during transition (ripped in PR C2).
+const DEFAULT_CHANNELS: BroadcastChannels = {
+  push: true,
+  email: true,
+  sms: false,
+};
 
 const EMPTY_FORM: BroadcastForm = {
   title: '',
   message: '',
   segment: 'ALL_USERS',
+  channels: { ...DEFAULT_CHANNELS },
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -48,7 +64,10 @@ const STATUS_STYLES: Record<string, string> = {
 
 const SEGMENTS = ['ALL_BUYERS', 'ALL_SELLERS', 'ALL_USERS'];
 
-const SMS_MAX_LENGTH = 160;
+// API still caps `message` at 160 chars (legacy SMS constraint — relaxed
+// when the SMS branch goes away in PR C2). Show the counter without the
+// SMS framing.
+const MESSAGE_MAX_LENGTH = 160;
 
 export default function BroadcastsPage() {
   const t = useTranslations('Broadcasts');
@@ -105,7 +124,12 @@ export default function BroadcastsPage() {
     try {
       await apiFetch('/v1/admin/broadcasts', {
         method: 'POST',
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          title: form.title,
+          message: form.message,
+          segment: form.segment,
+          channels: form.channels,
+        }),
       });
       setShowCreateModal(false);
       setForm(EMPTY_FORM);
@@ -172,6 +196,16 @@ export default function BroadcastsPage() {
     setSendingId(broadcast.id);
     setSendingBroadcast(broadcast);
   };
+
+  const toggleChannel = (key: keyof BroadcastChannels) => {
+    setForm((prev) => ({
+      ...prev,
+      channels: { ...prev.channels, [key]: !prev.channels[key] },
+    }));
+  };
+
+  const hasAnyChannel =
+    form.channels.push || form.channels.email || form.channels.sms;
 
   return (
     <div className="p-8">
@@ -330,11 +364,56 @@ export default function BroadcastsPage() {
                     onChange={(e) => setForm({ ...form, message: e.target.value })}
                     className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                     rows={4}
-                    maxLength={SMS_MAX_LENGTH}
+                    maxLength={MESSAGE_MAX_LENGTH}
                   />
-                  <p className={`text-xs mt-1 ${form.message.length > SMS_MAX_LENGTH ? 'text-destructive' : 'text-muted-foreground'}`}>
-                    {t('characterCount', { count: form.message.length, max: SMS_MAX_LENGTH })}
+                  <p className={`text-xs mt-1 ${form.message.length > MESSAGE_MAX_LENGTH ? 'text-destructive' : 'text-muted-foreground'}`}>
+                    {t('characterCount', { count: form.message.length, max: MESSAGE_MAX_LENGTH })}
                   </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-2">{t('channelsLabel')}</label>
+                  <div className="space-y-2">
+                    <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={form.channels.push}
+                        onChange={() => toggleChannel('push')}
+                        className="mt-0.5 accent-primary"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-foreground">{t('channelPush')}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{t('channelPushDesc')}</div>
+                      </div>
+                    </label>
+                    <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={form.channels.email}
+                        onChange={() => toggleChannel('email')}
+                        className="mt-0.5 accent-primary"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-foreground">{t('channelEmail')}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{t('channelEmailDesc')}</div>
+                      </div>
+                    </label>
+                    <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer opacity-75">
+                      <input
+                        type="checkbox"
+                        checked={form.channels.sms}
+                        onChange={() => toggleChannel('sms')}
+                        className="mt-0.5 accent-primary"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-foreground">{t('channelSms')}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{t('channelSmsDesc')}</div>
+                      </div>
+                    </label>
+                  </div>
+                  {!hasAnyChannel && (
+                    <p className="text-xs text-destructive mt-1">{t('channelsRequired')}</p>
+                  )}
                 </div>
 
                 <div>
@@ -360,7 +439,7 @@ export default function BroadcastsPage() {
                 </button>
                 <button
                   onClick={handleCreate}
-                  disabled={isSaving || !form.title || !form.message}
+                  disabled={isSaving || !form.title || !form.message || !hasAnyChannel}
                   className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSaving ? tCommon('loading') : tCommon('save')}
