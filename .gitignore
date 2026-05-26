@@ -51,6 +51,10 @@ pnpm-debug.log*
 *.tsbuildinfo
 .claude/
 tasks/
+# Scratch directory for ad-hoc local artefacts (smoke screenshots,
+# one-off output dumps, etc). Anything in here is ephemeral — never
+# committed and never used by CI or runtime code.
+.tmp/
 
 # Firebase / APNs credentials — must NEVER be committed.
 # Restore from local backup (~/Desktop/teka-rdc/) or GitHub Secrets if lost.
