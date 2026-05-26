@@ -1,4 +1,4 @@
-# Status — 2026-05-25
+# Status — 2026-05-26
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,15 +6,46 @@
 
 ## Active initiative
 
-**Orange + AT SMS + Flexpay removal** (started 2026-05-25; planned).
+**None.** The Orange + AT SMS + Flexpay removal initiative (started 2026-05-25, completed 2026-05-26) closed out cleanly. See "Recently completed" below.
 
-Full PR breakdown, dependency graph, risk matrix, and rollback strategy in `~/.claude/plans/orange-flexpay-removal.md`. Summary:
+## Recently completed — 2026-05-25 → 2026-05-26
 
-- **10 PRs across 4 phases.** Phase A (notification rerouting, additive) → Phase B (Flexpay deletion) → Phase C (env validation + SMS module deletion, the load-bearing change) → Phase D (cleanup).
-- **Decisions locked in:** push primary + email fallback for buyers without device tokens; manual ops bank-transfer for seller payouts; preserve historical DB rows.
-- **Pre-flight checklist** at the bottom of the plan must pass before PR A1 starts. Notably: confirm zero pending FLEXPAY transactions in prod DB; confirm `RESEND_API_KEY` is valid.
+**Orange + Africa's Talking SMS + Flexpay Mobile Money removal** (10-PR initiative, A1 → D3). Plan archived at `~/.claude/plans/archive/orange-flexpay-removal.shipped.md`. The 2026-05-24 outage gap (operator stripped `ORANGE_*` / `FLEXPAY_*` envs from `.env.production` before the API was tolerant of them missing → Joi crash-loop for ~2h) is now permanently closed.
 
-**Next concrete action when resuming:** read the plan file's "Pre-flight checklist" section. If all items pass, start PR A1 (email templates + EmailService.sendOrderNotification — additive, dormant until PR A2 uses it).
+**Net effect:** ~1450 lines deleted across 50+ files, ~250 added. 10 feature PRs + 7 release PRs + 1 docs/closeout PR shipped to main. The api boots silent (no `SMS_PROVIDER=mock` warning), broadcasts compose with 500 chars instead of 160, admin UI shows Push + Email only, checkout is COD-only, `apps/api/src/sms/` directory is gone, 14 env keys dropped from Joi validation + stripped from `.env.production` on the VPS.
+
+**Phase A — notification rerouting (additive):**
+- **#221 → #222** (A1) — `EmailService.sendOrderNotification` + 5 buyer order-event email templates (confirmed / shipped / delivered / cancelled / payment-confirmed). French, brand red, inline styles. Dormant until A2.
+- **#223 → #224** (A2) — `OrderNotificationService` swapped its dead `sendSms()` stub for `pushOrEmail()`: push via FCM primary; falls back to email when `PushService.sendToUser` returns `succeeded=0`. Sellers stay push-only.
+- **#225 → #226** (A3) — `BroadcastsService` dual-publish: new `NotificationBroadcast.channels Json?` column (manual SQL migration `2026-05-25_broadcast_channels.sql` applied via `Apply prod migration` workflow), per-broadcast `{push, email, sms}` toggle with default `{push:true, email:true, sms:false}`. `EmailService.sendBroadcast` + `broadcast.template.ts` shipped. `NotificationPrefs` extended with `pushBroadcasts` + `emailBroadcasts` opt-outs.
+
+**Phase B — Flexpay + MM UI deletion:**
+- **#227** (B1) — Dead Mobile Money UI removal across buyer-web + buyer-mobile + `@teka/shared`. Removed `ENABLE_MOBILE_MONEY` toggle, MM tile + provider picker + payer-phone input, `MobileMoneyProvider` shared type + constants. `PaymentMethod` union kept for legacy-order display.
+- **#228 → #229** (B2) — API Flexpay deletion. Removed `apps/api/src/payments/providers/`, `apps/api/src/payments/interfaces/`, `initiate-payment.dto.ts`. Simplified `PaymentsModule` / `PaymentsController` / `PaymentsService` to COD-only — no `PAYMENT_PROVIDER` factory, no `POST /v1/payments/initiate`, no `POST /v1/payments/webhook/flexpay` (both 404 now), no `handlePaymentCallback`. `CheckoutDto.paymentMethod` narrowed to `'COD'` only (legacy MM POSTs get a clean French 400). Pre-flight verified: prod had 0 pending FLEXPAY transactions.
+- **#230** (B3) — Admin broadcasts channel picker (Push + Email + dimmed SMS-déprécié). POST body now sends `channels: { push, email, sms }`. Form save disabled until at least one channel selected.
+
+**Phase C — env validation + SMS module deletion (the load-bearing change):**
+- **#231 → #232** (C1) — Dropped 14 env keys from Joi schema (`SMS_PROVIDER`, `ORANGE_*` × 4, `AT_*` × 3, `FLEXPAY_*` × 5, `PAYMENT_MOCK_MODE`). Flipped `sms.module.ts` JS-level `SMS_PROVIDER` fallback `'orange' → 'mock'` so the post-strip default is safe no-op + loud `warnIfMockInProd` startup ERROR. **Operator then stripped the 14 keys from `.env.production` on the VPS** — boot confirmed clean (`[SmsProviderFactory] ERROR ⚠️  SMS_PROVIDER=mock` log line emitted as expected).
+- **#233 → #234** (C2) — Deleted `apps/api/src/sms/` directory entirely (`SmsService`, `SmsModule`, Orange DRC + AT + mock providers, `sms-provider.interface.ts`). Dropped SMS branch from `BroadcastsService.processBroadcastSending` + `BroadcastChannels.sms` field + `BROADCAST_DEFAULT_CHANNELS.sms`. Dropped `smsBroadcasts` from `NotificationPrefs` DTO + resolver + `shouldSendBroadcasts` predicate (no callers after C2). Bumped broadcast `message.MaxLength` 160 → 500. Cleaned admin-web (SMS checkbox + `smsBroadcasts` profile toggle gone, 4 i18n keys dropped). **Kept `smsOrderUpdates` + `shouldSendOrderUpdates`** — name is legacy but the field still gates push + email-fallback order events (renaming would need a JSON data migration; out of scope).
+
+**Phase D — cleanup:**
+- **#235** (D1) — Seed updates: sample orders 2 + 5 paymentMethod `MOBILE_MONEY → COD`; order 5 paymentStatus `REFUNDED → FAILED` (COD-cancelled means no money was ever taken). 3 sample transactions provider `FLEXPAY → COD`. Fixed a pre-existing seed inconsistency where order 3's transaction was FLEXPAY while the order itself was already COD.
+- **#236** (D2) — Docs sweep: `CLAUDE.md` (Rule 11 + 14 rewritten, § 2 Tech Stack, § 3 env vars, post-phase chronology entry), `docs/architecture.md` (3-stack messaging diagram, Payment Webhook section removed, COD-only design decision), `docs/api-reference.md` (removed endpoints callout, payouts manual-ops note), `docs/deployment.md` (env-vars table + go-live checklist purged of SMS + Flexpay).
+- **D3** (this commit) — STATUS closeout + plan-file archival.
+
+**Decisions captured for future maintainers:**
+- `PaymentMethod.MOBILE_MONEY` + `TransactionProvider.FLEXPAY` Prisma enum values **stay forever** — required for read-side rendering of legacy orders/transactions.
+- `smsOrderUpdates` field name kept despite the SMS branch being gone (storage-format back-compat; documented inline in `notification-prefs.dto.ts`).
+- Re-introducing automated payments would mean adding a new provider abstraction from scratch — none currently exists in the codebase.
+- Re-introducing SMS would need a written architecture decision per Rule 11 (the removal closed a load-bearing outage gap).
+
+## In-flight PRs
+
+None.
+
+## In-flight local branches
+
+None.
 
 ## Recently completed — 2026-05-24
 
@@ -106,14 +137,6 @@ Shipped 2026-05-21 / 22:
 
 Manual migration applied to dev + prod DBs (the `device_tokens` table).
 
-## In-flight PRs
-
-None.
-
-## In-flight local branches
-
-None.
-
 ## Pending in the push initiative
 
 - **PR C** — iOS scaffold for both apps (`flutter create --platforms=ios .` per app, GoogleService-Info.plist placement, Push Notifications + Background Modes capabilities). APNs `.p8` already uploaded to Firebase Console (same key for buyer + seller — project-wide auth key).
@@ -134,6 +157,7 @@ Surfaced by a 2026-05-21 code-rot audit. Not yet picked up.
 
 ## Recently archived plans
 
+- `~/.claude/plans/archive/orange-flexpay-removal.shipped.md` — **Orange + AT SMS + Flexpay removal**, executed in PRs #221–#236 (May 25–26, 2026). **Do not re-execute.** See "Recently completed — 2026-05-25 → 2026-05-26" above for the full PR list and decisions captured for maintainers.
 - `~/.claude/plans/archive/partitioned-nibbling-spark.shipped.md` — Rakuten redesign, executed in PRs #67–#73. **Do not re-execute.** Plan files in `~/.claude/plans/archive/` with `.shipped.md` are historical — read for context only.
 
 > Other untouched files in `~/.claude/plans/` (e.g. `calm-soaring-emerson.md`, `fix-ios-push-mighty-nebula.md`) have unknown status. They are not necessarily in-flight — cross-reference against git log + this file before treating one as a backlog item.

@@ -355,10 +355,12 @@ Creates one order per seller. Validates stock, calculates delivery fees, decreme
 POST /v1/checkout
 {
   "addressId": "40000000-...",
-  "paymentMethod": "MOBILE_MONEY",
+  "paymentMethod": "COD",
   "notes": "Appelez avant la livraison"
 }
 ```
+
+`paymentMethod` only accepts `"COD"` since 2026-05-26 (PR B2 of the Orange/AT/Flexpay removal initiative). Legacy clients posting `"MOBILE_MONEY"` get a 400 with a French error prompting an app update. The `Order.paymentMethod` enum still carries `MOBILE_MONEY` on the read side for historical-row rendering.
 
 ---
 
@@ -409,28 +411,17 @@ PATCH /v1/sellers/orders/70000000-.../reject
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/v1/payments/initiate` | Buyer | Initiate Mobile Money payment |
 | GET | `/v1/payments/orders/:orderId/transactions` | Bearer | Get transactions for an order |
 | GET | `/v1/payments/transactions` | Admin | List all transactions (paginated) |
-| POST | `/v1/payments/webhook/flexpay` | Public | Flexpay webhook callback (signature verified) |
 
-### Initiate Payment
-```json
-POST /v1/payments/initiate
-{
-  "orderId": "70000000-...",
-  "mobileMoneyProvider": "MPESA",
-  "payerPhone": "+243XXXXXXXXX"
-}
-```
+**Removed endpoints (now 404, since 2026-05-26 PR B2):**
 
-Supported providers: `MPESA`, `AIRTEL_MONEY`, `ORANGE_MONEY`
+| Method | Endpoint | Removed by |
+|--------|----------|------------|
+| POST | `/v1/payments/initiate` | Mobile Money payment initiation — gone with Flexpay |
+| POST | `/v1/payments/webhook/flexpay` | Flexpay callback — provider deleted |
 
-The webhook endpoint (`/v1/payments/webhook/flexpay`) is:
-- Public (no JWT required)
-- Rate-limit exempt (`@SkipThrottle()`)
-- Verifies `x-flexpay-signature` header
-- Idempotent (checks `externalReference` to prevent duplicate processing)
+COD is the only payment method. `CheckoutService` writes a `Transaction` row with `provider = COD` and `status = PENDING` synchronously on order creation; `SellerOrdersService.markDelivered()` flips it to `COMPLETED`. No external provider call, no webhook handshake, no `PaymentProvider` interface in the codebase anymore.
 
 ---
 
@@ -508,7 +499,7 @@ image: <file> (max 5MB, JPEG/PNG/WebP)
 | GET | `/v1/sellers/wallet` | Seller | Get wallet summary (balance, pending, paid) |
 | GET | `/v1/sellers/earnings` | Seller | List earnings history (paginated) |
 | GET | `/v1/sellers/payouts` | Seller | List payout history (paginated) |
-| POST | `/v1/sellers/payouts` | Seller | Request a payout to Mobile Money |
+| POST | `/v1/sellers/payouts` | Seller | Request a payout (manual bank-transfer / cash by ops) |
 
 ### Request Payout
 ```json
@@ -520,6 +511,8 @@ POST /v1/sellers/payouts
   "mobileMoneyPhone": "+243XXXXXXXXX"
 }
 ```
+
+> ⚠️ The request body still accepts the legacy `mobileMoneyProvider` + `mobileMoneyPhone` fields, but **no automated Mobile Money disbursement happens** since the Flexpay removal (PR B2, 2026-05-26). Payouts are processed manually by ops via direct bank-transfer or cash. The accepted fields are kept so existing seller-app builds don't 400 on submit. Treat them as informational metadata, not as a payment routing instruction.
 
 ---
 

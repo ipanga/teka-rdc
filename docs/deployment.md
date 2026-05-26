@@ -36,10 +36,14 @@ cp .env.production.example .env.production
 Edit `.env.production` with your actual values. See the [Environment Variables Reference](#environment-variables-reference) section below for all required variables.
 
 **External services to provision before first deploy:**
-- **Orange DRC SMS (notifications)** — Register at [developer.orange.com](https://developer.orange.com/apis/sms/getting-started), create a sandbox app first to test, then production. Note the client id, secret, and the sender address assigned to your account. Fill `ORANGE_CLIENT_ID`, `ORANGE_CLIENT_SECRET`, `ORANGE_SENDER_ADDRESS` in `.env.production`. SMS is for order/payment notifications and admin broadcasts only.
 - **Gupshup WhatsApp (buyer OTP auth)** — Sign up at [gupshup.io](https://www.gupshup.io/), create a WhatsApp Business app, register your sending number, and **submit an authentication template** in French for one-time codes. Template approval typically takes 24–48h (sometimes longer for new accounts). Once approved, copy the template UUID and fill `GUPSHUP_API_KEY`, `GUPSHUP_APP_NAME`, `GUPSHUP_SOURCE_NUMBER`, `GUPSHUP_OTP_TEMPLATE_ID` in `.env.production`, then flip `WHATSAPP_PROVIDER=mock → gupshup` and recreate the api container. **Buyer auth fails closed until this step is complete** — keep `WHATSAPP_PROVIDER=mock` in production (which fails every login attempt with a loud startup warning) only as a deliberate pause; never ship to real users without the approved template.
-- **Resend** — Sign up at [resend.com](https://resend.com/), verify your sending domain (`teka.cd`), grab an API key into `RESEND_API_KEY`.
-- **Flexpay** — Real production credentials for `FLEXPAY_API_KEY`, `FLEXPAY_MERCHANT_ID`, `FLEXPAY_WEBHOOK_SECRET`. Flip `PAYMENT_MOCK_MODE=false` only after a webhook round-trip has been verified on staging.
+- **Resend** — Sign up at [resend.com](https://resend.com/), verify your sending domain (`teka.cd`), grab an API key into `RESEND_API_KEY`. Carries all transactional + buyer-fallback + broadcast email.
+- **Firebase Cloud Messaging** — Create a Firebase project, add the Android apps (buyer + seller, plus dev/staging flavor variants), download `google-services.json` into each Flutter app, and provision a service-account JSON for the backend. See [push-notifications.md](push-notifications.md) for the full setup.
+
+**Removed services (no longer needed since 2026-05-26):**
+- ~~Orange DRC SMS~~ — order events ride Push + Email fallback, broadcasts ride Push + Email. See `OrderNotificationService` and `BroadcastsService`.
+- ~~Africa's Talking SMS~~ — same removal.
+- ~~Flexpay Mobile Money~~ — platform is COD-only. `CheckoutService` writes `Transaction { provider: COD }` directly.
 - **Google Cloud Console** — For the OAuth web client used by the three web apps, add **every** production origin under *Authorized JavaScript origins*:
   - `https://teka.cd`
   - `https://seller.teka.cd`
@@ -207,14 +211,6 @@ Expected health response:
 | `CLOUDINARY_CLOUD_NAME` | Yes | Cloudinary cloud name for image hosting |
 | `CLOUDINARY_API_KEY` | Yes | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Yes | Cloudinary API secret |
-| `SMS_PROVIDER` | No | SMS provider: `orange` (default in prod), `africas_talking`, or `mock` |
-| `ORANGE_CLIENT_ID` | Yes (if `SMS_PROVIDER=orange`) | Orange DRC OAuth2 client id from [Orange Developer Portal](https://developer.orange.com/apis/sms/getting-started) |
-| `ORANGE_CLIENT_SECRET` | Yes (if `SMS_PROVIDER=orange`) | Orange DRC OAuth2 client secret |
-| `ORANGE_SENDER_ADDRESS` | Yes (if `SMS_PROVIDER=orange`) | Sender address in form `tel:+243XXXXXXXXX` or shortcode |
-| `ORANGE_API_BASE` | No | Orange API base URL (default: `https://api.orange.com`) |
-| `AT_API_KEY` | Yes (if `SMS_PROVIDER=africas_talking`) | Africa's Talking API key — kept as rollback fallback |
-| `AT_USERNAME` | No | Africa's Talking username (default: `teka_rdc`) |
-| `AT_SENDER_ID` | No | Africa's Talking sender ID (default: `TekaRDC`) |
 | `WHATSAPP_PROVIDER` | No | Buyer OTP provider: `gupshup` (prod) or `mock` (dev/staging). Selecting `mock` in production emits a loud startup ERROR and fails every buyer OTP delivery. |
 | `GUPSHUP_API_KEY` | Yes (if `WHATSAPP_PROVIDER=gupshup` in prod) | Gupshup API key from the Gupshup app dashboard |
 | `GUPSHUP_APP_NAME` | No | Gupshup app name (the `src.name` field on the template send) |
@@ -233,12 +229,7 @@ Expected health response:
 | `BUYER_WEB_URL` | No | Public URL used to build reset/verification links for buyers |
 | `SELLER_WEB_URL` | No | Public URL used to build seller setup/reset links |
 | `ADMIN_WEB_URL` | No | Public URL used to build admin reset links |
-| `FLEXPAY_API_URL` | Yes | Flexpay Mobile Money API endpoint |
-| `FLEXPAY_API_KEY` | Yes | Flexpay API key |
-| `FLEXPAY_MERCHANT_ID` | Yes | Flexpay merchant identifier |
-| `FLEXPAY_CALLBACK_URL` | Yes | Webhook callback URL (e.g., `https://teka.cd/api/v1/payments/webhook/flexpay`) |
 | `CORS_ORIGINS` | Yes | Comma-separated allowed origins (e.g., `https://teka.cd,https://www.teka.cd`) |
-| `PAYMENT_MOCK_MODE` | No | Set to `false` for production (default: `true` in development) |
 | `NODE_ENV` | No | Set automatically to `production` in Docker |
 | `API_PORT` | No | API server port (default: `5050`) |
 | `API_URL` | No | Full API URL for inter-service communication |
@@ -515,7 +506,6 @@ docker compose -f docker-compose.prod.yml restart api
 Before going live, verify:
 
 - [ ] `.env.production` has all required variables set with real credentials
-- [ ] `PAYMENT_MOCK_MODE` is set to `false`
 - [ ] `NODE_ENV` is `production` (set automatically in Dockerfiles)
 - [ ] SSL certificates are installed and HTTPS works
 - [ ] Database migrations are applied (`prisma migrate deploy`)
@@ -526,6 +516,6 @@ Before going live, verify:
 - [ ] Crontab entry for SSL renewal is configured
 - [ ] Log rotation is configured (handled by Docker json-file driver)
 - [ ] Backup strategy for database is in place
-- [ ] Flexpay webhook callback URL is registered with Flexpay
-- [ ] Africa's Talking sender ID is registered for DRC
+- [ ] Gupshup WhatsApp template is approved and `GUPSHUP_OTP_TEMPLATE_ID` is set
+- [ ] Firebase service-account credentials are provisioned (push notifications)
 - [ ] Cloudinary upload presets and limits are configured
