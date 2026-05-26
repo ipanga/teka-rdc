@@ -115,7 +115,7 @@
     "passwordChangeSuccess": "Mot de passe modifié avec succès. Les autres appareils ont été déconnectés.",
     "passwordChangeError": "Erreur lors de la modification du mot de passe",
     "sectionNotifications": "Notifications",
-    "notificationsHint": "Choisissez les SMS que vous voulez recevoir. Les emails de sécurité restent toujours envoyés.",
+    "notificationsHint": "Choisissez les notifications que vous voulez recevoir. Les emails de sécurité restent toujours envoyés.",
     "notifOrderUpdates": "Mises à jour de commande",
     "notifOrderUpdatesDesc": "Confirmation, expédition, livraison, annulation",
     "notifSaved": "Préférences enregistrées",
