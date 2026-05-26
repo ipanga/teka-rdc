@@ -50,9 +50,10 @@ export default function AdminProfilePage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
 
-  // Notification preferences (auto-save on toggle)
+  // Notification preferences (auto-save on toggle). The smsOrderUpdates
+  // name is legacy — since PR C2 (2026-05-26) it gates push + email-
+  // fallback order events, not SMS (the SMS branch is deleted).
   const [smsOrderUpdates, setSmsOrderUpdates] = useState(true);
-  const [smsBroadcasts, setSmsBroadcasts] = useState(true);
   const [notifSaving, setNotifSaving] = useState(false);
 
   // Active sessions ("Appareils connectés")
@@ -77,11 +78,10 @@ export default function AdminProfilePage() {
 
   const loadNotificationPrefs = useCallback(async () => {
     try {
-      const res = await apiFetch<{ smsOrderUpdates: boolean; smsBroadcasts: boolean }>(
+      const res = await apiFetch<{ smsOrderUpdates: boolean }>(
         '/v1/users/notification-prefs',
       );
       setSmsOrderUpdates(res.data.smsOrderUpdates);
-      setSmsBroadcasts(res.data.smsBroadcasts);
     } catch {
       // Defaults stay all-on
     }
@@ -133,9 +133,8 @@ export default function AdminProfilePage() {
     }
   };
 
-  const updateNotifPref = async (key: 'smsOrderUpdates' | 'smsBroadcasts', value: boolean) => {
-    if (key === 'smsOrderUpdates') setSmsOrderUpdates(value);
-    else setSmsBroadcasts(value);
+  const updateNotifPref = async (key: 'smsOrderUpdates', value: boolean) => {
+    setSmsOrderUpdates(value);
     setNotifSaving(true);
     try {
       await apiFetch('/v1/users/notification-prefs', {
@@ -144,8 +143,7 @@ export default function AdminProfilePage() {
       });
       showFeedback('success', t('notifSaved'));
     } catch {
-      if (key === 'smsOrderUpdates') setSmsOrderUpdates(!value);
-      else setSmsBroadcasts(!value);
+      setSmsOrderUpdates(!value);
       showFeedback('error', t('notifError'));
     } finally {
       setNotifSaving(false);
@@ -428,13 +426,6 @@ export default function AdminProfilePage() {
             checked={smsOrderUpdates}
             disabled={notifSaving}
             onChange={(v) => updateNotifPref('smsOrderUpdates', v)}
-          />
-          <NotifToggle
-            label={t('notifBroadcasts')}
-            description={t('notifBroadcastsDesc')}
-            checked={smsBroadcasts}
-            disabled={notifSaving}
-            onChange={(v) => updateNotifPref('smsBroadcasts', v)}
           />
         </div>
       </section>
