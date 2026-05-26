@@ -19,8 +19,12 @@ export type BroadcastSegment = (typeof BROADCAST_SEGMENTS)[number];
 
 /**
  * Per-broadcast channel toggles. When omitted, the service uses
- * BROADCAST_DEFAULT_CHANNELS (push + email, no sms). Stored as JSON on
+ * BROADCAST_DEFAULT_CHANNELS (push + email). Stored as JSON on
  * NotificationBroadcast.channels.
+ *
+ * The `sms` field was removed 2026-05-26 (PR C2 of the Orange/AT/Flexpay
+ * removal initiative). Legacy clients sending `sms: true|false` get the
+ * field silently dropped at the validation layer.
  */
 export class BroadcastChannelsDto {
   @IsOptional()
@@ -30,10 +34,6 @@ export class BroadcastChannelsDto {
   @IsOptional()
   @IsBoolean()
   email?: boolean;
-
-  @IsOptional()
-  @IsBoolean()
-  sms?: boolean;
 }
 
 export class CreateBroadcastDto {
@@ -42,10 +42,14 @@ export class CreateBroadcastDto {
   @MaxLength(100, { message: 'Le titre ne peut pas dépasser 100 caractères' })
   title: string;
 
+  // Length cap relaxed from 160 → 500 chars on 2026-05-26 (PR C2). The
+  // 160 limit was the SMS segment ceiling; with the SMS branch deleted,
+  // FCM (~250-byte body, but renders longer in expanded notifications)
+  // and Resend (no practical limit) easily handle 500.
   @IsString({ message: 'Le message est requis' })
   @IsNotEmpty({ message: 'Le message ne peut pas être vide' })
-  @MaxLength(160, {
-    message: 'Le message ne peut pas dépasser 160 caractères (limite SMS)',
+  @MaxLength(500, {
+    message: 'Le message ne peut pas dépasser 500 caractères',
   })
   message: string;
 

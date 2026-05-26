@@ -30,7 +30,6 @@ interface PaginatedResponse {
 interface BroadcastChannels {
   push: boolean;
   email: boolean;
-  sms: boolean;
 }
 
 interface BroadcastForm {
@@ -41,11 +40,9 @@ interface BroadcastForm {
 }
 
 // Mirrors apps/api/src/broadcasts/broadcasts.service.ts BROADCAST_DEFAULT_CHANNELS.
-// SMS is opt-in only — kept available during transition (ripped in PR C2).
 const DEFAULT_CHANNELS: BroadcastChannels = {
   push: true,
   email: true,
-  sms: false,
 };
 
 const EMPTY_FORM: BroadcastForm = {
@@ -64,10 +61,9 @@ const STATUS_STYLES: Record<string, string> = {
 
 const SEGMENTS = ['ALL_BUYERS', 'ALL_SELLERS', 'ALL_USERS'];
 
-// API still caps `message` at 160 chars (legacy SMS constraint — relaxed
-// when the SMS branch goes away in PR C2). Show the counter without the
-// SMS framing.
-const MESSAGE_MAX_LENGTH = 160;
+// API caps broadcast messages at 500 chars (raised from 160 in PR C2 once
+// the SMS branch went away).
+const MESSAGE_MAX_LENGTH = 500;
 
 export default function BroadcastsPage() {
   const t = useTranslations('Broadcasts');
@@ -204,8 +200,7 @@ export default function BroadcastsPage() {
     }));
   };
 
-  const hasAnyChannel =
-    form.channels.push || form.channels.email || form.channels.sms;
+  const hasAnyChannel = form.channels.push || form.channels.email;
 
   return (
     <div className="p-8">
@@ -396,18 +391,6 @@ export default function BroadcastsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-foreground">{t('channelEmail')}</div>
                         <div className="text-xs text-muted-foreground mt-0.5">{t('channelEmailDesc')}</div>
-                      </div>
-                    </label>
-                    <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer opacity-75">
-                      <input
-                        type="checkbox"
-                        checked={form.channels.sms}
-                        onChange={() => toggleChannel('sms')}
-                        className="mt-0.5 accent-primary"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-foreground">{t('channelSms')}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{t('channelSmsDesc')}</div>
                       </div>
                     </label>
                   </div>
