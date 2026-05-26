@@ -16,6 +16,11 @@ import {
  *
  * Transactional sends (OTP, password reset, email verify) bypass this
  * service entirely — they are not opt-out-able.
+ *
+ * NB. Legacy `smsBroadcasts` keys in stored JSON are ignored at read time
+ * (the SMS broadcast branch was deleted in PR C2, 2026-05-26). The
+ * `smsOrderUpdates` field stays — it still gates order-event notifications
+ * even though those now ride push + email-fallback rather than SMS.
  */
 @Injectable()
 export class NotificationPrefsService {
@@ -41,10 +46,6 @@ export class NotificationPrefsService {
         typeof stored.smsOrderUpdates === 'boolean'
           ? stored.smsOrderUpdates
           : DEFAULT_NOTIFICATION_PREFS.smsOrderUpdates,
-      smsBroadcasts:
-        typeof stored.smsBroadcasts === 'boolean'
-          ? stored.smsBroadcasts
-          : DEFAULT_NOTIFICATION_PREFS.smsBroadcasts,
       pushBroadcasts:
         typeof stored.pushBroadcasts === 'boolean'
           ? stored.pushBroadcasts
@@ -70,10 +71,6 @@ export class NotificationPrefsService {
         dto.smsOrderUpdates !== undefined
           ? dto.smsOrderUpdates
           : current.smsOrderUpdates,
-      smsBroadcasts:
-        dto.smsBroadcasts !== undefined
-          ? dto.smsBroadcasts
-          : current.smsBroadcasts,
       pushBroadcasts:
         dto.pushBroadcasts !== undefined
           ? dto.pushBroadcasts
@@ -97,9 +94,9 @@ export class NotificationPrefsService {
   }
 
   /**
-   * Fast predicate for the SMS notifications service. Tolerates lookup
-   * failures (logs + returns true) so a bad row doesn't silently drop
-   * notifications.
+   * Fast predicate for order-event notifications. Tolerates lookup failures
+   * (logs + returns true) so a bad row doesn't silently drop notifications.
+   * Despite the legacy `sms` naming this gates push + email-fallback now.
    */
   async shouldSendOrderUpdates(userId: string | null): Promise<boolean> {
     if (!userId) return true;
@@ -109,19 +106,6 @@ export class NotificationPrefsService {
     } catch (e) {
       this.logger.warn(
         `shouldSendOrderUpdates(${userId}) lookup failed, defaulting to true: ${e}`,
-      );
-      return true;
-    }
-  }
-
-  async shouldSendBroadcasts(userId: string | null): Promise<boolean> {
-    if (!userId) return true;
-    try {
-      const prefs = await this.resolve(userId);
-      return prefs.smsBroadcasts;
-    } catch (e) {
-      this.logger.warn(
-        `shouldSendBroadcasts(${userId}) lookup failed, defaulting to true: ${e}`,
       );
       return true;
     }

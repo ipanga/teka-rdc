@@ -58,9 +58,11 @@ export class UsersController {
   }
 
   /**
-   * Notification preferences. Two toggles for now (smsOrderUpdates,
-   * smsBroadcasts) with all-on defaults. Transactional sends (OTP,
-   * password reset, email verify) ignore these.
+   * Notification preferences. Three toggles (smsOrderUpdates,
+   * pushBroadcasts, emailBroadcasts) with all-on defaults. The
+   * smsOrderUpdates name is legacy — it now gates push + email-fallback
+   * order events (the SMS branch was deleted in PR C2, 2026-05-26).
+   * Transactional sends (OTP, password reset, email verify) ignore these.
    */
   @Get('notification-prefs')
   async getNotificationPrefs(@CurrentUser('userId') userId: string) {

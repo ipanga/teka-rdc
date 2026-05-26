@@ -9,17 +9,21 @@ import { IsBoolean, IsOptional } from 'class-validator';
  *
  * Transactional sends (OTP, password reset, email verify) are NEVER
  * opt-out-able and ignore this DTO entirely.
+ *
+ * The `smsBroadcasts` field was retired 2026-05-26 (PR C2) along with the
+ * SMS broadcast branch. Legacy clients sending it get the field silently
+ * ignored; legacy stored values are not consulted.
  */
 export class NotificationPrefsDto {
-  /** Order lifecycle SMS: placed / confirmed / shipped / delivered / cancelled. */
+  /**
+   * Order lifecycle notifications: placed / confirmed / shipped / delivered
+   * / cancelled. Name carries the legacy `sms` prefix for storage-format
+   * back-compat with rows written before the channel split; the gate now
+   * controls push + email-fallback (no SMS exists).
+   */
   @IsOptional()
   @IsBoolean()
   smsOrderUpdates?: boolean;
-
-  /** Admin SMS broadcasts (announcements, marketing). */
-  @IsOptional()
-  @IsBoolean()
-  smsBroadcasts?: boolean;
 
   /** Admin push broadcasts (announcements, marketing). */
   @IsOptional()
@@ -39,14 +43,12 @@ export class NotificationPrefsDto {
  */
 export interface ResolvedNotificationPrefs {
   smsOrderUpdates: boolean;
-  smsBroadcasts: boolean;
   pushBroadcasts: boolean;
   emailBroadcasts: boolean;
 }
 
 export const DEFAULT_NOTIFICATION_PREFS: ResolvedNotificationPrefs = {
   smsOrderUpdates: true,
-  smsBroadcasts: true,
   pushBroadcasts: true,
   emailBroadcasts: true,
 };
