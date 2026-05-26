@@ -30,9 +30,10 @@ Teka RDC is a multi-tenant e-commerce marketplace for the Democratic Republic of
                     ┌─────▼──────┐       ┌───────────────────────┐
                     │    API     │       │   External Services   │
                     │ Port 5050  │──────►│  Cloudinary (Images)  │
-                    │ NestJS 11  │       │  Africa's Talking SMS │
-                    │ Prisma 6   │       │  Flexpay (Mobile $)   │
-                    └──────┬────┘       │  Resend (Email)       │
+                    │ NestJS 11  │       │  Resend (Email)       │
+                    │ Prisma 6   │       │  Gupshup (WhatsApp)   │
+                    └──────┬────┘       │  Firebase Cloud Msg   │
+                           │            │  Sentry (Errors)      │
                            │            └───────────────────────┘
                            │
                     ┌──────▼──────┐
@@ -229,31 +230,37 @@ Cleanup is lazy: every rate-limit check `deleteMany` expired rows for the phone 
 
 For buyers since 2026-05-15, phone is **both** the auth identifier (entered at `/connexion`) and the delivery contact. For sellers + admins it remains delivery-only (collected on address / seller-profile surfaces). Users type 9 digits of their DRC number (or 10 with leading `0`); the `+243` prefix is added by the system before calling the API. Single source of truth: `normalizeDrcPhone()` in `packages/shared/src/utils/phone.ts` (web) and `apps/buyer-mobile/lib/core/utils/phone.dart` (Flutter). Backend DTOs that accept phone enforce `^\+243\d{9}$`.
 
-### Messaging provider abstractions (two surfaces)
+### Messaging surfaces (three channels)
 
-Two completely separate provider stacks. **`SmsService`** = notifications only (orders, payments, broadcasts). **`WhatsappService`** = buyer OTP only.
+The platform now has **three** delivery surfaces, each with a single, narrowly-scoped responsibility:
+
+- **`PushService`** (`apps/api/src/push/`) — FCM, primary channel for buyer + seller order events and admin broadcasts. Multicast per user (one user can have many active `DeviceToken` rows). Auto-invalidates rejected tokens on send.
+- **`EmailService`** (`apps/api/src/email/`) — Resend. Fallback for buyer order events when push has 0 active tokens; also handles transactional email (verification, password reset, seller setup, buyer claim, contact-form forwarding) and admin broadcasts.
+- **`WhatsappService`** (`apps/api/src/whatsapp/`) — Gupshup. **Buyer OTP only** (login + register + account claim). Never used for notifications or broadcasts.
 
 ```
-apps/api/src/sms/                          ← notification SMS
-├── interfaces/sms-provider.interface.ts   (SmsProvider { sendSms(phone, msg) })
-├── providers/
-│   ├── orange-drc.provider.ts             (OAuth2 token cache, 401 → invalidate + retry once)
-│   ├── africas-talking.provider.ts        (legacy, kept for rollback)
-│   └── mock-sms.provider.ts               (dev + test — logs to console)
-├── sms.service.ts                         (facade; dispatches per provider)
-└── sms.module.ts                          (DI factory keyed on SMS_PROVIDER env)
+apps/api/src/push/                         ← FCM (primary notification channel)
+├── push.service.ts                        (sendToUser → multicast + invalidate)
+├── device-tokens.controller.ts            (register / list / revoke tokens)
+└── push.module.ts
 
-apps/api/src/whatsapp/                     ← buyer OTP (restored 2026-05-15)
+apps/api/src/email/                        ← Resend (fallback + transactional)
+├── email.service.ts                       (sendOrderNotification, sendBroadcast, sendPasswordReset, …)
+├── templates/                             (per-template HTML, brand red, French)
+└── email.module.ts
+
+apps/api/src/whatsapp/                     ← Gupshup (buyer OTP only)
 ├── interfaces/whatsapp-provider.interface.ts
-│                                          (WhatsappProvider { sendOtpTemplate(phone, code) })
 ├── providers/
 │   ├── gupshup-whatsapp.provider.ts       (POST /wa/api/v1/template/msg; strips leading +)
 │   └── mock-whatsapp.provider.ts          (dev + test — logs `[MOCK WHATSAPP OTP]`)
-├── whatsapp.service.ts                    (facade)
+├── whatsapp.service.ts
 └── whatsapp.module.ts                     (DI factory keyed on WHATSAPP_PROVIDER env)
 ```
 
-Both factories share the same `warnIfMockInProd` discipline (loud startup ERROR if a mock provider is selected in production). The two stacks never call each other; adding an SMS template never touches WhatsApp code and vice versa.
+WhatsApp factory uses the `warnIfMockInProd` discipline (loud startup ERROR if mock is selected in production). The three stacks never call each other; adding an email template never touches Push or WhatsApp code and vice versa.
+
+**`SmsService` and its providers (Orange DRC, Africa's Talking, mock) were deleted 2026-05-26** in the Orange/AT/Flexpay removal initiative. Order events ride Push primary + Email fallback (`OrderNotificationService` since PR A2); admin broadcasts ride Push + Email per-channel toggle (`BroadcastsService` since PR A3, SMS branch dropped in PR C2).
 
 ### Frontend design tokens (web + mobile)
 
@@ -293,28 +300,20 @@ The web exposes the full tonal scale (`--color-primary-50` through `--color-prim
    - Creates one Order per seller (multi-seller cart → multiple orders)
    - Decrements stock atomically in Prisma transaction
    - Returns order IDs + payment details
-3. Payment:
-   a. Mobile Money → POST /api/v1/payments/initiate { orderId, provider, payerPhone }
-      - Flexpay USSD push sent to buyer's phone
-   b. Cash on Delivery → Order marked as COD, no payment initiation needed
-4. On payment confirmation (webhook or COD):
-   - Order status → CONFIRMED
-   - Seller notified via SMS (Africa's Talking)
-   - Seller earnings calculated (sale amount - platform commission)
-```
-
-### Payment Webhook (Mobile Money)
-
-```
-1. Flexpay → POST /api/v1/payments/webhook/flexpay (public, rate-limit exempt)
-2. API verifies webhook signature (x-flexpay-signature header)
-3. Checks idempotency via Transaction.externalReference
-4. Updates Transaction status and Order paymentStatus
-5. On success:
-   - Triggers SellerEarning creation (orderAmount - commission)
+3. Payment: COD only (Mobile Money / Flexpay removed 2026-05-26 in PR B2).
+   - CheckoutService writes a Transaction row with provider=COD,
+     status=PENDING synchronously
+   - No external provider call, no webhook handshake needed
+4. Notifications:
+   - Buyer: PushService.sendToUser (FCM); EmailService.sendOrderNotification
+     fallback if 0 active device tokens
+   - Seller: PushService.sendToUser only
+5. On delivery (PATCH /api/v1/sellers/orders/:id/deliver):
+   - Order status → DELIVERED
+   - SellerOrdersService calls PaymentsService.completeCodTransaction →
+     flips the Transaction row to COMPLETED
+   - SellerEarning is created (orderAmount - commission)
    - Updates SellerProfile.walletBalance
-   - Sends SMS notification to seller
-6. Returns { received: true, processed: true }
 ```
 
 ### Order State Machine
@@ -329,7 +328,7 @@ PENDING → CONFIRMED → PROCESSING → SHIPPED → OUT_FOR_DELIVERY → DELIVE
                        RETURNED
 ```
 
-Each transition is logged in the `OrderStatusLog` table with timestamp, actor (buyer/seller/admin), and optional note. SMS notifications are sent at each stage via fire-and-forget pattern.
+Each transition is logged in the `OrderStatusLog` table with timestamp, actor (buyer/seller/admin), and optional note. Push notifications (with email fallback for buyers without an active device token) are sent at each stage via fire-and-forget pattern.
 
 ## Database Schema (Key Entities)
 
@@ -571,10 +570,10 @@ Messages are stored in `Conversation` + `Message` tables. Each conversation link
 | Service | Purpose | Failure Handling |
 |---------|---------|------------------|
 | **Cloudinary** | Image upload, transformation (WebP, resize), CDN delivery | Upload fails gracefully; product saved without image |
-| **Orange DRC SMS** | Default SMS provider for phone OTP + order notifications | OAuth2 token cache (in-memory), retry-once on 401, fire-and-forget. Selectable via `SMS_PROVIDER=orange\|africas_talking\|mock` env |
-| **Africa's Talking** | Legacy SMS provider (rollback fallback) | Same interface as Orange; flip `SMS_PROVIDER=africas_talking` to cut over |
-| **Flexpay** | Mobile Money payment (M-Pesa, Airtel Money, Orange Money) | Async webhook; payment status polled if webhook delayed |
-| **Resend** | Transactional emails (verification, password reset, seller setup, receipts) | Fire-and-forget; dev mode logs to console instead of sending |
+| **Firebase Cloud Messaging** | Push notifications for buyers + sellers (order events, broadcasts) | Fire-and-forget; invalid tokens auto-deactivated on send |
+| **Resend** | Transactional emails (verification, password reset, seller setup, receipts, order events, broadcasts) | Fire-and-forget; dev mode logs to console instead of sending |
+| **Gupshup WhatsApp** | Buyer OTP only (login + register + account claim) | Sha256-hashed codes, expiry-based cleanup, rate-limited per phone |
+| **Sentry** | Error monitoring across all 6 surfaces (api + 3 webs + 2 mobile apps) | `beforeSend` scrubs phone numbers; mock provider when DSN empty |
 
 All external service calls use the fire-and-forget notification pattern with inner try-catch blocks and outer `.catch()` at call sites to prevent cascading failures.
 
@@ -606,4 +605,4 @@ All external service calls use the fire-and-forget notification pattern with inn
 
 7. **Denormalized ratings**: `avgRating` and `totalReviews` stored directly on `Product` and `SellerProfile` tables, updated atomically in Prisma transactions on review create/delete/hide/unhide.
 
-8. **Payment provider abstraction**: `PaymentProvider` interface allows swapping between mock (development) and real (Flexpay) providers via `PAYMENT_MOCK_MODE` config.
+8. **COD-only payment**: Mobile Money via Flexpay was removed 2026-05-26 in PR B2. `CheckoutService` writes a Transaction row with `provider=COD` synchronously on order creation; `SellerOrdersService.markDelivered()` flips it to `COMPLETED`. The `PaymentProvider` interface + factory are gone — no external provider call, no webhook, no `PAYMENT_MOCK_MODE` toggle.
