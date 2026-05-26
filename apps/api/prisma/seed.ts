@@ -1655,7 +1655,7 @@ async function seedPhase4Data(
     },
   });
 
-  // ---- Order 2: PENDING — seller Patrick, 1 item, MOBILE_MONEY ----
+  // ---- Order 2: PENDING — seller Patrick, 1 item, COD ----
   // Item: Product 1 (Samsung Galaxy A14 - 350,000 CDF) x1
   const order2SubtotalCDF = BigInt(35000000);
   const order2SubtotalUSD = BigInt(12500);
@@ -1672,7 +1672,7 @@ async function seedPhase4Data(
       buyerId,
       sellerId: seller2Id,
       status: OrderStatus.PENDING,
-      paymentMethod: PaymentMethod.MOBILE_MONEY,
+      paymentMethod: PaymentMethod.COD,
       paymentStatus: PaymentStatus.PENDING,
       deliveryAddressId: buyerAddressId,
       deliveryFeeCDF: localDeliveryFeeCDF,
@@ -1932,7 +1932,7 @@ async function seedPhase4Data(
     },
   });
 
-  // ---- Order 5: CANCELLED — seller Marie, 1 item, MOBILE_MONEY ----
+  // ---- Order 5: CANCELLED — seller Marie, 1 item, COD ----
   // Item: Product 11 (Huile Karité - 8,000 CDF) x3
   const order5SubtotalCDF = BigInt(800000) * BigInt(3);
   const order5SubtotalUSD = BigInt(300) * BigInt(3);
@@ -1949,8 +1949,11 @@ async function seedPhase4Data(
       buyerId,
       sellerId: seller1Id,
       status: OrderStatus.CANCELLED,
-      paymentMethod: PaymentMethod.MOBILE_MONEY,
-      paymentStatus: PaymentStatus.REFUNDED,
+      paymentMethod: PaymentMethod.COD,
+      // COD cancelled before delivery — no money was ever collected, so
+      // the transaction below is FAILED (not REFUNDED). REFUNDED only
+      // applies when money actually moved and was returned.
+      paymentStatus: PaymentStatus.FAILED,
       deliveryAddressId: buyerAddressId,
       deliveryFeeCDF: localDeliveryFeeCDF,
       deliveryFeeUSD: localDeliveryFeeUSD,
@@ -2208,7 +2211,8 @@ async function seedPhase5Data(
     },
   });
 
-  // Order 2 (PENDING, MOBILE_MONEY) → Transaction PENDING, provider FLEXPAY
+  // Order 2 (PENDING, COD) → Transaction PENDING, provider COD
+  // Awaiting cash collection on delivery.
   // Order 2 totalCDF = 35000000 + 300000 = 35300000
   await prisma.transaction.upsert({
     where: { id: 'b0000000-0000-0000-0000-000000000002' },
@@ -2217,19 +2221,19 @@ async function seedPhase5Data(
       id: 'b0000000-0000-0000-0000-000000000002',
       orderId: orderId(2),
       type: TransactionType.PAYMENT,
-      provider: TransactionProvider.FLEXPAY,
+      provider: TransactionProvider.COD,
       amountCDF: BigInt(35300000),
       amountUSD: BigInt(12620),
       currency: 'CDF',
       status: PaymentStatus.PENDING,
-      externalReference: 'FPX-20260225-A001',
-      idempotencyKey: 'txn-order2-flexpay-001',
-      metadata: { provider: 'M-Pesa', phone: '+243970000002' } as any,
+      externalReference: `COD-${orderId(2).slice(0, 8)}`,
+      idempotencyKey: 'txn-order2-cod-001',
       createdAt: new Date('2026-02-25T16:46:00Z'),
     },
   });
 
-  // Order 3 (CONFIRMED, MOBILE_MONEY) → Transaction PENDING, provider FLEXPAY
+  // Order 3 (CONFIRMED, COD) → Transaction PENDING, provider COD
+  // Awaiting cash collection on delivery.
   // Order 3 totalCDF = 6000000 + 300000 = 6300000
   await prisma.transaction.upsert({
     where: { id: 'b0000000-0000-0000-0000-000000000003' },
@@ -2238,19 +2242,19 @@ async function seedPhase5Data(
       id: 'b0000000-0000-0000-0000-000000000003',
       orderId: orderId(3),
       type: TransactionType.PAYMENT,
-      provider: TransactionProvider.FLEXPAY,
+      provider: TransactionProvider.COD,
       amountCDF: BigInt(6300000),
       amountUSD: BigInt(2320),
       currency: 'CDF',
       status: PaymentStatus.PENDING,
-      externalReference: 'FPX-20260226-B002',
-      idempotencyKey: 'txn-order3-flexpay-001',
-      metadata: { provider: 'Airtel Money', phone: '+243970000002' } as any,
+      externalReference: `COD-${orderId(3).slice(0, 8)}`,
+      idempotencyKey: 'txn-order3-cod-001',
       createdAt: new Date('2026-02-26T08:01:00Z'),
     },
   });
 
-  // Order 5 (CANCELLED, MOBILE_MONEY) → Transaction FAILED, provider FLEXPAY
+  // Order 5 (CANCELLED, COD) → Transaction FAILED, provider COD
+  // Order was cancelled before delivery; no cash was ever collected.
   // Order 5 totalCDF = 2400000 + 300000 = 2700000
   await prisma.transaction.upsert({
     where: { id: 'b0000000-0000-0000-0000-000000000004' },
@@ -2259,15 +2263,14 @@ async function seedPhase5Data(
       id: 'b0000000-0000-0000-0000-000000000004',
       orderId: orderId(5),
       type: TransactionType.PAYMENT,
-      provider: TransactionProvider.FLEXPAY,
+      provider: TransactionProvider.COD,
       amountCDF: BigInt(2700000),
       amountUSD: BigInt(1020),
       currency: 'CDF',
       status: PaymentStatus.FAILED,
-      externalReference: 'FPX-20260220-C003',
-      idempotencyKey: 'txn-order5-flexpay-001',
-      metadata: { provider: 'M-Pesa', phone: '+243970000002' } as any,
-      failureReason: 'Solde insuffisant sur le compte Mobile Money',
+      externalReference: `COD-${orderId(5).slice(0, 8)}`,
+      idempotencyKey: 'txn-order5-cod-001',
+      failureReason: 'Commande annulée avant la livraison',
       createdAt: new Date('2026-02-20T11:01:00Z'),
     },
   });
