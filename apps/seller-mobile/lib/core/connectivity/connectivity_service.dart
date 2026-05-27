@@ -70,14 +70,10 @@ class ConnectivityService {
     required String baseUrl,
     Stream<List<ConnectivityResult>>? interfaceStream,
     ConnectivityProbe? probe,
-  })  : _baseUrl = baseUrl.endsWith('/')
-            ? baseUrl.substring(0, baseUrl.length - 1)
-            : baseUrl,
-        _interfaceStream =
+  })  : _interfaceStream =
             interfaceStream ?? Connectivity().onConnectivityChanged,
         _probe = probe ?? _defaultProbe(baseUrl);
 
-  final String _baseUrl;
   final Stream<List<ConnectivityResult>> _interfaceStream;
   final ConnectivityProbe _probe;
 
