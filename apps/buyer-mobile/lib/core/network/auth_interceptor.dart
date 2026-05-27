@@ -45,11 +45,50 @@ class AuthInterceptor extends Interceptor {
               return;
             }
           }
+        } on DioException catch (refreshErr) {
+          // Distinguish "the refresh CALL failed for connectivity reasons"
+          // from "the server rejected our refresh token". The first is
+          // transient — clearing the session would force a re-login as
+          // soon as the user comes back online, which is the worst UX
+          // possible on flaky DRC networks (`I got logged out riding the
+          // tram` — closes the 2026-05 outage gap).
+          //
+          // The second IS a real auth failure: the refresh token has
+          // expired / been revoked / been replayed. Clear tokens so the
+          // app falls back to login.
+          if (!_isConnectivityError(refreshErr)) {
+            await _tokenStorage.clearTokens();
+          }
+          // else: keep tokens. The original 401 still propagates below;
+          // the user's next action will retry the original request when
+          // connectivity is back, which will trigger a fresh refresh.
         } catch (_) {
+          // Non-Dio exceptions (JSON parsing, etc.) are not connectivity
+          // issues — clear tokens conservatively.
           await _tokenStorage.clearTokens();
         }
       }
     }
     handler.next(err);
+  }
+
+  /// True if the refresh-call DioException is plausibly a transient
+  /// network failure rather than an auth-server rejection.
+  static bool _isConnectivityError(DioException err) {
+    switch (err.type) {
+      case DioExceptionType.connectionTimeout:
+      case DioExceptionType.receiveTimeout:
+      case DioExceptionType.sendTimeout:
+      case DioExceptionType.connectionError:
+        return true;
+      case DioExceptionType.badResponse:
+        // 502/503/504 = upstream / gateway issue, treat as connectivity.
+        final code = err.response?.statusCode ?? 0;
+        return code == 502 || code == 503 || code == 504;
+      case DioExceptionType.badCertificate:
+      case DioExceptionType.cancel:
+      case DioExceptionType.unknown:
+        return false;
+    }
   }
 }
