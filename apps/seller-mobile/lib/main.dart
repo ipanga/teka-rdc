@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'core/config/flavor.dart';
 import 'core/config/sentry_scrub.dart';
+import 'core/providers/core_providers.dart';
 import 'core/push/push_service.dart';
 
 void main() async {
@@ -35,5 +37,16 @@ Future<void> _bootstrap() async {
   // frame. Idempotent + fail-soft (push becomes a no-op if anything
   // throws).
   await PushService.instance.init();
-  runApp(const ProviderScope(child: TekaApp()));
+
+  // SharedPreferences is the disk-backing for the connectivity cache
+  // layer (lib/core/cache/typed_cache.dart) — preload it here so the
+  // Riverpod provider doesn't have to be async-aware.
+  final prefs = await SharedPreferences.getInstance();
+
+  runApp(ProviderScope(
+    overrides: [
+      sharedPreferencesProvider.overrideWithValue(prefs),
+    ],
+    child: const TekaApp(),
+  ));
 }

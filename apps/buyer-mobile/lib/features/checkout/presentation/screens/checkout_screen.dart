@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/connectivity/connectivity_provider.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -205,7 +206,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             : null;
         break;
       case CheckoutStep.review:
-        canProceed = checkoutState.canPlaceOrder;
+        // Hard-block order placement when offline. Aligns with the
+        // initiative spec ("Prevent duplicate submissions, accidental
+        // retries, inconsistent states") and matches the user's locked
+        // decision from the planning round. The button is set to
+        // onPressed=null (visually disabled) when offline; the
+        // _OfflineCheckoutNotice widget below the bottom bar shows the
+        // French explanation so the user knows what to do.
+        canProceed = checkoutState.canPlaceOrder &&
+            !ref.watch(isOfflineProvider);
         buttonText = l10n.checkoutPlaceOrder;
         onPressed = canProceed
             ? () {
@@ -239,21 +248,57 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ),
         ],
       ),
-      child: SizedBox(
-        width: double.infinity,
-        child: FilledButton(
-          onPressed: onPressed,
-          style: FilledButton.styleFrom(
-            backgroundColor: TekaColors.tekaRed,
-            disabledBackgroundColor: TekaColors.muted,
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            textStyle: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Inline French explanation when the review-step button is
+          // disabled because of offline state. Only shown on the
+          // review step + when actually offline — keeps the bottom bar
+          // unchanged on every other step.
+          if (checkoutState.step == CheckoutStep.review &&
+              checkoutState.canPlaceOrder &&
+              ref.watch(isOfflineProvider))
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.wifi_off_outlined,
+                    color: TekaColors.destructive,
+                    size: 14,
+                  ),
+                  const SizedBox(width: 6),
+                  const Flexible(
+                    child: Text(
+                      'Connexion requise pour passer commande',
+                      style: TextStyle(
+                        color: TekaColors.destructive,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: onPressed,
+              style: FilledButton.styleFrom(
+                backgroundColor: TekaColors.tekaRed,
+                disabledBackgroundColor: TekaColors.muted,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                textStyle: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              child: Text(buttonText),
             ),
           ),
-          child: Text(buttonText),
-        ),
+        ],
       ),
     );
   }
