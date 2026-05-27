@@ -274,6 +274,24 @@ apps/buyer-mobile/lib/core/theme/app_theme.dart    ← Flutter ThemeData
 
 The web exposes the full tonal scale (`--color-primary-50` through `--color-primary-900`, with `--color-primary` aliased to the `600` step) plus semantic neutrals, status colors (success / warning / destructive / info — each with a `*-subtle` background variant), explicit radius (sm/md/lg/xl/2xl/full), shadow (xs/sm/md/lg/xl) and typography vars. UI primitives at `apps/buyer-web/src/components/ui/` (Button, Badge, Card, Input, Label, Container, SectionHeader) consume these tokens via Tailwind utilities + `class-variance-authority` for variant composition. The set is intentionally small — domain components (`ProductCard`, `CartItemRow`, …) live under `components/{product,cart,…}/` and compose the primitives.
 
+### Mobile network-resilience layer (buyer-mobile + seller-mobile)
+
+Both Flutter apps share a centralized connectivity infrastructure under `apps/{buyer,seller}-mobile/lib/core/connectivity/` + `…/core/network/`. The two trees are kept byte-for-byte identical and changes ship in lockstep. **Authoritative reference: [`docs/mobile-connectivity.md`](./mobile-connectivity.md).**
+
+Five states (`connected | unstable | noInternet | disconnected | reconnecting`) are computed from two sources of truth: `connectivity_plus` for interface up/down events, plus a periodic `GET ${ApiConstants.baseUrl}/v1/health` probe (3s timeout) for actual reachability. A wifi connection at a Lubumbashi café with no internet is `noInternet`, not `connected` — the probe disambiguates.
+
+The Dio interceptor chain order is `OfflineAware → Auth → Retry → Log`. Key behaviors:
+
+- **Retry** — full-jitter exponential backoff `[0..500ms, 0..1500ms, 0..4000ms]` capped at 5s, on `GET`/`HEAD` only by default. Opt-in for other methods via `Options(extra: {'retryable': true})` — explicitly forbidden on checkout, OTP, payments, order state transitions (see CLAUDE.md Rule 15).
+- **Offline-aware** — non-safe methods (`POST`/`PUT`/`PATCH`/`DELETE`) fail fast with `DioException(type: connectionError, error: 'offline')` while `disconnected`, surfacing an immediate French error.
+- **Auth-refresh resilience** — refresh-endpoint failures of `connectionTimeout` / `receiveTimeout` / `sendTimeout` / `connectionError` / `502/503/504` preserve tokens. Real 401s still wipe them. Without this, buyers would log out every time their LTE blinked.
+
+Offline behavior is opinionated:
+- **Cart** persists to `SharedPreferences` and hydrates synchronously on app start — survives offline restarts.
+- **Checkout (review step)** hard-blocks order placement with a permanent banner "Connexion requise pour passer commande" when offline. No queue-and-replay (replay would race price + stock changes during the offline window — locked decision 2026-05-27).
+- A slim 5-color banner mounted by `MaterialApp.router.builder` surfaces state above every route.
+
+Observability lands in Sentry as: a `connectivity_state` tag on every event, breadcrumbs on every transition, and three rate-limited (1/min) capture events: `connected_to_noInternet`, `sustained_noInternet` (≥5 consecutive), `retry_budget_exhausted`. Privacy-sensitive fields (tokens, query strings, phone numbers) are never emitted; the pre-existing `core/config/sentry_scrub.dart` `beforeSend` phone-scrubber is untouched.
 
 ### Product Lifecycle
 

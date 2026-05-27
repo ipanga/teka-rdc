@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../data/checkout_repository.dart';
 import '../../data/models/checkout_model.dart';
 
@@ -95,7 +96,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     } on DioException catch (e) {
       state = state.copyWith(
         isLoadingAddresses: false,
-        error: _extractErrorMessage(e),
+        error: extractDioErrorMessage(e),
       );
     } catch (e) {
       state = state.copyWith(
@@ -122,7 +123,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       );
       return true;
     } on DioException catch (e) {
-      state = state.copyWith(error: _extractErrorMessage(e));
+      state = state.copyWith(error: extractDioErrorMessage(e));
       return false;
     } catch (e) {
       state = state.copyWith(error: e.toString());
@@ -208,7 +209,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       state = state.copyWith(
         step: CheckoutStep.review,
         isProcessing: false,
-        error: _extractErrorMessage(e),
+        error: extractDioErrorMessage(e),
       );
       return false;
     } catch (e) {
@@ -221,24 +222,6 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     }
   }
 
-  String _extractErrorMessage(DioException e) {
-    if (e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.receiveTimeout) {
-      return 'Connexion lente. Veuillez reessayer.';
-    }
-    if (e.type == DioExceptionType.connectionError) {
-      return 'Pas de connexion internet.';
-    }
-    final data = e.response?.data;
-    if (data is Map && data['error'] != null) {
-      final error = data['error'];
-      if (error is Map && error['message'] != null) {
-        return error['message'].toString();
-      }
-      return error.toString();
-    }
-    return 'Une erreur est survenue. Veuillez reessayer.';
-  }
 }
 
 final checkoutProvider =

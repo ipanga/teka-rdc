@@ -45,9 +45,11 @@ class OfflineAwareInterceptor extends Interceptor {
 
     if (isOffline && !isSafe && !allowOffline) {
       // Synthesize a DioException that looks exactly like a connection
-      // failure so existing error-mapping code (e.g. the
-      // `_extractErrorMessage(DioException)` patterns in buyer-mobile
-      // notifiers) handles it without changes.
+      // failure so existing error-mapping code handles it without
+      // changes. (Buyer-mobile uses the shared
+      // `extractDioErrorMessage` helper at
+      // `lib/core/network/dio_error_messages.dart` to render the
+      // resulting French message.)
       handler.reject(
         DioException(
           requestOptions: options,
