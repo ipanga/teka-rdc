@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../../city/presentation/providers/city_provider.dart';
 import '../../data/catalog_repository.dart';
 import '../../data/models/category_model.dart';
@@ -136,7 +137,7 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
     } on DioException catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: _extractErrorMessage(e),
+        error: extractDioErrorMessage(e),
       );
     } catch (e) {
       state = state.copyWith(
@@ -167,7 +168,7 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
     } on DioException catch (e) {
       state = state.copyWith(
         isLoadingMore: false,
-        error: _extractErrorMessage(e),
+        error: extractDioErrorMessage(e),
       );
     } catch (e) {
       state = state.copyWith(
@@ -182,24 +183,6 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
     await loadProducts();
   }
 
-  String _extractErrorMessage(DioException e) {
-    if (e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.receiveTimeout) {
-      return 'Connexion lente. Veuillez reessayer.';
-    }
-    if (e.type == DioExceptionType.connectionError) {
-      return 'Pas de connexion internet.';
-    }
-    final data = e.response?.data;
-    if (data is Map && data['error'] != null) {
-      final error = data['error'];
-      if (error is Map && error['message'] != null) {
-        return error['message'].toString();
-      }
-      return error.toString();
-    }
-    return 'Une erreur est survenue. Veuillez reessayer.';
-  }
 }
 
 final browseProductsProvider = StateNotifierProvider.family<

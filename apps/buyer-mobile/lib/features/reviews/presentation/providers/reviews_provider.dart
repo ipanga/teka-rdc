@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../data/models/review_model.dart';
 import '../../data/reviews_repository.dart';
 
@@ -94,7 +95,7 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
       if (!mounted) return;
       state = state.copyWith(
         isLoading: false,
-        error: _extractErrorMessage(e),
+        error: extractDioErrorMessage(e),
       );
     } catch (e) {
       if (!mounted) return;
@@ -123,7 +124,7 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
       if (!mounted) return;
       state = state.copyWith(
         isLoading: false,
-        error: _extractErrorMessage(e),
+        error: extractDioErrorMessage(e),
       );
     } catch (e) {
       if (!mounted) return;
@@ -191,7 +192,7 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
       if (!mounted) return false;
       state = state.copyWith(
         isSubmitting: false,
-        error: _extractErrorMessage(e),
+        error: extractDioErrorMessage(e),
       );
       return false;
     } catch (e) {
@@ -230,7 +231,7 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
       if (!mounted) return false;
       state = state.copyWith(
         isSubmitting: false,
-        error: _extractErrorMessage(e),
+        error: extractDioErrorMessage(e),
       );
       return false;
     } catch (e) {
@@ -243,24 +244,6 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
     }
   }
 
-  String _extractErrorMessage(DioException e) {
-    if (e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.receiveTimeout) {
-      return 'Connexion lente. Veuillez reessayer.';
-    }
-    if (e.type == DioExceptionType.connectionError) {
-      return 'Pas de connexion internet.';
-    }
-    final data = e.response?.data;
-    if (data is Map && data['error'] != null) {
-      final error = data['error'];
-      if (error is Map && error['message'] != null) {
-        return error['message'].toString();
-      }
-      return error.toString();
-    }
-    return 'Une erreur est survenue. Veuillez reessayer.';
-  }
 }
 
 final reviewsProvider = StateNotifierProvider.family<ReviewsNotifier,

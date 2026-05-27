@@ -418,3 +418,14 @@ The brand red is **`#BF0000`** (Rakuten France official, PANTONE 485 C). The ton
     - **`WhatsappService`** (`apps/api/src/whatsapp/`, Gupshup) — **buyer OTP only** (login + register + account claim). Never used for notifications or broadcasts. Provider is selected via `WHATSAPP_PROVIDER` env (`gupshup` | `mock`); the factory refuses to silently mock in production (loud `[GupshupWhatsappProvider] ERROR` at startup). OTP code is generated locally with `crypto.randomInt`, stored as `sha256` hex, sent via Gupshup's WhatsApp template-message API.
 
     The three stacks never call each other — adding an email template must not touch Push or WhatsApp code, and vice versa. The legacy `SmsService` was deleted 2026-05-26 in PR C2 (see Rule 11).
+
+15. **Mobile connectivity discipline (since 2026-05-27).** Both Flutter apps ship a centralized 5-state connectivity machine (`connected | unstable | noInternet | disconnected | reconnecting`) at `apps/{buyer,seller}-mobile/lib/core/connectivity/` + interceptor stack at `…/core/network/`. **Full reference: `docs/mobile-connectivity.md`** — read it before touching anything below.
+
+    Hard rules when adding or modifying network code in either Flutter app:
+    - **Never bypass the Dio chain.** Always go through `apps/{buyer,seller}-mobile/lib/core/network/api_client.dart`. The chain order — `OfflineAware → Auth → Retry → Log` — is load-bearing; retries must flow through auth attach.
+    - **Never set `Options(extra: {'retryable': true})` on a non-idempotent call.** The retryable-by-default set is `GET` + `HEAD`. Checkout, OTP request/verify/resend, buyer claim, seller login, seller order transitions, payouts, and product publish/update are explicitly non-retry-safe — replaying them races state.
+    - **Never call a SMS / OTP / payment vendor directly from app code.** Those are server concerns; the app talks to `${baseUrl}/v1/…` only.
+    - **Always mirror buyer-mobile changes into seller-mobile (and vice versa) in the same PR.** The two trees are kept byte-for-byte identical for the connectivity layer.
+    - **Always surface network errors with the shared helper** at `apps/{buyer,seller}-mobile/lib/core/network/dio_error_messages.dart`. No per-feature copies of `_extractErrorMessage(DioException)` — the helper covers timeout / connection-error / API-envelope / fallback in French.
+    - **Never log credentials, tokens, phone numbers, or query strings** from the connectivity layer or the Sentry reporter. The existing `core/config/sentry_scrub.dart` `beforeSend` scrubs phones globally; don't undo it.
+    - **State mutations are hard-blocked offline** by `OfflineAwareInterceptor`. Do not add a "queue and replay" fallback without an architecture decision — the original design intentionally rejected it (replay races price + stock during the offline window).
