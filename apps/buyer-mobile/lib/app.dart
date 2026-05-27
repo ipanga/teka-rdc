@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'l10n/app_localizations.dart';
+import 'core/connectivity/widgets/connectivity_banner.dart';
 import 'core/locale/locale_provider.dart';
 import 'core/push/push_controller.dart';
 import 'core/router/app_router.dart';
@@ -34,6 +35,13 @@ class TekaApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
+      // Inject the connectivity banner above every route. The banner is
+      // hidden (zero height) while connected, slim + colored when offline
+      // / no-internet / unstable / reconnecting, and briefly green when
+      // connection is restored. See lib/core/connectivity/widgets/.
+      builder: (context, child) => ConnectivityBannerHost(
+        child: child ?? const SizedBox.shrink(),
+      ),
       routerConfig: router,
     );
   }

@@ -1575,6 +1575,36 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Impossible de charger la liste des appareils'**
   String get profileSessionsLoadError;
+
+  /// No description provided for @connectivityBannerDisconnected.
+  ///
+  /// In fr, this message translates to:
+  /// **'Pas de connexion internet'**
+  String get connectivityBannerDisconnected;
+
+  /// No description provided for @connectivityBannerNoInternet.
+  ///
+  /// In fr, this message translates to:
+  /// **'Internet limité'**
+  String get connectivityBannerNoInternet;
+
+  /// No description provided for @connectivityBannerUnstable.
+  ///
+  /// In fr, this message translates to:
+  /// **'Connexion instable'**
+  String get connectivityBannerUnstable;
+
+  /// No description provided for @connectivityBannerReconnecting.
+  ///
+  /// In fr, this message translates to:
+  /// **'Reconnexion...'**
+  String get connectivityBannerReconnecting;
+
+  /// No description provided for @connectivityBannerRestored.
+  ///
+  /// In fr, this message translates to:
+  /// **'Connexion rétablie'**
+  String get connectivityBannerRestored;
 }
 
 class _AppLocalizationsDelegate
