@@ -1,5 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/cache/cache_keys.dart';
+import '../../../../core/cache/typed_cache.dart';
 import '../../data/cart_repository.dart';
 import '../../data/models/cart_model.dart';
 
@@ -45,9 +47,74 @@ class CartState {
 
 class CartNotifier extends StateNotifier<CartState> {
   final CartRepository _repository;
+  final TypedCache _cache;
 
-  CartNotifier(this._repository) : super(const CartState()) {
+  /// How long the cached cart snapshot is treated as fresh by
+  /// [TypedCache.isFresh]. We don't actually consult freshness on
+  /// boot — we always show the cached cart as the optimistic first
+  /// paint and let `fetchCart()` overwrite when the network is back —
+  /// but a long TTL keeps the entry usable across offline app
+  /// relaunches without falling into the "stale" bucket. 30 days >>
+  /// any plausible offline session.
+  static const Duration _cartCacheTtl = Duration(days: 30);
+
+  CartNotifier(this._repository, this._cache) : super(const CartState()) {
+    // First paint: hydrate from the cached snapshot synchronously so
+    // the cart icon / cart screen show the user's last-known items
+    // immediately on app launch (works even when offline). The actual
+    // fetchCart() below replaces these with fresh server data when
+    // the network comes back.
+    _hydrateFromCache();
     fetchCart();
+  }
+
+  /// Pulls the last persisted cart snapshot off SharedPreferences and
+  /// drops it into state without making a server call. Silent on any
+  /// failure — the cache is best-effort.
+  void _hydrateFromCache() {
+    final entry = _cache.read<List<CartItemModel>>(
+      CacheKeys.buyerCart,
+      fromJson: (json) {
+        final raw = json['items'];
+        if (raw is! List) return const <CartItemModel>[];
+        return raw
+            .map((e) => CartItemModel.fromJson(e as Map<String, dynamic>))
+            .toList();
+      },
+    );
+    if (entry != null && entry.value.isNotEmpty) {
+      state = state.copyWith(items: entry.value);
+    }
+  }
+
+  /// Snapshots the current cart items to SharedPreferences. Called
+  /// after every successful state update so the disk copy is always
+  /// the user's last-confirmed cart. Fire-and-forget; failures don't
+  /// surface (cache is best-effort).
+  Future<void> _persistToCache() async {
+    await _cache.write<List<CartItemModel>>(
+      CacheKeys.buyerCart,
+      state.items,
+      toJson: (items) => {
+        'items': items
+            .map((i) => {
+                  'id': i.id,
+                  'productId': i.productId,
+                  'quantity': i.quantity,
+                  'product': {
+                    'title': i.product.title,
+                    'priceCDF': i.product.priceCDF,
+                    'priceUSD': i.product.priceUSD,
+                    'quantity': i.product.quantity,
+                    'thumbnailUrl': i.product.thumbnailUrl,
+                    'sellerId': i.product.sellerId,
+                    'sellerName': i.product.sellerName,
+                  },
+                })
+            .toList(),
+      },
+      ttl: _cartCacheTtl,
+    );
   }
 
   Future<void> fetchCart() async {
@@ -58,10 +125,17 @@ class CartNotifier extends StateNotifier<CartState> {
         items: cart.items,
         isLoading: false,
       );
+      _persistToCache();
     } on DioException catch (e) {
+      // Offline / network error: keep whatever the cache hydration
+      // gave us. Don't surface an error — the connectivity banner
+      // (PR3) tells the user about the network state already.
+      final isOfflineError = e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout ||
+          e.type == DioExceptionType.connectionError;
       state = state.copyWith(
         isLoading: false,
-        error: _extractErrorMessage(e),
+        error: isOfflineError ? null : _extractErrorMessage(e),
       );
     } catch (e) {
       state = state.copyWith(
@@ -75,6 +149,7 @@ class CartNotifier extends StateNotifier<CartState> {
     try {
       final cart = await _repository.addItem(productId, quantity);
       state = state.copyWith(items: cart.items, clearError: true);
+      _persistToCache();
     } on DioException catch (e) {
       state = state.copyWith(error: _extractErrorMessage(e));
       rethrow;
@@ -100,6 +175,7 @@ class CartNotifier extends StateNotifier<CartState> {
     try {
       final cart = await _repository.updateQuantity(productId, quantity);
       state = state.copyWith(items: cart.items);
+      _persistToCache();
     } on DioException catch (e) {
       // Revert on failure
       state = state.copyWith(
@@ -121,6 +197,7 @@ class CartNotifier extends StateNotifier<CartState> {
     try {
       final cart = await _repository.removeItem(productId);
       state = state.copyWith(items: cart.items);
+      _persistToCache();
     } on DioException catch (e) {
       // Revert on failure
       state = state.copyWith(
@@ -135,11 +212,13 @@ class CartNotifier extends StateNotifier<CartState> {
   Future<void> clearCart() async {
     final previousItems = state.items;
     state = state.copyWith(items: [], clearError: true);
+    _cache.evict(CacheKeys.buyerCart);
 
     try {
       await _repository.clearCart();
     } catch (_) {
       state = state.copyWith(items: previousItems);
+      _persistToCache();
     }
   }
 
@@ -164,7 +243,10 @@ class CartNotifier extends StateNotifier<CartState> {
 }
 
 final cartProvider = StateNotifierProvider<CartNotifier, CartState>((ref) {
-  return CartNotifier(ref.read(cartRepositoryProvider));
+  return CartNotifier(
+    ref.read(cartRepositoryProvider),
+    ref.read(typedCacheProvider),
+  );
 });
 
 /// Derived provider returning just the item count for badges
