@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:dio/dio.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Exponential-backoff retry interceptor for transient network failures.
 ///
@@ -80,6 +81,27 @@ class RetryInterceptor extends Interceptor {
     final currentAttempt = (options.extra['_retryAttempt'] as int?) ?? 0;
     if (currentAttempt >= _schedule.length) {
       // Budget exhausted — let the error through to the caller.
+      //
+      // Capture as a Sentry breadcrumb (always) + event (rate-limited
+      // 1/min). Indicates a request that retried N times and still
+      // failed — usually network degradation severe enough that the
+      // user couldn't get content. URL path is captured but query
+      // params are stripped to avoid leaking buyer-specific filters /
+      // search terms.
+      Sentry.addBreadcrumb(Breadcrumb(
+        category: 'connectivity',
+        level: SentryLevel.warning,
+        message: 'retry_budget_exhausted',
+        data: {
+          'method': options.method,
+          'path': options.path,
+          'attempts': currentAttempt,
+          'error_type': err.type.name,
+          if (err.response?.statusCode != null)
+            'status_code': err.response!.statusCode,
+        },
+      ));
+      _maybeCaptureBudgetExhaustion(err, options, currentAttempt);
       handler.next(err);
       return;
     }
@@ -122,6 +144,42 @@ class RetryInterceptor extends Interceptor {
       case DioExceptionType.unknown:
         return false;
     }
+  }
+
+  /// Rate-limited (1/min) capture for retry-budget exhaustion.
+  /// Indicates "the device tried 3 times to fetch X and gave up" —
+  /// useful for spotting endpoints that fail systematically vs.
+  /// users on persistently bad networks.
+  static DateTime? _lastBudgetCapture;
+  static const Duration _budgetCaptureCooldown = Duration(minutes: 1);
+
+  void _maybeCaptureBudgetExhaustion(
+    DioException err,
+    RequestOptions options,
+    int attempts,
+  ) {
+    final last = _lastBudgetCapture;
+    if (last != null &&
+        DateTime.now().difference(last) <= _budgetCaptureCooldown) {
+      return;
+    }
+    _lastBudgetCapture = DateTime.now();
+    Sentry.captureMessage(
+      'retry_budget_exhausted',
+      level: SentryLevel.warning,
+      withScope: (scope) {
+        scope.setTag('connectivity_event', 'retry_exhausted');
+        scope.setContexts('connectivity_event', {
+          'kind': 'retry_exhausted',
+          'method': options.method,
+          'path': options.path,
+          'attempts': attempts,
+          'error_type': err.type.name,
+          if (err.response?.statusCode != null)
+            'status_code': err.response!.statusCode,
+        });
+      },
+    );
   }
 
   Duration _jitter(Duration scheduled) {
