@@ -22,6 +22,13 @@ dependencies:
   cached_network_image: ^3.4.1
   image_picker: ^1.0.7
 
+  # --- Connectivity management (PR1, 2026-05-27) ---------------------
+  # Interface-level network detection (wifi / mobile / none). Combined
+  # in lib/core/connectivity/ with a reachability probe to api.teka.cd
+  # /v1/health to determine actual internet access. See Rule 15 in
+  # CLAUDE.md.
+  connectivity_plus: ^6.0.0
+
   # --- Firebase Cloud Messaging (PR B, 2026-05-22) ---------------------
   # Buyer push notifications. firebase_core auto-loads
   # android/app/google-services.json (gitignored). iOS scaffold ships in
