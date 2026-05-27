@@ -850,4 +850,19 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get noAttributes => 'Aucune caractéristique pour cette catégorie';
+
+  @override
+  String get connectivityBannerDisconnected => 'Pas de connexion internet';
+
+  @override
+  String get connectivityBannerNoInternet => 'Internet limité';
+
+  @override
+  String get connectivityBannerUnstable => 'Connexion instable';
+
+  @override
+  String get connectivityBannerReconnecting => 'Reconnexion...';
+
+  @override
+  String get connectivityBannerRestored => 'Connexion rétablie';
 }

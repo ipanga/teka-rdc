@@ -284,5 +284,11 @@
   "profileSessionRevoked": "Appareil deconnecte",
   "profileSessionRevokeError": "Impossible de deconnecter cet appareil",
   "profileSessionsEmpty": "Aucun autre appareil connecte",
-  "profileSessionsLoadError": "Impossible de charger la liste des appareils"
+  "profileSessionsLoadError": "Impossible de charger la liste des appareils",
+
+  "connectivityBannerDisconnected": "Pas de connexion internet",
+  "connectivityBannerNoInternet": "Internet limité",
+  "connectivityBannerUnstable": "Connexion instable",
+  "connectivityBannerReconnecting": "Reconnexion...",
+  "connectivityBannerRestored": "Connexion rétablie"
 }
