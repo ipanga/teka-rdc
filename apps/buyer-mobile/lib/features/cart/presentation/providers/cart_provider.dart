@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/cache/cache_keys.dart';
 import '../../../../core/cache/typed_cache.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../data/cart_repository.dart';
 import '../../data/models/cart_model.dart';
 
@@ -135,7 +136,7 @@ class CartNotifier extends StateNotifier<CartState> {
           e.type == DioExceptionType.connectionError;
       state = state.copyWith(
         isLoading: false,
-        error: isOfflineError ? null : _extractErrorMessage(e),
+        error: isOfflineError ? null : extractDioErrorMessage(e),
       );
     } catch (e) {
       state = state.copyWith(
@@ -151,7 +152,7 @@ class CartNotifier extends StateNotifier<CartState> {
       state = state.copyWith(items: cart.items, clearError: true);
       _persistToCache();
     } on DioException catch (e) {
-      state = state.copyWith(error: _extractErrorMessage(e));
+      state = state.copyWith(error: extractDioErrorMessage(e));
       rethrow;
     }
   }
@@ -180,7 +181,7 @@ class CartNotifier extends StateNotifier<CartState> {
       // Revert on failure
       state = state.copyWith(
         items: previousItems,
-        error: _extractErrorMessage(e),
+        error: extractDioErrorMessage(e),
       );
     } catch (_) {
       state = state.copyWith(items: previousItems);
@@ -202,7 +203,7 @@ class CartNotifier extends StateNotifier<CartState> {
       // Revert on failure
       state = state.copyWith(
         items: previousItems,
-        error: _extractErrorMessage(e),
+        error: extractDioErrorMessage(e),
       );
     } catch (_) {
       state = state.copyWith(items: previousItems);
@@ -222,24 +223,6 @@ class CartNotifier extends StateNotifier<CartState> {
     }
   }
 
-  String _extractErrorMessage(DioException e) {
-    if (e.type == DioExceptionType.connectionTimeout ||
-        e.type == DioExceptionType.receiveTimeout) {
-      return 'Connexion lente. Veuillez reessayer.';
-    }
-    if (e.type == DioExceptionType.connectionError) {
-      return 'Pas de connexion internet.';
-    }
-    final data = e.response?.data;
-    if (data is Map && data['error'] != null) {
-      final error = data['error'];
-      if (error is Map && error['message'] != null) {
-        return error['message'].toString();
-      }
-      return error.toString();
-    }
-    return 'Une erreur est survenue. Veuillez reessayer.';
-  }
 }
 
 final cartProvider = StateNotifierProvider<CartNotifier, CartState>((ref) {
