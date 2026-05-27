@@ -23,6 +23,13 @@ dependencies:
   image_picker: ^1.1.2
   flutter_image_compress: ^2.3.0
 
+  # --- Connectivity management (PR1, 2026-05-27) ---------------------
+  # Interface-level network detection (wifi / mobile / none). Combined
+  # in lib/core/connectivity/ with a reachability probe to api.teka.cd
+  # /v1/health to determine actual internet access. See Rule 15 in
+  # CLAUDE.md.
+  connectivity_plus: ^6.0.0
+
   # --- Firebase Cloud Messaging (PR S1, 2026-05-22) --------------------
   # Seller push notifications. Same Firebase project (teka-rdc) as
   # buyer-mobile — separate Android + iOS apps within it bound to

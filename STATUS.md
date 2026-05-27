@@ -1,4 +1,4 @@
-# Status — 2026-05-26
+# Status — 2026-05-27
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,7 +6,30 @@
 
 ## Active initiative
 
-**None.** The Orange + AT SMS + Flexpay removal initiative (started 2026-05-25, completed 2026-05-26) closed out cleanly. See "Recently completed" below.
+**Mobile connectivity management** (started 2026-05-27; PR1 in flight).
+
+Plan: `~/.claude/plans/mobile-connectivity-management.md`. **7 PRs, both apps in lockstep** — adds a centralized 5-state connectivity machine (`connected | disconnected | noInternet | unstable | reconnecting`) to buyer-mobile + seller-mobile, wires it into Dio + the UI + app lifecycle, and ships offline-tolerant behavior on the cart + checkout + auth paths.
+
+**Locked decisions (2026-05-27):**
+- Reachability probe: `${ApiConstants.baseUrl}/v1/health` (no `internet_connection_checker_plus` dependency).
+- Cart persistence: persisted to SharedPreferences so cart survives offline app restarts.
+- Order placement when offline: hard-block with "Connexion requise pour passer commande" French toast (no queue-and-replay).
+- PR shape: one PR per phase, ships both apps together.
+
+**PR sequence:**
+- **PR1** (in flight) — Connectivity core foundation: enum, `ConnectivityService`, Riverpod providers, unit tests. Pure additive code, no integration. Branch: `feat/mobile-connectivity-core`.
+- PR2 — Dio integration: `RetryInterceptor` (safe-method-only, exponential backoff) + `OfflineAwareInterceptor` (fail-fast for non-safe requests when disconnected) + `AuthInterceptor` distinguishing connectivity-caused vs real auth-caused refresh failure.
+- PR3 — Global UI: connectivity banner via `MaterialApp.router.builder`. French copy in app_fr.arb.
+- PR4 — Lifecycle integration: `WidgetsBindingObserver` for resume/pause hooks.
+- PR5 — Offline behavior: SharedPreferences-backed `typed_cache` for products / profile / orders + cart persistence + checkout hard-block when offline.
+- PR6 — Sentry monitoring: connectivity tag + rate-limited capture on `connected → noInternet` and retry-budget exhaustion.
+- PR7 — Docs + cleanup: `docs/mobile-connectivity.md`, CLAUDE.md Rule 15, STATUS closeout.
+
+**Non-retry-safe call sites** (hard-coded list — see plan for full list): checkout, OTP request/verify/resend, buyer claim, seller login, seller order state transitions (confirm/ship/deliver), payouts, product publish/update.
+
+**Next concrete action when resuming:** check `gh pr list --state open` for `feat/mobile-connectivity-core` (PR1). If shipped, branch off develop for PR2 per the plan's "PR2 — Dio integration" section.
+
+## Recently completed — 2026-05-25 → 2026-05-26
 
 ## Recently completed — 2026-05-25 → 2026-05-26
 
