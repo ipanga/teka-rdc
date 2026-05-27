@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'l10n/app_localizations.dart';
 import 'core/connectivity/connectivity_lifecycle_observer.dart';
+import 'core/connectivity/connectivity_sentry_reporter.dart';
 import 'core/connectivity/widgets/connectivity_banner.dart';
 import 'core/locale/locale_provider.dart';
 import 'core/push/push_controller.dart';
@@ -23,6 +24,14 @@ class TekaApp extends ConsumerWidget {
     // The provider is read (not watched) because we don't need to
     // rebuild on changes; we just need it instantiated.
     ref.read(pushControllerProvider);
+
+    // Activate the Sentry reporter — subscribes to the connectivity
+    // stream + tags every Sentry event with the current state and
+    // captures rate-limited events on user-visible degradations.
+    // Same read-once-instantiate pattern as pushController above.
+    // No-op when SENTRY_DSN is unset (FlavorConfig falls back to
+    // a Sentry stub that swallows all calls).
+    ref.read(connectivitySentryReporterProvider);
 
     return MaterialApp.router(
       title: 'Teka RDC',
