@@ -1,9 +1,74 @@
 # Teka RDC — Development Progress
 
 ## Current Phase: — (no active initiative; awaiting next direction)
-## Last completed: seller-mobile multilingual cleanup — mirror of PR #117 (2026-05-20, PR #123 → #124)
-## Status: 4 seller-mobile models simplified from `Map<String, dynamic>` + `localized*(locale)` helpers to plain `String`. Bilingual fields dropped from create-promotion form. 14 files touched, -208 / +47 net. Flutter analyze clean. Mobile-only change.
-## Last Updated: 2026-05-20
+## Last completed: Mobile connectivity management (2026-05-27, 7-PR initiative, PRs #243 → #255)
+## Status: Centralized 5-state connectivity machine, 4-layer Dio chain (OfflineAware → Auth → Retry → Log), global UI banner, lifecycle pause/resume, SharedPreferences cart persistence, offline checkout hard-block, connectivity-aware auth refresh, rate-limited Sentry capture. Both Flutter apps shipped in lockstep, byte-for-byte identical connectivity layer. 54/54 buyer-mobile specs.
+## Last Updated: 2026-05-27
+
+### Initiative — Mobile connectivity management (2026-05-27, 7 PRs: #243 → #255)
+
+**Brief**: Both Flutter apps (`buyer-mobile` + `seller-mobile`) needed network-state awareness for DRC's 2G/3G reality — frequent drops, captive portals at cafés, shared cell-towers that flake under load. Letting Dio time out after 30s meant users tapped "Payer" three times and rage-quit. This initiative built the layer: state-aware, retry-where-safe, fail-fast-where-not, surface-state-visibly.
+
+**Authoritative reference**: `docs/mobile-connectivity.md`. CLAUDE.md Rule 15 enshrines the hard rules.
+
+**Locked decisions (2026-05-27)**:
+- Reachability probe is `${ApiConstants.baseUrl}/v1/health` — no `internet_connection_checker_plus` dep. The probe target equals what the API considers "alive."
+- Cart persists to SharedPreferences. Cart **mutations** when offline are blocked (no queue-and-replay) — replay would race price + stock during the offline window.
+- Order placement when offline is hard-blocked at the checkout review step (button + permanent French banner). No queue-and-replay anywhere.
+- The two Flutter trees are kept byte-for-byte identical for the connectivity layer; changes ship in lockstep.
+- Cache wiring is opt-in. Today only the cart is wired; product/category/profile/seller-order keys reserved.
+
+**PR sequence (each feature-PR has a paired develop→main release-PR; smoke after every deploy)**:
+
+- **PR1 — Core foundation** (#243 → #244). `ConnectivityStatus` enum + `ConnectivitySnapshot`. `ConnectivityService` with injectable `interfaceStream` (defaults to `connectivity_plus`) + injectable `probe` (defaults to Dio GET `/v1/health`, 3s timeout). 30s healthy cadence; 5s `noInternet` cadence; **2-slow-probes-to-unstable / 1-fast-out** hysteresis. Riverpod providers (`connectivityServiceProvider`, `connectivitySnapshotProvider`, `connectivityStatusProvider`, `isOnlineProvider`, `isOfflineProvider`). `connectivity_plus ^6.0.0` added. 10 unit tests. CI surprise: `flutter analyze --fatal-warnings` flags warning-level issues that local analyze logs as info — must remove unused fields not just deprecate them.
+- **PR2 — Dio integration** (#245 → #246). `RetryInterceptor`: full-jitter backoff `[0..500ms, 0..1500ms, 0..4000ms]` capped 5s, GET/HEAD only or `Options(extra: {retryable: true})` opt-in. Retries on `connectionTimeout` / `receiveTimeout` / `sendTimeout` / `connectionError` + HTTP 502/503/504. `OfflineAwareInterceptor`: synthesizes `DioException(type: connectionError, error: 'offline', message: 'Pas de connexion internet — la requête ne peut pas être envoyée.')` on non-safe verbs when disconnected. `Options(extra: {allowOffline: true})` opt-out. **Chain order**: `OfflineAware → Auth → Retry → Log` (load-bearing — retries must flow through auth attach). `AuthInterceptor` now distinguishes connectivity-caused refresh failure (`connectionTimeout` / `receiveTimeout` / `sendTimeout` / `connectionError` / `502/503/504`) from real 401s — tokens preserved on the former. No more "logged out on the bus" footgun. 19 unit tests using hand-rolled `HttpClientAdapter` mocks.
+- **PR3 — Global UI banner** (#247 → #248). `ConnectivityBannerHost` mounted via `MaterialApp.router.builder`. Red `disconnected`, orange `noInternet` / `unstable` / `reconnecting`, green `restored` (3s only). Key state: `_previousOfflineStatus` only tracks `disconnected` + `noInternet` — `reconnecting → connected` on app startup must NOT flash a green banner. `AnimatedSize` 200ms + `AnimatedSwitcher` 200ms. 5 new `app_fr.arb` keys + regen of `app_localizations*.dart`. Widget tests need a `_settleEmission` helper (pumps 2 frames + 350ms) to clear AnimatedSwitcher cross-fade. 8 widget tests.
+- **PR4 — Lifecycle integration** (#249 → #250). `ConnectivityLifecycleObserver`: `ConsumerStatefulWidget + WidgetsBindingObserver`. `paused / inactive / hidden → service.pause()` (stops probe timer; saves battery). `resumed → service.resume()` (immediate probe + restart timer). Deliberately does **not** invalidate authProvider on resume — PR2's auth interceptor already handles "tokens still valid, just couldn't reach the server." 8 widget tests using `_SpyConnectivityService` with overridden pause/resume.
+- **PR5 — Offline behavior** (#251 → #252). `TypedCache`: SharedPreferences-backed envelope `{v:1, savedAt: ISO, ttlMs, value}`. Methods: `write<T>`, `read<T>`, `evict`, `evictPrefix`. Returns `CacheEntry<T>` with `isFresh` + `age` getters. Stale-while-reconnecting: always returns value if present. `main.dart` preloads `SharedPreferences` then `ProviderScope(overrides: [sharedPreferencesProvider.overrideWithValue(prefs)])` — previously threw `UnimplementedError`. `CartNotifier` hydrates synchronously from cache (`_hydrateFromCache()` on construct) + write-through (`_persistToCache()` on success). 30-day TTL. Silent on offline `DioException` — connectivity banner already tells the story. Checkout review step watches `isOfflineProvider`: place-order button disabled + permanent banner "Connexion requise pour passer commande" with `Icons.wifi_off_outlined`. 9 unit tests using `SharedPreferences.setMockInitialValues`.
+- **PR6 — Sentry monitoring** (#253 → #254). `ConnectivitySentryReporter`: subscribes to connectivity stream, sets `connectivity_state` tag + structured `connectivity` context on every snapshot via `Sentry.configureScope`. Breadcrumb (category `connectivity`) on every transition. Rate-limited (1/min/category) captures on `connected → noInternet` (real degradation, not clean drop) + `sustained_noInternet` (≥5 consecutive). `RetryInterceptor` got `_maybeCaptureBudgetExhaustion()` (also 1/min) for full retry-budget exhaustion. Read-once-instantiate Riverpod pattern matching `pushControllerProvider`. **Privacy**: only connectivity status + latency + short error tag + HTTP method + URL path. No query strings, no payloads, no tokens, no phones. The existing `core/config/sentry_scrub.dart` phone-scrubber is untouched. Switched from deprecated `setExtra` to recommended `setContexts` to silence info-level lint warnings.
+- **PR7 — Docs + cleanup** (#255 → #256). New **`docs/mobile-connectivity.md`** — single landing page: ASCII state diagram, retry policy table, offline behavior matrix, observability signals, "adding a new feature" checklist, deferred work list, file map. **CLAUDE.md Rule 15** — hard rules: never bypass the Dio chain, never `retryable: true` on non-idempotent calls, never call SMS/OTP/payment vendors directly from app code, mirror buyer-mobile ↔ seller-mobile in the same PR, surface errors with the shared helper, never log creds/tokens/phones, state mutations are hard-blocked offline. **`docs/architecture.md`** gains a "Mobile network-resilience layer" subsection in Data Flow. **Cleanup**: 6 byte-identical copies of `_extractErrorMessage(DioException)` in buyer-mobile feature providers (catalog / checkout / cart / orders / wishlist / reviews) deduped into a single shared top-level `extractDioErrorMessage()` at `apps/buyer-mobile/lib/core/network/dio_error_messages.dart`. Net cleanup: −108 lines. Stale code comments in both `offline_aware_interceptor.dart` files updated to reference the new helper. STATUS.md closeout (active initiative → None) + plan archived locally to `~/.claude/plans/archive/mobile-connectivity-management.shipped.md`.
+
+**Files added** (mirrored byte-for-byte in seller-mobile):
+```
+apps/buyer-mobile/lib/core/connectivity/
+├── connectivity_status.dart                 enum + ConnectivitySnapshot
+├── connectivity_service.dart                state machine + probe loop
+├── connectivity_provider.dart               Riverpod providers
+├── connectivity_lifecycle_observer.dart     WidgetsBindingObserver bridge
+├── connectivity_sentry_reporter.dart        observability
+└── widgets/
+    └── connectivity_banner.dart             global banner widget
+
+apps/buyer-mobile/lib/core/network/
+├── offline_aware_interceptor.dart           fail-fast for non-safe calls when disconnected
+├── retry_interceptor.dart                   full-jitter exponential backoff
+└── dio_error_messages.dart                  French error-string helper (PR7 dedup)
+
+apps/buyer-mobile/lib/core/cache/
+├── typed_cache.dart                         SharedPreferences-backed cache
+└── cache_keys.dart                          reserved key constants
+```
+
+`auth_interceptor.dart` + `api_client.dart` were modified, not added.
+
+**Verification**:
+- Tests: 54/54 buyer-mobile specs across `connectivity_service_test.dart` (10), `retry_interceptor_test.dart` (9), `offline_aware_interceptor_test.dart` (10), `connectivity_banner_test.dart` (8), `connectivity_lifecycle_observer_test.dart` (8), `typed_cache_test.dart` (9).
+- `flutter analyze --no-fatal-warnings`: 18 baseline issues buyer-mobile / 14 baseline seller-mobile, no new issues introduced by any PR.
+- CI: 7/7 checks green on every PR (Lint & Type Check, Analyze (actions), Analyze (javascript-typescript), API Tests, Flutter Analysis ×2, CodeQL).
+- Post-release smoke (2026-05-27 20:11 UTC): API health 200, db ok, uptime 413s; all 6 removed endpoints still 404; all public read endpoints respond <1s; all 3 web surfaces 200.
+- **Emulator walkthrough** (2026-05-27, `emulator-5554` Android): production-flavor APK installed, exercised every visible signal — orange "Connexion instable" on slow probe; red "Pas de connexion internet" + inline French error after killing wifi/data (verifying `OfflineAwareInterceptor` synthesis + `extractDioErrorMessage` rendering); green "Connexion rétablie" caught in its 3s window; clean resume from HOME→relaunch (PR4 pause/resume). PR5 cart persistence + PR6 Sentry capture not exercised (would need real login + a configured Sentry DSN — both out of scope for a CLI walkthrough).
+
+**Net effect across the initiative**: ~1300 lines added, ~150 removed across 50+ files. 14 PRs total (7 feature + 7 release).
+
+**Decisions captured for future maintainers** (also in STATUS.md + `docs/mobile-connectivity.md`):
+- The two Flutter trees are kept byte-for-byte identical for the connectivity layer. PR diffs that touch one and not the other should be rejected at review.
+- No queue-and-replay anywhere (cart, checkout, anything stateful). The offline window can be arbitrarily long; replay would race price + stock.
+- Cache wiring is opt-in. `productsList` / `categoriesTree` / `userProfile` / `sellerOrdersList` keys are reserved in `cache_keys.dart` but not yet used — future opt-in pass.
+- Re-introducing SMS still requires a written ADR (Rule 11 unchanged). Re-introducing automated payments would need a new provider abstraction from scratch.
+
+**Ship cycle**: 7 feature PRs (#243, #245, #247, #249, #251, #253, #255) each followed by a release PR develop→main (#244, #246, #248, #250, #252, #254, #256). Every deploy ran clean; prod was healthy after each.
+
+---
 
 ### Initiative — seller-mobile multilingual cleanup (2026-05-20, PR #123 → #124)
 
