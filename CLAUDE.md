@@ -79,12 +79,17 @@ Note: there is **no local Postgres or Redis container** — the DB is cloud-host
 
 ### Flutter (mobile)
 
+Both apps ship **three Android product flavors** (`development` | `staging` | `production`) so dev/staging/prod builds co-install. `flutter run`/`build` without `--flavor` fails fast with `no matching variant` — always pass `--flavor` + the matching `--dart-define-from-file`. The flavor (incl. API base URL + Sentry DSN) is baked in at compile time via `lib/core/config/flavor.dart`. **Full reference: `docs/mobile-flavors.md`.**
+
 ```bash
-cd apps/buyer-mobile && flutter run         # buyer app on connected device/emulator
-cd apps/seller-mobile && flutter run        # seller app
-flutter test                                 # unit tests
+# Run (from apps/buyer-mobile or apps/seller-mobile):
+flutter run --flavor development --dart-define-from-file=flavors/development.json
+flutter run --flavor production  --dart-define-from-file=flavors/production.json
+flutter test                                 # unit tests (flavor not needed)
 flutter pub run build_runner build           # regenerate Riverpod / freezed code
 ```
+
+Dev/staging APKs need per-flavor `google-services.json` (CI injects from secrets) or they fail at `:processGoogleServices*` — see `docs/mobile-flavors.md`.
 
 ### Branching (see CONTRIBUTING.md for full detail)
 
@@ -192,6 +197,10 @@ teka-rdc/
     ├── architecture.md          # Authoritative service architecture (read this first)
     ├── api-reference.md
     ├── deployment.md            # Includes § 5b: how admins are seeded out-of-band
+    ├── mobile-connectivity.md   # Flutter connectivity state machine + Dio chain (Rule 15)
+    ├── mobile-flavors.md        # Android dev/staging/prod product flavors
+    ├── push-notifications.md    # FCM / PushService setup + device-token lifecycle
+    ├── sentry.md                # Error monitoring wiring (SENTRY_DSN, scrubbing)
     └── phases/
 ```
 
