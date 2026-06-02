@@ -33,6 +33,20 @@ const nextConfig: NextConfig = {
     remotePatterns: [{ protocol: 'https', hostname: 'res.cloudinary.com' }],
   },
 
+  // PostHog reverse proxy. The browser talks to teka.cd/ingest/* (same origin)
+  // so ad-blockers on DRC networks don't drop analytics; Next forwards to
+  // PostHog US Cloud. posthog-js is configured with api_host:'/ingest'.
+  // skipTrailingSlashRedirect is required — PostHog's API paths must not be
+  // 308-redirected to a trailing-slash variant.
+  skipTrailingSlashRedirect: true,
+  async rewrites() {
+    return [
+      { source: '/ingest/static/:path*', destination: 'https://us-assets.i.posthog.com/static/:path*' },
+      { source: '/ingest/:path*', destination: 'https://us.i.posthog.com/:path*' },
+      { source: '/ingest/flags', destination: 'https://us.i.posthog.com/flags' },
+    ];
+  },
+
   // 301 redirects for SEO continuity:
   //   - /pages/<canonical>   → /<fr-slug>  (legacy /pages/ prefix)
   //   - /<canonical-en>      → /<fr-slug>  (someone typed the English slug)
