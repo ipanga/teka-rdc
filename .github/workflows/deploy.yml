@@ -67,6 +67,7 @@ jobs:
           BUYER_WEB_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB }}
           SELLER_WEB_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN_SELLER_WEB }}
           ADMIN_WEB_DSN: ${{ secrets.NEXT_PUBLIC_SENTRY_DSN_ADMIN_WEB }}
+          BUYER_WEB_PH_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY_BUYER_WEB }}
         run: |
           set -eu
           case "${{ matrix.name }}" in
@@ -78,6 +79,7 @@ jobs:
                 echo "value<<__END__"
                 echo "NEXT_PUBLIC_API_URL=https://api.teka.cd/api"
                 echo "NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB=${BUYER_WEB_DSN}"
+                echo "NEXT_PUBLIC_POSTHOG_KEY_BUYER_WEB=${BUYER_WEB_PH_KEY}"
                 echo "SENTRY_RELEASE=${{ github.sha }}"
                 echo "__END__"
               } >> "$GITHUB_OUTPUT"

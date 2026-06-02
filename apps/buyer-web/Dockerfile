@@ -16,6 +16,11 @@ ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 # GitHub Secret by deploy.yml.
 ARG NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB=""
 ENV NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB=$NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB
+# PostHog publishable project key — baked into the browser bundle
+# (NEXT_PUBLIC_* is compile-time only). Public by design; the build-arg is
+# sourced from a GitHub Secret by deploy.yml. Empty → posthog never inits.
+ARG NEXT_PUBLIC_POSTHOG_KEY_BUYER_WEB=""
+ENV NEXT_PUBLIC_POSTHOG_KEY_BUYER_WEB=$NEXT_PUBLIC_POSTHOG_KEY_BUYER_WEB
 # Sentry release tag (commit SHA). Read by both server-side
 # instrumentation and the source-map upload step. Empty in local builds.
 ARG SENTRY_RELEASE=""

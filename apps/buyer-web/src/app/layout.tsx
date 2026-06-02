@@ -2,7 +2,10 @@ import type { Metadata, Viewport } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { Inter } from 'next/font/google';
+import { Suspense } from 'react';
 import { AuthProvider } from '@/components/providers/auth-provider';
+import { PostHogPageview } from '@/components/providers/posthog-pageview';
+import { PostHogProvider } from '@/components/providers/posthog-provider';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-inter' });
@@ -66,9 +69,16 @@ export default async function RootLayout({
   return (
     <html lang="fr" className={inter.variable}>
       <body className="font-sans antialiased">
-        <NextIntlClientProvider messages={messages}>
-          <AuthProvider>{children}</AuthProvider>
-        </NextIntlClientProvider>
+        <PostHogProvider>
+          <NextIntlClientProvider messages={messages}>
+            <AuthProvider>
+              {children}
+              <Suspense fallback={null}>
+                <PostHogPageview />
+              </Suspense>
+            </AuthProvider>
+          </NextIntlClientProvider>
+        </PostHogProvider>
         <script
           dangerouslySetInnerHTML={{
             __html: `

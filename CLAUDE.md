@@ -195,6 +195,7 @@ teka-rdc/
 │                                # phone normalization (normalizeDrcPhone), auth cookie names
 └── docs/
     ├── architecture.md          # Authoritative service architecture (read this first)
+    ├── analytics.md             # PostHog (buyer-web): analytics, session replay, feature flags
     ├── api-reference.md
     ├── deployment.md            # Includes § 5b: how admins are seeded out-of-band
     ├── mobile-connectivity.md   # Flutter connectivity state machine + Dio chain (Rule 15)
