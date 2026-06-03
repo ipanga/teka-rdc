@@ -21,6 +21,11 @@ ENV NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB=$NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB
 # sourced from a GitHub Secret by deploy.yml. Empty → posthog never inits.
 ARG NEXT_PUBLIC_POSTHOG_KEY_BUYER_WEB=""
 ENV NEXT_PUBLIC_POSTHOG_KEY_BUYER_WEB=$NEXT_PUBLIC_POSTHOG_KEY_BUYER_WEB
+# Microsoft Clarity project id — baked into the browser bundle (NEXT_PUBLIC_*
+# is compile-time only). Public by design; sourced from a GitHub Secret by
+# deploy.yml. Empty → Clarity never loads (also gated on NODE_ENV=production).
+ARG NEXT_PUBLIC_CLARITY_PROJECT_ID_BUYER_WEB=""
+ENV NEXT_PUBLIC_CLARITY_PROJECT_ID_BUYER_WEB=$NEXT_PUBLIC_CLARITY_PROJECT_ID_BUYER_WEB
 # Sentry release tag (commit SHA). Read by both server-side
 # instrumentation and the source-map upload step. Empty in local builds.
 ARG SENTRY_RELEASE=""
