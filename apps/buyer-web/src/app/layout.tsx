@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { Inter } from 'next/font/google';
 import { Suspense } from 'react';
+import { Clarity } from '@/components/analytics/clarity';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { PostHogPageview } from '@/components/providers/posthog-pageview';
 import { PostHogProvider } from '@/components/providers/posthog-provider';
@@ -79,6 +80,7 @@ export default async function RootLayout({
             </AuthProvider>
           </NextIntlClientProvider>
         </PostHogProvider>
+        <Clarity />
         <script
           dangerouslySetInnerHTML={{
             __html: `

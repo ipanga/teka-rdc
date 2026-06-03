@@ -196,6 +196,7 @@ teka-rdc/
 └── docs/
     ├── architecture.md          # Authoritative service architecture (read this first)
     ├── analytics.md             # PostHog (buyer-web): analytics, session replay, feature flags
+    ├── clarity.md               # Microsoft Clarity (buyer-web + seller-web): heatmaps + recordings
     ├── api-reference.md
     ├── deployment.md            # Includes § 5b: how admins are seeded out-of-band
     ├── mobile-connectivity.md   # Flutter connectivity state machine + Dio chain (Rule 15)
