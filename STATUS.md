@@ -1,4 +1,4 @@
-# Status — 2026-05-27
+# Status — 2026-06-03
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,7 +6,16 @@
 
 ## Active initiative
 
-None.
+**PostHog platform rollout** (audit + completion + hardening across all 6 surfaces).
+Master tracker + full audit, gap analysis, event-ownership matrix, phased PR plan, and
+resume protocol: **`tasks/posthog-rollout-progress.md`** (read its "⏯ RESUME HERE" block first).
+
+- **Phase 0 (Discovery & Audit): COMPLETE.** PostHog confirmed live on **buyer-web only**;
+  absent on api, admin-web, seller-web, buyer-mobile, seller-mobile.
+- **Implementation: NOT STARTED** — awaiting user sign-off on the PR plan + open decisions
+  (env separation, taxonomy approval, `posthog_flutter` dependency, PR sequencing).
+- **Next:** PR-1 (API `AnalyticsModule` inert scaffold).
+- **No code changed yet this initiative** — only `tasks/posthog-rollout-progress.md` (new) + this file.
 
 ## Recently completed — 2026-05-27
 
