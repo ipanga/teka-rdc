@@ -16,6 +16,11 @@ ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
 # Sentry — see apps/buyer-web/Dockerfile for the full rationale.
 ARG NEXT_PUBLIC_SENTRY_DSN_SELLER_WEB=""
 ENV NEXT_PUBLIC_SENTRY_DSN_SELLER_WEB=$NEXT_PUBLIC_SENTRY_DSN_SELLER_WEB
+# Microsoft Clarity project id — baked into the browser bundle (NEXT_PUBLIC_*
+# is compile-time only). Public by design; sourced from a GitHub Secret by
+# deploy.yml. Empty → Clarity never loads (also gated on NODE_ENV=production).
+ARG NEXT_PUBLIC_CLARITY_PROJECT_ID_SELLER_WEB=""
+ENV NEXT_PUBLIC_CLARITY_PROJECT_ID_SELLER_WEB=$NEXT_PUBLIC_CLARITY_PROJECT_ID_SELLER_WEB
 ARG SENTRY_RELEASE=""
 ENV SENTRY_RELEASE=$SENTRY_RELEASE
 ENV NEXT_PUBLIC_SENTRY_RELEASE=$SENTRY_RELEASE
