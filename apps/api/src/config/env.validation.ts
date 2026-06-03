@@ -76,4 +76,11 @@ export const envValidationSchema = Joi.object({
   BUYER_WEB_URL: Joi.string().default('http://localhost:5001'),
   SELLER_WEB_URL: Joi.string().default('http://localhost:5100'),
   ADMIN_WEB_URL: Joi.string().default('http://localhost:5200'),
+
+  // PostHog (server-side product analytics). Server secret — NOT a
+  // NEXT_PUBLIC_ var. Empty → PostHogService is a no-op (mirrors
+  // SENTRY_DSN). Single prod project; dev left empty so local runs don't
+  // pollute prod analytics. POSTHOG_HOST defaults to US Cloud.
+  POSTHOG_API_KEY: Joi.string().allow('').default(''),
+  POSTHOG_HOST: Joi.string().default('https://us.i.posthog.com'),
 });

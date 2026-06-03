@@ -137,6 +137,9 @@ importers:
       passport-jwt:
         specifier: ^4.0.1
         version: 4.0.1
+      posthog-node:
+        specifier: ^5.35.13
+        version: 5.35.13(rxjs@7.8.2)
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -1808,8 +1811,14 @@ packages:
   '@posthog/core@1.30.2':
     resolution: {integrity: sha512-d7RTpfi+/q5+SZ+4f1WhanfEtNBz9onMmUxn3BO0GDT8N5ZT4DEP3LqFisqeP+xkJTaFPWCOVA/nGyKmUX9y9g==}
 
+  '@posthog/core@1.30.4':
+    resolution: {integrity: sha512-57RyT+moR9YGzMTZxbMEPnx6elDeBLzyUd1rfn5XB5yZO425ylKy1nZ1YuKT3CG27bAspUz5J1zHo9y4ygNRCQ==}
+
   '@posthog/types@1.378.1':
     resolution: {integrity: sha512-bKOXVWySe5oKFjV6X9VW9jngIm14d4BvnT7l/Eb7e6DrT5uD+XclvbRdhC5f1/l5KwoIU+qswBobHRPlix2D1w==}
+
+  '@posthog/types@1.379.1':
+    resolution: {integrity: sha512-Wr14NDmjl3sUVTgjpIojdsnS5+pNKi53IOD7Q+dAjrNlvGxYcLRkrgJ3AQm6//4NO451L7jCXgfx1x3AkZ7ZBw==}
 
   '@prisma/client@6.19.2':
     resolution: {integrity: sha512-gR2EMvfK/aTxsuooaDA32D8v+us/8AAet+C3J1cc04SW35FPdZYgLF+iN4NDLUgAaUGTKdAB0CYenu1TAgGdMg==}
@@ -5494,6 +5503,15 @@ packages:
   posthog-js@1.378.1:
     resolution: {integrity: sha512-pr9hu7J9eKCWlDxGfn5jbqcaTvaS+quRVxMKo7XRiKHPtFpXoIStOctkRTMumz8LucgD4l5NVbtsaZDi6OrrLQ==}
 
+  posthog-node@5.35.13:
+    resolution: {integrity: sha512-1QnWiMaegic/jcG8STAwdROv24wVcuvqvZPtra3uz4W9jftRcKkFItdjiy+oJWxkTh9apBYlNdwuhtYhnq9Qkg==}
+    engines: {node: ^20.20.0 || >=22.22.0}
+    peerDependencies:
+      rxjs: ^7.0.0
+    peerDependenciesMeta:
+      rxjs:
+        optional: true
+
   preact@10.29.2:
     resolution: {integrity: sha512-7tNmwg/7mzzAoB/8kSg6Hl37JraAZw3Z3A0JSY7VXlZwo82Xn0G7wKbNNs2qoF4ZEEsQGTwDAroNdqKs1ofJxQ==}
 
@@ -8051,7 +8069,13 @@ snapshots:
     dependencies:
       '@posthog/types': 1.378.1
 
+  '@posthog/core@1.30.4':
+    dependencies:
+      '@posthog/types': 1.379.1
+
   '@posthog/types@1.378.1': {}
+
+  '@posthog/types@1.379.1': {}
 
   '@prisma/client@6.19.2(prisma@6.19.2(typescript@5.9.3))(typescript@5.9.3)':
     optionalDependencies:
@@ -12419,6 +12443,12 @@ snapshots:
       preact: 10.29.2
       query-selector-shadow-dom: 1.0.1
       web-vitals: 5.3.0
+
+  posthog-node@5.35.13(rxjs@7.8.2):
+    dependencies:
+      '@posthog/core': 1.30.4
+    optionalDependencies:
+      rxjs: 7.8.2
 
   preact@10.29.2: {}
 

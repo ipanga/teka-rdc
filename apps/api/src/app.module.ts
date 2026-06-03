@@ -32,6 +32,7 @@ import { BroadcastsModule } from './broadcasts/broadcasts.module';
 import { ReportsModule } from './reports/reports.module';
 import { ContactModule } from './contact/contact.module';
 import { PushModule } from './push/push.module';
+import { AnalyticsModule } from './analytics/analytics.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
@@ -75,6 +76,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     ReportsModule,
     ContactModule,
     PushModule,
+    AnalyticsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

@@ -12,10 +12,13 @@ resume protocol: **`tasks/posthog-rollout-progress.md`** (read its "⏯ RESUME H
 
 - **Phase 0 (Discovery & Audit): COMPLETE.** PostHog confirmed live on **buyer-web only**;
   absent on api, admin-web, seller-web, buyer-mobile, seller-mobile.
-- **Implementation: NOT STARTED** — awaiting user sign-off on the PR plan + open decisions
-  (env separation, taxonomy approval, `posthog_flutter` dependency, PR sequencing).
-- **Next:** PR-1 (API `AnalyticsModule` inert scaffold).
-- **No code changed yet this initiative** — only `tasks/posthog-rollout-progress.md` (new) + this file.
+- **PR-1 (API inert scaffold): COMPLETE + green** on branch `feat/posthog-api-scaffold`
+  (lint, type-check, 20 unit + 90 e2e all pass). Adds `posthog-node` + gated `@Global`
+  `AnalyticsModule`/`PostHogService` (no capture calls yet — safe to merge with empty key).
+- **All 4 open decisions resolved:** 1 prod project + dev key empty; system events = `payment_*`
+  only (no `api_error`/`notification_sent`); API-first sequencing; `posthog_flutter` approved.
+- **Next:** PR-2 — inject `PostHogService` into auth + order services (server-owned events).
+  Integration points (file:line) in the tracker's "API integration points" section.
 
 ## Recently completed — 2026-05-27
 
