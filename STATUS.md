@@ -22,9 +22,11 @@ resume protocol: **`tasks/posthog-rollout-progress.md`** (read its "⏯ RESUME H
   helper + 7 buyer UI events. **R2 resolved** (dev key blank).
 - **PR-5 (seller-web integration): COMPLETE + green** on `feat/posthog-seller-web`. Cloned the buyer-web
   provider pattern (provider/pageview/scrub, `/ingest` rewrites, Dockerfile + deploy build-arg, identify/reset).
-- **PR-6 (admin-web integration): COMPLETE + green** on `feat/posthog-admin-web` (type-check + `pnpm build`).
-  Same clone, key `_ADMIN_WEB`, NEW `rewrites()` block (admin-web only had `redirects()`), identify/reset
-  (role ADMIN). **All web + API instrumentation now complete.**
+- **PR-6 (admin-web integration): COMPLETE + green**. Same clone, key `_ADMIN_WEB`, NEW `rewrites()`
+  block, identify/reset (role ADMIN). **All web + API instrumentation complete.**
+- **PRs #262–#267 MERGED into `develop`** (2026-06-04, real merge commits, stack preserved). All six
+  feature branches deleted. `develop` @ `aedeb50`. **Not yet released to `main`** (a `develop → main`
+  merge PR triggers the prod deploy — pending decision; do it after PR-7/PR-8 or when ready to ship).
 - **All 4 open decisions resolved:** 1 prod project + dev key empty; system events = `payment_*`
   only (no `api_error`/`notification_sent`); API-first sequencing; `posthog_flutter` approved.
 - **Next:** PR-7 mobile (buyer + seller in ONE PR, Rule 15), PR-8 docs + closeout.
