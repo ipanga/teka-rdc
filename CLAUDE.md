@@ -130,7 +130,7 @@ Before making ANY architectural or UX decision, internalize these constraints:
 | Containerization | Docker + Docker Compose | 5 services in dev (api, buyer-web, seller-web, admin-web, nginx). Cloud DB — no local Postgres. |
 | CI/CD | GitHub Actions | Lint → Test → Build → Deploy pipeline |
 | Monitoring | Prometheus + Grafana | Health checks, API latency, error rates, queue depth |
-| Product analytics | PostHog (buyer-web) + Microsoft Clarity (buyer-web + seller-web) | PostHog: events, session replay, feature flags (`docs/analytics.md`). Clarity: heatmaps + recordings (`docs/clarity.md`). Both client-side only; no API involvement. |
+| Product analytics | PostHog (all 6 surfaces) + Microsoft Clarity (buyer-web + seller-web) | PostHog (`docs/analytics.md`): one US-Cloud project across api (`posthog-node`, server-owned transactional events), the 3 web apps (`posthog-js` — pageviews, autocapture, session replay; buyer-web also has custom UI events), and both Flutter apps (`posthog_flutter` — screen + lifecycle + identity). `distinctId = user.id` everywhere; identity carries id+role only. Each event has ONE authoritative owner (server = transactional, client = UI-intent — no duplication). Clarity (`docs/clarity.md`): heatmaps + recordings, web only. |
 
 ### Frontend & Production URLs
 

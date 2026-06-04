@@ -1,4 +1,4 @@
-# Status — 2026-06-03
+# Status — 2026-06-04
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,40 +6,35 @@
 
 ## Active initiative
 
-**PostHog platform rollout** (audit + completion + hardening across all 6 surfaces).
-Master tracker + full audit, gap analysis, event-ownership matrix, phased PR plan, and
-resume protocol: **`tasks/posthog-rollout-progress.md`** (read its "⏯ RESUME HERE" block first).
+None. **PostHog platform rollout is code-complete on `develop`** (see Recently completed below).
+The only remaining step is the **user-gated `develop → main` release PR**, which triggers the prod
+deploy (bakes the web keys, loads the API key). Until then nothing is live in prod.
 
-- **Phase 0 (Discovery & Audit): COMPLETE.** PostHog confirmed live on **buyer-web only**;
-  absent on api, admin-web, seller-web, buyer-mobile, seller-mobile.
-- **PR-1 (API inert scaffold): COMPLETE + green** on `feat/posthog-api-scaffold`. `posthog-node`
-  + gated `@Global` `AnalyticsModule`/`PostHogService`.
-- **PR-2 (API auth + order events): COMPLETE + green** on `feat/posthog-api-events`. Auth + checkout +
-  order lifecycle + COD payment events; `POSTHOG_API_KEY` GitHub Secret wired to the API container.
-- **PR-3 (API admin/seller/product/broadcast): COMPLETE + green** on `feat/posthog-api-admin-events`.
-  **API server-side instrumentation complete.**
-- **PR-4 (buyer-web taxonomy): COMPLETE + green** on `feat/posthog-buyer-web-events`. Typed `track()`
-  helper + 7 buyer UI events. **R2 resolved** (dev key blank).
-- **PR-5 (seller-web integration): COMPLETE + green** on `feat/posthog-seller-web`. Cloned the buyer-web
-  provider pattern (provider/pageview/scrub, `/ingest` rewrites, Dockerfile + deploy build-arg, identify/reset).
-- **PR-6 (admin-web integration): COMPLETE + green**. Same clone, key `_ADMIN_WEB`, NEW `rewrites()`
-  block, identify/reset (role ADMIN). **All web + API instrumentation complete.**
-- **PRs #262–#267 MERGED into `develop`** (2026-06-04, real merge commits, stack preserved). All six
-  feature branches deleted.
-- **PR-7 (mobile, buyer + seller): COMPLETE + green** on `feat/posthog-mobile` (off `develop`).
-  `posthog_flutter ^5.25.3` in both apps (lockstep): gated `setup()`, per-flavor key, `PosthogObserver`
-  screen tracking, centralized identify/reset (id+role only) + privacy unit test. buyer 57/57, seller
-  3/3, analyze clean. **ALL SIX SURFACES NOW INSTRUMENTED.**
-- **Next:** PR-8 (docs + closeout), then the `develop → main` release PR (triggers prod deploy — user-gated).
-- **Not yet released to `main`.**
-- **All 4 open decisions resolved:** 1 prod project + dev key empty; system events = `payment_*`
-  only (no `api_error`/`notification_sent`); API-first sequencing; `posthog_flutter` approved.
-- **Next:** PR-7 mobile (buyer + seller in ONE PR, Rule 15), PR-8 docs + closeout.
-- **Ops:** ✅ DONE (2026-06-04) — GitHub Secrets `NEXT_PUBLIC_POSTHOG_KEY_SELLER_WEB` +
-  `NEXT_PUBLIC_POSTHOG_KEY_ADMIN_WEB` added (same phc_ value as buyer-web). All 3 web apps + the API
-  (`POSTHOG_API_KEY`) now have their prod keys provisioned; next deploy bakes/loads them.
-- **Lint:** repo `pnpm lint` is pre-existing-red (510 errors, untouched files) — NOT a gate; type-check
-  + tests are. Never run the broad `pnpm lint` (`--fix` rewrites unrelated files); scope eslint to edits.
+## Recently completed — 2026-06-04
+
+**PostHog platform rollout** (8-PR initiative, PR-1→8). Master tracker: `tasks/posthog-rollout-progress.md`.
+Authoritative reference (rewritten platform-wide): `docs/analytics.md`. Merged to `develop`: **#262–#268**
++ docs/closeout. **Not yet released to `main`.**
+
+**Net effect:** PostHog extended from buyer-web-only to **all 6 surfaces** — api (`posthog-node`
+`@Global AnalyticsModule`/`PostHogService`, server-owned auth/order/payment/admin events), seller-web +
+admin-web (cloned the buyer-web provider), buyer-web custom UI event taxonomy, and both Flutter apps
+(`posthog_flutter`, screen+lifecycle+identity, byte-for-byte lockstep). One US-Cloud project;
+`distinctId = user.id` everywhere; identity carries **id+role only** (never phone/email); each event has
+ONE authoritative owner (server=transactional, client=UI-intent — no duplication); `api_error` +
+`notification_sent` excluded by decision. `POSTHOG_API_KEY` wired into the api container
+(deploy.yml/compose); the 3 web `NEXT_PUBLIC_POSTHOG_KEY_*` GitHub Secrets + the API secret are
+provisioned; mobile keys are per-flavor (prod injected at build). R2 fixed (dev keys empty). Green
+throughout: api 22 unit + 90 e2e; web type-check + `pnpm build`; mobile `flutter analyze` + tests.
+
+**Decisions captured:** single prod project + dev keys empty; system events = `payment_*` only;
+API-first sequencing; `posthog_flutter` (official) approved. **Deferred:** custom buyer-mobile ecommerce
+events; server-side flag bootstrap; replay↔Sentry linking; on-device mobile init verification (analyze +
+unit-tested only — add `AUTO_INIT=false` manifest meta-data if a startup warning appears).
+
+**Note for future work:** repo `pnpm lint` is pre-existing-red (510 errors in untouched files) — NOT a
+CI gate; type-check + tests are. Never run the broad `pnpm lint` (`--fix` rewrites unrelated files);
+scope eslint to edited files.
 
 ## Recently completed — 2026-05-27
 
