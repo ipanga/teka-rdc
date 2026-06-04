@@ -170,6 +170,45 @@ gate above-the-fold UI.)
 - [ ] Build the core funnels (e.g. `product_viewed → add_to_cart →`
       `checkout_started → order_created → order_delivered`).
 
+## Post-deploy smoke test (web ingest path)
+
+After a prod deploy, confirm the same-origin `/ingest` proxy + baked key work
+end-to-end **without** the PostHog dashboard or a personal API key — just the
+public `phc_…` project key, which already ships in each web bundle.
+
+1. **Reachability** — each web `/ingest` rewrite is deployed and reaches PostHog:
+   ```bash
+   for h in teka.cd seller.teka.cd admin.teka.cd; do
+     curl -s -o /dev/null -w "$h %{http_code}\n" "https://$h/ingest/static/array.js"
+   done   # expect: 200 on all three (it proxies posthog-js's array.js)
+   ```
+2. **Capture** — POST one labeled event through each proxy. Grab the public key
+   from the deployed bundle, then send:
+   ```bash
+   # extract the public phc_ key from the buyer-web bundle
+   KEY=$(curl -s https://teka.cd/ | grep -oE '/_next/static/[^"]+\.js' | sort -u \
+     | while read c; do curl -s "https://teka.cd$c" | grep -oE 'phc_[A-Za-z0-9]{30,}'; done | head -1)
+
+   for h in teka.cd seller.teka.cd admin.teka.cd; do
+     curl -s -w " $h %{http_code}\n" -X POST "https://$h/ingest/i/v0/e/" \
+       -H 'Content-Type: application/json' \
+       -d "{\"api_key\":\"$KEY\",\"event\":\"deploy_smoke_test\",\"distinct_id\":\"claude-verify\",\"properties\":{\"environment\":\"production\",\"source\":\"smoke-test\",\"surface\":\"$h\"}}"
+   done   # expect: {"status":"Ok"} 200 on all three
+   ```
+3. **Confirm** — PostHog → **Activity → Live Events**, filter
+   `distinct_id = claude-verify` (or `event = deploy_smoke_test`). All three
+   should appear within seconds, tagged `environment = production`.
+
+Notes:
+- This verifies the **web** ingest chain (key baked → proxy → project). It does
+  **not** exercise app-generated events — load `teka.cd` for a real `$pageview`,
+  or perform a login/checkout for server events.
+- **Mobile** can't be smoke-tested this way; `posthog_flutter` only sends once a
+  prod build carrying the flavor key is installed.
+- These are synthetic, `environment: production`-tagged events — exclude
+  `event = deploy_smoke_test` / `distinct_id = claude-verify` from insights, or
+  ignore them.
+
 ## Adding a new event
 
 1. **Decide the owner** (server vs client) using the ownership rule above — never
