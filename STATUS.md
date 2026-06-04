@@ -14,15 +14,17 @@ resume protocol: **`tasks/posthog-rollout-progress.md`** (read its "⏯ RESUME H
   absent on api, admin-web, seller-web, buyer-mobile, seller-mobile.
 - **PR-1 (API inert scaffold): COMPLETE + green** on `feat/posthog-api-scaffold`. `posthog-node`
   + gated `@Global` `AnalyticsModule`/`PostHogService`.
-- **PR-2 (API auth + order events): COMPLETE + green** on `feat/posthog-api-events` (stacked on PR-1;
-  type-check + 22 unit + 90 e2e pass). Server-owned captures across auth + checkout + order lifecycle
-  + COD payment events; `POSTHOG_API_KEY` GitHub Secret wired into the API container (deploy.yml +
-  compose). **Lint note:** repo `pnpm lint` is pre-existing-red (510 errors on untouched files); not a
-  gate — type-check + tests are. New files lint-clean; edits add no new errors.
+- **PR-2 (API auth + order events): COMPLETE + green** on `feat/posthog-api-events`. Auth + checkout +
+  order lifecycle + COD payment events; `POSTHOG_API_KEY` GitHub Secret wired to the API container.
+- **PR-3 (API admin/seller/product/broadcast): COMPLETE + green** on `feat/posthog-api-admin-events`
+  (type-check + 22 unit + 90 e2e). seller_approved/rejected, product_moderated, product_created/updated,
+  broadcast_sent. **API server-side instrumentation is now complete.**
 - **All 4 open decisions resolved:** 1 prod project + dev key empty; system events = `payment_*`
   only (no `api_error`/`notification_sent`); API-first sequencing; `posthog_flutter` approved.
-- **Next:** PR-3 — API admin/seller/product/broadcast events. Then web (PR-4→6), mobile (PR-7), docs (PR-8).
-- **R2 pending:** blank the live `phc_…` key in `.env.development` (with/before PR-4).
+- **Next:** PR-4 — buyer-web event taxonomy (typed `track()` helper + buyer UI events) + R2 fix (blank
+  the live `phc_…` dev key). Then seller-web (PR-5), admin-web (PR-6), mobile (PR-7), docs (PR-8).
+- **Lint:** repo `pnpm lint` is pre-existing-red (510 errors, untouched files) — NOT a gate; type-check
+  + tests are. Never run the broad `pnpm lint` (`--fix` rewrites unrelated files); scope eslint to edits.
 
 ## Recently completed — 2026-05-27
 

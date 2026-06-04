@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PushService } from '../push/push.service';
 import { EmailService } from '../email/email.service';
 import { NotificationPrefsService } from '../users/notification-prefs.service';
+import { PostHogService } from '../analytics/posthog.service';
 import {
   NotificationBroadcastStatus,
   Prisma,
@@ -51,6 +52,7 @@ export class BroadcastsService {
     private pushService: PushService,
     private emailService: EmailService,
     private notificationPrefs: NotificationPrefsService,
+    private analytics: PostHogService,
   ) {}
 
   /**
@@ -191,6 +193,14 @@ export class BroadcastsService {
 
     const channels = this.resolveChannels(broadcast.channels);
 
+    // Server-owned admin event, attributed to the admin who sent it.
+    this.analytics.capture(broadcast.createdById, 'broadcast_sent', {
+      broadcastId: id,
+      segment: broadcast.segment,
+      recipient_count: recipientCount,
+      channels,
+    });
+
     // Fan out asynchronously (don't block the response)
     setImmediate(() => {
       this.processBroadcastSending(
@@ -263,17 +273,11 @@ export class BroadcastsService {
    * malformed input falls back to BROADCAST_DEFAULT_CHANNELS. Legacy
    * `sms: true` values from rows created before C2 are silently dropped.
    */
-  private resolveChannels(
-    stored: Prisma.JsonValue | null,
-  ): BroadcastChannels {
-    if (
-      stored == null ||
-      typeof stored !== 'object' ||
-      Array.isArray(stored)
-    ) {
+  private resolveChannels(stored: Prisma.JsonValue | null): BroadcastChannels {
+    if (stored == null || typeof stored !== 'object' || Array.isArray(stored)) {
       return { ...BROADCAST_DEFAULT_CHANNELS };
     }
-    const obj = stored as Prisma.JsonObject;
+    const obj = stored;
     return {
       push:
         typeof obj.push === 'boolean'
