@@ -18,13 +18,15 @@ resume protocol: **`tasks/posthog-rollout-progress.md`** (read its "⏯ RESUME H
   order lifecycle + COD payment events; `POSTHOG_API_KEY` GitHub Secret wired to the API container.
 - **PR-3 (API admin/seller/product/broadcast): COMPLETE + green** on `feat/posthog-api-admin-events`.
   **API server-side instrumentation complete.**
-- **PR-4 (buyer-web taxonomy): COMPLETE + green** on `feat/posthog-buyer-web-events` (type-check +
-  `pnpm build`). Typed `track()` helper + 7 buyer UI events (product_viewed, category_viewed,
-  search_performed, add/remove_from_cart, checkout_started, wishlist_added/removed). **R2 resolved**
-  (dev key already blank — no prod pollution).
+- **PR-4 (buyer-web taxonomy): COMPLETE + green** on `feat/posthog-buyer-web-events`. Typed `track()`
+  helper + 7 buyer UI events. **R2 resolved** (dev key blank).
+- **PR-5 (seller-web integration): COMPLETE + green** on `feat/posthog-seller-web` (type-check +
+  `pnpm build`). Cloned the buyer-web provider pattern (provider/pageview/scrub, `/ingest` rewrites,
+  Dockerfile + deploy build-arg `NEXT_PUBLIC_POSTHOG_KEY_SELLER_WEB`, layout Suspense, identify/reset).
 - **All 4 open decisions resolved:** 1 prod project + dev key empty; system events = `payment_*`
   only (no `api_error`/`notification_sent`); API-first sequencing; `posthog_flutter` approved.
-- **Next:** PR-5 seller-web, PR-6 admin-web (clone buyer-web pattern), PR-7 mobile (both), PR-8 docs.
+- **Next:** PR-6 admin-web (same clone, key `_ADMIN_WEB`; admin-web needs a new `rewrites()` block),
+  PR-7 mobile (both), PR-8 docs.
 - **Lint:** repo `pnpm lint` is pre-existing-red (510 errors, untouched files) — NOT a gate; type-check
   + tests are. Never run the broad `pnpm lint` (`--fix` rewrites unrelated files); scope eslint to edits.
 
