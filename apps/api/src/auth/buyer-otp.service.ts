@@ -20,6 +20,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { AuthService, AuthTokens } from './auth.service';
+import { PostHogService } from '../analytics/posthog.service';
 
 export interface RequestOtpResult {
   expiresInSeconds: number;
@@ -40,6 +41,7 @@ export class BuyerOtpService {
     private whatsapp: WhatsappService,
     private configService: ConfigService,
     private authService: AuthService,
+    private analytics: PostHogService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -75,7 +77,11 @@ export class BuyerOtpService {
       throw new UnauthorizedException('Code OTP invalide ou expiré');
     }
 
-    const user = await this.findOrCreateUserByPhone(phone, firstName, lastName);
+    const { user, isNew } = await this.findOrCreateUserByPhone(
+      phone,
+      firstName,
+      lastName,
+    );
     if (user.status === 'SUSPENDED' || user.status === 'BANNED') {
       throw new ForbiddenException('Votre compte a été suspendu.');
     }
@@ -90,6 +96,15 @@ export class BuyerOtpService {
       where: { id: user.id },
       data: { lastLoginAt: new Date(), phoneVerified: true },
     });
+
+    // Server-owned auth event. First verify for a phone => registration,
+    // otherwise a login. distinctId is the public user.id so the client's
+    // post-verify identify(user.id) stitches the anonymous session.
+    this.analytics.capture(user.id, isNew ? 'user_registered' : 'user_login', {
+      role: user.role,
+      method: 'whatsapp_otp',
+    });
+
     return { user: this.authService.sanitize(user), tokens };
   }
 
@@ -259,9 +274,9 @@ export class BuyerOtpService {
       where: { phone, deletedAt: null },
     });
     if (existing) {
-      return existing;
+      return { user: existing, isNew: false };
     }
-    return this.prisma.user.create({
+    const user = await this.prisma.user.create({
       data: {
         phone,
         role: 'BUYER',
@@ -272,5 +287,6 @@ export class BuyerOtpService {
         lastName: lastName ?? null,
       },
     });
+    return { user, isNew: true };
   }
 }

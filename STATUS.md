@@ -12,13 +12,17 @@ resume protocol: **`tasks/posthog-rollout-progress.md`** (read its "⏯ RESUME H
 
 - **Phase 0 (Discovery & Audit): COMPLETE.** PostHog confirmed live on **buyer-web only**;
   absent on api, admin-web, seller-web, buyer-mobile, seller-mobile.
-- **PR-1 (API inert scaffold): COMPLETE + green** on branch `feat/posthog-api-scaffold`
-  (lint, type-check, 20 unit + 90 e2e all pass). Adds `posthog-node` + gated `@Global`
-  `AnalyticsModule`/`PostHogService` (no capture calls yet — safe to merge with empty key).
+- **PR-1 (API inert scaffold): COMPLETE + green** on `feat/posthog-api-scaffold`. `posthog-node`
+  + gated `@Global` `AnalyticsModule`/`PostHogService`.
+- **PR-2 (API auth + order events): COMPLETE + green** on `feat/posthog-api-events` (stacked on PR-1;
+  type-check + 22 unit + 90 e2e pass). Server-owned captures across auth + checkout + order lifecycle
+  + COD payment events; `POSTHOG_API_KEY` GitHub Secret wired into the API container (deploy.yml +
+  compose). **Lint note:** repo `pnpm lint` is pre-existing-red (510 errors on untouched files); not a
+  gate — type-check + tests are. New files lint-clean; edits add no new errors.
 - **All 4 open decisions resolved:** 1 prod project + dev key empty; system events = `payment_*`
   only (no `api_error`/`notification_sent`); API-first sequencing; `posthog_flutter` approved.
-- **Next:** PR-2 — inject `PostHogService` into auth + order services (server-owned events).
-  Integration points (file:line) in the tracker's "API integration points" section.
+- **Next:** PR-3 — API admin/seller/product/broadcast events. Then web (PR-4→6), mobile (PR-7), docs (PR-8).
+- **R2 pending:** blank the live `phc_…` key in `.env.development` (with/before PR-4).
 
 ## Recently completed — 2026-05-27
 

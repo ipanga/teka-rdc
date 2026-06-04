@@ -9,8 +9,23 @@ import { PrismaService } from '../prisma/prisma.service';
 import { OrderNotificationService } from '../notifications/order-notification.service';
 import { PaymentsService } from '../payments/payments.service';
 import { EarningsService } from '../payments/earnings.service';
+import { PostHogService } from '../analytics/posthog.service';
 import { SellerOrderQueryDto } from './dto/seller-order-query.dto';
 import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
+
+/**
+ * Maps an order's new status to its PostHog event name. Attributed to the
+ * buyer (distinctId = order.buyerId) so the customer's order funnel reads
+ * created → confirmed → shipped → delivered, with sellerId as a property.
+ */
+const ORDER_STATUS_EVENT: Partial<Record<OrderStatus, string>> = {
+  [OrderStatus.CONFIRMED]: 'order_confirmed',
+  [OrderStatus.PROCESSING]: 'order_processing',
+  [OrderStatus.SHIPPED]: 'order_shipped',
+  [OrderStatus.OUT_FOR_DELIVERY]: 'order_out_for_delivery',
+  [OrderStatus.DELIVERED]: 'order_delivered',
+  [OrderStatus.CANCELLED]: 'order_cancelled',
+};
 
 @Injectable()
 export class SellerOrdersService {
@@ -21,7 +36,31 @@ export class SellerOrdersService {
     private notificationService: OrderNotificationService,
     private paymentsService: PaymentsService,
     private earningsService: EarningsService,
+    private analytics: PostHogService,
   ) {}
+
+  /**
+   * Fire-and-forget order-status analytics. Reads buyerId/orderNumber/
+   * sellerId off the updated order; no-op for statuses without an event.
+   */
+  private trackOrderStatus(
+    order: {
+      id: string;
+      buyerId: string;
+      orderNumber: string;
+      sellerId: string;
+    },
+    toStatus: OrderStatus,
+  ): void {
+    const event = ORDER_STATUS_EVENT[toStatus];
+    if (!event) return;
+    this.analytics.capture(order.buyerId, event, {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      sellerId: order.sellerId,
+      status: toStatus,
+    });
+  }
 
   /**
    * Valid state transitions for the order lifecycle.
@@ -243,6 +282,8 @@ export class SellerOrdersService {
       .notifyOrderCancelled(updatedOrder, `Rejetée par le vendeur : ${reason}`)
       .catch((err) => this.logger.error('Échec de notification de rejet', err));
 
+    this.trackOrderStatus(updatedOrder, OrderStatus.CANCELLED);
+
     return updatedOrder;
   }
 
@@ -359,6 +400,16 @@ export class SellerOrdersService {
         this.logger.error('Échec de notification de livraison', err),
       );
 
+    // Server-owned analytics: delivery + COD payment completion.
+    this.trackOrderStatus(updatedOrder, OrderStatus.DELIVERED);
+    if (order.paymentMethod === PaymentMethod.COD) {
+      this.analytics.capture(updatedOrder.buyerId, 'payment_completed', {
+        orderId,
+        method: PaymentMethod.COD,
+        amount_cdf: Number(updatedOrder.totalCDF),
+      });
+    }
+
     // Complete COD transaction if applicable
     if (order.paymentMethod === PaymentMethod.COD) {
       this.paymentsService
@@ -449,7 +500,7 @@ export class SellerOrdersService {
     changedBy: string,
     note?: string,
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.$transaction(async (tx) => {
       await this.createStatusLog(
         tx,
         orderId,
@@ -468,5 +519,8 @@ export class SellerOrdersService {
         },
       });
     });
+
+    this.trackOrderStatus(updated, toStatus);
+    return updated;
   }
 }

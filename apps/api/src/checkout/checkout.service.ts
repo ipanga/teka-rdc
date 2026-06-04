@@ -10,12 +10,9 @@ import { CartService } from '../cart/cart.service';
 import { DeliveryZonesService } from '../delivery-zones/delivery-zones.service';
 import { OrderNotificationService } from '../notifications/order-notification.service';
 import { PaymentsService } from '../payments/payments.service';
+import { PostHogService } from '../analytics/posthog.service';
 import { CheckoutDto } from './dto/checkout.dto';
-import {
-  OrderStatus,
-  PaymentStatus,
-  ProductStatus,
-} from '@prisma/client';
+import { OrderStatus, PaymentStatus, ProductStatus } from '@prisma/client';
 import { randomBytes } from 'crypto';
 
 /** Order number prefix */
@@ -31,6 +28,7 @@ export class CheckoutService {
     private deliveryZonesService: DeliveryZonesService,
     private notificationService: OrderNotificationService,
     private paymentsService: PaymentsService,
+    private analytics: PostHogService,
   ) {}
 
   /**
@@ -305,6 +303,25 @@ export class CheckoutService {
             `COD transaction creation failed for ${order.orderNumber}: ${err}`,
           ),
         );
+    }
+
+    // Server-owned ecommerce events (Event Ownership Matrix): one
+    // `order_created` per seller-order, plus `payment_attempted` for the
+    // pending COD transaction. Fire-and-forget; BigInt centimes → Number.
+    for (const order of orders) {
+      this.analytics.capture(userId, 'order_created', {
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        sellerId: order.sellerId,
+        item_count: order.items.length,
+        total_cdf: Number(order.totalCDF),
+        payment_method: order.paymentMethod,
+      });
+      this.analytics.capture(userId, 'payment_attempted', {
+        orderId: order.id,
+        method: order.paymentMethod,
+        amount_cdf: Number(order.totalCDF),
+      });
     }
 
     return {

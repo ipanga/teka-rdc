@@ -7,8 +7,9 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrderNotificationService } from '../notifications/order-notification.service';
+import { PostHogService } from '../analytics/posthog.service';
 import { OrderQueryDto } from './dto/order-query.dto';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, PaymentMethod } from '@prisma/client';
 
 @Injectable()
 export class OrdersService {
@@ -17,6 +18,7 @@ export class OrdersService {
   constructor(
     private prisma: PrismaService,
     private notificationService: OrderNotificationService,
+    private analytics: PostHogService,
   ) {}
 
   /**
@@ -236,6 +238,22 @@ export class OrdersService {
       .catch((err) =>
         this.logger.error("Échec de notification d'annulation", err),
       );
+
+    // Server-owned analytics: buyer-initiated cancellation. For COD this
+    // also means no money will ever be taken (payment_failed), mirroring
+    // the seed precedent (cancelled COD => paymentStatus FAILED).
+    this.analytics.capture(userId, 'order_cancelled', {
+      orderId,
+      sellerId: order.sellerId,
+      actor: 'buyer',
+    });
+    if (order.paymentMethod === PaymentMethod.COD) {
+      this.analytics.capture(userId, 'payment_failed', {
+        orderId,
+        method: PaymentMethod.COD,
+        reason: 'order_cancelled',
+      });
+    }
 
     return updatedOrder;
   }

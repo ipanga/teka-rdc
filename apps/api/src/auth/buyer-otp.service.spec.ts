@@ -34,6 +34,21 @@ function makePrismaStub() {
   } as any;
 }
 
+function makeAnalytics() {
+  return { capture: jest.fn(), identify: jest.fn() } as any;
+}
+
+function makeAuthStub() {
+  return {
+    generateTokensForUser: jest.fn().mockResolvedValue({
+      accessToken: 'a',
+      refreshToken: 'r',
+      expiresIn: 900,
+    }),
+    sanitize: jest.fn((u: any) => u),
+  } as any;
+}
+
 describe('BuyerOtpService', () => {
   describe('verifyOtpInternal', () => {
     it('returns false when no row matches the phone', async () => {
@@ -42,7 +57,13 @@ describe('BuyerOtpService', () => {
       const whatsapp = { sendOtp: jest.fn() } as any;
       const auth = {} as any;
 
-      const svc = new BuyerOtpService(prisma, whatsapp, makeConfig(), auth);
+      const svc = new BuyerOtpService(
+        prisma,
+        whatsapp,
+        makeConfig(),
+        auth,
+        makeAnalytics(),
+      );
 
       const ok = await svc.verifyOtpInternal('+243999000001', '123456');
       expect(ok).toBe(false);
@@ -62,7 +83,13 @@ describe('BuyerOtpService', () => {
       const whatsapp = { sendOtp: jest.fn() } as any;
       const auth = {} as any;
 
-      const svc = new BuyerOtpService(prisma, whatsapp, makeConfig(), auth);
+      const svc = new BuyerOtpService(
+        prisma,
+        whatsapp,
+        makeConfig(),
+        auth,
+        makeAnalytics(),
+      );
 
       const ok = await svc.verifyOtpInternal('+243999000001', '123456');
       expect(ok).toBe(true);
@@ -85,7 +112,13 @@ describe('BuyerOtpService', () => {
       const whatsapp = { sendOtp: jest.fn() } as any;
       const auth = {} as any;
 
-      const svc = new BuyerOtpService(prisma, whatsapp, makeConfig(), auth);
+      const svc = new BuyerOtpService(
+        prisma,
+        whatsapp,
+        makeConfig(),
+        auth,
+        makeAnalytics(),
+      );
 
       const ok = await svc.verifyOtpInternal('+243999000001', '123456');
       expect(ok).toBe(false);
@@ -110,7 +143,13 @@ describe('BuyerOtpService', () => {
       const whatsapp = { sendOtp: jest.fn() } as any;
       const auth = {} as any;
 
-      const svc = new BuyerOtpService(prisma, whatsapp, makeConfig(), auth);
+      const svc = new BuyerOtpService(
+        prisma,
+        whatsapp,
+        makeConfig(),
+        auth,
+        makeAnalytics(),
+      );
 
       const ok = await svc.verifyOtpInternal('+243999000001', '123456');
       expect(ok).toBe(false);
@@ -131,6 +170,7 @@ describe('BuyerOtpService', () => {
         whatsapp,
         makeConfig({ NODE_ENV: 'development', WHATSAPP_PROVIDER: 'mock' }),
         auth,
+        makeAnalytics(),
       );
 
       await svc.requestOtp('+243999000001');
@@ -154,12 +194,94 @@ describe('BuyerOtpService', () => {
       });
       const whatsapp = { sendOtp: jest.fn() } as any;
       const auth = {} as any;
-      const svc = new BuyerOtpService(prisma, whatsapp, makeConfig(), auth);
+      const svc = new BuyerOtpService(
+        prisma,
+        whatsapp,
+        makeConfig(),
+        auth,
+        makeAnalytics(),
+      );
 
       await expect(svc.requestOtp('+243999000001')).rejects.toMatchObject({
         status: 429,
       });
       expect(prisma.otp.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('verifyOtp analytics', () => {
+    const codeHash = createHash('sha256').update('123456').digest('hex');
+
+    function primeValidOtp(prisma: any) {
+      prisma.otp.findFirst.mockResolvedValue({
+        id: 'otp-1',
+        phone: '+243999000001',
+        code: codeHash,
+        attempts: 0,
+        expiresAt: new Date(Date.now() + 60_000),
+        createdAt: new Date(),
+      });
+    }
+
+    it('captures user_registered when a new BUYER is created', async () => {
+      const prisma = makePrismaStub();
+      primeValidOtp(prisma);
+      prisma.user.findFirst.mockResolvedValue(null); // no existing user => new
+      prisma.user.create.mockResolvedValue({
+        id: 'user-new',
+        role: 'BUYER',
+        status: 'ACTIVE',
+        phone: '+243999000001',
+      });
+      const analytics = makeAnalytics();
+      const svc = new BuyerOtpService(
+        prisma,
+        { sendOtp: jest.fn() } as any,
+        makeConfig(),
+        makeAuthStub(),
+        analytics,
+      );
+
+      await svc.verifyOtp('+243999000001', '123456');
+
+      expect(analytics.capture).toHaveBeenCalledWith(
+        'user-new',
+        'user_registered',
+        {
+          role: 'BUYER',
+          method: 'whatsapp_otp',
+        },
+      );
+    });
+
+    it('captures user_login when the phone already has an account', async () => {
+      const prisma = makePrismaStub();
+      primeValidOtp(prisma);
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'user-existing',
+        role: 'BUYER',
+        status: 'ACTIVE',
+        phone: '+243999000001',
+      });
+      const analytics = makeAnalytics();
+      const svc = new BuyerOtpService(
+        prisma,
+        { sendOtp: jest.fn() } as any,
+        makeConfig(),
+        makeAuthStub(),
+        analytics,
+      );
+
+      await svc.verifyOtp('+243999000001', '123456');
+
+      expect(analytics.capture).toHaveBeenCalledWith(
+        'user-existing',
+        'user_login',
+        {
+          role: 'BUYER',
+          method: 'whatsapp_otp',
+        },
+      );
     });
   });
 });
