@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -9,6 +9,7 @@ import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { useCartStore } from '@/lib/cart-store';
 import { apiFetch } from '@/lib/api-client';
+import { track } from '@/lib/analytics';
 import { formatCDF } from '@/lib/format';
 import { Badge, Button, Card, Container, Input, Label, buttonVariants, cn } from '@/components/ui';
 import type {
@@ -66,6 +67,22 @@ export default function CheckoutPage() {
     fetchCart();
     loadAddresses();
   }, [fetchCart]);
+
+  // Buyer-owned UI event — fire once when the checkout opens with a
+  // non-empty cart (server owns the authoritative order_created later).
+  const checkoutTracked = useRef(false);
+  useEffect(() => {
+    if (checkoutTracked.current || cartItems.length === 0) return;
+    checkoutTracked.current = true;
+    const cartValueCdf = cartItems.reduce(
+      (sum, i) => sum + Number(i.product.priceCDF) * i.quantity,
+      0,
+    );
+    track('checkout_started', {
+      item_count: cartItems.length,
+      cart_value_cdf: cartValueCdf,
+    });
+  }, [cartItems]);
 
   async function loadAddresses() {
     setIsLoadingAddresses(true);

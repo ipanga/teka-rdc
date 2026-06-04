@@ -16,13 +16,15 @@ resume protocol: **`tasks/posthog-rollout-progress.md`** (read its "⏯ RESUME H
   + gated `@Global` `AnalyticsModule`/`PostHogService`.
 - **PR-2 (API auth + order events): COMPLETE + green** on `feat/posthog-api-events`. Auth + checkout +
   order lifecycle + COD payment events; `POSTHOG_API_KEY` GitHub Secret wired to the API container.
-- **PR-3 (API admin/seller/product/broadcast): COMPLETE + green** on `feat/posthog-api-admin-events`
-  (type-check + 22 unit + 90 e2e). seller_approved/rejected, product_moderated, product_created/updated,
-  broadcast_sent. **API server-side instrumentation is now complete.**
+- **PR-3 (API admin/seller/product/broadcast): COMPLETE + green** on `feat/posthog-api-admin-events`.
+  **API server-side instrumentation complete.**
+- **PR-4 (buyer-web taxonomy): COMPLETE + green** on `feat/posthog-buyer-web-events` (type-check +
+  `pnpm build`). Typed `track()` helper + 7 buyer UI events (product_viewed, category_viewed,
+  search_performed, add/remove_from_cart, checkout_started, wishlist_added/removed). **R2 resolved**
+  (dev key already blank — no prod pollution).
 - **All 4 open decisions resolved:** 1 prod project + dev key empty; system events = `payment_*`
   only (no `api_error`/`notification_sent`); API-first sequencing; `posthog_flutter` approved.
-- **Next:** PR-4 — buyer-web event taxonomy (typed `track()` helper + buyer UI events) + R2 fix (blank
-  the live `phc_…` dev key). Then seller-web (PR-5), admin-web (PR-6), mobile (PR-7), docs (PR-8).
+- **Next:** PR-5 seller-web, PR-6 admin-web (clone buyer-web pattern), PR-7 mobile (both), PR-8 docs.
 - **Lint:** repo `pnpm lint` is pre-existing-red (510 errors, untouched files) — NOT a gate; type-check
   + tests are. Never run the broad `pnpm lint` (`--fix` rewrites unrelated files); scope eslint to edits.
 

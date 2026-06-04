@@ -13,6 +13,7 @@ import {
 } from '@/components/product/product-filters';
 import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
+import { track } from '@/lib/analytics';
 import { Button, Card, Container } from '@/components/ui';
 import type { BrowseProduct, CursorPagination } from '@/lib/types';
 
@@ -78,6 +79,14 @@ function SearchContent() {
       .then((res) => {
         setProducts(res.data.data);
         setPagination(res.data.pagination);
+        // Buyer-owned UI event. Raw query is fine — before_send scrubbing
+        // strips any phone number from the payload.
+        if (query) {
+          track('search_performed', {
+            query,
+            result_count: res.data.pagination.total,
+          });
+        }
       })
       .catch(() => {})
       .finally(() => setIsLoading(false));
