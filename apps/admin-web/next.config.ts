@@ -19,6 +19,22 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'res.cloudinary.com' },
     ],
   },
+
+  // PostHog reverse proxy — same as buyer-web. The browser talks to the
+  // admin-web origin /ingest/* (same origin) so ad-blockers don't drop
+  // analytics; Next forwards to PostHog US Cloud. posthog-js is configured
+  // with api_host:'/ingest'. In production NEXT_PUBLIC_BASE_PATH is empty
+  // (deploy.yml) so /ingest sits at the admin.teka.cd root, identical to
+  // buyer-web. skipTrailingSlashRedirect is required for PostHog's API paths.
+  skipTrailingSlashRedirect: true,
+  async rewrites() {
+    return [
+      { source: '/ingest/static/:path*', destination: 'https://us-assets.i.posthog.com/static/:path*' },
+      { source: '/ingest/:path*', destination: 'https://us.i.posthog.com/:path*' },
+      { source: '/ingest/flags', destination: 'https://us.i.posthog.com/flags' },
+    ];
+  },
+
   async redirects() {
     return [
       // /dashboard/users was the mixed buyers+sellers+admins list. Replaced

@@ -16,6 +16,11 @@ ENV NEXT_PUBLIC_BASE_PATH=$NEXT_PUBLIC_BASE_PATH
 # Sentry — see apps/buyer-web/Dockerfile for the full rationale.
 ARG NEXT_PUBLIC_SENTRY_DSN_ADMIN_WEB=""
 ENV NEXT_PUBLIC_SENTRY_DSN_ADMIN_WEB=$NEXT_PUBLIC_SENTRY_DSN_ADMIN_WEB
+# PostHog project key — baked into the browser bundle (NEXT_PUBLIC_* is
+# compile-time only). Public phc_ key; sourced from a GitHub Secret by
+# deploy.yml. Empty → posthog never initializes (no-op).
+ARG NEXT_PUBLIC_POSTHOG_KEY_ADMIN_WEB=""
+ENV NEXT_PUBLIC_POSTHOG_KEY_ADMIN_WEB=$NEXT_PUBLIC_POSTHOG_KEY_ADMIN_WEB
 ARG SENTRY_RELEASE=""
 ENV SENTRY_RELEASE=$SENTRY_RELEASE
 ENV NEXT_PUBLIC_SENTRY_RELEASE=$SENTRY_RELEASE
