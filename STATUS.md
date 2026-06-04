@@ -28,8 +28,9 @@ resume protocol: **`tasks/posthog-rollout-progress.md`** (read its "⏯ RESUME H
 - **All 4 open decisions resolved:** 1 prod project + dev key empty; system events = `payment_*`
   only (no `api_error`/`notification_sent`); API-first sequencing; `posthog_flutter` approved.
 - **Next:** PR-7 mobile (buyer + seller in ONE PR, Rule 15), PR-8 docs + closeout.
-- **Ops:** add GitHub Secrets `NEXT_PUBLIC_POSTHOG_KEY_SELLER_WEB` + `NEXT_PUBLIC_POSTHOG_KEY_ADMIN_WEB`
-  (same phc_ value as buyer-web) for prod web builds to bake the key.
+- **Ops:** ✅ DONE (2026-06-04) — GitHub Secrets `NEXT_PUBLIC_POSTHOG_KEY_SELLER_WEB` +
+  `NEXT_PUBLIC_POSTHOG_KEY_ADMIN_WEB` added (same phc_ value as buyer-web). All 3 web apps + the API
+  (`POSTHOG_API_KEY`) now have their prod keys provisioned; next deploy bakes/loads them.
 - **Lint:** repo `pnpm lint` is pre-existing-red (510 errors, untouched files) — NOT a gate; type-check
   + tests are. Never run the broad `pnpm lint` (`--fix` rewrites unrelated files); scope eslint to edits.
 
