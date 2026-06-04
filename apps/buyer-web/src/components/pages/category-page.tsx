@@ -14,6 +14,7 @@ import {
 } from '@/components/product/product-filters';
 import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
+import { track } from '@/lib/analytics';
 import { Button, Card, Container } from '@/components/ui';
 import type { BrowseCategory, BrowseProduct, CursorPagination } from '@/lib/types';
 
@@ -49,6 +50,12 @@ export default function CategoryPage({ categoryUuid }: CategoryPageProps = {}) {
   filtersRef.current = { condition, minPrice, maxPrice, sortBy };
 
   const selectedCity = useCityStore((s) => s.selectedCity);
+
+  // Buyer-owned UI event — one per category view (keyed on the resolved id).
+  useEffect(() => {
+    if (!categoryId) return;
+    track('category_viewed', { categoryId, slug: params.slug });
+  }, [categoryId, params.slug]);
 
   function buildQuery(cursor?: string, overrides?: Partial<typeof filtersRef.current>) {
     const f = overrides ? { ...filtersRef.current, ...overrides } : filtersRef.current;

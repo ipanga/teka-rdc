@@ -6,12 +6,14 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { ProductStatus } from '@prisma/client';
 import { SellerNotificationService } from '../notifications/seller-notification.service';
+import { PostHogService } from '../analytics/posthog.service';
 
 @Injectable()
 export class AdminProductsService {
   constructor(
     private prisma: PrismaService,
     private sellerNotifications: SellerNotificationService,
+    private analytics: PostHogService,
   ) {}
 
   /**
@@ -163,6 +165,12 @@ export class AdminProductsService {
       title: updated.title,
     });
 
+    // Server-owned moderation event, attributed to the product's seller.
+    this.analytics.capture(updated.sellerId, 'product_moderated', {
+      productId: updated.id,
+      decision: 'approved',
+    });
+
     return updated;
   }
 
@@ -208,6 +216,11 @@ export class AdminProductsService {
       { id: updated.id, sellerId: updated.sellerId, title: updated.title },
       rejectionReason,
     );
+
+    this.analytics.capture(updated.sellerId, 'product_moderated', {
+      productId: updated.id,
+      decision: 'rejected',
+    });
 
     return updated;
   }

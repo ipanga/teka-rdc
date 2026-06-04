@@ -13,6 +13,7 @@ import { ProductQueryDto } from './dto/product-query.dto';
 import { ProductCondition, ProductStatus } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { generateProductSlug } from '../common/utils/slugify';
+import { PostHogService } from '../analytics/posthog.service';
 
 @Injectable()
 export class ProductsService {
@@ -21,6 +22,7 @@ export class ProductsService {
   constructor(
     private prisma: PrismaService,
     private cloudinary: CloudinaryService,
+    private analytics: PostHogService,
   ) {}
 
   /**
@@ -92,6 +94,13 @@ export class ProductsService {
         },
         category: true,
       },
+    });
+
+    // Server-owned seller event (created in DRAFT). distinctId = seller.
+    this.analytics.capture(sellerId, 'product_created', {
+      productId: product.id,
+      categoryId: product.categoryId,
+      status: product.status,
     });
 
     return product;
@@ -260,6 +269,11 @@ export class ProductsService {
           category: true,
         },
       });
+    });
+
+    this.analytics.capture(sellerId, 'product_updated', {
+      productId: updatedProduct.id,
+      status: updatedProduct.status,
     });
 
     return updatedProduct;

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'l10n/app_localizations.dart';
+import 'core/analytics/posthog_analytics.dart';
 import 'core/connectivity/connectivity_lifecycle_observer.dart';
 import 'core/connectivity/connectivity_sentry_reporter.dart';
 import 'core/connectivity/widgets/connectivity_banner.dart';
@@ -9,6 +10,7 @@ import 'core/locale/locale_provider.dart';
 import 'core/push/push_controller.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
+import 'features/auth/presentation/providers/auth_provider.dart';
 
 class TekaApp extends ConsumerWidget {
   const TekaApp({super.key});
@@ -32,6 +34,21 @@ class TekaApp extends ConsumerWidget {
     // No-op when SENTRY_DSN is unset (FlavorConfig falls back to
     // a Sentry stub that swallows all calls).
     ref.read(connectivitySentryReporterProvider);
+
+    // Tie PostHog identity to auth — identify(user.id, {role}) on login,
+    // reset() on logout. Centralized here (one place) the same way the web
+    // PostHogProvider keys off the auth store. id + role only, never
+    // phone/email (Rule 13). No-op when PostHog isn't initialized.
+    ref.listen<AuthState>(authProvider, (prev, next) {
+      const analytics = PosthogAnalytics();
+      final wasAuthed = prev?.status == AuthStatus.authenticated;
+      final isAuthed = next.status == AuthStatus.authenticated;
+      if (isAuthed && !wasAuthed) {
+        analytics.identifyUser(next.user);
+      } else if (!isAuthed && wasAuthed) {
+        analytics.reset();
+      }
+    });
 
     return MaterialApp.router(
       title: 'Teka RDC',

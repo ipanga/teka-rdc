@@ -33,6 +33,10 @@ services:
       # -f docker-compose.prod.yml up` working without the SHA.
       - SENTRY_RELEASE=${SENTRY_RELEASE:-}
       - SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}
+      # Server-side PostHog key, exported from the GitHub Secret by deploy.yml
+      # (same pattern as SENTRY_RELEASE). Empty fallback keeps a plain
+      # `docker compose -f docker-compose.prod.yml up` working without it.
+      - POSTHOG_API_KEY=${POSTHOG_API_KEY:-}
     networks:
       - frontend
       - backend

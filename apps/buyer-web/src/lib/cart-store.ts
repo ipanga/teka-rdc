@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { apiFetch } from './api-client';
+import { track } from './analytics';
 import type { Cart, CartItem, GuestCartItem } from './types';
 
 const GUEST_CART_KEY = 'teka_guest_cart';
@@ -85,6 +86,9 @@ export const useCartStore = create<CartState>((set, get) => ({
   addItem: async (productId: string, quantity: number) => {
     const { isAuthenticated } = get();
 
+    // Buyer-owned UI-intent event (covers both guest + authenticated paths).
+    track('add_to_cart', { productId, quantity });
+
     if (!isAuthenticated) {
       // Guest: add to localStorage
       const guestItems = getGuestCart();
@@ -137,6 +141,8 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   removeItem: async (productId: string) => {
     const { isAuthenticated } = get();
+
+    track('remove_from_cart', { productId });
 
     if (!isAuthenticated) {
       let guestItems = getGuestCart();

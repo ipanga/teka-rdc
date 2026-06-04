@@ -1,4 +1,4 @@
-# Status — 2026-05-27
+# Status — 2026-06-04
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,7 +6,35 @@
 
 ## Active initiative
 
-None.
+None. **PostHog platform rollout is code-complete on `develop`** (see Recently completed below).
+The only remaining step is the **user-gated `develop → main` release PR**, which triggers the prod
+deploy (bakes the web keys, loads the API key). Until then nothing is live in prod.
+
+## Recently completed — 2026-06-04
+
+**PostHog platform rollout** (8-PR initiative, PR-1→8). Master tracker: `tasks/posthog-rollout-progress.md`.
+Authoritative reference (rewritten platform-wide): `docs/analytics.md`. Merged to `develop`: **#262–#268**
++ docs/closeout. **Not yet released to `main`.**
+
+**Net effect:** PostHog extended from buyer-web-only to **all 6 surfaces** — api (`posthog-node`
+`@Global AnalyticsModule`/`PostHogService`, server-owned auth/order/payment/admin events), seller-web +
+admin-web (cloned the buyer-web provider), buyer-web custom UI event taxonomy, and both Flutter apps
+(`posthog_flutter`, screen+lifecycle+identity, byte-for-byte lockstep). One US-Cloud project;
+`distinctId = user.id` everywhere; identity carries **id+role only** (never phone/email); each event has
+ONE authoritative owner (server=transactional, client=UI-intent — no duplication); `api_error` +
+`notification_sent` excluded by decision. `POSTHOG_API_KEY` wired into the api container
+(deploy.yml/compose); the 3 web `NEXT_PUBLIC_POSTHOG_KEY_*` GitHub Secrets + the API secret are
+provisioned; mobile keys are per-flavor (prod injected at build). R2 fixed (dev keys empty). Green
+throughout: api 22 unit + 90 e2e; web type-check + `pnpm build`; mobile `flutter analyze` + tests.
+
+**Decisions captured:** single prod project + dev keys empty; system events = `payment_*` only;
+API-first sequencing; `posthog_flutter` (official) approved. **Deferred:** custom buyer-mobile ecommerce
+events; server-side flag bootstrap; replay↔Sentry linking; on-device mobile init verification (analyze +
+unit-tested only — add `AUTO_INIT=false` manifest meta-data if a startup warning appears).
+
+**Note for future work:** repo `pnpm lint` is pre-existing-red (510 errors in untouched files) — NOT a
+CI gate; type-check + tests are. Never run the broad `pnpm lint` (`--fix` rewrites unrelated files);
+scope eslint to edited files.
 
 ## Recently completed — 2026-05-27
 
