@@ -20,13 +20,16 @@ resume protocol: **`tasks/posthog-rollout-progress.md`** (read its "⏯ RESUME H
   **API server-side instrumentation complete.**
 - **PR-4 (buyer-web taxonomy): COMPLETE + green** on `feat/posthog-buyer-web-events`. Typed `track()`
   helper + 7 buyer UI events. **R2 resolved** (dev key blank).
-- **PR-5 (seller-web integration): COMPLETE + green** on `feat/posthog-seller-web` (type-check +
-  `pnpm build`). Cloned the buyer-web provider pattern (provider/pageview/scrub, `/ingest` rewrites,
-  Dockerfile + deploy build-arg `NEXT_PUBLIC_POSTHOG_KEY_SELLER_WEB`, layout Suspense, identify/reset).
+- **PR-5 (seller-web integration): COMPLETE + green** on `feat/posthog-seller-web`. Cloned the buyer-web
+  provider pattern (provider/pageview/scrub, `/ingest` rewrites, Dockerfile + deploy build-arg, identify/reset).
+- **PR-6 (admin-web integration): COMPLETE + green** on `feat/posthog-admin-web` (type-check + `pnpm build`).
+  Same clone, key `_ADMIN_WEB`, NEW `rewrites()` block (admin-web only had `redirects()`), identify/reset
+  (role ADMIN). **All web + API instrumentation now complete.**
 - **All 4 open decisions resolved:** 1 prod project + dev key empty; system events = `payment_*`
   only (no `api_error`/`notification_sent`); API-first sequencing; `posthog_flutter` approved.
-- **Next:** PR-6 admin-web (same clone, key `_ADMIN_WEB`; admin-web needs a new `rewrites()` block),
-  PR-7 mobile (both), PR-8 docs.
+- **Next:** PR-7 mobile (buyer + seller in ONE PR, Rule 15), PR-8 docs + closeout.
+- **Ops:** add GitHub Secrets `NEXT_PUBLIC_POSTHOG_KEY_SELLER_WEB` + `NEXT_PUBLIC_POSTHOG_KEY_ADMIN_WEB`
+  (same phc_ value as buyer-web) for prod web builds to bake the key.
 - **Lint:** repo `pnpm lint` is pre-existing-red (510 errors, untouched files) — NOT a gate; type-check
   + tests are. Never run the broad `pnpm lint` (`--fix` rewrites unrelated files); scope eslint to edits.
 
