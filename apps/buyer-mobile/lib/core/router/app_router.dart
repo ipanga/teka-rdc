@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:posthog_flutter/posthog_flutter.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/auth/presentation/screens/otp_request_screen.dart';
 import '../../features/auth/presentation/screens/otp_verify_screen.dart';
@@ -36,6 +37,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   // time it fires.
   return GoRouter(
     initialLocation: '/',
+    // Automatic $screen capture on every navigation. No-op when PostHog
+    // isn't initialized (empty flavor key).
+    observers: [PosthogObserver()],
     refreshListenable: _AuthCityRefreshNotifier(ref),
     redirect: (context, state) {
       final authState = ref.read(authProvider);

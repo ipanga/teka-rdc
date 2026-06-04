@@ -25,8 +25,13 @@ resume protocol: **`tasks/posthog-rollout-progress.md`** (read its "⏯ RESUME H
 - **PR-6 (admin-web integration): COMPLETE + green**. Same clone, key `_ADMIN_WEB`, NEW `rewrites()`
   block, identify/reset (role ADMIN). **All web + API instrumentation complete.**
 - **PRs #262–#267 MERGED into `develop`** (2026-06-04, real merge commits, stack preserved). All six
-  feature branches deleted. `develop` @ `aedeb50`. **Not yet released to `main`** (a `develop → main`
-  merge PR triggers the prod deploy — pending decision; do it after PR-7/PR-8 or when ready to ship).
+  feature branches deleted.
+- **PR-7 (mobile, buyer + seller): COMPLETE + green** on `feat/posthog-mobile` (off `develop`).
+  `posthog_flutter ^5.25.3` in both apps (lockstep): gated `setup()`, per-flavor key, `PosthogObserver`
+  screen tracking, centralized identify/reset (id+role only) + privacy unit test. buyer 57/57, seller
+  3/3, analyze clean. **ALL SIX SURFACES NOW INSTRUMENTED.**
+- **Next:** PR-8 (docs + closeout), then the `develop → main` release PR (triggers prod deploy — user-gated).
+- **Not yet released to `main`.**
 - **All 4 open decisions resolved:** 1 prod project + dev key empty; system events = `payment_*`
   only (no `api_error`/`notification_sent`); API-first sequencing; `posthog_flutter` approved.
 - **Next:** PR-7 mobile (buyer + seller in ONE PR, Rule 15), PR-8 docs + closeout.
