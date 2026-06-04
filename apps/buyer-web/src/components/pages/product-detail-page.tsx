@@ -12,6 +12,7 @@ import { WishlistButton } from '@/components/wishlist-button';
 import { apiFetch } from '@/lib/api-client';
 import { useCartStore } from '@/lib/cart-store';
 import { useAuthStore } from '@/lib/auth-store';
+import { track } from '@/lib/analytics';
 import { formatCDF, formatUSD } from '@/lib/format';
 import { Badge, Button, Card, Container, buttonVariants, cn } from '@/components/ui';
 import type { ProductDetail } from '@/lib/types';
@@ -42,7 +43,16 @@ export default function ProductDetailPage() {
     setError(false);
 
     apiFetch<ProductDetail>(`/v1/browse/products/${productId}`)
-      .then((res) => setProduct(res.data))
+      .then((res) => {
+        setProduct(res.data);
+        // Buyer-owned UI event — fires once per successful product load.
+        track('product_viewed', {
+          productId: res.data.id,
+          categoryId: res.data.categoryId,
+          price_cdf: Number(res.data.priceCDF),
+          sellerId: res.data.seller?.id,
+        });
+      })
       .catch(() => setError(true))
       .finally(() => setIsLoading(false));
   }, [productId]);

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 import { useAuthStore } from '@/lib/auth-store';
+import { track } from '@/lib/analytics';
 
 interface WishlistButtonProps {
   productId: string;
@@ -44,9 +45,11 @@ export function WishlistButton({ productId, className = '' }: WishlistButtonProp
     try {
       if (prev) {
         await apiFetch(`/v1/wishlist/${productId}`, { method: 'DELETE' });
+        track('wishlist_removed', { productId });
         setFeedback(t('removedFromWishlist'));
       } else {
         await apiFetch(`/v1/wishlist/${productId}`, { method: 'POST' });
+        track('wishlist_added', { productId });
         setFeedback(t('addedToWishlist'));
       }
     } catch {
