@@ -4,10 +4,14 @@ import { Prisma } from '@prisma/client';
 import { SearchUsersDto } from './dto/search-users.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { ReviewSellerDto } from './dto/review-seller.dto';
+import { PostHogService } from '../analytics/posthog.service';
 
 @Injectable()
 export class AdminUsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private analytics: PostHogService,
+  ) {}
 
   async findAllUsers(query: SearchUsersDto) {
     const page = query.page || 1;
@@ -206,8 +210,8 @@ export class AdminUsersService {
     }
 
     if (dto.decision === 'APPROVE') {
-      return this.prisma.$transaction(async (tx) => {
-        const updated = await tx.sellerProfile.update({
+      const updated = await this.prisma.$transaction(async (tx) => {
+        const profile = await tx.sellerProfile.update({
           where: { id: applicationId },
           data: {
             applicationStatus: 'APPROVED',
@@ -221,10 +225,19 @@ export class AdminUsersService {
           data: { role: 'SELLER', status: 'ACTIVE' },
         });
 
-        return updated;
+        return profile;
       });
+
+      // Server-owned admin event, attributed to the seller (distinctId =
+      // the approved user) with the acting admin as a property.
+      this.analytics.capture(application.userId, 'seller_approved', {
+        applicationId,
+        adminId,
+      });
+
+      return updated;
     } else {
-      return this.prisma.sellerProfile.update({
+      const updated = await this.prisma.sellerProfile.update({
         where: { id: applicationId },
         data: {
           applicationStatus: 'REJECTED',
@@ -232,6 +245,13 @@ export class AdminUsersService {
           approvedById: adminId,
         },
       });
+
+      this.analytics.capture(application.userId, 'seller_rejected', {
+        applicationId,
+        adminId,
+      });
+
+      return updated;
     }
   }
 }
