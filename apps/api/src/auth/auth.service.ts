@@ -12,6 +12,7 @@ import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
+import { PostHogService } from '../analytics/posthog.service';
 import { EmailLoginDto } from './dto/email-login.dto';
 import { EmailRegisterDto } from './dto/email-register.dto';
 import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
@@ -41,6 +42,7 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private emailService: EmailService,
+    private analytics: PostHogService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -110,6 +112,15 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
+    // Server-owned auth events (Event Ownership Matrix). Fire-and-forget.
+    this.analytics.capture(user.id, 'user_registered', {
+      role: user.role,
+      method: 'email',
+    });
+    if (role === 'SELLER') {
+      this.analytics.capture(user.id, 'seller_registered', { method: 'email' });
+    }
+
     return { user: this.sanitizeUser(user), tokens };
   }
 
@@ -149,6 +160,16 @@ export class AuthService {
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
+
+    // Server-owned login event. `admin_login` is an alias capture so the
+    // admin funnel is queryable without filtering user_login by role.
+    this.analytics.capture(user.id, 'user_login', {
+      role: user.role,
+      method: 'email',
+    });
+    if (user.role === 'ADMIN') {
+      this.analytics.capture(user.id, 'admin_login', { method: 'email' });
+    }
 
     return { user: this.sanitizeUser(user), tokens };
   }
@@ -195,6 +216,10 @@ export class AuthService {
       const baseUrl = this.resolveWebUrlForRole(user.role);
       const resetUrl = `${baseUrl}/reset-password?token=${raw}`;
       await this.emailService.sendPasswordResetEmail(user.email!, resetUrl);
+
+      this.analytics.capture(user.id, 'password_reset_requested', {
+        role: user.role,
+      });
     } else {
       this.logger.log(
         `Password reset requested for unknown email: ${dto.email}`,
@@ -252,6 +277,10 @@ export class AuthService {
       }),
     ]);
 
+    this.analytics.capture(record.userId, 'password_reset_completed', {
+      role: record.user.role,
+    });
+
     return { message: 'Mot de passe réinitialisé avec succès' };
   }
 
@@ -276,11 +305,14 @@ export class AuthService {
     }
     if (!user.passwordHash) {
       throw new BadRequestException(
-        'Aucun mot de passe sur ce compte (connexion par OTP). Le changement de mot de passe ne s\'applique pas.',
+        "Aucun mot de passe sur ce compte (connexion par OTP). Le changement de mot de passe ne s'applique pas.",
       );
     }
 
-    const matches = await verifyPassword(dto.currentPassword, user.passwordHash);
+    const matches = await verifyPassword(
+      dto.currentPassword,
+      user.passwordHash,
+    );
     if (!matches) {
       throw new BadRequestException('Mot de passe actuel incorrect');
     }
@@ -291,7 +323,7 @@ export class AuthService {
     const sameAsOld = await verifyPassword(dto.newPassword, user.passwordHash);
     if (sameAsOld) {
       throw new BadRequestException(
-        'Le nouveau mot de passe doit être différent de l\'actuel',
+        "Le nouveau mot de passe doit être différent de l'actuel",
       );
     }
 
