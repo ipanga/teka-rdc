@@ -18,11 +18,13 @@
   add `wishlist_viewed` + `wishlist_item_moved_to_cart`; "Add to cart" keeps the item in the wishlist.
 - **PR-1 (API): COMPLETE + green** on `feat/wishlist-api`. `/count`; ACTIVE-status validation;
   `/check` UUID-filtered; service unit spec (11) + 2 e2e auth contracts.
-- **PR-2 (buyer-web listing surfaces): COMPLETE + green** on `feat/wishlist-web-listing` (type-check +
-  build EXIT 0). `wishlist-store` (ids Set + batch hydrate via `/check` → no N+1 + optimistic toggle);
-  heart on ProductCard (home/category/search) + flash-deals; header count badge (WishlistBadge).
-- **Next:** PR-3 web (wishlist page add-to-cart + guest login→auto-continue + analytics), PR-4/5
-  mobile, PR-6 docs.
+- **PR-2 (buyer-web listing surfaces): COMPLETE + green** on `feat/wishlist-web-listing`. Wishlist
+  store (ids Set + batch hydrate → no N+1); heart on ProductCard + flash-deals; header count badge.
+- **PR-3 (buyer-web page + guest flow + analytics): COMPLETE + green** on `feat/wishlist-web-page-guest`
+  (type-check + build EXIT 0). `/wishlist` add-to-cart (keeps item) + stock + error/retry; guest
+  heart → login → auto-continue (pending add via localStorage, `connexion` honors safe `redirect`);
+  `wishlist_viewed` + `wishlist_item_moved_to_cart`. **buyer-web wishlist complete.**
+- **Next:** PR-4/5 buyer-mobile (heart on cards + move-to-cart + analytics), PR-6 docs.
 
 > **Prior initiative (PostHog rollout): SHIPPED to prod** 2026-06-04 — see Recently completed below.
 

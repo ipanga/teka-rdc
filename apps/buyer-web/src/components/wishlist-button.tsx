@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
-import { useWishlistStore } from '@/lib/wishlist-store';
+import { useWishlistStore, setPendingWishlistAdd } from '@/lib/wishlist-store';
 import { cn } from '@/components/ui';
 
 interface WishlistButtonProps {
@@ -22,6 +23,8 @@ export function WishlistButton({
   overlay = false,
 }: WishlistButtonProps) {
   const t = useTranslations('Wishlist');
+  const router = useRouter();
+  const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
   // Subscribe to membership only — re-renders just this heart when its product
   // is toggled. The store batch-hydrates ids on grid load (no per-card fetch).
@@ -30,15 +33,20 @@ export function WishlistButton({
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
 
-  // Guests get no heart in PR-2 (the login-prompt + continue-after-login flow
-  // lands in PR-3). Until then the button is authenticated-only, as before.
-  if (!user) return null;
-
   async function handleToggle(e: React.MouseEvent) {
-    // The heart is overlaid on the product-card <Link>; never navigate.
+    // The heart is overlaid on the product-card <Link>; never navigate to PDP.
     e.preventDefault();
     e.stopPropagation();
     if (isLoading) return;
+
+    // Guest: stash the intended add and send to login. WishlistBadge completes
+    // it once auth resolves back on this page (continue-after-login).
+    if (!user) {
+      setPendingWishlistAdd(productId);
+      router.push(`/connexion?redirect=${encodeURIComponent(pathname)}`);
+      return;
+    }
+
     const adding = !isWishlisted;
     setIsLoading(true);
     try {

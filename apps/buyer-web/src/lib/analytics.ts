@@ -27,6 +27,8 @@ export type BuyerAnalyticsEvents = {
   checkout_started: { item_count: number; cart_value_cdf: number };
   wishlist_added: { productId: string };
   wishlist_removed: { productId: string };
+  wishlist_viewed: { item_count: number };
+  wishlist_item_moved_to_cart: { productId: string };
 };
 
 export function track<E extends keyof BuyerAnalyticsEvents>(

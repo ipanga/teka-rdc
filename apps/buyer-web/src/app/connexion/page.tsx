@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { normalizeDrcPhone } from '@teka/shared';
 import { apiFetch, ApiError } from '@/lib/api-client';
@@ -11,12 +11,24 @@ import { Button, Card, Input, Label, cn } from '@/components/ui';
 
 type Step = 'phone' | 'code';
 
+/**
+ * Only allow same-origin relative redirects (must start with a single "/").
+ * Blocks open-redirects like `//evil.com` or `/\evil.com`.
+ */
+function safeRedirect(target: string | null): string {
+  if (!target || !target.startsWith('/')) return '/';
+  if (target.startsWith('//') || target.startsWith('/\\')) return '/';
+  return target;
+}
+
 const SELLER_WEB_URL =
   process.env.NEXT_PUBLIC_SELLER_WEB_URL || 'http://localhost:5100';
 
 function ConnexionInner() {
   const t = useTranslations('Auth');
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = safeRedirect(searchParams.get('redirect'));
   const setUser = useAuthStore((s) => s.setUser);
 
   const [step, setStep] = useState<Step>('phone');
@@ -99,7 +111,11 @@ function ConnexionInner() {
         window.location.href = SELLER_WEB_URL;
         return;
       }
-      router.push('/');
+      // Continue-after-login: return to where the user came from (e.g. the
+      // product page they tapped the wishlist heart on). A pending wishlist
+      // add stashed in localStorage is completed by WishlistBadge once auth
+      // resolves on that page.
+      router.push(redirectTo);
     } catch (err) {
       if (err instanceof ApiError) setError(err.message);
       else setError('Une erreur est survenue');
