@@ -39,12 +39,16 @@ Never emit the same event name from two layers.
   `broadcast_sent`.
 - **buyer-web (client)** owns: `product_viewed`, `category_viewed`,
   `search_performed`, `add_to_cart`, `remove_from_cart`, `checkout_started`,
-  `wishlist_added`, `wishlist_removed` — plus `$pageview` (manual).
+  `wishlist_added`, `wishlist_removed`, `wishlist_viewed`,
+  `wishlist_item_moved_to_cart` — plus `$pageview` (manual).
 - **seller-web / admin-web** own pageviews + autocapture + identity only (their
   domain actions are server-owned).
-- **mobile** owns `$screen` (auto via `PosthogObserver`) + app-lifecycle +
-  identity. (Custom buyer-mobile ecommerce events are a planned fast-follow;
-  today mobile mirrors the seller/admin-web "infra-only" shape.)
+- **buyer-mobile** owns `$screen` (auto via `PosthogObserver`) + app-lifecycle +
+  identity + the **wishlist events** (`wishlist_added`/`wishlist_removed`/
+  `wishlist_viewed`/`wishlist_item_moved_to_cart`, same names as web — fired via
+  `PosthogAnalytics.capture`, ids/counts only). **seller-mobile** is infra-only.
+  (Other buyer-mobile ecommerce events — product_viewed/add_to_cart/etc. — remain
+  a fast-follow.)
 
 `api_error` and `notification_sent` are **intentionally not** captured —
 `api_error` stays Sentry's job; `notification_sent` is too high-volume.
@@ -225,7 +229,8 @@ Notes:
 
 ## Deferred / not implemented
 
-- Custom buyer-**mobile** ecommerce events (product_viewed/add_to_cart, …).
+- buyer-**mobile** ecommerce events **beyond wishlist** (product_viewed /
+  add_to_cart / search_performed / checkout_started). Wishlist events shipped.
 - Server-side feature-flag bootstrapping (`posthog-node`) to remove first-paint
   flag flicker.
 - Linking PostHog session replays to Sentry errors.
