@@ -1,24 +1,33 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { apiFetch } from '@/lib/api-client';
+import { useCartStore } from '@/lib/cart-store';
+import { useWishlistStore } from '@/lib/wishlist-store';
+import { track } from '@/lib/analytics';
 import { formatCDF } from '@/lib/format';
-import { Badge, Card, Container, buttonVariants, cn } from '@/components/ui';
+import { Badge, Button, Card, Container, buttonVariants, cn } from '@/components/ui';
 import type { WishlistItem, PaginatedWishlist } from '@/lib/types';
 
 export default function WishlistPage() {
   const t = useTranslations('Wishlist');
   const tProducts = useTranslations('Products');
+  const addItem = useCartStore((s) => s.addItem);
+  const loadCount = useWishlistStore((s) => s.loadCount);
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [addedId, setAddedId] = useState<string | null>(null);
+  const viewedRef = useRef(false);
 
   const fetchWishlist = useCallback(async (p: number) => {
     setIsLoading(true);
@@ -28,8 +37,15 @@ export default function WishlistPage() {
       );
       setItems(res.data.data);
       setTotalPages(Math.ceil(res.data.meta.total / res.data.meta.limit) || 1);
+      setIsError(false);
+      // Fire wishlist_viewed once, on the first successful load.
+      if (p === 1 && !viewedRef.current) {
+        viewedRef.current = true;
+        track('wishlist_viewed', { item_count: res.data.meta.total });
+      }
     } catch {
       setItems([]);
+      setIsError(true);
     } finally {
       setIsLoading(false);
     }
@@ -49,10 +65,29 @@ export default function WishlistPage() {
     try {
       await apiFetch(`/v1/wishlist/${productId}`, { method: 'DELETE' });
       setItems((prev) => prev.filter((item) => item.productId !== productId));
+      void loadCount(); // keep the header badge in sync
     } catch {
       // silent
     } finally {
       setRemovingId(null);
+    }
+  }
+
+  // "Add to cart" — keeps the item in the wishlist (non-destructive).
+  async function handleAddToCart(productId: string) {
+    setAddingId(productId);
+    try {
+      await addItem(productId, 1);
+      track('wishlist_item_moved_to_cart', { productId });
+      setAddedId(productId);
+      setTimeout(
+        () => setAddedId((cur) => (cur === productId ? null : cur)),
+        2000,
+      );
+    } catch {
+      // cart store is silent-fail; nothing actionable here
+    } finally {
+      setAddingId(null);
     }
   }
 
@@ -93,7 +128,21 @@ export default function WishlistPage() {
             {t('title')}
           </h1>
 
-          {items.length === 0 ? (
+          {isError ? (
+            <Card padding="lg" className="text-center">
+              <h2 className="text-lg font-semibold text-foreground tracking-tight mb-2">
+                {t('loadError')}
+              </h2>
+              <Button
+                variant="default"
+                size="lg"
+                onClick={() => fetchWishlist(page)}
+                className="mt-2"
+              >
+                {t('retry')}
+              </Button>
+            </Card>
+          ) : items.length === 0 ? (
             <Card padding="lg" className="text-center">
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary-subtle mb-4">
                 <svg
@@ -127,9 +176,13 @@ export default function WishlistPage() {
                   const product = item.product;
                   const title = product.title ?? '';
                   const imageUrl = product.image?.thumbnailUrl || product.image?.url;
+                  const outOfStock = product.quantity <= 0;
 
                   return (
-                    <div key={item.id} className="relative group">
+                    <div
+                      key={item.id}
+                      className="relative group flex flex-col bg-surface rounded-xl border border-border overflow-hidden shadow-xs hover:shadow-lg hover:border-border-strong transition-all duration-200"
+                    >
                       {/* Remove button — overlays card top-right */}
                       <button
                         onClick={() => handleRemove(item.productId)}
@@ -148,7 +201,7 @@ export default function WishlistPage() {
 
                       <Link
                         href={`/${product.slug || product.id}`}
-                        className="block bg-surface rounded-xl border border-border overflow-hidden shadow-xs hover:shadow-lg hover:border-border-strong transition-all duration-200 hover:-translate-y-0.5"
+                        className="block"
                       >
                         <div className="relative aspect-square bg-surface-muted overflow-hidden">
                           {imageUrl ? (
@@ -172,13 +225,21 @@ export default function WishlistPage() {
                             </div>
                           )}
 
-                          <Badge
-                            variant={product.condition === 'NEW' ? 'new' : 'used'}
-                            size="sm"
-                            className="absolute top-2 left-2 shadow-sm"
-                          >
-                            {tProducts(`condition_${product.condition}`)}
-                          </Badge>
+                          {/* Stacked stock + condition badges */}
+                          <div className="absolute top-2 left-2 flex flex-col gap-1">
+                            {outOfStock && (
+                              <Badge variant="solid" size="sm" className="shadow-sm w-fit">
+                                {t('outOfStock')}
+                              </Badge>
+                            )}
+                            <Badge
+                              variant={product.condition === 'NEW' ? 'new' : 'used'}
+                              size="sm"
+                              className="shadow-sm w-fit"
+                            >
+                              {tProducts(`condition_${product.condition}`)}
+                            </Badge>
+                          </div>
                         </div>
 
                         <div className="p-3 space-y-1.5">
@@ -193,6 +254,23 @@ export default function WishlistPage() {
                           </p>
                         </div>
                       </Link>
+
+                      {/* Footer: add-to-cart (keeps the item in the wishlist) */}
+                      <div className="px-3 pb-3 mt-auto">
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="w-full"
+                          disabled={outOfStock || addingId === item.productId}
+                          onClick={() => handleAddToCart(item.productId)}
+                        >
+                          {outOfStock
+                            ? t('outOfStock')
+                            : addedId === item.productId
+                              ? t('addedToCart')
+                              : t('addToCart')}
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}

@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui';
-import { useWishlistStore } from '@/lib/wishlist-store';
+import { useWishlistStore, takePendingWishlistAdd } from '@/lib/wishlist-store';
 import { useAuthStore } from '@/lib/auth-store';
 
 interface WishlistBadgeProps {
@@ -21,6 +21,7 @@ export function WishlistBadge({ compact = false }: WishlistBadgeProps) {
   const count = useWishlistStore((s) => s.count);
   const setAuthenticated = useWishlistStore((s) => s.setAuthenticated);
   const loadCount = useWishlistStore((s) => s.loadCount);
+  const addToWishlist = useWishlistStore((s) => s.add);
   const reset = useWishlistStore((s) => s.reset);
   const user = useAuthStore((s) => s.user);
   const isLoadingAuth = useAuthStore((s) => s.isLoading);
@@ -30,11 +31,15 @@ export function WishlistBadge({ compact = false }: WishlistBadgeProps) {
     if (user) {
       setAuthenticated(true);
       void loadCount();
+      // Continue-after-login: complete a wishlist add a guest started before
+      // logging in (stashed in localStorage, set on the heart they tapped).
+      const pending = takePendingWishlistAdd();
+      if (pending) void addToWishlist(pending);
     } else {
       setAuthenticated(false);
       reset();
     }
-  }, [user, isLoadingAuth, setAuthenticated, loadCount, reset]);
+  }, [user, isLoadingAuth, setAuthenticated, loadCount, addToWishlist, reset]);
 
   if (!user) return null;
 

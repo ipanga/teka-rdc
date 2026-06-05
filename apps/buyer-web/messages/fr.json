@@ -373,7 +373,8 @@
     "addedToCart": "Ajouté au panier",
     "inStock": "En stock",
     "outOfStock": "Rupture de stock",
-    "loadError": "Impossible de charger votre liste de souhaits."
+    "loadError": "Impossible de charger votre liste de souhaits.",
+    "retry": "Réessayer"
   },
   "_Messaging_DEPRECATED_2026-05-17": "Direct buyer/seller messaging was retired on 2026-05-17 — buyers now contact Teka RDC support via /contact. Keys kept for audit/rollback; do not reference in new code.",
   "Messaging": {
