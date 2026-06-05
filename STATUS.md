@@ -1,4 +1,4 @@
-# Status — 2026-06-04
+# Status — 2026-06-05
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,28 +6,28 @@
 
 ## Active initiative
 
-**Wishlist (Favorites) completion & hardening** — buyer-web + buyer-mobile + API. Master tracker
-(audit, gap analysis, phased PR plan, risks, rollback, resume protocol):
-**`tasks/wishlist-completion-progress.md`** (read its "⏯ RESUME HERE" block first).
+None. **Wishlist completion is code-complete on `develop`** (see Recently completed below). The
+remaining step is the **user-gated `develop → main` release** (ships wishlist + the earlier unreleased
+PostHog smoke-test doc). Nothing is live in prod until then.
 
-- **Investigation: COMPLETE.** Wishlist already exists end-to-end (not greenfield). Core add/remove/
-  list/page works on all 3 surfaces; gaps are consistent: heart only on PDP (missing from grids),
-  no move-to-cart, no count badge, guest UX, mobile has no analytics, API lacks a count endpoint +
-  doesn't validate product status on add.
-- **3 decisions RESOLVED:** guest heart → login → auto-continue; keep `wishlist_added`/`removed` +
-  add `wishlist_viewed` + `wishlist_item_moved_to_cart`; "Add to cart" keeps the item in the wishlist.
-- **PR-1/2/3 (API + buyer-web): MERGED to `develop`** (#272 API count+validation+tests; #273 listing
-  hearts + store + count badge; #274 page add-to-cart + guest login→auto-continue + analytics).
-  **buyer-web wishlist complete.**
-- **PR-4 (buyer-mobile listing surfaces): COMPLETE + green** on `feat/wishlist-mobile-listing`. Heart
-  overlay on cards + `loadWishlistIds` hydration (no N+1) + seller name on the wishlist card.
-- **PR-5 (buyer-mobile move-to-cart + analytics): COMPLETE + green** on `feat/wishlist-mobile-cart`
-  (analyze clean + 57/57). Add-to-cart per wishlist card (keeps item) + the 4 wishlist events
-  (`wishlist_added/removed/viewed/item_moved_to_cart`) via `PosthogAnalytics.capture`. **ALL feature
-  work complete (API + buyer-web + buyer-mobile).**
-- **Next:** PR-6 docs + closeout, then (user-gated) `develop → main` release.
+## Recently completed — 2026-06-05
 
-> **Prior initiative (PostHog rollout): SHIPPED to prod** 2026-06-04 — see Recently completed below.
+**Wishlist (Favorites) completion & hardening** (6-PR initiative). Master tracker:
+`tasks/wishlist-completion-progress.md`. Merged to `develop`: **#272–#274** (API + buyer-web) + the
+mobile/docs PRs.
+
+**Net effect:** the feature already existed end-to-end but was incomplete; audited all 3 surfaces, then
+completed it to ecommerce best-practice with the **API as single source of truth**, buyer-web ↔
+buyer-mobile parity, no N+1, and no SEO/CWV regression.
+- **API:** `GET /v1/wishlist/count`; add now rejects non-ACTIVE/deleted products; `/check` UUID-filtered;
+  service unit spec (11) + 2 e2e auth contracts. Authz/IDOR + dedup verified.
+- **buyer-web:** `wishlist-store` (ids Set + batch hydrate → no per-card N+1); heart on ALL listing
+  surfaces + header count badge; `/wishlist` add-to-cart (keeps item) + stock + error/retry; **guest
+  heart → login → auto-continue** (safe-redirect guarded).
+- **buyer-mobile:** heart on product cards + hydration; seller name; add-to-cart on the wishlist card.
+- **Analytics:** kept `wishlist_added`/`removed`; added `wishlist_viewed` + `wishlist_item_moved_to_cart`
+  on web + mobile (no PII). **Decisions:** guest auto-continue; keep shipped names; add-to-cart keeps item.
+- Docs: `docs/api-reference.md` + `docs/analytics.md` updated.
 
 ## Recently completed — 2026-06-04
 
