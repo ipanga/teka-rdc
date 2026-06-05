@@ -257,13 +257,10 @@ export function FlashDealsSection() {
                   </div>
                 </Link>
 
-                {/* Wishlist heart overlay (authenticated only in PR-2) */}
-                <WishlistButton
-                  productId={deal.product.id}
-                  size="sm"
-                  overlay
-                  className="absolute top-2 right-2 z-10"
-                />
+                {/* Wishlist heart overlay — positioned by this wrapper. */}
+                <div className="absolute top-2 right-2 z-10">
+                  <WishlistButton productId={deal.product.id} size="sm" overlay />
+                </div>
                 </div>
               );
             })}
