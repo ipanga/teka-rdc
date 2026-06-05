@@ -81,13 +81,12 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
       </Link>
 
-      {/* Top-right: wishlist heart (authenticated only in PR-2) */}
-      <WishlistButton
-        productId={product.id}
-        size="sm"
-        overlay
-        className="absolute top-2 right-2 z-10"
-      />
+      {/* Top-right: wishlist heart. Positioned by this wrapper (the button's
+          own wrapper stays `relative` for its toast — don't stack conflicting
+          position utilities, see components/ui/utils.ts). */}
+      <div className="absolute top-2 right-2 z-10">
+        <WishlistButton productId={product.id} size="sm" overlay />
+      </div>
     </div>
   );
 }
