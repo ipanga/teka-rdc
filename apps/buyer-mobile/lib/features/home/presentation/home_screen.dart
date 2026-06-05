@@ -11,6 +11,7 @@ import '../../catalog/presentation/providers/catalog_provider.dart';
 import '../../catalog/presentation/widgets/category_chip.dart';
 import '../../catalog/presentation/widgets/product_card.dart';
 import '../../city/presentation/providers/city_provider.dart';
+import '../../wishlist/presentation/providers/wishlist_provider.dart';
 import '../data/models/banner_model.dart';
 import '../data/models/flash_deal_model.dart';
 import 'providers/banner_provider.dart';
@@ -31,6 +32,19 @@ class HomeScreen extends ConsumerWidget {
     final categories = ref.watch(categoriesProvider);
     final popular = ref.watch(popularProductsProvider);
     final newest = ref.watch(newestProductsProvider);
+
+    // Hydrate wishlist heart state for the visible products (batch /check —
+    // one request per list, no per-card N+1).
+    ref.listen(popularProductsProvider, (_, next) {
+      next.whenData((list) => ref
+          .read(wishlistProvider.notifier)
+          .loadWishlistIds(list.map((p) => p.id).toList()));
+    });
+    ref.listen(newestProductsProvider, (_, next) {
+      next.whenData((list) => ref
+          .read(wishlistProvider.notifier)
+          .loadWishlistIds(list.map((p) => p.id).toList()));
+    });
 
     return Scaffold(
       appBar: AppBar(
