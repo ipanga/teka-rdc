@@ -5,7 +5,9 @@ import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Badge, Container, SectionHeader } from '@/components/ui';
+import { WishlistButton } from '@/components/wishlist-button';
 import { apiFetch } from '@/lib/api-client';
+import { useWishlistStore } from '@/lib/wishlist-store';
 import { formatCDF } from '@/lib/format';
 import type { FlashDeal } from '@/lib/types';
 
@@ -79,6 +81,7 @@ export function FlashDealsSection() {
   const [deals, setDeals] = useState<FlashDeal[]>([]);
   const [loading, setLoading] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const hydrateWishlist = useWishlistStore((s) => s.hydrate);
 
   useEffect(() => {
     apiFetch<FlashDeal[]>('/v1/browse/flash-deals')
@@ -89,10 +92,12 @@ export function FlashDealsSection() {
           (deal) => new Date(deal.endsAt).getTime() > Date.now(),
         );
         setDeals(active);
+        // Batch-hydrate wishlist state for the visible deal products.
+        void hydrateWishlist(active.map((d) => d.product.id));
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [hydrateWishlist]);
 
   // Scroll helpers
   const scrollBy = useCallback((direction: 'left' | 'right') => {
@@ -190,10 +195,13 @@ export function FlashDealsSection() {
                 deal.discountPercent != null || deal.discountCDF != null;
 
               return (
-                <Link
+                <div
                   key={deal.id}
+                  className="group/card relative flex-shrink-0 w-44 md:w-56 snap-start bg-surface rounded-xl border border-border overflow-hidden shadow-xs hover:shadow-lg hover:border-border-strong transition-all duration-200 hover:-translate-y-0.5"
+                >
+                <Link
                   href={`/${deal.product.slug || deal.product.id}`}
-                  className="group/card flex-shrink-0 w-44 md:w-56 snap-start bg-surface rounded-xl border border-border overflow-hidden shadow-xs hover:shadow-lg hover:border-border-strong transition-all duration-200 hover:-translate-y-0.5"
+                  className="block"
                 >
                   {/* Product image */}
                   <div className="relative aspect-square bg-surface-muted overflow-hidden">
@@ -248,6 +256,15 @@ export function FlashDealsSection() {
                     <CountdownTimer endsAt={deal.endsAt} />
                   </div>
                 </Link>
+
+                {/* Wishlist heart overlay (authenticated only in PR-2) */}
+                <WishlistButton
+                  productId={deal.product.id}
+                  size="sm"
+                  overlay
+                  className="absolute top-2 right-2 z-10"
+                />
+                </div>
               );
             })}
           </div>

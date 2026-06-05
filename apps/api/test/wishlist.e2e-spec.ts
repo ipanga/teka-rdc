@@ -28,9 +28,7 @@ describe('Wishlist (e2e) — auth-protection contract', () => {
   });
 
   it('GET /api/v1/wishlist returns 401 without auth', async () => {
-    return request(app.getHttpServer())
-      .get('/api/v1/wishlist')
-      .expect(401);
+    return request(app.getHttpServer()).get('/api/v1/wishlist').expect(401);
   });
 
   it('POST /api/v1/wishlist/:productId returns 401 without auth', async () => {
@@ -44,6 +42,20 @@ describe('Wishlist (e2e) — auth-protection contract', () => {
     const uuid = '31000000-0000-0000-0000-000000000058';
     return request(app.getHttpServer())
       .delete(`/api/v1/wishlist/${uuid}`)
+      .expect(401);
+  });
+
+  it('GET /api/v1/wishlist/count returns 401 without auth', async () => {
+    return request(app.getHttpServer())
+      .get('/api/v1/wishlist/count')
+      .expect(401);
+  });
+
+  it('GET /api/v1/wishlist/check returns 401 without auth', async () => {
+    return request(app.getHttpServer())
+      .get(
+        '/api/v1/wishlist/check?productIds=31000000-0000-0000-0000-000000000058',
+      )
       .expect(401);
   });
 });

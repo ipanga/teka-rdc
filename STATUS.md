@@ -1,4 +1,4 @@
-# Status — 2026-06-04
+# Status — 2026-06-05
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,9 +6,28 @@
 
 ## Active initiative
 
-None. **PostHog platform rollout is code-complete on `develop`** (see Recently completed below).
-The only remaining step is the **user-gated `develop → main` release PR**, which triggers the prod
-deploy (bakes the web keys, loads the API key). Until then nothing is live in prod.
+None. **Wishlist completion is code-complete on `develop`** (see Recently completed below). The
+remaining step is the **user-gated `develop → main` release** (ships wishlist + the earlier unreleased
+PostHog smoke-test doc). Nothing is live in prod until then.
+
+## Recently completed — 2026-06-05
+
+**Wishlist (Favorites) completion & hardening** (6-PR initiative). Master tracker:
+`tasks/wishlist-completion-progress.md`. Merged to `develop`: **#272–#274** (API + buyer-web) + the
+mobile/docs PRs.
+
+**Net effect:** the feature already existed end-to-end but was incomplete; audited all 3 surfaces, then
+completed it to ecommerce best-practice with the **API as single source of truth**, buyer-web ↔
+buyer-mobile parity, no N+1, and no SEO/CWV regression.
+- **API:** `GET /v1/wishlist/count`; add now rejects non-ACTIVE/deleted products; `/check` UUID-filtered;
+  service unit spec (11) + 2 e2e auth contracts. Authz/IDOR + dedup verified.
+- **buyer-web:** `wishlist-store` (ids Set + batch hydrate → no per-card N+1); heart on ALL listing
+  surfaces + header count badge; `/wishlist` add-to-cart (keeps item) + stock + error/retry; **guest
+  heart → login → auto-continue** (safe-redirect guarded).
+- **buyer-mobile:** heart on product cards + hydration; seller name; add-to-cart on the wishlist card.
+- **Analytics:** kept `wishlist_added`/`removed`; added `wishlist_viewed` + `wishlist_item_moved_to_cart`
+  on web + mobile (no PII). **Decisions:** guest auto-continue; keep shipped names; add-to-cart keeps item.
+- Docs: `docs/api-reference.md` + `docs/analytics.md` updated.
 
 ## Recently completed — 2026-06-04
 

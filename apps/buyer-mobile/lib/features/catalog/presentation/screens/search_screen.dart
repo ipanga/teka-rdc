@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../wishlist/presentation/providers/wishlist_provider.dart';
 import '../providers/catalog_provider.dart';
 import '../widgets/product_card.dart';
 
@@ -106,6 +107,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Widget _buildResults(BuildContext context, AppLocalizations l10n) {
     final state = ref.watch(browseProductsProvider(_params));
+
+    // Hydrate wishlist heart state for the visible products (batch /check).
+    ref.listen(browseProductsProvider(_params), (_, next) {
+      if (next.products.isNotEmpty) {
+        ref
+            .read(wishlistProvider.notifier)
+            .loadWishlistIds(next.products.map((p) => p.id).toList());
+      }
+    });
 
     if (state.isLoading && state.products.isEmpty) {
       return const Center(

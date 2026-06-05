@@ -558,11 +558,21 @@ All endpoints require `BUYER` role.
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/v1/wishlist` | Buyer | Get wishlist (paginated) |
-| POST | `/v1/wishlist/:productId` | Buyer | Add to wishlist (idempotent) |
+| GET | `/v1/wishlist` | Buyer | Get wishlist (paginated; only ACTIVE, non-deleted products) |
+| GET | `/v1/wishlist/count` | Buyer | Count of active wishlist items (for the header badge) |
+| POST | `/v1/wishlist/:productId` | Buyer | Add to wishlist (idempotent; **rejects non-ACTIVE / deleted products → 404**) |
 | DELETE | `/v1/wishlist/:productId` | Buyer | Remove from wishlist (idempotent) |
-| GET | `/v1/wishlist/check?productIds=id1,id2` | Buyer | Batch check which products are wishlisted |
+| GET | `/v1/wishlist/check?productIds=id1,id2` | Buyer | Batch check which products are wishlisted (non-UUID ids ignored) |
 | GET | `/v1/wishlist/:productId/status` | Buyer | Check if specific product is in wishlist |
+
+Notes:
+- Every endpoint is scoped to the authenticated buyer (`@CurrentUser`) — a user
+  can only read/modify their own wishlist (no IDOR). Dedup is enforced by a
+  `@@unique([userId, productId])` constraint; add is an idempotent upsert.
+- `count` uses the same `status = ACTIVE && deletedAt = null` filter as the list,
+  so the badge matches the number of items shown.
+- `add` only accepts publicly-listed products: DRAFT / PENDING_REVIEW / REJECTED /
+  ARCHIVED / soft-deleted all return `404 Produit non trouvé`.
 
 ---
 

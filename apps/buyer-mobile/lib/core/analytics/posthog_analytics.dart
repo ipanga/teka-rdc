@@ -45,6 +45,18 @@ class PosthogAnalytics {
       debugPrint('[PosthogAnalytics] reset failed: $e');
     }
   }
+
+  /// Capture a product-analytics event. Gated + fire-and-forget.
+  /// **Privacy (Rule 13):** `properties` must carry ids/counts only — never
+  /// phone, email, names, or other PII.
+  void capture(String eventName, {Map<String, Object>? properties}) {
+    if (!_enabled) return;
+    try {
+      Posthog().capture(eventName: eventName, properties: properties);
+    } catch (e) {
+      debugPrint('[PosthogAnalytics] capture failed: $e');
+    }
+  }
 }
 
 /// Builds the person-properties map for [identifyUser]. **Only `role`** —

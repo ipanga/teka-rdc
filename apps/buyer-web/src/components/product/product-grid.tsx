@@ -1,7 +1,9 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import { ProductCard } from './product-card';
+import { useWishlistStore } from '@/lib/wishlist-store';
 import type { BrowseProduct } from '@/lib/types';
 
 interface ProductGridProps {
@@ -25,6 +27,14 @@ function SkeletonCard() {
 
 export function ProductGrid({ products, isLoading }: ProductGridProps) {
   const t = useTranslations('Products');
+  const hydrateWishlist = useWishlistStore((s) => s.hydrate);
+
+  // Batch-hydrate wishlist state for the visible cards — one /check request
+  // per grid render (no per-card N+1). No-op when logged out (store gates it).
+  useEffect(() => {
+    if (products.length === 0) return;
+    void hydrateWishlist(products.map((p) => p.id));
+  }, [products, hydrateWishlist]);
 
   if (isLoading) {
     return (

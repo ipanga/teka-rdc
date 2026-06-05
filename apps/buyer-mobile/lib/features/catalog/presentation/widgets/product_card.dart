@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../wishlist/presentation/widgets/wishlist_button.dart';
 import '../../data/models/product_model.dart';
 
 class ProductCard extends StatelessWidget {
@@ -95,6 +96,23 @@ class ProductCard extends StatelessWidget {
                         foreground: Colors.white,
                       ),
                     ),
+                  // Wishlist heart top-right. The IconButton wins the tap
+                  // gesture within its bounds, so tapping it toggles the
+                  // wishlist instead of navigating to the PDP.
+                  Positioned(
+                    top: 4,
+                    right: 4,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.88),
+                        shape: BoxShape.circle,
+                      ),
+                      child: WishlistButton(
+                        productId: product.id,
+                        size: 20,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
