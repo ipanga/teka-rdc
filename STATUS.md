@@ -16,11 +16,13 @@
   doesn't validate product status on add.
 - **3 decisions RESOLVED:** guest heart → login → auto-continue; keep `wishlist_added`/`removed` +
   add `wishlist_viewed` + `wishlist_item_moved_to_cart`; "Add to cart" keeps the item in the wishlist.
-- **PR-1 (API): COMPLETE + green** on `feat/wishlist-api` (type-check + 33 unit + 92 e2e).
-  `GET /v1/wishlist/count`; add validates `ACTIVE` status; `/check` UUID-filtered; new service unit
-  spec (11) + 2 e2e auth contracts.
-- **Next:** PR-2 buyer-web (listing-surface hearts + ids store + count badge), PR-3 web (wishlist page
-  move-to-cart + guest flow + analytics), PR-4/5 mobile, PR-6 docs.
+- **PR-1 (API): COMPLETE + green** on `feat/wishlist-api`. `/count`; ACTIVE-status validation;
+  `/check` UUID-filtered; service unit spec (11) + 2 e2e auth contracts.
+- **PR-2 (buyer-web listing surfaces): COMPLETE + green** on `feat/wishlist-web-listing` (type-check +
+  build EXIT 0). `wishlist-store` (ids Set + batch hydrate via `/check` → no N+1 + optimistic toggle);
+  heart on ProductCard (home/category/search) + flash-deals; header count badge (WishlistBadge).
+- **Next:** PR-3 web (wishlist page add-to-cart + guest login→auto-continue + analytics), PR-4/5
+  mobile, PR-6 docs.
 
 > **Prior initiative (PostHog rollout): SHIPPED to prod** 2026-06-04 — see Recently completed below.
 
