@@ -44,13 +44,20 @@ export class WishlistService {
    * Idempotent: if already in wishlist, returns the existing entry.
    */
   async addToWishlist(userId: string, productId: string) {
-    // Verify product exists and is active
+    // Verify product exists and is active. Reject soft-deleted AND
+    // non-ACTIVE products (DRAFT / PENDING_REVIEW / REJECTED / ARCHIVED) —
+    // a buyer must not be able to wishlist a product that isn't publicly
+    // listed (the select previously read status but never checked it).
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
       select: { id: true, status: true, deletedAt: true },
     });
 
-    if (!product || product.deletedAt !== null) {
+    if (
+      !product ||
+      product.deletedAt !== null ||
+      product.status !== ProductStatus.ACTIVE
+    ) {
       throw new NotFoundException('Produit non trouvé');
     }
 
@@ -144,6 +151,21 @@ export class WishlistService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  /**
+   * Returns the count of active, non-deleted products in the user's
+   * wishlist — for the header badge. Uses the same filter as getWishlist()
+   * so the badge matches the number of items actually shown on the page.
+   */
+  async getWishlistCount(userId: string): Promise<{ count: number }> {
+    const count = await this.prisma.wishlist.count({
+      where: {
+        userId,
+        product: { deletedAt: null, status: ProductStatus.ACTIVE },
+      },
+    });
+    return { count };
   }
 
   /**
