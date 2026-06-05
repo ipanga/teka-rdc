@@ -6,9 +6,19 @@
 
 ## Active initiative
 
-None. **PostHog platform rollout is code-complete on `develop`** (see Recently completed below).
-The only remaining step is the **user-gated `develop → main` release PR**, which triggers the prod
-deploy (bakes the web keys, loads the API key). Until then nothing is live in prod.
+**Wishlist (Favorites) completion & hardening** — buyer-web + buyer-mobile + API. Master tracker
+(audit, gap analysis, phased PR plan, risks, rollback, resume protocol):
+**`tasks/wishlist-completion-progress.md`** (read its "⏯ RESUME HERE" block first).
+
+- **Investigation: COMPLETE.** Wishlist already exists end-to-end (not greenfield). Core add/remove/
+  list/page works on all 3 surfaces; gaps are consistent: heart only on PDP (missing from grids),
+  no move-to-cart, no count badge, guest UX, mobile has no analytics, API lacks a count endpoint +
+  doesn't validate product status on add.
+- **Implementation: NOT STARTED** — awaiting sign-off on 3 decisions (guest UX, event naming,
+  move-vs-add semantics). Plan: 6 PRs (API → web ×2 → mobile ×2 → docs).
+- **No code changed yet** — only `tasks/wishlist-completion-progress.md` (new) + this file.
+
+> **Prior initiative (PostHog rollout): SHIPPED to prod** 2026-06-04 — see Recently completed below.
 
 ## Recently completed — 2026-06-04
 
