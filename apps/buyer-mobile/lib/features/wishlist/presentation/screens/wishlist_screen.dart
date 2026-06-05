@@ -258,7 +258,7 @@ class _WishlistProductCard extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.9),
+                        color: Colors.white.withValues(alpha: 0.9),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -273,7 +273,7 @@ class _WishlistProductCard extends StatelessWidget {
                 if (isOutOfStock)
                   Positioned.fill(
                     child: Container(
-                      color: Colors.white.withOpacity(0.6),
+                      color: Colors.white.withValues(alpha: 0.6),
                       child: Center(
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -343,6 +343,19 @@ class _WishlistProductCard extends StatelessWidget {
                         color: TekaColors.tekaRed,
                       ),
                     ),
+                    if (product?.seller?.businessName != null &&
+                        product!.seller!.businessName!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        product.seller!.businessName!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          color: TekaColors.mutedForeground,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
