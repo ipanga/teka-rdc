@@ -216,6 +216,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get addToCart => 'Ajouter au panier';
 
   @override
+  String get addedToCart => 'Ajouté au panier';
+
+  @override
   String get specifications => 'Caracteristiques';
 
   @override
