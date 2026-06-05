@@ -7,6 +7,7 @@ import {
   Query,
   ParseUUIDPipe,
 } from '@nestjs/common';
+import { isUUID } from 'class-validator';
 import { WishlistService } from './wishlist.service';
 import { WishlistQueryDto } from './dto/wishlist-query.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -60,9 +61,20 @@ export class WishlistController {
   }
 
   /**
+   * GET /api/v1/wishlist/count
+   * Lightweight count of the user's active wishlist items — for the header
+   * badge. Declared before the `:productId/status` param route.
+   */
+  @Get('count')
+  async count(@CurrentUser('userId') userId: string) {
+    const data = await this.wishlistService.getWishlistCount(userId);
+    return { success: true, data };
+  }
+
+  /**
    * GET /api/v1/wishlist/check
    * Get wishlist product IDs for batch checking.
-   * Query param: ?productIds=id1,id2,id3
+   * Query param: ?productIds=id1,id2,id3 — non-UUID values are dropped.
    */
   @Get('check')
   async checkProducts(
@@ -73,7 +85,7 @@ export class WishlistController {
       ? productIds
           .split(',')
           .map((id) => id.trim())
-          .filter((id) => id.length > 0)
+          .filter((id) => id.length > 0 && isUUID(id))
       : undefined;
 
     const data = await this.wishlistService.getWishlistProductIds(userId, ids);

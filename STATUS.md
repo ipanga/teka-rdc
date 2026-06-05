@@ -14,9 +14,13 @@
   list/page works on all 3 surfaces; gaps are consistent: heart only on PDP (missing from grids),
   no move-to-cart, no count badge, guest UX, mobile has no analytics, API lacks a count endpoint +
   doesn't validate product status on add.
-- **Implementation: NOT STARTED** — awaiting sign-off on 3 decisions (guest UX, event naming,
-  move-vs-add semantics). Plan: 6 PRs (API → web ×2 → mobile ×2 → docs).
-- **No code changed yet** — only `tasks/wishlist-completion-progress.md` (new) + this file.
+- **3 decisions RESOLVED:** guest heart → login → auto-continue; keep `wishlist_added`/`removed` +
+  add `wishlist_viewed` + `wishlist_item_moved_to_cart`; "Add to cart" keeps the item in the wishlist.
+- **PR-1 (API): COMPLETE + green** on `feat/wishlist-api` (type-check + 33 unit + 92 e2e).
+  `GET /v1/wishlist/count`; add validates `ACTIVE` status; `/check` UUID-filtered; new service unit
+  spec (11) + 2 e2e auth contracts.
+- **Next:** PR-2 buyer-web (listing-surface hearts + ids store + count badge), PR-3 web (wishlist page
+  move-to-cart + guest flow + analytics), PR-4/5 mobile, PR-6 docs.
 
 > **Prior initiative (PostHog rollout): SHIPPED to prod** 2026-06-04 — see Recently completed below.
 
