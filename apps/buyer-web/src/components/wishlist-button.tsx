@@ -26,6 +26,11 @@ export function WishlistButton({
   const router = useRouter();
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
+  // Auth is unknown until fetchUser() resolves. On DRC 2G/3G that window can
+  // last seconds — and during it `user` is null while a valid session cookie
+  // is still present. Treating that as "guest" and routing to /connexion makes
+  // the middleware (which sees the cookie) bounce the user to home. So we wait.
+  const authLoading = useAuthStore((s) => s.isLoading);
   // Subscribe to membership only — re-renders just this heart when its product
   // is toggled. The store batch-hydrates ids on grid load (no per-card fetch).
   const isWishlisted = useWishlistStore((s) => s.ids.has(productId));
@@ -37,10 +42,11 @@ export function WishlistButton({
     // The heart is overlaid on the product-card <Link>; never navigate to PDP.
     e.preventDefault();
     e.stopPropagation();
-    if (isLoading) return;
+    if (isLoading || authLoading) return;
 
-    // Guest: stash the intended add and send to login. WishlistBadge completes
-    // it once auth resolves back on this page (continue-after-login).
+    // Genuine guest (auth resolved, no user): stash the intended add and send
+    // to login. WishlistBadge completes it once auth resolves back on this page
+    // (continue-after-login). Never reached while auth is still loading.
     if (!user) {
       setPendingWishlistAdd(productId);
       router.push(`/connexion?redirect=${encodeURIComponent(pathname)}`);

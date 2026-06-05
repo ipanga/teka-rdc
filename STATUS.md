@@ -6,9 +6,19 @@
 
 ## Active initiative
 
-None. **Wishlist completion is code-complete on `develop`** (see Recently completed below). The
-remaining step is the **user-gated `develop → main` release** (ships wishlist + the earlier unreleased
-PostHog smoke-test doc). Nothing is live in prod until then.
+None. Wishlist completion **shipped to prod** 2026-06-05 (release #278). One **post-release buyer-web
+hotfix** ready on `fix/wishlist-buyer-web` (needs its own `develop → main` release to deploy):
+
+- **Bug:** during the auth-loading window (`fetchUser` in flight on DRC 2G/3G — `user: null` but the
+  session cookie is still present), the header showed the login button and hearts acted as guest;
+  clicking either did `router.push('/connexion')`, which the middleware (seeing the cookie) bounced to
+  home. → "connexion does nothing" + "heart redirects to home."
+- **Fix:** WishlistButton + header now wait for `isLoading` to resolve before treating the user as a
+  guest; middleware honors a safe `?redirect=` on the authOnly bounce (defense-in-depth); fixed a
+  `cn` position-utility conflict on the card heart overlay.
+- **Tests:** set up **vitest** for buyer-web (was none) — 15 tests: `safe-redirect`, `wishlist-store`
+  (toggle/hydrate/add/count/rollback), `WishlistButton` (guest / loading-no-bounce / authed). Green:
+  type-check + build + 15 tests.
 
 ## Recently completed — 2026-06-05
 

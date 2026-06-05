@@ -15,6 +15,7 @@ export function Header() {
   const tCity = useTranslations('City');
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const authLoading = useAuthStore((s) => s.isLoading);
   const logout = useAuthStore((s) => s.logout);
   const { selectedCity, openSelector } = useCityStore();
   const [searchQuery, setSearchQuery] = useState('');
@@ -108,7 +109,12 @@ export function Header() {
           >
             {t('categories')}
           </Link>
-          {user ? (
+          {authLoading ? (
+            // Auth resolving — render nothing rather than the login button, so
+            // a logged-in user on a slow connection can't click "connexion"
+            // and get bounced home by the middleware (it still sees the cookie).
+            <div className="w-px" aria-hidden />
+          ) : user ? (
             <div className="flex items-center gap-3">
               <WishlistBadge />
               <Link
@@ -232,7 +238,7 @@ export function Header() {
 
           {/* Mobile auth */}
           <div className="flex flex-col gap-2 pt-2 border-t border-border">
-            {user ? (
+            {authLoading ? null : user ? (
               <>
                 <Link
                   href="/profil"

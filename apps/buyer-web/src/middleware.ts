@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { safeRedirect } from '@/lib/safe-redirect';
 
 // Auth-gated buyer routes. `/messages` was removed on 2026-05-17 when
 // direct buyer↔seller messaging was retired in favour of "Contacter le
@@ -49,7 +50,12 @@ export default function middleware(request: NextRequest) {
   }
 
   if (isAuthOnly && hasSession) {
-    return NextResponse.redirect(new URL('/', request.url));
+    // A user with a session shouldn't sit on the login page. Honor a safe
+    // relative `?redirect=` (e.g. the product page a wishlist heart came from)
+    // instead of always dropping to home, so the round-trip returns the user
+    // where they were. Open-redirect guarded by safeRedirect().
+    const dest = safeRedirect(request.nextUrl.searchParams.get('redirect'));
+    return NextResponse.redirect(new URL(dest, request.url));
   }
 
   return NextResponse.next();

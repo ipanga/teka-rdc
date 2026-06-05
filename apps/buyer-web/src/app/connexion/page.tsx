@@ -7,19 +7,10 @@ import Link from 'next/link';
 import { normalizeDrcPhone } from '@teka/shared';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { useAuthStore, type User } from '@/lib/auth-store';
+import { safeRedirect } from '@/lib/safe-redirect';
 import { Button, Card, Input, Label, cn } from '@/components/ui';
 
 type Step = 'phone' | 'code';
-
-/**
- * Only allow same-origin relative redirects (must start with a single "/").
- * Blocks open-redirects like `//evil.com` or `/\evil.com`.
- */
-function safeRedirect(target: string | null): string {
-  if (!target || !target.startsWith('/')) return '/';
-  if (target.startsWith('//') || target.startsWith('/\\')) return '/';
-  return target;
-}
 
 const SELLER_WEB_URL =
   process.env.NEXT_PUBLIC_SELLER_WEB_URL || 'http://localhost:5100';
