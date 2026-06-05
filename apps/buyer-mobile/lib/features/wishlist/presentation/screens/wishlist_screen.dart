@@ -2,21 +2,60 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../data/models/wishlist_model.dart';
+import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../reviews/presentation/widgets/star_rating.dart';
 import '../providers/wishlist_provider.dart';
 
-class WishlistScreen extends ConsumerWidget {
+class WishlistScreen extends ConsumerStatefulWidget {
   const WishlistScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<WishlistScreen> createState() => _WishlistScreenState();
+}
+
+class _WishlistScreenState extends ConsumerState<WishlistScreen> {
+  bool _viewedTracked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Fire wishlist_viewed once the screen opens. If the list is already
+    // loaded (the provider may have loaded earlier), fire immediately;
+    // otherwise the ref.listen in build fires it on first load completion.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final s = ref.read(wishlistProvider);
+      if (!s.isLoading && s.error == null) _trackViewedOnce(s.items.length);
+    });
+  }
+
+  void _trackViewedOnce(int itemCount) {
+    if (_viewedTracked) return;
+    _viewedTracked = true;
+    const PosthogAnalytics().capture(
+      'wishlist_viewed',
+      properties: {'item_count': itemCount},
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).languageCode;
     final wishlistState = ref.watch(wishlistProvider);
+
+    // Fire wishlist_viewed on the first successful load if it wasn't already
+    // loaded when the screen opened.
+    ref.listen(wishlistProvider, (_, next) {
+      if (!next.isLoading && next.error == null) {
+        _trackViewedOnce(next.items.length);
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(
@@ -71,7 +110,7 @@ class WishlistScreen extends ConsumerWidget {
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
-                          childAspectRatio: 0.62,
+                          childAspectRatio: 0.55,
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
                         ),
@@ -84,6 +123,8 @@ class WishlistScreen extends ConsumerWidget {
                             l10n: l10n,
                             onRemove: () => _removeItem(
                                 context, ref, item.productId, l10n),
+                            onAddToCart: () =>
+                                _addToCart(context, item.productId, l10n),
                             onTap: () =>
                                 context.push('/products/${item.productId}'),
                           );
@@ -105,6 +146,39 @@ class WishlistScreen extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(l10n.removedFromWishlist),
+            backgroundColor: TekaColors.success,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.authGenericError),
+            backgroundColor: TekaColors.destructive,
+          ),
+        );
+      }
+    }
+  }
+
+  // Add to cart — keeps the item in the wishlist (non-destructive).
+  Future<void> _addToCart(
+    BuildContext context,
+    String productId,
+    AppLocalizations l10n,
+  ) async {
+    try {
+      await ref.read(cartProvider.notifier).addItem(productId);
+      const PosthogAnalytics().capture(
+        'wishlist_item_moved_to_cart',
+        properties: {'productId': productId},
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.addedToCart),
             backgroundColor: TekaColors.success,
             duration: const Duration(seconds: 2),
           ),
@@ -181,6 +255,7 @@ class _WishlistProductCard extends StatelessWidget {
   final String locale;
   final AppLocalizations l10n;
   final VoidCallback onRemove;
+  final VoidCallback onAddToCart;
   final VoidCallback onTap;
 
   const _WishlistProductCard({
@@ -188,6 +263,7 @@ class _WishlistProductCard extends StatelessWidget {
     required this.locale,
     required this.l10n,
     required this.onRemove,
+    required this.onAddToCart,
     required this.onTap,
   });
 
@@ -356,6 +432,28 @@ class _WishlistProductCard extends StatelessWidget {
                         ),
                       ),
                     ],
+                    const SizedBox(height: 8),
+                    // Add to cart — keeps the item in the wishlist. The button
+                    // wins its own tap, so it doesn't trigger card navigation.
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: isOutOfStock ? null : onAddToCart,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: TekaColors.tekaRed,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          minimumSize: const Size(0, 32),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          textStyle: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        child: Text(
+                          isOutOfStock ? l10n.productOutOfStock : l10n.addToCart,
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),

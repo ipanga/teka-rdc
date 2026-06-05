@@ -496,6 +496,12 @@ abstract class AppLocalizations {
   /// **'Ajouter au panier'**
   String get addToCart;
 
+  /// No description provided for @addedToCart.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ajouté au panier'**
+  String get addedToCart;
+
   /// No description provided for @specifications.
   ///
   /// In fr, this message translates to:

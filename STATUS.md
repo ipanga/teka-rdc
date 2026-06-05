@@ -19,10 +19,13 @@
 - **PR-1/2/3 (API + buyer-web): MERGED to `develop`** (#272 API count+validation+tests; #273 listing
   hearts + store + count badge; #274 page add-to-cart + guest login→auto-continue + analytics).
   **buyer-web wishlist complete.**
-- **PR-4 (buyer-mobile listing surfaces): COMPLETE + green** on `feat/wishlist-mobile-listing` (analyze
-  clean + 57/57 tests). Heart overlay on product cards (home/category/search) + `loadWishlistIds`
-  hydration (no N+1) + seller name on the wishlist card. (No guest flow — router gates non-auth routes.)
-- **Next:** PR-5 buyer-mobile (wishlist-card add-to-cart + analytics events + error retry), PR-6 docs.
+- **PR-4 (buyer-mobile listing surfaces): COMPLETE + green** on `feat/wishlist-mobile-listing`. Heart
+  overlay on cards + `loadWishlistIds` hydration (no N+1) + seller name on the wishlist card.
+- **PR-5 (buyer-mobile move-to-cart + analytics): COMPLETE + green** on `feat/wishlist-mobile-cart`
+  (analyze clean + 57/57). Add-to-cart per wishlist card (keeps item) + the 4 wishlist events
+  (`wishlist_added/removed/viewed/item_moved_to_cart`) via `PosthogAnalytics.capture`. **ALL feature
+  work complete (API + buyer-web + buyer-mobile).**
+- **Next:** PR-6 docs + closeout, then (user-gated) `develop → main` release.
 
 > **Prior initiative (PostHog rollout): SHIPPED to prod** 2026-06-04 — see Recently completed below.
 

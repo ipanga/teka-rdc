@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import '../../data/models/wishlist_model.dart';
 import '../../data/wishlist_repository.dart';
@@ -97,6 +98,10 @@ class WishlistNotifier extends StateNotifier<WishlistState> {
 
     try {
       await _repository.addToWishlist(productId);
+      const PosthogAnalytics().capture(
+        'wishlist_added',
+        properties: {'productId': productId},
+      );
     } catch (_) {
       if (!mounted) return;
       // Rollback
@@ -120,6 +125,10 @@ class WishlistNotifier extends StateNotifier<WishlistState> {
 
     try {
       await _repository.removeFromWishlist(productId);
+      const PosthogAnalytics().capture(
+        'wishlist_removed',
+        properties: {'productId': productId},
+      );
     } catch (_) {
       if (!mounted) return;
       // Rollback
