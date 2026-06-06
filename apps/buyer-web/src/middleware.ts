@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { safeRedirect } from '@/lib/safe-redirect';
 
-// Auth-gated buyer routes. `/messages` was removed on 2026-05-17 when
-// direct buyer↔seller messaging was retired in favour of "Contacter le
-// support Teka RDC". `/wishlist` stays auth-gated — its API still 401s
-// without a session.
+// Auth-gated buyer routes. French route names since 2026-06-06 (city-first
+// URL refactor): /commandes, /paiement, /favoris (formerly /orders,
+// /checkout, /wishlist — old paths 301 to these via next.config). `/favoris`
+// stays auth-gated — its API still 401s without a session. `/messages` was
+// removed on 2026-05-17 (buyer↔seller messaging retired).
 const protectedRoutes = [
-  '/profile',
+  '/profil',
   '/addresses',
-  '/orders',
-  '/checkout',
-  '/wishlist',
+  '/commandes',
+  '/paiement',
+  '/favoris',
 ];
 
 // Routes that redirect logged-in users back to home. `/login` and

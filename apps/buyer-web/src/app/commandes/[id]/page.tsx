@@ -108,7 +108,7 @@ export default function OrderDetailPage() {
               />
             </svg>
             <p className="text-muted-foreground mb-4">{t('noOrders')}</p>
-            <Link href="/orders" className="text-primary hover:underline font-medium">
+            <Link href="/commandes" className="text-primary hover:underline font-medium">
               {t('back')}
             </Link>
           </div>
@@ -131,7 +131,7 @@ export default function OrderDetailPage() {
         <Container className="py-6 md:py-10 max-w-4xl">
           {/* Back link */}
           <Link
-            href="/orders"
+            href="/commandes"
             className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors mb-4"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
