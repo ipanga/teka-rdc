@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../city/presentation/providers/city_provider.dart';
 import '../../../wishlist/presentation/providers/wishlist_provider.dart';
 import '../providers/catalog_provider.dart';
 import '../widgets/product_card.dart';
@@ -21,6 +22,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   BrowseProductsParams get _params => BrowseProductsParams(
         search: _query.isNotEmpty ? _query : null,
+        // Scope search to the selected city (parity with buyer-web search).
+        cityId: ref.watch(cityProvider).selectedCity?.id,
       );
 
   @override

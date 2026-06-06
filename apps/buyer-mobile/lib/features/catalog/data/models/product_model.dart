@@ -31,6 +31,14 @@ class BrowseProductModel {
   final ProductImageModel? image;
   final BrowseProductSeller seller;
   final String? categoryId;
+  // City-first URL fields (API 2026-06-06). Mobile resolves products by UUID,
+  // so these are informational/future-proofing (city display, deep-link
+  // building) — kept in sync with the buyer-web BrowseProduct shape.
+  final String? slug;
+  final String? shortCode;
+  final String? cityId;
+  final String? citySlug;
+  final String? cityName;
 
   const BrowseProductModel({
     required this.id,
@@ -42,6 +50,11 @@ class BrowseProductModel {
     this.image,
     required this.seller,
     this.categoryId,
+    this.slug,
+    this.shortCode,
+    this.cityId,
+    this.citySlug,
+    this.cityName,
   });
 
   factory BrowseProductModel.fromJson(Map<String, dynamic> json) {
@@ -59,6 +72,11 @@ class BrowseProductModel {
         json['seller'] as Map<String, dynamic>? ?? {},
       ),
       categoryId: json['categoryId'] as String?,
+      slug: json['slug'] as String?,
+      shortCode: json['shortCode'] as String?,
+      cityId: json['cityId'] as String?,
+      citySlug: json['citySlug'] as String?,
+      cityName: json['cityName'] as String?,
     );
   }
 
@@ -93,6 +111,14 @@ class ProductDetailModel {
   final BrowseProductSeller seller;
   final ProductCategory? category;
   final List<BreadcrumbItem> breadcrumb;
+  // City-first URL fields (API 2026-06-06). The detail endpoint returns `city`
+  // as a nested object ({id, slug, name, province}) plus top-level slug /
+  // shortCode / cityId. Mobile resolves by UUID; these are informational.
+  final String? slug;
+  final String? shortCode;
+  final String? cityId;
+  final String? citySlug;
+  final String? cityName;
 
   const ProductDetailModel({
     required this.id,
@@ -107,9 +133,17 @@ class ProductDetailModel {
     required this.seller,
     this.category,
     this.breadcrumb = const [],
+    this.slug,
+    this.shortCode,
+    this.cityId,
+    this.citySlug,
+    this.cityName,
   });
 
   factory ProductDetailModel.fromJson(Map<String, dynamic> json) {
+    // Detail carries city as a nested object; fall back to flat fields if a
+    // future response flattens it (parity-safe with the list shape).
+    final city = json['city'] as Map<String, dynamic>?;
     return ProductDetailModel(
       id: json['id'] as String,
       title: json['title']?.toString() ?? '',
@@ -140,6 +174,11 @@ class ProductDetailModel {
               .map((e) => BreadcrumbItem.fromJson(e as Map<String, dynamic>))
               .toList()
           : [],
+      slug: json['slug'] as String?,
+      shortCode: json['shortCode'] as String?,
+      cityId: json['cityId'] as String?,
+      citySlug: (city?['slug'] ?? json['citySlug']) as String?,
+      cityName: (city?['name'] ?? json['cityName']) as String?,
     );
   }
 

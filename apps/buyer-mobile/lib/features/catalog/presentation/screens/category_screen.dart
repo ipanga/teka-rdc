@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../city/presentation/providers/city_provider.dart';
 import '../../../wishlist/presentation/providers/wishlist_provider.dart';
 import '../providers/catalog_provider.dart';
 import '../widgets/filter_bottom_sheet.dart';
@@ -28,6 +29,9 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
         categoryId: widget.categoryId,
         condition: _filters.condition,
         sortBy: _filters.sortBy,
+        // Scope the listing to the selected city (parity with buyer-web's
+        // city-scoped category page). Watched so a city change refetches.
+        cityId: ref.watch(cityProvider).selectedCity?.id,
       );
 
   void _applyFilters(FilterOptions filters) {
