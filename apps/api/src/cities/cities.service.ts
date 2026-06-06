@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { slugify } from '../common/utils/slugify';
 
 @Injectable()
 export class CitiesService {
@@ -59,6 +60,9 @@ export class CitiesService {
     const city = await this.prisma.city.create({
       data: {
         name: data.name,
+        // URL `{ville}` segment. Generated from the name so future cities work
+        // with no extra steps (e.g. "Likasi" -> "likasi").
+        slug: slugify(data.name),
         province: data.province,
         isActive: data.isActive ?? false,
         sortOrder: data.sortOrder ?? 0,
@@ -88,7 +92,12 @@ export class CitiesService {
     const updated = await this.prisma.city.update({
       where: { id },
       data: {
-        ...(data.name !== undefined && { name: data.name }),
+        // Keep the URL slug in lockstep with renames. Note: changing a city's
+        // slug changes its public URLs — acceptable for the rare admin rename.
+        ...(data.name !== undefined && {
+          name: data.name,
+          slug: slugify(data.name),
+        }),
         ...(data.province !== undefined && { province: data.province }),
         ...(data.isActive !== undefined && { isActive: data.isActive }),
         ...(data.sortOrder !== undefined && { sortOrder: data.sortOrder }),
