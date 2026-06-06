@@ -6,24 +6,29 @@
 
 ## Active initiative
 
-**SEO / City-First URL Refactor** (started 2026-06-06). Master tracker + resume protocol:
-`tasks/seo-city-url-refactor-progress.md` — **read it first.**
+**SEO / City-First URL Refactor** (2026-06-06) — **code-complete on `develop`, RELEASE PENDING.**
+Master tracker + resume protocol: `tasks/seo-city-url-refactor-progress.md` — **read it first.**
+Authoritative reference: `docs/url-and-seo-strategy.md`.
 
-**Goal:** city-first product URLs `/{ville}/{product-slug}-{id}`, French route names + 301s, a
-non-blocking (crawlable) homepage, city-scoped indexability — without breaking mobile or analytics.
+**Shipped to `develop` (Phases 1–6):** #283 (API slug+shortCode+city.slug foundation + prod migration),
+#284 (homepage de-block), #285 (city-first routing `/{ville}/{slug}-{shortCode}` + `/{ville}/categorie/`),
+#286 (city-first sitemap), #287 (French route renames + 301s), #288 (city-aware banner + analytics docs).
+Phase 7 docs (this) on `feat/seo-p7-docs-release`.
 
-**Phase 0 (investigation + gap analysis) is DONE.** Key findings: product DB slugs currently embed the
-city (`xbox-…-lubumbashi-310000`) and must be cleaned; the homepage **forces a blocking city modal** on
-first visit (SEO-hostile — must de-block); the API already resolves by slug-or-uuid and filters by
-`cityId` (backend barely changes); **mobile (ID-based go_router, no deep-link intent-filters) and
-analytics (PostHog `$current_url`, Clarity page groups, Sentry `tracesSampleRate:0`) have no code
-coupling** to web URLs — only PostHog/Clarity dashboards need re-pointing.
+**Decisions (locked):** D1 city-scoped categories · D2 clean slug + `shortCode` resolver · D3 buyer-web-only
+renames. Mobile + analytics **untouched by design** (ID-based go_router, no `teka.cd` intent-filters;
+analytics impact is dashboard-only, documented in `docs/analytics.md`).
 
-**Awaiting 3 decisions before Phase 3** (category URL scope / product trailing-id format / rename scope) —
-see the tracker's DECISIONS block. No code changed yet.
+**⚠️ RELEASE — not yet done, needs go-ahead (consequential prod step). Order matters:**
+1. **Apply the prod migration FIRST** — `2026-06-06_city_first_urls.sql` via the *Apply prod migration*
+   Action. Adds `Product.shortCode` + `City.slug` (+ md5/slug backfill). Backward-compatible (old code
+   ignores the new columns). **Must precede the deploy** — the new API SELECTs `shortCode`/`city.slug`
+   and would error if the columns are absent.
+2. Open + merge the `develop → main` release PR → auto-deploy.
+3. Optionally `db:seed` prod to rewrite slugs clean (migration's md5 backfill already covers shortCode/slug).
+4. Verify on teka.cd; back-merge `main → develop`.
 
-Prior initiative (Wishlist) **shipped to prod** 2026-06-05 (#278) + buyer-web hotfix released #280;
-vitest bump #281 released #282. Branches synced at `eec62ff`.
+Prior initiative (Wishlist) shipped to prod 2026-06-05 (#278/#280); vitest bump released #282.
 
 ## Recently completed — 2026-06-05
 
