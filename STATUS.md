@@ -6,7 +6,16 @@
 
 ## Active initiative
 
-**None.** Awaiting next direction.
+**Mobile Parity Sweep** (started 2026-06-06). Tracker + gap matrix + phased plan:
+`tasks/mobile-parity-sweep-progress.md`. **Phase 0 (audit + gap analysis) DONE; awaiting review +
+one scope decision (D1: mobile access model) before coding.**
+
+Net: the two Flutter apps are **largely at parity** (auth, cart, checkout, orders, profile, Sentry,
+connectivity, seller-mobile all solid). Genuine gaps: (P1) category/search don't pass `cityId` +
+unparsed new API fields; (P2) wishlist count badge + inactive-product handling; (P3) buyer-mobile
+PostHog ecommerce events (the documented deferral); (P4) seller-account-on-buyer-OTP guard; (P5)
+seller-mobile dead `/auth/migrate` button + minor polish. Deliberate divergences (auth-required +
+blocking city gate) noted as out-of-scope pending D1.
 
 ## Deferred / backlog (future maintenance)
 
