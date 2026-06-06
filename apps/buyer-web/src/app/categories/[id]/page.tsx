@@ -1,5 +1,6 @@
-import { redirect } from 'next/navigation';
+import { notFound, permanentRedirect } from 'next/navigation';
 import { serverFetch } from '@/lib/server-api';
+import { getDefaultCity } from '@/lib/server-cities';
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -9,24 +10,21 @@ interface ApiCategoryDetail {
 }
 
 /**
- * Legacy /categories/<id> route — kept as a 308 redirect to the SEO-friendly
- * /categorie/<slug> URL. Old links (Google, bookmarks, the few external
- * citations from before the slug refactor) keep resolving so we don't lose
- * link equity.
+ * Legacy /categories/<id> route. Categories are city-scoped since 2026-06-06,
+ * so this 308-redirects straight to /{defaultCity}/categorie/<slug> (one hop,
+ * no chain through the old /categorie/<slug>). Old links keep their equity.
  *
- * If a category somehow has no slug (race during seed, or admin-created
- * category that hasn't been backfilled), we 404 instead of rendering on the
- * legacy URL — the new route is the canonical one.
+ * 404 if the category has no slug or no city is configured — the city-scoped
+ * route is the canonical one.
  */
 export default async function Page({ params }: Props) {
   const { id } = await params;
-  const category = await serverFetch<ApiCategoryDetail>(
-    `/v1/browse/categories/${id}`,
-  );
+  const [category, city] = await Promise.all([
+    serverFetch<ApiCategoryDetail>(`/v1/browse/categories/${id}`),
+    getDefaultCity(),
+  ]);
 
-  if (!category?.slug) {
-    redirect('/');
-  }
+  if (!category?.slug || !city?.slug) notFound();
 
-  redirect(`/categorie/${category.slug}`);
+  permanentRedirect(`/${city.slug}/categorie/${category.slug}`);
 }

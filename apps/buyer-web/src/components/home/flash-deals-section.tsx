@@ -9,6 +9,7 @@ import { WishlistButton } from '@/components/wishlist-button';
 import { apiFetch } from '@/lib/api-client';
 import { useWishlistStore } from '@/lib/wishlist-store';
 import { formatCDF } from '@/lib/format';
+import { productHref } from '@/lib/urls';
 import type { FlashDeal } from '@/lib/types';
 
 /**
@@ -200,7 +201,10 @@ export function FlashDealsSection() {
                   className="group/card relative flex-shrink-0 w-44 md:w-56 snap-start bg-surface rounded-xl border border-border overflow-hidden shadow-xs hover:shadow-lg hover:border-border-strong transition-all duration-200 hover:-translate-y-0.5"
                 >
                 <Link
-                  href={`/${deal.product.slug || deal.product.id}`}
+                  // Flash-deal payload lacks shortCode/citySlug, so we link by
+                  // exact id; the [ville] dispatcher resolves the UUID and 301s
+                  // to the canonical /{ville}/{slug}-{shortCode} URL.
+                  href={productHref({ id: deal.product.id })}
                   className="block"
                 >
                   {/* Product image */}

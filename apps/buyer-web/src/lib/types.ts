@@ -29,7 +29,10 @@ export interface BrowseSeller {
 /** Product from GET /api/v1/browse/products */
 export interface BrowseProduct {
   id: string;
-  slug?: string;
+  // Cosmetic slug + unique resolver code. Canonical URL is
+  // `/{citySlug}/{slug}-{shortCode}` (built via lib/urls.ts).
+  slug?: string | null;
+  shortCode?: string | null;
   title: string;
   description?: string;
   priceCDF: string;
@@ -39,6 +42,10 @@ export interface BrowseProduct {
   image: { url: string; thumbnailUrl: string } | null;
   seller: BrowseSeller;
   categoryId: string;
+  // City of availability — lets each card build its own city-first URL.
+  cityId?: string | null;
+  citySlug?: string | null;
+  cityName?: string | null;
 }
 
 /** Specification item */
@@ -51,7 +58,8 @@ export interface ProductSpecification {
 /** Full product detail from GET /api/v1/browse/products/:id */
 export interface ProductDetail {
   id: string;
-  slug?: string;
+  slug?: string | null;
+  shortCode?: string | null;
   title: string;
   description: string;
   priceCDF: string;
@@ -61,6 +69,9 @@ export interface ProductDetail {
   images: ProductImage[];
   seller: BrowseSeller;
   categoryId: string;
+  cityId?: string | null;
+  // City of availability — drives the canonical URL + breadcrumb.
+  city?: { id: string; slug: string | null; name: string; province: string } | null;
   category: {
     id: string;
     slug: string | null;

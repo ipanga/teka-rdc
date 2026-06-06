@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { categoryHref, productIdentifierFromParam } from '@/lib/urls';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { ProductReviews } from '@/components/product-reviews';
@@ -17,7 +18,13 @@ import { formatCDF, formatUSD } from '@/lib/format';
 import { Badge, Button, Card, Container, buttonVariants, cn } from '@/components/ui';
 import type { ProductDetail } from '@/lib/types';
 
-export default function ProductDetailPage() {
+/**
+ * @param identifier  Resolver token for the browse API (shortCode / UUID /
+ *   legacy slug). The server route extracts it from the `[product]` segment
+ *   and passes it down. Falls back to parsing the route param client-side so
+ *   the component also works if rendered without the prop.
+ */
+export default function ProductDetailPage({ identifier }: { identifier?: string } = {}) {
   const t = useTranslations('Products');
   const tCat = useTranslations('Categories');
   // 'Messaging' translation namespace stays in messages/fr.json (with a
@@ -25,8 +32,12 @@ export default function ProductDetailPage() {
   // when direct buyer↔seller messaging was retired on 2026-05-17. Buyers
   // now reach Teka RDC support via /contact instead.
   const tSupport = useTranslations('Support');
-  const params = useParams<{ slug: string }>();
-  const productId = params.slug;
+  const params = useParams<{ ville?: string; product?: string }>();
+  // Prefer the server-extracted identifier; otherwise derive it from the
+  // `[product]` route segment (`iphone-15-pro-max-a1b2c3` -> `a1b2c3`).
+  const productId =
+    identifier ??
+    (params.product ? productIdentifierFromParam(params.product) : '');
   const user = useAuthStore((s) => s.user);
 
   const [product, setProduct] = useState<ProductDetail | null>(null);
@@ -133,7 +144,7 @@ export default function ProductDetailPage() {
               <span key={crumb.id} className="flex items-center gap-2 shrink-0">
                 <span>/</span>
                 <Link
-                  href={crumb.slug ? `/categorie/${crumb.slug}` : `/categories/${crumb.id}`}
+                  href={categoryHref(product.city?.slug, crumb)}
                   className="hover:text-primary transition-colors"
                 >
                   {crumb.name ?? ''}

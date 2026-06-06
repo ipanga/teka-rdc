@@ -13,12 +13,14 @@ import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
 import { CitySelectorModal } from '@/components/city/city-selector-modal';
 import { CityPrompt } from '@/components/city/city-prompt';
+import { categoryHref, cityHref } from '@/lib/urls';
 import type { BrowseCategory, BrowseProduct } from '@/lib/types';
 
 export default function HomePage({ serverH1 }: { serverH1?: string }) {
   const t = useTranslations('Hero');
   const tCat = useTranslations('Categories');
   const tProd = useTranslations('Products');
+  const tCity = useTranslations('City');
   const [categories, setCategories] = useState<BrowseCategory[]>([]);
   const [popularProducts, setPopularProducts] = useState<BrowseProduct[]>([]);
   const [newestProducts, setNewestProducts] = useState<BrowseProduct[]>([]);
@@ -27,7 +29,7 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
   const [loadingNewest, setLoadingNewest] = useState(true);
 
   // City store
-  const { selectedCity, initFromStorage, fetchCities } = useCityStore();
+  const { selectedCity, cities, initFromStorage, fetchCities } = useCityStore();
   const [cityInitialized, setCityInitialized] = useState(false);
 
   // Initialize city from localStorage + load the city list on mount.
@@ -133,7 +135,7 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
                 {categories.slice(0, 12).map((cat) => (
                   <Link
                     key={cat.id}
-                    href={cat.slug ? `/categorie/${cat.slug}` : `/categories/${cat.id}`}
+                    href={categoryHref(selectedCity?.slug, cat)}
                     className="group bg-surface rounded-xl border border-border p-4 text-center shadow-xs hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
                     <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">
@@ -152,8 +154,35 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
           </Container>
         </section>
 
+        {/* City links — crawlable Homepage → City-landing internal links.
+            Always rendered (independent of the client-side selected city) so
+            search engines can discover every /{ville} page. */}
+        {cities.filter((c) => c.isActive && c.slug).length > 0 && (
+          <section className="bg-surface-muted">
+            <Container className="py-8">
+              <h2 className="text-lg font-semibold text-foreground mb-3">
+                {tCity('shopByCity')}
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {cities
+                  .filter((c) => c.isActive && c.slug)
+                  .map((c) => (
+                    <Link
+                      key={c.id}
+                      href={cityHref(c.slug as string)}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                    >
+                      <span aria-hidden>{'📍'}</span>
+                      {c.name}
+                    </Link>
+                  ))}
+              </div>
+            </Container>
+          </section>
+        )}
+
         {/* Popular Products Section */}
-        <section className="bg-surface-muted">
+        <section className="bg-background">
           <Container className="py-10 md:py-14">
             <SectionHeader title={tProd('popularProducts')} />
             <ProductGrid products={popularProducts} isLoading={loadingPopular} />
