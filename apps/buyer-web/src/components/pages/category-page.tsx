@@ -26,9 +26,16 @@ interface CategoryPageProps {
    * for the legacy /categories/[id] route.
    */
   categoryUuid?: string;
+  /**
+   * City to scope the listing to, from a city-first category route
+   * (`/{ville}/categorie/{slug}`). When set it OVERRIDES the client-selected
+   * city so the page always matches its URL. Omitted on the legacy global
+   * route, which falls back to the store's selected city.
+   */
+  cityId?: string;
 }
 
-export default function CategoryPage({ categoryUuid }: CategoryPageProps = {}) {
+export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps = {}) {
   const t = useTranslations('Products');
   const tCat = useTranslations('Categories');
   const params = useParams<{ id?: string; slug?: string }>();
@@ -50,6 +57,9 @@ export default function CategoryPage({ categoryUuid }: CategoryPageProps = {}) {
   filtersRef.current = { condition, minPrice, maxPrice, sortBy };
 
   const selectedCity = useCityStore((s) => s.selectedCity);
+  // URL city (city-first route) wins over the client-selected city so the
+  // listing always matches the page's /{ville} segment.
+  const effectiveCityId = cityId ?? selectedCity?.id;
 
   // Buyer-owned UI event — one per category view (keyed on the resolved id).
   useEffect(() => {
@@ -66,7 +76,7 @@ export default function CategoryPage({ categoryUuid }: CategoryPageProps = {}) {
     if (f.condition) qs.set('condition', f.condition);
     if (f.minPrice) qs.set('minPrice', f.minPrice);
     if (f.maxPrice) qs.set('maxPrice', f.maxPrice);
-    if (selectedCity) qs.set('cityId', selectedCity.id);
+    if (effectiveCityId) qs.set('cityId', effectiveCityId);
     if (cursor) qs.set('cursor', cursor);
     return qs.toString();
   }
@@ -99,6 +109,7 @@ export default function CategoryPage({ categoryUuid }: CategoryPageProps = {}) {
     qs.set('categoryId', categoryId);
     qs.set('sortBy', 'newest');
     qs.set('limit', '12');
+    if (effectiveCityId) qs.set('cityId', effectiveCityId);
     apiFetch<{ data: BrowseProduct[]; pagination: CursorPagination }>(
       `/v1/browse/products?${qs.toString()}`,
     )
@@ -108,8 +119,7 @@ export default function CategoryPage({ categoryUuid }: CategoryPageProps = {}) {
       })
       .catch(() => {})
       .finally(() => setIsLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryId]);
+  }, [categoryId, effectiveCityId]);
 
   function handleApplyFilters() {
     setIsLoading(true);

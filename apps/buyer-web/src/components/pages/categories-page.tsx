@@ -6,10 +6,13 @@ import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { apiFetch } from '@/lib/api-client';
+import { useCityStore } from '@/lib/city-store';
+import { categoryHref } from '@/lib/urls';
 import type { BrowseCategory } from '@/lib/types';
 
 export default function CategoriesPage() {
   const t = useTranslations('Categories');
+  const selectedCity = useCityStore((s) => s.selectedCity);
   const [categories, setCategories] = useState<BrowseCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -61,7 +64,7 @@ export default function CategoriesPage() {
             {categories.map((cat) => (
               <Link
                 key={cat.id}
-                href={cat.slug ? `/categorie/${cat.slug}` : `/categories/${cat.id}`}
+                href={categoryHref(selectedCity?.slug, cat)}
                 className="group bg-white rounded-lg border border-border p-6 text-center hover:shadow-lg hover:border-primary/30 transition-all"
               >
                 <div className="text-4xl mb-3">{cat.emoji || '📦'}</div>
