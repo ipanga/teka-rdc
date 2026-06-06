@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { safeRedirect } from '@/lib/safe-redirect';
 
 // Auth-gated buyer routes. French route names since 2026-06-06 (city-first
 // URL refactor): /commandes, /paiement, /favoris (formerly /orders,
@@ -13,12 +12,6 @@ const protectedRoutes = [
   '/paiement',
   '/favoris',
 ];
-
-// Routes that redirect logged-in users back to home. `/login` and
-// `/register` don't exist as routes since the May 2026 monolingual +
-// WhatsApp-OTP refactor — the real auth surfaces are `/connexion` and
-// `/reclamer-compte`.
-const authOnlyRoutes = ['/connexion', '/reclamer-compte'];
 
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -37,9 +30,6 @@ export default function middleware(request: NextRequest) {
   const isProtected = protectedRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
-  const isAuthOnly = authOnlyRoutes.some(
-    (route) => pathname === route || pathname.startsWith(`${route}/`),
-  );
 
   if (isProtected && !hasSession) {
     // Go straight to /connexion. The previous code redirected to /login,
@@ -50,14 +40,22 @@ export default function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (isAuthOnly && hasSession) {
-    // A user with a session shouldn't sit on the login page. Honor a safe
-    // relative `?redirect=` (e.g. the product page a wishlist heart came from)
-    // instead of always dropping to home, so the round-trip returns the user
-    // where they were. Open-redirect guarded by safeRedirect().
-    const dest = safeRedirect(request.nextUrl.searchParams.get('redirect'));
-    return NextResponse.redirect(new URL(dest, request.url));
-  }
+  // NOTE — auth-only routes (/connexion, /reclamer-compte) are intentionally
+  // NOT bounced here anymore (2026-06-07). `hasSession` is a *presence* check
+  // on the token cookies; it can't tell a live session from a dead one whose
+  // cookie merely lingers (expired JWT still within cookie maxAge, or a
+  // `teka_session` hint desync that stops api-client from refreshing/clearing
+  // the stale cookie). When that happened the middleware bounced /connexion →
+  // home while the app store was correctly guest (/me 401) — so a logged-out
+  // user could never reach the login form, and the wishlist heart's guest
+  // branch (push to /connexion) bounced straight back, looking inert.
+  //
+  // The "already-logged-in → skip the login page" redirect now lives on the
+  // /connexion page itself, which uses the REAL session state (auth store /
+  // /me) instead of cookie presence. The protected-route gate above keeps its
+  // presence check: letting a stale-cookie user *into* a protected page is
+  // benign (its API calls 401 and it can now reach /connexion to recover),
+  // whereas locking them *out* of login was the harmful failure mode.
 
   return NextResponse.next();
 }
