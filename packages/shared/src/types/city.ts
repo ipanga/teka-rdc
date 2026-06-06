@@ -3,6 +3,9 @@ import type { Timestamps } from './common';
 export interface City extends Timestamps {
   id: string;
   name: string;
+  // URL `{ville}` segment, e.g. "lubumbashi" (city-first URL refactor).
+  // Nullable on legacy rows pending backfill.
+  slug?: string | null;
   province: string;
   isActive: boolean;
   sortOrder: number;

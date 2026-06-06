@@ -227,6 +227,35 @@ Notes:
 5. Keep property names snake_case, money in CDF centimes as numbers, and **never
    add phone/email/PII**.
 
+## URL migration impact (city-first refactor, 2026-06-06)
+
+The buyer-web URL scheme changed to **city-first** (`/{ville}/{slug}-{shortCode}`,
+`/{ville}/categorie/{slug}`) and the English storefront routes were renamed to
+French (`/cart→/panier`, `/checkout→/paiement`, `/orders→/commandes`,
+`/wishlist→/favoris`). **No analytics code changed** — but URL-keyed dashboards
+need a one-time refresh:
+
+- **PostHog (web):** `$pageview` is keyed on `$current_url` (autocapture, manual
+  `capture_pageview`). Any saved insight / funnel / cohort that filters on an
+  **exact pathname** must be updated:
+  - product pages: `/{slug}` → `/{ville}/{slug}-{shortCode}` (filter on
+    `pathname` *contains* the city, or use the `product_viewed` custom event
+    which is keyed on `productId` and is unaffected).
+  - `pathname = '/categorie/…'` → also matches `/{ville}/categorie/…`; tighten
+    or loosen as needed.
+  - private routes: `/cart`,`/checkout`,`/orders`,`/wishlist` →
+    `/panier`,`/paiement`,`/commandes`,`/favoris`.
+  - **Custom events are unaffected** — they key on `productId`/`categoryId`, not
+    the URL (see Event ownership). Prefer them for durable dashboards.
+- **Microsoft Clarity (web):** heatmaps/recordings are grouped by URL, so the new
+  paths appear as **new page groups**; historical data stays under the old URLs.
+  No action beyond expecting the split (see `docs/clarity.md`).
+- **Sentry:** `tracesSampleRate: 0` (errors only, route-agnostic) — **no impact**.
+  Old breadcrumbs may reference old paths; new errors use the new paths.
+- **Mobile (PostHog `$screen` + Sentry):** **no impact.** go_router routes are
+  ID-based and French already; the apps build **no web URLs** and have **no
+  `teka.cd` deep-link intent-filters**, so the web URL change can't reach them.
+
 ## Deferred / not implemented
 
 - buyer-**mobile** ecommerce events **beyond wishlist** (product_viewed /

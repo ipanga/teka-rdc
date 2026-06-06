@@ -293,6 +293,17 @@ Offline behavior is opinionated:
 
 Observability lands in Sentry as: a `connectivity_state` tag on every event, breadcrumbs on every transition, and three rate-limited (1/min) capture events: `connected_to_noInternet`, `sustained_noInternet` (≥5 consecutive), `retry_budget_exhausted`. Privacy-sensitive fields (tokens, query strings, phone numbers) are never emitted; the pre-existing `core/config/sentry_scrub.dart` `beforeSend` phone-scrubber is untouched.
 
+### URL & SEO (buyer-web, city-first since 2026-06-06)
+
+buyer-web uses a **city-first** URL scheme: `/{ville}`, `/{ville}/{slug}-{shortCode}`
+(product), `/{ville}/categorie/{slug}` (category). The product `slug` is cosmetic;
+the trailing `Product.shortCode` (6-char, unique) is the resolver, and the city
+comes from `product.cityId` (never the slug). Storefront routes are French
+(`/panier /paiement /commandes /favoris`), with 301/308 redirects from the old
+English + flat URLs. The homepage is non-blocking/crawlable (no forced city
+modal). Single URL builder: `apps/buyer-web/src/lib/urls.ts`.
+**Full reference: `docs/url-and-seo-strategy.md`.**
+
 ### Product Lifecycle
 
 ```

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui';
 import { WishlistButton } from '@/components/wishlist-button';
 import { formatCDF } from '@/lib/format';
+import { productHref } from '@/lib/urls';
 import type { BrowseProduct } from '@/lib/types';
 
 interface ProductCardProps {
@@ -24,7 +25,7 @@ export function ProductCard({ product }: ProductCardProps) {
     // stays valid HTML and a tap on the heart never navigates to the PDP.
     <div className="group relative bg-surface rounded-xl border border-border overflow-hidden shadow-xs hover:shadow-lg hover:border-border-strong transition-all duration-200 hover:-translate-y-0.5">
       <Link
-        href={`/${product.slug || product.id}`}
+        href={productHref(product)}
         className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         {/* Image */}

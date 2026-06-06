@@ -4,6 +4,9 @@ import { apiFetch } from './api-client';
 export interface City {
   id: string;
   name: string;
+  // URL `{ville}` segment (e.g. "lubumbashi"). Returned by GET /v1/cities.
+  // Optional for resilience against legacy cached city objects.
+  slug?: string | null;
   province: string;
   isActive: boolean;
   sortOrder: number;

@@ -1,9 +1,13 @@
 import { PrismaClient, AttributeType, ProductCondition, ProductStatus, OrderStatus, PaymentMethod, PaymentStatus, TransactionType, TransactionProvider, PayoutStatus, ReviewStatus, BannerStatus, PromotionType, PromotionStatus, ContentPageStatus, NotificationBroadcastStatus } from '@prisma/client';
+import { createHash } from 'crypto';
 
 const prisma = new PrismaClient();
 
-function generateProductSlug(frenchTitle: string, productId: string): string {
-  const base = frenchTitle
+// CLEAN, city-independent product slug (city-first URL refactor, 2026-06-06).
+// The slug is cosmetic; the canonical URL is `/{ville}/{slug}-{shortCode}` and
+// products resolve by shortCode. Do NOT bake city or id into the slug.
+function generateProductSlug(frenchTitle: string): string {
+  return frenchTitle
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
@@ -12,8 +16,16 @@ function generateProductSlug(frenchTitle: string, productId: string): string {
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .substring(0, 80);
-  const shortId = productId.replace(/-/g, '').substring(0, 6);
-  return `${base}-${shortId}`;
+}
+
+// Stable 6-char shortCode derived deterministically from the product UUID, so
+// re-running the (idempotent) seed never changes a product's URL. UUIDs are
+// unique \u2192 md5 prefixes are effectively unique across the seed catalog.
+// md5 (not sha1) is used so the prod backfill migration can compute the SAME
+// value with Postgres' core `md5()` (no pgcrypto needed) \u2014 keeping seed and
+// migration in lockstep. Hex chars (0-9a-f) satisfy the [a-z0-9]{6} shape.
+function shortCodeFromId(productId: string): string {
+  return createHash('md5').update(productId).digest('hex').substring(0, 6);
 }
 
 /**
@@ -219,12 +231,14 @@ async function main() {
   ];
 
   for (const city of cities) {
+    const citySlug = frSlugify(city.fr); // {ville} URL segment, e.g. "lubumbashi"
     await prisma.city.upsert({
       where: { id: cityId(city.n) },
-      update: { isActive: city.isActive },
+      update: { isActive: city.isActive, slug: citySlug },
       create: {
         id: cityId(city.n),
         name: city.fr,
+        slug: citySlug,
         province: city.province,
         isActive: city.isActive,
         sortOrder: city.n,
@@ -1295,13 +1309,15 @@ async function main() {
     }
 
     // Upsert the product
-    const slug = generateProductSlug(prod.titleFr, id);
+    const slug = generateProductSlug(prod.titleFr);
+    const shortCode = shortCodeFromId(id);
     await prisma.product.upsert({
       where: { id },
-      update: { slug },
+      update: { slug, shortCode },
       create: {
         id,
         slug,
+        shortCode,
         title: prod.titleFr,
         description: prod.descFr,
         categoryId,
@@ -3376,7 +3392,11 @@ async function seedSampleProducts(sellerId: string): Promise<void> {
           `${tpl.descKey}. Disponible à ${city.fr}. ` +
           'Livraison rapide partout en RDC. Achetez en toute confiance sur Teka RDC, ' +
           'votre marketplace en République Démocratique du Congo.';
-        const slug = generateProductSlug(`${titleFr} ${city.fr}`, productId);
+        // Clean, city-independent slug — the city now lives in the URL path,
+        // not the slug. Two variants of the same product in the same city may
+        // share a slug; the unique shortCode disambiguates the URL.
+        const slug = generateProductSlug(titleFr);
+        const shortCode = shortCodeFromId(productId);
         const priceCDF = BigInt(tpl.priceCDF * 100); // convert CDF -> centimes
         const priceUSD = tpl.priceUSD ? BigInt(tpl.priceUSD) : null;
 
@@ -3384,6 +3404,7 @@ async function seedSampleProducts(sellerId: string): Promise<void> {
           where: { id: productId },
           update: {
             slug,
+            shortCode,
             cityId: city.id,
             categoryId,
             sellerId,
@@ -3391,6 +3412,7 @@ async function seedSampleProducts(sellerId: string): Promise<void> {
           create: {
             id: productId,
             slug,
+            shortCode,
             title: titleFr,
             description: descFr,
             categoryId,

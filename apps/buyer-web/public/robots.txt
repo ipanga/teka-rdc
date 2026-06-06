@@ -1,27 +1,22 @@
-# Public crawlers — block the user-private routes.
+# Public crawlers — block the user-private routes (French route names since
+# 2026-06-06; old English paths still 301 to these via next.config redirects).
 User-agent: *
-Disallow: /checkout/
-Disallow: /cart/
-Disallow: /orders/
-Disallow: /messages/
-Disallow: /login/
-Disallow: /register/
-Disallow: /profile/
-Disallow: /wishlist/
+Disallow: /paiement/
+Disallow: /panier/
+Disallow: /commandes/
+Disallow: /favoris/
+Disallow: /profil/
 Disallow: /api/
 Disallow: /_next/
 
 # Google — same private-route block, no /api or /_next (they're not in robots
 # anyway for Google, but listing them explicitly under * already covers it).
 User-agent: Googlebot
-Disallow: /checkout/
-Disallow: /cart/
-Disallow: /orders/
-Disallow: /messages/
-Disallow: /login/
-Disallow: /register/
-Disallow: /profile/
-Disallow: /wishlist/
+Disallow: /paiement/
+Disallow: /panier/
+Disallow: /commandes/
+Disallow: /favoris/
+Disallow: /profil/
 
 # Social card scrapers — IMPORTANT: use empty `Disallow:` per the 1994 spec,
 # NOT `Allow: /`. Facebook's parser doesn't reliably understand the Allow

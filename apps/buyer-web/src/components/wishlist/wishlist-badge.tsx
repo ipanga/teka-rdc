@@ -45,7 +45,7 @@ export function WishlistBadge({ compact = false }: WishlistBadgeProps) {
 
   return (
     <Link
-      href="/wishlist"
+      href="/favoris"
       className={
         compact
           ? 'relative p-1.5 text-foreground hover:text-primary transition-colors'

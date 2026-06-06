@@ -86,6 +86,8 @@
     "description": "Description",
     "popularProducts": "Produits populaires",
     "newestProducts": "Nouveautés",
+    "cityLandingTitle": "Achetez en ligne à {city}",
+    "cityLandingSubtitle": "Découvrez les produits disponibles à {city}, {province}. Livraison rapide et paiement à la livraison.",
     "quantity": "Quantité",
     "available": "{count} disponible(s)",
     "images": "Images du produit",
@@ -412,6 +414,8 @@
     "selectCityDescription": "Pour vous montrer les produits disponibles près de chez vous",
     "currentCity": "Ville actuelle",
     "changeCity": "Changer de ville",
+    "seeAll": "Voir toutes les villes",
+    "shopByCity": "Achetez dans votre ville",
     "cancel": "Annuler"
   }
 }

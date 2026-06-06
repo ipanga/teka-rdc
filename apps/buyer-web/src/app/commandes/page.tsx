@@ -149,7 +149,7 @@ export default function OrdersPage() {
                   `${order.seller.firstName} ${order.seller.lastName}`;
 
                 return (
-                  <Link key={order.id} href={`/orders/${order.id}`} className="block group">
+                  <Link key={order.id} href={`/commandes/${order.id}`} className="block group">
                     <Card padding="sm" hover="lift">
                       {/* Top row: order number + status */}
                       <div className="flex items-center justify-between mb-3 gap-3">

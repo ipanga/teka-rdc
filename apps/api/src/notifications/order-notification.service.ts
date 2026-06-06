@@ -287,7 +287,10 @@ export class OrderNotificationService {
   }
 
   private orderUrl(orderId: string): string {
-    return `${this.buyerWebUrl}/orders/${orderId}`;
+    // Buyer-web order route is /commandes since 2026-06-06 (city-first URL
+    // refactor). The old /orders path still 301s, but link straight to the
+    // canonical FR route to avoid the redirect hop in push/email.
+    return `${this.buyerWebUrl}/commandes/${orderId}`;
   }
 
   /**

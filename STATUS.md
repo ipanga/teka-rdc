@@ -6,19 +6,29 @@
 
 ## Active initiative
 
-None. Wishlist completion **shipped to prod** 2026-06-05 (release #278). One **post-release buyer-web
-hotfix** ready on `fix/wishlist-buyer-web` (needs its own `develop → main` release to deploy):
+**SEO / City-First URL Refactor** (2026-06-06) — **code-complete on `develop`, RELEASE PENDING.**
+Master tracker + resume protocol: `tasks/seo-city-url-refactor-progress.md` — **read it first.**
+Authoritative reference: `docs/url-and-seo-strategy.md`.
 
-- **Bug:** during the auth-loading window (`fetchUser` in flight on DRC 2G/3G — `user: null` but the
-  session cookie is still present), the header showed the login button and hearts acted as guest;
-  clicking either did `router.push('/connexion')`, which the middleware (seeing the cookie) bounced to
-  home. → "connexion does nothing" + "heart redirects to home."
-- **Fix:** WishlistButton + header now wait for `isLoading` to resolve before treating the user as a
-  guest; middleware honors a safe `?redirect=` on the authOnly bounce (defense-in-depth); fixed a
-  `cn` position-utility conflict on the card heart overlay.
-- **Tests:** set up **vitest** for buyer-web (was none) — 15 tests: `safe-redirect`, `wishlist-store`
-  (toggle/hydrate/add/count/rollback), `WishlistButton` (guest / loading-no-bounce / authed). Green:
-  type-check + build + 15 tests.
+**Shipped to `develop` (Phases 1–6):** #283 (API slug+shortCode+city.slug foundation + prod migration),
+#284 (homepage de-block), #285 (city-first routing `/{ville}/{slug}-{shortCode}` + `/{ville}/categorie/`),
+#286 (city-first sitemap), #287 (French route renames + 301s), #288 (city-aware banner + analytics docs).
+Phase 7 docs (this) on `feat/seo-p7-docs-release`.
+
+**Decisions (locked):** D1 city-scoped categories · D2 clean slug + `shortCode` resolver · D3 buyer-web-only
+renames. Mobile + analytics **untouched by design** (ID-based go_router, no `teka.cd` intent-filters;
+analytics impact is dashboard-only, documented in `docs/analytics.md`).
+
+**⚠️ RELEASE — not yet done, needs go-ahead (consequential prod step). Order matters:**
+1. **Apply the prod migration FIRST** — `2026-06-06_city_first_urls.sql` via the *Apply prod migration*
+   Action. Adds `Product.shortCode` + `City.slug` (+ md5/slug backfill). Backward-compatible (old code
+   ignores the new columns). **Must precede the deploy** — the new API SELECTs `shortCode`/`city.slug`
+   and would error if the columns are absent.
+2. Open + merge the `develop → main` release PR → auto-deploy.
+3. Optionally `db:seed` prod to rewrite slugs clean (migration's md5 backfill already covers shortCode/slug).
+4. Verify on teka.cd; back-merge `main → develop`.
+
+Prior initiative (Wishlist) shipped to prod 2026-06-05 (#278/#280); vitest bump released #282.
 
 ## Recently completed — 2026-06-05
 

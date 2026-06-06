@@ -414,13 +414,13 @@ export default function BuyerProfilePage() {
       <section className="bg-white rounded-xl border border-border p-6">
         <div className="flex flex-col gap-3">
           <Link
-            href="/orders"
+            href="/commandes"
             className="text-sm font-medium text-primary hover:underline"
           >
             {t('viewOrders')}
           </Link>
           <Link
-            href="/wishlist"
+            href="/favoris"
             className="text-sm font-medium text-primary hover:underline"
           >
             {t('viewWishlist')}

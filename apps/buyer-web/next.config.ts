@@ -104,6 +104,23 @@ const nextConfig: NextConfig = {
     out.push({ source: '/setup-password',  destination: '/connexion',        permanent: false });
     out.push({ source: '/reset-password',  destination: '/connexion',        permanent: false });
 
+    // French route renames (2026-06-06, city-first URL refactor). Old English
+    // storefront routes 301 to their French equivalents. These MUST exist:
+    // without them the old paths fall through to the /[ville] dispatcher and
+    // 404. Base + `:path+` (one-or-more) for children — `:path*` would also
+    // match the base and emit a malformed Location header (see /en note above).
+    const ROUTE_RENAMES: Array<[string, string]> = [
+      ['/cart', '/panier'],
+      ['/checkout', '/paiement'],
+      ['/orders', '/commandes'],
+      ['/wishlist', '/favoris'],
+      ['/profile', '/profil'], // old English path → existing FR route
+    ];
+    for (const [from, to] of ROUTE_RENAMES) {
+      out.push({ source: from, destination: to, permanent: true });
+      out.push({ source: `${from}/:path+`, destination: `${to}/:path+`, permanent: true });
+    }
+
     return out;
   },
 };

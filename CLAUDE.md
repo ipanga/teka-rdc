@@ -204,6 +204,7 @@ teka-rdc/
     ├── mobile-flavors.md        # Android dev/staging/prod product flavors
     ├── push-notifications.md    # FCM / PushService setup + device-token lifecycle
     ├── sentry.md                # Error monitoring wiring (SENTRY_DSN, scrubbing)
+    ├── url-and-seo-strategy.md  # City-first buyer-web URLs, slugs/shortCode, redirects, crawl
     └── phases/
 ```
 

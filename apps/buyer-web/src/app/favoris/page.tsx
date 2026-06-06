@@ -11,6 +11,7 @@ import { useCartStore } from '@/lib/cart-store';
 import { useWishlistStore } from '@/lib/wishlist-store';
 import { track } from '@/lib/analytics';
 import { formatCDF } from '@/lib/format';
+import { productHref } from '@/lib/urls';
 import { Badge, Button, Card, Container, buttonVariants, cn } from '@/components/ui';
 import type { WishlistItem, PaginatedWishlist } from '@/lib/types';
 
@@ -200,7 +201,7 @@ export default function WishlistPage() {
                       </button>
 
                       <Link
-                        href={`/${product.slug || product.id}`}
+                        href={productHref(product)}
                         className="block"
                       >
                         <div className="relative aspect-square bg-surface-muted overflow-hidden">

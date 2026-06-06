@@ -30,7 +30,7 @@ export function CartBadge() {
 
   return (
     <Link
-      href="/cart"
+      href="/panier"
       className="relative p-2 text-foreground hover:text-primary transition-colors"
       aria-label="Cart"
     >
