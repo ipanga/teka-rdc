@@ -6,27 +6,28 @@
 
 ## Active initiative
 
-**SEO / City-First URL Refactor** (2026-06-06) — **code-complete on `develop`, RELEASE PENDING.**
-Master tracker + resume protocol: `tasks/seo-city-url-refactor-progress.md` — **read it first.**
-Authoritative reference: `docs/url-and-seo-strategy.md`.
+None. **SEO / City-First URL Refactor SHIPPED to prod 2026-06-06** (release #290; main=develop=`3105ce0`).
+Full narrative in `PROGRESS.md`; authoritative reference `docs/url-and-seo-strategy.md`; tracker
+`tasks/seo-city-url-refactor-progress.md`. Phases 1–7 (#283–#289) merged; release #290 deployed; prod
+migration `2026-06-06_city_first_urls.sql` applied (verified: live API returns `shortCode`/`citySlug`;
+`/lubumbashi` 200; `/wishlist`→`/favoris`, `/cart`→`/panier`, `/orders`→`/commandes` 308; `/categorie/x`
+→`/{ville}/categorie/x` 308; sitemap city-first). Back-merged.
 
-**Shipped to `develop` (Phases 1–6):** #283 (API slug+shortCode+city.slug foundation + prod migration),
-#284 (homepage de-block), #285 (city-first routing `/{ville}/{slug}-{shortCode}` + `/{ville}/categorie/`),
-#286 (city-first sitemap), #287 (French route renames + 301s), #288 (city-aware banner + analytics docs).
-Phase 7 docs (this) on `feat/seo-p7-docs-release`.
-
-**Decisions (locked):** D1 city-scoped categories · D2 clean slug + `shortCode` resolver · D3 buyer-web-only
-renames. Mobile + analytics **untouched by design** (ID-based go_router, no `teka.cd` intent-filters;
-analytics impact is dashboard-only, documented in `docs/analytics.md`).
-
-**⚠️ RELEASE — not yet done, needs go-ahead (consequential prod step). Order matters:**
-1. **Apply the prod migration FIRST** — `2026-06-06_city_first_urls.sql` via the *Apply prod migration*
-   Action. Adds `Product.shortCode` + `City.slug` (+ md5/slug backfill). Backward-compatible (old code
-   ignores the new columns). **Must precede the deploy** — the new API SELECTs `shortCode`/`city.slug`
-   and would error if the columns are absent.
-2. Open + merge the `develop → main` release PR → auto-deploy.
-3. Optionally `db:seed` prod to rewrite slugs clean (migration's md5 backfill already covers shortCode/slug).
-4. Verify on teka.cd; back-merge `main → develop`.
+### Two follow-ups found during release verification (NOT blockers; not introduced by this initiative)
+1. **Clean slugs need a prod `db:seed`.** The migration backfilled `shortCode` + `City.slug` but left
+   existing product `slug`s in the OLD city-embedded form (`…-lubumbashi-310000`). URLs still resolve
+   (by `shortCode`) and are canonical, just not pretty — e.g.
+   `/lubumbashi/kit-fournitures-…-lubumbashi-310000-8580a5`. A prod `db:seed` (idempotent) rewrites them
+   to the clean `generateProductSlug(title)` form. Safe to run anytime.
+2. **Pre-existing auth edge (stale token cookie ⇒ `/connexion` bounce).** A session whose JWTs are
+   expired/invalid but whose **HttpOnly `teka_access_token`/`teka_refresh_token` cookie still lingers**
+   (within cookie maxAge) leaves the middleware's presence-based `hasSession` = true → it 307-bounces
+   `/connexion` → `/`. The app store is guest (`/me` 401), so the user can't reach login AND product
+   hearts (guest branch → push `/connexion?redirect=…`) appear inert. Reproduced live (a session that
+   straddled the deploy). Same FAMILY as the PR #279 loading-window fix but the **expired-token** window;
+   the #279 `isLoading` guard doesn't cover it. NOT caused by the URL refactor (middleware presence-check
+   predates it). Candidate fix: clear stale auth cookies when `fetchUser`/refresh definitively fails, or
+   have the `/connexion` bounce verify token validity (not just presence). Needs its own scoped task.
 
 Prior initiative (Wishlist) shipped to prod 2026-06-05 (#278/#280); vitest bump released #282.
 

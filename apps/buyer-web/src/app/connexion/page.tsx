@@ -21,6 +21,9 @@ function ConnexionInner() {
   const searchParams = useSearchParams();
   const redirectTo = safeRedirect(searchParams.get('redirect'));
   const setUser = useAuthStore((s) => s.setUser);
+  const currentUser = useAuthStore((s) => s.user);
+  const authLoading = useAuthStore((s) => s.isLoading);
+  const redirectedRef = useRef(false);
 
   const [step, setStep] = useState<Step>('phone');
   const [rawPhone, setRawPhone] = useState('');
@@ -35,6 +38,24 @@ function ConnexionInner() {
   const [expiresLeft, setExpiresLeft] = useState(0);
 
   const codeRef = useRef<HTMLInputElement | null>(null);
+
+  // Already-logged-in → skip the login page. This used to live in the
+  // middleware (bounced on token-cookie *presence*), which stranded users
+  // whose cookie lingered after the session died — they couldn't reach login
+  // and the wishlist heart's guest redirect bounced back (looked inert). It's
+  // now gated on the REAL session state (auth store, resolved via /me), so a
+  // stale-cookie/guest user (`currentUser` null once `authLoading` clears)
+  // correctly sees the login form and can recover. Sellers go to the seller
+  // app; everyone else returns to the safe `?redirect=` target.
+  useEffect(() => {
+    if (authLoading || !currentUser || redirectedRef.current) return;
+    redirectedRef.current = true;
+    if (currentUser.role === 'SELLER') {
+      window.location.href = SELLER_WEB_URL;
+    } else {
+      router.replace(redirectTo);
+    }
+  }, [authLoading, currentUser, redirectTo, router]);
 
   useEffect(() => {
     if (step !== 'code') return;
