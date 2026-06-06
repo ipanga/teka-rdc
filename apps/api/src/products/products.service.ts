@@ -12,7 +12,10 @@ import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductQueryDto } from './dto/product-query.dto';
 import { ProductCondition, ProductStatus } from '@prisma/client';
 import { randomUUID } from 'crypto';
-import { generateProductSlug } from '../common/utils/slugify';
+import {
+  generateProductSlug,
+  generateShortCode,
+} from '../common/utils/slugify';
 import { PostHogService } from '../analytics/posthog.service';
 
 @Injectable()
@@ -24,6 +27,24 @@ export class ProductsService {
     private cloudinary: CloudinaryService,
     private analytics: PostHogService,
   ) {}
+
+  /**
+   * Produce a product `shortCode` guaranteed unique against existing rows.
+   * Retries on the (rare) base36 collision; bails after a sane cap.
+   */
+  private async generateUniqueShortCode(): Promise<string> {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const code = generateShortCode();
+      const clash = await this.prisma.product.findUnique({
+        where: { shortCode: code },
+        select: { id: true },
+      });
+      if (!clash) return code;
+    }
+    // 5 consecutive collisions in a 2.2B space is effectively impossible;
+    // surface loudly rather than silently risk a unique-constraint throw.
+    throw new Error('Failed to generate a unique product shortCode');
+  }
 
   /**
    * Creates a new product in DRAFT status.
@@ -60,14 +81,17 @@ export class ProductsService {
     // Derive cityId: explicit > seller profile > null
     const cityId = dto.cityId ?? sellerProfile.cityId ?? undefined;
 
-    // Generate product ID and SEO slug
+    // Generate product ID, cosmetic city-independent slug, and a unique
+    // resolver shortCode (the tail of the `/{ville}/{slug}-{shortCode}` URL).
     const productId = randomUUID();
-    const slug = generateProductSlug(dto.title, productId);
+    const slug = generateProductSlug(dto.title);
+    const shortCode = await this.generateUniqueShortCode();
 
     const product = await this.prisma.product.create({
       data: {
         id: productId,
         slug,
+        shortCode,
         title: dto.title,
         description: dto.description,
         categoryId: dto.categoryId,

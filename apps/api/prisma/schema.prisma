@@ -142,6 +142,11 @@ enum NotificationBroadcastStatus {
 model City {
   id        String   @id @default(uuid()) @db.Uuid
   name      String
+  // URL-friendly slug used as the `{ville}` path segment in buyer-web URLs
+  // (city-first URL refactor, 2026-06-06). Generated from `name` (e.g.
+  // "Lubumbashi" -> "lubumbashi"). Unique so an incoming /{ville} resolves to
+  // exactly one city. Nullable to make backfill safe.
+  slug      String?  @unique
   province  String
   isActive  Boolean  @default(false)
   sortOrder Int      @default(0)
@@ -154,6 +159,7 @@ model City {
   sellerProfiles SellerProfile[]
 
   @@index([isActive])
+  @@index([slug])
   @@index([sortOrder])
   @@index([province])
   @@map("cities")
@@ -422,7 +428,13 @@ model Category {
 
 model Product {
   id              String           @id @default(uuid()) @db.Uuid
-  slug            String?          @unique
+  // Cosmetic, SEO-readable, city-INDEPENDENT slug (city-first URL refactor,
+  // 2026-06-06). NOT unique: two products (e.g. same title in two cities, or
+  // two variants) may share a slug. The canonical URL is
+  // `/{ville}/{slug}-{shortCode}` and products resolve by `shortCode`.
+  slug            String?
+  // Short, unique, URL-friendly resolver code — the tail of a product URL.
+  shortCode       String?          @unique
   title           String
   description     String
   categoryId      String           @db.Uuid
@@ -453,6 +465,7 @@ model Product {
   promotions      Promotion[]
 
   @@index([slug])
+  @@index([shortCode])
   @@index([categoryId])
   @@index([sellerId])
   @@index([cityId])

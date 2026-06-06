@@ -21,6 +21,10 @@ export interface Category extends SoftDeletable {
 // Product
 export interface Product extends SoftDeletable {
   id: string;
+  // Cosmetic, city-independent slug; canonical URL is
+  // `/{citySlug}/{slug}-{shortCode}`, resolved by `shortCode`.
+  slug?: string | null;
+  shortCode?: string | null;
   title: string;
   description: string;
   categoryId: string;
@@ -84,6 +88,11 @@ export interface ProductSpecification {
 // Browse response shapes
 export interface BrowseProduct {
   id: string;
+  // Cosmetic, city-independent slug (city-first URL refactor). The canonical
+  // product URL is `/{citySlug}/{slug}-{shortCode}`; products resolve by
+  // `shortCode`. Both may be null on legacy rows pending backfill.
+  slug?: string | null;
+  shortCode?: string | null;
   title: string;
   priceCDF: string;
   priceUSD?: string | null;
@@ -93,6 +102,10 @@ export interface BrowseProduct {
   seller: { businessName: string };
   categoryId: string;
   cityId?: string | null;
+  // City of availability — included so mixed-city listings (e.g. the homepage)
+  // can build each card's `/{citySlug}/…` URL without a second lookup.
+  citySlug?: string | null;
+  cityName?: string | null;
 }
 
 export interface CursorPagination {

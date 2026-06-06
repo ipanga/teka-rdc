@@ -6,19 +6,24 @@
 
 ## Active initiative
 
-None. Wishlist completion **shipped to prod** 2026-06-05 (release #278). One **post-release buyer-web
-hotfix** ready on `fix/wishlist-buyer-web` (needs its own `develop → main` release to deploy):
+**SEO / City-First URL Refactor** (started 2026-06-06). Master tracker + resume protocol:
+`tasks/seo-city-url-refactor-progress.md` — **read it first.**
 
-- **Bug:** during the auth-loading window (`fetchUser` in flight on DRC 2G/3G — `user: null` but the
-  session cookie is still present), the header showed the login button and hearts acted as guest;
-  clicking either did `router.push('/connexion')`, which the middleware (seeing the cookie) bounced to
-  home. → "connexion does nothing" + "heart redirects to home."
-- **Fix:** WishlistButton + header now wait for `isLoading` to resolve before treating the user as a
-  guest; middleware honors a safe `?redirect=` on the authOnly bounce (defense-in-depth); fixed a
-  `cn` position-utility conflict on the card heart overlay.
-- **Tests:** set up **vitest** for buyer-web (was none) — 15 tests: `safe-redirect`, `wishlist-store`
-  (toggle/hydrate/add/count/rollback), `WishlistButton` (guest / loading-no-bounce / authed). Green:
-  type-check + build + 15 tests.
+**Goal:** city-first product URLs `/{ville}/{product-slug}-{id}`, French route names + 301s, a
+non-blocking (crawlable) homepage, city-scoped indexability — without breaking mobile or analytics.
+
+**Phase 0 (investigation + gap analysis) is DONE.** Key findings: product DB slugs currently embed the
+city (`xbox-…-lubumbashi-310000`) and must be cleaned; the homepage **forces a blocking city modal** on
+first visit (SEO-hostile — must de-block); the API already resolves by slug-or-uuid and filters by
+`cityId` (backend barely changes); **mobile (ID-based go_router, no deep-link intent-filters) and
+analytics (PostHog `$current_url`, Clarity page groups, Sentry `tracesSampleRate:0`) have no code
+coupling** to web URLs — only PostHog/Clarity dashboards need re-pointing.
+
+**Awaiting 3 decisions before Phase 3** (category URL scope / product trailing-id format / rename scope) —
+see the tracker's DECISIONS block. No code changed yet.
+
+Prior initiative (Wishlist) **shipped to prod** 2026-06-05 (#278) + buyer-web hotfix released #280;
+vitest bump #281 released #282. Branches synced at `eec62ff`.
 
 ## Recently completed — 2026-06-05
 

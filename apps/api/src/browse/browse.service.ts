@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProductStatus } from '@prisma/client';
 import { BrowseProductsQueryDto } from './dto/browse-products-query.dto';
+import { isShortCode } from '../common/utils/slugify';
 
 @Injectable()
 export class BrowseService {
@@ -182,15 +183,22 @@ export class BrowseService {
       select: {
         id: true,
         slug: true,
+        shortCode: true,
         title: true,
         priceCDF: true,
         priceUSD: true,
         condition: true,
         quantity: true,
         categoryId: true,
+        cityId: true,
         avgRating: true,
         totalReviews: true,
         createdAt: true,
+        // City slug/name lets clients build `/{ville}/{slug}-{shortCode}` URLs
+        // on mixed-city listings (e.g. the global homepage).
+        city: {
+          select: { slug: true, name: true },
+        },
         images: {
           orderBy: { displayOrder: 'asc' },
           take: 1,
@@ -222,12 +230,16 @@ export class BrowseService {
     const items = data.map((p) => ({
       id: p.id,
       slug: p.slug,
+      shortCode: p.shortCode,
       title: p.title,
       priceCDF: p.priceCDF,
       priceUSD: p.priceUSD,
       condition: p.condition,
       quantity: p.quantity,
       categoryId: p.categoryId,
+      cityId: p.cityId,
+      citySlug: p.city?.slug ?? null,
+      cityName: p.city?.name ?? null,
       avgRating: p.avgRating,
       totalReviews: p.totalReviews,
       image: p.images[0] ?? null,
@@ -250,44 +262,72 @@ export class BrowseService {
    * Returns full product detail for public viewing.
    */
   async getProductDetail(identifier: string) {
-    // Accept both UUID and slug for backward compatibility
+    // Resolution order (city-first URL refactor, 2026-06-06):
+    //   UUID            -> by id
+    //   6-char base36   -> by shortCode (the canonical URL tail)
+    //   anything else   -> by slug (cosmetic; also the legacy resolver)
+    // A 6-char token could legitimately be an old slug rather than a
+    // shortCode, so fall back to slug on a shortCode miss.
     const isUuid =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
         identifier,
       );
 
-    const product = await this.prisma.product.findFirst({
+    const include = {
+      images: { orderBy: { displayOrder: 'asc' as const } },
+      specifications: {
+        include: { attribute: true },
+      },
+      category: {
+        include: {
+          parentCategory: {
+            include: {
+              parentCategory: true,
+            },
+          },
+        },
+      },
+      city: {
+        select: { id: true, slug: true, name: true, province: true },
+      },
+      seller: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          sellerProfile: {
+            select: { businessName: true },
+          },
+        },
+      },
+    };
+
+    const primaryWhere = isUuid
+      ? { id: identifier }
+      : isShortCode(identifier)
+        ? { shortCode: identifier }
+        : { slug: identifier };
+
+    let product = await this.prisma.product.findFirst({
       where: {
-        ...(isUuid ? { id: identifier } : { slug: identifier }),
+        ...primaryWhere,
         status: ProductStatus.ACTIVE,
         deletedAt: null,
       },
-      include: {
-        images: { orderBy: { displayOrder: 'asc' } },
-        specifications: {
-          include: { attribute: true },
-        },
-        category: {
-          include: {
-            parentCategory: {
-              include: {
-                parentCategory: true,
-              },
-            },
-          },
-        },
-        seller: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            sellerProfile: {
-              select: { businessName: true },
-            },
-          },
-        },
-      },
+      include,
     });
+
+    // Legacy fallback: the 6-char token was an old slug, not a shortCode.
+    if (!product && !isUuid && isShortCode(identifier)) {
+      product = await this.prisma.product.findFirst({
+        where: {
+          slug: identifier,
+          status: ProductStatus.ACTIVE,
+          deletedAt: null,
+        },
+        include,
+      });
+    }
 
     if (!product) {
       throw new NotFoundException('Produit non trouvé');
