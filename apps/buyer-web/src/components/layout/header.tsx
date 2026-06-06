@@ -254,7 +254,7 @@ export function Header() {
                   {user.firstName || t('myAccount')}
                 </Link>
                 <Link
-                  href="/wishlist"
+                  href="/favoris"
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors"
                 >

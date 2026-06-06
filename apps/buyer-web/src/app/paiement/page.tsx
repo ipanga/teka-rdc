@@ -279,9 +279,9 @@ export default function CheckoutPage() {
       sessionStorage.setItem('teka_checkout_order_ids', JSON.stringify(orderIds));
 
       if (res.data.paymentPending && res.data.checkoutGroupId) {
-        router.push(`/checkout/payment-pending?group=${res.data.checkoutGroupId}`);
+        router.push(`/paiement/payment-pending?group=${res.data.checkoutGroupId}`);
       } else {
-        router.push('/checkout/success');
+        router.push('/paiement/success');
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Une erreur est survenue';

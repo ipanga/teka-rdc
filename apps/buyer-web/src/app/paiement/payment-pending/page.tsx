@@ -113,7 +113,7 @@ function PaymentPendingPageInner() {
           // Restore order numbers for success page
           const orderNumbers = updated.map((o) => o.orderNumber);
           sessionStorage.setItem('teka_checkout_orders', JSON.stringify(orderNumbers));
-          router.push('/checkout/success');
+          router.push('/paiement/success');
         }, 2000);
       } else if (anyFailed) {
         setPageStatus('failed');
@@ -343,7 +343,7 @@ function PaymentPendingPageInner() {
                   {t('retry')}
                 </button>
                 <Link
-                  href="/orders"
+                  href="/commandes"
                   className="px-6 py-3 border border-border text-foreground rounded-lg text-sm font-medium hover:bg-muted transition-colors"
                 >
                   {t('cancel')}
@@ -386,7 +386,7 @@ function PaymentPendingPageInner() {
                   {t('retry')}
                 </button>
                 <Link
-                  href="/orders"
+                  href="/commandes"
                   className="px-6 py-3 border border-border text-foreground rounded-lg text-sm font-medium hover:bg-muted transition-colors"
                 >
                   {t('cancel')}
