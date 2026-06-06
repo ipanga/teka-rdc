@@ -57,23 +57,29 @@ export function Header() {
           />
         </Link>
 
-        {/* City selector */}
-        {selectedCity && (
-          <button
-            onClick={openSelector}
-            className="hidden md:flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border hover:border-primary/40 hover:bg-muted/50 transition-colors text-sm shrink-0"
-            title={tCity('changeCity')}
-          >
-            <span className="text-xs">{'\uD83D\uDCCD'}</span>
-            <span className="font-medium text-foreground">
-              {selectedCity.name}
-              {selectedCity.province && <span className="text-muted-foreground font-normal">, {selectedCity.province}</span>}
-            </span>
-            <svg className="w-3 h-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-        )}
+        {/* City selector \u2014 always present so no-city visitors keep an entry
+            point (the homepage no longer force-opens the modal). Shows the
+            chosen city, or a "choose a city" affordance. */}
+        <button
+          onClick={openSelector}
+          className="hidden md:flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border hover:border-primary/40 hover:bg-muted/50 transition-colors text-sm shrink-0"
+          title={selectedCity ? tCity('changeCity') : tCity('selectCity')}
+        >
+          <span className="text-xs">{'\uD83D\uDCCD'}</span>
+          <span className="font-medium text-foreground">
+            {selectedCity ? (
+              <>
+                {selectedCity.name}
+                {selectedCity.province && <span className="text-muted-foreground font-normal">, {selectedCity.province}</span>}
+              </>
+            ) : (
+              tCity('selectCity')
+            )}
+          </span>
+          <svg className="w-3 h-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
 
         {/* Search bar - desktop */}
         <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-xl">

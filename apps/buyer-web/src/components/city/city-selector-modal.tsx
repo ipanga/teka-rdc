@@ -14,11 +14,10 @@ export function CitySelectorModal() {
     }
   }, [cities.length, fetchCities]);
 
-  // Don't render if city is already selected and selector not explicitly opened
-  if (selectedCity && !showSelector) return null;
-
-  // Don't render if no city selected but selector not yet opened (wait for homepage to trigger it)
-  if (!showSelector && !selectedCity) return null;
+  // The modal is opt-in only (opened via the header "Changer de ville" button
+  // or the inline CityPrompt). It is never auto-forced on first visit anymore,
+  // so it renders strictly when `showSelector` is set.
+  if (!showSelector) return null;
 
   const getName = (city: City) => city.name;
 
@@ -72,17 +71,17 @@ export function CitySelectorModal() {
           )}
         </div>
 
-        {/* Only show close button when explicitly opened (not first-time) */}
-        {showSelector && selectedCity && (
-          <div className="px-6 pb-6">
-            <button
-              onClick={closeSelector}
-              className="w-full py-2.5 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg transition-colors"
-            >
-              {t('cancel')}
-            </button>
-          </div>
-        )}
+        {/* Always dismissable — the selector is opt-in, so a visitor who opened
+            it without (yet) choosing a city must be able to close it and keep
+            browsing all cities. */}
+        <div className="px-6 pb-6">
+          <button
+            onClick={closeSelector}
+            className="w-full py-2.5 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg transition-colors"
+          >
+            {t('cancel')}
+          </button>
+        </div>
       </div>
     </div>
   );
