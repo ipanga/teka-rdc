@@ -12,6 +12,7 @@ import { Container, SectionHeader, buttonVariants } from '@/components/ui';
 import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
 import { CitySelectorModal } from '@/components/city/city-selector-modal';
+import { CityPrompt } from '@/components/city/city-prompt';
 import type { BrowseCategory, BrowseProduct } from '@/lib/types';
 
 export default function HomePage({ serverH1 }: { serverH1?: string }) {
@@ -26,18 +27,18 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
   const [loadingNewest, setLoadingNewest] = useState(true);
 
   // City store
-  const { selectedCity, initFromStorage, fetchCities, openSelector } = useCityStore();
+  const { selectedCity, initFromStorage, fetchCities } = useCityStore();
   const [cityInitialized, setCityInitialized] = useState(false);
 
-  // Initialize city from localStorage on mount
+  // Initialize city from localStorage + load the city list on mount.
+  // We deliberately DO NOT force the city-selector modal open anymore: the
+  // homepage must render full, crawlable content with no interaction gate
+  // (SEO). A visitor without a stored city sees all-cities listings plus the
+  // non-blocking <CityPrompt> banner, and can pick a city at any time via the
+  // header "Changer de ville" button or that banner.
   useEffect(() => {
     initFromStorage();
-    fetchCities().then(() => {
-      // If no city stored, show the selector modal
-      const stored = typeof window !== 'undefined' ? localStorage.getItem('teka_city_id') : null;
-      if (!stored) {
-        openSelector();
-      }
+    fetchCities().finally(() => {
       setCityInitialized(true);
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -73,9 +74,13 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
   return (
     <div className="min-h-screen flex flex-col bg-surface-muted">
       <Header />
+      {/* Opt-in only — opened via the header "Changer de ville" button, never
+          auto-forced on load. */}
       <CitySelectorModal />
 
       <main className="flex-1">
+        {/* Non-blocking city chooser (replaces the old forced modal). */}
+        <CityPrompt />
         {/* Banner Carousel — replaces static hero when banners are available */}
         <BannerCarousel
           fallback={

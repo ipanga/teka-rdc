@@ -412,6 +412,7 @@
     "selectCityDescription": "Pour vous montrer les produits disponibles près de chez vous",
     "currentCity": "Ville actuelle",
     "changeCity": "Changer de ville",
+    "seeAll": "Voir toutes les villes",
     "cancel": "Annuler"
   }
 }
