@@ -82,6 +82,15 @@ prod) build, not `next dev`:
    clarity.microsoft.com. "Recordings" / "Dashboard" populate within a few
    minutes of real traffic (Clarity samples sessions, so allow some lag).
 
+## URL migration note (city-first refactor, 2026-06-06)
+
+Clarity groups heatmaps and recordings **by URL**. The buyer-web move to
+city-first paths (`/{ville}/{slug}-{shortCode}`, `/{ville}/categorie/{slug}`)
+and the French route renames (`/cart→/panier`, `/checkout→/paiement`,
+`/orders→/commandes`, `/wishlist→/favoris`) mean new traffic lands under **new
+page groups**; historical heatmaps stay under the old URLs. No code or config
+change is needed — just expect the split when comparing pre/post-migration data.
+
 ## Key files
 
 ```

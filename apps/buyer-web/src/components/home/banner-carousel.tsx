@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api-client';
+import { useCityStore } from '@/lib/city-store';
 import type { Banner } from '@/lib/types';
 
 const AUTO_ADVANCE_MS = 5000;
@@ -17,6 +18,7 @@ interface BannerCarouselProps {
 export function BannerCarousel({ fallback }: BannerCarouselProps) {
   const t = useTranslations('Banners');
   const router = useRouter();
+  const selectedCity = useCityStore((s) => s.selectedCity);
 
   const [banners, setBanners] = useState<Banner[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -94,17 +96,23 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
   function handleBannerClick(banner: Banner) {
     if (!banner.linkType || !banner.linkTarget) return;
 
+    const citySlug = selectedCity?.slug;
     switch (banner.linkType) {
       case 'product':
-        // /<id-or-slug>: the [slug] route falls back to /v1/browse/products/<identifier>
-        // which accepts UUID or slug. Admin-stored UUIDs (legacy) and slugs both work.
+        // /<id-or-slug>: the /[ville] dispatcher resolves UUID/shortCode/slug
+        // and 308s to the canonical /{ville}/{slug}-{shortCode}. Admin-stored
+        // UUIDs (legacy) and slugs both work.
         router.push(`/${banner.linkTarget}`);
         break;
       case 'category':
-        // /categorie/<id-or-slug>: the route fetches by /v1/browse/categories/<identifier>
-        // which accepts UUID or slug, so admin-stored UUIDs (legacy) and
-        // slugs (new) both resolve correctly.
-        router.push(`/categorie/${banner.linkTarget}`);
+        // City-scoped category since 2026-06-06. Navigate straight to the
+        // selected city's scoped page when known (avoids the 308 to the
+        // default city); the route resolves UUID or slug.
+        router.push(
+          citySlug
+            ? `/${citySlug}/categorie/${banner.linkTarget}`
+            : `/categorie/${banner.linkTarget}`,
+        );
         break;
       case 'url':
         if (banner.linkTarget) {
@@ -112,7 +120,9 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
         }
         break;
       case 'promotion':
-        router.push('/products');
+        // No bare /products route exists — send shoppers to the category index
+        // (was /products, which 404'd).
+        router.push('/categories');
         break;
     }
   }
