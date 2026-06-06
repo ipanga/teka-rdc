@@ -12,6 +12,9 @@ class WishlistState {
   final String? error;
   final int page;
   final int totalPages;
+  // Active-filtered total for the header badge (authoritative via
+  // GET /v1/wishlist/count; adjusted optimistically on add/remove).
+  final int count;
 
   const WishlistState({
     this.items = const [],
@@ -20,6 +23,7 @@ class WishlistState {
     this.error,
     this.page = 1,
     this.totalPages = 1,
+    this.count = 0,
   });
 
   WishlistState copyWith({
@@ -29,6 +33,7 @@ class WishlistState {
     String? error,
     int? page,
     int? totalPages,
+    int? count,
     bool clearError = false,
   }) {
     return WishlistState(
@@ -38,6 +43,7 @@ class WishlistState {
       error: clearError ? null : (error ?? this.error),
       page: page ?? this.page,
       totalPages: totalPages ?? this.totalPages,
+      count: count ?? this.count,
     );
   }
 
@@ -49,6 +55,19 @@ class WishlistNotifier extends StateNotifier<WishlistState> {
 
   WishlistNotifier(this._repository) : super(const WishlistState()) {
     loadWishlist();
+    loadCount();
+  }
+
+  /// Refresh the authoritative active-filtered count (header badge).
+  /// Non-critical: silently keeps the current value on failure.
+  Future<void> loadCount() async {
+    try {
+      final count = await _repository.getCount();
+      if (!mounted) return;
+      state = state.copyWith(count: count);
+    } catch (_) {
+      // ignore — badge keeps its last value
+    }
   }
 
   Future<void> loadWishlist({int page = 1}) async {
@@ -90,10 +109,15 @@ class WishlistNotifier extends StateNotifier<WishlistState> {
   }
 
   Future<void> addToWishlist(String productId) async {
+    // Skip if already wishlisted (keeps the count honest on double-tap).
+    if (state.wishlistedIds.contains(productId)) return;
+
     // Optimistic update
     final previousIds = state.wishlistedIds;
+    final previousCount = state.count;
     state = state.copyWith(
       wishlistedIds: {...state.wishlistedIds, productId},
+      count: previousCount + 1,
     );
 
     try {
@@ -104,8 +128,13 @@ class WishlistNotifier extends StateNotifier<WishlistState> {
       );
     } catch (_) {
       if (!mounted) return;
-      // Rollback
-      state = state.copyWith(wishlistedIds: previousIds);
+      // Rollback. The API rejects inactive/deleted products (404) — the
+      // optimistic add is reverted and the error rethrown so the UI can
+      // surface it (see WishlistButton).
+      state = state.copyWith(
+        wishlistedIds: previousIds,
+        count: previousCount,
+      );
       rethrow;
     }
   }
@@ -114,6 +143,8 @@ class WishlistNotifier extends StateNotifier<WishlistState> {
     // Optimistic update
     final previousIds = state.wishlistedIds;
     final previousItems = state.items;
+    final previousCount = state.count;
+    final wasWishlisted = previousIds.contains(productId);
     final newIds = {...state.wishlistedIds}..remove(productId);
     final newItems =
         state.items.where((item) => item.productId != productId).toList();
@@ -121,6 +152,8 @@ class WishlistNotifier extends StateNotifier<WishlistState> {
     state = state.copyWith(
       wishlistedIds: newIds,
       items: newItems,
+      // Only decrement if it was counted; floor at 0.
+      count: wasWishlisted ? (previousCount - 1).clamp(0, previousCount) : previousCount,
     );
 
     try {
@@ -135,6 +168,7 @@ class WishlistNotifier extends StateNotifier<WishlistState> {
       state = state.copyWith(
         wishlistedIds: previousIds,
         items: previousItems,
+        count: previousCount,
       );
       rethrow;
     }
@@ -166,6 +200,7 @@ class WishlistNotifier extends StateNotifier<WishlistState> {
 
   Future<void> refresh() async {
     await loadWishlist(page: 1);
+    await loadCount();
   }
 
 }
