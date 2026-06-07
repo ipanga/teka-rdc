@@ -212,7 +212,11 @@
     "rejectConfirm": "Rejeter la demande",
     "cancel": "Annuler",
     "approveSuccess": "Vendeur approuvé",
-    "rejectSuccess": "Vendeur rejeté"
+    "rejectSuccess": "Vendeur rejeté",
+    "viewDocument": "Voir la pièce",
+    "documentTitle": "Pièce d’identité du vendeur",
+    "documentOpenNewTab": "Ouvrir dans un nouvel onglet",
+    "noDocument": "Aucune pièce d’identité disponible."
   },
   "Admins": {
     "title": "Administrateurs",

@@ -52,6 +52,25 @@ export default function SellersPage() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // KYC document preview (Phase 2): a short-lived signed URL fetched on demand.
+  const [documentUrl, setDocumentUrl] = useState<string | null>(null);
+  const [loadingDocId, setLoadingDocId] = useState<string | null>(null);
+  const [docError, setDocError] = useState('');
+
+  const handleViewDocument = async (applicationId: string) => {
+    setLoadingDocId(applicationId);
+    setDocError('');
+    try {
+      const res = await apiFetch<{ url: string }>(
+        `/v1/admin/sellers/applications/${applicationId}/document`,
+      );
+      setDocumentUrl(res.data.url);
+    } catch {
+      setDocError(t('noDocument'));
+    } finally {
+      setLoadingDocId(null);
+    }
+  };
 
   const fetchSellers = useCallback(async () => {
     setIsLoading(true);
@@ -226,20 +245,31 @@ export default function SellersPage() {
                       {new Date(u.createdAt).toLocaleDateString('fr-CD')}
                     </td>
                     <td className="px-4 py-3">
-                      {appStatus === 'PENDING' && sp && (
+                      {sp && (
                         <div className="flex gap-2">
                           <button
-                            onClick={() => handleApprove(sp.id)}
-                            className="px-2.5 py-1 text-xs font-medium bg-success/10 text-success rounded-lg hover:bg-success/20 transition-colors"
+                            onClick={() => handleViewDocument(sp.id)}
+                            disabled={loadingDocId === sp.id}
+                            className="px-2.5 py-1 text-xs font-medium bg-muted text-foreground rounded-lg hover:bg-muted/70 transition-colors disabled:opacity-50"
                           >
-                            {t('approve')}
+                            {loadingDocId === sp.id ? '...' : t('viewDocument')}
                           </button>
-                          <button
-                            onClick={() => { setRejectingId(sp.id); setRejectionReason(''); }}
-                            className="px-2.5 py-1 text-xs font-medium bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors"
-                          >
-                            {t('reject')}
-                          </button>
+                          {appStatus === 'PENDING' && (
+                            <>
+                              <button
+                                onClick={() => handleApprove(sp.id)}
+                                className="px-2.5 py-1 text-xs font-medium bg-success/10 text-success rounded-lg hover:bg-success/20 transition-colors"
+                              >
+                                {t('approve')}
+                              </button>
+                              <button
+                                onClick={() => { setRejectingId(sp.id); setRejectionReason(''); }}
+                                className="px-2.5 py-1 text-xs font-medium bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors"
+                              >
+                                {t('reject')}
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </td>
@@ -307,6 +337,55 @@ export default function SellersPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {documentUrl && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="fixed inset-0 bg-black/60"
+            onClick={() => setDocumentUrl(null)}
+          />
+          <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-2xl mx-4">
+            <div className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold text-foreground">
+                  {t('documentTitle')}
+                </h3>
+                <button
+                  onClick={() => setDocumentUrl(null)}
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                >
+                  {tCommon('close')}
+                </button>
+              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={documentUrl}
+                alt={t('documentTitle')}
+                className="w-full max-h-[70vh] object-contain rounded-lg bg-muted"
+              />
+              <div className="mt-3 text-right">
+                <a
+                  href={documentUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-primary hover:underline"
+                >
+                  {t('documentOpenNewTab')} &rarr;
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {docError && (
+        <div className="fixed bottom-4 right-4 z-50 px-4 py-3 rounded-lg bg-destructive text-primary-foreground text-sm shadow-lg">
+          {docError}
+          <button onClick={() => setDocError('')} className="ml-3 font-bold">
+            ×
+          </button>
         </div>
       )}
     </div>
