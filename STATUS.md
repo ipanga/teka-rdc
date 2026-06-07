@@ -19,10 +19,13 @@ FTS + pg_trgm (raw SQL). **P-B1** (#326): migration `2026-06-07_product_search_f
 browse search ranks via raw SQL (real-above-demo → `ts_rank` → trigram similarity → recency), hydrates by
 ranked id; cursor = offset. **P-B2a** (#327) `GET /v1/browse/search/suggestions` (top products +
 categories). **P-B2b** (#328) buyer-web header autocomplete dropdown (debounced, keyboard-nav,
-deep-links). **P-B2c** (#329) buyer-mobile category-suggestion chips above the live FTS grid. **FTS
-migration to apply to prod via the Action at release.** **Phase B review gate next.** Deferred: **C**
-attribute filters + related products, **D** conversion polish. Out of scope: external search engine, ML
-recs, persisted view-tracking.
+deep-links). **P-B2c** (#329) buyer-mobile category-suggestion chips above the live FTS grid. **Follow-up
+(#331→#332):** prod verification found accent-sensitivity + weak typos; fixed with `unaccent` + IMMUTABLE
+`f_unaccent()` (rebuilt `search_vector` over unaccented text) + `word_similarity` (`<%`). **Phase B +
+follow-up SHIPPED to prod (releases #330, #332) + VERIFIED** (`rentree`→"rentrée"; `telephone`→"Téléphones"
+categories; `Tecnoo`→Tecno; exact ok). Both search migrations applied to prod + dev. **At the Phase B
+review gate — awaiting direction.** Deferred: **C** attribute filters + related products, **D** conversion
+polish. Out of scope: external search engine, ML recs, persisted view-tracking.
 
 **Initiative #1 — Real Catalog & Merchant Supply: CLOSED OUT 2026-06-07** (code complete + shipped +
 verified on prod). Phase 1 self-onboarding (#304–#308) + Phase 1 QA (#309–#313) + Phase 2 KYC
