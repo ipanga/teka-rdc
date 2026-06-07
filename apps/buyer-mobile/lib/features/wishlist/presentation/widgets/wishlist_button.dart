@@ -1,5 +1,7 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../providers/wishlist_provider.dart';
@@ -52,11 +54,18 @@ class WishlistButton extends ConsumerWidget {
               ),
             );
           }
-        } catch (_) {
+        } catch (e) {
           if (context.mounted) {
+            // Surface the real reason when the API rejects the add — e.g. the
+            // product is no longer ACTIVE / was deleted (404). The optimistic
+            // toggle is already rolled back in the notifier, so the heart
+            // reverts on its own.
+            final message = e is DioException
+                ? extractDioErrorMessage(e)
+                : l10n.authGenericError;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(l10n.authGenericError),
+                content: Text(message),
                 backgroundColor: TekaColors.destructive,
                 duration: const Duration(seconds: 2),
               ),

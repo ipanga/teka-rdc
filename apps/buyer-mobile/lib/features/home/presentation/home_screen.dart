@@ -83,11 +83,7 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.favorite_border),
-            tooltip: l10n.wishlistTitle,
-            onPressed: () => context.push('/wishlist'),
-          ),
+          const _WishlistIconButton(),
           const _CartIconButton(),
           IconButton(
             icon: const Icon(Icons.search),
@@ -308,6 +304,54 @@ class HomeScreen extends ConsumerWidget {
 
 // _MessagesIconButton removed 2026-05-17 — direct buyer↔seller messaging
 // retired in favour of "Contacter le support".
+
+class _WishlistIconButton extends ConsumerWidget {
+  const _WishlistIconButton();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    // Authoritative active-filtered count (GET /v1/wishlist/count), kept in
+    // sync optimistically on toggle. Mirrors buyer-web's header WishlistBadge.
+    final count = ref.watch(wishlistProvider.select((s) => s.count));
+
+    return IconButton(
+      tooltip: l10n.wishlistTitle,
+      icon: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Icon(Icons.favorite_border),
+          if (count > 0)
+            Positioned(
+              right: -6,
+              top: -4,
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(
+                  color: TekaColors.tekaRed,
+                  shape: BoxShape.circle,
+                ),
+                constraints: const BoxConstraints(
+                  minWidth: 18,
+                  minHeight: 18,
+                ),
+                child: Text(
+                  count > 99 ? '99+' : '$count',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      ),
+      onPressed: () => context.push('/wishlist'),
+    );
+  }
+}
 
 class _CartIconButton extends ConsumerWidget {
   const _CartIconButton();
