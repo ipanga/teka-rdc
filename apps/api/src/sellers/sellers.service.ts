@@ -6,12 +6,48 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { ApplySellerDto } from './dto/apply-seller.dto';
 import { UpdateSellerProfileDto } from './dto/update-seller-profile.dto';
 
+const ALLOWED_DOCUMENT_MIME = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+]);
+
 @Injectable()
 export class SellersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cloudinary: CloudinaryService,
+  ) {}
+
+  /**
+   * Upload a seller's KYC document (ID/passport/RCCM photo) to the PRIVATE
+   * Cloudinary folder and return its public_id. The applicant then submits that
+   * id with the application (idDocumentCloudinaryId). Open to BUYER + SELLER —
+   * a fresh registration is role SELLER without a profile yet.
+   */
+  async uploadDocument(
+    file: Express.Multer.File,
+  ): Promise<{ cloudinaryId: string }> {
+    if (!file) {
+      throw new BadRequestException('Aucun fichier fourni');
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      throw new BadRequestException(
+        'La taille du document ne doit pas dépasser 5 Mo',
+      );
+    }
+    if (!ALLOWED_DOCUMENT_MIME.has(file.mimetype)) {
+      throw new BadRequestException(
+        'Format non supporté. Formats acceptés : JPEG, PNG, WebP.',
+      );
+    }
+    return this.cloudinary.uploadPrivateImage(file.buffer);
+  }
 
   async apply(userId: string, dto: ApplySellerDto) {
     // The commune is the source of truth for location: derive cityId from it
@@ -23,7 +59,11 @@ export class SellersService {
       throw new BadRequestException('Commune invalide');
     }
     // cityId from the client (if any) is overwritten by the commune's city.
-    const data = { ...dto, cityId: commune.cityId };
+    const data = {
+      ...dto,
+      cityId: commune.cityId,
+      idDocumentUploadedAt: new Date(),
+    };
 
     // Check if user already has a seller application
     const existing = await this.prisma.sellerProfile.findUnique({

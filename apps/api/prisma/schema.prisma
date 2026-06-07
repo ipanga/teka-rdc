@@ -268,6 +268,12 @@ model SellerProfile {
   businessType      String // 'individual' | 'company'
   idNumber          String
   idType            String // 'national_id' | 'passport' | 'rccm'
+  // KYC document (Phase 2): the public_id of the ID/RCCM photo uploaded to a
+  // PRIVATE Cloudinary folder. No public URL is stored — admins view it via a
+  // short-lived signed URL. Nullable: existing rows predate KYC; required at
+  // the DTO/form layer for new applications.
+  idDocumentCloudinaryId String?
+  idDocumentUploadedAt   DateTime?
   phone             String
   location          String
   cityId            String?                 @db.Uuid

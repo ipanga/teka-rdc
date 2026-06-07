@@ -4,8 +4,9 @@ import { ApplySellerDto } from './dto/apply-seller.dto';
 
 const COMMUNE_ID = '02000000-0000-0000-0000-000000000001';
 const CITY_ID = '01000000-0000-0000-0000-000000000002';
+const DOC_ID = 'teka-rdc/seller-documents/abc123';
 
-// Minimal Prisma mock — the sellerProfile + commune delegates apply() touches.
+// Minimal Prisma + Cloudinary mocks for the methods these tests touch.
 function makeService() {
   const sellerProfile = {
     findUnique: jest.fn(),
@@ -18,9 +19,13 @@ function makeService() {
       .fn()
       .mockResolvedValue({ id: COMMUNE_ID, cityId: CITY_ID }),
   };
+  const cloudinary = {
+    uploadPrivateImage: jest.fn(),
+    getSignedImageUrl: jest.fn(),
+  };
   const prisma = { sellerProfile, commune };
-  const service = new SellersService(prisma as never);
-  return { service, sellerProfile, commune };
+  const service = new SellersService(prisma as never, cloudinary as never);
+  return { service, sellerProfile, commune, cloudinary };
 }
 
 const dto: ApplySellerDto = {
@@ -31,10 +36,12 @@ const dto: ApplySellerDto = {
   phone: '+243812345678',
   location: 'Lubumbashi, Katuba',
   communeId: COMMUNE_ID,
+  idDocumentCloudinaryId: DOC_ID,
   description: 'Vente de fournitures',
 };
 
-// What apply() persists: dto minus cityId, with cityId derived from the commune.
+// The static fields apply() persists: dto minus cityId, with cityId derived
+// from the commune. (idDocumentUploadedAt is a fresh Date, asserted separately.)
 const persisted = {
   businessName: dto.businessName,
   businessType: dto.businessType,
@@ -43,14 +50,17 @@ const persisted = {
   phone: dto.phone,
   location: dto.location,
   communeId: COMMUNE_ID,
+  idDocumentCloudinaryId: DOC_ID,
   description: dto.description,
   cityId: CITY_ID,
 };
 
 const userId = '10000000-0000-0000-0000-000000000abc';
 
+type WriteCall = [{ where?: unknown; data: Record<string, unknown> }];
+
 describe('SellersService.apply', () => {
-  it('creates a PENDING profile with cityId derived from the commune', async () => {
+  it('creates a PENDING profile with cityId derived + document stamped', async () => {
     const { service, sellerProfile } = makeService();
     sellerProfile.findUnique.mockResolvedValue(null);
     sellerProfile.create.mockResolvedValue({
@@ -60,9 +70,10 @@ describe('SellersService.apply', () => {
 
     await service.apply(userId, dto);
 
-    expect(sellerProfile.create).toHaveBeenCalledWith({
-      data: { ...persisted, userId },
-    });
+    const calls = sellerProfile.create.mock.calls as unknown as WriteCall[];
+    const data = calls[0][0].data;
+    expect(data).toMatchObject({ ...persisted, userId });
+    expect(data.idDocumentUploadedAt).toBeInstanceOf(Date);
   });
 
   it('rejects with 400 when the commune does not exist', async () => {
@@ -113,15 +124,50 @@ describe('SellersService.apply', () => {
 
     await service.apply(userId, dto);
 
-    expect(sellerProfile.update).toHaveBeenCalledWith({
-      where: { userId },
-      data: {
-        ...persisted,
-        applicationStatus: 'PENDING',
-        rejectionReason: null,
-        approvedAt: null,
-        approvedById: null,
-      },
+    const calls = sellerProfile.update.mock.calls as unknown as WriteCall[];
+    const arg = calls[0][0];
+    expect(arg.where).toEqual({ userId });
+    expect(arg.data).toMatchObject({
+      ...persisted,
+      applicationStatus: 'PENDING',
+      rejectionReason: null,
+      approvedAt: null,
+      approvedById: null,
     });
+    expect(arg.data.idDocumentUploadedAt).toBeInstanceOf(Date);
+  });
+});
+
+describe('SellersService.uploadDocument', () => {
+  const file = (over: Partial<Express.Multer.File>) =>
+    ({
+      size: 1024,
+      mimetype: 'image/jpeg',
+      buffer: Buffer.from('x'),
+      ...over,
+    }) as unknown as Express.Multer.File;
+
+  it('uploads a valid image to the private folder', async () => {
+    const { service, cloudinary } = makeService();
+    cloudinary.uploadPrivateImage.mockResolvedValue({ cloudinaryId: DOC_ID });
+
+    const res = await service.uploadDocument(file({}));
+
+    expect(cloudinary.uploadPrivateImage).toHaveBeenCalled();
+    expect(res.cloudinaryId).toBe(DOC_ID);
+  });
+
+  it('rejects an oversized file', async () => {
+    const { service } = makeService();
+    await expect(
+      service.uploadDocument(file({ size: 6 * 1024 * 1024 })),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects an unsupported MIME type', async () => {
+    const { service } = makeService();
+    await expect(
+      service.uploadDocument(file({ mimetype: 'application/pdf' })),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });
