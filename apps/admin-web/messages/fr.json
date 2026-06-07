@@ -80,7 +80,8 @@
     "broadcasts": "Diffusions",
     "reports": "Rapports",
     "settings": "Paramètres",
-    "logout": "Se déconnecter"
+    "logout": "Se déconnecter",
+    "catalogCoverage": "Couverture catalogue"
   },
   "Profile": {
     "title": "Mon profil",
@@ -688,5 +689,18 @@
     "errorSaving": "Erreur lors de l'enregistrement",
     "errorDeleting": "Erreur lors de la suppression",
     "name": "Nom"
+  },
+  "CatalogCoverage": {
+    "title": "Couverture du catalogue",
+    "subtitle": "Produits réels (vendeurs) vs catalogue de démonstration, par catégorie.",
+    "summary": "{covered}/{total} catégories couvertes par des vendeurs réels — {real} produits réels au total.",
+    "category": "Catégorie",
+    "realProducts": "Produits réels",
+    "demoProducts": "Démo",
+    "status": "Statut",
+    "covered": "Couvert",
+    "noRealSellers": "Aucun vendeur réel",
+    "loading": "Chargement...",
+    "empty": "Aucune catégorie."
   }
 }

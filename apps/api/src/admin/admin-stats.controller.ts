@@ -15,6 +15,11 @@ export class AdminStatsController {
     return this.adminStatsService.getDashboardStats();
   }
 
+  @Get('catalog-coverage')
+  getCatalogCoverage() {
+    return this.adminStatsService.getCatalogCoverage();
+  }
+
   @Get('trends')
   getDashboardTrends(@Query('period') period?: string) {
     const resolvedPeriod = (period || '30d') as TrendPeriod;
