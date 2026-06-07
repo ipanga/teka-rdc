@@ -467,6 +467,10 @@ model Product {
 
   avgRating    Float @default(0)
   totalReviews Int   @default(0)
+  // Denormalized best-seller counter: total units from DELIVERED orders.
+  // Incremented in deliverOrder; backfilled by migration. Powers the
+  // `popularity` sort + "X vendus" social proof. Mirrors avgRating/totalReviews.
+  unitsSold    Int   @default(0)
 
   category        Category               @relation(fields: [categoryId], references: [id])
   seller          User                   @relation("SellerProducts", fields: [sellerId], references: [id])
@@ -493,6 +497,7 @@ model Product {
   @@index([categoryId, status, createdAt])
   @@index([cityId, status])
   @@index([isDemo])
+  @@index([unitsSold])
   @@index([cityId, status, createdAt])
   @@index([status, priceCDF])
   @@index([status, avgRating])

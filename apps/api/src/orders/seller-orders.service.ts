@@ -383,7 +383,7 @@ export class SellerOrdersService {
         updateData.paymentStatus = PaymentStatus.COMPLETED;
       }
 
-      return tx.order.update({
+      const result = await tx.order.update({
         where: { id: orderId },
         data: updateData,
         include: {
@@ -391,6 +391,17 @@ export class SellerOrdersService {
           statusLogs: { orderBy: { createdAt: 'desc' }, take: 5 },
         },
       });
+
+      // Best-seller counter: a DELIVERED order is a confirmed sale. Increment
+      // each line item's product.unitsSold atomically within this transaction.
+      for (const item of result.items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { unitsSold: { increment: item.quantity } },
+        });
+      }
+
+      return result;
     });
 
     // Fire-and-forget: notify buyer of delivery
