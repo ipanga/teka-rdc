@@ -18,7 +18,6 @@ import type {
   PaymentMethod,
   CheckoutRequest,
   CheckoutResponse,
-  DeliveryEstimate,
   Commune,
 } from '@/lib/types';
 import type { City } from '@/lib/city-store';
@@ -230,24 +229,36 @@ export default function CheckoutPage() {
   const grandTotalCDF = subtotalCDF + totalDeliveryFeeCDF;
   const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
 
+  // Preview the per-seller delivery fee from the checkout QUOTE endpoint, which
+  // reuses the exact server-side calc → the previewed fee equals what the order
+  // is charged. (The old per-seller `/delivery-zones/estimate?toTown=` call was
+  // broken: it omitted the required `fromTown` and 400'd, so fees showed 0.)
   useEffect(() => {
-    if (!selectedAddress) return;
-    const fetchEstimates = async () => {
-      const newFees: Record<string, string> = {};
-      for (const sellerId of Object.keys(itemsBySeller)) {
-        try {
-          const res = await apiFetch<DeliveryEstimate>(
-            `/v1/delivery-zones/estimate?toTown=${encodeURIComponent(selectedAddress.town)}`,
-          );
-          newFees[sellerId] = res.data.feeCDF;
-        } catch {
-          newFees[sellerId] = '0';
+    if (!selectedAddressId) return;
+    let cancelled = false;
+    const fetchQuote = async () => {
+      try {
+        const res = await apiFetch<{
+          sellerQuotes: { sellerId: string; deliveryFeeCDF: string }[];
+        }>('/v1/checkout/quote', {
+          method: 'POST',
+          body: JSON.stringify({ deliveryAddressId: selectedAddressId }),
+        });
+        if (cancelled) return;
+        const fees: Record<string, string> = {};
+        for (const sq of res.data.sellerQuotes) {
+          fees[sq.sellerId] = sq.deliveryFeeCDF;
         }
+        setDeliveryFees(fees);
+      } catch {
+        if (!cancelled) setDeliveryFees({});
       }
-      setDeliveryFees(newFees);
     };
-    fetchEstimates();
-  }, [selectedAddressId, selectedAddress, itemsBySeller]);
+    fetchQuote();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAddressId]);
 
   async function handlePlaceOrder() {
     if (!selectedAddressId || isPlacing) return;

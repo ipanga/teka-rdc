@@ -6,7 +6,13 @@
 
 ## Active initiative
 
-**None.** Awaiting next direction.
+**Delivery-fee quick win** (started 2026-06-07). Tracker: `tasks/delivery-fee-quickwin-progress.md`.
+Make checkout fee **preview == final charged fee** on buyer-web + buyer-mobile via a new **checkout
+quote endpoint** that reuses the exact server-side calc. NON-goals: City/Commune zone redesign,
+logistics ops, pricing-model redesign. **Audit done:** prod `delivery_zones` is empty → all orders hit
+the **5,000 CDF default** (seed defines 3,000 intra-/15,000 inter-city but was never applied to prod);
+recommendation = apply seed zones to prod (deferred prod data op). Then → **Initiative #1 (Real Catalog
+& Merchant Supply)** — audit + rollout plan for review BEFORE coding.
 
 ## Recently completed — 2026-06-07
 
