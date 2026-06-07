@@ -110,7 +110,8 @@
     "relatedProducts": "Produits similaires",
     "loading": "Chargement...",
     "addedToCart": "Produit ajouté au panier",
-    "unitsSold": "{count, plural, one {# vendu} other {# vendus}}"
+    "unitsSold": "{count, plural, one {# vendu} other {# vendus}}",
+    "relatedTitle": "Produits similaires"
   },
   "Search": {
     "title": "Recherche",

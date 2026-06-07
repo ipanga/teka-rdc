@@ -9,6 +9,7 @@ import { categoryHref, productIdentifierFromParam } from '@/lib/urls';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { ProductReviews } from '@/components/product-reviews';
+import { RelatedProducts } from '@/components/product/related-products';
 import { WishlistButton } from '@/components/wishlist-button';
 import { apiFetch } from '@/lib/api-client';
 import { useCartStore } from '@/lib/cart-store';
@@ -430,6 +431,9 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
               (ParseUUIDPipe), but `productId` from the URL may be a slug. Pass
               the resolved UUID from the fetched product instead. */}
           <ProductReviews productId={product.id} />
+
+          {/* Cross-sell: same category + price proximity. */}
+          <RelatedProducts productId={product.id} />
         </Container>
       </main>
 
