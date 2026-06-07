@@ -6,15 +6,20 @@
 
 ## Active initiative
 
-**Mobile Parity Sweep** — **code-complete on `develop` (#293–#297); P6 close-out in progress**
-(CLAUDE.md slim-down + docs done; releasing `develop → main`). Tracker:
-`tasks/mobile-parity-sweep-progress.md`; full narrative in `PROGRESS.md`.
+**None.** Awaiting next direction.
 
-Net: the two Flutter apps were **already largely at parity**; the sweep closed only genuine gaps —
-P1 city-scoped category/search + new API model fields (#293), P2 wishlist count badge + inactive
-handling (#294), P3 full client PostHog ecommerce events (#295), P4 seller-account-on-buyer-OTP
-guard (#296), P5 dead-code/OTP-cooldown cleanup (#297). **Mobile-only — no web/API deploy or
-migration**; merging to `main` builds new APK images (mobile rollout is a separate distribution step).
+## Recently completed — 2026-06-07
+
+**Mobile Parity Sweep** (5-phase initiative, #293–#297 + docs #298) — **SHIPPED to prod (release #299;
+main=develop=`5239207`).** Audited buyer-mobile + seller-mobile vs recent web/API changes; the apps were
+already largely at parity, so only the genuine gaps were closed: P1 city-scoped category/search + new
+API model fields, P2 wishlist count badge + inactive-product handling, P3 full client PostHog ecommerce
+events (closed the documented deferral), P4 seller-account-on-buyer-OTP guard, P5 dead `/auth/migrate`
+button removed + OTP server cooldown. **Mobile + docs only** — no web/API change, no migration (merging
+built new images; mobile APK/Play-Store rollout is a separate distribution step). Decision D1: keep
+mobile auth-required (web guest flows N/A on native). P6 close-out also slimmed **CLAUDE.md** 38.6k→29.5k
+(feature spec + phase table → `docs/product-spec.md`). Verified: both apps 0 analyze errors + tests green
+(buyer 71 / seller 3); teka.cd + api healthy. Full narrative in `PROGRESS.md`.
 
 ## Deferred / backlog (future maintenance)
 
