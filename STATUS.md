@@ -12,9 +12,15 @@ proof: COMPLETE (#322–#324 — releasing now).** Decisions: popularity = denor
 index + migration `2026-06-07_product_units_sold.sql`; `deliverOrder` increments; `popularity` sort →
 `[{isDemo:'asc'},{unitsSold:'desc'},{createdAt:'desc'}]`; `unitsSold` in browse list + detail. A2 (#323)
 buyer-web "X vendus" on card + PDP. A3 (#324) buyer-mobile mirror. units-sold migration applied to dev;
-**prod via the Action at release.** **Phase A review gate next.** Deferred (later gates): **B**
-search relevance/autocomplete, **C** attribute filters + related products, **D** conversion polish. Out
-of scope: external search engine, ML recs, persisted view-tracking.
+**prod via the Action at release.** **Phase A shipped to prod (release #325) + verified; units-sold migration applied to prod + dev.**
+**Phase B (search relevance + autocomplete) — IN PROGRESS.** Decision: Postgres FTS + pg_trgm (raw SQL),
+P-B1 first then review. **P-B1 done on branch:** migration `2026-06-07_product_search_fts.sql` (generated
+`tsvector` over title+description, French, GIN index; `pg_trgm` + trigram index on title) applied to dev
++ SQL verified; `browse.service` search now ranks via raw SQL (real-above-demo → `ts_rank` → trigram
+similarity → recency), hydrating by ranked id with the shared select; cursor encodes an offset. e2e
+search tests updated for the FTS path. **P-B2 next:** autocomplete endpoint + web/mobile dropdown.
+Deferred: **C** attribute filters + related products, **D** conversion polish. Out of scope: external
+search engine, ML recs, persisted view-tracking.
 
 **Initiative #1 — Real Catalog & Merchant Supply: CLOSED OUT 2026-06-07** (code complete + shipped +
 verified on prod). Phase 1 self-onboarding (#304–#308) + Phase 1 QA (#309–#313) + Phase 2 KYC
