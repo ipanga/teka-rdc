@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../city/presentation/providers/city_provider.dart';
 import '../../../wishlist/presentation/providers/wishlist_provider.dart';
+import '../../data/catalog_repository.dart';
 import '../providers/catalog_provider.dart';
 import '../widgets/product_card.dart';
 
@@ -21,6 +23,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Timer? _debounce;
   String _query = '';
   String? _lastSearchTracked; // de-dups the search_performed event per query
+  List<SuggestedCategory> _categories = const []; // autocomplete category hits
 
   BrowseProductsParams get _params => BrowseProductsParams(
         search: _query.isNotEmpty ? _query : null,
@@ -38,9 +41,27 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   void _onSearchChanged(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () {
-      if (mounted) {
-        setState(() => _query = value.trim());
-      }
+      if (mounted) _applyQuery(value);
+    });
+  }
+
+  /// Apply a query: drive the live product grid (via _query) AND fetch the
+  /// matching category suggestions for the autocomplete row.
+  void _applyQuery(String value) {
+    final q = value.trim();
+    setState(() => _query = q);
+    if (q.length < 2) {
+      setState(() => _categories = const []);
+      return;
+    }
+    final cityId = ref.read(cityProvider).selectedCity?.id;
+    ref
+        .read(catalogRepositoryProvider)
+        .getSearchSuggestions(q, cityId: cityId)
+        .then((cats) {
+      if (mounted && _query == q) setState(() => _categories = cats);
+    }).catchError((_) {
+      // Non-critical: leave categories as-is on a failed suggestions fetch.
     });
   }
 
@@ -58,9 +79,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             autofocus: true,
             onChanged: _onSearchChanged,
             textInputAction: TextInputAction.search,
-            onSubmitted: (value) {
-              setState(() => _query = value.trim());
-            },
+            onSubmitted: _applyQuery,
             decoration: InputDecoration(
               hintText: l10n.searchPlaceholder,
               hintStyle: const TextStyle(
@@ -73,7 +92,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       icon: const Icon(Icons.clear, size: 20),
                       onPressed: () {
                         _controller.clear();
-                        setState(() => _query = '');
+                        setState(() {
+                          _query = '';
+                          _categories = const [];
+                        });
                       },
                     )
                   : null,
@@ -106,6 +128,47 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildCategorySuggestions(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 0, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.categories,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: TekaColors.mutedForeground,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 36,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.only(right: 16),
+              itemCount: _categories.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, i) {
+                final c = _categories[i];
+                return ActionChip(
+                  label: Text(c.name),
+                  onPressed: () => context.push(
+                    '/categories/${c.id}',
+                    extra: {'categoryName': c.name},
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -194,6 +257,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       },
       child: CustomScrollView(
         slivers: [
+          // Category suggestions (autocomplete) — tappable chips above results.
+          if (_categories.isNotEmpty)
+            SliverToBoxAdapter(child: _buildCategorySuggestions(context, l10n)),
           // Results count
           SliverToBoxAdapter(
             child: Padding(
