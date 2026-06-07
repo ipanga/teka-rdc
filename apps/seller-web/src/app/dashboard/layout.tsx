@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { useTranslations } from 'next-intl';
+import { apiFetch } from '@/lib/api-client';
 import { Sidebar } from '@/components/layout/sidebar';
 
 export default function DashboardLayout({
@@ -16,6 +17,10 @@ export default function DashboardLayout({
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const t = useTranslations('Dashboard');
+
+  // 'checking' until the seller's application status is known; 'approved'
+  // unlocks the dashboard. Anything else redirects to the application flow.
+  const [appGate, setAppGate] = useState<'checking' | 'approved'>('checking');
 
   // Role gate. COOKIE_DOMAIN=.teka.cd lets buyer cookies reach this
   // subdomain, so middleware can't tell a real seller from a logged-in
@@ -35,7 +40,36 @@ export default function DashboardLayout({
     }
   }, [isLoading, user, logout, router]);
 
-  if (isLoading || !user || user.role !== 'SELLER') {
+  // Approval gate. A freshly-registered seller has role SELLER but no
+  // APPROVED SellerProfile — every dashboard page would 403. Send them to
+  // the application flow until an admin approves.
+  useEffect(() => {
+    if (isLoading || !user || user.role !== 'SELLER') return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await apiFetch<{
+          hasApplication: boolean;
+          applicationStatus?: string;
+        }>('/v1/sellers/application');
+        if (cancelled) return;
+        if (res.data.hasApplication && res.data.applicationStatus === 'APPROVED') {
+          setAppGate('approved');
+        } else {
+          router.replace('/devenir-vendeur');
+        }
+      } catch {
+        if (!cancelled) router.replace('/devenir-vendeur');
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoading, user, router]);
+
+  if (isLoading || !user || user.role !== 'SELLER' || appGate !== 'approved') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="animate-pulse text-muted-foreground">{t('loading')}</div>
