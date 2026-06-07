@@ -68,7 +68,13 @@
     "loginHere": "Se connecter ici",
     "registerSubtitle": "Vendez vos produits sur Teka RDC",
     "passwordMismatch": "Les mots de passe ne correspondent pas",
-    "genericError": "Une erreur est survenue"
+    "genericError": "Une erreur est survenue",
+    "verifyEmailTitle": "Vérification de l’email",
+    "verifyEmailLoading": "Vérification en cours...",
+    "verifyEmailSuccess": "Votre adresse email a été vérifiée avec succès.",
+    "verifyEmailError": "Lien de vérification invalide ou expiré.",
+    "verifyEmailMissing": "Lien de vérification invalide.",
+    "goToDashboard": "Aller au tableau de bord"
   },
   "Sidebar": {
     "sellerPortal": "Espace Vendeur",
