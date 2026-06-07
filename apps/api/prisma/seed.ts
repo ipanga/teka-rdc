@@ -869,6 +869,17 @@ async function main() {
   await seedSampleProducts(officielSellerId);
 
   // ============================================================
+  // DELIVERY ZONES (always-run, idempotent)
+  // ============================================================
+  // Town→town delivery pricing. Foundational, not dev sample data: checkout +
+  // checkout-quote read these, and an empty table makes every order fall back
+  // to the default 5,000 CDF fee. Must run in prod too (previously it only ran
+  // inside the dev-only Phase 4 block, which is why prod's table was empty).
+  // ============================================================
+
+  await seedDeliveryZones();
+
+  // ============================================================
   // PRODUCTS (20+) — dev-only sample catalog
   // ============================================================
 
@@ -876,7 +887,7 @@ async function main() {
   // broadcasts. Prod stops here.
   if (isProd) {
     console.log(
-      'Prod seed completed (admin + cities + categories + attributes + content pages + settings + officiel seller + sample products).',
+      'Prod seed completed (admin + cities + categories + attributes + content pages + settings + officiel seller + sample products + delivery zones).',
     );
     return;
   }
@@ -1413,40 +1424,18 @@ async function main() {
 }
 
 // ============================================================
-// PHASE 4 SEED: Delivery Zones, Cart, Orders
+// DELIVERY ZONES (foundational — runs in BOTH dev and prod)
 // ============================================================
+//
+// Town→town delivery pricing read by checkout + checkout-quote. Idempotent:
+// upsert keyed on (fromTown, toTown); on re-run the fee is re-applied so this
+// is the single source of truth for production pricing. Deterministic IDs
+// (60000000-…-<n>) match the historical seed rows.
 
-async function seedPhase4Data(
-  buyerId: string,
-  seller1Id: string,
-  seller2Id: string,
-  adminId: string,
-  prodId: (n: number) => string,
-  cloudThumb: (name: string) => string,
-) {
-  console.log('Seeding Phase 4 data...');
-
-  // Helper for deterministic UUIDs
+async function seedDeliveryZones() {
   const dzId = (n: number) => `60000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
-  const cartItemId = (n: number) => `70000000-0000-0000-0000-00000000${String(n).padStart(4, '0')}`;
-  const orderId = (n: number) => `70000000-0000-0000-0000-0000000001${String(n).padStart(2, '0')}`;
-  const orderItemId = (n: number) => `80000000-0000-0000-0000-0000000001${String(n).padStart(2, '0')}`;
-  const statusLogId = (n: number) => `90000000-0000-0000-0000-0000000001${String(n).padStart(2, '0')}`;
 
-  // Buyer's default address
-  const buyerAddressId = '00000000-0000-0000-0000-000000000001';
-
-  // Checkout group IDs (shared between orders from same "checkout")
-  const checkoutGroup1 = 'c0000000-0000-0000-0000-000000000001'; // Orders 1 + 5 (earlier purchases)
-  const checkoutGroup2 = 'c0000000-0000-0000-0000-000000000002'; // Order 2 (standalone)
-  const checkoutGroup3 = 'c0000000-0000-0000-0000-000000000003'; // Orders 3 + 6 (recent checkout)
-  const checkoutGroup4 = 'c0000000-0000-0000-0000-000000000004'; // Order 4 (standalone)
-
-  // ----------------------------------------------------------
-  // 1. DELIVERY ZONES (12 zones)
-  // ----------------------------------------------------------
-
-  console.log('  Seeding delivery zones...');
+  console.log('Seeding delivery zones...');
 
   const deliveryZones = [
     { n: 1, fromTown: 'Lubumbashi', toTown: 'Lubumbashi', feeCDF: BigInt(300000), feeUSD: BigInt(120) },
@@ -1466,7 +1455,7 @@ async function seedPhase4Data(
   for (const zone of deliveryZones) {
     await prisma.deliveryZone.upsert({
       where: { fromTown_toTown: { fromTown: zone.fromTown, toTown: zone.toTown } },
-      update: {},
+      update: { feeCDF: zone.feeCDF, feeUSD: zone.feeUSD, isActive: true },
       create: {
         id: dzId(zone.n),
         fromTown: zone.fromTown,
@@ -1479,6 +1468,39 @@ async function seedPhase4Data(
   }
 
   console.log(`  Seeded ${deliveryZones.length} delivery zones`);
+}
+
+// ============================================================
+// PHASE 4 SEED: Cart, Orders
+// ============================================================
+
+async function seedPhase4Data(
+  buyerId: string,
+  seller1Id: string,
+  seller2Id: string,
+  adminId: string,
+  prodId: (n: number) => string,
+  cloudThumb: (name: string) => string,
+) {
+  console.log('Seeding Phase 4 data...');
+
+  // Helper for deterministic UUIDs
+  const cartItemId = (n: number) => `70000000-0000-0000-0000-00000000${String(n).padStart(4, '0')}`;
+  const orderId = (n: number) => `70000000-0000-0000-0000-0000000001${String(n).padStart(2, '0')}`;
+  const orderItemId = (n: number) => `80000000-0000-0000-0000-0000000001${String(n).padStart(2, '0')}`;
+  const statusLogId = (n: number) => `90000000-0000-0000-0000-0000000001${String(n).padStart(2, '0')}`;
+
+  // Buyer's default address
+  const buyerAddressId = '00000000-0000-0000-0000-000000000001';
+
+  // Checkout group IDs (shared between orders from same "checkout")
+  const checkoutGroup1 = 'c0000000-0000-0000-0000-000000000001'; // Orders 1 + 5 (earlier purchases)
+  const checkoutGroup2 = 'c0000000-0000-0000-0000-000000000002'; // Order 2 (standalone)
+  const checkoutGroup3 = 'c0000000-0000-0000-0000-000000000003'; // Orders 3 + 6 (recent checkout)
+  const checkoutGroup4 = 'c0000000-0000-0000-0000-000000000004'; // Order 4 (standalone)
+
+  // Delivery zones are now seeded earlier (foundational, runs in prod too) —
+  // see seedDeliveryZones() called before the isProd return.
 
   // ----------------------------------------------------------
   // 2. CART & CART ITEMS for buyer
