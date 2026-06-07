@@ -31,9 +31,14 @@ class _OtpRequestScreenState extends ConsumerState<OtpRequestScreen> {
       return;
     }
     try {
-      await ref.read(authProvider.notifier).requestOtp(normalized);
+      final data = await ref.read(authProvider.notifier).requestOtp(normalized);
       if (!mounted) return;
-      context.push('/auth/otp', extra: {'phone': normalized});
+      // Carry the server-supplied resend cooldown to the verify screen so the
+      // initial countdown matches the backend rate limit (was hardcoded 30s).
+      context.push('/auth/otp', extra: {
+        'phone': normalized,
+        'cooldown': data['cooldownSeconds'],
+      });
     } catch (e) {
       setState(() => _error = e.toString());
     }

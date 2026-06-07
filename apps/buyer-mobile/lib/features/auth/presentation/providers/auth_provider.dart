@@ -4,6 +4,13 @@ import '../../../../core/storage/secure_storage.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
+/// Thrown by [AuthNotifier.verifyOtp] when the phone resolves to a SELLER
+/// account. Phone uniqueness is global, so a buyer-OTP login can match a seller
+/// (the API signs into it). buyer-web redirects such users to SELLER_WEB_URL;
+/// mobile can't deep-link into the separate seller APK, so we block the
+/// buyer-app login and tell the user to use the seller app instead.
+class SellerAccountException implements Exception {}
+
 class AuthState {
   final AuthStatus status;
   final Map<String, dynamic>? user;
@@ -97,11 +104,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
         firstName: firstName,
         lastName: lastName,
       );
+
+      // Seller-account guard: a buyer OTP can resolve to a SELLER (global phone
+      // uniqueness). The verify call already persisted tokens, so clear the
+      // session — we don't want a seller half-authenticated in the buyer app —
+      // and surface the guard so the UI can point them at the seller app.
+      final user = data['user'] as Map<String, dynamic>?;
+      if (user?['role']?.toString() == 'SELLER') {
+        await _authRepository.logout();
+        state = const AuthState(status: AuthStatus.unauthenticated);
+        throw SellerAccountException();
+      }
+
       state = state.copyWith(
         status: AuthStatus.authenticated,
         user: data['user'],
         isLoading: false,
       );
+    } on SellerAccountException {
+      rethrow; // already handled state above; don't overwrite with a string error
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
       rethrow;

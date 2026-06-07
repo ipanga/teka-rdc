@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -12,15 +13,39 @@ import '../../../wishlist/presentation/widgets/wishlist_button.dart';
 import '../providers/catalog_provider.dart';
 import '../widgets/image_gallery.dart';
 
-class ProductDetailScreen extends ConsumerWidget {
+class ProductDetailScreen extends ConsumerStatefulWidget {
   final String productId;
 
   const ProductDetailScreen({super.key, required this.productId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProductDetailScreen> createState() =>
+      _ProductDetailScreenState();
+}
+
+class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
+  bool _viewTracked = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final productId = widget.productId;
     final l10n = AppLocalizations.of(context)!;
     final productAsync = ref.watch(productDetailProvider(productId));
+
+    // Fire product_viewed once on first successful load (buyer-owned UI event,
+    // parity with buyer-web). ids/price only — no PII.
+    ref.listen(productDetailProvider(productId), (prev, next) {
+      next.whenData((product) {
+        if (_viewTracked) return;
+        _viewTracked = true;
+        const PosthogAnalytics().capture('product_viewed', properties: {
+          'productId': product.id,
+          if (product.category != null) 'categoryId': product.category!.id,
+          'price_cdf': int.tryParse(product.priceCDF) ?? 0,
+          if (product.seller.id != null) 'sellerId': product.seller.id!,
+        });
+      });
+    });
 
     return Scaffold(
       appBar: AppBar(

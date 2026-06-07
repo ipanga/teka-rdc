@@ -19,7 +19,7 @@ recordings) runs separately on buyer-web + seller-web — see `docs/clarity.md`.
 | **buyer-web** | `posthog-js` | Pageviews, autocapture, session replay, + **buyer UI-intent events** |
 | **seller-web** | `posthog-js` | Pageviews, autocapture, session replay, identity |
 | **admin-web** | `posthog-js` | Pageviews, autocapture, session replay, identity |
-| **buyer-mobile** | `posthog_flutter` | Screen views, app-lifecycle events, identity |
+| **buyer-mobile** | `posthog_flutter` | Screen views, app-lifecycle, identity, + client ecommerce events (product/category/search/cart/checkout/wishlist) |
 | **seller-mobile** | `posthog_flutter` | Screen views, app-lifecycle events, identity |
 
 ## Architecture
@@ -44,11 +44,12 @@ Never emit the same event name from two layers.
 - **seller-web / admin-web** own pageviews + autocapture + identity only (their
   domain actions are server-owned).
 - **buyer-mobile** owns `$screen` (auto via `PosthogObserver`) + app-lifecycle +
-  identity + the **wishlist events** (`wishlist_added`/`wishlist_removed`/
-  `wishlist_viewed`/`wishlist_item_moved_to_cart`, same names as web — fired via
-  `PosthogAnalytics.capture`, ids/counts only). **seller-mobile** is infra-only.
-  (Other buyer-mobile ecommerce events — product_viewed/add_to_cart/etc. — remain
-  a fast-follow.)
+  identity + the full **client ecommerce event set** (same names as buyer-web,
+  fired via `PosthogAnalytics.capture`, ids/counts only): `product_viewed`,
+  `category_viewed`, `search_performed` (query scrubbed via `scrubAnalyticsText`),
+  `add_to_cart`, `remove_from_cart`, `checkout_started`, and the wishlist events
+  (`wishlist_added`/`wishlist_removed`/`wishlist_viewed`/
+  `wishlist_item_moved_to_cart`). **seller-mobile** is infra-only.
 
 `api_error` and `notification_sent` are **intentionally not** captured —
 `api_error` stays Sentry's job; `notification_sent` is too high-volume.
@@ -258,8 +259,11 @@ need a one-time refresh:
 
 ## Deferred / not implemented
 
-- buyer-**mobile** ecommerce events **beyond wishlist** (product_viewed /
-  add_to_cart / search_performed / checkout_started). Wishlist events shipped.
+- ~~buyer-mobile ecommerce events beyond wishlist~~ — **DONE 2026-06-07** (mobile
+  parity sweep P3): buyer-mobile now fires `product_viewed`, `category_viewed`,
+  `search_performed`, `add_to_cart`, `remove_from_cart`, `checkout_started` (ids/
+  counts only; `search_performed.query` routed through `scrubAnalyticsText`).
+  Full client-event parity with buyer-web.
 - Server-side feature-flag bootstrapping (`posthog-node`) to remove first-paint
   flag flicker.
 - Linking PostHog session replays to Sentry errors.

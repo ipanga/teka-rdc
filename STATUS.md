@@ -6,30 +6,45 @@
 
 ## Active initiative
 
-None. **SEO / City-First URL Refactor SHIPPED to prod 2026-06-06** (release #290; main=develop=`3105ce0`).
-Full narrative in `PROGRESS.md`; authoritative reference `docs/url-and-seo-strategy.md`; tracker
-`tasks/seo-city-url-refactor-progress.md`. Phases 1–7 (#283–#289) merged; release #290 deployed; prod
-migration `2026-06-06_city_first_urls.sql` applied (verified: live API returns `shortCode`/`citySlug`;
-`/lubumbashi` 200; `/wishlist`→`/favoris`, `/cart`→`/panier`, `/orders`→`/commandes` 308; `/categorie/x`
-→`/{ville}/categorie/x` 308; sitemap city-first). Back-merged.
+**Mobile Parity Sweep** — **code-complete on `develop` (#293–#297); P6 close-out in progress**
+(CLAUDE.md slim-down + docs done; releasing `develop → main`). Tracker:
+`tasks/mobile-parity-sweep-progress.md`; full narrative in `PROGRESS.md`.
 
-### Two follow-ups found during release verification (NOT blockers; not introduced by this initiative)
-1. **Clean slugs need a prod `db:seed`.** The migration backfilled `shortCode` + `City.slug` but left
-   existing product `slug`s in the OLD city-embedded form (`…-lubumbashi-310000`). URLs still resolve
-   (by `shortCode`) and are canonical, just not pretty — e.g.
-   `/lubumbashi/kit-fournitures-…-lubumbashi-310000-8580a5`. A prod `db:seed` (idempotent) rewrites them
-   to the clean `generateProductSlug(title)` form. Safe to run anytime.
-2. **Pre-existing auth edge (stale token cookie ⇒ `/connexion` bounce).** A session whose JWTs are
-   expired/invalid but whose **HttpOnly `teka_access_token`/`teka_refresh_token` cookie still lingers**
-   (within cookie maxAge) leaves the middleware's presence-based `hasSession` = true → it 307-bounces
-   `/connexion` → `/`. The app store is guest (`/me` 401), so the user can't reach login AND product
-   hearts (guest branch → push `/connexion?redirect=…`) appear inert. Reproduced live (a session that
-   straddled the deploy). Same FAMILY as the PR #279 loading-window fix but the **expired-token** window;
-   the #279 `isLoading` guard doesn't cover it. NOT caused by the URL refactor (middleware presence-check
-   predates it). Candidate fix: clear stale auth cookies when `fetchUser`/refresh definitively fails, or
-   have the `/connexion` bounce verify token validity (not just presence). Needs its own scoped task.
+Net: the two Flutter apps were **already largely at parity**; the sweep closed only genuine gaps —
+P1 city-scoped category/search + new API model fields (#293), P2 wishlist count badge + inactive
+handling (#294), P3 full client PostHog ecommerce events (#295), P4 seller-account-on-buyer-OTP
+guard (#296), P5 dead-code/OTP-cooldown cleanup (#297). **Mobile-only — no web/API deploy or
+migration**; merging to `main` builds new APK images (mobile rollout is a separate distribution step).
 
-Prior initiative (Wishlist) shipped to prod 2026-06-05 (#278/#280); vitest bump released #282.
+## Deferred / backlog (future maintenance)
+
+- **seller-mobile dashboard stats breakdown** (product status counts + avg rating) and **PDP
+  related-products section** — the two optional/cosmetic items from the Mobile Parity Sweep P5.
+  Not parity-blocking; deferred by user 2026-06-07.
+- **Prod `db:seed` to clean up legacy product slugs.** The city-first migration backfilled
+  `Product.shortCode` + `City.slug` but left existing product `slug`s in the OLD city-embedded form
+  (`…-lubumbashi-310000`). URLs **resolve correctly and are canonical** (by `shortCode`) — purely
+  cosmetic: e.g. `/lubumbashi/kit-fournitures-…-lubumbashi-310000-8580a5` vs the clean
+  `/lubumbashi/kit-fournitures-rentree-cahiers-stylos-8580a5`. A prod `db:seed` (idempotent) rewrites
+  them via the new `generateProductSlug(title)`. **Deferred by user 2026-06-06; safe to run anytime.**
+  New products created post-refactor already get clean slugs — this only affects the seeded sample
+  catalog. No code change required.
+
+## Recently completed — 2026-06-06
+
+**SEO / City-First URL Refactor** (7-phase initiative + 1 follow-up fix, all SHIPPED to prod).
+Authoritative reference `docs/url-and-seo-strategy.md`; tracker `tasks/seo-city-url-refactor-progress.md`;
+full narrative in `PROGRESS.md`.
+- **#283–#289 → release #290** (`main=3105ce0`): city-first URLs `/{ville}/{slug}-{shortCode}` +
+  `/{ville}/categorie/{slug}`; clean city-free `slug` + unique `Product.shortCode` resolver + `City.slug`;
+  French storefront routes (`/panier /paiement /commandes /favoris`) with 301/308s; de-blocked crawlable
+  homepage; city-first sitemap/canonical/JSON-LD. Prod migration `2026-06-06_city_first_urls.sql` applied.
+  Mobile + analytics untouched by design.
+- **#291 → release #292** (`main=cd0326c`): fixed the stale-token `/connexion` bounce surfaced during
+  release verification — middleware no longer bounces auth-only routes on cookie *presence*; `/connexion`
+  redirects already-logged-in users from the **real** session state. Verified live: a stale-cookie guest
+  now reaches the login form and the wishlist heart's guest flow works. 11 middleware + 4 connexion tests.
+- **Deferred:** legacy-slug cleanup (`db:seed`) — see Backlog above.
 
 ## Recently completed — 2026-06-05
 

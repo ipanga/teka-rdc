@@ -67,6 +67,17 @@ class WishlistRepository {
     );
   }
 
+  /// Active-filtered wishlist count for the header badge (mirrors buyer-web's
+  /// GET /v1/wishlist/count). Returns 0 on an unexpected shape.
+  Future<int> getCount() async {
+    final response = await _dio.get('/v1/wishlist/count');
+    final responseData = response.data;
+    if (responseData is Map && responseData['data'] is Map) {
+      return (responseData['data']['count'] as num?)?.toInt() ?? 0;
+    }
+    return 0;
+  }
+
   Future<void> addToWishlist(String productId) async {
     await _dio.post('/v1/wishlist/$productId');
   }
