@@ -1,16 +1,22 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { SearchUsersDto } from './dto/search-users.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { ReviewSellerDto } from './dto/review-seller.dto';
 import { PostHogService } from '../analytics/posthog.service';
+import { EmailService } from '../email/email.service';
+import { SellerNotificationService } from '../notifications/seller-notification.service';
 
 @Injectable()
 export class AdminUsersService {
+  private readonly logger = new Logger(AdminUsersService.name);
+
   constructor(
     private prisma: PrismaService,
     private analytics: PostHogService,
+    private email: EmailService,
+    private sellerNotifications: SellerNotificationService,
   ) {}
 
   async findAllUsers(query: SearchUsersDto) {
@@ -235,6 +241,10 @@ export class AdminUsersService {
         adminId,
       });
 
+      // Notify the seller (email + push). Fire-and-forget — never block the
+      // review response on a notification failure.
+      void this.notifyApplicationDecision(application.userId, 'APPROVE');
+
       return updated;
     } else {
       const updated = await this.prisma.sellerProfile.update({
@@ -251,7 +261,60 @@ export class AdminUsersService {
         adminId,
       });
 
+      void this.notifyApplicationDecision(
+        application.userId,
+        'REJECT',
+        updated.rejectionReason ?? 'Demande rejetée',
+      );
+
       return updated;
+    }
+  }
+
+  /**
+   * Sends the seller their application decision over email (Resend) + push
+   * (FCM). Fire-and-forget: loads the user's email/firstName and dispatches
+   * both channels, swallowing any failure so the admin review response is
+   * never blocked. Push is keyed on userId; email is skipped if absent.
+   */
+  private async notifyApplicationDecision(
+    userId: string,
+    decision: 'APPROVE' | 'REJECT',
+    reason?: string,
+  ): Promise<void> {
+    try {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true, firstName: true },
+      });
+
+      if (decision === 'APPROVE') {
+        void this.sellerNotifications.notifyApplicationApproved(userId);
+        if (user?.email) {
+          void this.email.sendSellerApplicationApproved(
+            user.email,
+            user.firstName ?? null,
+          );
+        }
+      } else {
+        const finalReason = reason || 'Demande rejetée';
+        void this.sellerNotifications.notifyApplicationRejected(
+          userId,
+          finalReason,
+        );
+        if (user?.email) {
+          void this.email.sendSellerApplicationRejected(
+            user.email,
+            user.firstName ?? null,
+            finalReason,
+          );
+        }
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed to dispatch seller application ${decision} notification for ${userId}`,
+        error instanceof Error ? error.stack : undefined,
+      );
     }
   }
 }
