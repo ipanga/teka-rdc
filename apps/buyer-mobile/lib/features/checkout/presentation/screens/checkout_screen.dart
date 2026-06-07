@@ -933,9 +933,11 @@ class _ReviewStep extends StatelessWidget {
                       fontSize: 14,
                     ),
                   ),
-                  const Text(
-                    '--',
-                    style: TextStyle(
+                  Text(
+                    checkoutState.deliveryFeeCDF != null
+                        ? formatCDF(checkoutState.deliveryFeeCDF!)
+                        : (checkoutState.isLoadingQuote ? '…' : '--'),
+                    style: const TextStyle(
                       color: TekaColors.foreground,
                       fontSize: 14,
                     ),
@@ -957,7 +959,11 @@ class _ReviewStep extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    formatCDF(cartState.totalCDF),
+                    formatCDF(
+                      (BigInt.parse(cartState.totalCDF) +
+                              BigInt.parse(checkoutState.deliveryFeeCDF ?? '0'))
+                          .toString(),
+                    ),
                     style: const TextStyle(
                       color: TekaColors.tekaRed,
                       fontSize: 16,
