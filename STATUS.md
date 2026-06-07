@@ -6,15 +6,27 @@
 
 ## Active initiative
 
-**Delivery-fee quick win** (started 2026-06-07). Tracker: `tasks/delivery-fee-quickwin-progress.md`.
-Make checkout fee **preview == final charged fee** on buyer-web + buyer-mobile via a new **checkout
-quote endpoint** that reuses the exact server-side calc. NON-goals: City/Commune zone redesign,
-logistics ops, pricing-model redesign. **Audit done:** prod `delivery_zones` is empty → all orders hit
-the **5,000 CDF default** (seed defines 3,000 intra-/15,000 inter-city but was never applied to prod);
-recommendation = apply seed zones to prod (deferred prod data op). Then → **Initiative #1 (Real Catalog
-& Merchant Supply)** — audit + rollout plan for review BEFORE coding.
+**Initiative #1 — Real Catalog & Merchant Supply** (started 2026-06-07). **Investigation phase — NO
+coding until the audit + rollout plan are presented for review.** Standard process: Investigation → Gap
+Analysis → Phased Rollout Plan → Review gate → Implementation → Testing. Goal: move the marketplace from
+the seeded "Teka RDC Officiel" sample catalog toward real merchant-supplied inventory.
 
 ## Recently completed — 2026-06-07
+
+**Delivery-fee preview quick win** (#300 → release #301; `chore` #302 → release #303) — **SHIPPED +
+VERIFIED on prod.** New `POST /v1/checkout/quote` backed by a shared `CheckoutService.resolveDeliveryFee`
+extracted from `checkout()` → previewed fee == charged fee by construction. Fixed buyer-web `/paiement`
+(was 400 → 0) + buyer-mobile (was `--`, total omitted the fee). 4 API unit specs + 3 mobile model/parity
+specs. **Zone data op done:** root cause was that `seedDeliveryZones` only ran in the dev-only Phase 4
+block (after the `isProd` return), so prod's `delivery_zones` table was always empty → every order hit
+the 5,000 CDF default. Fix shipped both layers: (a) extracted `seedDeliveryZones()` to run in prod too
+(idempotent, updates fees on conflict); (b) idempotent migration `2026-06-07_seed_delivery_zones.sql`
+applied to prod via the Action (`INSERT 0 12`). **Verified live** — all 4 launch routes now return seeded
+fees with `isDefault:false`: Lub→Lub 3,000 · Kol→Kol 3,000 · Lub→Kol 15,000 · Kol→Lub 15,000. Checkout
+quote + order pricing consume the same `estimateFee` path → both now use seeded values. NON-goals held
+(no City/Commune redesign, no logistics ops, no pricing-model change). Full narrative in `PROGRESS.md`.
+
+## Earlier completed — 2026-06-07
 
 **Mobile Parity Sweep** (5-phase initiative, #293–#297 + docs #298) — **SHIPPED to prod (release #299;
 main=develop=`5239207`).** Audited buyer-mobile + seller-mobile vs recent web/API changes; the apps were
