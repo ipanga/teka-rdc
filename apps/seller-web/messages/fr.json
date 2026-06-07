@@ -65,7 +65,10 @@
     "hasAccount": "Déjà inscrit ?",
     "noAccount": "Pas encore vendeur ?",
     "createAccount": "Créer un compte",
-    "loginHere": "Se connecter ici"
+    "loginHere": "Se connecter ici",
+    "registerSubtitle": "Vendez vos produits sur Teka RDC",
+    "passwordMismatch": "Les mots de passe ne correspondent pas",
+    "genericError": "Une erreur est survenue"
   },
   "Sidebar": {
     "sellerPortal": "Espace Vendeur",
@@ -398,5 +401,34 @@
     "backToHome": "Retour à l'accueil",
     "pageNotFound": "Page non trouvée",
     "notFoundMessage": "La page que vous recherchez n'existe pas ou a été déplacée."
+  },
+  "SellerApplication": {
+    "loading": "Chargement...",
+    "loadError": "Impossible de charger votre demande. Réessayez.",
+    "title": "Devenir vendeur",
+    "subtitle": "Renseignez les informations de votre activité pour soumettre votre demande.",
+    "pendingTitle": "Demande en cours d’examen",
+    "pendingBody": "Votre demande de compte vendeur a été reçue. Notre équipe l’examine et vous serez notifié dès qu’une décision est prise.",
+    "rejectedTitle": "Demande refusée",
+    "rejectedHint": "Corrigez les informations ci-dessous et soumettez à nouveau votre demande.",
+    "businessNameLabel": "Nom de l’entreprise / boutique",
+    "businessTypeLabel": "Type d’activité",
+    "typeIndividual": "Particulier",
+    "typeCompany": "Entreprise",
+    "idTypeLabel": "Type de pièce",
+    "idNationalId": "Carte d’identité nationale",
+    "idPassport": "Passeport",
+    "idRccm": "RCCM",
+    "idNumberLabel": "Numéro de pièce",
+    "phoneLabel": "Numéro de téléphone",
+    "phonePlaceholder": "Ex : 0812345678",
+    "cityLabel": "Ville",
+    "cityPlaceholder": "Sélectionnez une ville",
+    "locationLabel": "Adresse / quartier",
+    "locationPlaceholder": "Ex : Lubumbashi, Katuba",
+    "descriptionLabel": "Description de votre activité (facultatif)",
+    "submit": "Soumettre ma demande",
+    "submitError": "Impossible de soumettre votre demande. Réessayez.",
+    "invalidPhone": "Numéro de téléphone invalide. Entrez un numéro congolais valide."
   }
 }

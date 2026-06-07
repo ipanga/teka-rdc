@@ -50,7 +50,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             _firstNameController.text.trim(),
             _lastNameController.text.trim(),
           );
-      if (mounted) context.go('/');
+      if (mounted) context.go('/devenir-vendeur');
     } on DioException catch (e) {
       setState(() {
         _errorMessage = e.response?.data?['error']?['message'] ??
@@ -92,7 +92,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Apres inscription, vous pourrez soumettre votre demande vendeur depuis le tableau de bord.',
+                  'Apres inscription, vous renseignerez les informations de votre activite pour soumettre votre demande vendeur.',
                   style: TextStyle(color: TekaColors.mutedForeground),
                 ),
                 const SizedBox(height: 24),

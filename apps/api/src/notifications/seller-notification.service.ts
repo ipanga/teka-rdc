@@ -152,6 +152,52 @@ export class SellerNotificationService {
     }
   }
 
+  /**
+   * Notifies a seller that their business application was approved.
+   * Triggered from AdminUsersService.reviewSellerApplication. No pref
+   * check — an operational notification about the seller's own account.
+   */
+  async notifyApplicationApproved(sellerId: string): Promise<void> {
+    try {
+      this.sendPushToSeller(sellerId, {
+        title: 'Compte vendeur approuvé',
+        body: 'Votre demande a été approuvée. Vous pouvez maintenant ajouter vos produits.',
+        data: { screen: 'dashboard', event: 'seller-approved' },
+      });
+    } catch (error: any) {
+      this.logger.error(
+        `Échec de notification approbation vendeur ${sellerId}: ${error?.message ?? error}`,
+        error?.stack,
+      );
+    }
+  }
+
+  /**
+   * Notifies a seller that their business application was rejected,
+   * including the (truncated) reason so they don't have to open the app.
+   */
+  async notifyApplicationRejected(
+    sellerId: string,
+    rejectionReason: string,
+  ): Promise<void> {
+    try {
+      const truncatedReason =
+        rejectionReason.length > 140
+          ? rejectionReason.slice(0, 137) + '…'
+          : rejectionReason;
+      this.sendPushToSeller(sellerId, {
+        title: 'Demande vendeur refusée',
+        body: `Votre demande n'a pas été approuvée. Raison : ${truncatedReason}`,
+        data: { screen: 'seller-application', event: 'seller-rejected' },
+      });
+    } catch (error: any) {
+      this.logger.error(
+        `Échec de notification rejet vendeur ${sellerId}: ${error?.message ?? error}`,
+        error?.stack,
+      );
+    }
+  }
+
   private sendPushToSeller(sellerId: string, payload: PushPayload): void {
     void this.pushService.sendToUser(sellerId, payload).catch((err) => {
       this.logger.warn(
