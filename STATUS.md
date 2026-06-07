@@ -14,7 +14,18 @@ sample retirement = `isDemo` flag + rank real-above-demo + SEO-safe per-category
 coexistence/retirement → 4 payouts + moderation-at-scale → 5 (opt) seller empowerment. Out of scope:
 external RCCM/sanctions integrations, vision-API moderation, variant SKUs, 3rd-party inventory sync.
 
-**Phase 2 — Seller KYC (2026-06-07, #314–#317 — releasing now).** ID/RCCM photo + manual admin review.
+**Phase 3 — Sample-catalog coexistence (2026-06-07, #319–#320 — releasing now).** Decisions: build
+P3a+P3b now, defer P3c; retirement (later) = hide + 301-to-category. **P3a** (#319): `Product.isDemo`
+(default false; seed marks the Teka Officiel demo catalog; idempotent migration
+`2026-06-07_product_is_demo.sql` adds the column + backfills the demo seller's rows). browse/search/home
+rank real products above demo (`orderBy [{isDemo:'asc'}, <sort>]`). **P3b** (#320):
+`GET /v1/admin/stats/catalog-coverage` (per-main-category real-vs-demo ACTIVE counts, rolled up from
+subcats) + `/dashboard/catalog-coverage` admin page + sidebar item. **P3c (hide + 301 retirement)
+DEFERRED** until real merchants populate categories (only operable/testable then). isDemo migration
+applied to dev; **prod via the Action at release.** **Next: Initiative #1 closeout / await direction.**
+
+**Phase 2 — Seller KYC (2026-06-07, #314–#317 — SHIPPED to prod, release #318 + verified; migrations
+applied to prod + dev).** ID/RCCM photo + manual admin review.
 Decisions: private storage + signed admin URLs; single required photo; manual review only. **P2a** (#314):
 `SellerProfile.idDocumentCloudinaryId`/`idDocumentUploadedAt` (nullable; prod migration
 `2026-06-07_seller_kyc_document.sql`); `CloudinaryService.uploadPrivateImage` (authenticated) +
