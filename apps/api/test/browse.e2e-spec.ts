@@ -281,6 +281,50 @@ describe('Browse (e2e)', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // GET /api/v1/browse/search/suggestions
+  // ---------------------------------------------------------------------------
+  describe('GET /api/v1/browse/search/suggestions', () => {
+    it('returns empty for very short queries (no DB hit)', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/browse/search/suggestions?q=a')
+        .expect(200);
+      expect(res.body.data).toEqual({ products: [], categories: [] });
+    });
+
+    it('returns relevant products + matching categories', async () => {
+      mockPrismaService.$queryRaw.mockResolvedValue([{ id: 'p1' }]);
+      mockPrismaService.product.findMany.mockResolvedValue([
+        {
+          id: 'p1',
+          title: 'Tecno Spark',
+          slug: 'tecno-spark',
+          shortCode: 'abc123',
+          cityId: 'c1',
+          city: { slug: 'lubumbashi', name: 'Lubumbashi' },
+          images: [{ thumbnailUrl: 'http://x/t.jpg' }],
+        },
+      ]);
+      mockPrismaService.category.findMany.mockResolvedValue([
+        { id: 'cat1', name: 'Téléphones', slug: 'telephones' },
+      ]);
+
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/browse/search/suggestions?q=tecno')
+        .expect(200);
+
+      expect(res.body.data.products[0]).toMatchObject({
+        id: 'p1',
+        title: 'Tecno Spark',
+        thumbnailUrl: 'http://x/t.jpg',
+      });
+      expect(res.body.data.categories[0]).toMatchObject({
+        id: 'cat1',
+        slug: 'telephones',
+      });
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // GET /api/v1/browse/banners (via BannersPublicController)
   // ---------------------------------------------------------------------------
   describe('GET /api/v1/browse/banners', () => {
