@@ -10,8 +10,11 @@ import '../../../reviews/presentation/providers/reviews_provider.dart';
 import '../../../reviews/presentation/widgets/review_stats_bar.dart';
 import '../../../reviews/presentation/widgets/review_tile.dart';
 import '../../../wishlist/presentation/widgets/wishlist_button.dart';
+import '../../data/catalog_repository.dart';
+import '../../data/models/product_model.dart';
 import '../providers/catalog_provider.dart';
 import '../widgets/image_gallery.dart';
+import '../widgets/product_card.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   final String productId;
@@ -393,6 +396,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
                               // Reviews section
                               _ReviewsSection(productId: productId),
+
+                              // Related products (same category + price)
+                              const SizedBox(height: 24),
+                              _RelatedSection(productId: productId),
                             ],
                           ),
                         ),
@@ -610,6 +617,67 @@ class _ReviewsSection extends ConsumerWidget {
         ],
 
         const SizedBox(height: 16),
+      ],
+    );
+  }
+}
+
+class _RelatedSection extends ConsumerStatefulWidget {
+  final String productId;
+  const _RelatedSection({required this.productId});
+
+  @override
+  ConsumerState<_RelatedSection> createState() => _RelatedSectionState();
+}
+
+class _RelatedSectionState extends ConsumerState<_RelatedSection> {
+  List<BrowseProductModel>? _items;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final items = await ref
+          .read(catalogRepositoryProvider)
+          .getRelatedProducts(widget.productId);
+      if (mounted) setState(() => _items = items);
+    } catch (_) {
+      if (mounted) setState(() => _items = const []);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final items = _items;
+    if (items == null || items.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.relatedTitle,
+          style: Theme.of(context)
+              .textTheme
+              .titleMedium
+              ?.copyWith(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 260,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: items.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (context, i) => SizedBox(
+              width: 150,
+              child: ProductCard(product: items[i]),
+            ),
+          ),
+        ),
       ],
     );
   }

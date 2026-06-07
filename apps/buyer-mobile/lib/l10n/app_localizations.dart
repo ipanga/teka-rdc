@@ -1617,6 +1617,12 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'{count, plural, one{{count} vendu} other{{count} vendus}}'**
   String productUnitsSold(int count);
+
+  /// No description provided for @relatedTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Produits similaires'**
+  String get relatedTitle;
 }
 
 class _AppLocalizationsDelegate

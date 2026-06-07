@@ -281,6 +281,60 @@ describe('Browse (e2e)', () => {
   });
 
   // ---------------------------------------------------------------------------
+  // GET /api/v1/browse/products/:id/related
+  // ---------------------------------------------------------------------------
+  describe('GET /api/v1/browse/products/:id/related', () => {
+    const uuid = '00000000-0000-0000-0000-000000000abc';
+
+    it('returns same-category related products', async () => {
+      mockPrismaService.product.findFirst.mockResolvedValue({
+        id: 'src',
+        categoryId: 'cat1',
+        priceCDF: BigInt(100000),
+      });
+      // near query then fill query (sparse top-up).
+      mockPrismaService.product.findMany
+        .mockResolvedValueOnce([
+          {
+            id: 'r1',
+            title: 'Related',
+            slug: 'related',
+            shortCode: 'r1xxxx',
+            priceCDF: BigInt(90000),
+            priceUSD: null,
+            condition: 'NEW',
+            quantity: 1,
+            categoryId: 'cat1',
+            cityId: null,
+            avgRating: 0,
+            totalReviews: 0,
+            unitsSold: 0,
+            city: null,
+            images: [],
+            seller: null,
+          },
+        ])
+        .mockResolvedValueOnce([]);
+
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/browse/products/${uuid}/related`)
+        .expect(200);
+
+      expect(res.body.data.data[0].id).toBe('r1');
+    });
+
+    it('returns empty when the product is not found', async () => {
+      mockPrismaService.product.findFirst.mockResolvedValue(null);
+
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/browse/products/${uuid}/related`)
+        .expect(200);
+
+      expect(res.body.data.data).toEqual([]);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   // GET /api/v1/browse/search/suggestions
   // ---------------------------------------------------------------------------
   describe('GET /api/v1/browse/search/suggestions', () => {
