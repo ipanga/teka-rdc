@@ -17,6 +17,7 @@ import { DeliveryZonesModule } from '../delivery-zones/delivery-zones.module';
 import { CitiesModule } from '../cities/cities.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { EmailModule } from '../email/email.module';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { EmailModule } from '../email/email.module';
     CitiesModule,
     NotificationsModule,
     EmailModule,
+    CloudinaryModule,
   ],
   controllers: [
     AdminUsersController,

@@ -35,6 +35,13 @@ export class AdminSellersController {
     return this.adminUsersService.findSellerApplicationById(id);
   }
 
+  // Returns a short-lived signed URL to view the applicant's KYC document.
+  // The document is stored privately; this is the only way to view it.
+  @Get('applications/:id/document')
+  async getApplicationDocument(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminUsersService.getApplicationDocumentUrl(id);
+  }
+
   @Patch('applications/:id')
   async reviewApplication(
     @Param('id', ParseUUIDPipe) id: string,
