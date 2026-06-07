@@ -1,6 +1,6 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { v2 as cloudinary, UploadApiResponse } from 'cloudinary';
+import { v2 as cloudinary } from 'cloudinary';
 import { Readable } from 'stream';
 
 export interface CloudinaryUploadResult {
@@ -67,6 +67,61 @@ export class CloudinaryService {
       readable.push(buffer);
       readable.push(null);
       readable.pipe(uploadStream);
+    });
+  }
+
+  /**
+   * Upload a PRIVATE image (KYC documents). Unlike uploadImage, the asset is
+   * stored with delivery type `authenticated` — it is NOT publicly accessible
+   * by its URL; it can only be served through a signed URL (see
+   * getSignedImageUrl). Original format is preserved (no WebP transform) so an
+   * ID/RCCM photo stays legible. Returns only the public_id; no public URL.
+   */
+  async uploadPrivateImage(
+    buffer: Buffer,
+    folder: string = 'teka-rdc/seller-documents',
+  ): Promise<{ cloudinaryId: string }> {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder,
+          type: 'authenticated',
+          resource_type: 'image',
+        },
+        (error, result) => {
+          if (error || !result) {
+            this.logger.error(
+              `Cloudinary private upload failed: ${error?.message ?? 'no result'}`,
+            );
+            reject(
+              new BadRequestException('Échec du téléchargement du document'),
+            );
+            return;
+          }
+          resolve({ cloudinaryId: result.public_id });
+        },
+      );
+
+      const readable = new Readable();
+      readable.push(buffer);
+      readable.push(null);
+      readable.pipe(uploadStream);
+    });
+  }
+
+  /**
+   * Generate a signed, time-limited delivery URL for a private (authenticated)
+   * asset. Without the signature the asset 401s, so this is the only way to
+   * view a KYC document — handed to admins on demand, never persisted.
+   */
+  getSignedImageUrl(cloudinaryId: string, expiresInSeconds = 600): string {
+    const expiresAt = Math.floor(Date.now() / 1000) + expiresInSeconds;
+    return cloudinary.url(cloudinaryId, {
+      type: 'authenticated',
+      resource_type: 'image',
+      secure: true,
+      sign_url: true,
+      expires_at: expiresAt,
     });
   }
 

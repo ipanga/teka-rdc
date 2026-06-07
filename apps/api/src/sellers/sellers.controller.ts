@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Patch, Body } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Patch,
+  Body,
+  UseInterceptors,
+  UploadedFile,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { SellersService } from './sellers.service';
 import { ApplySellerDto } from './dto/apply-seller.dto';
 import { UpdateSellerProfileDto } from './dto/update-seller-profile.dto';
@@ -8,6 +17,16 @@ import { Roles } from '../common/decorators/roles.decorator';
 @Controller('v1/sellers')
 export class SellersController {
   constructor(private sellersService: SellersService) {}
+
+  // Upload the KYC document (ID/RCCM photo) BEFORE submitting the application.
+  // Returns the Cloudinary public_id to pass as idDocumentCloudinaryId in the
+  // apply body. Same role set as apply (fresh registrations are role SELLER).
+  @Post('documents')
+  @Roles('BUYER', 'SELLER')
+  @UseInterceptors(FileInterceptor('document'))
+  async uploadDocument(@UploadedFile() file: Express.Multer.File) {
+    return this.sellersService.uploadDocument(file);
+  }
 
   // Accepts BUYER (an existing buyer becoming a seller) AND SELLER (a fresh
   // email registration — register/email assigns role SELLER immediately but

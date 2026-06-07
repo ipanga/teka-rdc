@@ -53,6 +53,15 @@ export class ApplySellerDto {
   @IsNotEmpty({ message: 'La commune est requise' })
   communeId: string;
 
+  // Required: the Cloudinary public_id of the uploaded ID/RCCM photo, returned
+  // by POST /v1/sellers/documents. Constrained to our private documents folder
+  // so a client can't point the application at an arbitrary asset.
+  @Matches(/^teka-rdc\/seller-documents\//, {
+    message: "Document d'identité invalide",
+  })
+  @IsNotEmpty({ message: "La pièce d'identité est requise" })
+  idDocumentCloudinaryId: string;
+
   @IsOptional()
   @IsString()
   description?: string;

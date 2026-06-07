@@ -439,6 +439,12 @@
     "communeLabel": "Commune",
     "communePlaceholder": "Sélectionnez une commune",
     "communeSelectCity": "Sélectionnez d’abord une ville",
-    "cityCommuneRequired": "Veuillez sélectionner une ville et une commune."
+    "cityCommuneRequired": "Veuillez sélectionner une ville et une commune.",
+    "documentLabel": "Pièce d’identité (CNI / passeport / RCCM)",
+    "documentHint": "Photo lisible de votre pièce. JPEG, PNG ou WebP, 5 Mo max.",
+    "documentUploading": "Téléchargement du document...",
+    "documentUploaded": "Document téléchargé ✓",
+    "documentUploadError": "Échec du téléchargement du document. Réessayez.",
+    "documentRequired": "Veuillez téléverser votre pièce d’identité."
   }
 }

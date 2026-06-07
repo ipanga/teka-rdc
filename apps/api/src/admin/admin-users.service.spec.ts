@@ -45,6 +45,7 @@ function makeService() {
     analytics as never,
     email as never,
     sellerNotifications as never,
+    {} as never,
   );
   return { service, prisma, email, sellerNotifications };
 }
@@ -104,6 +105,7 @@ describe('AdminUsersService.findAllUsers — seller phone (QA-4)', () => {
       { capture: jest.fn() } as never,
       {} as never,
       {} as never,
+      {} as never,
     );
     return { service, findMany };
   }
@@ -130,6 +132,48 @@ describe('AdminUsersService.findAllUsers — seller phone (QA-4)', () => {
     expect(or.some((c) => c.sellerProfile?.businessName !== undefined)).toBe(
       true,
     );
+  });
+});
+
+describe('AdminUsersService.getApplicationDocumentUrl (KYC, P2a)', () => {
+  function make(profile: { idDocumentCloudinaryId: string | null } | null) {
+    const prisma = {
+      sellerProfile: { findUnique: jest.fn().mockResolvedValue(profile) },
+    };
+    const cloudinary = {
+      getSignedImageUrl: jest
+        .fn()
+        .mockReturnValue('https://signed.example/doc'),
+    };
+    const service = new AdminUsersService(
+      prisma as never,
+      { capture: jest.fn() } as never,
+      {} as never,
+      {} as never,
+      cloudinary as never,
+    );
+    return { service, cloudinary };
+  }
+
+  it('returns a signed URL when the application has a document', async () => {
+    const { service, cloudinary } = make({
+      idDocumentCloudinaryId: 'teka-rdc/seller-documents/x',
+    });
+    const res = await service.getApplicationDocumentUrl('app1');
+    expect(cloudinary.getSignedImageUrl).toHaveBeenCalledWith(
+      'teka-rdc/seller-documents/x',
+    );
+    expect(res.url).toBe('https://signed.example/doc');
+  });
+
+  it('404s when the application has no document', async () => {
+    const { service } = make({ idDocumentCloudinaryId: null });
+    await expect(service.getApplicationDocumentUrl('app1')).rejects.toThrow();
+  });
+
+  it('404s when the application does not exist', async () => {
+    const { service } = make(null);
+    await expect(service.getApplicationDocumentUrl('nope')).rejects.toThrow();
   });
 });
 

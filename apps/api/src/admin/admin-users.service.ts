@@ -7,6 +7,7 @@ import { ReviewSellerDto } from './dto/review-seller.dto';
 import { PostHogService } from '../analytics/posthog.service';
 import { EmailService } from '../email/email.service';
 import { SellerNotificationService } from '../notifications/seller-notification.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
 @Injectable()
 export class AdminUsersService {
@@ -17,7 +18,29 @@ export class AdminUsersService {
     private analytics: PostHogService,
     private email: EmailService,
     private sellerNotifications: SellerNotificationService,
+    private cloudinary: CloudinaryService,
   ) {}
+
+  /**
+   * Short-lived signed URL to view an applicant's KYC document. The document
+   * is stored privately (authenticated Cloudinary asset), so this signed URL
+   * is the only way to view it; it is generated on demand, never persisted.
+   */
+  async getApplicationDocumentUrl(applicationId: string) {
+    const profile = await this.prisma.sellerProfile.findUnique({
+      where: { id: applicationId },
+      select: { idDocumentCloudinaryId: true },
+    });
+    if (!profile) {
+      throw new NotFoundException('Demande non trouvée');
+    }
+    if (!profile.idDocumentCloudinaryId) {
+      throw new NotFoundException("Aucune pièce d'identité fournie");
+    }
+    return {
+      url: this.cloudinary.getSignedImageUrl(profile.idDocumentCloudinaryId),
+    };
+  }
 
   async findAllUsers(query: SearchUsersDto) {
     const page = query.page || 1;
