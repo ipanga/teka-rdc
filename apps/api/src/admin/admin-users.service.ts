@@ -38,6 +38,18 @@ export class AdminUsersService {
           {
             lastName: { contains: query.search, mode: 'insensitive' as const },
           },
+          // The Vendeurs search placeholder promises "boutique, nom ou
+          // téléphone" — seller phone + shop name live on SellerProfile, not
+          // User (email-registered sellers have User.phone = null).
+          { sellerProfile: { phone: { contains: query.search } } },
+          {
+            sellerProfile: {
+              businessName: {
+                contains: query.search,
+                mode: 'insensitive' as const,
+              },
+            },
+          },
         ],
       }),
     };
@@ -67,6 +79,7 @@ export class AdminUsersService {
             select: {
               id: true,
               businessName: true,
+              phone: true,
               applicationStatus: true,
               rejectionReason: true,
             },
@@ -91,7 +104,12 @@ export class AdminUsersService {
     const user = await this.prisma.user.findUnique({
       where: { id: userId, deletedAt: null },
       include: {
-        sellerProfile: true,
+        sellerProfile: {
+          include: {
+            city: { select: { id: true, name: true } },
+            commune: { select: { id: true, name: true } },
+          },
+        },
         addresses: { where: { deletedAt: null } },
       },
     });

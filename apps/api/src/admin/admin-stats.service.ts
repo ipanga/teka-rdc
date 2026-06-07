@@ -10,6 +10,7 @@ export interface DashboardStats {
   totalCommissionCDF: string;
   pendingPayoutsCount: number;
   pendingPayoutsAmountCDF: string;
+  pendingSellerApplicationsCount: number;
   ordersThisMonth: number;
   revenueThisMonthCDF: string;
 }
@@ -48,6 +49,7 @@ export class AdminStatsService {
       totalRevenueAgg,
       totalCommissionAgg,
       pendingPayoutsAgg,
+      pendingSellerApplicationsCount,
       ordersThisMonth,
       revenueThisMonthAgg,
     ] = await Promise.all([
@@ -92,6 +94,14 @@ export class AdminStatsService {
         },
       }),
 
+      // Pending seller applications awaiting admin review
+      this.prisma.sellerProfile.count({
+        where: {
+          applicationStatus: 'PENDING',
+          deletedAt: null,
+        },
+      }),
+
       // Orders this month
       this.prisma.order.count({
         where: {
@@ -123,6 +133,7 @@ export class AdminStatsService {
       pendingPayoutsAmountCDF: (
         pendingPayoutsAgg._sum.amountCDF ?? BigInt(0)
       ).toString(),
+      pendingSellerApplicationsCount,
       ordersThisMonth,
       revenueThisMonthCDF: (
         revenueThisMonthAgg._sum.totalCDF ?? BigInt(0)

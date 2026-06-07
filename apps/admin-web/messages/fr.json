@@ -149,7 +149,10 @@
     "gmv": "Volume brut (GMV)",
     "period7d": "7 jours",
     "period30d": "30 jours",
-    "period90d": "90 jours"
+    "period90d": "90 jours",
+    "pendingSellerApplicationsTitle": "Demandes vendeurs en attente",
+    "pendingSellerApplicationsSubtitle": "De nouvelles demandes attendent votre approbation.",
+    "pendingSellerApplicationsCta": "Examiner les demandes"
   },
   "Buyers": {
     "title": "Acheteurs",

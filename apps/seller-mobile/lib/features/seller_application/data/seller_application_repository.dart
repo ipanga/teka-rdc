@@ -23,6 +23,22 @@ class CityOption {
   }
 }
 
+/// A selectable commune for the seller application
+/// (GET /v1/cities/:cityId/communes).
+class CommuneOption {
+  final String id;
+  final String name;
+
+  const CommuneOption({required this.id, required this.name});
+
+  factory CommuneOption.fromJson(Map<String, dynamic> json) {
+    return CommuneOption(
+      id: json['id'] as String,
+      name: json['name']?.toString() ?? '',
+    );
+  }
+}
+
 /// Current seller application (GET /v1/sellers/application). `hasApplication`
 /// is false before the first submission; the rest is populated to prefill a
 /// REJECTED application for correction.
@@ -36,6 +52,7 @@ class SellerApplication {
   final String? idType;
   final String? location;
   final String? cityId;
+  final String? communeId;
   final String? description;
 
   const SellerApplication({
@@ -48,6 +65,7 @@ class SellerApplication {
     this.idType,
     this.location,
     this.cityId,
+    this.communeId,
     this.description,
   });
 
@@ -62,6 +80,7 @@ class SellerApplication {
       idType: json['idType'] as String?,
       location: json['location'] as String?,
       cityId: json['cityId'] as String?,
+      communeId: json['communeId'] as String?,
       description: json['description'] as String?,
     );
   }
@@ -88,6 +107,16 @@ class SellerApplicationRepository {
         .toList(growable: false);
   }
 
+  /// GET /v1/cities/:cityId/communes — communes of the selected city.
+  Future<List<CommuneOption>> getCommunes(String cityId) async {
+    final response = await _dio.get('/v1/cities/$cityId/communes');
+    final data = response.data['data'] ?? response.data;
+    return (data as List<dynamic>)
+        .cast<Map<String, dynamic>>()
+        .map(CommuneOption.fromJson)
+        .toList(growable: false);
+  }
+
   /// POST /v1/sellers/apply — submit (or resubmit) the business application.
   /// [phone] must already be normalized to +243XXXXXXXXX.
   Future<void> apply({
@@ -97,6 +126,7 @@ class SellerApplicationRepository {
     required String idNumber,
     required String phone,
     required String location,
+    required String communeId,
     String? cityId,
     String? description,
   }) async {
@@ -109,6 +139,7 @@ class SellerApplicationRepository {
         'idNumber': idNumber,
         'phone': phone,
         'location': location,
+        'communeId': communeId,
         if (cityId != null && cityId.isNotEmpty) 'cityId': cityId,
         if (description != null && description.isNotEmpty)
           'description': description,

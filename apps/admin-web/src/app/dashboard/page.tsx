@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
+import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import { apiFetch } from '@/lib/api-client';
 import {
@@ -23,6 +24,7 @@ interface AdminStats {
   totalSellers: number;
   totalOrders: number;
   totalRevenueCDF: string;
+  pendingSellerApplicationsCount: number;
 }
 
 interface TrendPoint {
@@ -130,6 +132,31 @@ export default function AdminDashboardPage() {
       <p className="text-muted-foreground mb-8">
         {t('welcome')}, {user?.firstName}
       </p>
+
+      {/* Pending seller applications alert — only shown when there are any. */}
+      {!isLoading && (stats?.pendingSellerApplicationsCount ?? 0) > 0 && (
+        <Link
+          href="/dashboard/sellers"
+          className="flex items-center justify-between gap-4 mb-6 p-4 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex items-center justify-center w-9 h-9 rounded-full bg-primary text-white text-sm font-bold">
+              {stats?.pendingSellerApplicationsCount}
+            </span>
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {t('pendingSellerApplicationsTitle')}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {t('pendingSellerApplicationsSubtitle')}
+              </p>
+            </div>
+          </div>
+          <span className="text-sm font-medium text-primary whitespace-nowrap">
+            {t('pendingSellerApplicationsCta')} &rarr;
+          </span>
+        </Link>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

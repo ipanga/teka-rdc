@@ -1,17 +1,26 @@
-import { ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { SellersService } from './sellers.service';
 import { ApplySellerDto } from './dto/apply-seller.dto';
 
-// Minimal Prisma mock — only the sellerProfile delegate methods apply() touches.
+const COMMUNE_ID = '02000000-0000-0000-0000-000000000001';
+const CITY_ID = '01000000-0000-0000-0000-000000000002';
+
+// Minimal Prisma mock — the sellerProfile + commune delegates apply() touches.
 function makeService() {
   const sellerProfile = {
     findUnique: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
   };
-  const prisma = { sellerProfile };
+  const commune = {
+    // Default: the commune resolves to CITY_ID (apply derives cityId from it).
+    findUnique: jest
+      .fn()
+      .mockResolvedValue({ id: COMMUNE_ID, cityId: CITY_ID }),
+  };
+  const prisma = { sellerProfile, commune };
   const service = new SellersService(prisma as never);
-  return { service, sellerProfile };
+  return { service, sellerProfile, commune };
 }
 
 const dto: ApplySellerDto = {
@@ -21,13 +30,27 @@ const dto: ApplySellerDto = {
   idType: 'national_id',
   phone: '+243812345678',
   location: 'Lubumbashi, Katuba',
+  communeId: COMMUNE_ID,
   description: 'Vente de fournitures',
+};
+
+// What apply() persists: dto minus cityId, with cityId derived from the commune.
+const persisted = {
+  businessName: dto.businessName,
+  businessType: dto.businessType,
+  idNumber: dto.idNumber,
+  idType: dto.idType,
+  phone: dto.phone,
+  location: dto.location,
+  communeId: COMMUNE_ID,
+  description: dto.description,
+  cityId: CITY_ID,
 };
 
 const userId = '10000000-0000-0000-0000-000000000abc';
 
 describe('SellersService.apply', () => {
-  it('creates a PENDING profile when none exists (fresh applicant)', async () => {
+  it('creates a PENDING profile with cityId derived from the commune', async () => {
     const { service, sellerProfile } = makeService();
     sellerProfile.findUnique.mockResolvedValue(null);
     sellerProfile.create.mockResolvedValue({
@@ -38,8 +61,18 @@ describe('SellersService.apply', () => {
     await service.apply(userId, dto);
 
     expect(sellerProfile.create).toHaveBeenCalledWith({
-      data: { ...dto, userId },
+      data: { ...persisted, userId },
     });
+  });
+
+  it('rejects with 400 when the commune does not exist', async () => {
+    const { service, commune, sellerProfile } = makeService();
+    commune.findUnique.mockResolvedValue(null);
+
+    await expect(service.apply(userId, dto)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(sellerProfile.create).not.toHaveBeenCalled();
   });
 
   it('rejects with 409 when an application is already PENDING', async () => {
@@ -83,7 +116,7 @@ describe('SellersService.apply', () => {
     expect(sellerProfile.update).toHaveBeenCalledWith({
       where: { userId },
       data: {
-        ...dto,
+        ...persisted,
         applicationStatus: 'PENDING',
         rejectionReason: null,
         approvedAt: null,
