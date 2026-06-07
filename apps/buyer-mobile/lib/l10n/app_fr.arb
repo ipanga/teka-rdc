@@ -244,7 +244,6 @@
   "cityRequired": "Selectionnez une ville",
   "communeRequired": "Selectionnez une commune",
   "cancel": "Annuler",
-
   "profileTitle": "Mon profil",
   "profileSubtitle": "Gerez vos informations personnelles",
   "profileSectionAvatar": "Photo de profil",
@@ -275,9 +274,21 @@
   "profileSessionsHint": "Liste des appareils actuellement connectes a votre compte. Revoquez ceux que vous ne reconnaissez pas.",
   "profileSessionCurrent": "Cet appareil",
   "profileSessionConnectedOn": "Connecte le {date}",
-  "@profileSessionConnectedOn": { "placeholders": { "date": { "type": "String" } } },
+  "@profileSessionConnectedOn": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
   "profileSessionIp": "IP {ip}",
-  "@profileSessionIp": { "placeholders": { "ip": { "type": "String" } } },
+  "@profileSessionIp": {
+    "placeholders": {
+      "ip": {
+        "type": "String"
+      }
+    }
+  },
   "profileSessionIpUnknown": "IP inconnue",
   "profileSessionRevoke": "Deconnecter",
   "profileSessionRevokeAll": "Deconnecter les autres appareils",
@@ -286,10 +297,17 @@
   "profileSessionRevokeError": "Impossible de deconnecter cet appareil",
   "profileSessionsEmpty": "Aucun autre appareil connecte",
   "profileSessionsLoadError": "Impossible de charger la liste des appareils",
-
   "connectivityBannerDisconnected": "Pas de connexion internet",
   "connectivityBannerNoInternet": "Internet limité",
   "connectivityBannerUnstable": "Connexion instable",
   "connectivityBannerReconnecting": "Reconnexion...",
-  "connectivityBannerRestored": "Connexion rétablie"
+  "connectivityBannerRestored": "Connexion rétablie",
+  "productUnitsSold": "{count, plural, one{{count} vendu} other{{count} vendus}}",
+  "@productUnitsSold": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
 }
