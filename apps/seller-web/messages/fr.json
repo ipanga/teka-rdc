@@ -435,6 +435,10 @@
     "descriptionLabel": "Description de votre activité (facultatif)",
     "submit": "Soumettre ma demande",
     "submitError": "Impossible de soumettre votre demande. Réessayez.",
-    "invalidPhone": "Numéro de téléphone invalide. Entrez un numéro congolais valide."
+    "invalidPhone": "Numéro de téléphone invalide. Entrez un numéro congolais valide.",
+    "communeLabel": "Commune",
+    "communePlaceholder": "Sélectionnez une commune",
+    "communeSelectCity": "Sélectionnez d’abord une ville",
+    "cityCommuneRequired": "Veuillez sélectionner une ville et une commune."
   }
 }

@@ -30,12 +30,14 @@ class _SellerApplicationScreenState
   String _businessType = 'individual';
   String _idType = 'national_id';
   String? _cityId;
+  String? _communeId;
 
   bool _loading = true;
   bool _submitting = false;
   String? _error;
   SellerApplication? _application;
   List<CityOption> _cities = const [];
+  List<CommuneOption> _communes = const [];
 
   @override
   void initState() {
@@ -81,12 +83,20 @@ class _SellerApplicationScreenState
         _businessType = app.businessType ?? 'individual';
         _idType = app.idType ?? 'national_id';
         _cityId = app.cityId;
+        _communeId = app.communeId;
       }
+
+      // Load communes for a prefilled (REJECTED) city so the dropdown can
+      // show the saved commune.
+      final communes = _cityId != null && _cityId!.isNotEmpty
+          ? await repo.getCommunes(_cityId!)
+          : <CommuneOption>[];
 
       if (mounted) {
         setState(() {
           _application = app;
           _cities = cities;
+          _communes = communes;
           _loading = false;
         });
       }
@@ -100,6 +110,25 @@ class _SellerApplicationScreenState
     }
   }
 
+  /// City changed: reset the chosen commune and reload the commune list.
+  Future<void> _onCityChanged(String? cityId) async {
+    setState(() {
+      _cityId = cityId;
+      _communeId = null;
+      _communes = const [];
+    });
+    if (cityId == null || cityId.isEmpty) return;
+    try {
+      final communes =
+          await ref.read(sellerApplicationRepositoryProvider).getCommunes(cityId);
+      if (mounted && _cityId == cityId) {
+        setState(() => _communes = communes);
+      }
+    } catch (_) {
+      // Non-critical: an empty commune list just blocks submission until retry.
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -107,6 +136,12 @@ class _SellerApplicationScreenState
     if (normalizedPhone == null) {
       setState(() => _error =
           'Numéro de téléphone invalide. Entrez un numéro congolais valide.');
+      return;
+    }
+
+    if (_cityId == null || _cityId!.isEmpty || _communeId == null) {
+      setState(() =>
+          _error = 'Veuillez sélectionner une ville et une commune.');
       return;
     }
 
@@ -124,6 +159,7 @@ class _SellerApplicationScreenState
             phone: normalizedPhone,
             location: _locationController.text.trim(),
             cityId: _cityId,
+            communeId: _communeId!,
             description: _descriptionController.text.trim(),
           );
       // Refresh auth so /me reflects PENDING and the router gate keeps the
@@ -344,7 +380,30 @@ class _SellerApplicationScreenState
                         child: Text('${c.name} (${c.province})'),
                       ))
                   .toList(),
-              onChanged: (v) => setState(() => _cityId = v),
+              onChanged: (v) => _onCityChanged(v),
+              validator: (v) =>
+                  (v == null || v.isEmpty) ? 'Ville requise' : null,
+            ),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              initialValue: _communeId,
+              decoration: InputDecoration(
+                labelText: 'Commune',
+                hintText: _cityId == null
+                    ? 'Sélectionnez d’abord une ville'
+                    : null,
+              ),
+              items: _communes
+                  .map((c) => DropdownMenuItem(
+                        value: c.id,
+                        child: Text(c.name),
+                      ))
+                  .toList(),
+              onChanged: _cityId == null
+                  ? null
+                  : (v) => setState(() => _communeId = v),
+              validator: (v) =>
+                  (v == null || v.isEmpty) ? 'Commune requise' : null,
             ),
             const SizedBox(height: 16),
             TextFormField(

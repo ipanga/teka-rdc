@@ -104,7 +104,12 @@ export class AdminUsersService {
     const user = await this.prisma.user.findUnique({
       where: { id: userId, deletedAt: null },
       include: {
-        sellerProfile: true,
+        sellerProfile: {
+          include: {
+            city: { select: { id: true, name: true } },
+            commune: { select: { id: true, name: true } },
+          },
+        },
         addresses: { where: { deletedAt: null } },
       },
     });

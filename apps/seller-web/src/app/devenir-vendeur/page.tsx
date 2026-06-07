@@ -13,6 +13,11 @@ interface City {
   province: string;
 }
 
+interface Commune {
+  id: string;
+  name: string;
+}
+
 interface ApplicationState {
   hasApplication: boolean;
   applicationStatus?: 'PENDING' | 'APPROVED' | 'REJECTED';
@@ -24,6 +29,7 @@ interface ApplicationState {
   phone?: string;
   location?: string;
   cityId?: string | null;
+  communeId?: string | null;
   description?: string | null;
 }
 
@@ -43,6 +49,7 @@ export default function DevenirVendeurPage() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<ApplicationState | null>(null);
   const [cities, setCities] = useState<City[]>([]);
+  const [communes, setCommunes] = useState<Commune[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -54,7 +61,29 @@ export default function DevenirVendeurPage() {
   const [phone, setPhone] = useState('');
   const [location, setLocation] = useState('');
   const [cityId, setCityId] = useState('');
+  const [communeId, setCommuneId] = useState('');
   const [description, setDescription] = useState('');
+
+  // Load the communes for the selected city (the Commune dropdown depends on
+  // the chosen Ville). communeId is reset by the city onChange, not here, so a
+  // REJECTED-application prefill keeps its saved commune.
+  useEffect(() => {
+    if (!cityId) {
+      setCommunes([]);
+      return;
+    }
+    let cancelled = false;
+    apiFetch<Commune[]>(`/v1/cities/${cityId}/communes`)
+      .then((res) => {
+        if (!cancelled) setCommunes(res.data);
+      })
+      .catch(() => {
+        if (!cancelled) setCommunes([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cityId]);
 
   // Redirect unauthenticated users to login once the auth state resolves.
   useEffect(() => {
@@ -89,6 +118,7 @@ export default function DevenirVendeurPage() {
           setIdNumber(app.idNumber ?? '');
           setLocation(app.location ?? '');
           setCityId(app.cityId ?? '');
+          setCommuneId(app.communeId ?? '');
           setDescription(app.description ?? '');
         }
         setStatus(app);
@@ -114,6 +144,11 @@ export default function DevenirVendeurPage() {
       return;
     }
 
+    if (!cityId || !communeId) {
+      setError(t('cityCommuneRequired'));
+      return;
+    }
+
     setSubmitting(true);
     try {
       await apiFetch('/v1/sellers/apply', {
@@ -125,7 +160,8 @@ export default function DevenirVendeurPage() {
           idNumber,
           phone: normalizedPhone,
           location,
-          ...(cityId ? { cityId } : {}),
+          cityId,
+          communeId,
           ...(description ? { description } : {}),
         }),
       });
@@ -291,13 +327,44 @@ export default function DevenirVendeurPage() {
               <select
                 id="cityId"
                 value={cityId}
-                onChange={(e) => setCityId(e.target.value)}
+                onChange={(e) => {
+                  // Changing the city invalidates the chosen commune.
+                  setCityId(e.target.value);
+                  setCommuneId('');
+                }}
                 className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                required
               >
                 <option value="">{t('cityPlaceholder')}</option>
                 {cities.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name} ({c.province})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="communeId"
+                className="block text-sm font-medium text-foreground mb-1"
+              >
+                {t('communeLabel')}
+              </label>
+              <select
+                id="communeId"
+                value={communeId}
+                onChange={(e) => setCommuneId(e.target.value)}
+                disabled={!cityId}
+                className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
+                required
+              >
+                <option value="">
+                  {cityId ? t('communePlaceholder') : t('communeSelectCity')}
+                </option>
+                {communes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
                   </option>
                 ))}
               </select>
