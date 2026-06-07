@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/connectivity/connectivity_provider.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
@@ -24,6 +25,17 @@ class CheckoutScreen extends ConsumerStatefulWidget {
 
 class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   final _noteController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Buyer-owned UI event — one per checkout entry (parity with buyer-web).
+    final cart = ref.read(cartProvider);
+    const PosthogAnalytics().capture('checkout_started', properties: {
+      'item_count': cart.totalItems,
+      'cart_value_cdf': int.tryParse(cart.totalCDF) ?? 0,
+    });
+  }
 
   @override
   void dispose() {
