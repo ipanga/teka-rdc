@@ -46,6 +46,9 @@ export interface BrowseProduct {
   cityId?: string | null;
   citySlug?: string | null;
   cityName?: string | null;
+  // Best-seller social proof: total delivered units. Rendered as "X vendus"
+  // only when > 0.
+  unitsSold?: number | null;
 }
 
 /** Specification item */
@@ -79,6 +82,7 @@ export interface ProductDetail {
     breadcrumb: { id: string; slug: string | null; name: string }[];
   };
   specifications: ProductSpecification[];
+  unitsSold?: number | null;
 }
 
 /** Cursor-based pagination */

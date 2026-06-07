@@ -6,13 +6,27 @@
 
 ## Active initiative
 
-**Initiative #1 — Real Catalog & Merchant Supply** (started 2026-06-07). Audit done; goal = move from the
-seeded "Teka RDC Officiel" sample catalog (100% of live catalog; 0 real merchants) to real
-merchant-supplied inventory. **Locked decisions:** KYC = ID/RCCM photo + manual admin review (Phase 2);
-sample retirement = `isDemo` flag + rank real-above-demo + SEO-safe per-category phase-out (Phase 3).
-**Phases:** 1 self-onboarding UI ✅ → 2 KYC docs (NEXT, review-gated) → 3 sample-catalog
-coexistence/retirement → 4 payouts + moderation-at-scale → 5 (opt) seller empowerment. Out of scope:
-external RCCM/sanctions integrations, vision-API moderation, variant SKUs, 3rd-party inventory sync.
+**Initiative #2 — Discovery & Conversion** (started 2026-06-07). **Phase A — best-seller ranking + social
+proof: COMPLETE (#322–#324 — releasing now).** Decisions: popularity = denormalized **all-time
+`Product.unitsSold`** (incremented on delivery; backfilled). A1 (#322) backend: `Product.unitsSold` +
+index + migration `2026-06-07_product_units_sold.sql`; `deliverOrder` increments; `popularity` sort →
+`[{isDemo:'asc'},{unitsSold:'desc'},{createdAt:'desc'}]`; `unitsSold` in browse list + detail. A2 (#323)
+buyer-web "X vendus" on card + PDP. A3 (#324) buyer-mobile mirror. units-sold migration applied to dev;
+**prod via the Action at release.** **Phase A review gate next.** Deferred (later gates): **B**
+search relevance/autocomplete, **C** attribute filters + related products, **D** conversion polish. Out
+of scope: external search engine, ML recs, persisted view-tracking.
+
+**Initiative #1 — Real Catalog & Merchant Supply: CLOSED OUT 2026-06-07** (code complete + shipped +
+verified on prod). Phase 1 self-onboarding (#304–#308) + Phase 1 QA (#309–#313) + Phase 2 KYC
+(#314–#318) + Phase 3 coexistence (#319–#321). 4 idempotent migrations applied to prod + dev
+(`seed_delivery_zones`, `seller_commune`, `seller_kyc_document`, `product_is_demo`). A real merchant can
+register → apply (with private KYC doc) → admin review (email+push decision, signed-URL doc view) → list
+products that rank above the demo catalog; admins have approval + `catalog-coverage` tooling. **Deferred:
+P3c demo retirement (hide + 301-to-category)** — only operable/testable once real merchants populate
+categories; P3a ranking holds the line meanwhile. **Remaining work is operational (recruit real
+merchants), not code.** Decisions: apply guard BUYER+SELLER; cityId derived from commune; KYC
+private+signed+manual; isDemo on Product, real-above-demo primary sort. Out of scope (decided): external
+RCCM/sanctions, vision moderation, variant SKUs, 3rd-party inventory sync. Full narrative in `PROGRESS.md`.
 
 **Phase 3 — Sample-catalog coexistence (2026-06-07, #319–#320 — releasing now).** Decisions: build
 P3a+P3b now, defer P3c; retirement (later) = hide + 301-to-category. **P3a** (#319): `Product.isDemo`

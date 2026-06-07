@@ -32,4 +32,16 @@ describe('BrowseService.browseProducts — real-above-demo ranking (P3a)', () =>
     expect(orderBy[0]).toEqual({ isDemo: 'asc' });
     expect(orderBy[1]).toEqual({ priceCDF: 'asc' });
   });
+
+  it('popularity ranks by unitsSold (best-seller) with recency as tiebreaker', async () => {
+    const { service, findMany } = makeService();
+    await service.browseProducts({ sortBy: 'popularity' } as never);
+    const calls = findMany.mock.calls as unknown as FindManyArg[][];
+    const { orderBy } = calls[0][0];
+    expect(orderBy).toEqual([
+      { isDemo: 'asc' },
+      { unitsSold: 'desc' },
+      { createdAt: 'desc' },
+    ]);
+  });
 });

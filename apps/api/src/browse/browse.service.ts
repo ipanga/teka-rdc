@@ -170,10 +170,17 @@ export class BrowseService {
         break;
       case 'popularity':
       default:
-        primarySort = { createdAt: 'desc' }; // TODO: Add popularity metric later
+        // Real best-seller ranking: most delivered units first, recency as the
+        // tiebreaker so new products aren't permanently buried behind zeros.
+        primarySort = { unitsSold: 'desc' };
         break;
     }
-    const orderBy: Record<string, string>[] = [{ isDemo: 'asc' }, primarySort];
+    // Real above demo, then the chosen sort. For popularity we add a recency
+    // tiebreaker after unitsSold.
+    const orderBy: Record<string, string>[] =
+      query.sortBy === 'popularity' || !query.sortBy
+        ? [{ isDemo: 'asc' }, primarySort, { createdAt: 'desc' }]
+        : [{ isDemo: 'asc' }, primarySort];
 
     // Cursor-based pagination: fetch limit+1 to check hasMore
     const products = await this.prisma.product.findMany({
@@ -197,6 +204,7 @@ export class BrowseService {
         cityId: true,
         avgRating: true,
         totalReviews: true,
+        unitsSold: true,
         createdAt: true,
         // City slug/name lets clients build `/{ville}/{slug}-{shortCode}` URLs
         // on mixed-city listings (e.g. the global homepage).
@@ -246,6 +254,7 @@ export class BrowseService {
       cityName: p.city?.name ?? null,
       avgRating: p.avgRating,
       totalReviews: p.totalReviews,
+      unitsSold: p.unitsSold,
       image: p.images[0] ?? null,
       seller: {
         businessName: p.seller?.sellerProfile?.businessName ?? 'Vendeur',
