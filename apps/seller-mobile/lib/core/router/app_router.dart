@@ -22,6 +22,7 @@ import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/promotions/presentation/screens/create_promotion_screen.dart';
 import '../../features/promotions/presentation/screens/promotions_list_screen.dart';
 import '../../features/reviews/presentation/screens/seller_reviews_screen.dart';
+import '../../features/seller_application/presentation/screens/seller_application_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   // Build GoRouter exactly once. Auth state changes trigger redirect
@@ -44,6 +45,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isWrongRole = status == AuthStatus.wrongRole;
       final isAuthRoute = state.matchedLocation.startsWith('/auth');
 
+      // Approval gate: a seller without an APPROVED SellerProfile (fresh
+      // registration → role SELLER but no profile, or PENDING/REJECTED) is
+      // confined to the application flow until an admin approves. Status is
+      // read from /me's sellerProfile (login/register populate it via
+      // checkAuthStatus).
+      final sellerProfile =
+          authState.user?['sellerProfile'] as Map<String, dynamic>?;
+      final appStatus = sellerProfile?['applicationStatus'] as String?;
+      final needsApplication = isAuth && appStatus != 'APPROVED';
+      final isApplicationRoute = state.matchedLocation == '/devenir-vendeur';
+
       // Still loading, don't redirect
       if (isLoading) return null;
 
@@ -58,6 +70,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       // Authenticated and on auth route -> redirect to home
       if (isAuth && isAuthRoute) return '/';
+
+      // Unapproved seller -> confine to the application flow.
+      if (needsApplication && !isApplicationRoute) return '/devenir-vendeur';
+
+      // Approved seller landing on the application flow -> home.
+      if (isAuth && !needsApplication && isApplicationRoute) return '/';
 
       return null;
     },
@@ -169,6 +187,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/reviews',
         builder: (context, state) => const SellerReviewsScreen(),
+      ),
+
+      // Seller business application (onboarding gate)
+      GoRoute(
+        path: '/devenir-vendeur',
+        builder: (context, state) => const SellerApplicationScreen(),
       ),
 
       // Profile

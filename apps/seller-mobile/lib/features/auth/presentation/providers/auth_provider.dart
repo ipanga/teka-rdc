@@ -88,8 +88,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> loginWithEmail(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final data = await _authRepository.loginWithEmail(email, password);
-      _applyLoggedInUser(data['user'] as Map<String, dynamic>?);
+      await _authRepository.loginWithEmail(email, password);
+      // Re-fetch via /me so the user carries sellerProfile (the login
+      // response omits it) — the router's application gate reads
+      // sellerProfile.applicationStatus.
+      await checkAuthStatus();
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
       rethrow;
@@ -104,15 +107,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
   ) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final data = await _authRepository.registerWithEmail(
+      await _authRepository.registerWithEmail(
         email,
         password,
         firstName,
         lastName,
       );
-      // Note: new email registrations land as BUYER role initially.
-      // Seller application is a separate flow (apply from dashboard).
-      _applyLoggedInUser(data['user'] as Map<String, dynamic>?);
+      // register/email assigns role SELLER immediately but creates no
+      // SellerProfile — the seller must still submit a business application
+      // (/devenir-vendeur). Re-fetch via /me so the gate sees no approved
+      // profile and routes to the application flow.
+      await checkAuthStatus();
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
       rethrow;
@@ -133,23 +138,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
   Future<void> logout() async {
     await _authRepository.logout();
     state = const AuthState(status: AuthStatus.unauthenticated);
-  }
-
-  void _applyLoggedInUser(Map<String, dynamic>? user) {
-    final role = user?['role'] as String?;
-    if (role == 'SELLER' || role == 'ADMIN') {
-      state = state.copyWith(
-        status: AuthStatus.authenticated,
-        user: user,
-        isLoading: false,
-      );
-    } else {
-      state = state.copyWith(
-        status: AuthStatus.wrongRole,
-        user: user,
-        isLoading: false,
-      );
-    }
   }
 }
 
