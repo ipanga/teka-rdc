@@ -1,15 +1,18 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { useRouter } from 'next/navigation';
+import { apiFetch } from '@/lib/api-client';
 
 interface NavItem {
   href: string;
   label: string;
   icon: string;
+  badge?: number;
 }
 
 export function Sidebar() {
@@ -19,10 +22,34 @@ export function Sidebar() {
   const logout = useAuthStore((s) => s.logout);
   const router = useRouter();
 
+  // Pending seller applications → a count badge on the Vendeurs nav item, so
+  // admins see new applications awaiting review without opening the page.
+  const [pendingSellers, setPendingSellers] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    apiFetch<{ pendingSellerApplicationsCount?: number }>('/v1/admin/stats')
+      .then((res) => {
+        if (!cancelled) {
+          setPendingSellers(res.data.pendingSellerApplicationsCount ?? 0);
+        }
+      })
+      .catch(() => {
+        // Non-critical: a failed stats fetch just hides the badge.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
   const navItems: NavItem[] = [
     { href: '/dashboard', label: t('dashboard'), icon: '\u2302' },
     { href: '/dashboard/buyers', label: t('buyers'), icon: '\u2637' },
-    { href: '/dashboard/sellers', label: t('sellers'), icon: '\u2606' },
+    {
+      href: '/dashboard/sellers',
+      label: t('sellers'),
+      icon: '\u2606',
+      badge: pendingSellers,
+    },
     { href: '/dashboard/admins', label: t('admins'), icon: '\u272a' },
     { href: '/dashboard/categories', label: t('categories'), icon: '\u2630' },
     { href: '/dashboard/products', label: t('products'), icon: '\u2610' },
@@ -79,7 +106,12 @@ export function Sidebar() {
             }`}
           >
             <span className="text-lg">{item.icon}</span>
-            {item.label}
+            <span className="flex-1">{item.label}</span>
+            {item.badge ? (
+              <span className="ml-auto inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary text-white text-xs font-semibold">
+                {item.badge}
+              </span>
+            ) : null}
           </Link>
         ))}
       </nav>
