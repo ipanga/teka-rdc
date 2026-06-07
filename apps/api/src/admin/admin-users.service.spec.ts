@@ -93,3 +93,53 @@ describe('AdminUsersService.reviewSellerApplication notifications', () => {
     ).not.toHaveBeenCalled();
   });
 });
+
+describe('AdminUsersService.findAllUsers — seller phone (QA-4)', () => {
+  function makeListService() {
+    const findMany = jest.fn().mockResolvedValue([]);
+    const count = jest.fn().mockResolvedValue(0);
+    const prisma = { user: { findMany, count } };
+    const service = new AdminUsersService(
+      prisma as never,
+      { capture: jest.fn() } as never,
+      {} as never,
+      {} as never,
+    );
+    return { service, findMany };
+  }
+
+  it('selects SellerProfile.phone so the admin list can render it', async () => {
+    const { service, findMany } = makeListService();
+    await service.findAllUsers({ role: 'SELLER' } as never);
+    const calls = findMany.mock.calls as unknown as FindManyArg[][];
+    const arg = calls[0][0];
+    expect(arg.select.sellerProfile.select.phone).toBe(true);
+  });
+
+  it('search matches SellerProfile phone + businessName, not just User fields', async () => {
+    const { service, findMany } = makeListService();
+    await service.findAllUsers({ search: '0991427171' } as never);
+    const calls = findMany.mock.calls as unknown as FindManyArg[][];
+    const arg = calls[0][0];
+    const or = arg.where.OR ?? [];
+    expect(or).toEqual(
+      expect.arrayContaining([
+        { sellerProfile: { phone: { contains: '0991427171' } } },
+      ]),
+    );
+    expect(or.some((c) => c.sellerProfile?.businessName !== undefined)).toBe(
+      true,
+    );
+  });
+});
+
+interface OrClause {
+  sellerProfile?: {
+    phone?: { contains: string };
+    businessName?: { contains: string };
+  };
+}
+interface FindManyArg {
+  select: { sellerProfile: { select: Record<string, boolean> } };
+  where: { OR?: OrClause[] };
+}

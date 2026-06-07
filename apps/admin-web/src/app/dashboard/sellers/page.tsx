@@ -7,6 +7,7 @@ import { apiFetch } from '@/lib/api-client';
 interface SellerProfileLite {
   id: string;
   businessName: string;
+  phone: string | null;
   applicationStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
   rejectionReason: string | null;
 }
@@ -208,7 +209,7 @@ export default function SellersPage() {
                       {u.firstName || u.lastName ? `${u.firstName || ''} ${u.lastName || ''}`.trim() : '—'}
                     </td>
                     <td className="px-4 py-3 text-sm text-foreground">{u.email ?? '—'}</td>
-                    <td className="px-4 py-3 text-sm text-foreground">{u.phone ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm text-foreground">{sp?.phone ?? u.phone ?? '—'}</td>
                     <td className="px-4 py-3">
                       {appStatus ? (
                         <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${appStatusClass(appStatus)}`}>
