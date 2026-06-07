@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Language:** French.
 **Launch Markets:** Haut-Katanga and Lualaba provinces — specifically Lubumbashi, Likasi, and Kolwezi. Architecture must support future expansion to other provinces and towns without structural refactoring.
 
-**Status (May 2026):** Feature-complete. All 8 phases of the original spec (auth → optimization) have shipped. Day-to-day work is now maintenance, refactors, and incremental features — not greenfield phase work. The "Implementation Phases" section below is preserved as historical context, not as a backlog.
+**Status (Jun 2026):** Feature-complete across web + mobile. All 8 build phases shipped; day-to-day work is maintenance, refactors, and incremental features — not greenfield phase work. Original feature spec + phase history live in `docs/product-spec.md`; chronological initiative history in `PROGRESS.md`; in-flight work in `STATUS.md`.
 
 ---
 
@@ -120,17 +120,17 @@ Before making ANY architectural or UX decision, internalize these constraints:
 | Runtime | Node.js + NestJS | Enterprise-grade, modular, TypeScript-native |
 | Database | PostgreSQL | Cloud-hosted (Neon, Supabase, or Railway). Connection string in env files |
 | ORM | Prisma | Type-safe queries, migrations, seeding |
-| Cache & Queues | **Removed (Mar 2026)** | Redis was removed. API-level throttling via `@nestjs/throttler` (in-memory). The OTP storage tables that briefly replaced Redis were themselves removed in May 2026 when phone-OTP auth was deleted. |
-| Auth | JWT (access) + Refresh Tokens, email/password (all roles) | See Rule 12. Phone-OTP auth + OTP infrastructure removed in May 2026; Google OAuth removed April 2026. |
-| Media Storage | Cloudinary | Image upload, transformation, CDN delivery. Max 5MB, auto-compress to WebP. |
-| Email Service | Resend.com | Transactional emails — French templates in `apps/api/src/email/templates/`. |
-| Push | Firebase Cloud Messaging | Primary notification channel for buyers + sellers (order events) and admin broadcasts. `PushService.sendToUser()` multicasts to all active device tokens for a user; auto-deactivates rejected tokens. |
-| Payments | COD only | `CheckoutService` writes a `Transaction { provider: COD, status: PENDING }` row synchronously; `SellerOrdersService.markDelivered()` flips it to `COMPLETED`. No external provider call, no webhook. The `PaymentMethod.MOBILE_MONEY` + `TransactionProvider.FLEXPAY` enum values stay on the schema for historical rows; new rows are always COD. |
-| Reverse Proxy | NGINX | SSL termination, routing to services, rate limiting, gzip. Dev: `nginx/nginx.conf`. Prod: `nginx/nginx.prod.conf`. |
-| Containerization | Docker + Docker Compose | 5 services in dev (api, buyer-web, seller-web, admin-web, nginx). Cloud DB — no local Postgres. |
-| CI/CD | GitHub Actions | Lint → Test → Build → Deploy pipeline |
-| Monitoring | Prometheus + Grafana | Health checks, API latency, error rates, queue depth |
-| Product analytics | PostHog (all 6 surfaces) + Microsoft Clarity (buyer-web + seller-web) | PostHog (`docs/analytics.md`): one US-Cloud project across api (`posthog-node`, server-owned transactional events), the 3 web apps (`posthog-js` — pageviews, autocapture, session replay; buyer-web also has custom UI events), and both Flutter apps (`posthog_flutter` — screen + lifecycle + identity). `distinctId = user.id` everywhere; identity carries id+role only. Each event has ONE authoritative owner (server = transactional, client = UI-intent — no duplication). Clarity (`docs/clarity.md`): heatmaps + recordings, web only. |
+| Cache & Queues | **None** (Redis removed Mar 2026) | API throttling via `@nestjs/throttler` (in-memory). |
+| Auth | JWT access + refresh; role-specific | Buyers = WhatsApp OTP (Gupshup); sellers/admins = email+password. See **Rule 12**. |
+| Media Storage | Cloudinary | Max 5MB, auto-compress to WebP. |
+| Email Service | Resend.com | French templates in `apps/api/src/email/templates/`. |
+| Push | Firebase Cloud Messaging | Primary order-event + broadcast channel. See **Rule 14** + `docs/push-notifications.md`. |
+| Payments | **COD only** | `CheckoutService` writes `Transaction{provider:COD}`; `markDelivered()` → `COMPLETED`. No provider/webhook. `MOBILE_MONEY`/`FLEXPAY` enums kept for historical rows. |
+| Reverse Proxy | NGINX | SSL, routing, rate limiting, gzip. `nginx/nginx.conf` (dev) / `nginx.prod.conf`. |
+| Containerization | Docker + Docker Compose | 5 dev services (api, 3 web, nginx). Cloud DB — no local Postgres. |
+| CI/CD | GitHub Actions | Lint → type-check → test → build → deploy. |
+| Monitoring | Prometheus + Grafana; Sentry | Health/latency/errors. Sentry: `docs/sentry.md`. |
+| Product analytics | PostHog (6 surfaces) + Clarity (web) | `distinctId=user.id`; identity = id+role only; one authoritative owner per event. Details: `docs/analytics.md` + `docs/clarity.md`. |
 
 ### Frontend & Production URLs
 
@@ -161,54 +161,22 @@ Both apps target Android first (APK distribution + Play Store). iOS as future ph
 
 ### Repository Layout
 
-This is a **pnpm workspace** monorepo. The flat `api/`, `buyer-web/`, etc. layout described in earlier drafts of this doc is *not* what's on disk — everything sits under `apps/*` or `packages/*`.
+**pnpm workspace** monorepo — everything is under `apps/*` or `packages/*` (no flat `api/`, `buyer-web/`):
 
-```
-teka-rdc/
-├── CLAUDE.md                    # This file
-├── CONTRIBUTING.md              # Branching, merge policy, pre-push hook setup
-├── PROGRESS.md                  # Historical development progress
-├── docker-compose.yml           # Dev stack (5 services, no local DB/Redis)
-├── docker-compose.prod.yml      # Prod stack (cloud DB, SSL via nginx.prod.conf)
-├── .env.development             # Active dev env (root-level, NOT per-app)
-├── .env.production              # Active prod env
-├── pnpm-workspace.yaml          # packages: apps/*, packages/*
-├── tsconfig.base.json           # Root TS config inherited by apps
-├── nginx/                       # nginx.conf (dev) + nginx.prod.conf
-├── scripts/                     # ruleset-main.json, run-prod-sql.sh
-├── tasks/                       # Historical tracker files from past refactors (not an active backlog)
-├── apps/
-│   ├── api/                     # NestJS 11 backend (port 5050)
-│   │   ├── src/                 # Domain modules: auth, users, products, orders, payments,
-│   │   │                        # cart, checkout, reviews, wishlist, messaging, broadcasts,
-│   │   │                        # banners, promotions, content, settings, reports, sms,
-│   │   │                        # email, cloudinary, cities, browse, admin, sellers, ...
-│   │   ├── prisma/              # schema.prisma + seed.ts + migrations/
-│   │   └── test/                # jest-e2e.json + e2e specs
-│   ├── buyer-web/               # Next.js 15 storefront (port 5000, dev 5001) — Tailwind v4
-│   ├── seller-web/              # Next.js 15 seller dashboard (port 5100, basePath /seller)
-│   ├── admin-web/               # Next.js 15 admin panel (port 5200, basePath /admin) — Recharts
-│   ├── buyer-mobile/            # Flutter — Riverpod + go_router + dio
-│   │   └── lib/{app.dart, main.dart, core/, features/, l10n/}
-│   └── seller-mobile/           # Flutter — same stack
-├── packages/
-│   └── shared/                  # @teka/shared — types, constants, Zod validators,
-│                                # phone normalization (normalizeDrcPhone), auth cookie names
-└── docs/
-    ├── architecture.md          # Authoritative service architecture (read this first)
-    ├── analytics.md             # PostHog (buyer-web): analytics, session replay, feature flags
-    ├── clarity.md               # Microsoft Clarity (buyer-web + seller-web): heatmaps + recordings
-    ├── api-reference.md
-    ├── deployment.md            # Includes § 5b: how admins are seeded out-of-band
-    ├── mobile-connectivity.md   # Flutter connectivity state machine + Dio chain (Rule 15)
-    ├── mobile-flavors.md        # Android dev/staging/prod product flavors
-    ├── push-notifications.md    # FCM / PushService setup + device-token lifecycle
-    ├── sentry.md                # Error monitoring wiring (SENTRY_DSN, scrubbing)
-    ├── url-and-seo-strategy.md  # City-first buyer-web URLs, slugs/shortCode, redirects, crawl
-    └── phases/
-```
+- `apps/` — `api` (NestJS 11, :5050), `buyer-web` (Next 15, :5001/5000 → teka.cd), `seller-web` (:5100,
+  basePath `/seller`), `admin-web` (:5200, basePath `/admin`, Recharts), `buyer-mobile` + `seller-mobile`
+  (Flutter — Riverpod + go_router + dio). Each Next app's `src/` is App Router (`app/`, `components/`,
+  `lib/`, `middleware.ts`); the api's `src/` is domain modules; `apps/api/prisma/` holds schema + seed +
+  migrations.
+- `packages/shared` — `@teka/shared`: types, constants, Zod validators, `normalizeDrcPhone`, cookie names.
+- Root: `docker-compose{,.prod}.yml`, `.env.{development,production}` (root-level, NOT per-app),
+  `pnpm-workspace.yaml`, `nginx/`, `scripts/`, `tasks/` (gitignored local trackers — not a backlog).
 
-Each Next.js app's `src/` follows the App Router convention (`app/`, `components/`, `lib/`, `middleware.ts`).
+**`docs/` index** (read `architecture.md` first):
+`architecture.md` (authoritative service architecture) · `product-spec.md` (feature spec + 8-phase
+history) · `url-and-seo-strategy.md` (city-first URLs/slugs/redirects) · `analytics.md` (PostHog) ·
+`clarity.md` (Microsoft Clarity) · `api-reference.md` · `deployment.md` (§5b admin seeding) ·
+`mobile-connectivity.md` (Rule 15) · `mobile-flavors.md` · `push-notifications.md` (FCM) · `sentry.md`.
 
 ---
 
@@ -225,58 +193,20 @@ Key categories (see `.env.example` for the full list with comments):
 - **Payments** — no env vars; COD-only since 2026-05-26 (Flexpay removed)
 - **Media & email** — `CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`
 - **Service URLs & CORS** — `API_URL`, `BUYER_WEB_URL`, `SELLER_WEB_URL`, `ADMIN_WEB_URL`, `CORS_ORIGINS`
-- **Error monitoring** — `SENTRY_DSN` (empty in dev → `Sentry.init` is skipped and `captureException` is a no-op; set in prod once a Sentry project DSN is provisioned), `SENTRY_RELEASE` (optional, populate with the git short-sha so errors group per-release).
-- **Push notifications (FCM)** — `PushService` accepts either of two auth shapes; configure whichever your secret-injection workflow prefers. (1) **File path:** `GOOGLE_APPLICATION_CREDENTIALS` = absolute path to a Firebase Admin SDK service-account JSON. Standard Google SDK convention. Dev: point at `~/Desktop/teka-rdc/buyer/teka-rdc-firebase-adminsdk-*.json`. (2) **Discrete env vars:** `FIREBASE_PROJECT_ID` + `FIREBASE_PRIVATE_KEY` + `FIREBASE_CLIENT_EMAIL`. GitHub-Secrets-friendly — no file mounting. `FIREBASE_PRIVATE_KEY` may carry literal `\n` sequences (env-file / compose loaders rarely unescape); `PushService` normalizes before init, so the raw value from the JSON's `private_key` field works either with or without escape conversion. **The discrete-trio shape takes precedence when both are set.** When neither is configured, `PushService.sendToUser()` is a no-op (mirrors the Sentry pattern). The JSON file must never be committed — `.gitignore` covers `firebase-adminsdk*.json` + `firebase-admin-sdk*.json` + `**/secrets/`.
+- **Error monitoring** — `SENTRY_DSN` (empty in dev → init skipped, `captureException` a no-op), `SENTRY_RELEASE` (optional git short-sha for per-release grouping).
+- **Push notifications (FCM)** — `PushService` takes either `GOOGLE_APPLICATION_CREDENTIALS` (path to a service-account JSON) **or** the discrete trio `FIREBASE_PROJECT_ID`/`FIREBASE_PRIVATE_KEY`/`FIREBASE_CLIENT_EMAIL` (the trio wins when both are set). No-op when neither is configured. Never commit the JSON. **Full setup: `docs/push-notifications.md`.**
+- **WhatsApp OTP (Gupshup)** — `WHATSAPP_PROVIDER` + `GUPSHUP_*` (see Rule 14). Mobile keys are per-flavor.
 
-Removed and **not** in use any longer: `REDIS_URL` (Redis dropped Mar 2026), `OTP_EXPIRY_MINUTES` (OTP infrastructure deleted May 2026), `GOOGLE_*_CLIENT_ID` (Google OAuth removed Apr 2026).
+Removed / not in use: `REDIS_URL`, `OTP_EXPIRY_MINUTES`, `GOOGLE_*_CLIENT_ID`, all `ORANGE_*`/`FLEXPAY_*`/SMS vars.
 
 ---
 
-## 4. CORE FEATURES (Jumia Feature Parity)
+## 4. CORE FEATURES (Jumia feature parity)
 
-Implement ALL of the following, organized by user role. Reference Jumia.cd for exact UX flows.
-
-### 4.1 Buyer Features
-- **Registration/Login:** Email + password only (`POST /v1/auth/register/buyer`, `POST /v1/auth/login/email`). No phone-OTP, no Google OAuth. Password reset via email link.
-- **Homepage:** Featured products, flash deals, categories, banners (admin-managed)
-- **Product Browsing:** Category tree navigation, search with filters (price range, category, location, condition, rating), sort (price, popularity, newest)
-- **Product Detail Page:** Image gallery, description, specifications, seller info, ratings/reviews, related products, "Add to Cart" / "Buy Now"
-- **Shopping Cart:** Add/remove/update quantities, persist cart (logged in = DB, guest = localStorage synced on login)
-- **Checkout Flow:** Address selection/creation (town + neighborhood/avenue, no postal codes), delivery method selection, COD-only summary, place order
-- **Payment:** Cash on Delivery only (since 2026-05-26). `Transaction { provider: COD, status: PENDING }` is written synchronously at checkout, marked `COMPLETED` when the seller marks the order delivered.
-- **Order Tracking:** Real-time status (Pending → Confirmed → Shipped → Out for Delivery → Delivered / Cancelled / Returned). SMS notifications at each stage (skipped if user has no phone on file)
-- **Reviews & Ratings:** Post-delivery review with 1-5 stars + text. Only verified buyers can review
-- **Wishlist / Saved Items**
-- **Notifications:** In-app + SMS for order updates, promotions, price drops
-- **User Profile:** Edit name, email, phone (for delivery), addresses, password
-- **Help/Support:** FAQ, contact form, WhatsApp link
-
-### 4.2 Seller Features
-- **Seller Registration:** Email + password (`POST /v1/auth/register/email`) → application form → admin approval. KYC: name, email, phone (for orders/rider contact), ID, business info, location.
-- **Seller Dashboard:** Sales overview, revenue stats, pending orders, recent activity
-- **Product Management:** CRUD products with: title, description, category, images (up to 8, first = cover), price (CDF and/or USD), stock quantity, condition (new/used), specifications (dynamic by category), delivery options
-- **Order Management:** View incoming orders, accept/reject, mark as shipped, print packing slips
-- **Earnings & Payouts:** View balance, request payout (processed manually by ops via bank-transfer or cash since 2026-05-26; the request body still accepts `mobileMoneyPhone` for back-compat with older seller-app builds, treated as informational metadata only), transaction history
-- **Shop Profile:** Public shop page with logo, description, ratings, product listing
-- **Promotions:** Create discounts, flash deals (subject to admin approval)
-- **Messaging:** Buyer-seller chat for product inquiries
-- **Analytics:** Sales trends, top products, conversion metrics
-
-### 4.3 Admin Features
-- **Dashboard:** Platform KPIs (GMV, orders, users, sellers, revenue)
-- **User Management:** View/search/block buyers and sellers. Role management (super admin, admin, support)
-- **Seller Approval:** Review applications, approve/reject with reason
-- **Product Moderation:** Review flagged products, approve/reject listings, enforce quality standards
-- **Category Management:** CRUD category tree with attributes per category
-- **Order Management:** View all orders, intervene in disputes, process refunds
-- **Banner/Promotion Management:** Create/schedule homepage banners, platform-wide promotions, flash sales
-- **Content Management:** FAQ, help pages, terms & conditions, privacy policy
-- **Delivery Zone Management:** Define towns, neighborhoods, delivery fees by zone
-- **Payment Management:** View transactions (all COD since 2026-05-26), reconcile manual operator-driven payouts to sellers
-- **Commission Settings:** Set platform commission per category or seller
-- **Reports:** Sales reports, seller performance, buyer activity, financial reconciliation
-- **Notification Broadcast:** Send push/SMS to user segments
-- **System Settings:** Site configuration, feature flags, maintenance mode
+The platform is **feature-complete** (buyer / seller / admin across web + mobile). The full
+role-by-role feature spec is in **`docs/product-spec.md`** (historical reference). For *current*
+behaviour the authoritative sources are §10 (Rules) below + `docs/architecture.md` — where the original
+spec and current behaviour differ (auth, payments, SMS), **the Rules win.**
 
 ---
 
@@ -342,24 +272,15 @@ Plan files in `~/.claude/plans/*.md` are session artifacts that may persist afte
 
 ---
 
-## 8. IMPLEMENTATION HISTORY (all shipped)
+## 8. IMPLEMENTATION HISTORY
 
-The platform was built in 8 sequential phases — all complete. Do not treat the phase list as a backlog; treat it as historical scope.
+Built in 8 sequential phases (all shipped); post-phase work continues as discrete initiatives. The
+**8-phase table** is in `docs/product-spec.md`; the **chronological initiative history** is in
+**`PROGRESS.md`** ("Post-phase chronology — condensed index"); **in-flight work** is in **`STATUS.md`**.
+The load-bearing constraints those initiatives created live as Rules in §10 — read those for what to *do*.
 
-| Phase | Scope | Notable code |
-|---|---|---|
-| 1 | Scaffolding, Docker, NestJS bootstrap, Prisma, Next.js x3, Flutter x2 | `docker-compose.yml`, `apps/api/src/app.module.ts` |
-| 2 | Auth & Users — SMS OTP (later removed, see post-phase entries), JWT + refresh rotation, guards, profiles, addresses, seller reg + admin approval | `apps/api/src/auth/`, `apps/api/src/users/` |
-| 3 | Product Catalog — categories, products, browse API, moderation, seed data | `apps/api/src/{products,categories,browse}/` |
-| 4 | Cart, Checkout, Orders — state machine, delivery zones, SMS notifications | `apps/api/src/{cart,checkout,orders,delivery-zones,notifications}/` |
-| 5 | Payments — Flexpay Mobile Money + COD, webhooks, earnings, payouts, commission | `apps/api/src/{payments,payouts,commission}/` |
-| 6 | Reviews, Wishlist, Messaging (polling-based, not WebSocket) | `apps/api/src/{reviews,wishlist,messaging}/` |
-| 7 | Admin Ops — dashboard charts, banners, promotions/flash deals, content CMS, settings, SMS broadcasts, CSV reports | `apps/api/src/{banners,promotions,content,settings,broadcasts,reports}/` |
-| 8 | Production hardening — composite indexes, health probes, throttling, SEO, error boundaries, PWA, Docker prod, 67 e2e tests | `apps/api/src/health/`, `apps/buyer-web/public/sw.js`, `docker-compose.prod.yml` |
-
-Post-phase work (Redis removal → city marketplace → buyer-auth churn → French-only refactor → SMS/Flexpay removal → mobile connectivity → web analytics) is recorded chronologically in **`PROGRESS.md`** (see its "Post-phase chronology — condensed index" section near the top), with current/recent initiatives in **`STATUS.md`**. The load-bearing constraints those initiatives created are captured as rules in §2 (Tech Stack) and §10 (Important Rules) above — read those, not the history, for what to *do*.
-
-> **Do not append new initiative entries to this file.** Per §7.1, `PROGRESS.md` is the chronological history. Logging initiatives here re-trips the 40k-char CLAUDE.md performance warning; record them in `PROGRESS.md` instead.
+> **Do not append initiative history to this file.** `PROGRESS.md` is the chronological record; logging
+> initiatives here re-trips the 40k-char CLAUDE.md performance warning. Record them in `PROGRESS.md`.
 
 ---
 

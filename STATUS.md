@@ -6,19 +6,21 @@
 
 ## Active initiative
 
-**Mobile Parity Sweep** (started 2026-06-06). Tracker + gap matrix + phased plan:
-`tasks/mobile-parity-sweep-progress.md`. **Phase 0 (audit + gap analysis) DONE; awaiting review +
-one scope decision (D1: mobile access model) before coding.**
+**Mobile Parity Sweep** — **code-complete on `develop` (#293–#297); P6 close-out in progress**
+(CLAUDE.md slim-down + docs done; releasing `develop → main`). Tracker:
+`tasks/mobile-parity-sweep-progress.md`; full narrative in `PROGRESS.md`.
 
-Net: the two Flutter apps are **largely at parity** (auth, cart, checkout, orders, profile, Sentry,
-connectivity, seller-mobile all solid). Genuine gaps: (P1) category/search don't pass `cityId` +
-unparsed new API fields; (P2) wishlist count badge + inactive-product handling; (P3) buyer-mobile
-PostHog ecommerce events (the documented deferral); (P4) seller-account-on-buyer-OTP guard; (P5)
-seller-mobile dead `/auth/migrate` button + minor polish. Deliberate divergences (auth-required +
-blocking city gate) noted as out-of-scope pending D1.
+Net: the two Flutter apps were **already largely at parity**; the sweep closed only genuine gaps —
+P1 city-scoped category/search + new API model fields (#293), P2 wishlist count badge + inactive
+handling (#294), P3 full client PostHog ecommerce events (#295), P4 seller-account-on-buyer-OTP
+guard (#296), P5 dead-code/OTP-cooldown cleanup (#297). **Mobile-only — no web/API deploy or
+migration**; merging to `main` builds new APK images (mobile rollout is a separate distribution step).
 
 ## Deferred / backlog (future maintenance)
 
+- **seller-mobile dashboard stats breakdown** (product status counts + avg rating) and **PDP
+  related-products section** — the two optional/cosmetic items from the Mobile Parity Sweep P5.
+  Not parity-blocking; deferred by user 2026-06-07.
 - **Prod `db:seed` to clean up legacy product slugs.** The city-first migration backfilled
   `Product.shortCode` + `City.slug` but left existing product `slug`s in the OLD city-embedded form
   (`…-lubumbashi-310000`). URLs **resolve correctly and are canonical** (by `shortCode`) — purely
