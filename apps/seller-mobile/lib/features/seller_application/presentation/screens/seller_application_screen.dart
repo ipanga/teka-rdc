@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/phone.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -27,13 +30,18 @@ class _SellerApplicationScreenState
   final _locationController = TextEditingController();
   final _descriptionController = TextEditingController();
 
+  final ImagePicker _picker = ImagePicker();
+
   String _businessType = 'individual';
   String _idType = 'national_id';
   String? _cityId;
   String? _communeId;
+  String? _idDocumentCloudinaryId;
 
   bool _loading = true;
   bool _submitting = false;
+  bool _uploadingDoc = false;
+  String? _docError;
   String? _error;
   SellerApplication? _application;
   List<CityOption> _cities = const [];
@@ -84,6 +92,7 @@ class _SellerApplicationScreenState
         _idType = app.idType ?? 'national_id';
         _cityId = app.cityId;
         _communeId = app.communeId;
+        _idDocumentCloudinaryId = app.idDocumentCloudinaryId;
       }
 
       // Load communes for a prefilled (REJECTED) city so the dropdown can
@@ -129,6 +138,39 @@ class _SellerApplicationScreenState
     }
   }
 
+  /// Pick the KYC document photo and upload it to the private folder.
+  Future<void> _pickDocument() async {
+    try {
+      final xFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
+      );
+      if (xFile == null) return;
+      setState(() {
+        _uploadingDoc = true;
+        _docError = null;
+      });
+      final cloudinaryId = await ref
+          .read(sellerApplicationRepositoryProvider)
+          .uploadDocument(File(xFile.path));
+      if (mounted) {
+        setState(() {
+          _idDocumentCloudinaryId = cloudinaryId;
+          _uploadingDoc = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _uploadingDoc = false;
+          _docError = 'Échec du téléchargement du document. Réessayez.';
+        });
+      }
+    }
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -142,6 +184,11 @@ class _SellerApplicationScreenState
     if (_cityId == null || _cityId!.isEmpty || _communeId == null) {
       setState(() =>
           _error = 'Veuillez sélectionner une ville et une commune.');
+      return;
+    }
+
+    if (_idDocumentCloudinaryId == null) {
+      setState(() => _error = 'Veuillez téléverser votre pièce d’identité.');
       return;
     }
 
@@ -160,6 +207,7 @@ class _SellerApplicationScreenState
             location: _locationController.text.trim(),
             cityId: _cityId,
             communeId: _communeId!,
+            idDocumentCloudinaryId: _idDocumentCloudinaryId!,
             description: _descriptionController.text.trim(),
           );
       // Refresh auth so /me reflects PENDING and the router gate keeps the
@@ -356,6 +404,57 @@ class _SellerApplicationScreenState
               },
             ),
             const SizedBox(height: 16),
+            // KYC document upload
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Pièce d’identité (CNI / passeport / RCCM)',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Photo lisible de votre pièce. JPEG, PNG ou WebP, 5 Mo max.',
+                  style: TextStyle(
+                    color: TekaColors.mutedForeground,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton.icon(
+                  onPressed: _uploadingDoc ? null : _pickDocument,
+                  icon: _uploadingDoc
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(
+                          _idDocumentCloudinaryId != null
+                              ? Icons.check_circle_outline
+                              : Icons.upload_file_outlined,
+                        ),
+                  label: Text(
+                    _uploadingDoc
+                        ? 'Téléchargement...'
+                        : _idDocumentCloudinaryId != null
+                            ? 'Document téléchargé ✓ — Remplacer'
+                            : 'Téléverser la pièce',
+                  ),
+                ),
+                if (_docError != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _docError!,
+                    style: const TextStyle(
+                      color: TekaColors.destructive,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 16),
             TextFormField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
@@ -445,7 +544,7 @@ class _SellerApplicationScreenState
             SizedBox(
               height: 48,
               child: ElevatedButton(
-                onPressed: _submitting ? null : _submit,
+                onPressed: (_submitting || _uploadingDoc) ? null : _submit,
                 child: _submitting
                     ? const SizedBox(
                         height: 20,

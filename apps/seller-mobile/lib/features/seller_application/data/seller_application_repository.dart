@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/utils/image_compress.dart';
 
 /// A selectable city for the seller application (GET /v1/cities).
 class CityOption {
@@ -53,6 +56,7 @@ class SellerApplication {
   final String? location;
   final String? cityId;
   final String? communeId;
+  final String? idDocumentCloudinaryId;
   final String? description;
 
   const SellerApplication({
@@ -66,6 +70,7 @@ class SellerApplication {
     this.location,
     this.cityId,
     this.communeId,
+    this.idDocumentCloudinaryId,
     this.description,
   });
 
@@ -81,6 +86,7 @@ class SellerApplication {
       location: json['location'] as String?,
       cityId: json['cityId'] as String?,
       communeId: json['communeId'] as String?,
+      idDocumentCloudinaryId: json['idDocumentCloudinaryId'] as String?,
       description: json['description'] as String?,
     );
   }
@@ -117,6 +123,22 @@ class SellerApplicationRepository {
         .toList(growable: false);
   }
 
+  /// POST /v1/sellers/documents — upload the KYC document (ID/RCCM photo) to
+  /// the private Cloudinary folder. Returns its public_id, passed to apply()
+  /// as idDocumentCloudinaryId.
+  Future<String> uploadDocument(File file) async {
+    final compressed = await compressImageForUpload(file);
+    final formData = FormData.fromMap({
+      'document': MultipartFile.fromBytes(
+        compressed.bytes,
+        filename: compressed.filename,
+      ),
+    });
+    final response = await _dio.post('/v1/sellers/documents', data: formData);
+    final data = response.data['data'] ?? response.data;
+    return (data as Map<String, dynamic>)['cloudinaryId'] as String;
+  }
+
   /// POST /v1/sellers/apply — submit (or resubmit) the business application.
   /// [phone] must already be normalized to +243XXXXXXXXX.
   Future<void> apply({
@@ -127,6 +149,7 @@ class SellerApplicationRepository {
     required String phone,
     required String location,
     required String communeId,
+    required String idDocumentCloudinaryId,
     String? cityId,
     String? description,
   }) async {
@@ -140,6 +163,7 @@ class SellerApplicationRepository {
         'phone': phone,
         'location': location,
         'communeId': communeId,
+        'idDocumentCloudinaryId': idDocumentCloudinaryId,
         if (cityId != null && cityId.isNotEmpty) 'cityId': cityId,
         if (description != null && description.isNotEmpty)
           'description': description,
