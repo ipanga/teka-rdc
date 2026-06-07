@@ -6,10 +6,17 @@
 
 ## Active initiative
 
-**Initiative #1 — Real Catalog & Merchant Supply** (started 2026-06-07). **Investigation phase — NO
-coding until the audit + rollout plan are presented for review.** Standard process: Investigation → Gap
-Analysis → Phased Rollout Plan → Review gate → Implementation → Testing. Goal: move the marketplace from
-the seeded "Teka RDC Officiel" sample catalog toward real merchant-supplied inventory.
+**Initiative #1 — Real Catalog & Merchant Supply** (started 2026-06-07). Audit DONE + presented;
+**Phase 1 detailed plan under review — NO coding until approved.** Goal: move from the seeded "Teka RDC
+Officiel" sample catalog (100% of live catalog today; 0 real merchants) toward real merchant-supplied
+inventory. **Locked decisions (2026-06-07):** KYC = ID/RCCM photo + manual admin review (Phase 2); sample
+retirement = `isDemo` flag + rank real-above-demo + SEO-safe per-category phase-out (Phase 3). **Key
+defect found:** `register/email`→role SELLER but `/sellers/apply` requires BUYER → fresh sellers 403 +
+can't list (no approved profile) — Phase 1 reconciles this. **Phases:** 1 self-onboarding UI (the
+unblock) → 2 KYC docs → 3 sample-catalog coexistence/retirement → 4 payouts + moderation-at-scale →
+5 (opt) seller empowerment. Out of scope: external RCCM/sanctions integrations, vision-API moderation,
+variant SKUs, 3rd-party inventory sync. Verified false (NOT in plan): "no stock decrement" — checkout
+decrements atomically (`checkout.service.ts:195`). Audit narrative in this session; tracker to follow.
 
 ## Recently completed — 2026-06-07
 
