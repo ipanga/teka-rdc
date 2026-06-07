@@ -292,7 +292,12 @@ describe('Browse (e2e)', () => {
     });
 
     it('returns relevant products + matching categories', async () => {
-      mockPrismaService.$queryRaw.mockResolvedValue([{ id: 'p1' }]);
+      // $queryRaw is called twice: ranked product ids, then matching categories.
+      mockPrismaService.$queryRaw
+        .mockResolvedValueOnce([{ id: 'p1' }])
+        .mockResolvedValueOnce([
+          { id: 'cat1', name: 'Téléphones', slug: 'telephones' },
+        ]);
       mockPrismaService.product.findMany.mockResolvedValue([
         {
           id: 'p1',
@@ -303,9 +308,6 @@ describe('Browse (e2e)', () => {
           city: { slug: 'lubumbashi', name: 'Lubumbashi' },
           images: [{ thumbnailUrl: 'http://x/t.jpg' }],
         },
-      ]);
-      mockPrismaService.category.findMany.mockResolvedValue([
-        { id: 'cat1', name: 'Téléphones', slug: 'telephones' },
       ]);
 
       const res = await request(app.getHttpServer())

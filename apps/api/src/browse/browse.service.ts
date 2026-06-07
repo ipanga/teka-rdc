@@ -187,10 +187,12 @@ export class BrowseService {
       // id with the shared select. The cursor encodes a simple offset over the
       // rank-ordered result set. Same filters as the default path.
       const q = query.search;
+      // Accent-insensitive (f_unaccent) so "telephone" matches "Téléphones";
+      // word_similarity (<%) gives one-word typo tolerance against long titles.
       const conds: Prisma.Sql[] = [
         Prisma.sql`p."status" = 'ACTIVE'`,
         Prisma.sql`p."deletedAt" IS NULL`,
-        Prisma.sql`(p."search_vector" @@ websearch_to_tsquery('french', ${q}) OR p."title" % ${q})`,
+        Prisma.sql`(p."search_vector" @@ websearch_to_tsquery('french', public.f_unaccent(${q})) OR public.f_unaccent(${q}) <% public.f_unaccent(p."title"))`,
       ];
       if (query.cityId) {
         conds.push(Prisma.sql`p."cityId"::text = ${query.cityId}`);
@@ -222,8 +224,8 @@ export class BrowseService {
         FROM "products" p
         WHERE ${whereSql}
         ORDER BY p."isDemo" ASC,
-                 ts_rank(p."search_vector", websearch_to_tsquery('french', ${q})) DESC,
-                 similarity(p."title", ${q}) DESC,
+                 ts_rank(p."search_vector", websearch_to_tsquery('french', public.f_unaccent(${q}))) DESC,
+                 word_similarity(public.f_unaccent(${q}), public.f_unaccent(p."title")) DESC,
                  p."createdAt" DESC
         LIMIT ${limit + 1} OFFSET ${offset}
       `);
@@ -339,7 +341,7 @@ export class BrowseService {
     const conds: Prisma.Sql[] = [
       Prisma.sql`p."status" = 'ACTIVE'`,
       Prisma.sql`p."deletedAt" IS NULL`,
-      Prisma.sql`(p."search_vector" @@ websearch_to_tsquery('french', ${term}) OR p."title" % ${term})`,
+      Prisma.sql`(p."search_vector" @@ websearch_to_tsquery('french', public.f_unaccent(${term})) OR public.f_unaccent(${term}) <% public.f_unaccent(p."title"))`,
     ];
     if (cityId) {
       conds.push(Prisma.sql`p."cityId"::text = ${cityId}`);
@@ -351,8 +353,8 @@ export class BrowseService {
       FROM "products" p
       WHERE ${whereSql}
       ORDER BY p."isDemo" ASC,
-               ts_rank(p."search_vector", websearch_to_tsquery('french', ${term})) DESC,
-               similarity(p."title", ${term}) DESC
+               ts_rank(p."search_vector", websearch_to_tsquery('french', public.f_unaccent(${term}))) DESC,
+               word_similarity(public.f_unaccent(${term}), public.f_unaccent(p."title")) DESC
       LIMIT 5
     `);
     const ids = idRows.map((r) => r.id);
@@ -388,16 +390,18 @@ export class BrowseService {
         thumbnailUrl: p.images[0]?.thumbnailUrl ?? null,
       }));
 
-    const categories = await this.prisma.category.findMany({
-      where: {
-        isActive: true,
-        deletedAt: null,
-        name: { contains: term, mode: 'insensitive' },
-      },
-      take: 5,
-      orderBy: { sortOrder: 'asc' },
-      select: { id: true, name: true, slug: true },
-    });
+    // Accent-insensitive category match ("telephone" → "Téléphones").
+    const categories = await this.prisma.$queryRaw<
+      { id: string; name: string; slug: string | null }[]
+    >(Prisma.sql`
+      SELECT c."id", c."name", c."slug"
+      FROM "categories" c
+      WHERE c."isActive" = true
+        AND c."deletedAt" IS NULL
+        AND public.f_unaccent(c."name") ILIKE '%' || public.f_unaccent(${term}) || '%'
+      ORDER BY c."sortOrder" ASC
+      LIMIT 5
+    `);
 
     return { products, categories };
   }
