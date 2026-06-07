@@ -1,11 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { normalizeDrcPhone } from '@teka/shared';
 import { apiFetch, ApiError } from '@/lib/api-client';
+import { compressImageForUpload } from '@/lib/image-compress';
 import { useAuthStore } from '@/lib/auth-store';
+
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5050/api';
 
 interface City {
   id: string;
@@ -30,6 +34,7 @@ interface ApplicationState {
   location?: string;
   cityId?: string | null;
   communeId?: string | null;
+  idDocumentCloudinaryId?: string | null;
   description?: string | null;
 }
 
@@ -63,6 +68,42 @@ export default function DevenirVendeurPage() {
   const [cityId, setCityId] = useState('');
   const [communeId, setCommuneId] = useState('');
   const [description, setDescription] = useState('');
+
+  // KYC document (Phase 2): the uploaded ID/RCCM photo's Cloudinary public_id.
+  const [idDocumentCloudinaryId, setIdDocumentCloudinaryId] = useState('');
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [docError, setDocError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDocumentChange = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setDocError('');
+    setUploadingDoc(true);
+    try {
+      const compressed = await compressImageForUpload(file);
+      const formData = new FormData();
+      formData.append('document', compressed);
+      const res = await fetch(`${API_BASE}/v1/sellers/documents`, {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setDocError(json?.error?.message || t('documentUploadError'));
+        return;
+      }
+      setIdDocumentCloudinaryId(json.data.cloudinaryId as string);
+    } catch {
+      setDocError(t('documentUploadError'));
+    } finally {
+      setUploadingDoc(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   // Load the communes for the selected city (the Commune dropdown depends on
   // the chosen Ville). communeId is reset by the city onChange, not here, so a
@@ -119,6 +160,7 @@ export default function DevenirVendeurPage() {
           setLocation(app.location ?? '');
           setCityId(app.cityId ?? '');
           setCommuneId(app.communeId ?? '');
+          setIdDocumentCloudinaryId(app.idDocumentCloudinaryId ?? '');
           setDescription(app.description ?? '');
         }
         setStatus(app);
@@ -149,6 +191,11 @@ export default function DevenirVendeurPage() {
       return;
     }
 
+    if (!idDocumentCloudinaryId) {
+      setError(t('documentRequired'));
+      return;
+    }
+
     setSubmitting(true);
     try {
       await apiFetch('/v1/sellers/apply', {
@@ -162,6 +209,7 @@ export default function DevenirVendeurPage() {
           location,
           cityId,
           communeId,
+          idDocumentCloudinaryId,
           ...(description ? { description } : {}),
         }),
       });
@@ -299,6 +347,37 @@ export default function DevenirVendeurPage() {
               </div>
             </div>
 
+            {/* KYC document upload */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1">
+                {t('documentLabel')}
+              </label>
+              <p className="text-xs text-muted-foreground mb-2">
+                {t('documentHint')}
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleDocumentChange}
+                disabled={uploadingDoc}
+                className="block w-full text-sm text-foreground file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-primary file:text-primary-foreground file:font-medium hover:file:bg-primary/90 file:cursor-pointer disabled:opacity-50"
+              />
+              {uploadingDoc && (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {t('documentUploading')}
+                </p>
+              )}
+              {!uploadingDoc && idDocumentCloudinaryId && (
+                <p className="mt-2 text-sm text-green-700">
+                  {t('documentUploaded')}
+                </p>
+              )}
+              {docError && (
+                <p className="mt-2 text-sm text-destructive">{docError}</p>
+              )}
+            </div>
+
             <div>
               <label
                 htmlFor="phone"
@@ -406,7 +485,7 @@ export default function DevenirVendeurPage() {
 
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || uploadingDoc}
               className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {submitting ? '...' : t('submit')}
