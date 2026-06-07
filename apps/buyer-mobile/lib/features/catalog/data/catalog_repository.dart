@@ -123,6 +123,27 @@ class CatalogRepository {
     return ProductDetailModel.fromJson(productJson);
   }
 
+  /// GET /v1/browse/products/:id/related — same-category + price-proximate
+  /// products for the PDP "Produits similaires" row.
+  Future<List<BrowseProductModel>> getRelatedProducts(String productId) async {
+    final response = await _dio.get('/v1/browse/products/$productId/related');
+    final responseData = response.data;
+    final Map<String, dynamic>? payload;
+    if (responseData is Map &&
+        responseData['success'] == true &&
+        responseData['data'] is Map) {
+      payload = Map<String, dynamic>.from(responseData['data'] as Map);
+    } else if (responseData is Map) {
+      payload = Map<String, dynamic>.from(responseData);
+    } else {
+      payload = null;
+    }
+    final rawList = (payload?['data'] as List?) ?? const [];
+    return rawList
+        .map((e) => BrowseProductModel.fromJson(e as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
   /// GET /v1/browse/search/suggestions — matching categories for autocomplete.
   /// (Products are already shown live in the search grid; this surfaces the
   /// category suggestions, matching buyer-web's dropdown.)
