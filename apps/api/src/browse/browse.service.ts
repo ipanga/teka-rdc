@@ -326,6 +326,83 @@ export class BrowseService {
   }
 
   /**
+   * Search autocomplete: the top few relevant products (FTS + trigram, same
+   * ranking as browse search) + categories whose name matches the partial
+   * query. Empty for very short queries.
+   */
+  async searchSuggestions(q: string, cityId?: string) {
+    const term = q.trim();
+    if (term.length < 2) {
+      return { products: [], categories: [] };
+    }
+
+    const conds: Prisma.Sql[] = [
+      Prisma.sql`p."status" = 'ACTIVE'`,
+      Prisma.sql`p."deletedAt" IS NULL`,
+      Prisma.sql`(p."search_vector" @@ websearch_to_tsquery('french', ${term}) OR p."title" % ${term})`,
+    ];
+    if (cityId) {
+      conds.push(Prisma.sql`p."cityId"::text = ${cityId}`);
+    }
+    const whereSql = Prisma.join(conds, ' AND ');
+
+    const idRows = await this.prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
+      SELECT p."id"
+      FROM "products" p
+      WHERE ${whereSql}
+      ORDER BY p."isDemo" ASC,
+               ts_rank(p."search_vector", websearch_to_tsquery('french', ${term})) DESC,
+               similarity(p."title", ${term}) DESC
+      LIMIT 5
+    `);
+    const ids = idRows.map((r) => r.id);
+
+    const fetched = await this.prisma.product.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        shortCode: true,
+        cityId: true,
+        city: { select: { slug: true, name: true } },
+        images: {
+          orderBy: { displayOrder: 'asc' },
+          take: 1,
+          select: { thumbnailUrl: true },
+        },
+      },
+    });
+    const byId = new Map(fetched.map((p) => [p.id, p]));
+    const products = ids
+      .map((id) => byId.get(id))
+      .filter((p): p is (typeof fetched)[number] => p != null)
+      .map((p) => ({
+        id: p.id,
+        title: p.title,
+        slug: p.slug,
+        shortCode: p.shortCode,
+        cityId: p.cityId,
+        citySlug: p.city?.slug ?? null,
+        cityName: p.city?.name ?? null,
+        thumbnailUrl: p.images[0]?.thumbnailUrl ?? null,
+      }));
+
+    const categories = await this.prisma.category.findMany({
+      where: {
+        isActive: true,
+        deletedAt: null,
+        name: { contains: term, mode: 'insensitive' },
+      },
+      take: 5,
+      orderBy: { sortOrder: 'asc' },
+      select: { id: true, name: true, slug: true },
+    });
+
+    return { products, categories };
+  }
+
+  /**
    * Returns full product detail for public viewing.
    */
   async getProductDetail(identifier: string) {

@@ -29,6 +29,16 @@ export class BrowseController {
     return this.browseService.browseProducts(query);
   }
 
+  /**
+   * Search autocomplete: top relevant products + matching categories for a
+   * partial query. City-scoped products when cityId is provided.
+   */
+  @Get('search/suggestions')
+  @Public()
+  searchSuggestions(@Query('q') q?: string, @Query('cityId') cityId?: string) {
+    return this.browseService.searchSuggestions(q ?? '', cityId);
+  }
+
   @Get('products/:identifier')
   @Public()
   getProductDetail(@Param('identifier') identifier: string) {
