@@ -73,8 +73,9 @@ describe('Browse (e2e)', () => {
     });
 
     it('should accept search query parameter', async () => {
+      // FTS path: $queryRaw returns ranked ids, then count.
+      mockPrismaService.$queryRaw.mockResolvedValue([]);
       mockPrismaService.product.findMany.mockResolvedValue([]);
-      mockPrismaService.product.count.mockResolvedValue(0);
 
       const res = await request(app.getHttpServer())
         .get('/api/v1/browse/products?search=t%C3%A9l%C3%A9phone')
@@ -83,19 +84,33 @@ describe('Browse (e2e)', () => {
       expect(res.body.success).toBe(true);
     });
 
-    it('builds a plain-string OR filter for search (regression — JSONB path errored 500 against String columns)', async () => {
-      mockPrismaService.product.findMany.mockResolvedValue([]);
-      mockPrismaService.product.count.mockResolvedValue(0);
+    it('ranks search via full-text search and hydrates by ranked id (not a contains OR filter)', async () => {
+      // $queryRaw is called twice: relevance-ordered ids, then the count.
+      mockPrismaService.$queryRaw
+        .mockResolvedValueOnce([{ id: 'p1' }])
+        .mockResolvedValueOnce([{ count: BigInt(1) }]);
+      mockPrismaService.product.findMany.mockResolvedValue([
+        {
+          id: 'p1',
+          title: 'Xbox',
+          priceCDF: '1000',
+          condition: 'NEW',
+          quantity: 1,
+          images: [],
+          seller: null,
+          city: null,
+        },
+      ]);
 
-      await request(app.getHttpServer())
+      const res = await request(app.getHttpServer())
         .get('/api/v1/browse/products?search=xbox')
         .expect(200);
 
+      // Hydration fetches the ranked ids, not a title/description contains OR.
       const findManyArgs = mockPrismaService.product.findMany.mock.calls[0][0];
-      expect(findManyArgs.where.OR).toEqual([
-        { title: { contains: 'xbox', mode: 'insensitive' } },
-        { description: { contains: 'xbox', mode: 'insensitive' } },
-      ]);
+      expect(findManyArgs.where).toEqual({ id: { in: ['p1'] } });
+      expect(res.body.data.data[0].id).toBe('p1');
+      expect(res.body.data.pagination.total).toBe(1);
     });
 
     it('should accept condition filter', async () => {
@@ -262,6 +277,50 @@ describe('Browse (e2e)', () => {
       });
       expect(res.body.data.seller.firstName).toBeUndefined();
       expect(res.body.data.seller.sellerProfile).toBeUndefined();
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // GET /api/v1/browse/search/suggestions
+  // ---------------------------------------------------------------------------
+  describe('GET /api/v1/browse/search/suggestions', () => {
+    it('returns empty for very short queries (no DB hit)', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/browse/search/suggestions?q=a')
+        .expect(200);
+      expect(res.body.data).toEqual({ products: [], categories: [] });
+    });
+
+    it('returns relevant products + matching categories', async () => {
+      mockPrismaService.$queryRaw.mockResolvedValue([{ id: 'p1' }]);
+      mockPrismaService.product.findMany.mockResolvedValue([
+        {
+          id: 'p1',
+          title: 'Tecno Spark',
+          slug: 'tecno-spark',
+          shortCode: 'abc123',
+          cityId: 'c1',
+          city: { slug: 'lubumbashi', name: 'Lubumbashi' },
+          images: [{ thumbnailUrl: 'http://x/t.jpg' }],
+        },
+      ]);
+      mockPrismaService.category.findMany.mockResolvedValue([
+        { id: 'cat1', name: 'Téléphones', slug: 'telephones' },
+      ]);
+
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/browse/search/suggestions?q=tecno')
+        .expect(200);
+
+      expect(res.body.data.products[0]).toMatchObject({
+        id: 'p1',
+        title: 'Tecno Spark',
+        thumbnailUrl: 'http://x/t.jpg',
+      });
+      expect(res.body.data.categories[0]).toMatchObject({
+        id: 'cat1',
+        slug: 'telephones',
+      });
     });
   });
 

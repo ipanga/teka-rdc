@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -8,6 +8,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { useCityStore } from '@/lib/city-store';
 import { CartBadge } from '@/components/cart/cart-badge';
 import { WishlistBadge } from '@/components/wishlist/wishlist-badge';
+import { SearchAutocomplete } from './search-autocomplete';
 import { buttonVariants } from '@/components/ui';
 
 export function Header() {
@@ -18,7 +19,6 @@ export function Header() {
   const authLoading = useAuthStore((s) => s.isLoading);
   const logout = useAuthStore((s) => s.logout);
   const { selectedCity, openSelector } = useCityStore();
-  const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Direct buyer↔seller messaging removed on 2026-05-17 — buyers now
@@ -26,15 +26,6 @@ export function Header() {
   // header messages icon + unread-count polling were removed with the
   // feature; the API endpoint returns 410 GONE if any old client still
   // calls /v1/messages/unread-count.
-
-  function handleSearch(e: FormEvent) {
-    e.preventDefault();
-    const q = searchQuery.trim();
-    if (q) {
-      router.push(`/recherche?q=${encodeURIComponent(q)}`);
-      setMobileMenuOpen(false);
-    }
-  }
 
   function handleLogout() {
     logout();
@@ -82,30 +73,14 @@ export function Header() {
         </button>
 
         {/* Search bar - desktop */}
-        <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-xl">
-          <div className="relative w-full">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('search')}
-              className="w-full pl-10 pr-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-            />
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          </div>
-        </form>
+        <div className="hidden md:flex flex-1 max-w-xl">
+          <SearchAutocomplete
+            cityId={selectedCity?.id}
+            citySlug={selectedCity?.slug}
+            placeholder={t('search')}
+            categoryLabel={t('categories')}
+          />
+        </div>
 
         {/* Right side - desktop */}
         <div className="hidden md:flex items-center gap-3">
@@ -199,30 +174,13 @@ export function Header() {
           </button>
 
           {/* Mobile search */}
-          <form onSubmit={handleSearch}>
-            <div className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder={t('search')}
-                className="w-full pl-10 pr-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-              />
-              <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-            </div>
-          </form>
+          <SearchAutocomplete
+            cityId={selectedCity?.id}
+            citySlug={selectedCity?.slug}
+            placeholder={t('search')}
+            categoryLabel={t('categories')}
+            onNavigate={() => setMobileMenuOpen(false)}
+          />
 
           {/* Mobile nav links */}
           <nav className="flex flex-col gap-3">

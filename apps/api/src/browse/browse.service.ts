@@ -1,6 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ProductStatus } from '@prisma/client';
+import { ProductStatus, Prisma } from '@prisma/client';
 import { BrowseProductsQueryDto } from './dto/browse-products-query.dto';
 import { isShortCode } from '../common/utils/slugify';
 
@@ -95,6 +95,9 @@ export class BrowseService {
       where.cityId = query.cityId;
     }
 
+    // The expanded category-id set (self + sub + sub-sub), shared by the Prisma
+    // path and the raw FTS search path so both filter identically.
+    let categoryIds: string[] | null = null;
     if (query.categoryId) {
       // Include subcategories: find all child category IDs
       const childCategories = await this.prisma.category.findMany({
@@ -113,7 +116,8 @@ export class BrowseService {
         },
         select: { id: true },
       });
-      where.categoryId = { in: childCategories.map((c) => c.id) };
+      categoryIds = childCategories.map((c) => c.id);
+      where.categoryId = { in: categoryIds };
     }
 
     if (query.condition) {
@@ -138,105 +142,155 @@ export class BrowseService {
       where.avgRating = { gte: query.minRating };
     }
 
-    if (query.search) {
-      // `title` and `description` were flattened from JSONB (`{ fr, en }`)
-      // to plain strings in the May 2026 monolingual refactor. The previous
-      // JSONB path filter (`{ path: ['fr'], string_contains: ... }`) errored
-      // with 500 against String columns. Use Prisma's plain insensitive
-      // contains filter instead.
-      where.OR = [
-        { title: { contains: query.search, mode: 'insensitive' } },
-        { description: { contains: query.search, mode: 'insensitive' } },
-      ];
-    }
-
-    // Build orderBy. Real merchant products always rank above the seeded
-    // "Teka RDC Officiel" demo catalog (isDemo asc → false/real first), then
-    // the buyer's chosen sort within each group. Once a category's demo
-    // products are retired (Phase 3 P3c) this tiebreaker becomes moot.
-    let primarySort: Record<string, string>;
-    switch (query.sortBy) {
-      case 'price_low':
-        primarySort = { priceCDF: 'asc' };
-        break;
-      case 'price_high':
-        primarySort = { priceCDF: 'desc' };
-        break;
-      case 'newest':
-        primarySort = { createdAt: 'desc' };
-        break;
-      case 'rating':
-        primarySort = { avgRating: 'desc' };
-        break;
-      case 'popularity':
-      default:
-        // Real best-seller ranking: most delivered units first, recency as the
-        // tiebreaker so new products aren't permanently buried behind zeros.
-        primarySort = { unitsSold: 'desc' };
-        break;
-    }
-    // Real above demo, then the chosen sort. For popularity we add a recency
-    // tiebreaker after unitsSold.
-    const orderBy: Record<string, string>[] =
-      query.sortBy === 'popularity' || !query.sortBy
-        ? [{ isDemo: 'asc' }, primarySort, { createdAt: 'desc' }]
-        : [{ isDemo: 'asc' }, primarySort];
-
-    // Cursor-based pagination: fetch limit+1 to check hasMore
-    const products = await this.prisma.product.findMany({
-      where,
-      orderBy,
-      take: limit + 1,
-      ...(query.cursor && {
-        cursor: { id: query.cursor },
-        skip: 1,
-      }),
-      select: {
-        id: true,
-        slug: true,
-        shortCode: true,
-        title: true,
-        priceCDF: true,
-        priceUSD: true,
-        condition: true,
-        quantity: true,
-        categoryId: true,
-        cityId: true,
-        avgRating: true,
-        totalReviews: true,
-        unitsSold: true,
-        createdAt: true,
-        // City slug/name lets clients build `/{ville}/{slug}-{shortCode}` URLs
-        // on mixed-city listings (e.g. the global homepage).
-        city: {
-          select: { slug: true, name: true },
-        },
-        images: {
-          orderBy: { displayOrder: 'asc' },
-          take: 1,
-          select: {
-            id: true,
-            url: true,
-            thumbnailUrl: true,
-            displayOrder: true,
-          },
-        },
-        seller: {
-          select: {
-            sellerProfile: {
-              select: { businessName: true },
-            },
-          },
-        },
+    // Product fields returned to clients — shared by the default Prisma path
+    // and the full-text search path (which hydrates by id with the same shape).
+    const productSelect = {
+      id: true,
+      slug: true,
+      shortCode: true,
+      title: true,
+      priceCDF: true,
+      priceUSD: true,
+      condition: true,
+      quantity: true,
+      categoryId: true,
+      cityId: true,
+      avgRating: true,
+      totalReviews: true,
+      unitsSold: true,
+      createdAt: true,
+      // City slug/name lets clients build `/{ville}/{slug}-{shortCode}` URLs
+      // on mixed-city listings (e.g. the global homepage).
+      city: { select: { slug: true, name: true } },
+      images: {
+        orderBy: { displayOrder: 'asc' as const },
+        take: 1,
+        select: { id: true, url: true, thumbnailUrl: true, displayOrder: true },
       },
-    });
+      seller: {
+        select: { sellerProfile: { select: { businessName: true } } },
+      },
+    } satisfies Prisma.ProductSelect;
+    type ProductRow = Prisma.ProductGetPayload<{
+      select: typeof productSelect;
+    }>;
 
-    const hasMore = products.length > limit;
-    const data = hasMore ? products.slice(0, limit) : products;
-    const nextCursor = hasMore ? data[data.length - 1].id : null;
+    let data: ProductRow[];
+    let total: number;
+    let hasMore: boolean;
+    let nextCursor: string | null;
 
-    // Get total count
-    const total = await this.prisma.product.count({ where });
+    if (query.search) {
+      // Full-text search (Postgres FTS + pg_trgm). Prisma can't ORDER BY
+      // ts_rank, so ranking is raw SQL: a relevance-ordered id list (real
+      // above demo → ts_rank → trigram similarity → recency), then hydrated by
+      // id with the shared select. The cursor encodes a simple offset over the
+      // rank-ordered result set. Same filters as the default path.
+      const q = query.search;
+      const conds: Prisma.Sql[] = [
+        Prisma.sql`p."status" = 'ACTIVE'`,
+        Prisma.sql`p."deletedAt" IS NULL`,
+        Prisma.sql`(p."search_vector" @@ websearch_to_tsquery('french', ${q}) OR p."title" % ${q})`,
+      ];
+      if (query.cityId) {
+        conds.push(Prisma.sql`p."cityId"::text = ${query.cityId}`);
+      }
+      if (categoryIds && categoryIds.length > 0) {
+        conds.push(
+          Prisma.sql`p."categoryId"::text IN (${Prisma.join(categoryIds)})`,
+        );
+      }
+      if (query.condition) {
+        conds.push(Prisma.sql`p."condition"::text = ${query.condition}`);
+      }
+      if (query.minPrice) {
+        conds.push(Prisma.sql`p."priceCDF" >= ${BigInt(query.minPrice)}`);
+      }
+      if (query.maxPrice) {
+        conds.push(Prisma.sql`p."priceCDF" <= ${BigInt(query.maxPrice)}`);
+      }
+      if (query.minRating) {
+        conds.push(Prisma.sql`p."avgRating" >= ${query.minRating}`);
+      }
+      const whereSql = Prisma.join(conds, ' AND ');
+
+      const offset = query.cursor
+        ? Math.max(0, parseInt(query.cursor, 10) || 0)
+        : 0;
+      const idRows = await this.prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
+        SELECT p."id"
+        FROM "products" p
+        WHERE ${whereSql}
+        ORDER BY p."isDemo" ASC,
+                 ts_rank(p."search_vector", websearch_to_tsquery('french', ${q})) DESC,
+                 similarity(p."title", ${q}) DESC,
+                 p."createdAt" DESC
+        LIMIT ${limit + 1} OFFSET ${offset}
+      `);
+      hasMore = idRows.length > limit;
+      const pageIds = (hasMore ? idRows.slice(0, limit) : idRows).map(
+        (r) => r.id,
+      );
+
+      const countRows = await this.prisma.$queryRaw<{ count: bigint }[]>(
+        Prisma.sql`SELECT COUNT(*)::bigint AS count FROM "products" p WHERE ${whereSql}`,
+      );
+      total = Number(countRows[0]?.count ?? 0);
+
+      const fetched = await this.prisma.product.findMany({
+        where: { id: { in: pageIds } },
+        select: productSelect,
+      });
+      const byId = new Map(fetched.map((p) => [p.id, p]));
+      // Preserve the relevance order from the raw query.
+      data = pageIds
+        .map((id) => byId.get(id))
+        .filter((p): p is ProductRow => p != null);
+      nextCursor = hasMore ? String(offset + limit) : null;
+    } else {
+      // Build orderBy. Real merchant products always rank above the seeded
+      // "Teka RDC Officiel" demo catalog (isDemo asc → false/real first), then
+      // the buyer's chosen sort within each group. Once a category's demo
+      // products are retired (Phase 3 P3c) this tiebreaker becomes moot.
+      let primarySort: Record<string, string>;
+      switch (query.sortBy) {
+        case 'price_low':
+          primarySort = { priceCDF: 'asc' };
+          break;
+        case 'price_high':
+          primarySort = { priceCDF: 'desc' };
+          break;
+        case 'newest':
+          primarySort = { createdAt: 'desc' };
+          break;
+        case 'rating':
+          primarySort = { avgRating: 'desc' };
+          break;
+        case 'popularity':
+        default:
+          // Real best-seller ranking: most delivered units first, recency as
+          // the tiebreaker so new products aren't permanently buried.
+          primarySort = { unitsSold: 'desc' };
+          break;
+      }
+      const orderBy: Record<string, string>[] =
+        query.sortBy === 'popularity' || !query.sortBy
+          ? [{ isDemo: 'asc' }, primarySort, { createdAt: 'desc' }]
+          : [{ isDemo: 'asc' }, primarySort];
+
+      // Cursor-based pagination: fetch limit+1 to check hasMore
+      const products = await this.prisma.product.findMany({
+        where,
+        orderBy,
+        take: limit + 1,
+        ...(query.cursor && { cursor: { id: query.cursor }, skip: 1 }),
+        select: productSelect,
+      });
+      hasMore = products.length > limit;
+      data = hasMore ? products.slice(0, limit) : products;
+      nextCursor = hasMore ? data[data.length - 1].id : null;
+      total = await this.prisma.product.count({ where });
+    }
 
     // Transform to BrowseProduct shape
     const items = data.map((p) => ({
@@ -269,6 +323,83 @@ export class BrowseService {
         total,
       },
     };
+  }
+
+  /**
+   * Search autocomplete: the top few relevant products (FTS + trigram, same
+   * ranking as browse search) + categories whose name matches the partial
+   * query. Empty for very short queries.
+   */
+  async searchSuggestions(q: string, cityId?: string) {
+    const term = q.trim();
+    if (term.length < 2) {
+      return { products: [], categories: [] };
+    }
+
+    const conds: Prisma.Sql[] = [
+      Prisma.sql`p."status" = 'ACTIVE'`,
+      Prisma.sql`p."deletedAt" IS NULL`,
+      Prisma.sql`(p."search_vector" @@ websearch_to_tsquery('french', ${term}) OR p."title" % ${term})`,
+    ];
+    if (cityId) {
+      conds.push(Prisma.sql`p."cityId"::text = ${cityId}`);
+    }
+    const whereSql = Prisma.join(conds, ' AND ');
+
+    const idRows = await this.prisma.$queryRaw<{ id: string }[]>(Prisma.sql`
+      SELECT p."id"
+      FROM "products" p
+      WHERE ${whereSql}
+      ORDER BY p."isDemo" ASC,
+               ts_rank(p."search_vector", websearch_to_tsquery('french', ${term})) DESC,
+               similarity(p."title", ${term}) DESC
+      LIMIT 5
+    `);
+    const ids = idRows.map((r) => r.id);
+
+    const fetched = await this.prisma.product.findMany({
+      where: { id: { in: ids } },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        shortCode: true,
+        cityId: true,
+        city: { select: { slug: true, name: true } },
+        images: {
+          orderBy: { displayOrder: 'asc' },
+          take: 1,
+          select: { thumbnailUrl: true },
+        },
+      },
+    });
+    const byId = new Map(fetched.map((p) => [p.id, p]));
+    const products = ids
+      .map((id) => byId.get(id))
+      .filter((p): p is (typeof fetched)[number] => p != null)
+      .map((p) => ({
+        id: p.id,
+        title: p.title,
+        slug: p.slug,
+        shortCode: p.shortCode,
+        cityId: p.cityId,
+        citySlug: p.city?.slug ?? null,
+        cityName: p.city?.name ?? null,
+        thumbnailUrl: p.images[0]?.thumbnailUrl ?? null,
+      }));
+
+    const categories = await this.prisma.category.findMany({
+      where: {
+        isActive: true,
+        deletedAt: null,
+        name: { contains: term, mode: 'insensitive' },
+      },
+      take: 5,
+      orderBy: { sortOrder: 'asc' },
+      select: { id: true, name: true, slug: true },
+    });
+
+    return { products, categories };
   }
 
   /**
