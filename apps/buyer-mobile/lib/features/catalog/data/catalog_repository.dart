@@ -122,6 +122,43 @@ class CatalogRepository {
 
     return ProductDetailModel.fromJson(productJson);
   }
+
+  /// GET /v1/browse/search/suggestions — matching categories for autocomplete.
+  /// (Products are already shown live in the search grid; this surfaces the
+  /// category suggestions, matching buyer-web's dropdown.)
+  Future<List<SuggestedCategory>> getSearchSuggestions(
+    String q, {
+    String? cityId,
+  }) async {
+    final response = await _dio.get(
+      '/v1/browse/search/suggestions',
+      queryParameters: {
+        'q': q,
+        if (cityId != null) 'cityId': cityId,
+      },
+    );
+    final data = response.data['data'] ?? response.data;
+    final cats = (data['categories'] as List?) ?? const [];
+    return cats
+        .cast<Map<String, dynamic>>()
+        .map(SuggestedCategory.fromJson)
+        .toList(growable: false);
+  }
+}
+
+/// A category match returned by the search-suggestions endpoint.
+class SuggestedCategory {
+  final String id;
+  final String name;
+
+  const SuggestedCategory({required this.id, required this.name});
+
+  factory SuggestedCategory.fromJson(Map<String, dynamic> json) {
+    return SuggestedCategory(
+      id: json['id'] as String,
+      name: json['name']?.toString() ?? '',
+    );
+  }
 }
 
 final catalogRepositoryProvider = Provider<CatalogRepository>((ref) {
