@@ -3430,6 +3430,7 @@ async function seedSampleProducts(sellerId: string): Promise<void> {
             cityId: city.id,
             categoryId,
             sellerId,
+            isDemo: true,
           },
           create: {
             id: productId,
@@ -3445,6 +3446,7 @@ async function seedSampleProducts(sellerId: string): Promise<void> {
             quantity: 25,
             condition: ProductCondition.NEW,
             status: ProductStatus.ACTIVE,
+            isDemo: true,
           },
         });
 

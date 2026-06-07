@@ -456,6 +456,11 @@ model Product {
   condition       ProductCondition @default(NEW)
   status          ProductStatus    @default(DRAFT)
   rejectionReason String?
+  // True for the seeded "Teka RDC Officiel" demo catalog. Real merchant
+  // products default false. Used to rank real products above demo (and, later,
+  // to retire demo per-category). Denormalized onto Product because that's what
+  // browse ranking + the admin coverage count query.
+  isDemo          Boolean          @default(false)
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
   deletedAt       DateTime?
@@ -487,6 +492,7 @@ model Product {
   @@index([deletedAt])
   @@index([categoryId, status, createdAt])
   @@index([cityId, status])
+  @@index([isDemo])
   @@index([cityId, status, createdAt])
   @@index([status, priceCDF])
   @@index([status, avgRating])
