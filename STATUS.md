@@ -21,10 +21,9 @@ Decisions: private storage + signed admin URLs; single required photo; manual re
 `getSignedImageUrl`; `POST /v1/sellers/documents` (private upload); `ApplySellerDto.idDocumentCloudinaryId`
 required + folder-constrained; `apply()` persists it; `GET /v1/admin/sellers/applications/:id/document`
 → admin signed URL. **P2b** (#315) seller-web upload control; **P2c** (#316) seller-mobile mirror; **P2d**
-(#317) admin-web "Voir la pièce" signed-URL preview modal. **Migrations to apply:** prod KYC migration via
-the Action at release; **dev `db:execute` pending** for BOTH `2026-06-07_seller_commune.sql` and
-`2026-06-07_seller_kyc_document.sql` (cloud dev DB intermittently unreachable). **Next: Phase 3 —
-sample-catalog coexistence/retirement (review-gated).**
+(#317) admin-web "Voir la pièce" signed-URL preview modal. **Migrations applied to BOTH prod and dev**
+(`2026-06-07_seller_commune.sql` + `2026-06-07_seller_kyc_document.sql`); dev/prod schemas in sync.
+**Next: Phase 3 — sample-catalog coexistence/retirement (review-gated).**
 
 **Phase 1 QA pass (2026-06-07, #309–#312 — SHIPPED to prod, release #313 + verified; migration applied).** Four issues from the post-Phase-1 review,
 fixed as separate PRs: **QA-4** (#309) admin Vendeurs list rendered `User.phone` (null for email
