@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/cache/cache_keys.dart';
 import '../../../../core/cache/typed_cache.dart';
 import '../../../../core/network/dio_error_messages.dart';
@@ -151,6 +152,11 @@ class CartNotifier extends StateNotifier<CartState> {
       final cart = await _repository.addItem(productId, quantity);
       state = state.copyWith(items: cart.items, clearError: true);
       _persistToCache();
+      // Buyer-owned UI event (parity with buyer-web add_to_cart).
+      const PosthogAnalytics().capture(
+        'add_to_cart',
+        properties: {'productId': productId, 'quantity': quantity},
+      );
     } on DioException catch (e) {
       state = state.copyWith(error: extractDioErrorMessage(e));
       rethrow;
@@ -199,6 +205,11 @@ class CartNotifier extends StateNotifier<CartState> {
       final cart = await _repository.removeItem(productId);
       state = state.copyWith(items: cart.items);
       _persistToCache();
+      // Buyer-owned UI event (parity with buyer-web remove_from_cart).
+      const PosthogAnalytics().capture(
+        'remove_from_cart',
+        properties: {'productId': productId},
+      );
     } on DioException catch (e) {
       // Revert on failure
       state = state.copyWith(

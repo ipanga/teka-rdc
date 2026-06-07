@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../city/presentation/providers/city_provider.dart';
@@ -19,6 +20,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
   Timer? _debounce;
   String _query = '';
+  String? _lastSearchTracked; // de-dups the search_performed event per query
 
   BrowseProductsParams get _params => BrowseProductsParams(
         search: _query.isNotEmpty ? _query : null,
@@ -117,6 +119,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         ref
             .read(wishlistProvider.notifier)
             .loadWishlistIds(next.products.map((p) => p.id).toList());
+      }
+      // search_performed: once per completed query (parity with buyer-web).
+      // Query routed through scrubAnalyticsText (free-text → strip phones).
+      if (!next.isLoading && _query.isNotEmpty && _lastSearchTracked != _query) {
+        _lastSearchTracked = _query;
+        const PosthogAnalytics().capture('search_performed', properties: {
+          'query': scrubAnalyticsText(_query),
+          'result_count': next.pagination?.total ?? next.products.length,
+        });
       }
     });
 

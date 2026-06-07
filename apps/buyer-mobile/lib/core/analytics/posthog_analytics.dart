@@ -69,3 +69,12 @@ Map<String, Object> buildIdentityProperties(Map<String, dynamic> user) {
     if (role != null && role.isNotEmpty) 'role': role,
   };
 }
+
+final _analyticsPhoneRegex = RegExp(r'\+243\d{9}');
+
+/// Scrub a free-text analytics value (e.g. a search query) before it leaves
+/// the device — strips buyer phone numbers (Rule 13). Most analytics
+/// properties are ids/counts and need no scrub; this is for the rare free-text
+/// field. Mirrors the `\+243\d{9}` regex in core/config/sentry_scrub.dart.
+String scrubAnalyticsText(String value) =>
+    value.replaceAll(_analyticsPhoneRegex, '[phone]');

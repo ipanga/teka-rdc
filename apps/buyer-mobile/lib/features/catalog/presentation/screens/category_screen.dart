@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../city/presentation/providers/city_provider.dart';
@@ -24,6 +25,15 @@ class CategoryScreen extends ConsumerStatefulWidget {
 
 class _CategoryScreenState extends ConsumerState<CategoryScreen> {
   FilterOptions _filters = const FilterOptions();
+
+  @override
+  void initState() {
+    super.initState();
+    // Buyer-owned UI event — one per category view (parity with buyer-web).
+    const PosthogAnalytics().capture('category_viewed', properties: {
+      'categoryId': widget.categoryId,
+    });
+  }
 
   BrowseProductsParams get _params => BrowseProductsParams(
         categoryId: widget.categoryId,
