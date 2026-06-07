@@ -23,9 +23,12 @@ deep-links). **P-B2c** (#329) buyer-mobile category-suggestion chips above the l
 (#331→#332):** prod verification found accent-sensitivity + weak typos; fixed with `unaccent` + IMMUTABLE
 `f_unaccent()` (rebuilt `search_vector` over unaccented text) + `word_similarity` (`<%`). **Phase B +
 follow-up SHIPPED to prod (releases #330, #332) + VERIFIED** (`rentree`→"rentrée"; `telephone`→"Téléphones"
-categories; `Tecnoo`→Tecno; exact ok). Both search migrations applied to prod + dev. **At the Phase B
-review gate — awaiting direction.** Deferred: **C** attribute filters + related products, **D** conversion
-polish. Out of scope: external search engine, ML recs, persisted view-tracking.
+categories; `Tecnoo`→Tecno; exact ok). Both search migrations applied to prod + dev. **Phase C — IN PROGRESS.** Decisions: P-C1 (related products) first; similarity = same category + price
+proximity (±40%). **P-C1a done on branch:** `GET /v1/browse/products/:id/related` (same category, price
+±40%, exclude current, real-above-demo → best-seller/recency, top-up with same-category when sparse).
+**P-C1b/c next:** PDP "Produits similaires" carousel on buyer-web + buyer-mobile. **P-C2 deferred:**
+attribute filters (data-ready, UI-absent). **D** conversion polish deferred. Out of scope: external search
+engine, ML recs, persisted view-tracking.
 
 **Initiative #1 — Real Catalog & Merchant Supply: CLOSED OUT 2026-06-07** (code complete + shipped +
 verified on prod). Phase 1 self-onboarding (#304–#308) + Phase 1 QA (#309–#313) + Phase 2 KYC
