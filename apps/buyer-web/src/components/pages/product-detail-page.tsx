@@ -249,6 +249,11 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                     ~ {formatUSD(product.priceUSD)}
                   </p>
                 )}
+                {product.unitsSold != null && product.unitsSold > 0 && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {t('unitsSold', { count: product.unitsSold })}
+                  </p>
+                )}
               </div>
 
               {/* Stock indicator */}

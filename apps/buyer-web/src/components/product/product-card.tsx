@@ -79,6 +79,11 @@ export function ProductCard({ product }: ProductCardProps) {
           <p className="text-xs text-muted-foreground truncate group-hover:text-foreground transition-colors">
             {product.seller.businessName}
           </p>
+          {product.unitsSold != null && product.unitsSold > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {t('unitsSold', { count: product.unitsSold })}
+            </p>
+          )}
         </div>
       </Link>
 
