@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ApplySellerDto } from './dto/apply-seller.dto';
@@ -13,6 +14,17 @@ export class SellersService {
   constructor(private prisma: PrismaService) {}
 
   async apply(userId: string, dto: ApplySellerDto) {
+    // The commune is the source of truth for location: derive cityId from it
+    // so city + commune can never disagree, regardless of what the client sent.
+    const commune = await this.prisma.commune.findUnique({
+      where: { id: dto.communeId },
+    });
+    if (!commune) {
+      throw new BadRequestException('Commune invalide');
+    }
+    // cityId from the client (if any) is overwritten by the commune's city.
+    const data = { ...dto, cityId: commune.cityId };
+
     // Check if user already has a seller application
     const existing = await this.prisma.sellerProfile.findUnique({
       where: { userId },
@@ -29,7 +41,7 @@ export class SellersService {
       return this.prisma.sellerProfile.update({
         where: { userId },
         data: {
-          ...dto,
+          ...data,
           applicationStatus: 'PENDING',
           rejectionReason: null,
           approvedAt: null,
@@ -39,13 +51,17 @@ export class SellersService {
     }
 
     return this.prisma.sellerProfile.create({
-      data: { ...dto, userId },
+      data: { ...data, userId },
     });
   }
 
   async getApplication(userId: string) {
     const profile = await this.prisma.sellerProfile.findUnique({
       where: { userId },
+      include: {
+        city: { select: { id: true, name: true } },
+        commune: { select: { id: true, name: true } },
+      },
     });
 
     if (!profile) {

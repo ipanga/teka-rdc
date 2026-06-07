@@ -173,8 +173,9 @@ model Commune {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  city      City      @relation(fields: [cityId], references: [id])
-  addresses Address[]
+  city           City            @relation(fields: [cityId], references: [id])
+  addresses      Address[]
+  sellerProfiles SellerProfile[]
 
   @@index([cityId])
   @@index([sortOrder])
@@ -270,6 +271,7 @@ model SellerProfile {
   phone             String
   location          String
   cityId            String?                 @db.Uuid
+  communeId         String?                 @db.Uuid
   description       String?
   applicationStatus SellerApplicationStatus @default(PENDING)
   rejectionReason   String?
@@ -286,12 +288,14 @@ model SellerProfile {
   user       User            @relation("UserSellerProfile", fields: [userId], references: [id])
   approvedBy User?           @relation("SellerApprover", fields: [approvedById], references: [id])
   city       City?           @relation(fields: [cityId], references: [id])
+  commune    Commune?        @relation(fields: [communeId], references: [id])
   earnings   SellerEarning[]
   payouts    Payout[]
 
   @@index([userId])
   @@index([applicationStatus])
   @@index([cityId])
+  @@index([communeId])
   @@index([deletedAt])
   @@map("seller_profiles")
 }

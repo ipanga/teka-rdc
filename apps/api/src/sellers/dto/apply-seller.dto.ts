@@ -5,7 +5,6 @@ import {
   MinLength,
   Matches,
   IsIn,
-  IsUUID,
 } from 'class-validator';
 
 export class ApplySellerDto {
@@ -44,6 +43,15 @@ export class ApplySellerDto {
     message: 'Ville invalide',
   })
   cityId?: string;
+
+  // Required: the seller's commune (sub-division of the city). The applicant
+  // picks it from the communes of the chosen city; cityId is derived
+  // server-side from this commune so the two always stay consistent.
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
+    message: 'Commune invalide',
+  })
+  @IsNotEmpty({ message: 'La commune est requise' })
+  communeId: string;
 
   @IsOptional()
   @IsString()
