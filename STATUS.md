@@ -14,8 +14,19 @@ sample retirement = `isDemo` flag + rank real-above-demo + SEO-safe per-category
 coexistence/retirement → 4 payouts + moderation-at-scale → 5 (opt) seller empowerment. Out of scope:
 external RCCM/sanctions integrations, vision-API moderation, variant SKUs, 3rd-party inventory sync.
 
-**Phase 1 — Seller self-onboarding: COMPLETE on `develop`** (P1a #304, P1b #305, P1c #306, P1d #307;
-**releasing now**). The `register/email`→SELLER vs `/sellers/apply`→BUYER dead-end is reconciled. A real
+**Phase 1 QA pass (2026-06-07, #309–#312 — releasing now).** Four issues from the post-Phase-1 review,
+fixed as separate PRs: **QA-4** (#309) admin Vendeurs list rendered `User.phone` (null for email
+sellers) — now selects+renders `SellerProfile.phone` + searches boutique/phone; **QA-2** (#310) the
+verification email 404'd — added seller-web `/verify-email` page calling `GET /v1/auth/email/verify`;
+**QA-3** (#311) no admin signal for pending applications — `pendingSellerApplicationsCount` stat →
+dashboard alert card + Vendeurs sidebar badge; **QA-1** (#312) added required **Commune** to the
+application (nullable `SellerProfile.communeId`, required in DTO/forms; `apply()` derives `cityId` from
+the commune; dynamic Commune dropdown filtered by Ville on seller-web + seller-mobile; admin detail shows
+commune). **Prod migration `2026-06-07_seller_commune.sql` to apply via the Action after deploy.** Dev
+`db:push` pending (cloud dev DB was unreachable).
+
+**Phase 1 — Seller self-onboarding: COMPLETE + SHIPPED** (P1a #304, P1b #305, P1c #306, P1d #307;
+released #308 + verified on prod). The `register/email`→SELLER vs `/sellers/apply`→BUYER dead-end is reconciled. A real
 merchant can now register (web `/inscription` + mobile), submit the business application
 (`/devenir-vendeur` on seller-web + seller-mobile, calling `/sellers/apply`), see PENDING/REJECTED states,
 and is notified by **email + push** on the admin's approve/reject decision; approved sellers reach the
