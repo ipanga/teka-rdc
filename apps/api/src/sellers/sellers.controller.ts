@@ -9,8 +9,13 @@ import { Roles } from '../common/decorators/roles.decorator';
 export class SellersController {
   constructor(private sellersService: SellersService) {}
 
+  // Accepts BUYER (an existing buyer becoming a seller) AND SELLER (a fresh
+  // email registration — register/email assigns role SELLER immediately but
+  // creates no SellerProfile, so the applicant is a seller-without-profile).
+  // Product creation stays gated on applicationStatus === 'APPROVED', so a
+  // role-SELLER user without an approved profile is inert until reviewed.
   @Post('apply')
-  @Roles('BUYER')
+  @Roles('BUYER', 'SELLER')
   async apply(
     @CurrentUser('userId') userId: string,
     @Body() dto: ApplySellerDto,
