@@ -16,6 +16,8 @@ import { orderDeliveredTemplate } from './templates/order-delivered.template';
 import { orderCancelledTemplate } from './templates/order-cancelled.template';
 import { paymentConfirmedTemplate } from './templates/payment-confirmed.template';
 import { broadcastTemplate } from './templates/broadcast.template';
+import { sellerApplicationApprovedTemplate } from './templates/seller-application-approved.template';
+import { sellerApplicationRejectedTemplate } from './templates/seller-application-rejected.template';
 
 /**
  * Buyer-facing order lifecycle events that can be emailed.
@@ -104,6 +106,33 @@ export class EmailService {
     );
     const subject = 'Configurez votre compte vendeur — Teka RDC';
     const html = sellerSetupTemplate(setupUrl, expiryHours);
+    return this.sendEmail(email, subject, html);
+  }
+
+  async sendSellerApplicationApproved(
+    email: string,
+    firstName: string | null,
+  ): Promise<boolean> {
+    const dashboardUrl = this.configService.get<string>(
+      'SELLER_WEB_URL',
+      'https://seller.teka.cd',
+    );
+    const subject = 'Votre compte vendeur est approuvé — Teka RDC';
+    const html = sellerApplicationApprovedTemplate(firstName, dashboardUrl);
+    return this.sendEmail(email, subject, html);
+  }
+
+  async sendSellerApplicationRejected(
+    email: string,
+    firstName: string | null,
+    reason: string,
+  ): Promise<boolean> {
+    const applyUrl = `${this.configService.get<string>(
+      'SELLER_WEB_URL',
+      'https://seller.teka.cd',
+    )}/devenir-vendeur`;
+    const subject = 'Votre demande vendeur — Teka RDC';
+    const html = sellerApplicationRejectedTemplate(firstName, reason, applyUrl);
     return this.sendEmail(email, subject, html);
   }
 
