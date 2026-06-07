@@ -153,3 +153,26 @@ class AddressModel {
     return parts.join(' - ');
   }
 }
+
+/// Checkout quote (`POST /v1/checkout/quote`) — preview totals for an address.
+/// `deliveryFeeCDF` is computed by the exact server-side calc used at checkout,
+/// so the previewed fee equals what the order is charged.
+class CheckoutQuote {
+  final String subtotalCDF;
+  final String deliveryFeeCDF;
+  final String totalCDF;
+
+  const CheckoutQuote({
+    required this.subtotalCDF,
+    required this.deliveryFeeCDF,
+    required this.totalCDF,
+  });
+
+  factory CheckoutQuote.fromJson(Map<String, dynamic> json) {
+    return CheckoutQuote(
+      subtotalCDF: json['subtotalCDF']?.toString() ?? '0',
+      deliveryFeeCDF: json['deliveryFeeCDF']?.toString() ?? '0',
+      totalCDF: json['totalCDF']?.toString() ?? '0',
+    );
+  }
+}

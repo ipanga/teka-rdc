@@ -27,6 +27,28 @@ class CheckoutRepository {
     return CheckoutResponse.fromJson(resultJson);
   }
 
+  /// Preview the delivery fee + totals for [deliveryAddressId] before placing
+  /// the order. Uses the same server-side calc as checkout, so the previewed
+  /// fee equals what the order is charged.
+  Future<CheckoutQuote> getQuote(String deliveryAddressId) async {
+    final response = await _dio.post(
+      '/v1/checkout/quote',
+      data: {'deliveryAddressId': deliveryAddressId},
+    );
+    final responseData = response.data;
+
+    final Map<String, dynamic> resultJson;
+    if (responseData is Map && responseData['data'] != null) {
+      resultJson = responseData['data'] as Map<String, dynamic>;
+    } else if (responseData is Map) {
+      resultJson = Map<String, dynamic>.from(responseData);
+    } else {
+      throw Exception('Invalid checkout quote response');
+    }
+
+    return CheckoutQuote.fromJson(resultJson);
+  }
+
   Future<List<AddressModel>> getAddresses() async {
     final response = await _dio.get('/v1/addresses');
     final responseData = response.data;

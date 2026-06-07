@@ -21,6 +21,10 @@ class CheckoutState {
   final String? error;
   final bool isProcessing;
   final bool isLoadingAddresses;
+  // Delivery fee preview (centimes CDF) for the selected address — null until
+  // the quote resolves. Equals what the order is charged (same server calc).
+  final String? deliveryFeeCDF;
+  final bool isLoadingQuote;
 
   const CheckoutState({
     this.step = CheckoutStep.address,
@@ -34,6 +38,8 @@ class CheckoutState {
     this.error,
     this.isProcessing = false,
     this.isLoadingAddresses = false,
+    this.deliveryFeeCDF,
+    this.isLoadingQuote = false,
   });
 
   CheckoutState copyWith({
@@ -48,8 +54,11 @@ class CheckoutState {
     String? error,
     bool? isProcessing,
     bool? isLoadingAddresses,
+    String? deliveryFeeCDF,
+    bool? isLoadingQuote,
     bool clearError = false,
     bool clearAddress = false,
+    bool clearDeliveryFee = false,
   }) {
     return CheckoutState(
       step: step ?? this.step,
@@ -64,6 +73,9 @@ class CheckoutState {
       error: clearError ? null : (error ?? this.error),
       isProcessing: isProcessing ?? this.isProcessing,
       isLoadingAddresses: isLoadingAddresses ?? this.isLoadingAddresses,
+      deliveryFeeCDF:
+          clearDeliveryFee ? null : (deliveryFeeCDF ?? this.deliveryFeeCDF),
+      isLoadingQuote: isLoadingQuote ?? this.isLoadingQuote,
     );
   }
 
@@ -92,7 +104,9 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
         addresses: addresses,
         selectedAddress: defaultAddress ?? (addresses.isNotEmpty ? addresses.first : null),
         isLoadingAddresses: false,
+        clearDeliveryFee: true,
       );
+      _fetchQuote();
     } on DioException catch (e) {
       state = state.copyWith(
         isLoadingAddresses: false,
@@ -107,7 +121,34 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
   }
 
   void selectAddress(AddressModel address) {
-    state = state.copyWith(selectedAddress: address, clearError: true);
+    state = state.copyWith(
+      selectedAddress: address,
+      clearError: true,
+      clearDeliveryFee: true,
+    );
+    _fetchQuote();
+  }
+
+  /// Fetch the delivery-fee preview for the selected address. Non-critical:
+  /// on failure the fee is left unknown (UI shows a dash) rather than blocking
+  /// checkout. A stale response (address changed mid-flight) is discarded.
+  Future<void> _fetchQuote() async {
+    final address = state.selectedAddress;
+    if (address == null) return;
+    state = state.copyWith(isLoadingQuote: true);
+    try {
+      final quote = await _repository.getQuote(address.id);
+      if (!mounted) return;
+      if (state.selectedAddress?.id != address.id) return;
+      state = state.copyWith(
+        deliveryFeeCDF: quote.deliveryFeeCDF,
+        isLoadingQuote: false,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      if (state.selectedAddress?.id != address.id) return;
+      state = state.copyWith(isLoadingQuote: false);
+    }
   }
 
   /// Create a new address via API, reload addresses, and select the new one.
@@ -120,7 +161,9 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       state = state.copyWith(
         addresses: addresses,
         selectedAddress: newAddress,
+        clearDeliveryFee: true,
       );
+      _fetchQuote();
       return true;
     } on DioException catch (e) {
       state = state.copyWith(error: extractDioErrorMessage(e));

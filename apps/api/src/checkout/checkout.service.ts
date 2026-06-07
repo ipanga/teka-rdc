@@ -2,7 +2,6 @@ import {
   Injectable,
   BadRequestException,
   NotFoundException,
-  ConflictException,
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -17,6 +16,9 @@ import { randomBytes } from 'crypto';
 
 /** Order number prefix */
 const ORDER_PREFIX = 'TK';
+
+/** Prisma transaction-callback client (same shape used by generateOrderNumber). */
+type TxClient = Parameters<Parameters<PrismaService['$transaction']>[0]>[0];
 
 @Injectable()
 export class CheckoutService {
@@ -135,25 +137,10 @@ export class CheckoutService {
             }
           }
 
-          // Get seller location for delivery fee estimation
-          const sellerProfile = await tx.sellerProfile.findFirst({
-            where: { userId: group.sellerId },
-            select: { location: true, city: { select: { name: true } } },
-          });
-
-          // Estimate delivery fee — use city name if available, fall back to location string
-          const fromTown =
-            sellerProfile?.city?.name ??
-            sellerProfile?.location ??
-            'Lubumbashi';
-          const deliveryEstimate = await this.deliveryZonesService.estimateFee(
-            fromTown,
-            address.town,
-          );
-          const deliveryFeeCDF = BigInt(deliveryEstimate.data.feeCDF);
-          const deliveryFeeUSD = deliveryEstimate.data.feeUSD
-            ? BigInt(deliveryEstimate.data.feeUSD)
-            : null;
+          // Delivery fee — SINGLE source of truth, shared with quote() so the
+          // previewed fee always equals the charged fee.
+          const { cdf: deliveryFeeCDF, usd: deliveryFeeUSD } =
+            await this.resolveDeliveryFee(group.sellerId, address.town, tx);
 
           // Calculate subtotals
           let subtotalCDF = BigInt(0);
@@ -329,6 +316,85 @@ export class CheckoutService {
       checkoutGroupId,
       isIdempotent: false,
       paymentPending: false,
+    };
+  }
+
+  /**
+   * Resolve a seller's delivery fee to a buyer town. **Single source of truth**
+   * for the delivery fee — called by both `checkout()` (to charge) and
+   * `quote()` (to preview), so the previewed fee always equals the charged fee.
+   * `fromTown` = seller's city name → location → 'Lubumbashi'; `toTown` = the
+   * buyer's address town.
+   */
+  private async resolveDeliveryFee(
+    sellerId: string,
+    toTown: string,
+    db: TxClient = this.prisma,
+  ): Promise<{ cdf: bigint; usd: bigint | null }> {
+    const sellerProfile = await db.sellerProfile.findFirst({
+      where: { userId: sellerId },
+      select: { location: true, city: { select: { name: true } } },
+    });
+    const fromTown =
+      sellerProfile?.city?.name ?? sellerProfile?.location ?? 'Lubumbashi';
+    const estimate = await this.deliveryZonesService.estimateFee(
+      fromTown,
+      toTown,
+    );
+    return {
+      cdf: BigInt(estimate.data.feeCDF),
+      usd: estimate.data.feeUSD ? BigInt(estimate.data.feeUSD) : null,
+    };
+  }
+
+  /**
+   * Checkout **quote**: previews the per-seller subtotal + delivery fee + total
+   * for the buyer's current cart and a chosen delivery address — without
+   * creating any order, mutating stock, or consuming an idempotency key. The
+   * delivery fee comes from `resolveDeliveryFee` (the same call `checkout()`
+   * makes), so the previewed `deliveryFeeCDF` equals what the order is charged.
+   */
+  async quote(userId: string, deliveryAddressId: string) {
+    const cartSummary = await this.cartService.getCartSummary(userId);
+    if (cartSummary.items.length === 0) {
+      throw new BadRequestException('Votre panier est vide');
+    }
+
+    const address = await this.prisma.address.findFirst({
+      where: { id: deliveryAddressId, userId, deletedAt: null },
+    });
+    if (!address) {
+      throw new NotFoundException('Adresse de livraison non trouvée');
+    }
+
+    let subtotalCDF = BigInt(0);
+    let deliveryFeeCDF = BigInt(0);
+    const sellerQuotes = [];
+
+    for (const group of cartSummary.sellerGroups) {
+      const fee = await this.resolveDeliveryFee(group.sellerId, address.town);
+      const sellerTotal = group.subtotalCDF + fee.cdf;
+      sellerQuotes.push({
+        sellerId: group.sellerId,
+        sellerName: group.sellerName,
+        itemCount: group.items.reduce((n, i) => n + i.quantity, 0),
+        subtotalCDF: group.subtotalCDF.toString(),
+        deliveryFeeCDF: fee.cdf.toString(),
+        deliveryFeeUSD: fee.usd?.toString() ?? null,
+        totalCDF: sellerTotal.toString(),
+      });
+      subtotalCDF += group.subtotalCDF;
+      deliveryFeeCDF += fee.cdf;
+    }
+
+    return {
+      data: {
+        deliveryAddressId,
+        subtotalCDF: subtotalCDF.toString(),
+        deliveryFeeCDF: deliveryFeeCDF.toString(),
+        totalCDF: (subtotalCDF + deliveryFeeCDF).toString(),
+        sellerQuotes,
+      },
     };
   }
 
