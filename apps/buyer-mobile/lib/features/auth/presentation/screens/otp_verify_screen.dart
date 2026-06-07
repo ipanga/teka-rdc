@@ -9,7 +9,14 @@ import '../providers/auth_provider.dart';
 
 class OtpVerifyScreen extends ConsumerStatefulWidget {
   final String phone;
-  const OtpVerifyScreen({super.key, required this.phone});
+  /// Initial resend cooldown (seconds) from the OTP-request response. Falls
+  /// back to 30 when not supplied.
+  final int initialCooldown;
+  const OtpVerifyScreen({
+    super.key,
+    required this.phone,
+    this.initialCooldown = 30,
+  });
 
   @override
   ConsumerState<OtpVerifyScreen> createState() => _OtpVerifyScreenState();
@@ -31,9 +38,9 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
     _startCooldown();
   }
 
-  void _startCooldown() {
+  void _startCooldown([int? seconds]) {
     _ticker?.cancel();
-    setState(() => _cooldown = 30);
+    setState(() => _cooldown = seconds ?? widget.initialCooldown);
     _ticker = Timer.periodic(const Duration(seconds: 1), (t) {
       if (!mounted) return;
       setState(() => _cooldown = _cooldown > 0 ? _cooldown - 1 : 0);
@@ -95,8 +102,8 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
     if (_cooldown > 0) return;
     setState(() => _error = null);
     try {
-      await ref.read(authProvider.notifier).resendOtp(widget.phone);
-      _startCooldown();
+      final data = await ref.read(authProvider.notifier).resendOtp(widget.phone);
+      _startCooldown((data['cooldownSeconds'] as num?)?.toInt());
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = _humanizeError(e, isVerify: false));

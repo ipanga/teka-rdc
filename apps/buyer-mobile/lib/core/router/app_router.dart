@@ -84,7 +84,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) {
           final extra = state.extra as Map<String, dynamic>?;
           final phone = (extra?['phone'] as String?) ?? '';
-          return OtpVerifyScreen(phone: phone);
+          final cooldown = (extra?['cooldown'] as num?)?.toInt() ?? 30;
+          return OtpVerifyScreen(phone: phone, initialCooldown: cooldown);
         },
       ),
       GoRoute(
