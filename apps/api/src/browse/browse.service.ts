@@ -407,6 +407,104 @@ export class BrowseService {
   }
 
   /**
+   * Related products for the PDP: same category, price within ±40%, excluding
+   * the current product, real-above-demo then best-seller/recency. Tops up with
+   * same-category (any price) when the price band is sparse so the carousel is
+   * never near-empty.
+   */
+  async getRelatedProducts(productId: string, limit = 8) {
+    const take = Math.min(Math.max(limit, 1), 12);
+    const source = await this.prisma.product.findFirst({
+      where: { id: productId, status: ProductStatus.ACTIVE, deletedAt: null },
+      select: { id: true, categoryId: true, priceCDF: true },
+    });
+    if (!source) return { data: [] };
+
+    const lo = (source.priceCDF * 60n) / 100n;
+    const hi = (source.priceCDF * 140n) / 100n;
+
+    const select = {
+      id: true,
+      slug: true,
+      shortCode: true,
+      title: true,
+      priceCDF: true,
+      priceUSD: true,
+      condition: true,
+      quantity: true,
+      categoryId: true,
+      cityId: true,
+      avgRating: true,
+      totalReviews: true,
+      unitsSold: true,
+      city: { select: { slug: true, name: true } },
+      images: {
+        orderBy: { displayOrder: 'asc' as const },
+        take: 1,
+        select: { id: true, url: true, thumbnailUrl: true, displayOrder: true },
+      },
+      seller: {
+        select: { sellerProfile: { select: { businessName: true } } },
+      },
+    } satisfies Prisma.ProductSelect;
+    type Row = Prisma.ProductGetPayload<{ select: typeof select }>;
+
+    const baseWhere = {
+      status: ProductStatus.ACTIVE,
+      deletedAt: null,
+      categoryId: source.categoryId,
+      id: { not: source.id },
+    };
+    const orderBy = [
+      { isDemo: 'asc' as const },
+      { unitsSold: 'desc' as const },
+      { createdAt: 'desc' as const },
+    ];
+
+    const near = await this.prisma.product.findMany({
+      where: { ...baseWhere, priceCDF: { gte: lo, lte: hi } },
+      orderBy,
+      take,
+      select,
+    });
+
+    let rows: Row[] = near;
+    if (rows.length < take) {
+      const excludeIds = [source.id, ...rows.map((r) => r.id)];
+      const fill = await this.prisma.product.findMany({
+        where: { ...baseWhere, id: { notIn: excludeIds } },
+        orderBy,
+        take: take - rows.length,
+        select,
+      });
+      rows = [...rows, ...fill];
+    }
+
+    const data = rows.map((p) => ({
+      id: p.id,
+      slug: p.slug,
+      shortCode: p.shortCode,
+      title: p.title,
+      priceCDF: p.priceCDF,
+      priceUSD: p.priceUSD,
+      condition: p.condition,
+      quantity: p.quantity,
+      categoryId: p.categoryId,
+      cityId: p.cityId,
+      citySlug: p.city?.slug ?? null,
+      cityName: p.city?.name ?? null,
+      avgRating: p.avgRating,
+      totalReviews: p.totalReviews,
+      unitsSold: p.unitsSold,
+      image: p.images[0] ?? null,
+      seller: {
+        businessName: p.seller?.sellerProfile?.businessName ?? 'Vendeur',
+      },
+    }));
+    return { data };
+  }
+
+  /**
    * Returns full product detail for public viewing.
    */
   async getProductDetail(identifier: string) {

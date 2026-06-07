@@ -45,6 +45,19 @@ export class BrowseController {
     return this.browseService.getProductDetail(identifier);
   }
 
+  /** Related products for the PDP (same category + price proximity). */
+  @Get('products/:id/related')
+  @Public()
+  getRelatedProducts(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.browseService.getRelatedProducts(
+      id,
+      limit ? parseInt(limit, 10) : undefined,
+    );
+  }
+
   @Get('categories/:id/attributes')
   @Public()
   getCategoryAttributes(@Param('id', ParseUUIDPipe) id: string) {
