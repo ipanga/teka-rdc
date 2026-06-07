@@ -150,26 +150,30 @@ export class BrowseService {
       ];
     }
 
-    // Build orderBy
-    let orderBy: Record<string, string>;
+    // Build orderBy. Real merchant products always rank above the seeded
+    // "Teka RDC Officiel" demo catalog (isDemo asc → false/real first), then
+    // the buyer's chosen sort within each group. Once a category's demo
+    // products are retired (Phase 3 P3c) this tiebreaker becomes moot.
+    let primarySort: Record<string, string>;
     switch (query.sortBy) {
       case 'price_low':
-        orderBy = { priceCDF: 'asc' };
+        primarySort = { priceCDF: 'asc' };
         break;
       case 'price_high':
-        orderBy = { priceCDF: 'desc' };
+        primarySort = { priceCDF: 'desc' };
         break;
       case 'newest':
-        orderBy = { createdAt: 'desc' };
+        primarySort = { createdAt: 'desc' };
         break;
       case 'rating':
-        orderBy = { avgRating: 'desc' };
+        primarySort = { avgRating: 'desc' };
         break;
       case 'popularity':
       default:
-        orderBy = { createdAt: 'desc' }; // TODO: Add popularity metric later
+        primarySort = { createdAt: 'desc' }; // TODO: Add popularity metric later
         break;
     }
+    const orderBy: Record<string, string>[] = [{ isDemo: 'asc' }, primarySort];
 
     // Cursor-based pagination: fetch limit+1 to check hasMore
     const products = await this.prisma.product.findMany({

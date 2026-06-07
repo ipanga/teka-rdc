@@ -41,3 +41,39 @@ describe('AdminStatsService.getDashboardStats — pending seller applications (Q
     expect(res.data.totalSellers).toBe(2); // APPROVED only
   });
 });
+
+describe('AdminStatsService.getCatalogCoverage (P3b)', () => {
+  it('rolls subcategory product counts up to the root, split by real vs demo', async () => {
+    // Tree: Électronique(root) → Téléphones(sub). Products live on the sub.
+    const prisma = {
+      product: {
+        groupBy: jest.fn().mockResolvedValue([
+          { categoryId: 'sub-phones', isDemo: true, _count: { _all: 4 } },
+          { categoryId: 'sub-phones', isDemo: false, _count: { _all: 3 } },
+        ]),
+      },
+      category: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'root-elec', name: 'Électronique', parentCategoryId: null },
+          {
+            id: 'sub-phones',
+            name: 'Téléphones',
+            parentCategoryId: 'root-elec',
+          },
+          { id: 'root-mode', name: 'Mode', parentCategoryId: null },
+        ]),
+      },
+    };
+    const service = new AdminStatsService(prisma as never);
+
+    const res = await service.getCatalogCoverage();
+    const elec = res.data.find((c) => c.categoryId === 'root-elec');
+    const mode = res.data.find((c) => c.categoryId === 'root-mode');
+
+    expect(elec).toMatchObject({ realCount: 3, demoCount: 4 });
+    // Empty root categories still surface at zero.
+    expect(mode).toMatchObject({ realCount: 0, demoCount: 0 });
+    // Subcategories are not returned as their own rows.
+    expect(res.data.some((c) => c.categoryId === 'sub-phones')).toBe(false);
+  });
+});

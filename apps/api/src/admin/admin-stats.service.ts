@@ -15,6 +15,13 @@ export interface DashboardStats {
   revenueThisMonthCDF: string;
 }
 
+export interface CategoryCoverage {
+  categoryId: string;
+  categoryName: string;
+  realCount: number;
+  demoCount: number;
+}
+
 export type TrendPeriod = '7d' | '30d' | '90d';
 
 export interface TrendDataPoint {
@@ -224,5 +231,66 @@ export class AdminStatsService {
     };
 
     return { success: true, data: trends };
+  }
+
+  /**
+   * Per-main-category coverage of REAL merchant supply vs the seeded demo
+   * catalog. Counts ACTIVE products split by isDemo, rolled up from leaf
+   * subcategories to their root category, so ops can see which categories have
+   * genuine merchant products (and are eventually ready to retire demo — P3c).
+   */
+  async getCatalogCoverage(): Promise<{
+    success: true;
+    data: CategoryCoverage[];
+  }> {
+    const [grouped, categories] = await Promise.all([
+      this.prisma.product.groupBy({
+        by: ['categoryId', 'isDemo'],
+        where: { status: 'ACTIVE', deletedAt: null },
+        _count: { _all: true },
+      }),
+      this.prisma.category.findMany({
+        where: { deletedAt: null },
+        select: { id: true, name: true, parentCategoryId: true },
+      }),
+    ]);
+
+    const byId = new Map(categories.map((c) => [c.id, c]));
+    const rootIdOf = (categoryId: string): string | null => {
+      let current = byId.get(categoryId);
+      // Walk up to the root (parentCategoryId === null). Bounded by tree depth.
+      while (current?.parentCategoryId) {
+        current = byId.get(current.parentCategoryId);
+      }
+      return current?.id ?? null;
+    };
+
+    // Seed every root category at zero so empty categories still surface.
+    const coverage = new Map<string, CategoryCoverage>();
+    for (const c of categories) {
+      if (!c.parentCategoryId) {
+        coverage.set(c.id, {
+          categoryId: c.id,
+          categoryName: c.name,
+          realCount: 0,
+          demoCount: 0,
+        });
+      }
+    }
+
+    for (const row of grouped) {
+      const rootId = rootIdOf(row.categoryId);
+      if (!rootId) continue;
+      const entry = coverage.get(rootId);
+      if (!entry) continue;
+      const n = row._count._all;
+      if (row.isDemo) entry.demoCount += n;
+      else entry.realCount += n;
+    }
+
+    const data = [...coverage.values()].sort((a, b) =>
+      a.categoryName.localeCompare(b.categoryName),
+    );
+    return { success: true, data };
   }
 }
