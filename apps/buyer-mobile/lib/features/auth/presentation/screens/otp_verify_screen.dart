@@ -59,10 +59,36 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
           );
       if (!mounted) return;
       context.go('/');
+    } on SellerAccountException {
+      if (!mounted) return;
+      _codeController.clear();
+      _showSellerAccountDialog();
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = _humanizeError(e, isVerify: true));
     }
+  }
+
+  void _showSellerAccountDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Compte vendeur'),
+        content: const Text(
+          "Ce numéro est associé à un compte vendeur. "
+          "Connectez-vous depuis l'application vendeur Teka RDC.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              if (mounted) context.pop(); // back to the phone-entry screen
+            },
+            child: const Text('Compris'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _resend() async {
