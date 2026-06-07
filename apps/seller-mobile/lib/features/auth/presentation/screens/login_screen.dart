@@ -188,14 +188,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                   ),
                 ),
-                const SizedBox(height: 12),
 
-                OutlinedButton.icon(
-                  onPressed: () => context.push('/auth/migrate'),
-                  icon: const Icon(Icons.swap_horiz),
-                  label: const Text('Compte vendeur existant ?'),
-                ),
-
+                // (The "Compte vendeur existant ?" migration button was
+                // removed 2026-06-07 — the seller SMS→email migration flow was
+                // retired 2026-05-18 and `/auth/migrate` no longer exists, so
+                // the button only led to a dead route.)
                 const SizedBox(height: 16),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
