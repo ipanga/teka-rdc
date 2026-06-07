@@ -155,6 +155,16 @@ class ProductCard extends StatelessWidget {
                       ),
                     ),
                   ],
+                  if (product.unitsSold > 0) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      l10n.productUnitsSold(product.unitsSold),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: TekaColors.mutedForeground,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

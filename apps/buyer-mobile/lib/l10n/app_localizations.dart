@@ -1611,6 +1611,12 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Connexion rétablie'**
   String get connectivityBannerRestored;
+
+  /// No description provided for @productUnitsSold.
+  ///
+  /// In fr, this message translates to:
+  /// **'{count, plural, one{{count} vendu} other{{count} vendus}}'**
+  String productUnitsSold(int count);
 }
 
 class _AppLocalizationsDelegate

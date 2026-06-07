@@ -39,6 +39,9 @@ class BrowseProductModel {
   final String? cityId;
   final String? citySlug;
   final String? cityName;
+  // Best-seller social proof: total delivered units. Shown as "X vendus"
+  // only when > 0.
+  final int unitsSold;
 
   const BrowseProductModel({
     required this.id,
@@ -55,6 +58,7 @@ class BrowseProductModel {
     this.cityId,
     this.citySlug,
     this.cityName,
+    this.unitsSold = 0,
   });
 
   factory BrowseProductModel.fromJson(Map<String, dynamic> json) {
@@ -77,6 +81,7 @@ class BrowseProductModel {
       cityId: json['cityId'] as String?,
       citySlug: json['citySlug'] as String?,
       cityName: json['cityName'] as String?,
+      unitsSold: json['unitsSold'] as int? ?? 0,
     );
   }
 
@@ -119,6 +124,7 @@ class ProductDetailModel {
   final String? cityId;
   final String? citySlug;
   final String? cityName;
+  final int unitsSold;
 
   const ProductDetailModel({
     required this.id,
@@ -138,6 +144,7 @@ class ProductDetailModel {
     this.cityId,
     this.citySlug,
     this.cityName,
+    this.unitsSold = 0,
   });
 
   factory ProductDetailModel.fromJson(Map<String, dynamic> json) {
@@ -179,6 +186,7 @@ class ProductDetailModel {
       cityId: json['cityId'] as String?,
       citySlug: (city?['slug'] ?? json['citySlug']) as String?,
       cityName: (city?['name'] ?? json['cityName']) as String?,
+      unitsSold: json['unitsSold'] as int? ?? 0,
     );
   }
 
