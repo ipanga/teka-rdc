@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/earnings_repository.dart';
 import '../../data/models/earning_model.dart';
@@ -183,8 +184,23 @@ class EarningsNotifier extends StateNotifier<EarningsState> {
     }
   }
 
-  Future<bool> requestPayout(String method, String phone) async {
+  /// The saved reusable payout destination (B1), for prefilling the form.
+  Future<SellerPayoutMethod?> getSavedPayoutMethod() async {
     try {
+      return await _repository.getPayoutMethod();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Saves the destination (so it prefills next time) then requests the payout.
+  /// Returns null on success, or the API error message on failure.
+  Future<String?> requestPayout(String method, String phone) async {
+    try {
+      await _repository.updatePayoutMethod(
+        payoutMethod: method,
+        payoutPhone: phone,
+      );
       await _repository.requestPayout(
         payoutMethod: method,
         payoutPhone: phone,
@@ -194,9 +210,19 @@ class EarningsNotifier extends StateNotifier<EarningsState> {
         loadWallet(),
         loadPayouts(),
       ]);
-      return true;
+      return null;
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      if (data is Map) {
+        final err = data['error'];
+        if (err is Map && err['message'] != null) {
+          return err['message'].toString();
+        }
+        if (data['message'] != null) return data['message'].toString();
+      }
+      return 'Une erreur est survenue. Veuillez reessayer.';
     } catch (_) {
-      return false;
+      return 'Une erreur est survenue. Veuillez reessayer.';
     }
   }
 

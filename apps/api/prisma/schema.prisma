@@ -291,6 +291,11 @@ model SellerProfile {
   avgRating        Float  @default(0)
   totalReviews     Int    @default(0)
 
+  // Reusable payout destination (mobile money). Saved so sellers don't
+  // re-enter it on every payout request. Nullable until first configured.
+  payoutMethod String? // 'M_PESA' | 'AIRTEL_MONEY' | 'ORANGE_MONEY'
+  payoutPhone  String? // +243XXXXXXXXX
+
   user       User            @relation("UserSellerProfile", fields: [userId], references: [id])
   approvedBy User?           @relation("SellerApprover", fields: [approvedById], references: [id])
   city       City?           @relation(fields: [cityId], references: [id])

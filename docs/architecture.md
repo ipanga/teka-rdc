@@ -345,6 +345,18 @@ modal). Single URL builder: `apps/buyer-web/src/lib/urls.ts`.
    - Updates SellerProfile.walletBalance
 ```
 
+### Seller payouts & settlement
+
+COD-only, **platform-collects** model (decided 2026-06-08): Teka couriers collect
+the buyer's cash on the platform's behalf, so the platform holds it and owes the
+seller the net. Earnings accrue to `SellerProfile.walletBalanceCDF` on delivery;
+the seller requests a payout (whole balance, from a saved mobile-money
+destination), an admin approves and then **manually marks it paid** with an
+external transfer reference (no automated disbursement). Lifecycle:
+`REQUESTED → APPROVED → PROCESSING → COMPLETED` (`REJECTED` refunds the wallet).
+Seller notified on each outcome (push + email). **Full reference + ops runbook:
+`payouts.md`.**
+
 ### Order State Machine
 
 ```
@@ -382,8 +394,8 @@ Each transition is logged in the `OrderStatusLog` table with timestamp, actor (b
 | **OrderItem** | Snapshot of product at time of purchase (price, quantity) |
 | **OrderStatusLog** | Audit trail for every state transition |
 | **Transaction** | Payment records with externalReference for idempotency |
-| **SellerEarning** | Per-order earnings (saleAmount - commissionAmount) |
-| **Payout** | Seller payout requests (PENDING → APPROVED → COMPLETED / REJECTED) |
+| **SellerEarning** | Per-order earnings (subtotal − commission); links to a Payout when paid |
+| **Payout** | Seller payouts: `REQUESTED → APPROVED → PROCESSING → COMPLETED`, `REJECTED` from REQUESTED/APPROVED. Reusable destination on SellerProfile (`payoutMethod`/`payoutPhone`); manual mark-paid + `externalReference`. See `payouts.md` |
 | **CommissionSetting** | Global rate + category overrides |
 | **DeliveryZone** | Town-to-town delivery fee configuration |
 

@@ -119,6 +119,7 @@ class PayoutModel {
   final String payoutMethod;
   final String payoutPhone;
   final String? rejectionReason;
+  final String? externalReference;
   final String requestedAt;
   final String? processedAt;
   final String createdAt;
@@ -130,6 +131,7 @@ class PayoutModel {
     required this.payoutMethod,
     required this.payoutPhone,
     this.rejectionReason,
+    this.externalReference,
     required this.requestedAt,
     this.processedAt,
     required this.createdAt,
@@ -161,12 +163,28 @@ class PayoutModel {
       payoutMethod: json['payoutMethod'] as String? ?? '',
       payoutPhone: json['payoutPhone'] as String? ?? '',
       rejectionReason: json['rejectionReason'] as String?,
+      externalReference: json['externalReference'] as String?,
       requestedAt: json['requestedAt'] as String? ??
           json['createdAt'] as String? ??
           DateTime.now().toIso8601String(),
       processedAt: json['processedAt'] as String?,
       createdAt:
           json['createdAt'] as String? ?? DateTime.now().toIso8601String(),
+    );
+  }
+}
+
+/// Seller's saved reusable payout destination (B1).
+class SellerPayoutMethod {
+  final String? payoutMethod;
+  final String? payoutPhone;
+
+  const SellerPayoutMethod({this.payoutMethod, this.payoutPhone});
+
+  factory SellerPayoutMethod.fromJson(Map<String, dynamic> json) {
+    return SellerPayoutMethod(
+      payoutMethod: json['payoutMethod'] as String?,
+      payoutPhone: json['payoutPhone'] as String?,
     );
   }
 }

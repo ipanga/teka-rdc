@@ -982,6 +982,18 @@ abstract class AppLocalizations {
   /// **'Solde minimum: 5 000 CDF'**
   String get payoutMinimumBalance;
 
+  /// No description provided for @payoutPendingNotice.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vous avez deja une demande de virement en cours. Vous pourrez en faire une nouvelle une fois celle-ci traitee.'**
+  String get payoutPendingNotice;
+
+  /// No description provided for @payoutReferenceLabel.
+  ///
+  /// In fr, this message translates to:
+  /// **'Reference'**
+  String get payoutReferenceLabel;
+
   /// No description provided for @payoutTemporarilyUnavailable.
   ///
   /// In fr, this message translates to:

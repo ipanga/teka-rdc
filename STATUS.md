@@ -6,10 +6,36 @@
 
 ## Active initiative
 
-**None.** Initiative #2 (Discovery & Conversion) was PAUSED 2026-06-08 after Phase C — see below. Phases
-A/B/C all shipped + verified on prod; Phase D (conversion polish) is deferred. One follow-up (#341 seller
-attribute-label fix) sits on `develop` pending the next release. No in-flight build work — ask the user
-what to start next (or release #341).
+**Initiative #3 — Seller Payouts Operationalization** (started 2026-06-08). **Goal:** make seller payouts
+operationally complete end-to-end on the COD platform — sellers accrue `walletBalanceCDF` on delivery but
+today **cannot get paid** (completion flow unimplemented; seller request UI deliberately disabled).
+**Settlement model RESOLVED (user, 2026-06-08):** Teka couriers collect goods from sellers, deliver to
+buyers, and **collect the COD cash on Teka's behalf** → the **platform holds the cash and owes the seller
+net (gross − commission)**. The existing Earning/wallet direction is therefore correct; proceed with
+"platform-collects". Completion is **manual mark-paid + external reference** (no automated provider — COD
+only). The admin approve→complete step IS the finance control point (operator only marks paid once cash is
+actually sent). **CODE-COMPLETE on `develop` (A–E, #343–#350), PENDING RELEASE.** **Out of scope:** automated
+payment-provider disbursement, multi-currency payouts, per-order COD cash-reconciliation ledger (the
+platform-collects model + admin control point covers launch; a per-order rider-remittance ledger is a
+later phase if needed).
+- **A1** (#343) lifecycle completion: admin `POST .../process` (APPROVED→PROCESSING) + `.../complete`
+  (APPROVED|PROCESSING→COMPLETED; `processedAt`+`externalReference`); guards; 9 unit tests. No migration
+  (Payout row is the ledger — `Transaction.orderId` required, so no `Transaction{PAYOUT}`).
+- **A2** (#344) seller payout notifications (approved/paid/rejected) — push primary + **email fallback**
+  (money events; sellers always have email); 3 FR templates + `SellerNotificationService` methods.
+- **B1** (#345) reusable destination: `SellerProfile.payoutMethod`/`payoutPhone` (**migration
+  `2026-06-08_seller_payout_destination.sql`** — applied to DEV; **PROD via Action at release**);
+  GET/PATCH `/v1/sellers/payout-method`; requestPayout defaults from saved destination.
+- **C1** (#346) seller-web + **C2** (#347) seller-mobile: re-enabled request flow (saved destination,
+  min-balance + single-pending guards, lifecycle display incl. reference/reason).
+- **D1** (#348) admin-web mark-paid UI (process/complete + reference; also fixed pre-existing
+  method/phone/seller-name field mismatches) + **D2** (#349) payouts CSV export (`/v1/admin/reports/payouts[/csv]`
+  + "Virements" reports tab).
+- **E** (#350) authz e2e (9 — all money endpoints 401 without auth) + docs (`docs/payouts.md` authoritative
+  reference + ops runbook; api-reference/architecture/CLAUDE refreshed).
+
+**RELEASE STEP (when directed):** ship A–E develop→main, deploy, **apply prod migration
+`2026-06-08_seller_payout_destination.sql`** via the Action, verify payout endpoints on prod.
 
 ---
 

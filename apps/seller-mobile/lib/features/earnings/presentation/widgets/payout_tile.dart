@@ -98,6 +98,19 @@ class PayoutTile extends StatelessWidget {
               ),
             ),
           ],
+          // Completed payouts show the transfer reference (A1 lifecycle).
+          if (payout.status.toUpperCase() == 'COMPLETED' &&
+              payout.externalReference != null &&
+              payout.externalReference!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              '${l10n.payoutReferenceLabel} : ${payout.externalReference}',
+              style: const TextStyle(
+                fontSize: 11,
+                color: TekaColors.mutedForeground,
+              ),
+            ),
+          ],
         ],
       ),
     );

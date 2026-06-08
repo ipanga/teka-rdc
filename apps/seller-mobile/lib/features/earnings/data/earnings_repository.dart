@@ -108,6 +108,29 @@ class EarningsRepository {
     return PayoutModel.fromJson(
         response.data['data'] as Map<String, dynamic>);
   }
+
+  /// GET /v1/sellers/payout-method — the saved reusable destination (B1).
+  Future<SellerPayoutMethod> getPayoutMethod() async {
+    final response = await _dio.get('/v1/sellers/payout-method');
+    return SellerPayoutMethod.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  /// PATCH /v1/sellers/payout-method — save/update the destination (B1).
+  Future<SellerPayoutMethod> updatePayoutMethod({
+    required String payoutMethod,
+    required String payoutPhone,
+  }) async {
+    final response = await _dio.patch(
+      '/v1/sellers/payout-method',
+      data: {
+        'payoutMethod': payoutMethod,
+        'payoutPhone': payoutPhone,
+      },
+    );
+    return SellerPayoutMethod.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
 }
 
 final earningsRepositoryProvider = Provider<EarningsRepository>((ref) {

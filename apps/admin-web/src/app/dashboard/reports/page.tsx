@@ -4,7 +4,10 @@ import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 
-type ReportTab = 'sales' | 'financial' | 'sellers';
+type ReportTab = 'sales' | 'financial' | 'sellers' | 'payouts';
+
+// Tabs that support the optional sellerId filter.
+const SELLER_FILTERABLE: ReportTab[] = ['sellers', 'payouts'];
 
 interface ReportRow {
   [key: string]: string | number | null;
@@ -32,7 +35,7 @@ export default function ReportsPage() {
       const params = new URLSearchParams();
       if (dateFrom) params.set('dateFrom', dateFrom);
       if (dateTo) params.set('dateTo', dateTo);
-      if (activeTab === 'sellers' && sellerId) params.set('sellerId', sellerId);
+      if (SELLER_FILTERABLE.includes(activeTab) && sellerId) params.set('sellerId', sellerId);
 
       const endpoint = `/v1/admin/reports/${activeTab}?${params}`;
       const res = await apiFetch<ReportRow[]>(endpoint);
@@ -58,7 +61,7 @@ export default function ReportsPage() {
       const params = new URLSearchParams();
       if (dateFrom) params.set('dateFrom', dateFrom);
       if (dateTo) params.set('dateTo', dateTo);
-      if (activeTab === 'sellers' && sellerId) params.set('sellerId', sellerId);
+      if (SELLER_FILTERABLE.includes(activeTab) && sellerId) params.set('sellerId', sellerId);
 
       const url = `${API_BASE}/v1/admin/reports/${activeTab}/csv?${params}`;
       const response = await fetch(url, {
@@ -88,6 +91,7 @@ export default function ReportsPage() {
     { key: 'sales', label: t('sales') },
     { key: 'financial', label: t('financial') },
     { key: 'sellers', label: t('sellerPerformance') },
+    { key: 'payouts', label: t('payouts') },
   ];
 
   const formatCellValue = (value: string | number | null): string => {
@@ -137,7 +141,7 @@ export default function ReportsPage() {
               className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
-          {activeTab === 'sellers' && (
+          {SELLER_FILTERABLE.includes(activeTab) && (
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">{t('sellerIdFilter')}</label>
               <input

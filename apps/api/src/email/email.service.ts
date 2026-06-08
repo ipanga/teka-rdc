@@ -18,6 +18,9 @@ import { paymentConfirmedTemplate } from './templates/payment-confirmed.template
 import { broadcastTemplate } from './templates/broadcast.template';
 import { sellerApplicationApprovedTemplate } from './templates/seller-application-approved.template';
 import { sellerApplicationRejectedTemplate } from './templates/seller-application-rejected.template';
+import { payoutApprovedTemplate } from './templates/payout-approved.template';
+import { payoutPaidTemplate } from './templates/payout-paid.template';
+import { payoutRejectedTemplate } from './templates/payout-rejected.template';
 
 /**
  * Buyer-facing order lifecycle events that can be emailed.
@@ -133,6 +136,63 @@ export class EmailService {
     )}/devenir-vendeur`;
     const subject = 'Votre demande vendeur — Teka RDC';
     const html = sellerApplicationRejectedTemplate(firstName, reason, applyUrl);
+    return this.sendEmail(email, subject, html);
+  }
+
+  /** Email fallback for the seller "payout approved" event. */
+  async sendPayoutApproved(
+    email: string,
+    firstName: string | null,
+    amountLabel: string,
+  ): Promise<boolean> {
+    const dashboardUrl = this.configService.get<string>(
+      'SELLER_WEB_URL',
+      'https://seller.teka.cd',
+    );
+    const subject = 'Retrait approuvé — Teka RDC';
+    const html = payoutApprovedTemplate(firstName, amountLabel, dashboardUrl);
+    return this.sendEmail(email, subject, html);
+  }
+
+  /** Email fallback for the seller "payout paid/completed" event. */
+  async sendPayoutPaid(
+    email: string,
+    firstName: string | null,
+    amountLabel: string,
+    reference: string,
+  ): Promise<boolean> {
+    const dashboardUrl = this.configService.get<string>(
+      'SELLER_WEB_URL',
+      'https://seller.teka.cd',
+    );
+    const subject = 'Retrait effectué — Teka RDC';
+    const html = payoutPaidTemplate(
+      firstName,
+      amountLabel,
+      reference,
+      dashboardUrl,
+    );
+    return this.sendEmail(email, subject, html);
+  }
+
+  /** Email fallback for the seller "payout rejected" event. */
+  async sendPayoutRejected(
+    email: string,
+    firstName: string | null,
+    amountLabel: string,
+    reason: string,
+  ): Promise<boolean> {
+    const dashboardUrl = this.configService.get<string>(
+      'SELLER_WEB_URL',
+      'https://seller.teka.cd',
+    );
+    const subject = 'Demande de retrait refusée — Teka RDC';
+    const html = payoutRejectedTemplate(
+      firstName,
+      amountLabel,
+      reason,
+      dashboardUrl,
+    );
     return this.sendEmail(email, subject, html);
   }
 

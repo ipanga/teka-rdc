@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Patch,
   Get,
   Body,
   Param,
@@ -14,6 +15,8 @@ import { EarningsService } from '../payments/earnings.service';
 import { RequestPayoutDto } from './dto/request-payout.dto';
 import { PayoutQueryDto } from './dto/payout-query.dto';
 import { RejectPayoutDto } from './dto/reject-payout.dto';
+import { CompletePayoutDto } from './dto/complete-payout.dto';
+import { UpdatePayoutMethodDto } from './dto/update-payout-method.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
@@ -86,6 +89,36 @@ export class SellerPayoutsController {
       query,
     );
     return { success: true, data: result.data, meta: result.pagination };
+  }
+
+  /**
+   * Get the seller's saved payout destination (for prefilling the request UI).
+   * GET /api/v1/sellers/payout-method
+   */
+  @Get('payout-method')
+  @Roles('SELLER')
+  async getPayoutMethod(@CurrentUser('sub') userId: string) {
+    const sellerProfileId = await resolveSellerProfileId(this.prisma, userId);
+    const data = await this.payoutsService.getPayoutMethod(sellerProfileId);
+    return { success: true, data };
+  }
+
+  /**
+   * Set/update the seller's reusable payout destination.
+   * PATCH /api/v1/sellers/payout-method
+   */
+  @Patch('payout-method')
+  @Roles('SELLER')
+  async updatePayoutMethod(
+    @CurrentUser('sub') userId: string,
+    @Body() dto: UpdatePayoutMethodDto,
+  ) {
+    const sellerProfileId = await resolveSellerProfileId(this.prisma, userId);
+    const data = await this.payoutsService.updatePayoutMethod(
+      sellerProfileId,
+      dto,
+    );
+    return { success: true, data };
   }
 
   /**
@@ -180,6 +213,39 @@ export class AdminPayoutsController {
       id,
       adminId,
       dto.reason,
+    );
+    return { success: true, data: payout };
+  }
+
+  /**
+   * Mark a payout as being processed (optional intermediate step).
+   * POST /api/v1/admin/payouts/:id/process
+   */
+  @Post(':id/process')
+  @Roles('ADMIN')
+  async processPayout(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('sub') adminId: string,
+  ) {
+    const payout = await this.payoutsService.processPayout(id, adminId);
+    return { success: true, data: payout };
+  }
+
+  /**
+   * Complete a payout — mark it paid out-of-band with an external reference.
+   * POST /api/v1/admin/payouts/:id/complete
+   */
+  @Post(':id/complete')
+  @Roles('ADMIN')
+  async completePayout(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('sub') adminId: string,
+    @Body() dto: CompletePayoutDto,
+  ) {
+    const payout = await this.payoutsService.completePayout(
+      id,
+      adminId,
+      dto.externalReference,
     );
     return { success: true, data: payout };
   }

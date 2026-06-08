@@ -7,8 +7,10 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RequestPayoutDto } from './dto/request-payout.dto';
+import { UpdatePayoutMethodDto } from './dto/update-payout-method.dto';
 import { PayoutQueryDto } from './dto/payout-query.dto';
 import { PayoutStatus } from '@prisma/client';
+import { SellerNotificationService } from '../notifications/seller-notification.service';
 
 /** Minimum payout amount: 5 000 CDF = 500 000 centimes */
 const MIN_PAYOUT_AMOUNT_CDF = BigInt(500000);
@@ -17,7 +19,10 @@ const MIN_PAYOUT_AMOUNT_CDF = BigInt(500000);
 export class PayoutsService {
   private readonly logger = new Logger(PayoutsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private sellerNotifications: SellerNotificationService,
+  ) {}
 
   /**
    * Request a payout for a seller.
@@ -25,10 +30,14 @@ export class PayoutsService {
    * and atomically creates the payout + marks earnings as paid.
    */
   async requestPayout(sellerProfileId: string, dto: RequestPayoutDto) {
-    // Get current wallet balance
+    // Get current wallet balance + saved payout destination
     const sellerProfile = await this.prisma.sellerProfile.findUnique({
       where: { id: sellerProfileId },
-      select: { walletBalanceCDF: true },
+      select: {
+        walletBalanceCDF: true,
+        payoutMethod: true,
+        payoutPhone: true,
+      },
     });
 
     if (!sellerProfile) {
@@ -52,6 +61,16 @@ export class PayoutsService {
     if (existingPayout) {
       throw new ConflictException(
         'Vous avez déjà une demande de retrait en cours. Veuillez attendre son traitement.',
+      );
+    }
+
+    // Resolve the payout destination: the request body wins, falling back to
+    // the seller's saved profile destination (B1). Reject if neither is set.
+    const payoutMethod = dto.payoutMethod ?? sellerProfile.payoutMethod;
+    const payoutPhone = dto.payoutPhone ?? sellerProfile.payoutPhone;
+    if (!payoutMethod || !payoutPhone) {
+      throw new BadRequestException(
+        'Veuillez configurer votre méthode de paiement (mobile money) avant de demander un retrait.',
       );
     }
 
@@ -81,8 +100,8 @@ export class PayoutsService {
           amountCDF: payoutAmountCDF,
           currency: 'CDF',
           status: PayoutStatus.REQUESTED,
-          payoutMethod: dto.payoutMethod,
-          payoutPhone: dto.payoutPhone,
+          payoutMethod,
+          payoutPhone,
         },
       });
 
@@ -145,6 +164,13 @@ export class PayoutsService {
     });
 
     this.logger.log(`Payout approved: id=${payoutId}, admin=${adminId}`);
+
+    // Fire-and-forget: notify the seller (push primary + email fallback).
+    this.sellerNotifications
+      .notifyPayoutApproved(payoutId)
+      .catch((err) =>
+        this.logger.error('Échec notification retrait approuvé', err),
+      );
 
     return updated;
   }
@@ -210,9 +236,137 @@ export class PayoutsService {
       `Payout rejected: id=${payoutId}, admin=${adminId}, reason="${reason}"`,
     );
 
+    // Fire-and-forget: notify the seller their request was refused + recredited.
+    this.sellerNotifications
+      .notifyPayoutRejected(payoutId)
+      .catch((err) =>
+        this.logger.error('Échec notification retrait refusé', err),
+      );
+
     const updated = await this.prisma.payout.findUnique({
       where: { id: payoutId },
     });
+
+    return updated;
+  }
+
+  /**
+   * Get the seller's saved payout destination (for prefilling the request UI).
+   */
+  async getPayoutMethod(sellerProfileId: string) {
+    const profile = await this.prisma.sellerProfile.findUnique({
+      where: { id: sellerProfileId },
+      select: { payoutMethod: true, payoutPhone: true },
+    });
+    if (!profile) {
+      throw new NotFoundException('Profil vendeur non trouvé');
+    }
+    return {
+      payoutMethod: profile.payoutMethod,
+      payoutPhone: profile.payoutPhone,
+    };
+  }
+
+  /**
+   * Set/update the seller's reusable payout destination (mobile money).
+   */
+  async updatePayoutMethod(
+    sellerProfileId: string,
+    dto: UpdatePayoutMethodDto,
+  ) {
+    const updated = await this.prisma.sellerProfile.update({
+      where: { id: sellerProfileId },
+      data: { payoutMethod: dto.payoutMethod, payoutPhone: dto.payoutPhone },
+      select: { payoutMethod: true, payoutPhone: true },
+    });
+    this.logger.log(
+      `Payout method updated: seller=${sellerProfileId}, method=${dto.payoutMethod}`,
+    );
+    return updated;
+  }
+
+  /**
+   * Mark a payout as being processed (admin action). Optional intermediate
+   * state for when the operator has started the manual transfer but not yet
+   * confirmed it. APPROVED → PROCESSING. Does not touch wallet/earnings.
+   */
+  async processPayout(payoutId: string, adminId: string) {
+    const payout = await this.prisma.payout.findUnique({
+      where: { id: payoutId },
+    });
+
+    if (!payout) {
+      throw new NotFoundException('Demande de retrait non trouvée');
+    }
+
+    if (payout.status !== PayoutStatus.APPROVED) {
+      throw new BadRequestException(
+        `Impossible de mettre en traitement un retrait avec le statut "${payout.status}". Seuls les retraits "APPROVED" peuvent passer en traitement.`,
+      );
+    }
+
+    const updated = await this.prisma.payout.update({
+      where: { id: payoutId },
+      data: { status: PayoutStatus.PROCESSING },
+    });
+
+    this.logger.log(`Payout processing: id=${payoutId}, admin=${adminId}`);
+
+    return updated;
+  }
+
+  /**
+   * Complete a payout (admin action): the operator transferred the funds
+   * out-of-band (mobile money / cash) and confirms it with an external
+   * reference (e.g. an M-Pesa transaction id). APPROVED | PROCESSING →
+   * COMPLETED — a terminal state. Sets processedAt + externalReference.
+   *
+   * The seller's earnings were already marked isPaid=true and the wallet
+   * decremented at request time, so completion only flips the payout to its
+   * final state (no wallet/earning change). Completing is the finance control
+   * point: the operator only marks paid once the cash is actually sent.
+   */
+  async completePayout(
+    payoutId: string,
+    adminId: string,
+    externalReference: string,
+  ) {
+    const payout = await this.prisma.payout.findUnique({
+      where: { id: payoutId },
+    });
+
+    if (!payout) {
+      throw new NotFoundException('Demande de retrait non trouvée');
+    }
+
+    if (
+      payout.status !== PayoutStatus.APPROVED &&
+      payout.status !== PayoutStatus.PROCESSING
+    ) {
+      throw new BadRequestException(
+        `Impossible de finaliser un retrait avec le statut "${payout.status}". Seuls les retraits "APPROVED" ou "PROCESSING" peuvent être finalisés.`,
+      );
+    }
+
+    const updated = await this.prisma.payout.update({
+      where: { id: payoutId },
+      data: {
+        status: PayoutStatus.COMPLETED,
+        processedAt: new Date(),
+        externalReference,
+      },
+    });
+
+    this.logger.log(
+      `Payout completed: id=${payoutId}, admin=${adminId}, ref="${externalReference}"`,
+    );
+
+    // Fire-and-forget: notify the seller they've been paid (push + email).
+    this.sellerNotifications
+      .notifyPayoutPaid(payoutId)
+      .catch((err) =>
+        this.logger.error('Échec notification retrait effectué', err),
+      );
 
     return updated;
   }
