@@ -29,9 +29,21 @@ categories; `Tecnoo`→Tecno; exact ok). Both search migrations applied to prod 
 best-seller/recency, top-up with same-category when sparse); "Produits similaires" carousel on buyer-web
 (P-C1b #334) + buyer-mobile (P-C1c #335) PDPs. No migration (pure query/UI). **Prod verify:** source
 `…188` (Kit fournitures, school-supplies cat) → 3 same-category items, source correctly excluded, prices
-within/near the ±40% band (top-up fill engaged as designed). **P-C2 (attribute filters) deferred**
-(data-ready, UI-absent); **D** conversion polish deferred. Out of scope: external search engine, ML recs,
-persisted view-tracking. **Next: await direction — continue Phase C into P-C2, or pause Initiative #2.**
+within/near the ±40% band (top-up fill engaged as designed). **Phase C — P-C2 (attribute filters):
+COMPLETE on `develop` (#337–#339), PENDING RELEASE.** Decisions: SELECT/MULTISELECT only; plain options
+(no counts); AND-across / OR-within. **P-C2a** (#337, API): `attributes` browse param (URL-encoded JSON
+attrId→values); resolved to a product-id set via one raw pass (array overlap `string_to_array(value,',')
+&& ARRAY[…]` so MULTISELECT comma-joined storage matches token-exact, `"8Go"`⊄`"128Go"`; `GROUP BY …
+HAVING COUNT(DISTINCT attributeId)=N` enforces AND), injected into both Prisma + FTS branches; empty set
+short-circuits; param parsed+bounded (≤10 attrs/≤30 vals, malformed→ignored). No migration. Live-DB SQL
+verified. **P-C2b** (#338, buyer-web): checkbox facet groups per SELECT/MULTISELECT attr in category
+ProductFilters (sidebar+sheet); `attrLabel` extracts French label from legacy `{fr,en}` JSON-string names.
+**P-C2c** (#339, buyer-mobile): multi-select FilterChip groups in the category filter sheet; facets ride
+`attributesJson` (String) on BrowseProductsParams (value-equatable family key); `_frAttributeLabel` mirror.
+**D** conversion polish deferred. Out of scope: external search engine, ML recs, persisted view-tracking.
+**Parked decisions:** (1) seller product form renders attribute names raw (`{"fr":…}`) — pre-existing bug,
+fold into follow-up or backlog; (2) after P-C2 release: Phase D or pause Initiative #2. **Next: run the
+release for P-C2 (#337–#339) when directed (no migration; verify facet filter on prod).**
 
 **Initiative #1 — Real Catalog & Merchant Supply: CLOSED OUT 2026-06-07** (code complete + shipped +
 verified on prod). Phase 1 self-onboarding (#304–#308) + Phase 1 QA (#309–#313) + Phase 2 KYC
