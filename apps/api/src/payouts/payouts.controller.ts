@@ -14,6 +14,7 @@ import { EarningsService } from '../payments/earnings.service';
 import { RequestPayoutDto } from './dto/request-payout.dto';
 import { PayoutQueryDto } from './dto/payout-query.dto';
 import { RejectPayoutDto } from './dto/reject-payout.dto';
+import { CompletePayoutDto } from './dto/complete-payout.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
@@ -180,6 +181,39 @@ export class AdminPayoutsController {
       id,
       adminId,
       dto.reason,
+    );
+    return { success: true, data: payout };
+  }
+
+  /**
+   * Mark a payout as being processed (optional intermediate step).
+   * POST /api/v1/admin/payouts/:id/process
+   */
+  @Post(':id/process')
+  @Roles('ADMIN')
+  async processPayout(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('sub') adminId: string,
+  ) {
+    const payout = await this.payoutsService.processPayout(id, adminId);
+    return { success: true, data: payout };
+  }
+
+  /**
+   * Complete a payout — mark it paid out-of-band with an external reference.
+   * POST /api/v1/admin/payouts/:id/complete
+   */
+  @Post(':id/complete')
+  @Roles('ADMIN')
+  async completePayout(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('sub') adminId: string,
+    @Body() dto: CompletePayoutDto,
+  ) {
+    const payout = await this.payoutsService.completePayout(
+      id,
+      adminId,
+      dto.externalReference,
     );
     return { success: true, data: payout };
   }

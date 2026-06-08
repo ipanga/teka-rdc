@@ -218,6 +218,85 @@ export class PayoutsService {
   }
 
   /**
+   * Mark a payout as being processed (admin action). Optional intermediate
+   * state for when the operator has started the manual transfer but not yet
+   * confirmed it. APPROVED → PROCESSING. Does not touch wallet/earnings.
+   */
+  async processPayout(payoutId: string, adminId: string) {
+    const payout = await this.prisma.payout.findUnique({
+      where: { id: payoutId },
+    });
+
+    if (!payout) {
+      throw new NotFoundException('Demande de retrait non trouvée');
+    }
+
+    if (payout.status !== PayoutStatus.APPROVED) {
+      throw new BadRequestException(
+        `Impossible de mettre en traitement un retrait avec le statut "${payout.status}". Seuls les retraits "APPROVED" peuvent passer en traitement.`,
+      );
+    }
+
+    const updated = await this.prisma.payout.update({
+      where: { id: payoutId },
+      data: { status: PayoutStatus.PROCESSING },
+    });
+
+    this.logger.log(`Payout processing: id=${payoutId}, admin=${adminId}`);
+
+    return updated;
+  }
+
+  /**
+   * Complete a payout (admin action): the operator transferred the funds
+   * out-of-band (mobile money / cash) and confirms it with an external
+   * reference (e.g. an M-Pesa transaction id). APPROVED | PROCESSING →
+   * COMPLETED — a terminal state. Sets processedAt + externalReference.
+   *
+   * The seller's earnings were already marked isPaid=true and the wallet
+   * decremented at request time, so completion only flips the payout to its
+   * final state (no wallet/earning change). Completing is the finance control
+   * point: the operator only marks paid once the cash is actually sent.
+   */
+  async completePayout(
+    payoutId: string,
+    adminId: string,
+    externalReference: string,
+  ) {
+    const payout = await this.prisma.payout.findUnique({
+      where: { id: payoutId },
+    });
+
+    if (!payout) {
+      throw new NotFoundException('Demande de retrait non trouvée');
+    }
+
+    if (
+      payout.status !== PayoutStatus.APPROVED &&
+      payout.status !== PayoutStatus.PROCESSING
+    ) {
+      throw new BadRequestException(
+        `Impossible de finaliser un retrait avec le statut "${payout.status}". Seuls les retraits "APPROVED" ou "PROCESSING" peuvent être finalisés.`,
+      );
+    }
+
+    const updated = await this.prisma.payout.update({
+      where: { id: payoutId },
+      data: {
+        status: PayoutStatus.COMPLETED,
+        processedAt: new Date(),
+        externalReference,
+      },
+    });
+
+    this.logger.log(
+      `Payout completed: id=${payoutId}, admin=${adminId}, ref="${externalReference}"`,
+    );
+
+    return updated;
+  }
+
+  /**
    * List payouts for a specific seller (paginated).
    */
   async listSellerPayouts(sellerProfileId: string, query: PayoutQueryDto) {
