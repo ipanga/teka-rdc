@@ -6,10 +6,24 @@
 
 ## Active initiative
 
-**None.** Initiative #2 (Discovery & Conversion) was PAUSED 2026-06-08 after Phase C — see below. Phases
-A/B/C all shipped + verified on prod; Phase D (conversion polish) is deferred. One follow-up (#341 seller
-attribute-label fix) sits on `develop` pending the next release. No in-flight build work — ask the user
-what to start next (or release #341).
+**Initiative #3 — Seller Payouts Operationalization** (started 2026-06-08). **Goal:** make seller payouts
+operationally complete end-to-end on the COD platform — sellers accrue `walletBalanceCDF` on delivery but
+today **cannot get paid** (completion flow unimplemented; seller request UI deliberately disabled).
+**Settlement model RESOLVED (user, 2026-06-08):** Teka couriers collect goods from sellers, deliver to
+buyers, and **collect the COD cash on Teka's behalf** → the **platform holds the cash and owes the seller
+net (gross − commission)**. The existing Earning/wallet direction is therefore correct; proceed with
+"platform-collects". Completion is **manual mark-paid + external reference** (no automated provider — COD
+only). The admin approve→complete step IS the finance control point (operator only marks paid once cash is
+actually sent). **Phases:** A — payout lifecycle completion (API) + notifications; B — reusable payout
+destination on SellerProfile (migration); C — re-enable seller payout request UI (web + mobile); D — admin
+ops completion (mark-paid UI + CSV export); E — e2e hardening + docs. **Out of scope:** automated
+payment-provider disbursement, multi-currency payouts, per-order COD cash-reconciliation ledger (the
+platform-collects model + admin control point covers launch; a per-order rider-remittance ledger is a
+later phase if needed). **A1 — IN PROGRESS (this branch):** admin `POST /v1/admin/payouts/:id/process`
+(APPROVED→PROCESSING) + `:id/complete` (APPROVED|PROCESSING→COMPLETED; sets `processedAt` +
+`externalReference`); state-machine guards; first payout unit tests (9). No migration (Payout record is the
+ledger; `Transaction.orderId` is required so no `Transaction{PAYOUT}` row — Payout + externalReference
+suffice). **Next after A1 review:** A2 seller payout notifications (push+email).
 
 ---
 
