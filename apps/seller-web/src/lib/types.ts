@@ -27,10 +27,17 @@ export interface Payout {
   payoutMethod: string;
   payoutPhone: string;
   rejectionReason?: string | null;
+  externalReference?: string | null;
   requestedAt: string;
   approvedAt?: string | null;
   processedAt?: string | null;
   createdAt: string;
+}
+
+/** Seller's saved reusable payout destination (B1). */
+export interface SellerPayoutMethod {
+  payoutMethod: string | null;
+  payoutPhone: string | null;
 }
 
 export interface Review {
