@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { RequestPayoutDto } from './dto/request-payout.dto';
+import { UpdatePayoutMethodDto } from './dto/update-payout-method.dto';
 import { PayoutQueryDto } from './dto/payout-query.dto';
 import { PayoutStatus } from '@prisma/client';
 import { SellerNotificationService } from '../notifications/seller-notification.service';
@@ -29,10 +30,14 @@ export class PayoutsService {
    * and atomically creates the payout + marks earnings as paid.
    */
   async requestPayout(sellerProfileId: string, dto: RequestPayoutDto) {
-    // Get current wallet balance
+    // Get current wallet balance + saved payout destination
     const sellerProfile = await this.prisma.sellerProfile.findUnique({
       where: { id: sellerProfileId },
-      select: { walletBalanceCDF: true },
+      select: {
+        walletBalanceCDF: true,
+        payoutMethod: true,
+        payoutPhone: true,
+      },
     });
 
     if (!sellerProfile) {
@@ -56,6 +61,16 @@ export class PayoutsService {
     if (existingPayout) {
       throw new ConflictException(
         'Vous avez déjà une demande de retrait en cours. Veuillez attendre son traitement.',
+      );
+    }
+
+    // Resolve the payout destination: the request body wins, falling back to
+    // the seller's saved profile destination (B1). Reject if neither is set.
+    const payoutMethod = dto.payoutMethod ?? sellerProfile.payoutMethod;
+    const payoutPhone = dto.payoutPhone ?? sellerProfile.payoutPhone;
+    if (!payoutMethod || !payoutPhone) {
+      throw new BadRequestException(
+        'Veuillez configurer votre méthode de paiement (mobile money) avant de demander un retrait.',
       );
     }
 
@@ -85,8 +100,8 @@ export class PayoutsService {
           amountCDF: payoutAmountCDF,
           currency: 'CDF',
           status: PayoutStatus.REQUESTED,
-          payoutMethod: dto.payoutMethod,
-          payoutPhone: dto.payoutPhone,
+          payoutMethod,
+          payoutPhone,
         },
       });
 
@@ -232,6 +247,41 @@ export class PayoutsService {
       where: { id: payoutId },
     });
 
+    return updated;
+  }
+
+  /**
+   * Get the seller's saved payout destination (for prefilling the request UI).
+   */
+  async getPayoutMethod(sellerProfileId: string) {
+    const profile = await this.prisma.sellerProfile.findUnique({
+      where: { id: sellerProfileId },
+      select: { payoutMethod: true, payoutPhone: true },
+    });
+    if (!profile) {
+      throw new NotFoundException('Profil vendeur non trouvé');
+    }
+    return {
+      payoutMethod: profile.payoutMethod,
+      payoutPhone: profile.payoutPhone,
+    };
+  }
+
+  /**
+   * Set/update the seller's reusable payout destination (mobile money).
+   */
+  async updatePayoutMethod(
+    sellerProfileId: string,
+    dto: UpdatePayoutMethodDto,
+  ) {
+    const updated = await this.prisma.sellerProfile.update({
+      where: { id: sellerProfileId },
+      data: { payoutMethod: dto.payoutMethod, payoutPhone: dto.payoutPhone },
+      select: { payoutMethod: true, payoutPhone: true },
+    });
+    this.logger.log(
+      `Payout method updated: seller=${sellerProfileId}, method=${dto.payoutMethod}`,
+    );
     return updated;
   }
 
