@@ -116,8 +116,20 @@ export default function DynamicAttributesForm({
     [notifyChange]
   );
 
+  // Attribute names are stored as `{"fr":"Marque","en":"Brand"}` JSONB and reach
+  // the client as a JSON-encoded string. Extract the French label, tolerating
+  // plain strings + malformed values so the form never shows raw JSON.
   const getLocalizedName = (name: string): string => {
-    return name || '';
+    if (!name) return '';
+    if (name.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(name) as { fr?: string; en?: string };
+        return parsed.fr ?? parsed.en ?? name;
+      } catch {
+        return name;
+      }
+    }
+    return name;
   };
 
   if (!categoryId) return null;
