@@ -6,8 +6,15 @@
 
 ## Active initiative
 
-**Initiative #2 — Discovery & Conversion** (started 2026-06-07). **Phase A — best-seller ranking + social
-proof: COMPLETE (#322–#324 — releasing now).** Decisions: popularity = denormalized **all-time
+**None.** Initiative #2 (Discovery & Conversion) was PAUSED 2026-06-08 after Phase C — see below. Phases
+A/B/C all shipped + verified on prod; Phase D (conversion polish) is deferred. One follow-up (#341 seller
+attribute-label fix) sits on `develop` pending the next release. No in-flight build work — ask the user
+what to start next (or release #341).
+
+---
+
+**Initiative #2 — Discovery & Conversion** (started 2026-06-07, **PAUSED 2026-06-08 after Phase C**).
+**Phase A — best-seller ranking + social proof: COMPLETE (#322–#324 — releasing now).** Decisions: popularity = denormalized **all-time
 `Product.unitsSold`** (incremented on delivery; backfilled). A1 (#322) backend: `Product.unitsSold` +
 index + migration `2026-06-07_product_units_sold.sql`; `deliverOrder` increments; `popularity` sort →
 `[{isDemo:'asc'},{unitsSold:'desc'},{createdAt:'desc'}]`; `unitsSold` in browse list + detail. A2 (#323)
@@ -30,7 +37,7 @@ best-seller/recency, top-up with same-category when sparse); "Produits similaire
 (P-C1b #334) + buyer-mobile (P-C1c #335) PDPs. No migration (pure query/UI). **Prod verify:** source
 `…188` (Kit fournitures, school-supplies cat) → 3 same-category items, source correctly excluded, prices
 within/near the ±40% band (top-up fill engaged as designed). **Phase C — P-C2 (attribute filters):
-COMPLETE on `develop` (#337–#339), PENDING RELEASE.** Decisions: SELECT/MULTISELECT only; plain options
+SHIPPED to prod (release #340, 2026-06-08) + VERIFIED (#337–#339).** Decisions: SELECT/MULTISELECT only; plain options
 (no counts); AND-across / OR-within. **P-C2a** (#337, API): `attributes` browse param (URL-encoded JSON
 attrId→values); resolved to a product-id set via one raw pass (array overlap `string_to_array(value,',')
 && ARRAY[…]` so MULTISELECT comma-joined storage matches token-exact, `"8Go"`⊄`"128Go"`; `GROUP BY …
@@ -41,9 +48,17 @@ ProductFilters (sidebar+sheet); `attrLabel` extracts French label from legacy `{
 **P-C2c** (#339, buyer-mobile): multi-select FilterChip groups in the category filter sheet; facets ride
 `attributesJson` (String) on BrowseProductsParams (value-equatable family key); `_frAttributeLabel` mirror.
 **D** conversion polish deferred. Out of scope: external search engine, ML recs, persisted view-tracking.
-**Parked decisions:** (1) seller product form renders attribute names raw (`{"fr":…}`) — pre-existing bug,
-fold into follow-up or backlog; (2) after P-C2 release: Phase D or pause Initiative #2. **Next: run the
-release for P-C2 (#337–#339) when directed (no migration; verify facet filter on prod).**
+**Prod verify:** endpoint live (200 + envelope); facet filter resolves
+correctly (returns 0 when no product carries the spec); malformed param ignored gracefully (200, full 188
+results, no 500); positive-match proven on dev (Apple→1). **DATA CAVEAT:** prod sample/demo products were
+seeded WITHOUT `ProductSpecification` rows (`specifications: []` on every sample product), so facets match
+nothing on the *current* demo catalog. Real merchant products (specs set via the seller form) WILL be
+filterable; demo catalog is slated for retirement (Initiative #1 P3c). Optional: a prod re-seed would
+populate sample specs for demo-data facets. **Seller-label fix:** #341 (apply `attrLabel` to the seller
+product form so attribute labels render "Marque" not raw `{"fr":…}`) — **MERGED to `develop`, PENDING
+RELEASE** (one-file UI fix; rides the next develop→main, or a small dedicated release). **D** conversion
+polish deferred. **Initiative #2 PAUSED after P-C2 (user decision 2026-06-08)** — A/B/C all shipped +
+verified on prod; D is the only remaining phase and is deferred.
 
 **Initiative #1 — Real Catalog & Merchant Supply: CLOSED OUT 2026-06-07** (code complete + shipped +
 verified on prod). Phase 1 self-onboarding (#304–#308) + Phase 1 QA (#309–#313) + Phase 2 KYC
