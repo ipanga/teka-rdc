@@ -494,25 +494,35 @@ image: <file> (max 5MB, JPEG/PNG/WebP)
 
 ## Seller Earnings & Payouts — `/v1/sellers`
 
+Full reference + ops runbook: **`docs/payouts.md`**.
+
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| GET | `/v1/sellers/wallet` | Seller | Get wallet summary (balance, pending, paid) |
+| GET | `/v1/sellers/wallet` | Seller | Get wallet summary (balance, total earned, total commission, pending) |
 | GET | `/v1/sellers/earnings` | Seller | List earnings history (paginated) |
 | GET | `/v1/sellers/payouts` | Seller | List payout history (paginated) |
-| POST | `/v1/sellers/payouts` | Seller | Request a payout (manual bank-transfer / cash by ops) |
+| POST | `/v1/sellers/payouts` | Seller | Request a payout (whole wallet balance) |
+| GET | `/v1/sellers/payout-method` | Seller | Read the saved reusable payout destination |
+| PATCH | `/v1/sellers/payout-method` | Seller | Set/update the payout destination |
 
 ### Request Payout
 ```json
 POST /v1/sellers/payouts
 {
-  "amount": "5000000",
-  "currency": "CDF",
-  "mobileMoneyProvider": "MPESA",
-  "mobileMoneyPhone": "+243XXXXXXXXX"
+  "payoutMethod": "M_PESA",       // optional — falls back to saved destination
+  "payoutPhone": "+243XXXXXXXXX"  // optional — falls back to saved destination
 }
 ```
 
-> ⚠️ The request body still accepts the legacy `mobileMoneyProvider` + `mobileMoneyPhone` fields, but **no automated Mobile Money disbursement happens** since the Flexpay removal (PR B2, 2026-05-26). Payouts are processed manually by ops via direct bank-transfer or cash. The accepted fields are kept so existing seller-app builds don't 400 on submit. Treat them as informational metadata, not as a payment routing instruction.
+Requests the **entire wallet balance**. Guards: balance ≥ 5 000 CDF, only one
+pending payout (`REQUESTED`/`APPROVED`) at a time, and a destination must exist
+(body or saved profile) — else `400`. `payoutMethod` ∈ `M_PESA` | `AIRTEL_MONEY`
+| `ORANGE_MONEY`; `payoutPhone` matches `^\+243\d{9}$`.
+
+> **COD-only:** there is no automated disbursement. The platform holds the COD
+> cash (couriers collect on Teka's behalf) and settles sellers manually; an admin
+> marks the payout paid with an external transfer reference. See `docs/payouts.md`
+> for the settlement model + lifecycle.
 
 ---
 
@@ -755,9 +765,13 @@ Trend periods: `7d`, `30d`, `90d` (default: `30d`).
 | Method | Endpoint | Roles | Description |
 |--------|----------|-------|-------------|
 | GET | `/v1/admin/payouts` | ADMIN | List all payouts (paginated) |
-| GET | `/v1/admin/payouts/:id` | ADMIN | Get payout detail |
-| POST | `/v1/admin/payouts/:id/approve` | ADMIN | Approve payout |
-| POST | `/v1/admin/payouts/:id/reject` | ADMIN | Reject payout (reason required) |
+| GET | `/v1/admin/payouts/:id` | ADMIN | Get payout detail (with linked earnings) |
+| POST | `/v1/admin/payouts/:id/approve` | ADMIN | Approve payout (`REQUESTED → APPROVED`) |
+| POST | `/v1/admin/payouts/:id/process` | ADMIN | Mark processing (`APPROVED → PROCESSING`) |
+| POST | `/v1/admin/payouts/:id/complete` | ADMIN | Mark paid (`APPROVED\|PROCESSING → COMPLETED`); `externalReference` required |
+| POST | `/v1/admin/payouts/:id/reject` | ADMIN | Reject payout (reason required); restores wallet + earnings |
+
+See **`docs/payouts.md`** for the lifecycle state machine + ops runbook.
 
 ### Admin Reviews — `/v1/admin/reviews`
 
@@ -788,6 +802,8 @@ Trend periods: `7d`, `30d`, `90d` (default: `30d`).
 | GET | `/v1/admin/reports/financial/csv` | ADMIN | Financial report (CSV download) |
 | GET | `/v1/admin/reports/sellers` | ADMIN | Seller performance report (JSON) |
 | GET | `/v1/admin/reports/sellers/csv` | ADMIN | Seller performance report (CSV download) |
+| GET | `/v1/admin/reports/payouts` | ADMIN | Payouts reconciliation report (JSON) |
+| GET | `/v1/admin/reports/payouts/csv` | ADMIN | Payouts report (CSV download) |
 
 #### Report Query Parameters
 

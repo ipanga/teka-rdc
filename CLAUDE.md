@@ -176,7 +176,8 @@ Both apps target Android first (APK distribution + Play Store). iOS as future ph
 `architecture.md` (authoritative service architecture) · `product-spec.md` (feature spec + 8-phase
 history) · `url-and-seo-strategy.md` (city-first URLs/slugs/redirects) · `analytics.md` (PostHog) ·
 `clarity.md` (Microsoft Clarity) · `api-reference.md` · `deployment.md` (§5b admin seeding) ·
-`mobile-connectivity.md` (Rule 15) · `mobile-flavors.md` · `push-notifications.md` (FCM) · `sentry.md`.
+`mobile-connectivity.md` (Rule 15) · `mobile-flavors.md` · `payouts.md` (seller payouts + settlement) ·
+`push-notifications.md` (FCM) · `sentry.md`.
 
 ---
 
