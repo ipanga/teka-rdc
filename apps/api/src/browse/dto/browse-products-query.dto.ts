@@ -36,6 +36,20 @@ export class BrowseProductsQueryDto {
   @MaxLength(200)
   search?: string;
 
+  /**
+   * Attribute (facet) filter, as a URL-encoded JSON object mapping an
+   * attribute id to the selected option values:
+   * `{"<attributeId>":["Samsung","Apple"],"<attributeId2>":["64Go"]}`.
+   * Semantics: AND across attributes, OR within an attribute. Only SELECT /
+   * MULTISELECT attributes are filterable. Parsed + structurally validated
+   * leniently in the service (malformed → ignored), so this is just a bounded
+   * string at the DTO layer.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  attributes?: string;
+
   @IsOptional()
   @IsEnum(['popularity', 'price_low', 'price_high', 'newest', 'rating'])
   sortBy?: 'popularity' | 'price_low' | 'price_high' | 'newest' | 'rating';

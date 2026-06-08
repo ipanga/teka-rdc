@@ -142,6 +142,27 @@ export class BrowseService {
       where.avgRating = { gte: query.minRating };
     }
 
+    // Attribute (facet) filter for SELECT / MULTISELECT attributes. Resolved
+    // to a product-id set via one raw pass (AND across attributes, OR within),
+    // then injected into BOTH the Prisma and FTS paths so they filter
+    // identically. MULTISELECT values are stored comma-joined, so matching uses
+    // Postgres array overlap (string_to_array(value, ',') && ARRAY[...]) —
+    // token-exact, avoiding the substring trap where "8Go" ⊂ "128Go".
+    const attrFilters = this.parseAttributeFilters(query.attributes);
+    let attributeProductIds: string[] | null = null;
+    if (attrFilters) {
+      attributeProductIds = await this.resolveAttributeFilterIds(attrFilters);
+      if (attributeProductIds.length === 0) {
+        // No product satisfies the selected facets — short-circuit with an
+        // empty page (same response shape as a normal empty result).
+        return {
+          data: [],
+          pagination: { nextCursor: null, hasMore: false, total: 0 },
+        };
+      }
+      where.id = { in: attributeProductIds };
+    }
+
     // Product fields returned to clients — shared by the default Prisma path
     // and the full-text search path (which hydrates by id with the same shape).
     const productSelect = {
@@ -213,6 +234,11 @@ export class BrowseService {
       }
       if (query.minRating) {
         conds.push(Prisma.sql`p."avgRating" >= ${query.minRating}`);
+      }
+      if (attributeProductIds && attributeProductIds.length > 0) {
+        conds.push(
+          Prisma.sql`p."id"::text IN (${Prisma.join(attributeProductIds)})`,
+        );
       }
       const whereSql = Prisma.join(conds, ' AND ');
 
@@ -325,6 +351,79 @@ export class BrowseService {
         total,
       },
     };
+  }
+
+  /**
+   * Parse + leniently validate the `attributes` facet-filter query param.
+   * Shape: `{"<attributeId>":["val1","val2"],...}`. Returns null when absent,
+   * malformed, or empty after cleaning (the caller then applies no facet
+   * filter). Bounded so a hostile client can't blow up the resolution query:
+   * ≤10 attributes, ≤30 values each, values trimmed + ≤100 chars.
+   */
+  private parseAttributeFilters(raw?: string): Record<string, string[]> | null {
+    if (!raw) return null;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return null;
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      return null;
+    }
+    const uuidRe =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const out: Record<string, string[]> = {};
+    for (const [key, val] of Object.entries(
+      parsed as Record<string, unknown>,
+    )) {
+      if (!uuidRe.test(key) || !Array.isArray(val)) continue;
+      const values = val
+        .filter((v): v is string => typeof v === 'string')
+        .map((v) => v.trim())
+        .filter((v) => v.length > 0 && v.length <= 100)
+        .slice(0, 30);
+      if (values.length > 0) out[key] = values;
+    }
+    const keys = Object.keys(out);
+    if (keys.length === 0) return null;
+    if (keys.length > 10) {
+      for (const k of keys.slice(10)) delete out[k];
+    }
+    return out;
+  }
+
+  /**
+   * Resolve a facet filter to the set of product ids that satisfy it: a product
+   * must match EVERY selected attribute (AND across), where matching an
+   * attribute means its stored value overlaps ANY selected value (OR within).
+   * MULTISELECT values are comma-joined in storage, so a single array-overlap
+   * predicate (string_to_array(value, ',') && ARRAY[...]) handles both SELECT
+   * (single token) and MULTISELECT (multi token) correctly. The HAVING clause
+   * enforces the AND: a product is kept only when it matched all N attributes
+   * (one spec row per (product, attribute) thanks to the unique constraint).
+   */
+  private async resolveAttributeFilterIds(
+    attrFilters: Record<string, string[]>,
+  ): Promise<string[]> {
+    const groups = Object.entries(attrFilters);
+    if (groups.length === 0) return [];
+    const groupConds = groups.map(
+      ([attrId, values]) =>
+        Prisma.sql`(ps."attributeId" = ${attrId}::uuid AND string_to_array(ps."value", ',') && ARRAY[${Prisma.join(
+          values,
+        )}]::text[])`,
+    );
+    const rows = await this.prisma.$queryRaw<{ productId: string }[]>(
+      Prisma.sql`
+        SELECT ps."productId"
+        FROM "product_specifications" ps
+        WHERE ${Prisma.join(groupConds, ' OR ')}
+        GROUP BY ps."productId"
+        HAVING COUNT(DISTINCT ps."attributeId") = ${groups.length}
+      `,
+    );
+    return rows.map((r) => r.productId);
   }
 
   /**
