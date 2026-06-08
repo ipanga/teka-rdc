@@ -6,7 +6,15 @@
 
 ## Active initiative
 
-**Initiative #3 — Seller Payouts Operationalization** (started 2026-06-08). **Goal:** make seller payouts
+**None.** Initiative #3 (Seller Payouts Operationalization) SHIPPED + VERIFIED on prod 2026-06-08 (release
+#351; migration `2026-06-08_seller_payout_destination.sql` applied prod + dev) — see below. No in-flight
+build work; ask the user what to start next. Recent candidates: Initiative #1 P3c (demo retirement),
+Initiative #2 Phase D (conversion polish), or a fresh initiative.
+
+---
+
+**Initiative #3 — Seller Payouts Operationalization** (started 2026-06-08, **SHIPPED + VERIFIED on prod
+2026-06-08, release #351**). **Goal:** make seller payouts
 operationally complete end-to-end on the COD platform — sellers accrue `walletBalanceCDF` on delivery but
 today **cannot get paid** (completion flow unimplemented; seller request UI deliberately disabled).
 **Settlement model RESOLVED (user, 2026-06-08):** Teka couriers collect goods from sellers, deliver to
@@ -34,8 +42,11 @@ later phase if needed).
 - **E** (#350) authz e2e (9 — all money endpoints 401 without auth) + docs (`docs/payouts.md` authoritative
   reference + ops runbook; api-reference/architecture/CLAUDE refreshed).
 
-**RELEASE STEP (when directed):** ship A–E develop→main, deploy, **apply prod migration
-`2026-06-08_seller_payout_destination.sql`** via the Action, verify payout endpoints on prod.
+**RELEASED (release #351, 2026-06-08):** A–E shipped develop→main, deployed, prod migration
+`2026-06-08_seller_payout_destination.sql` applied via the Action (success). **Verified on prod:** api +
+all 3 storefronts healthy (200); new routes (`payout-method` GET/PATCH, admin `process`/`complete`, reports
+`payouts/csv`) live + auth-guarded (401 without auth, bogus route 404). `develop == main`. **Operational
+follow-up (not code):** finance team to use admin-web → Virements to process the first real payout.
 
 ---
 
