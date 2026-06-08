@@ -68,4 +68,23 @@ export class ReportsController {
   ) {
     await this.reportsService.generateSellerPerformanceCsv(query, res);
   }
+
+  /**
+   * GET /api/v1/admin/reports/payouts
+   * Admin: payouts report for finance reconciliation (JSON).
+   */
+  @Get('payouts')
+  async getPayoutsReport(@Query() query: ReportQueryDto) {
+    const data = await this.reportsService.getPayoutsReport(query);
+    return { success: true, data };
+  }
+
+  /**
+   * GET /api/v1/admin/reports/payouts/csv
+   * Admin: payouts report (CSV download).
+   */
+  @Get('payouts/csv')
+  async getPayoutsCsv(@Query() query: ReportQueryDto, @Res() res: Response) {
+    await this.reportsService.generatePayoutsCsv(query, res);
+  }
 }
