@@ -318,6 +318,75 @@ export class ReportsService {
     return date.toISOString().split('T')[0];
   }
 
+  // ─── Payouts Report ──────────────────────────────────────────────────
+
+  /**
+   * Returns payout-level data for finance reconciliation. Filter by date range
+   * (on the payout's createdAt) and sellerId (the seller's User id).
+   */
+  async getPayoutsReport(query: ReportQueryDto) {
+    const where: Prisma.PayoutWhereInput = {};
+    Object.assign(where, this.buildDateFilter(query));
+    if (query.sellerId) {
+      where.sellerProfile = { userId: query.sellerId };
+    }
+
+    const payouts = await this.prisma.payout.findMany({
+      where,
+      include: {
+        sellerProfile: {
+          select: {
+            businessName: true,
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return payouts.map((p) => ({
+      date: this.formatDate(p.createdAt),
+      sellerName:
+        `${p.sellerProfile?.user?.firstName ?? ''} ${p.sellerProfile?.user?.lastName ?? ''}`.trim(),
+      businessName: p.sellerProfile?.businessName ?? '',
+      amountCDF: p.amountCDF.toString(),
+      method: p.payoutMethod,
+      phone: p.payoutPhone,
+      status: p.status,
+      reference: p.externalReference ?? '',
+      processedAt: p.processedAt ? this.formatDate(p.processedAt) : '',
+      rejectionReason: p.rejectionReason ?? '',
+    }));
+  }
+
+  /**
+   * Streams the payouts report as a CSV download for finance reconciliation.
+   */
+  async generatePayoutsCsv(query: ReportQueryDto, res: Response) {
+    const data = await this.getPayoutsReport(query);
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=payouts-report-${this.formatDate(new Date())}.csv`,
+    );
+
+    // BOM for Excel UTF-8 compatibility
+    res.write('\uFEFF');
+
+    res.write(
+      'Date,Seller,Business,Amount CDF,Method,Phone,Status,Reference,Processed At,Rejection Reason\n',
+    );
+
+    for (const row of data) {
+      res.write(
+        `${row.date},${this.escapeCsv(row.sellerName)},${this.escapeCsv(row.businessName)},${row.amountCDF},${row.method},${this.escapeCsv(row.phone)},${row.status},${this.escapeCsv(row.reference)},${row.processedAt},${this.escapeCsv(row.rejectionReason)}\n`,
+      );
+    }
+
+    res.end();
+  }
+
   /**
    * Escapes a value for CSV output.
    * Wraps in double quotes if it contains commas, quotes, or newlines.
