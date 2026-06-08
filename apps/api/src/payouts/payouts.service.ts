@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { RequestPayoutDto } from './dto/request-payout.dto';
 import { PayoutQueryDto } from './dto/payout-query.dto';
 import { PayoutStatus } from '@prisma/client';
+import { SellerNotificationService } from '../notifications/seller-notification.service';
 
 /** Minimum payout amount: 5 000 CDF = 500 000 centimes */
 const MIN_PAYOUT_AMOUNT_CDF = BigInt(500000);
@@ -17,7 +18,10 @@ const MIN_PAYOUT_AMOUNT_CDF = BigInt(500000);
 export class PayoutsService {
   private readonly logger = new Logger(PayoutsService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private sellerNotifications: SellerNotificationService,
+  ) {}
 
   /**
    * Request a payout for a seller.
@@ -146,6 +150,13 @@ export class PayoutsService {
 
     this.logger.log(`Payout approved: id=${payoutId}, admin=${adminId}`);
 
+    // Fire-and-forget: notify the seller (push primary + email fallback).
+    this.sellerNotifications
+      .notifyPayoutApproved(payoutId)
+      .catch((err) =>
+        this.logger.error('Échec notification retrait approuvé', err),
+      );
+
     return updated;
   }
 
@@ -209,6 +220,13 @@ export class PayoutsService {
     this.logger.log(
       `Payout rejected: id=${payoutId}, admin=${adminId}, reason="${reason}"`,
     );
+
+    // Fire-and-forget: notify the seller their request was refused + recredited.
+    this.sellerNotifications
+      .notifyPayoutRejected(payoutId)
+      .catch((err) =>
+        this.logger.error('Échec notification retrait refusé', err),
+      );
 
     const updated = await this.prisma.payout.findUnique({
       where: { id: payoutId },
@@ -292,6 +310,13 @@ export class PayoutsService {
     this.logger.log(
       `Payout completed: id=${payoutId}, admin=${adminId}, ref="${externalReference}"`,
     );
+
+    // Fire-and-forget: notify the seller they've been paid (push + email).
+    this.sellerNotifications
+      .notifyPayoutPaid(payoutId)
+      .catch((err) =>
+        this.logger.error('Échec notification retrait effectué', err),
+      );
 
     return updated;
   }
