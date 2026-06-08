@@ -12,10 +12,12 @@ interface PayoutSeller {
 interface Payout {
   id: string;
   amountCDF: string;
-  method: string;
-  phone: string;
+  payoutMethod: string;
+  payoutPhone: string;
   status: string;
-  seller?: PayoutSeller | null;
+  externalReference?: string | null;
+  processedAt?: string | null;
+  sellerProfile?: PayoutSeller | null;
   createdAt: string;
 }
 
@@ -66,6 +68,15 @@ export default function PayoutsPage() {
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
+
+  // Process confirm (APPROVED -> PROCESSING)
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Complete modal (-> COMPLETED, with the transfer reference)
+  const [completingId, setCompletingId] = useState<string | null>(null);
+  const [completeReference, setCompleteReference] = useState('');
+  const [isCompleting, setIsCompleting] = useState(false);
 
   // Feedback
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -124,6 +135,40 @@ export default function PayoutsPage() {
       showFeedbackMessage('error', 'Erreur');
     } finally {
       setIsRejecting(false);
+    }
+  };
+
+  const handleProcess = async () => {
+    if (!processingId) return;
+    setIsProcessing(true);
+    try {
+      await apiFetch(`/v1/admin/payouts/${processingId}/process`, {
+        method: 'POST',
+      });
+      setProcessingId(null);
+      fetchPayouts();
+    } catch {
+      showFeedbackMessage('error', 'Erreur');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleComplete = async () => {
+    if (!completingId || !completeReference.trim()) return;
+    setIsCompleting(true);
+    try {
+      await apiFetch(`/v1/admin/payouts/${completingId}/complete`, {
+        method: 'POST',
+        body: JSON.stringify({ externalReference: completeReference.trim() }),
+      });
+      setCompletingId(null);
+      setCompleteReference('');
+      fetchPayouts();
+    } catch {
+      showFeedbackMessage('error', 'Erreur');
+    } finally {
+      setIsCompleting(false);
     }
   };
 
@@ -222,16 +267,16 @@ export default function PayoutsPage() {
                     {new Date(payout.createdAt).toLocaleDateString('fr-CD')}
                   </td>
                   <td className="px-4 py-3 text-sm text-foreground">
-                    {payout.seller?.businessName || '-'}
+                    {payout.sellerProfile?.businessName || '-'}
                   </td>
                   <td className="px-4 py-3 text-sm text-foreground whitespace-nowrap">
                     {formatCDF(payout.amountCDF)}
                   </td>
                   <td className="px-4 py-3 text-sm text-foreground">
-                    {payout.method}
+                    {payout.payoutMethod}
                   </td>
                   <td className="px-4 py-3 text-sm text-foreground">
-                    {payout.phone}
+                    {payout.payoutPhone}
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -241,16 +286,44 @@ export default function PayoutsPage() {
                     >
                       {t(`status.${payout.status}`)}
                     </span>
+                    {payout.status === 'COMPLETED' && payout.externalReference && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {t('referenceLabel')} {payout.externalReference}
+                      </p>
+                    )}
                   </td>
                   <td className="px-4 py-3">
-                    {payout.status === 'REQUESTED' && (
-                      <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
+                      {payout.status === 'REQUESTED' && (
                         <button
                           onClick={() => setApprovingId(payout.id)}
                           className="px-2.5 py-1 text-xs font-medium bg-success/10 text-success rounded-lg hover:bg-success/20 transition-colors"
                         >
                           {t('approve')}
                         </button>
+                      )}
+                      {payout.status === 'APPROVED' && (
+                        <button
+                          onClick={() => setProcessingId(payout.id)}
+                          className="px-2.5 py-1 text-xs font-medium bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
+                        >
+                          {t('process')}
+                        </button>
+                      )}
+                      {(payout.status === 'APPROVED' ||
+                        payout.status === 'PROCESSING') && (
+                        <button
+                          onClick={() => {
+                            setCompletingId(payout.id);
+                            setCompleteReference('');
+                          }}
+                          className="px-2.5 py-1 text-xs font-medium bg-success/10 text-success rounded-lg hover:bg-success/20 transition-colors"
+                        >
+                          {t('markPaid')}
+                        </button>
+                      )}
+                      {(payout.status === 'REQUESTED' ||
+                        payout.status === 'APPROVED') && (
                         <button
                           onClick={() => {
                             setRejectingId(payout.id);
@@ -260,8 +333,8 @@ export default function PayoutsPage() {
                         >
                           {t('reject')}
                         </button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))
@@ -363,6 +436,83 @@ export default function PayoutsPage() {
                   className="px-4 py-2 text-sm font-medium text-white bg-destructive rounded-lg hover:bg-destructive/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isRejecting ? tCommon('loading') : t('rejectConfirm')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Process Confirmation Modal */}
+      {processingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setProcessingId(null)} />
+          <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-sm mx-4">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-2">{t('process')}</h3>
+              <p className="text-sm text-muted-foreground mb-4">{t('processConfirm')}</p>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setProcessingId(null)}
+                  className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
+                >
+                  {tCommon('cancel')}
+                </button>
+                <button
+                  onClick={handleProcess}
+                  disabled={isProcessing}
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isProcessing ? tCommon('loading') : tCommon('confirm')}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Complete (mark paid) Modal */}
+      {completingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-black/50" onClick={() => setCompletingId(null)} />
+          <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-lg mx-4">
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <h2 className="text-lg font-semibold text-foreground">{t('completeForm')}</h2>
+              <button
+                onClick={() => setCompletingId(null)}
+                className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  {t('reference')} <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={completeReference}
+                  onChange={(e) => setCompleteReference(e.target.value)}
+                  placeholder={t('referencePlaceholder')}
+                  className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-4 border-t border-border">
+                <button
+                  onClick={() => setCompletingId(null)}
+                  className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
+                >
+                  {tCommon('cancel')}
+                </button>
+                <button
+                  onClick={handleComplete}
+                  disabled={isCompleting || !completeReference.trim()}
+                  className="px-4 py-2 text-sm font-medium text-white bg-success rounded-lg hover:bg-success/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isCompleting ? tCommon('loading') : t('completeConfirm')}
                 </button>
               </div>
             </div>
