@@ -469,6 +469,13 @@ class AppLocalizationsFr extends AppLocalizations {
   String get payoutMinimumBalance => 'Solde minimum: 5 000 CDF';
 
   @override
+  String get payoutPendingNotice =>
+      'Vous avez deja une demande de virement en cours. Vous pourrez en faire une nouvelle une fois celle-ci traitee.';
+
+  @override
+  String get payoutReferenceLabel => 'Reference';
+
+  @override
   String get payoutTemporarilyUnavailable =>
       'Les demandes de virement sont temporairement indisponibles. Votre solde et l\'historique restent visibles. Contactez le support pour toute question.';
 
