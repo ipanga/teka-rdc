@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../providers/earnings_provider.dart';
 import '../widgets/earning_tile.dart';
 import '../widgets/payout_tile.dart';
 import '../widgets/wallet_card.dart';
+
+const _minPayoutCdf = 5000;
+const _pendingPayoutStatuses = ['REQUESTED', 'APPROVED', 'PROCESSING'];
 
 class EarningsScreen extends ConsumerStatefulWidget {
   const EarningsScreen({super.key});
@@ -23,6 +27,11 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(_onTabChanged);
+    // Load payouts up-front (not just on the payouts tab) so the request
+    // button can detect an existing pending payout.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(earningsProvider.notifier).loadPayouts();
+    });
   }
 
   @override
@@ -90,22 +99,12 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen>
                 ),
                 const SizedBox(height: 12),
 
-                // Payout request flow is hidden until the payout product is
-                // re-enabled. Wallet balance + earnings + past payouts list
-                // remain visible.
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: TekaColors.muted,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    l10n.payoutTemporarilyUnavailable,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: TekaColors.mutedForeground,
-                    ),
-                  ),
+                // Payout request action + guards (Initiative #3 / C2).
+                _PayoutRequestAction(
+                  balanceCdf: wallet?.balanceCDFDisplay ?? 0,
+                  hasPendingPayout: state.payouts.any((p) =>
+                      _pendingPayoutStatuses.contains(p.status.toUpperCase())),
+                  walletLoaded: wallet != null,
                 ),
                 const SizedBox(height: 12),
               ],
@@ -300,6 +299,62 @@ class _PayoutsTab extends ConsumerWidget {
           return PayoutTile(payout: state.payouts[index]);
         },
       ),
+    );
+  }
+}
+
+/// Request-payout button + min-balance / pending guards.
+class _PayoutRequestAction extends StatelessWidget {
+  final int balanceCdf;
+  final bool hasPendingPayout;
+  final bool walletLoaded;
+
+  const _PayoutRequestAction({
+    required this.balanceCdf,
+    required this.hasPendingPayout,
+    required this.walletLoaded,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final belowMin = balanceCdf < _minPayoutCdf;
+    final canRequest = walletLoaded && !belowMin && !hasPendingPayout;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ElevatedButton(
+          onPressed: canRequest
+              ? () => context.push('/earnings/request-payout')
+              : null,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: TekaColors.tekaRed,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: TekaColors.muted,
+          ),
+          child: Text(l10n.earningsRequestPayout),
+        ),
+        if (walletLoaded && belowMin) ...[
+          const SizedBox(height: 6),
+          Text(
+            l10n.payoutMinimumBalance,
+            style: const TextStyle(
+              fontSize: 12,
+              color: TekaColors.mutedForeground,
+            ),
+          ),
+        ] else if (hasPendingPayout) ...[
+          const SizedBox(height: 6),
+          Text(
+            l10n.payoutPendingNotice,
+            style: const TextStyle(
+              fontSize: 12,
+              color: TekaColors.mutedForeground,
+            ),
+          ),
+        ],
+      ],
     );
   }
 }
