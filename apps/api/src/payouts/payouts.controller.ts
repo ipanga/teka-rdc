@@ -1,6 +1,7 @@
 import {
   Controller,
   Post,
+  Patch,
   Get,
   Body,
   Param,
@@ -15,6 +16,7 @@ import { RequestPayoutDto } from './dto/request-payout.dto';
 import { PayoutQueryDto } from './dto/payout-query.dto';
 import { RejectPayoutDto } from './dto/reject-payout.dto';
 import { CompletePayoutDto } from './dto/complete-payout.dto';
+import { UpdatePayoutMethodDto } from './dto/update-payout-method.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
@@ -87,6 +89,36 @@ export class SellerPayoutsController {
       query,
     );
     return { success: true, data: result.data, meta: result.pagination };
+  }
+
+  /**
+   * Get the seller's saved payout destination (for prefilling the request UI).
+   * GET /api/v1/sellers/payout-method
+   */
+  @Get('payout-method')
+  @Roles('SELLER')
+  async getPayoutMethod(@CurrentUser('sub') userId: string) {
+    const sellerProfileId = await resolveSellerProfileId(this.prisma, userId);
+    const data = await this.payoutsService.getPayoutMethod(sellerProfileId);
+    return { success: true, data };
+  }
+
+  /**
+   * Set/update the seller's reusable payout destination.
+   * PATCH /api/v1/sellers/payout-method
+   */
+  @Patch('payout-method')
+  @Roles('SELLER')
+  async updatePayoutMethod(
+    @CurrentUser('sub') userId: string,
+    @Body() dto: UpdatePayoutMethodDto,
+  ) {
+    const sellerProfileId = await resolveSellerProfileId(this.prisma, userId);
+    const data = await this.payoutsService.updatePayoutMethod(
+      sellerProfileId,
+      dto,
+    );
+    return { success: true, data };
   }
 
   /**
