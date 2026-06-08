@@ -302,6 +302,11 @@
     "minimumBalance": "Le solde minimum pour un virement est de 5 000 CDF",
     "payoutRequested": "Demande de virement envoyée avec succès",
     "payoutTemporarilyUnavailable": "Les demandes de virement sont temporairement indisponibles. Votre solde et l'historique restent visibles ci-dessous. Contactez le support pour toute question.",
+    "cancel": "Annuler",
+    "submitting": "Envoi en cours...",
+    "pendingPayoutNotice": "Vous avez déjà une demande de virement en cours. Vous pourrez en faire une nouvelle une fois celle-ci traitée.",
+    "saveDestinationHint": "Cet opérateur et ce numéro seront enregistrés pour vos prochaines demandes.",
+    "referenceLabel": "Référence",
     "tabs": {
       "earnings": "Gains",
       "payouts": "Virements"
@@ -318,6 +323,7 @@
       "amount": "Montant",
       "method": "Méthode",
       "rejectionReason": "Raison du rejet",
+      "details": "Détails",
       "noEarnings": "Aucun revenu pour le moment",
       "noPayouts": "Aucun virement pour le moment"
     },

@@ -4,11 +4,20 @@ import { useEffect, useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
-import type { SellerWallet, SellerEarning, Payout } from '@/lib/types';
+import type {
+  SellerWallet,
+  SellerEarning,
+  Payout,
+  SellerPayoutMethod,
+} from '@/lib/types';
 
 type ActiveTab = 'earnings' | 'payouts';
 
 const LIMIT = 20;
+const MIN_PAYOUT_CDF = 5000;
+const PAYOUT_METHODS = ['M_PESA', 'AIRTEL_MONEY', 'ORANGE_MONEY'] as const;
+// A payout request blocks a new one until it reaches a terminal state.
+const PENDING_PAYOUT_STATUSES = ['REQUESTED', 'APPROVED', 'PROCESSING'];
 
 // Display labels for historical payout methods. The API still emits these
 // values on existing rows; we just don't expose the request flow until the
@@ -42,8 +51,13 @@ export default function EarningsPage() {
   const [payoutsPage, setPayoutsPage] = useState(1);
   const [payoutsTotalPages, setPayoutsTotalPages] = useState(1);
 
-  // Payout request flow is hidden until the payout product is re-enabled.
-  // Wallet balance + earnings + past-payouts list remain visible.
+  // Payout request flow (re-enabled, Initiative #3 / C1).
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [requestMethod, setRequestMethod] = useState('');
+  const [requestPhone, setRequestPhone] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [requestError, setRequestError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   // Error
   const [error, setError] = useState('');
@@ -134,9 +148,26 @@ export default function EarningsPage() {
     }
   }, [payoutsPage]);
 
+  // Saved payout destination (B1) — prefill the request form.
+  const loadPayoutMethod = useCallback(async () => {
+    try {
+      const res = await apiFetch<SellerPayoutMethod>(
+        '/v1/sellers/payout-method',
+      );
+      if (res.data?.payoutMethod) setRequestMethod(res.data.payoutMethod);
+      if (res.data?.payoutPhone) setRequestPhone(res.data.payoutPhone);
+    } catch {
+      // Non-fatal: the form just starts empty.
+    }
+  }, []);
+
   useEffect(() => {
     loadWallet();
-  }, [loadWallet]);
+    loadPayoutMethod();
+    // Load payouts up-front (not just on the payouts tab) so the request
+    // button can detect an existing pending payout.
+    loadPayouts();
+  }, [loadWallet, loadPayoutMethod, loadPayouts]);
 
   useEffect(() => {
     if (activeTab === 'earnings') {
@@ -149,6 +180,60 @@ export default function EarningsPage() {
       loadPayouts();
     }
   }, [activeTab, loadPayouts]);
+
+  const balanceCDF = Number(wallet?.balanceCDF ?? '0') / 100;
+  const hasPendingPayout = payouts.some((p) =>
+    PENDING_PAYOUT_STATUSES.includes(p.status),
+  );
+  const canRequestPayout =
+    !walletLoading && balanceCDF >= MIN_PAYOUT_CDF && !hasPendingPayout;
+
+  const openRequestModal = () => {
+    setRequestError('');
+    setShowRequestModal(true);
+  };
+
+  const submitPayoutRequest = async () => {
+    setRequestError('');
+    if (!PAYOUT_METHODS.includes(requestMethod as never)) {
+      setRequestError(t('selectOperator'));
+      return;
+    }
+    if (!/^\+243[0-9]{9}$/.test(requestPhone)) {
+      setRequestError(t('payoutPhonePlaceholder'));
+      return;
+    }
+    setSubmitting(true);
+    try {
+      // Persist the destination (so it prefills next time), then request.
+      await apiFetch('/v1/sellers/payout-method', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          payoutMethod: requestMethod,
+          payoutPhone: requestPhone,
+        }),
+      });
+      await apiFetch('/v1/sellers/payouts', {
+        method: 'POST',
+        body: JSON.stringify({
+          payoutMethod: requestMethod,
+          payoutPhone: requestPhone,
+        }),
+      });
+      setShowRequestModal(false);
+      setSuccessMessage(t('payoutRequested'));
+      await Promise.all([loadWallet(), loadPayouts()]);
+      setActiveTab('payouts');
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setRequestError(err.message);
+      } else {
+        setRequestError(t('payoutRequested'));
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const getPayoutStatusStyle = (status: string) => {
     switch (status) {
@@ -175,11 +260,12 @@ export default function EarningsPage() {
         <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
       </div>
 
-      {/* Payout request hidden — the payout flow is temporarily disabled.
-          Wallet balance + earnings + past-payouts remain visible. */}
-      <div className="mb-4 p-3 rounded-lg bg-muted/60 border border-border text-muted-foreground text-sm">
-        {t('payoutTemporarilyUnavailable')}
-      </div>
+      {/* Success message */}
+      {successMessage && (
+        <div className="mb-4 p-3 rounded-lg bg-success/10 text-success text-sm">
+          {successMessage}
+        </div>
+      )}
 
       {/* Error message */}
       {error && (
@@ -222,7 +308,26 @@ export default function EarningsPage() {
         </div>
       </div>
 
-      {/* Payout request flow + minimum-balance notice removed; see banner above. */}
+      {/* Payout request action + guards */}
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center gap-3">
+        <button
+          onClick={openRequestModal}
+          disabled={!canRequestPayout}
+          className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {t('requestPayout')}
+        </button>
+        {!walletLoading && balanceCDF < MIN_PAYOUT_CDF && (
+          <span className="text-sm text-muted-foreground">
+            {t('minimumBalance')}
+          </span>
+        )}
+        {hasPendingPayout && (
+          <span className="text-sm text-muted-foreground">
+            {t('pendingPayoutNotice')}
+          </span>
+        )}
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 border-b border-border">
@@ -393,7 +498,7 @@ export default function EarningsPage() {
                         <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('table.amount')}</th>
                         <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('table.method')}</th>
                         <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('table.status')}</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('table.rejectionReason')}</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('table.details')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -419,7 +524,10 @@ export default function EarningsPage() {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-sm text-muted-foreground">
-                            {payout.rejectionReason || '---'}
+                            {payout.status === 'COMPLETED' &&
+                            payout.externalReference
+                              ? `${t('referenceLabel')} : ${payout.externalReference}`
+                              : payout.rejectionReason || '---'}
                           </td>
                         </tr>
                       ))}
@@ -453,6 +561,78 @@ export default function EarningsPage() {
             </>
           )}
         </>
+      )}
+
+      {/* Payout request modal */}
+      {showRequestModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md bg-white rounded-xl border border-border shadow-xl p-6">
+            <h2 className="text-lg font-bold text-foreground mb-1">
+              {t('payoutForm')}
+            </h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              {t('currentBalance')} : {formatPrice(wallet?.balanceCDF ?? '0')}
+            </p>
+
+            {requestError && (
+              <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                {requestError}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  {t('selectOperator')}
+                </label>
+                <select
+                  value={requestMethod}
+                  onChange={(e) => setRequestMethod(e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="">—</option>
+                  {PAYOUT_METHODS.map((m) => (
+                    <option key={m} value={m}>
+                      {getPayoutMethodLabel(m)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-1">
+                  {t('payoutPhone')}
+                </label>
+                <input
+                  type="tel"
+                  value={requestPhone}
+                  onChange={(e) => setRequestPhone(e.target.value)}
+                  placeholder={t('payoutPhonePlaceholder')}
+                  className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t('saveDestinationHint')}
+              </p>
+            </div>
+
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => setShowRequestModal(false)}
+                disabled={submitting}
+                className="flex-1 py-2 px-4 border border-border text-foreground rounded-lg text-sm font-medium hover:bg-muted disabled:opacity-50 transition-colors"
+              >
+                {t('cancel')}
+              </button>
+              <button
+                onClick={submitPayoutRequest}
+                disabled={submitting}
+                className="flex-1 py-2 px-4 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+              >
+                {submitting ? t('submitting') : t('submit')}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
