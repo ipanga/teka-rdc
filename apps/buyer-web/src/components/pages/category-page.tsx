@@ -11,6 +11,7 @@ import {
   ProductFilters,
   type SortOption,
   type ConditionFilter,
+  type FacetAttribute,
 } from '@/components/product/product-filters';
 import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
@@ -52,9 +53,28 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
+  // SELECT/MULTISELECT facets for this category + the buyer's selections
+  // (attributeId -> chosen option values). Applied together with the other
+  // filters on "Apply".
+  const [attributes, setAttributes] = useState<FacetAttribute[]>([]);
+  const [selectedAttributes, setSelectedAttributes] = useState<
+    Record<string, string[]>
+  >({});
 
-  const filtersRef = useRef({ condition, minPrice, maxPrice, sortBy });
-  filtersRef.current = { condition, minPrice, maxPrice, sortBy };
+  const filtersRef = useRef({
+    condition,
+    minPrice,
+    maxPrice,
+    sortBy,
+    selectedAttributes,
+  });
+  filtersRef.current = {
+    condition,
+    minPrice,
+    maxPrice,
+    sortBy,
+    selectedAttributes,
+  };
 
   const selectedCity = useCityStore((s) => s.selectedCity);
   // URL city (city-first route) wins over the client-selected city so the
@@ -77,6 +97,13 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
     if (f.minPrice) qs.set('minPrice', f.minPrice);
     if (f.maxPrice) qs.set('maxPrice', f.maxPrice);
     if (effectiveCityId) qs.set('cityId', effectiveCityId);
+    // Attribute facets: only send attributes with at least one selected value.
+    const activeAttrs = Object.fromEntries(
+      Object.entries(f.selectedAttributes).filter(([, v]) => v.length > 0),
+    );
+    if (Object.keys(activeAttrs).length > 0) {
+      qs.set('attributes', JSON.stringify(activeAttrs));
+    }
     if (cursor) qs.set('cursor', cursor);
     return qs.toString();
   }
@@ -97,6 +124,8 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
     setMinPrice('');
     setMaxPrice('');
     setSortBy('newest');
+    setAttributes([]);
+    setSelectedAttributes({});
 
     apiFetch<BrowseCategory[]>('/v1/browse/categories')
       .then((res) => {
@@ -104,6 +133,20 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
         setCategory(found);
       })
       .catch(() => {});
+
+    // Filterable facets for this category (SELECT/MULTISELECT with options).
+    apiFetch<FacetAttribute[]>(`/v1/browse/categories/${categoryId}/attributes`)
+      .then((res) => {
+        setAttributes(
+          res.data.filter(
+            (a) =>
+              (a.type === 'SELECT' || a.type === 'MULTISELECT') &&
+              Array.isArray(a.options) &&
+              a.options.length > 0,
+          ),
+        );
+      })
+      .catch(() => setAttributes([]));
 
     const qs = new URLSearchParams();
     qs.set('categoryId', categoryId);
@@ -134,16 +177,39 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
       .finally(() => setIsLoading(false));
   }
 
+  function handleAttributeToggle(attributeId: string, value: string) {
+    setSelectedAttributes((prev) => {
+      const current = prev[attributeId] ?? [];
+      const nextValues = current.includes(value)
+        ? current.filter((v) => v !== value)
+        : [...current, value];
+      const next = { ...prev };
+      if (nextValues.length > 0) {
+        next[attributeId] = nextValues;
+      } else {
+        delete next[attributeId];
+      }
+      return next;
+    });
+  }
+
   function handleClearFilters() {
     setCondition('');
     setMinPrice('');
     setMaxPrice('');
     setSortBy('newest');
+    setSelectedAttributes({});
     setShowMobileFilters(false);
 
     setIsLoading(true);
     setProducts([]);
-    doFetch(undefined, { condition: '', minPrice: '', maxPrice: '', sortBy: 'newest' })
+    doFetch(undefined, {
+      condition: '',
+      minPrice: '',
+      maxPrice: '',
+      sortBy: 'newest',
+      selectedAttributes: {},
+    })
       .then((res) => {
         setProducts(res.data);
         setPagination(res.pagination);
@@ -226,6 +292,9 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
                   onMaxPriceChange={setMaxPrice}
                   sortBy={sortBy}
                   onSortChange={setSortBy}
+                  attributes={attributes}
+                  selectedAttributes={selectedAttributes}
+                  onAttributeToggle={handleAttributeToggle}
                   onApply={handleApplyFilters}
                   onClear={handleClearFilters}
                 />
@@ -268,6 +337,9 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
                       onMaxPriceChange={setMaxPrice}
                       sortBy={sortBy}
                       onSortChange={setSortBy}
+                      attributes={attributes}
+                      selectedAttributes={selectedAttributes}
+                      onAttributeToggle={handleAttributeToggle}
                       onApply={handleApplyFilters}
                       onClear={handleClearFilters}
                     />

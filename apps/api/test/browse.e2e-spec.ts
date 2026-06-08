@@ -190,6 +190,68 @@ describe('Browse (e2e)', () => {
         .expect(200);
     });
 
+    it('intersects results with the attribute facet filter (resolved product ids)', async () => {
+      const attrId = '12000000-0000-0000-0000-000000000001';
+      // Facet resolution returns the matching product ids; the listing then
+      // restricts to those ids (status/deletedAt still applied).
+      mockPrismaService.$queryRaw.mockResolvedValueOnce([{ productId: 'p1' }]);
+      mockPrismaService.product.findMany.mockResolvedValue([
+        {
+          id: 'p1',
+          title: 'Samsung Galaxy A14',
+          priceCDF: '35000000',
+          condition: 'NEW',
+          quantity: 1,
+          images: [],
+          seller: null,
+          city: null,
+        },
+      ]);
+      mockPrismaService.product.count.mockResolvedValue(1);
+
+      const attrs = encodeURIComponent(
+        JSON.stringify({ [attrId]: ['Samsung'] }),
+      );
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/browse/products?attributes=${attrs}`)
+        .expect(200);
+
+      const findManyArgs = mockPrismaService.product.findMany.mock.calls[0][0];
+      expect(findManyArgs.where.id).toEqual({ in: ['p1'] });
+      expect(res.body.data.data[0].id).toBe('p1');
+      expect(res.body.data.pagination.total).toBe(1);
+    });
+
+    it('short-circuits to an empty page when no product matches the facet filter', async () => {
+      const attrId = '12000000-0000-0000-0000-000000000001';
+      mockPrismaService.$queryRaw.mockResolvedValueOnce([]); // no matches
+
+      const attrs = encodeURIComponent(JSON.stringify({ [attrId]: ['Apple'] }));
+      const res = await request(app.getHttpServer())
+        .get(`/api/v1/browse/products?attributes=${attrs}`)
+        .expect(200);
+
+      expect(res.body.data.data).toEqual([]);
+      expect(res.body.data.pagination.total).toBe(0);
+      expect(res.body.data.pagination.hasMore).toBe(false);
+      // We never reach the listing query when the facet set is empty.
+      expect(mockPrismaService.product.findMany).not.toHaveBeenCalled();
+    });
+
+    it('ignores a malformed attributes param (treated as no facet filter)', async () => {
+      mockPrismaService.product.findMany.mockResolvedValue([]);
+      mockPrismaService.product.count.mockResolvedValue(0);
+
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/browse/products?attributes=not-valid-json')
+        .expect(200);
+
+      expect(res.body.success).toBe(true);
+      // Normal listing path runs; no facet-resolution query is issued.
+      const findManyArgs = mockPrismaService.product.findMany.mock.calls[0][0];
+      expect(findManyArgs.where.id).toBeUndefined();
+    });
+
     it('should reject limit > 100', () => {
       return request(app.getHttpServer())
         .get('/api/v1/browse/products?limit=200')
