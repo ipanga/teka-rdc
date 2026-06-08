@@ -27,8 +27,18 @@ function makeService(payout: Record<string, unknown> | null) {
   prisma.$transaction.mockImplementation((cb: (tx: typeof prisma) => unknown) =>
     cb(prisma),
   );
-  const service = new PayoutsService(prisma as never);
-  return { service, prisma };
+  // Notifications are fire-and-forget; a resolved stub keeps the state-machine
+  // tests focused on the transition logic.
+  const sellerNotifications = {
+    notifyPayoutApproved: jest.fn().mockResolvedValue(undefined),
+    notifyPayoutPaid: jest.fn().mockResolvedValue(undefined),
+    notifyPayoutRejected: jest.fn().mockResolvedValue(undefined),
+  };
+  const service = new PayoutsService(
+    prisma as never,
+    sellerNotifications as never,
+  );
+  return { service, prisma, sellerNotifications };
 }
 
 describe('PayoutsService — process (APPROVED → PROCESSING)', () => {
@@ -64,8 +74,8 @@ describe('PayoutsService — process (APPROVED → PROCESSING)', () => {
 });
 
 describe('PayoutsService — complete (→ COMPLETED, terminal)', () => {
-  it('completes an APPROVED payout with reference + processedAt', async () => {
-    const { service, prisma } = makeService({
+  it('completes an APPROVED payout with reference + processedAt, and notifies the seller', async () => {
+    const { service, prisma, sellerNotifications } = makeService({
       id: 'p1',
       status: PayoutStatus.APPROVED,
     });
@@ -76,6 +86,7 @@ describe('PayoutsService — complete (→ COMPLETED, terminal)', () => {
     expect(updateArg.data.externalReference).toBe('MPESA-XYZ-123');
     expect(updateArg.data.processedAt).toBeInstanceOf(Date);
     expect(res.status).toBe(PayoutStatus.COMPLETED);
+    expect(sellerNotifications.notifyPayoutPaid).toHaveBeenCalledWith('p1');
   });
 
   it('completes a PROCESSING payout', async () => {
@@ -109,8 +120,8 @@ describe('PayoutsService — complete (→ COMPLETED, terminal)', () => {
 });
 
 describe('PayoutsService — reject restores wallet + earnings', () => {
-  it('flips to REJECTED, unlinks earnings, and restores the wallet balance', async () => {
-    const { service, prisma } = makeService({
+  it('flips to REJECTED, unlinks earnings, restores the wallet balance, and notifies the seller', async () => {
+    const { service, prisma, sellerNotifications } = makeService({
       id: 'p1',
       status: PayoutStatus.APPROVED,
       sellerProfileId: 'seller1',
@@ -131,6 +142,7 @@ describe('PayoutsService — reject restores wallet + earnings', () => {
       where: { id: 'seller1' },
       data: { walletBalanceCDF: { increment: BigInt(700000) } },
     });
+    expect(sellerNotifications.notifyPayoutRejected).toHaveBeenCalledWith('p1');
   });
 
   it('refuses to reject a COMPLETED payout', async () => {
