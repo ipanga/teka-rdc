@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
@@ -44,6 +46,7 @@ class CatalogRepository {
     String? sortBy,
     String? cursor,
     String? cityId,
+    String? attributesJson,
     int limit = 20,
   }) async {
     final queryParams = <String, dynamic>{
@@ -64,6 +67,11 @@ class CatalogRepository {
     }
     if (sortBy != null && sortBy.isNotEmpty) {
       queryParams['sortBy'] = sortBy;
+    }
+    // Attribute facet filter — a pre-encoded JSON object of
+    // attributeId -> [selected values]. The server parses + bounds it.
+    if (attributesJson != null && attributesJson.isNotEmpty) {
+      queryParams['attributes'] = attributesJson;
     }
     if (cursor != null && cursor.isNotEmpty) {
       queryParams['cursor'] = cursor;
@@ -165,6 +173,75 @@ class CatalogRepository {
         .map(SuggestedCategory.fromJson)
         .toList(growable: false);
   }
+
+  /// GET /v1/browse/categories/:id/attributes — the SELECT / MULTISELECT
+  /// attributes for a category, used to build the facet filter. TEXT / NUMERIC
+  /// and option-less attributes are dropped (not filterable).
+  Future<List<FacetAttribute>> getCategoryAttributes(String categoryId) async {
+    final response =
+        await _dio.get('/v1/browse/categories/$categoryId/attributes');
+    final data = response.data;
+    final List<dynamic> raw = (data is Map && data['data'] is List)
+        ? data['data'] as List
+        : (data is List ? data : const []);
+    return raw
+        .map((e) => FacetAttribute.fromJson(e as Map<String, dynamic>))
+        .where((a) =>
+            (a.type == 'SELECT' || a.type == 'MULTISELECT') &&
+            a.options.isNotEmpty)
+        .toList(growable: false);
+  }
+}
+
+/// A filterable category attribute (SELECT / MULTISELECT).
+class FacetAttribute {
+  final String id;
+
+  /// Already resolved to the French label (see [_frAttributeLabel]).
+  final String name;
+  final String type;
+  final List<String> options;
+
+  const FacetAttribute({
+    required this.id,
+    required this.name,
+    required this.type,
+    required this.options,
+  });
+
+  factory FacetAttribute.fromJson(Map<String, dynamic> json) {
+    return FacetAttribute(
+      id: json['id'] as String,
+      name: _frAttributeLabel(json['name']),
+      type: json['type']?.toString() ?? 'TEXT',
+      options: (json['options'] as List?)
+              ?.map((e) => e.toString())
+              .toList(growable: false) ??
+          const [],
+    );
+  }
+}
+
+/// Attribute names are stored as `{"fr":"Marque","en":"Brand"}` JSONB and reach
+/// the client as a JSON-encoded string (or, defensively, a Map). Extract the
+/// French label, tolerating plain strings + malformed values.
+String _frAttributeLabel(dynamic name) {
+  if (name == null) return '';
+  if (name is Map) {
+    return (name['fr'] ?? name['en'] ?? '').toString();
+  }
+  final s = name.toString();
+  if (s.startsWith('{')) {
+    try {
+      final parsed = jsonDecode(s);
+      if (parsed is Map) {
+        return (parsed['fr'] ?? parsed['en'] ?? s).toString();
+      }
+    } catch (_) {
+      // fall through to raw
+    }
+  }
+  return s;
 }
 
 /// A category match returned by the search-suggestions endpoint.

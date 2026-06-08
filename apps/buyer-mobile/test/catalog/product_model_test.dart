@@ -74,4 +74,34 @@ void main() {
       expect(a.hashCode == c.hashCode, isTrue);
     });
   });
+
+  group('BrowseProductsParams attributesJson (facet filter P-C2c)', () {
+    test('attributesJson participates in equality + hashCode (drives the family refetch)', () {
+      const a = BrowseProductsParams(
+        categoryId: 'cat1',
+        attributesJson: '{"attr1":["Samsung"]}',
+      );
+      const b = BrowseProductsParams(
+        categoryId: 'cat1',
+        attributesJson: '{"attr1":["Apple"]}',
+      );
+      const c = BrowseProductsParams(
+        categoryId: 'cat1',
+        attributesJson: '{"attr1":["Samsung"]}',
+      );
+      expect(a == c, isTrue);
+      expect(a == b, isFalse);
+      expect(a.hashCode == c.hashCode, isTrue);
+    });
+
+    test('clearAttributes drops the facet filter', () {
+      const a = BrowseProductsParams(
+        categoryId: 'cat1',
+        attributesJson: '{"attr1":["Samsung"]}',
+      );
+      final cleared = a.copyWith(clearAttributes: true);
+      expect(cleared.attributesJson, isNull);
+      expect(cleared.categoryId, 'cat1');
+    });
+  });
 }

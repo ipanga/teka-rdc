@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
@@ -42,7 +44,20 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
         // Scope the listing to the selected city (parity with buyer-web's
         // city-scoped category page). Watched so a city change refetches.
         cityId: ref.watch(cityProvider).selectedCity?.id,
+        attributesJson: _encodeAttributes(_filters.attributes),
       );
+
+  /// Encode the selected facets to the JSON shape the browse API expects,
+  /// dropping attributes with no selected value. Returns null when empty so the
+  /// param is omitted entirely.
+  static String? _encodeAttributes(Map<String, List<String>> attributes) {
+    final active = <String, List<String>>{};
+    attributes.forEach((key, values) {
+      if (values.isNotEmpty) active[key] = values;
+    });
+    if (active.isEmpty) return null;
+    return jsonEncode(active);
+  }
 
   void _applyFilters(FilterOptions filters) {
     setState(() => _filters = filters);
@@ -73,6 +88,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
               final result = await FilterBottomSheet.show(
                 context,
                 initialFilters: _filters,
+                categoryId: widget.categoryId,
               );
               if (result != null) {
                 _applyFilters(result);
