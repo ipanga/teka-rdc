@@ -6,8 +6,15 @@
 
 ## Active initiative
 
-**Initiative #2 — Discovery & Conversion** (started 2026-06-07). **Phase A — best-seller ranking + social
-proof: COMPLETE (#322–#324 — releasing now).** Decisions: popularity = denormalized **all-time
+**None.** Initiative #2 (Discovery & Conversion) was PAUSED 2026-06-08 after Phase C — see below. Phases
+A/B/C all shipped + verified on prod; Phase D (conversion polish) is deferred. One follow-up (#341 seller
+attribute-label fix) sits on `develop` pending the next release. No in-flight build work — ask the user
+what to start next (or release #341).
+
+---
+
+**Initiative #2 — Discovery & Conversion** (started 2026-06-07, **PAUSED 2026-06-08 after Phase C**).
+**Phase A — best-seller ranking + social proof: COMPLETE (#322–#324 — releasing now).** Decisions: popularity = denormalized **all-time
 `Product.unitsSold`** (incremented on delivery; backfilled). A1 (#322) backend: `Product.unitsSold` +
 index + migration `2026-06-07_product_units_sold.sql`; `deliverOrder` increments; `popularity` sort →
 `[{isDemo:'asc'},{unitsSold:'desc'},{createdAt:'desc'}]`; `unitsSold` in browse list + detail. A2 (#323)
@@ -48,8 +55,10 @@ seeded WITHOUT `ProductSpecification` rows (`specifications: []` on every sample
 nothing on the *current* demo catalog. Real merchant products (specs set via the seller form) WILL be
 filterable; demo catalog is slated for retirement (Initiative #1 P3c). Optional: a prod re-seed would
 populate sample specs for demo-data facets. **Seller-label fix:** #341 (apply `attrLabel` to the seller
-product form) — GREEN, awaiting explicit merge. **D** conversion polish deferred. **Initiative #2 paused
-after this release (user decision 2026-06-08).**
+product form so attribute labels render "Marque" not raw `{"fr":…}`) — **MERGED to `develop`, PENDING
+RELEASE** (one-file UI fix; rides the next develop→main, or a small dedicated release). **D** conversion
+polish deferred. **Initiative #2 PAUSED after P-C2 (user decision 2026-06-08)** — A/B/C all shipped +
+verified on prod; D is the only remaining phase and is deferred.
 
 **Initiative #1 — Real Catalog & Merchant Supply: CLOSED OUT 2026-06-07** (code complete + shipped +
 verified on prod). Phase 1 self-onboarding (#304–#308) + Phase 1 QA (#309–#313) + Phase 2 KYC
