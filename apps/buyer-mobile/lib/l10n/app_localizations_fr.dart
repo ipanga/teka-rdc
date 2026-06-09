@@ -813,4 +813,7 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get relatedTitle => 'Produits similaires';
+
+  @override
+  String get recentlyViewedTitle => 'Vus recemment';
 }

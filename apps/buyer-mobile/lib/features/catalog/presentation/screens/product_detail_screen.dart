@@ -12,9 +12,11 @@ import '../../../reviews/presentation/widgets/review_tile.dart';
 import '../../../wishlist/presentation/widgets/wishlist_button.dart';
 import '../../data/catalog_repository.dart';
 import '../../data/models/product_model.dart';
+import '../../data/recently_viewed_store.dart';
 import '../providers/catalog_provider.dart';
 import '../widgets/image_gallery.dart';
 import '../widgets/product_card.dart';
+import '../widgets/recently_viewed_section.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   final String productId;
@@ -41,6 +43,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       next.whenData((product) {
         if (_viewTracked) return;
         _viewTracked = true;
+        // Record in the client-local recently-viewed history (Phase D).
+        ref
+            .read(recentlyViewedStoreProvider)
+            .add(BrowseProductModel.fromDetail(product));
         const PosthogAnalytics().capture('product_viewed', properties: {
           'productId': product.id,
           if (product.category != null) 'categoryId': product.category!.id,
@@ -400,6 +406,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                               // Related products (same category + price)
                               const SizedBox(height: 24),
                               _RelatedSection(productId: productId),
+
+                              // Recently viewed (client-local), excl. current
+                              const SizedBox(height: 24),
+                              RecentlyViewedSection(excludeId: productId),
                             ],
                           ),
                         ),

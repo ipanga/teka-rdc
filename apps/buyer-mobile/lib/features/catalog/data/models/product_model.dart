@@ -19,6 +19,13 @@ class ProductImageModel {
       displayOrder: json['displayOrder'] as int? ?? 0,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'url': url,
+        'thumbnailUrl': thumbnailUrl,
+        'displayOrder': displayOrder,
+      };
 }
 
 class BrowseProductModel {
@@ -87,6 +94,45 @@ class BrowseProductModel {
 
   bool get isLowStock => quantity > 0 && quantity < 5;
   bool get isOutOfStock => quantity <= 0;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'priceCDF': priceCDF,
+        'priceUSD': priceUSD,
+        'condition': condition,
+        'quantity': quantity,
+        'image': image?.toJson(),
+        'seller': seller.toJson(),
+        'categoryId': categoryId,
+        'slug': slug,
+        'shortCode': shortCode,
+        'cityId': cityId,
+        'citySlug': citySlug,
+        'cityName': cityName,
+        'unitsSold': unitsSold,
+      };
+
+  /// Build the lightweight card model from a PDP detail (for recently-viewed).
+  factory BrowseProductModel.fromDetail(ProductDetailModel d) {
+    return BrowseProductModel(
+      id: d.id,
+      title: d.title,
+      priceCDF: d.priceCDF,
+      priceUSD: d.priceUSD,
+      condition: d.condition,
+      quantity: d.quantity,
+      image: d.images.isNotEmpty ? d.images.first : null,
+      seller: d.seller,
+      categoryId: d.category?.id,
+      slug: d.slug,
+      shortCode: d.shortCode,
+      cityId: d.cityId,
+      citySlug: d.citySlug,
+      cityName: d.cityName,
+      unitsSold: d.unitsSold,
+    );
+  }
 }
 
 class BrowseProductSeller {
@@ -101,6 +147,11 @@ class BrowseProductSeller {
       businessName: json['businessName'] as String?,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'businessName': businessName,
+      };
 }
 
 class ProductDetailModel {

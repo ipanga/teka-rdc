@@ -1623,6 +1623,12 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Produits similaires'**
   String get relatedTitle;
+
+  /// No description provided for @recentlyViewedTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vus recemment'**
+  String get recentlyViewedTitle;
 }
 
 class _AppLocalizationsDelegate
