@@ -6,25 +6,28 @@
 
 ## Active initiative
 
-**Initiative #2 — Discovery & Conversion, Phase D (conversion polish)** — RESUMED 2026-06-09. Decisions:
-build all 3 features in order **scarcity → quick-add → recently-viewed**; scarcity wording = **exact count
-"Plus que X en stock"** (threshold ≤ 5; requires a mobile string change too); quick-add = **always-visible
-button** on the listing card (qty 1; PDP keeps its quantity selector); recently-viewed shown on **home +
-PDP**, **client-local only** (localStorage / SharedPreferences — *persisted* view-tracking stays out of
-scope). No migrations (pure UI + client state); stock `quantity` already on BrowseProduct + mobile model.
-Shared `ProductCard`/product-card means card changes ripple across home/category/search/wishlist/related
-(intended). **CODE-COMPLETE on `develop` (#352–#357), PENDING RELEASE — no migration (pure UI + client
-state).**
-- **D-1 scarcity** (#352 web, #353 mobile): "Plus que X en stock" badge on cards + PDP warning, qty ≤ 5;
-  mobile `productLowStock` parameterized to the exact count.
+**None.** **Initiative #2 — Discovery & Conversion is FULLY SHIPPED** (A best-seller ranking, B search +
+autocomplete, C related + attribute filters, D conversion polish) — all live + verified on prod. Phase D
+(conversion polish) SHIPPED + VERIFIED on prod 2026-06-09 (release #358) — details below. No in-flight
+build work; ask the user what to start next. Recent candidates: Initiative #1 P3c (demo-catalog retirement,
+deferred pending real merchants), or a fresh initiative.
+
+**Initiative #2 Phase D — conversion polish: SHIPPED + VERIFIED on prod 2026-06-09 (release #358; no
+migration — pure UI + client state).** Decisions: scarcity = exact count "Plus que X en stock" (qty ≤ 5);
+quick-add = always-visible button (qty 1); recently-viewed on home + PDP, **client-local only** (persisted
+view-tracking out of scope). 6 sub-PRs:
+- **D-1 scarcity** (#352 web, #353 mobile): "Plus que X en stock" badge on cards + PDP warning; mobile
+  `productLowStock` parameterized to the exact count.
 - **D-2 quick-add** (#354 web, #355 mobile): always-visible add-to-cart on listing cards (qty 1, disabled
-  out-of-stock, toast/snackbar), reusing cart addItem (so `add_to_cart` analytics fire); rippling across
-  all grids via the shared card.
+  out-of-stock, toast/snackbar), reusing cart addItem (so `add_to_cart` analytics fire); ripples across all
+  grids via the shared card; card click still navigates (button outside the link / wins its own tap).
 - **D-3 recently-viewed** (#356 web, #357 mobile): client-local store (localStorage / SharedPreferences,
   capped 12, deduped), captured on PDP view, "Vus récemment" strip on home + PDP (PDP excludes current).
-  No backend — *persisted* view-tracking stays out of scope.
-
-**RELEASE STEP (when directed):** ship D-1…D-3 develop→main, deploy, verify on prod (no migration).
+**Prod verify:** api + all 3 storefronts + a PDP all 200; `teka_recently_viewed` literal confirmed in the
+deployed buyer-web JS bundle. Full local sweep green: api 79 unit + 108 e2e; buyer-mobile 76 + seller-mobile
+3 (0 analyze errors); buyer/seller/admin-web tsc clean. **Behavioral notes:** scarcity badge only shows for
+qty ≤ 5 (no low-stock items in the current sample catalog, so absent by design); recently-viewed populates
+after the buyer views products (client-local). `develop == main`.
 
 Initiative #3 (Seller Payouts Operationalization) SHIPPED + VERIFIED on prod 2026-06-08 (release #351) —
 see below.
