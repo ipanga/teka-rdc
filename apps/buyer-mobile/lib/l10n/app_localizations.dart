@@ -379,8 +379,8 @@ abstract class AppLocalizations {
   /// No description provided for @productLowStock.
   ///
   /// In fr, this message translates to:
-  /// **'Stock limite'**
-  String get productLowStock;
+  /// **'Plus que {count} en stock'**
+  String productLowStock(int count);
 
   /// No description provided for @productLoadMore.
   ///
@@ -1623,6 +1623,12 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Produits similaires'**
   String get relatedTitle;
+
+  /// No description provided for @recentlyViewedTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Vus recemment'**
+  String get recentlyViewedTitle;
 }
 
 class _AppLocalizationsDelegate

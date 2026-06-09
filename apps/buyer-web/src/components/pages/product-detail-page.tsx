@@ -10,6 +10,8 @@ import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { ProductReviews } from '@/components/product-reviews';
 import { RelatedProducts } from '@/components/product/related-products';
+import { RecentlyViewed } from '@/components/product/recently-viewed';
+import { addRecentlyViewed, detailToBrowseProduct } from '@/lib/recently-viewed';
 import { WishlistButton } from '@/components/wishlist-button';
 import { apiFetch } from '@/lib/api-client';
 import { useCartStore } from '@/lib/cart-store';
@@ -57,6 +59,8 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
     apiFetch<ProductDetail>(`/v1/browse/products/${productId}`)
       .then((res) => {
         setProduct(res.data);
+        // Record in the client-local recently-viewed history (Phase D).
+        addRecentlyViewed(detailToBrowseProduct(res.data));
         // Buyer-owned UI event — fires once per successful product load.
         track('product_viewed', {
           productId: res.data.id,
@@ -266,6 +270,14 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                     </svg>
                     {t('outOfStock')}
                   </span>
+                ) : product.quantity <= 5 ? (
+                  // Scarcity cue (Phase D): low stock — nudge urgency.
+                  <span className="inline-flex items-center gap-1.5 text-sm text-warning font-medium">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.48 0L3.16 16.25A2 2 0 005 19z" />
+                    </svg>
+                    {t('lowStock', { count: product.quantity })}
+                  </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-sm text-success font-medium">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -434,6 +446,9 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
 
           {/* Cross-sell: same category + price proximity. */}
           <RelatedProducts productId={product.id} />
+
+          {/* Recently viewed (client-local), excluding the current product. */}
+          <RecentlyViewed excludeId={product.id} />
         </Container>
       </main>
 

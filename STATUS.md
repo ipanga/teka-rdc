@@ -6,7 +6,33 @@
 
 ## Active initiative
 
-**Initiative #3 — Seller Payouts Operationalization** (started 2026-06-08). **Goal:** make seller payouts
+**Initiative #2 — Discovery & Conversion, Phase D (conversion polish)** — RESUMED 2026-06-09. Decisions:
+build all 3 features in order **scarcity → quick-add → recently-viewed**; scarcity wording = **exact count
+"Plus que X en stock"** (threshold ≤ 5; requires a mobile string change too); quick-add = **always-visible
+button** on the listing card (qty 1; PDP keeps its quantity selector); recently-viewed shown on **home +
+PDP**, **client-local only** (localStorage / SharedPreferences — *persisted* view-tracking stays out of
+scope). No migrations (pure UI + client state); stock `quantity` already on BrowseProduct + mobile model.
+Shared `ProductCard`/product-card means card changes ripple across home/category/search/wishlist/related
+(intended). **CODE-COMPLETE on `develop` (#352–#357), PENDING RELEASE — no migration (pure UI + client
+state).**
+- **D-1 scarcity** (#352 web, #353 mobile): "Plus que X en stock" badge on cards + PDP warning, qty ≤ 5;
+  mobile `productLowStock` parameterized to the exact count.
+- **D-2 quick-add** (#354 web, #355 mobile): always-visible add-to-cart on listing cards (qty 1, disabled
+  out-of-stock, toast/snackbar), reusing cart addItem (so `add_to_cart` analytics fire); rippling across
+  all grids via the shared card.
+- **D-3 recently-viewed** (#356 web, #357 mobile): client-local store (localStorage / SharedPreferences,
+  capped 12, deduped), captured on PDP view, "Vus récemment" strip on home + PDP (PDP excludes current).
+  No backend — *persisted* view-tracking stays out of scope.
+
+**RELEASE STEP (when directed):** ship D-1…D-3 develop→main, deploy, verify on prod (no migration).
+
+Initiative #3 (Seller Payouts Operationalization) SHIPPED + VERIFIED on prod 2026-06-08 (release #351) —
+see below.
+
+---
+
+**Initiative #3 — Seller Payouts Operationalization** (started 2026-06-08, **SHIPPED + VERIFIED on prod
+2026-06-08, release #351**). **Goal:** make seller payouts
 operationally complete end-to-end on the COD platform — sellers accrue `walletBalanceCDF` on delivery but
 today **cannot get paid** (completion flow unimplemented; seller request UI deliberately disabled).
 **Settlement model RESOLVED (user, 2026-06-08):** Teka couriers collect goods from sellers, deliver to
@@ -34,8 +60,11 @@ later phase if needed).
 - **E** (#350) authz e2e (9 — all money endpoints 401 without auth) + docs (`docs/payouts.md` authoritative
   reference + ops runbook; api-reference/architecture/CLAUDE refreshed).
 
-**RELEASE STEP (when directed):** ship A–E develop→main, deploy, **apply prod migration
-`2026-06-08_seller_payout_destination.sql`** via the Action, verify payout endpoints on prod.
+**RELEASED (release #351, 2026-06-08):** A–E shipped develop→main, deployed, prod migration
+`2026-06-08_seller_payout_destination.sql` applied via the Action (success). **Verified on prod:** api +
+all 3 storefronts healthy (200); new routes (`payout-method` GET/PATCH, admin `process`/`complete`, reports
+`payouts/csv`) live + auth-guarded (401 without auth, bogus route 404). `develop == main`. **Operational
+follow-up (not code):** finance team to use admin-web → Virements to process the first real payout.
 
 ---
 

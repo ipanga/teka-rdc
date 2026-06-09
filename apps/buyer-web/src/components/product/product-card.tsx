@@ -1,10 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Badge } from '@/components/ui';
 import { WishlistButton } from '@/components/wishlist-button';
+import { useCartStore } from '@/lib/cart-store';
 import { formatCDF } from '@/lib/format';
 import { productHref } from '@/lib/urls';
 import type { BrowseProduct } from '@/lib/types';
@@ -15,18 +17,39 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const t = useTranslations('Products');
+  const addItem = useCartStore((s) => s.addItem);
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState(false);
 
   const title = product.title;
   const imageUrl = product.image?.thumbnailUrl || product.image?.url;
   const outOfStock = product.quantity <= 0;
+  // Scarcity cue (Phase D): in stock but running low. Threshold mirrors
+  // buyer-mobile's isLowStock (≤ 5).
+  const lowStock = !outOfStock && product.quantity <= 5;
+
+  // Quick-add (Phase D): add a single unit straight from the card. The PDP
+  // keeps its own quantity selector for larger orders. addItem() already fires
+  // the `add_to_cart` analytics event + handles the guest/auth paths.
+  async function handleQuickAdd() {
+    if (adding || outOfStock) return;
+    setAdding(true);
+    try {
+      await addItem(product.id, 1);
+      setAdded(true);
+      setTimeout(() => setAdded(false), 2000);
+    } finally {
+      setAdding(false);
+    }
+  }
 
   return (
     // The wishlist heart is a sibling overlay (not nested in the <Link>) so it
     // stays valid HTML and a tap on the heart never navigates to the PDP.
-    <div className="group relative bg-surface rounded-xl border border-border overflow-hidden shadow-xs hover:shadow-lg hover:border-border-strong transition-all duration-200 hover:-translate-y-0.5">
+    <div className="group relative flex flex-col bg-surface rounded-xl border border-border overflow-hidden shadow-xs hover:shadow-lg hover:border-border-strong transition-all duration-200 hover:-translate-y-0.5">
       <Link
         href={productHref(product)}
-        className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="block flex-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         {/* Image */}
         <div className="relative aspect-square bg-surface-muted overflow-hidden">
@@ -56,6 +79,15 @@ export function ProductCard({ product }: ProductCardProps) {
             {outOfStock && (
               <Badge variant="solid" size="sm" className="shadow-sm">
                 {t('outOfStock')}
+              </Badge>
+            )}
+            {lowStock && (
+              <Badge
+                variant="warning"
+                size="sm"
+                className="shadow-sm w-fit bg-warning text-white"
+              >
+                {t('lowStock', { count: product.quantity })}
               </Badge>
             )}
             <Badge
@@ -93,6 +125,42 @@ export function ProductCard({ product }: ProductCardProps) {
       <div className="absolute top-2 right-2 z-10">
         <WishlistButton productId={product.id} size="sm" overlay />
       </div>
+
+      {/* Quick-add — outside the <Link> (no nested interactive), so a tap adds
+          to cart without navigating. Hidden when out of stock. */}
+      {!outOfStock && (
+        <div className="px-3 pb-3 pt-0">
+          <button
+            type="button"
+            onClick={handleQuickAdd}
+            disabled={adding}
+            aria-label={t('addToCart')}
+            className={`w-full inline-flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium transition-colors disabled:opacity-60 ${
+              added
+                ? 'bg-success-subtle text-success'
+                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+            }`}
+          >
+            {added ? (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+                {t('addedToCart')}
+              </>
+            ) : adding ? (
+              <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                {t('addToCart')}
+              </>
+            )}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

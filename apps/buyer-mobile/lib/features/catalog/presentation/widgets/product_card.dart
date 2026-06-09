@@ -1,19 +1,52 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../wishlist/presentation/widgets/wishlist_button.dart';
 import '../../data/models/product_model.dart';
 
-class ProductCard extends StatelessWidget {
+class ProductCard extends ConsumerWidget {
   final BrowseProductModel product;
 
   const ProductCard({super.key, required this.product});
 
+  // Quick-add (Phase D): add a single unit straight from the card. The
+  // IconButton wins the tap within its bounds (like the wishlist heart), so it
+  // adds to cart instead of navigating to the PDP. cartProvider.addItem already
+  // fires the add_to_cart analytics event.
+  Future<void> _quickAdd(
+    BuildContext context,
+    WidgetRef ref,
+    AppLocalizations l10n,
+  ) async {
+    try {
+      await ref.read(cartProvider.notifier).addItem(product.id);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.addedToCart),
+          backgroundColor: TekaColors.success,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(l10n.authGenericError),
+          backgroundColor: TekaColors.destructive,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final title = product.title;
     final price = formatCDF(product.priceCDF);
@@ -85,15 +118,41 @@ class ProductCard extends StatelessWidget {
                         l10n: l10n,
                       ),
                     ),
-                  // Low stock warning bottom-right
+                  // Low stock warning bottom-left (bottom-right is the quick-add)
                   if (!product.isOutOfStock && product.isLowStock)
                     Positioned(
                       bottom: 8,
-                      right: 8,
+                      left: 8,
                       child: _Pill(
-                        label: l10n.productLowStock,
+                        label: l10n.productLowStock(product.quantity),
                         background: TekaColors.warning,
                         foreground: Colors.white,
+                      ),
+                    ),
+                  // Quick-add to cart, bottom-right. Hidden when out of stock.
+                  if (!product.isOutOfStock)
+                    Positioned(
+                      bottom: 4,
+                      right: 4,
+                      child: DecoratedBox(
+                        decoration: const BoxDecoration(
+                          color: TekaColors.tekaRed,
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          onPressed: () => _quickAdd(context, ref, l10n),
+                          icon: const Icon(
+                            Icons.add_shopping_cart_outlined,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          constraints: const BoxConstraints.tightFor(
+                            width: 34,
+                            height: 34,
+                          ),
+                          padding: EdgeInsets.zero,
+                          tooltip: l10n.addToCart,
+                        ),
                       ),
                     ),
                   // Wishlist heart top-right. The IconButton wins the tap

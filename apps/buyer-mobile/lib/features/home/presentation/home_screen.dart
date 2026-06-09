@@ -10,6 +10,7 @@ import '../../catalog/data/models/product_model.dart';
 import '../../catalog/presentation/providers/catalog_provider.dart';
 import '../../catalog/presentation/widgets/category_chip.dart';
 import '../../catalog/presentation/widgets/product_card.dart';
+import '../../catalog/presentation/widgets/recently_viewed_section.dart';
 import '../../city/presentation/providers/city_provider.dart';
 import '../../wishlist/presentation/providers/wishlist_provider.dart';
 import '../data/models/banner_model.dart';
@@ -124,6 +125,13 @@ class HomeScreen extends ConsumerWidget {
             // Flash deals section
             const FlashDealsSection(),
             const SizedBox(height: 8),
+
+            // Recently viewed (client-local; self-hides until the buyer has
+            // viewed products).
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: RecentlyViewedSection(),
+            ),
 
             // Welcome message
             if (userName.isNotEmpty)

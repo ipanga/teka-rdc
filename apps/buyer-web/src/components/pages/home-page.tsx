@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { ProductGrid } from '@/components/product/product-grid';
+import { RecentlyViewed } from '@/components/product/recently-viewed';
 import { BannerCarousel } from '@/components/home/banner-carousel';
 import { FlashDealsSection } from '@/components/home/flash-deals-section';
 import { Container, SectionHeader, buttonVariants } from '@/components/ui';
@@ -180,6 +181,10 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
             </Container>
           </section>
         )}
+
+        {/* Recently viewed (client-local; renders nothing until the buyer has
+            viewed products). */}
+        <RecentlyViewed withContainer />
 
         {/* Popular Products Section */}
         <section className="bg-background">
