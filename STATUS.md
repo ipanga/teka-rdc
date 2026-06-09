@@ -6,7 +6,15 @@
 
 ## Active initiative
 
-**Initiative #1 — Real Catalog & Merchant Supply: P3c — demo-catalog retirement** (started 2026-06-09).
+**None.** **Initiative #1 — Real Catalog & Merchant Supply is now FULLY CLOSED** — P3c (demo-catalog
+retirement) SHIPPED + VERIFIED on prod 2026-06-09 (release #363; prod seed run created the
+`RETIRE_DEMO_CATALOG`/`DEMO_RETIRE_THRESHOLD` rows). Ships **dormant** — verified on prod: browse still
+returns 188 products (demo visible), a demo product detail reports `isRetired=false`, its PDP returns 200
+(no 301). When the operator flips the master switch (admin → catalog-coverage), demo in covered categories
+(≥ threshold real products) hides + 301s to the category. **Remaining work is operational** (recruit real
+merchants, then enable retirement) — no code. No in-flight build work; ask the user what to start next.
+
+**Initiative #1 — P3c — demo-catalog retirement: SHIPPED + VERIFIED on prod 2026-06-09 (release #363).**
 **Goal:** once real merchants populate categories, HIDE the seeded demo catalog + 301 its product URLs to
 the category page. Decisions: **per-category automatic** retirement (a master switch enables it, then each
 category auto-retires its demo once it has ≥ `DEMO_RETIRE_THRESHOLD` real ACTIVE products — store never
@@ -23,9 +31,11 @@ RELEASE.**
 - **P3c-3** (#361, admin-web): retirement toggle + threshold on the catalog-coverage page + per-category
   "Démo retiré / En attente du seuil" status.
 - **P3c-4** (#362, docs): retirement model in `architecture.md`; STATUS.
-**RELEASE STEP (when directed):** ship P3c-1…4 develop→main, deploy, **run the prod seed** (idempotent;
-`update:{}` never resets an operator change) to create the `RETIRE_DEMO_CATALOG`/`DEMO_RETIRE_THRESHOLD`
-rows, verify (ships dormant — endpoints behave unchanged until the operator enables retirement).
+**RELEASED (release #363, 2026-06-09):** P3c-1…4 shipped develop→main, deployed, prod seed run (success)
+created the two setting rows. **Verified on prod (dormant):** api + storefronts 200; browse total 188 (demo
+visible); demo product `isRetired=false`; demo PDP 200 (no 301). `develop == main`. **Operational
+follow-up (not code):** flip `RETIRE_DEMO_CATALOG` on (admin → catalog-coverage) once real merchants
+populate categories.
 
 **Initiative #2 — Discovery & Conversion is FULLY SHIPPED** (A best-seller ranking, B search +
 autocomplete, C related + attribute filters, D conversion polish) — all live + verified on prod. Phase D
