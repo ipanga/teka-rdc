@@ -7,6 +7,7 @@ import {
   productHref,
   productTail,
   productIdentifierFromParam,
+  categoryHref,
 } from '@/lib/urls';
 
 type Props = { params: Promise<{ ville: string; product: string }> };
@@ -31,7 +32,9 @@ interface ProductData {
     shopName?: string;
     sellerProfile?: { businessName?: string };
   };
-  category?: { name: string };
+  category?: { id: string; slug?: string | null; name: string };
+  // Demo retirement (P3c): true for a demo product in a retired category.
+  isRetired?: boolean;
 }
 
 function pickStr(field: string | undefined | null) {
@@ -142,6 +145,19 @@ export default async function Page({ params }: Props) {
     `/v1/browse/products/${encodeURIComponent(identifier)}`,
   );
   if (!product) notFound();
+
+  // Demo retirement (P3c): a retired demo product (its category now has enough
+  // real merchant products) 301s to its category page, funnelling inbound
+  // links/SEO to the category instead of 404'ing. Dormant unless the operator
+  // has enabled retirement.
+  if (product.isRetired && product.category) {
+    permanentRedirect(
+      categoryHref(product.city?.slug ?? null, {
+        id: product.category.id,
+        slug: product.category.slug,
+      }),
+    );
+  }
 
   // Enforce the canonical URL: if the requested city or slug-tail differs from
   // the product's true values, 308 to canonical (kills duplicate URLs and
