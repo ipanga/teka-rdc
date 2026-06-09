@@ -156,7 +156,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get productOutOfStock => 'Rupture de stock';
 
   @override
-  String get productLowStock => 'Stock limite';
+  String productLowStock(int count) {
+    return 'Plus que $count en stock';
+  }
 
   @override
   String get productLoadMore => 'Charger plus';
