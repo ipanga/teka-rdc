@@ -710,6 +710,15 @@
     "covered": "Couvert",
     "noRealSellers": "Aucun vendeur réel",
     "loading": "Chargement...",
-    "empty": "Aucune catégorie."
+    "empty": "Aucune catégorie.",
+    "retirementTitle": "Retrait du catalogue de démonstration",
+    "retirementHint": "Quand activé, le démo d'une catégorie est masqué (et ses pages redirigées 301 vers la catégorie) dès qu'elle atteint le seuil de produits réels.",
+    "thresholdLabel": "Seuil de produits réels",
+    "enabled": "Activé",
+    "disabled": "Désactivé",
+    "retired": "Démo retiré",
+    "pendingRetire": "En attente du seuil",
+    "saved": "Enregistré",
+    "error": "Erreur"
   }
 }
