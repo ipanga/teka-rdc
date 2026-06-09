@@ -214,7 +214,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                     )
                                   else if (product.isLowStock)
                                     Text(
-                                      l10n.productLowStock,
+                                      l10n.productLowStock(product.quantity),
                                       style: const TextStyle(
                                         color: TekaColors.warning,
                                         fontSize: 13,

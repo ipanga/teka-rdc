@@ -91,7 +91,7 @@ class ProductCard extends StatelessWidget {
                       bottom: 8,
                       right: 8,
                       child: _Pill(
-                        label: l10n.productLowStock,
+                        label: l10n.productLowStock(product.quantity),
                         background: TekaColors.warning,
                         foreground: Colors.white,
                       ),
