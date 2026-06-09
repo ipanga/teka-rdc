@@ -12,15 +12,20 @@ the category page. Decisions: **per-category automatic** retirement (a master sw
 category auto-retires its demo once it has ≥ `DEMO_RETIRE_THRESHOLD` real ACTIVE products — store never
 empties); retired demo PDPs **301 → category page**; **ships DORMANT** (master switch `RETIRE_DEMO_CATALOG`
 default false → zero change to today's demo-only prod). Hide = exclude via filter (keep `isDemo` rows,
-reversible). No migration (flag + settings KV already exist). **Phases:** P3c-1 API (retirement resolver +
-hide-filter across browse/search/suggestions/related + `isRetired` on product detail) · P3c-2 buyer-web
-(PDP 301 → category; sitemap inherits the browse filter) · P3c-3 admin-web (toggle + threshold on the
-catalog-coverage page) · P3c-4 tests + docs. **P3c-1 — IN PROGRESS (this branch):** `getRetiredCategoryIds`
-(reads `RETIRE_DEMO_CATALOG` + `DEMO_RETIRE_THRESHOLD` settings, default-safe; groupBy real counts ≥
-threshold), `(isDemo=false OR categoryId NOT IN retired)` filter added to browseProducts (both branches),
-searchSuggestions, getRelatedProducts; `isRetired` on getProductDetail; 2 seed settings added (default-safe
-reads mean it works pre-reseed; rows created via prod seed at the P3c-3 release for the admin toggle). 2
-unit tests. **Next:** P3c-2 buyer-web PDP 301.
+reversible). No migration (flag + settings KV already exist). **CODE-COMPLETE on `develop` (#359–#362), PENDING
+RELEASE.**
+- **P3c-1** (#359, API): `getRetiredCategoryIds` (reads `RETIRE_DEMO_CATALOG` + `DEMO_RETIRE_THRESHOLD`,
+  default-safe; groupBy real counts ≥ threshold) + `(isDemo=false OR categoryId NOT IN retired)` filter on
+  browseProducts (both branches), searchSuggestions, getRelatedProducts; `isRetired` on getProductDetail; 2
+  seed settings; 2 unit tests. Sitemap inherits the filter.
+- **P3c-2** (#360, buyer-web): PDP server component 301s a retired demo product to its category
+  (`permanentRedirect` → `categoryHref`).
+- **P3c-3** (#361, admin-web): retirement toggle + threshold on the catalog-coverage page + per-category
+  "Démo retiré / En attente du seuil" status.
+- **P3c-4** (#362, docs): retirement model in `architecture.md`; STATUS.
+**RELEASE STEP (when directed):** ship P3c-1…4 develop→main, deploy, **run the prod seed** (idempotent;
+`update:{}` never resets an operator change) to create the `RETIRE_DEMO_CATALOG`/`DEMO_RETIRE_THRESHOLD`
+rows, verify (ships dormant — endpoints behave unchanged until the operator enables retirement).
 
 **Initiative #2 — Discovery & Conversion is FULLY SHIPPED** (A best-seller ranking, B search +
 autocomplete, C related + attribute filters, D conversion polish) — all live + verified on prod. Phase D
