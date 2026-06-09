@@ -10,6 +10,8 @@ import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { ProductReviews } from '@/components/product-reviews';
 import { RelatedProducts } from '@/components/product/related-products';
+import { RecentlyViewed } from '@/components/product/recently-viewed';
+import { addRecentlyViewed, detailToBrowseProduct } from '@/lib/recently-viewed';
 import { WishlistButton } from '@/components/wishlist-button';
 import { apiFetch } from '@/lib/api-client';
 import { useCartStore } from '@/lib/cart-store';
@@ -57,6 +59,8 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
     apiFetch<ProductDetail>(`/v1/browse/products/${productId}`)
       .then((res) => {
         setProduct(res.data);
+        // Record in the client-local recently-viewed history (Phase D).
+        addRecentlyViewed(detailToBrowseProduct(res.data));
         // Buyer-owned UI event — fires once per successful product load.
         track('product_viewed', {
           productId: res.data.id,
@@ -442,6 +446,9 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
 
           {/* Cross-sell: same category + price proximity. */}
           <RelatedProducts productId={product.id} />
+
+          {/* Recently viewed (client-local), excluding the current product. */}
+          <RecentlyViewed excludeId={product.id} />
         </Container>
       </main>
 
