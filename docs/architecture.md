@@ -580,6 +580,16 @@ The legacy `/categories/<id>` route is kept as a tiny server-side **308 redirect
 ### Sample product catalog (always-seeded)
 Every fresh install gets a "**Teka RDC Officiel**" platform-owned seller plus **152 sample products** (38 active subcategories × 2 cities — Lubumbashi + Kolwezi — × 2 variants per slot). Both are upserted by the seed (idempotent) and exist in dev + prod. Purpose: SEO content (real product URLs to crawl) and first-time-user demo (the marketplace doesn't look empty on day 1). Seeded products use Cloudinary demo placeholder images; replace by uploading real assets to the `teka-rdc` Cloudinary cloud and updating `seedSampleProducts()`.
 
+Sample products carry **`Product.isDemo = true`** (real merchant products default `false`). They are ranked **below** real products everywhere (`orderBy isDemo asc` — P3a), and the admin **catalog-coverage** page (`/dashboard/catalog-coverage`) shows per-category real-vs-demo ACTIVE counts (P3b).
+
+### Demo-catalog retirement (P3c)
+As real merchants populate categories, demo products are **retired** — hidden from buyer surfaces and 301'd — so the storefront converges on real inventory without ever going empty. It is **per-category automatic** and **ships dormant**:
+- **Master switch** `RETIRE_DEMO_CATALOG` (system setting, default `false`). While off, nothing changes — `BrowseService.getRetiredCategoryIds()` returns an empty set and every filter is a no-op.
+- When on, a category **auto-retires** its demo once it has **≥ `DEMO_RETIRE_THRESHOLD`** real (`isDemo=false`) ACTIVE products. Categories below the threshold keep showing demo (ranked below real), so the store is never emptied; the transition is gradual as merchants onboard.
+- **Hide = filter, not delete.** `BrowseService` ORs `(isDemo = false OR categoryId NOT IN retired)` into browse (both branches), search suggestions, and related; the sitemap inherits it (it reads `/v1/browse/products`). The `isDemo` rows are untouched (reversible; catalog-coverage still works).
+- **301 → category.** `GET /v1/browse/products/:id` returns `isRetired` (a demo product in a retired category); the buyer-web PDP `permanentRedirect()`s it to `/{ville}/categorie/{slug}`, funnelling inbound links/SEO to the category instead of 404'ing.
+- **Operator controls:** the catalog-coverage page surfaces the toggle + threshold (also editable on the generic settings page) and a per-category "Démo retiré / En attente du seuil" status. The two setting rows are created by the seed (`update:{}` so a re-seed never resets an operator change).
+
 ### SEO surface
 - **Sitemap**: dynamic at `/sitemap.xml` (Next.js `app/sitemap.ts`). FR-only URLs: home, categories + subcategories (slug-based), cities, products (top 500 by recency), and the 8 static-page URLs.
 - **robots.txt**: dynamic at `/robots.txt` (Next.js `app/robots.ts`). Disallows `/checkout`, `/cart`, `/orders`, `/messages`, `/login`, `/register`, `/profile`, `/wishlist`. Points crawlers at the sitemap.

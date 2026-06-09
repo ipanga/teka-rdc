@@ -2819,6 +2819,8 @@ async function seedPhase7Data(
     { n: 6, key: 'MAX_BANNER_COUNT', value: '5', type: 'number', label: 'Nombre max de bannières' },
     { n: 7, key: 'DEFAULT_DELIVERY_FEE_CDF', value: '500000', type: 'number', label: 'Frais de livraison par défaut (centimes CDF)' },
     { n: 8, key: 'PLATFORM_ANNOUNCEMENT', value: '', type: 'string', label: 'Annonce plateforme' },
+    { n: 9, key: 'RETIRE_DEMO_CATALOG', value: 'false', type: 'boolean', label: 'Retirer le catalogue de démonstration (par catégorie, automatique)' },
+    { n: 10, key: 'DEMO_RETIRE_THRESHOLD', value: '3', type: 'number', label: 'Seuil de produits réels avant retrait du démo (par catégorie)' },
   ];
 
   for (const setting of settings) {
@@ -3005,6 +3007,8 @@ async function seedPlatformBaseline(adminId: string) {
     { n: 6, key: 'MAX_BANNER_COUNT', value: '5', type: 'number', label: 'Nombre max de bannières' },
     { n: 7, key: 'DEFAULT_DELIVERY_FEE_CDF', value: '500000', type: 'number', label: 'Frais de livraison par défaut (centimes CDF)' },
     { n: 8, key: 'PLATFORM_ANNOUNCEMENT', value: '', type: 'string', label: 'Annonce plateforme' },
+    { n: 9, key: 'RETIRE_DEMO_CATALOG', value: 'false', type: 'boolean', label: 'Retirer le catalogue de démonstration (par catégorie, automatique)' },
+    { n: 10, key: 'DEMO_RETIRE_THRESHOLD', value: '3', type: 'number', label: 'Seuil de produits réels avant retrait du démo (par catégorie)' },
   ];
 
   for (const setting of settings) {
