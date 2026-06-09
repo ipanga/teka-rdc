@@ -19,6 +19,9 @@ export function ProductCard({ product }: ProductCardProps) {
   const title = product.title;
   const imageUrl = product.image?.thumbnailUrl || product.image?.url;
   const outOfStock = product.quantity <= 0;
+  // Scarcity cue (Phase D): in stock but running low. Threshold mirrors
+  // buyer-mobile's isLowStock (≤ 5).
+  const lowStock = !outOfStock && product.quantity <= 5;
 
   return (
     // The wishlist heart is a sibling overlay (not nested in the <Link>) so it
@@ -56,6 +59,15 @@ export function ProductCard({ product }: ProductCardProps) {
             {outOfStock && (
               <Badge variant="solid" size="sm" className="shadow-sm">
                 {t('outOfStock')}
+              </Badge>
+            )}
+            {lowStock && (
+              <Badge
+                variant="warning"
+                size="sm"
+                className="shadow-sm w-fit bg-warning text-white"
+              >
+                {t('lowStock', { count: product.quantity })}
               </Badge>
             )}
             <Badge

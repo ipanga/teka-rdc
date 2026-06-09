@@ -90,6 +90,7 @@
     "cityLandingSubtitle": "Découvrez les produits disponibles à {city}, {province}. Livraison rapide et paiement à la livraison.",
     "quantity": "Quantité",
     "available": "{count} disponible(s)",
+    "lowStock": "Plus que {count} en stock",
     "images": "Images du produit",
     "category": "Catégorie",
     "condition": "État",
