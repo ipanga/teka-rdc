@@ -163,6 +163,17 @@ export class BrowseService {
       where.id = { in: attributeProductIds };
     }
 
+    // Demo retirement (P3c): hide demo products in categories that have enough
+    // real ones. Dormant unless the master switch is on — `retired` is then
+    // empty and this is a no-op. Applied to both query branches below.
+    const retired = await this.getRetiredCategoryIds();
+    if (retired.size > 0) {
+      where.OR = [
+        { isDemo: false },
+        { categoryId: { notIn: Array.from(retired) } },
+      ];
+    }
+
     // Product fields returned to clients — shared by the default Prisma path
     // and the full-text search path (which hydrates by id with the same shape).
     const productSelect = {
@@ -238,6 +249,13 @@ export class BrowseService {
       if (attributeProductIds && attributeProductIds.length > 0) {
         conds.push(
           Prisma.sql`p."id"::text IN (${Prisma.join(attributeProductIds)})`,
+        );
+      }
+      if (retired.size > 0) {
+        conds.push(
+          Prisma.sql`(p."isDemo" = false OR p."categoryId"::text NOT IN (${Prisma.join(
+            Array.from(retired),
+          )}))`,
         );
       }
       const whereSql = Prisma.join(conds, ' AND ');
@@ -427,6 +445,64 @@ export class BrowseService {
   }
 
   /**
+   * Demo-catalog retirement (Initiative #1 / P3c). Returns the set of category
+   * ids whose demo products should be HIDDEN — categories that have enough REAL
+   * (non-demo) active products to stand on their own. Empty unless the
+   * `RETIRE_DEMO_CATALOG` master switch is on, so the feature ships DORMANT (no
+   * change to a demo-only catalog). A category retires automatically once its
+   * real count reaches `DEMO_RETIRE_THRESHOLD`, so the transition is gradual as
+   * merchants onboard and the storefront is never emptied. Callers OR this in as
+   * `(isDemo = false OR categoryId NOT IN retired)`.
+   */
+  private async getRetiredCategoryIds(): Promise<Set<string>> {
+    const enabled = await this.readBoolSetting('RETIRE_DEMO_CATALOG', false);
+    if (!enabled) return new Set();
+    const threshold = await this.readIntSetting('DEMO_RETIRE_THRESHOLD', 3);
+    const grouped = await this.prisma.product.groupBy({
+      by: ['categoryId'],
+      where: {
+        isDemo: false,
+        status: ProductStatus.ACTIVE,
+        deletedAt: null,
+      },
+      _count: { _all: true },
+    });
+    return new Set(
+      grouped
+        .filter((g) => g._count._all >= threshold)
+        .map((g) => g.categoryId),
+    );
+  }
+
+  private async readBoolSetting(
+    key: string,
+    fallback: boolean,
+  ): Promise<boolean> {
+    try {
+      const s = await this.prisma.systemSetting.findUnique({
+        where: { key },
+        select: { value: true },
+      });
+      return s == null ? fallback : s.value === 'true';
+    } catch {
+      return fallback;
+    }
+  }
+
+  private async readIntSetting(key: string, fallback: number): Promise<number> {
+    try {
+      const s = await this.prisma.systemSetting.findUnique({
+        where: { key },
+        select: { value: true },
+      });
+      const n = parseInt(s?.value ?? '', 10);
+      return Number.isFinite(n) && n > 0 ? n : fallback;
+    } catch {
+      return fallback;
+    }
+  }
+
+  /**
    * Search autocomplete: the top few relevant products (FTS + trigram, same
    * ranking as browse search) + categories whose name matches the partial
    * query. Empty for very short queries.
@@ -444,6 +520,14 @@ export class BrowseService {
     ];
     if (cityId) {
       conds.push(Prisma.sql`p."cityId"::text = ${cityId}`);
+    }
+    const retired = await this.getRetiredCategoryIds();
+    if (retired.size > 0) {
+      conds.push(
+        Prisma.sql`(p."isDemo" = false OR p."categoryId"::text NOT IN (${Prisma.join(
+          Array.from(retired),
+        )}))`,
+      );
     }
     const whereSql = Prisma.join(conds, ' AND ');
 
@@ -548,11 +632,14 @@ export class BrowseService {
     } satisfies Prisma.ProductSelect;
     type Row = Prisma.ProductGetPayload<{ select: typeof select }>;
 
+    // Demo retirement (P3c): drop demo from a retired source category.
+    const retired = await this.getRetiredCategoryIds();
     const baseWhere = {
       status: ProductStatus.ACTIVE,
       deletedAt: null,
       categoryId: source.categoryId,
       id: { not: source.id },
+      ...(retired.has(source.categoryId) ? { isDemo: false } : {}),
     };
     const orderBy = [
       { isDemo: 'asc' as const },
@@ -726,10 +813,17 @@ export class BrowseService {
         seller.sellerProfile?.businessName || sellerFullName || 'Vendeur',
     };
 
+    // Demo retirement (P3c): a demo product in a retired category should 301 to
+    // its category page. The buyer-web PDP reads this flag and redirects.
+    const retired = await this.getRetiredCategoryIds();
+    const isRetired =
+      product.isDemo === true && retired.has(product.categoryId);
+
     return {
       ...rest,
       seller: sellerFlat,
       breadcrumb,
+      isRetired,
     };
   }
 

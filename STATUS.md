@@ -6,7 +6,23 @@
 
 ## Active initiative
 
-**None.** **Initiative #2 — Discovery & Conversion is FULLY SHIPPED** (A best-seller ranking, B search +
+**Initiative #1 — Real Catalog & Merchant Supply: P3c — demo-catalog retirement** (started 2026-06-09).
+**Goal:** once real merchants populate categories, HIDE the seeded demo catalog + 301 its product URLs to
+the category page. Decisions: **per-category automatic** retirement (a master switch enables it, then each
+category auto-retires its demo once it has ≥ `DEMO_RETIRE_THRESHOLD` real ACTIVE products — store never
+empties); retired demo PDPs **301 → category page**; **ships DORMANT** (master switch `RETIRE_DEMO_CATALOG`
+default false → zero change to today's demo-only prod). Hide = exclude via filter (keep `isDemo` rows,
+reversible). No migration (flag + settings KV already exist). **Phases:** P3c-1 API (retirement resolver +
+hide-filter across browse/search/suggestions/related + `isRetired` on product detail) · P3c-2 buyer-web
+(PDP 301 → category; sitemap inherits the browse filter) · P3c-3 admin-web (toggle + threshold on the
+catalog-coverage page) · P3c-4 tests + docs. **P3c-1 — IN PROGRESS (this branch):** `getRetiredCategoryIds`
+(reads `RETIRE_DEMO_CATALOG` + `DEMO_RETIRE_THRESHOLD` settings, default-safe; groupBy real counts ≥
+threshold), `(isDemo=false OR categoryId NOT IN retired)` filter added to browseProducts (both branches),
+searchSuggestions, getRelatedProducts; `isRetired` on getProductDetail; 2 seed settings added (default-safe
+reads mean it works pre-reseed; rows created via prod seed at the P3c-3 release for the admin toggle). 2
+unit tests. **Next:** P3c-2 buyer-web PDP 301.
+
+**Initiative #2 — Discovery & Conversion is FULLY SHIPPED** (A best-seller ranking, B search +
 autocomplete, C related + attribute filters, D conversion polish) — all live + verified on prod. Phase D
 (conversion polish) SHIPPED + VERIFIED on prod 2026-06-09 (release #358) — details below. No in-flight
 build work; ask the user what to start next. Recent candidates: Initiative #1 P3c (demo-catalog retirement,
