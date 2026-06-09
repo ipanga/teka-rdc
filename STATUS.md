@@ -13,9 +13,18 @@ button** on the listing card (qty 1; PDP keeps its quantity selector); recently-
 PDP**, **client-local only** (localStorage / SharedPreferences — *persisted* view-tracking stays out of
 scope). No migrations (pure UI + client state); stock `quantity` already on BrowseProduct + mobile model.
 Shared `ProductCard`/product-card means card changes ripple across home/category/search/wishlist/related
-(intended). **Phases:** D-1 scarcity (web parity + mobile exact-count) · D-2 quick-add (web + mobile) ·
-D-3 recently-viewed (web + mobile, home+PDP). **D-1a — IN PROGRESS (this branch):** buyer-web low-stock
-badge on the card + PDP low-stock warning + `lowStock` i18n. **Next:** D-1b buyer-mobile exact-count.
+(intended). **CODE-COMPLETE on `develop` (#352–#357), PENDING RELEASE — no migration (pure UI + client
+state).**
+- **D-1 scarcity** (#352 web, #353 mobile): "Plus que X en stock" badge on cards + PDP warning, qty ≤ 5;
+  mobile `productLowStock` parameterized to the exact count.
+- **D-2 quick-add** (#354 web, #355 mobile): always-visible add-to-cart on listing cards (qty 1, disabled
+  out-of-stock, toast/snackbar), reusing cart addItem (so `add_to_cart` analytics fire); rippling across
+  all grids via the shared card.
+- **D-3 recently-viewed** (#356 web, #357 mobile): client-local store (localStorage / SharedPreferences,
+  capped 12, deduped), captured on PDP view, "Vus récemment" strip on home + PDP (PDP excludes current).
+  No backend — *persisted* view-tracking stays out of scope.
+
+**RELEASE STEP (when directed):** ship D-1…D-3 develop→main, deploy, verify on prod (no migration).
 
 Initiative #3 (Seller Payouts Operationalization) SHIPPED + VERIFIED on prod 2026-06-08 (release #351) —
 see below.
