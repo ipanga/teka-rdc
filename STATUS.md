@@ -6,10 +6,19 @@
 
 ## Active initiative
 
-**None.** Initiative #3 (Seller Payouts Operationalization) SHIPPED + VERIFIED on prod 2026-06-08 (release
-#351; migration `2026-06-08_seller_payout_destination.sql` applied prod + dev) — see below. No in-flight
-build work; ask the user what to start next. Recent candidates: Initiative #1 P3c (demo retirement),
-Initiative #2 Phase D (conversion polish), or a fresh initiative.
+**Initiative #2 — Discovery & Conversion, Phase D (conversion polish)** — RESUMED 2026-06-09. Decisions:
+build all 3 features in order **scarcity → quick-add → recently-viewed**; scarcity wording = **exact count
+"Plus que X en stock"** (threshold ≤ 5; requires a mobile string change too); quick-add = **always-visible
+button** on the listing card (qty 1; PDP keeps its quantity selector); recently-viewed shown on **home +
+PDP**, **client-local only** (localStorage / SharedPreferences — *persisted* view-tracking stays out of
+scope). No migrations (pure UI + client state); stock `quantity` already on BrowseProduct + mobile model.
+Shared `ProductCard`/product-card means card changes ripple across home/category/search/wishlist/related
+(intended). **Phases:** D-1 scarcity (web parity + mobile exact-count) · D-2 quick-add (web + mobile) ·
+D-3 recently-viewed (web + mobile, home+PDP). **D-1a — IN PROGRESS (this branch):** buyer-web low-stock
+badge on the card + PDP low-stock warning + `lowStock` i18n. **Next:** D-1b buyer-mobile exact-count.
+
+Initiative #3 (Seller Payouts Operationalization) SHIPPED + VERIFIED on prod 2026-06-08 (release #351) —
+see below.
 
 ---
 

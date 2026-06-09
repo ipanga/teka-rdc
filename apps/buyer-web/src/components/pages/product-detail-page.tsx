@@ -266,6 +266,14 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                     </svg>
                     {t('outOfStock')}
                   </span>
+                ) : product.quantity <= 5 ? (
+                  // Scarcity cue (Phase D): low stock — nudge urgency.
+                  <span className="inline-flex items-center gap-1.5 text-sm text-warning font-medium">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.48 0L3.16 16.25A2 2 0 005 19z" />
+                    </svg>
+                    {t('lowStock', { count: product.quantity })}
+                  </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-sm text-success font-medium">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
