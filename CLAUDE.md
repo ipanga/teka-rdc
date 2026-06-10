@@ -209,6 +209,15 @@ role-by-role feature spec is in **`docs/product-spec.md`** (historical reference
 behaviour the authoritative sources are §10 (Rules) below + `docs/architecture.md` — where the original
 spec and current behaviour differ (auth, payments, SMS), **the Rules win.**
 
+**Demo catalog + retirement (P3c).** A seeded "Teka RDC Officiel" demo catalog (~152 products,
+`Product.isDemo=true`) keeps the storefront non-empty pre-merchants; it always ranks below real products.
+Two **system settings** (KV store) control automatic per-category retirement: `RETIRE_DEMO_CATALOG`
+(master switch, **default `false` — ships dormant**) and `DEMO_RETIRE_THRESHOLD` (default `3`). When the
+switch is on, a category's demo is hidden from buyer surfaces (and its PDPs 301 → category) once it has ≥
+threshold real ACTIVE products. **Leave it `false` until real merchants populate categories** — enabling
+on a demo-only store is a no-op that prematurely arms auto-hide. Edit via admin → catalog-coverage (or the
+settings page). Full model: `docs/architecture.md` → "Demo-catalog retirement (P3c)".
+
 ---
 
 ## 5. DATABASE DESIGN PRINCIPLES
