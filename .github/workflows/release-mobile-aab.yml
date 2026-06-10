@@ -1,0 +1,152 @@
+# Mobile release build — signed production App Bundle (AAB) for the Play Store.
+#
+# Triggered manually from the Actions tab → "Release mobile AAB" → Run workflow.
+# Produces a release-signed, production-flavor `.aab` you upload to Google Play
+# (Play Console → Production / a testing track). Unlike "Build mobile APK"
+# (debug-signed APKs for internal install), this signs with the real upload
+# keystore and outputs an App Bundle — the Play Store's required format.
+#
+# Inputs:
+#   app = buyer | seller | both   (default: buyer)
+#
+# Always builds the `production` flavor in `release` mode — there is no reason
+# to upload a dev/staging or debug bundle to Play.
+#
+# Required GitHub Secrets (per app — buyer + seller have SEPARATE keystores):
+#   <APP>_UPLOAD_KEYSTORE_B64      base64 of the upload keystore (.jks)
+#   <APP>_KEYSTORE_PASSWORD        keystore (store) password
+#   <APP>_KEY_PASSWORD             key password
+#   <APP>_KEY_ALIAS                key alias
+#   <APP>_GOOGLE_SERVICES_JSON_B64 base64 of android/app/google-services.json
+# Optional: SENTRY_DSN_<APP>_MOBILE, SENTRY_AUTH_TOKEN (symbol upload).
+#
+# Generate the keystore + populate the secrets per docs/mobile-release.md.
+# When the signing secrets are absent the build would fall back to debug
+# signing — so this workflow FAILS FAST if they're missing, to avoid shipping
+# a debug-signed bundle by accident.
+name: Release mobile AAB
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Which app to release'
+        required: true
+        type: choice
+        default: buyer
+        options: [buyer, seller, both]
+
+concurrency:
+  group: mobile-aab-${{ inputs.app }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ inputs.app == 'both' && fromJSON('["buyer","seller"]') || fromJSON(format('["{0}"]', inputs.app)) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Decode Firebase secrets onto disk
+        env:
+          BUYER_GOOGLE_SERVICES_JSON_B64: ${{ secrets.BUYER_GOOGLE_SERVICES_JSON_B64 }}
+          SELLER_GOOGLE_SERVICES_JSON_B64: ${{ secrets.SELLER_GOOGLE_SERVICES_JSON_B64 }}
+        run: bash scripts/sync-firebase-secrets.sh
+
+      - name: Verify Firebase secret decoded
+        run: |
+          path="apps/${{ matrix.app }}-mobile/android/app/google-services.json"
+          if [ ! -s "$path" ]; then
+            echo "::error::$path missing — set ${{ matrix.app }}_GOOGLE_SERVICES_JSON_B64"
+            exit 1
+          fi
+
+      - name: Fail fast if signing secrets are missing
+        env:
+          KS_B64: ${{ matrix.app == 'buyer' && secrets.BUYER_UPLOAD_KEYSTORE_B64 || secrets.SELLER_UPLOAD_KEYSTORE_B64 }}
+        run: |
+          if [ -z "${KS_B64}" ]; then
+            echo "::error::${{ matrix.app }} upload keystore secret is not set — refusing to build a debug-signed bundle. See docs/mobile-release.md."
+            exit 1
+          fi
+
+      - name: Decode signing keystore + write key.properties
+        env:
+          UPLOAD_KEYSTORE_B64: ${{ matrix.app == 'buyer' && secrets.BUYER_UPLOAD_KEYSTORE_B64 || secrets.SELLER_UPLOAD_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ matrix.app == 'buyer' && secrets.BUYER_KEYSTORE_PASSWORD || secrets.SELLER_KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ matrix.app == 'buyer' && secrets.BUYER_KEY_PASSWORD || secrets.SELLER_KEY_PASSWORD }}
+          KEY_ALIAS: ${{ matrix.app == 'buyer' && secrets.BUYER_KEY_ALIAS || secrets.SELLER_KEY_ALIAS }}
+        run: bash scripts/sync-android-signing.sh ${{ matrix.app }}
+
+      - name: pub get
+        working-directory: apps/${{ matrix.app }}-mobile
+        run: flutter pub get
+
+      - name: Resolve per-app Sentry DSN
+        id: sentry
+        env:
+          BUYER_DSN: ${{ secrets.SENTRY_DSN_BUYER_MOBILE }}
+          SELLER_DSN: ${{ secrets.SENTRY_DSN_SELLER_MOBILE }}
+        run: |
+          case "${{ matrix.app }}" in
+            buyer)  echo "dsn=${BUYER_DSN}"  >> "$GITHUB_OUTPUT" ;;
+            seller) echo "dsn=${SELLER_DSN}" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Build production release AAB
+        working-directory: apps/${{ matrix.app }}-mobile
+        run: |
+          flutter build appbundle \
+            --release \
+            --flavor production \
+            --dart-define-from-file=flavors/production.json \
+            --dart-define=SENTRY_DSN=${{ steps.sentry.outputs.dsn }} \
+            --dart-define=SENTRY_RELEASE=${{ github.sha }}
+
+      - name: Verify the bundle is NOT debug-signed
+        working-directory: apps/${{ matrix.app }}-mobile
+        run: |
+          aab="build/app/outputs/bundle/productionRelease/app-production-release.aab"
+          if [ ! -s "$aab" ]; then echo "::error::AAB not produced at $aab"; exit 1; fi
+          # The debug keystore's cert is the well-known "Android Debug" CN.
+          # If the bundle's signing cert is that, signing fell back to debug.
+          if unzip -p "$aab" META-INF/*.RSA 2>/dev/null | keytool -printcert 2>/dev/null | grep -q "CN=Android Debug"; then
+            echo "::error::AAB appears debug-signed — signing config did not pick up key.properties"
+            exit 1
+          fi
+          echo "✓ $aab present ($(wc -c < "$aab") bytes), not debug-signed"
+
+      - name: Upload Sentry debug symbols
+        working-directory: apps/${{ matrix.app }}-mobile
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_RELEASE: ${{ github.sha }}
+        run: |
+          if [ -z "${SENTRY_AUTH_TOKEN}" ]; then
+            echo "::warning::SENTRY_AUTH_TOKEN not set — skipping symbol upload"
+            exit 0
+          fi
+          flutter pub run sentry_dart_plugin
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app }}-mobile-production-release-aab
+          path: apps/${{ matrix.app }}-mobile/build/app/outputs/bundle/productionRelease/app-production-release.aab
+          retention-days: 30

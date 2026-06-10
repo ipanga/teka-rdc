@@ -6,7 +6,26 @@
 
 ## Active initiative
 
-**None.** **Initiative #1 — Real Catalog & Merchant Supply is now FULLY CLOSED** — P3c (demo-catalog
+**Mobile release readiness (Android / Play Store launch prep)** — started 2026-06-10. **Goal:** make
+buyer-mobile + seller-mobile shippable to the Play Store (they were stuck on debug signing). **Scaffolded
+everything except the keystore itself** (operator must generate that). **Done (this branch / PR):**
+- `apps/{buyer,seller}-mobile/android/app/build.gradle.kts` — a release `signingConfig` that loads
+  `android/key.properties` (gitignored) and signs the release build with the upload key; **falls back to
+  debug** when absent (local dev / internal APK builds unaffected).
+- `scripts/sync-android-signing.sh` — decodes the keystore + writes `key.properties` from env/secrets
+  (mirrors `sync-firebase-secrets.sh`).
+- `.github/workflows/release-mobile-aab.yml` — "Release mobile AAB": signs + builds the **production
+  release App Bundle** (`flutter build appbundle`), **fails fast if signing secrets are missing**, verifies
+  the bundle is **not** debug-signed, uploads the `.aab` artifact. Per app (buyer/seller, separate
+  keystores).
+- `docs/mobile-release.md` — keytool commands, the GitHub Secrets table, version-bump + build steps, and a
+  full **Play Store submission checklist**. CLAUDE.md docs index + the APK-workflow note updated.
+**OPERATOR TODO (not code):** generate the two upload keystores (`docs/mobile-release.md § 1`), set the
+8 signing secrets (§ 2), finalize the production `google-services.json` per app, then run "Release mobile
+AAB". **Out of scope:** iOS (blocked on the deferred iOS scaffold), automated Play Console upload (manual
+for now).
+
+**Initiative #1 — Real Catalog & Merchant Supply is now FULLY CLOSED** — P3c (demo-catalog
 retirement) SHIPPED + VERIFIED on prod 2026-06-09 (release #363; prod seed run created the
 `RETIRE_DEMO_CATALOG`/`DEMO_RETIRE_THRESHOLD` rows). Ships **dormant** — verified on prod: browse still
 returns 188 products (demo visible), a demo product detail reports `isRetired=false`, its PDP returns 200

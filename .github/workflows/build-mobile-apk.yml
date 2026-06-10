@@ -24,11 +24,10 @@
 #   ONE merged google-services.json per app covers all three flavors.
 #   When that infra lands, split into _DEV / _STAGING / _PROD secrets
 #   and choose the right one per matrix entry.
-# - Release variant is signed with the debug keystore today
-#   (apps/*/android/app/build.gradle.kts: `signingConfig =
-#   signingConfigs.getByName("debug")`). Suitable for internal
-#   testing only — wire a real keystore before Play Store
-#   submission.
+# - This workflow produces DEBUG-signed APKs (it doesn't sync the upload
+#   keystore) — fine for internal install/testing. For a Play-Store-ready,
+#   real-signed production App Bundle use the "Release mobile AAB" workflow
+#   (.github/workflows/release-mobile-aab.yml) — see docs/mobile-release.md.
 # - The APK uploads as a workflow artifact named
 #   `<app>-mobile-<flavor>-<variant>-apk`; click the run to download.
 name: Build mobile APK

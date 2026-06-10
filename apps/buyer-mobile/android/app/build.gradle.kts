@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -6,6 +9,17 @@ plugins {
     // Generates Firebase resources from app/google-services.json at build
     // time. The version is pinned in android/settings.gradle.kts.
     id("com.google.gms.google-services")
+}
+
+// Release signing (Play Store). CI writes `android/key.properties` + the
+// upload keystore from GitHub secrets (see scripts/sync-android-signing.sh /
+// .github/workflows/release-mobile-aab.yml); both are gitignored. When
+// key.properties is absent (local dev, internal APK builds) the release build
+// falls back to debug signing so `flutter run --release` still works.
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 android {
@@ -69,11 +83,29 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            if (keystorePropertiesFile.exists()) {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                // storeFile is resolved relative to this module (android/app),
+                // so key.properties uses `storeFile=upload-keystore.jks`.
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Real upload key when key.properties is present (CI / a configured
+            // dev machine); debug otherwise so `flutter run --release` and the
+            // internal-testing APK builds still work without the keystore.
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }
