@@ -176,8 +176,8 @@ Both apps target Android first (APK distribution + Play Store). iOS as future ph
 `architecture.md` (authoritative service architecture) · `product-spec.md` (feature spec + 8-phase
 history) · `url-and-seo-strategy.md` (city-first URLs/slugs/redirects) · `analytics.md` (PostHog) ·
 `clarity.md` (Microsoft Clarity) · `api-reference.md` · `deployment.md` (§5b admin seeding) ·
-`mobile-connectivity.md` (Rule 15) · `mobile-flavors.md` · `payouts.md` (seller payouts + settlement) ·
-`push-notifications.md` (FCM) · `sentry.md`.
+`mobile-connectivity.md` (Rule 15) · `mobile-flavors.md` · `mobile-release.md` (Android signing + Play
+Store) · `payouts.md` (seller payouts + settlement) · `push-notifications.md` (FCM) · `sentry.md`.
 
 ---
 
@@ -208,6 +208,15 @@ The platform is **feature-complete** (buyer / seller / admin across web + mobile
 role-by-role feature spec is in **`docs/product-spec.md`** (historical reference). For *current*
 behaviour the authoritative sources are §10 (Rules) below + `docs/architecture.md` — where the original
 spec and current behaviour differ (auth, payments, SMS), **the Rules win.**
+
+**Demo catalog + retirement (P3c).** A seeded "Teka RDC Officiel" demo catalog (~152 products,
+`Product.isDemo=true`) keeps the storefront non-empty pre-merchants; it always ranks below real products.
+Two **system settings** (KV store) control automatic per-category retirement: `RETIRE_DEMO_CATALOG`
+(master switch, **default `false` — ships dormant**) and `DEMO_RETIRE_THRESHOLD` (default `3`). When the
+switch is on, a category's demo is hidden from buyer surfaces (and its PDPs 301 → category) once it has ≥
+threshold real ACTIVE products. **Leave it `false` until real merchants populate categories** — enabling
+on a demo-only store is a no-op that prematurely arms auto-hide. Edit via admin → catalog-coverage (or the
+settings page). Full model: `docs/architecture.md` → "Demo-catalog retirement (P3c)".
 
 ---
 
