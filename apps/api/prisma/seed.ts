@@ -1,5 +1,6 @@
 import { PrismaClient, AttributeType, ProductCondition, ProductStatus, OrderStatus, PaymentMethod, PaymentStatus, TransactionType, TransactionProvider, PayoutStatus, ReviewStatus, BannerStatus, PromotionType, PromotionStatus, ContentPageStatus, NotificationBroadcastStatus } from '@prisma/client';
 import { createHash } from 'crypto';
+import { STRICT_CATEGORIES, STRICT_ATTRIBUTES, STRICT_BRANDS } from './taxonomy-data';
 
 const prisma = new PrismaClient();
 
@@ -847,6 +848,126 @@ async function main() {
   console.log(`Seeded ${newAttributes.length} new product attributes with rich option libraries`);
 
   // ============================================================
+  // STRICT 2-LEVEL TAXONOMY + BRAND LIBRARY  (2026-06-14, P2b-1)
+  // ============================================================
+  // The Marketplace Taxonomy initiative replaces every prior taxonomy with a
+  // strict 2-level tree (7 categories → 80 subcategories) sourced from
+  // `taxonomy-data.ts`, adds per-subcategory dynamic-attribute templates
+  // (incl. BOOLEAN), and a first-class reusable Brand library with
+  // brand↔subcategory links (decision D1).
+  //
+  // Strategy: deactivate EVERY previously-seeded category (the old 15-cat
+  // `10000000-` range and the interim 8-cat `11000000-` range both go
+  // inactive — FK-safe, products keep their categoryId), then upsert the
+  // strict tree as the ONLY active taxonomy. Idempotent (deterministic UUIDs).
+  // ============================================================
+
+  console.log('Seeding strict taxonomy + attributes + brand library...');
+
+  const strictCatId = (n: number) =>
+    `13000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
+  const strictAttrId = (n: number) =>
+    `14000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
+  const strictBrandId = (n: number) =>
+    `15000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
+
+  // Deactivate all prior categories AND null their slugs so the strict tree can
+  // claim clean URL slugs (Category.slug is globally @unique; the interim 8-cat
+  // tree held slugs like "boissons"/"smartphones" that the strict tree reuses).
+  const deactivated = await prisma.category.updateMany({
+    data: { isActive: false, slug: null },
+  });
+  console.log(`Deactivated ${deactivated.count} prior categories`);
+
+  // Collision-safe slug within the strict set: a name that collides (e.g.
+  // "Hygiène personnelle" appears under both Supermarché and Beauté & Santé)
+  // gets disambiguated by appending its parent category's slug. Deterministic
+  // (fixed iteration order) so re-seeding is idempotent.
+  const usedSlugs = new Set<string>();
+  const uniqueSlug = (name: string, parentName?: string): string => {
+    let base = frSlugify(name);
+    if (usedSlugs.has(base) && parentName) {
+      base = frSlugify(`${name}-${parentName}`);
+    }
+    let s = base;
+    let i = 2;
+    while (usedSlugs.has(s)) s = `${base}-${i++}`;
+    usedSlugs.add(s);
+    return s;
+  };
+
+  // Top categories + subcategories (the strict upserts reactivate their own rows).
+  let strictSubCount = 0;
+  for (const cat of STRICT_CATEGORIES) {
+    const topId = strictCatId(cat.n);
+    const topSlug = uniqueSlug(cat.fr);
+    await prisma.category.upsert({
+      where: { id: topId },
+      update: { isActive: true, name: cat.fr, emoji: cat.emoji, slug: topSlug, sortOrder: cat.n, parentCategoryId: null },
+      create: { id: topId, name: cat.fr, emoji: cat.emoji, slug: topSlug, sortOrder: cat.n, isActive: true },
+    });
+    for (const sub of cat.subs) {
+      const subId = strictCatId(sub.n);
+      const subSlug = uniqueSlug(sub.fr, cat.fr);
+      await prisma.category.upsert({
+        where: { id: subId },
+        update: { isActive: true, name: sub.fr, slug: subSlug, sortOrder: sub.n % 100, parentCategoryId: topId },
+        create: { id: subId, name: sub.fr, slug: subSlug, sortOrder: sub.n % 100, parentCategoryId: topId, isActive: true },
+      });
+      strictSubCount++;
+    }
+  }
+  console.log(`Seeded ${STRICT_CATEGORIES.length} strict categories + ${strictSubCount} subcategories`);
+
+  // Per-subcategory attribute templates.
+  for (const attr of STRICT_ATTRIBUTES) {
+    const id = strictAttrId(attr.n);
+    await prisma.productAttribute.upsert({
+      where: { id },
+      update: {
+        categoryId: strictCatId(attr.subN),
+        name: attr.fr,
+        type: attr.type,
+        options: attr.options ? (attr.options as unknown as object) : undefined,
+        isRequired: attr.isRequired ?? false,
+        sortOrder: attr.n % 100,
+      },
+      create: {
+        id,
+        categoryId: strictCatId(attr.subN),
+        name: attr.fr,
+        type: attr.type,
+        options: attr.options ? (attr.options as unknown as object) : undefined,
+        isRequired: attr.isRequired ?? false,
+        sortOrder: attr.n % 100,
+      },
+    });
+  }
+  console.log(`Seeded ${STRICT_ATTRIBUTES.length} strict attribute templates`);
+
+  // Brand library + brand↔subcategory links.
+  let brandLinkCount = 0;
+  for (const brand of STRICT_BRANDS) {
+    const id = strictBrandId(brand.n);
+    const slug = frSlugify(brand.fr);
+    await prisma.brand.upsert({
+      where: { id },
+      update: { isActive: true, name: brand.fr, slug, sortOrder: brand.n, deletedAt: null },
+      create: { id, name: brand.fr, slug, sortOrder: brand.n, isActive: true },
+    });
+    for (const subN of brand.subs) {
+      const categoryId = strictCatId(subN);
+      await prisma.brandCategory.upsert({
+        where: { brandId_categoryId: { brandId: id, categoryId } },
+        update: {},
+        create: { brandId: id, categoryId },
+      });
+      brandLinkCount++;
+    }
+  }
+  console.log(`Seeded ${STRICT_BRANDS.length} brands + ${brandLinkCount} brand-category links`);
+
+  // ============================================================
   // PLATFORM BASELINE (content pages + system settings)
   // Foundational: published static pages (FAQ, Terms, Privacy, About,
   // Help, Contact, How to Buy, How to Sell) in French + English, plus
@@ -866,7 +987,12 @@ async function main() {
   // ============================================================
 
   const officielSellerId = await seedTekaOfficielSeller(admin.id);
-  await seedSampleProducts(officielSellerId);
+  // P2b-1: demo-catalog seeding is PAUSED. `seedSampleProducts`' templates target
+  // the interim 8-category subcats that the strict taxonomy deactivated; the demo
+  // catalog is re-seeded under the new strict taxonomy + brand library in P2b-2.
+  // The platform seller above is still created so P2b-2 can attach products to it.
+  void officielSellerId;
+  // await seedSampleProducts(officielSellerId);
 
   // ============================================================
   // DELIVERY ZONES (always-run, idempotent)
