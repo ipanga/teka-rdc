@@ -7,8 +7,8 @@
 ## Active initiative
 
 **Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — started 2026-06-14. **Phases 1 (#368)
-+ 2a (#369) + 2b-1 (#370) + 2b-2 (#371) + 3a (#372) + 3b (#373) + 4a (#374) + 4b (#375) + 5a (#376) MERGED. Phase 5b (seller-web brand dropdown +
-BOOLEAN + edit attrs) DONE — PR open, awaiting review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo
++ 2a (#369) + 2b-1 (#370) + 2b-2 (#371) + 3a (#372) + 3b (#373) + 4a (#374) + 4b (#375) + 5a (#376) + 5b (#377) MERGED. Phase 5c (seller-mobile brand dropdown +
+BOOLEAN) DONE — PR open, awaiting review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo
 catalog). **Goal:** strict **2-level** taxonomy (Catégorie → Sous-catégorie) with
 the new 7-category structure, a first-class **Brand** library, per-subcategory dynamic attributes (+ BOOLEAN
 type), and a clean **catalog reset** (delete all products + related + Cloudinary, no orphans) — across API,
@@ -90,6 +90,14 @@ facet · P7 SEO · P8 tests/docs/prod verify.
 page gained BrandSelect + DynamicAttributesForm (it had neither) — pre-fills brand + spec values, sends
 brandId (null clears) + specifications on PATCH. seller-web build clean. **Next:** P5c seller-mobile mirror ·
 P6 buyer search/filters + brand facet · P7 SEO · P8.
+
+**Phase 5c shipped to branch (PR open):** `feat/seller-mobile-brand-attrs-p5c`. Flutter seller form mirror:
+BOOLEAN case in `dynamic_attribute_field.dart` (SwitchListTile→'true'/'false'); `BrandOption` model +
+`ProductsRepository.getBrands` via the Dio chain; `product_form_screen` brand dropdown (`_brandId`/`_brands`,
+load on init+category-change, self-hides if none, drops stale selection), sends brandId on create/update;
+`SellerProductModel.brandId`. 3 ARB keys + gen-l10n. analyze 0 errors/0 warnings; tests pass. No
+connectivity-layer change. **This completes Phase 5.** **Next:** P6 buyer search/filters + brand facet
+(web+mobile) · P7 SEO · P8 tests/docs/prod verify (+ apply prod migration, run reset+seed on prod at release).
 
 ---
 

@@ -30,10 +30,21 @@ class DynamicAttributeField extends StatelessWidget {
         return _buildMultiselect(context, label);
       case 'NUMERIC':
         return _buildNumeric(context, label);
+      case 'BOOLEAN':
+        return _buildBoolean(context, label);
       case 'TEXT':
       default:
         return _buildText(context, label);
     }
+  }
+
+  Widget _buildBoolean(BuildContext context, String label) {
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(attribute.isRequired ? '$label *' : label),
+      value: value == 'true',
+      onChanged: (v) => onChanged(v ? 'true' : 'false'),
+    );
   }
 
   Widget _buildSelect(BuildContext context, String label, AppLocalizations l10n) {

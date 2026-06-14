@@ -1737,6 +1737,24 @@ abstract class AppLocalizations {
   /// In fr, this message translates to:
   /// **'Connexion rétablie'**
   String get connectivityBannerRestored;
+
+  /// No description provided for @brand.
+  ///
+  /// In fr, this message translates to:
+  /// **'Marque'**
+  String get brand;
+
+  /// No description provided for @selectBrand.
+  ///
+  /// In fr, this message translates to:
+  /// **'Sélectionner une marque'**
+  String get selectBrand;
+
+  /// No description provided for @noBrand.
+  ///
+  /// In fr, this message translates to:
+  /// **'Sans marque'**
+  String get noBrand;
 }
 
 class _AppLocalizationsDelegate

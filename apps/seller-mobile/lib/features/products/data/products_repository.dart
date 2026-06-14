@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/utils/image_compress.dart';
 import 'models/attribute_model.dart';
+import 'models/brand_option_model.dart';
 import 'models/product_model.dart';
 
 class PaginatedResponse<T> {
@@ -140,6 +141,18 @@ class ProductsRepository {
         .toList();
     attrs.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     return attrs;
+  }
+
+  /// Active brands offered in [categoryId] (the brand-filter library).
+  Future<List<BrandOption>> getBrands(String categoryId) async {
+    final response = await _dio.get(
+      '/v1/brands',
+      queryParameters: {'categoryId': categoryId},
+    );
+    final data = response.data['data'] as List<dynamic>? ?? [];
+    return data
+        .map((e) => BrandOption.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 }
 
