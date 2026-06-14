@@ -233,7 +233,10 @@
     "productAttributes": "Caractéristiques du produit",
     "selectOption": "Sélectionnez...",
     "noAttributes": "Aucune caractéristique pour cette catégorie",
-    "description": "Description"
+    "description": "Description",
+    "brand": "Marque",
+    "selectBrand": "Sélectionner une marque",
+    "noBrand": "Sans marque"
   },
   "Orders": {
     "title": "Commandes",
