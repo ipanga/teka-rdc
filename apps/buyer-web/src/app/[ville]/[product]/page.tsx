@@ -33,6 +33,7 @@ interface ProductData {
     sellerProfile?: { businessName?: string };
   };
   category?: { id: string; slug?: string | null; name: string };
+  brand?: { id: string; name: string; slug?: string | null } | null;
   // Demo retirement (P3c): true for a demo product in a retired category.
   isRetired?: boolean;
 }
@@ -185,7 +186,11 @@ export default async function Page({ params }: Props) {
     description: pickStr(product.description),
     image: product.images?.[0]?.url,
     sku: product.shortCode ?? product.id,
-    brand: { '@type': 'Organization', name: sellerDisplayName || 'Teka RDC' },
+    // Prefer the product's real brand (first-class Brand library); fall back to
+    // the seller / platform as the brand-like entity when none is set.
+    brand: product.brand?.name
+      ? { '@type': 'Brand', name: product.brand.name }
+      : { '@type': 'Organization', name: sellerDisplayName || 'Teka RDC' },
     offers: {
       '@type': 'Offer',
       priceCurrency: 'CDF',

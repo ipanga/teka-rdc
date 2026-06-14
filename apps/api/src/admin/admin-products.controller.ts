@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
@@ -45,5 +46,10 @@ export class AdminProductsController {
     @Body() dto: RejectProductDto,
   ) {
     return this.adminProductsService.rejectProduct(id, dto.rejectionReason);
+  }
+
+  @Delete(':id/hard')
+  async hardDelete(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminProductsService.hardDeleteProduct(id);
   }
 }

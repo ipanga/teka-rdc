@@ -45,6 +45,8 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
         // city-scoped category page). Watched so a city change refetches.
         cityId: ref.watch(cityProvider).selectedCity?.id,
         attributesJson: _encodeAttributes(_filters.attributes),
+        brandIds:
+            _filters.brandIds.isEmpty ? null : _filters.brandIds.join(','),
       );
 
   /// Encode the selected facets to the JSON shape the browse API expects,

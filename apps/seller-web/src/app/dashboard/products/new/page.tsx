@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import DynamicAttributesForm from '@/components/products/dynamic-attributes-form';
+import BrandSelect from '@/components/products/brand-select';
 
 interface Category {
   id: string;
@@ -28,6 +29,7 @@ export default function NewProductPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [brandId, setBrandId] = useState('');
   const [priceCDF, setPriceCDF] = useState('');
   const [priceUSD, setPriceUSD] = useState('');
   const [quantity, setQuantity] = useState('1');
@@ -106,6 +108,10 @@ export default function NewProductPage() {
         condition,
       };
 
+      if (brandId) {
+        body.brandId = brandId;
+      }
+
       if (priceUSD && Number(priceUSD) > 0) {
         body.priceUSD = String(Math.round(Number(priceUSD) * 100));
       }
@@ -175,7 +181,7 @@ export default function NewProductPage() {
                 <select
                   id="categoryId"
                   value={categoryId}
-                  onChange={(e) => { setCategoryId(e.target.value); setSpecifications([]); setFieldErrors((prev) => ({ ...prev, categoryId: '' })); }}
+                  onChange={(e) => { setCategoryId(e.target.value); setSpecifications([]); setBrandId(''); setFieldErrors((prev) => ({ ...prev, categoryId: '' })); }}
                   className={`w-full px-3 py-2 border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring ${
                     fieldErrors.categoryId ? 'border-destructive' : 'border-input'
                   }`}
@@ -260,6 +266,9 @@ export default function NewProductPage() {
             </div>
           </div>
         </div>
+
+        {/* Brand (scoped to the chosen subcategory; hides itself if none) */}
+        <BrandSelect categoryId={categoryId} value={brandId} onChange={setBrandId} />
 
         {/* Dynamic Attributes Section */}
         {categoryId && (

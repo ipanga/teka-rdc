@@ -135,6 +135,7 @@ class SellerProductModel {
   final String title;
   final String description;
   final String categoryId;
+  final String? brandId;
   final String priceCDF;
   final String? priceUSD;
   final int quantity;
@@ -152,6 +153,7 @@ class SellerProductModel {
     required this.title,
     required this.description,
     required this.categoryId,
+    this.brandId,
     required this.priceCDF,
     this.priceUSD,
     required this.quantity,
@@ -200,12 +202,14 @@ class SellerProductModel {
         [];
 
     final categoryRaw = json['category'] as Map<String, dynamic>?;
+    final brandRaw = json['brand'] as Map<String, dynamic>?;
 
     return SellerProductModel(
       id: json['id'] as String,
       title: json['title']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
       categoryId: json['categoryId'] as String? ?? '',
+      brandId: json['brandId'] as String? ?? brandRaw?['id'] as String?,
       priceCDF: json['priceCDF']?.toString() ?? '0',
       priceUSD: json['priceUSD']?.toString(),
       quantity: json['quantity'] as int? ?? 0,

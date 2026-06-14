@@ -84,6 +84,7 @@
   "filterSortPopular": "Popularite",
   "filterApply": "Appliquer",
   "filterReset": "Reinitialiser",
+  "brand": "Marque",
   "filterPrice": "Etat",
   "filterMinPrice": "Prix min",
   "filterMaxPrice": "Prix max",

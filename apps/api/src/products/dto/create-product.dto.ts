@@ -44,6 +44,14 @@ export class CreateProductDto {
   })
   cityId?: string;
 
+  // Optional first-class brand (D1). Hex-regex (not @IsUUID) so the seeded
+  // brand ids (15000000-…) validate. Send null on update to clear the brand.
+  @IsOptional()
+  @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
+    message: 'Marque invalide',
+  })
+  brandId?: string | null;
+
   @IsString({ message: 'Le prix CDF est requis' })
   priceCDF: string; // BigInt as string
 

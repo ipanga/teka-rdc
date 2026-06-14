@@ -209,6 +209,15 @@ role-by-role feature spec is in **`docs/product-spec.md`** (historical reference
 behaviour the authoritative sources are §10 (Rules) below + `docs/architecture.md` — where the original
 spec and current behaviour differ (auth, payments, SMS), **the Rules win.**
 
+**Catalog taxonomy + brands (2026-06-14).** The catalog uses a **strict 2-level taxonomy** — **7 categories
+→ 80 subcategories** — defined in `apps/api/prisma/taxonomy-data.ts` and seeded as the **only active** tree
+(older taxonomies are deactivated + slug-nulled). Brands are a **first-class library** (`Brand` model;
+admin `/dashboard/brands` CRUD/merge; `Product.brandId`; buyer brand-filter facet `brandIds`), **not** a
+"Marque" attribute. Per-subcategory **dynamic attributes** support `TEXT/SELECT/MULTISELECT/NUMERIC/BOOLEAN`.
+Pre-launch reset tooling: `pnpm db:reset-catalog` (dry-run / `-- --confirm`) + admin `DELETE
+/v1/admin/products/:id/hard`. Seeded ids are non-RFC4122 (`13000000-`/`15000000-`) → endpoints validate ids
+by DB lookup, not `@IsUUID`. Full model: `docs/architecture.md` → "Marketplace taxonomy + brands".
+
 **Demo catalog + retirement (P3c).** A seeded "Teka RDC Officiel" demo catalog (~152 products,
 `Product.isDemo=true`) keeps the storefront non-empty pre-merchants; it always ranks below real products.
 Two **system settings** (KV store) control automatic per-category retirement: `RETIRE_DEMO_CATALOG`

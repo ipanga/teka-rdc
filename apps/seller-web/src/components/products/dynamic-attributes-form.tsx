@@ -8,7 +8,7 @@ interface ProductAttribute {
   id: string;
   categoryId: string;
   name: string;
-  type: 'TEXT' | 'SELECT' | 'MULTISELECT' | 'NUMERIC';
+  type: 'TEXT' | 'SELECT' | 'MULTISELECT' | 'NUMERIC' | 'BOOLEAN';
   options: string[];
   isRequired: boolean;
   sortOrder: number;
@@ -234,6 +234,23 @@ export default function DynamicAttributesForm({
                     onChange={(e) => handleChange(attr.id, e.target.value)}
                     className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
+                </div>
+              );
+
+            case 'BOOLEAN':
+              return (
+                <div key={attr.id}>
+                  <label className="flex items-center gap-2 text-sm font-medium text-foreground cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={value === 'true'}
+                      onChange={(e) =>
+                        handleChange(attr.id, e.target.checked ? 'true' : 'false')
+                      }
+                      className="w-4 h-4 rounded border-input text-primary focus:ring-ring"
+                    />
+                    {label} {attr.isRequired && '*'}
+                  </label>
                 </div>
               );
 

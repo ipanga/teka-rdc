@@ -19,6 +19,16 @@ export class BrowseProductsQueryDto {
   @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
   cityId?: string;
 
+  /**
+   * Brand facet filter: a comma-separated list of brand ids. Semantics: OR
+   * (a product matches if its brand is any of them). Leniently parsed in the
+   * service — non-hex tokens are dropped — so this is just a bounded string here.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  brandIds?: string;
+
   @IsOptional()
   @IsString()
   minPrice?: string;

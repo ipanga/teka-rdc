@@ -46,6 +46,17 @@ export class ProductsService {
     throw new Error('Failed to generate a unique product shortCode');
   }
 
+  /** Throws 400 if the brand id doesn't resolve to a live brand. */
+  private async assertBrandExists(brandId: string): Promise<void> {
+    const brand = await this.prisma.brand.findFirst({
+      where: { id: brandId, deletedAt: null },
+      select: { id: true },
+    });
+    if (!brand) {
+      throw new BadRequestException('Marque introuvable');
+    }
+  }
+
   /**
    * Creates a new product in DRAFT status.
    */
@@ -61,6 +72,11 @@ export class ProductsService {
 
     if (!category.isActive) {
       throw new BadRequestException("Cette catégorie n'est plus active");
+    }
+
+    // Validate brand if provided (clearer error than a Prisma FK violation).
+    if (dto.brandId) {
+      await this.assertBrandExists(dto.brandId);
     }
 
     // Validate seller has approved SellerProfile
@@ -95,6 +111,7 @@ export class ProductsService {
         title: dto.title,
         description: dto.description,
         categoryId: dto.categoryId,
+        brandId: dto.brandId ?? undefined,
         sellerId,
         cityId,
         priceCDF,
@@ -186,6 +203,7 @@ export class ProductsService {
           include: { attribute: true },
         },
         category: true,
+        brand: { select: { id: true, name: true } },
       },
     });
 
@@ -232,6 +250,11 @@ export class ProductsService {
       }
     }
 
+    // Validate brand if a (non-null) brand is being set.
+    if (dto.brandId) {
+      await this.assertBrandExists(dto.brandId);
+    }
+
     // Convert BigInt prices if provided
     const priceCDF =
       dto.priceCDF !== undefined ? BigInt(dto.priceCDF) : undefined;
@@ -264,6 +287,8 @@ export class ProductsService {
             description: dto.description,
           }),
           ...(dto.categoryId !== undefined && { categoryId: dto.categoryId }),
+          // `null` clears the brand; a value sets it; undefined leaves it.
+          ...(dto.brandId !== undefined && { brandId: dto.brandId || null }),
           ...(priceCDF !== undefined && { priceCDF }),
           ...(priceUSD !== undefined && { priceUSD }),
           ...(dto.quantity !== undefined && { quantity: dto.quantity }),

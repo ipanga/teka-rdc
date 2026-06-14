@@ -142,6 +142,13 @@ export class BrowseService {
       where.avgRating = { gte: query.minRating };
     }
 
+    // Brand facet filter (OR within the selected brand ids). Options come from
+    // GET /v1/brands?categoryId=; here we just narrow the result set.
+    const brandIds = this.parseBrandIds(query.brandIds);
+    if (brandIds) {
+      where.brandId = { in: brandIds };
+    }
+
     // Attribute (facet) filter for SELECT / MULTISELECT attributes. Resolved
     // to a product-id set via one raw pass (AND across attributes, OR within),
     // then injected into BOTH the Prisma and FTS paths so they filter
@@ -245,6 +252,9 @@ export class BrowseService {
       }
       if (query.minRating) {
         conds.push(Prisma.sql`p."avgRating" >= ${query.minRating}`);
+      }
+      if (brandIds && brandIds.length > 0) {
+        conds.push(Prisma.sql`p."brandId"::text IN (${Prisma.join(brandIds)})`);
       }
       if (attributeProductIds && attributeProductIds.length > 0) {
         conds.push(
@@ -369,6 +379,26 @@ export class BrowseService {
         total,
       },
     };
+  }
+
+  /**
+   * Parse the comma-separated `brandIds` facet param into a bounded, de-duped
+   * list of hex ids. Returns null when absent or empty after cleaning. Non-hex
+   * tokens are dropped; capped at 50 ids so a hostile client can't blow up the
+   * IN-list.
+   */
+  private parseBrandIds(raw?: string): string[] | null {
+    if (!raw) return null;
+    const hex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const ids = Array.from(
+      new Set(
+        raw
+          .split(',')
+          .map((s) => s.trim())
+          .filter((s) => hex.test(s)),
+      ),
+    ).slice(0, 50);
+    return ids.length ? ids : null;
   }
 
   /**
@@ -721,6 +751,9 @@ export class BrowseService {
       },
       city: {
         select: { id: true, slug: true, name: true, province: true },
+      },
+      brand: {
+        select: { id: true, name: true, slug: true },
       },
       seller: {
         select: {

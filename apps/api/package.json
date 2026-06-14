@@ -24,6 +24,8 @@
     "prisma:generate": "prisma generate",
     "prisma:seed": "tsx --env-file=../../.env.development prisma/seed.ts",
     "prisma:seed:prod": "SEED_MODE=prod tsx --env-file=../../.env.production prisma/seed.ts",
+    "prisma:reset-catalog": "tsx --env-file=../../.env.development prisma/reset-catalog.ts",
+    "prisma:reset-catalog:prod": "tsx --env-file=../../.env.production prisma/reset-catalog.ts",
     "prisma:studio": "prisma studio"
   },
   "dependencies": {

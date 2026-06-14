@@ -872,4 +872,13 @@ class AppLocalizationsFr extends AppLocalizations {
 
   @override
   String get connectivityBannerRestored => 'Connexion rétablie';
+
+  @override
+  String get brand => 'Marque';
+
+  @override
+  String get selectBrand => 'Sélectionner une marque';
+
+  @override
+  String get noBrand => 'Sans marque';
 }

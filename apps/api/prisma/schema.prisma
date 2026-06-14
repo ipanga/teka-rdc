@@ -53,6 +53,7 @@ enum AttributeType {
   SELECT
   MULTISELECT
   NUMERIC
+  BOOLEAN
 }
 
 enum OrderStatus {
@@ -262,30 +263,30 @@ model User {
 }
 
 model SellerProfile {
-  id                String                  @id @default(uuid()) @db.Uuid
-  userId            String                  @unique @db.Uuid
-  businessName      String
-  businessType      String // 'individual' | 'company'
-  idNumber          String
-  idType            String // 'national_id' | 'passport' | 'rccm'
+  id                     String                  @id @default(uuid()) @db.Uuid
+  userId                 String                  @unique @db.Uuid
+  businessName           String
+  businessType           String // 'individual' | 'company'
+  idNumber               String
+  idType                 String // 'national_id' | 'passport' | 'rccm'
   // KYC document (Phase 2): the public_id of the ID/RCCM photo uploaded to a
   // PRIVATE Cloudinary folder. No public URL is stored — admins view it via a
   // short-lived signed URL. Nullable: existing rows predate KYC; required at
   // the DTO/form layer for new applications.
   idDocumentCloudinaryId String?
   idDocumentUploadedAt   DateTime?
-  phone             String
-  location          String
-  cityId            String?                 @db.Uuid
-  communeId         String?                 @db.Uuid
-  description       String?
-  applicationStatus SellerApplicationStatus @default(PENDING)
-  rejectionReason   String?
-  approvedAt        DateTime?
-  approvedById      String?                 @db.Uuid
-  createdAt         DateTime                @default(now())
-  updatedAt         DateTime                @updatedAt
-  deletedAt         DateTime?
+  phone                  String
+  location               String
+  cityId                 String?                 @db.Uuid
+  communeId              String?                 @db.Uuid
+  description            String?
+  applicationStatus      SellerApplicationStatus @default(PENDING)
+  rejectionReason        String?
+  approvedAt             DateTime?
+  approvedById           String?                 @db.Uuid
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  deletedAt              DateTime?
 
   walletBalanceCDF BigInt @default(0)
   avgRating        Float  @default(0)
@@ -432,6 +433,7 @@ model Category {
   attributes        ProductAttribute[]
   commissionSetting CommissionSetting?
   promotions        Promotion[]
+  brands            BrandCategory[]
 
   @@index([parentCategoryId])
   @@index([isActive])
@@ -453,6 +455,10 @@ model Product {
   title           String
   description     String
   categoryId      String           @db.Uuid
+  // First-class brand (Marketplace Taxonomy initiative). Nullable: not every
+  // category/product has a brand. Sourced from the admin-managed Brand library;
+  // powers the dedicated brand filter (separate from dynamic attributes).
+  brandId         String?          @db.Uuid
   sellerId        String           @db.Uuid
   cityId          String?          @db.Uuid
   priceCDF        BigInt // centimes (1 CDF = 100 centimes)
@@ -478,6 +484,7 @@ model Product {
   unitsSold    Int   @default(0)
 
   category        Category               @relation(fields: [categoryId], references: [id])
+  brand           Brand?                 @relation(fields: [brandId], references: [id])
   seller          User                   @relation("SellerProducts", fields: [sellerId], references: [id])
   city            City?                  @relation(fields: [cityId], references: [id])
   images          ProductImage[]
@@ -491,6 +498,7 @@ model Product {
   @@index([slug])
   @@index([shortCode])
   @@index([categoryId])
+  @@index([brandId])
   @@index([sellerId])
   @@index([cityId])
   @@index([status])
@@ -507,6 +515,44 @@ model Product {
   @@index([status, priceCDF])
   @@index([status, avgRating])
   @@map("products")
+}
+
+// First-class brand library (Marketplace Taxonomy initiative). Admin-managed;
+// a brand applies to one or more subcategories (BrandCategory) which drives the
+// brand dropdown in the seller product form, and powers the buyer brand filter.
+model Brand {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String    @unique
+  slug      String    @unique
+  logoUrl   String?
+  isActive  Boolean   @default(true)
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  products   Product[]
+  categories BrandCategory[]
+
+  @@index([isActive])
+  @@index([sortOrder])
+  @@index([deletedAt])
+  @@map("brands")
+}
+
+// Which (sub)categories a brand belongs to. Many-to-many between Brand and
+// Category — the seller form shows only the brands linked to the chosen
+// subcategory.
+model BrandCategory {
+  brandId    String @db.Uuid
+  categoryId String @db.Uuid
+
+  brand    Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([brandId, categoryId])
+  @@index([categoryId])
+  @@map("brand_categories")
 }
 
 model ProductImage {
@@ -582,7 +628,7 @@ model CartItem {
   updatedAt DateTime @updatedAt
 
   cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([cartId, productId])
   @@index([cartId])
@@ -797,7 +843,7 @@ model Review {
   updatedAt DateTime     @updatedAt
   deletedAt DateTime?
 
-  product Product @relation(fields: [productId], references: [id])
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   buyer   User    @relation("BuyerReviews", fields: [buyerId], references: [id])
   order   Order   @relation(fields: [orderId], references: [id])
 
@@ -820,7 +866,7 @@ model Wishlist {
   createdAt DateTime @default(now())
 
   user    User    @relation("UserWishlist", fields: [userId], references: [id])
-  product Product @relation(fields: [productId], references: [id])
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([userId, productId])
   @@index([userId])
@@ -914,7 +960,7 @@ model Promotion {
   updatedAt       DateTime        @updatedAt
   deletedAt       DateTime?
 
-  product    Product?  @relation(fields: [productId], references: [id])
+  product    Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
   category   Category? @relation(fields: [categoryId], references: [id])
   seller     User?     @relation("SellerPromotions", fields: [sellerId], references: [id])
   createdBy  User      @relation("PromotionCreatedBy", fields: [createdById], references: [id])
@@ -1031,9 +1077,9 @@ model DeviceToken {
   id         String   @id @default(uuid()) @db.Uuid
   userId     String   @db.Uuid
   token      String   @unique
-  platform   String   // 'android' | 'ios' | 'web'
-  deviceInfo String?  // User-Agent or "<manufacturer> <model>" string
-  appVersion String?  // e.g. "1.4.0+27"
+  platform   String // 'android' | 'ios' | 'web'
+  deviceInfo String? // User-Agent or "<manufacturer> <model>" string
+  appVersion String? // e.g. "1.4.0+27"
   isActive   Boolean  @default(true)
   lastSeenAt DateTime @default(now())
   createdAt  DateTime @default(now())

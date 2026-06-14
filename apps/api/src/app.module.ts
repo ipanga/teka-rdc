@@ -13,6 +13,7 @@ import { AdminModule } from './admin/admin.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
 import { CitiesModule } from './cities/cities.module';
+import { BrandsModule } from './brands/brands.module';
 import { BrowseModule } from './browse/browse.module';
 import { DeliveryZonesModule } from './delivery-zones/delivery-zones.module';
 import { CartModule } from './cart/cart.module';
@@ -57,6 +58,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     CategoriesModule,
     ProductsModule,
     CitiesModule,
+    BrandsModule,
     BrowseModule,
     DeliveryZonesModule,
     CartModule,

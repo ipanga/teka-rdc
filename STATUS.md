@@ -6,9 +6,37 @@
 
 ## Active initiative
 
-**Mobile release readiness (Android / Play Store launch prep)** — started 2026-06-10. **Goal:** make
-buyer-mobile + seller-mobile shippable to the Play Store (they were stuck on debug signing). **Scaffolded
-everything except the keystore itself** (operator must generate that). **Done (this branch / PR):**
+**None.** The *Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset* initiative is **code-complete**
+(see "Recently completed" below). No in-flight work — per CLAUDE.md §7.2, ask the user what to start next.
+
+---
+
+### Recently completed — 2026-06-14 (Marketplace Taxonomy — prod rollout pending)
+
+**Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — 8 phases, **16 PRs #368–#383, all
+merged**. Strict **2-level taxonomy** (7 categories → 80 subcategories, `apps/api/prisma/taxonomy-data.ts`),
+first-class **Brand library** (CRUD/merge/activate; `Product.brandId`; buyer brand-filter facet), per-subcat
+**dynamic attributes** (incl BOOLEAN; admin BOOLEAN/option-editor/reorder), and pre-launch **catalog-reset
+tooling** (`pnpm db:reset-catalog` + admin hard-delete). Seller create/edit (web+mobile) get a brand dropdown
++ BOOLEAN field; buyer search (web+mobile) gets a brand facet + BOOLEAN facet; product JSON-LD emits the real
+brand. Decisions D1 first-class brandId · D2 keep JSON attribute options · D3 re-seed demo catalog. Migration
+`2026-06-14_taxonomy_brand_foundation.sql` + reset+seed applied to **dev**; everything verified live there.
+Detail: `PROGRESS.md` (Jun-14 entry) · `docs/architecture.md` → "Marketplace taxonomy + brands" ·
+`tasks/marketplace-taxonomy-progress.md`.
+
+**▶ PROD ROLLOUT (operator — irreversible, at release):**
+1. **Apply migration** — Actions → *Apply prod migration* → `2026-06-14_taxonomy_brand_foundation.sql` (BOOLEAN enum value, `brands`/`brand_categories` tables, `products.brandId` FK, FK-cascade hardening). Idempotent.
+2. **Reseed** — `pnpm --filter api prisma:seed:prod` (strict taxonomy + 160 attributes + 51 brands as the only active tree, deactivating older taxonomies, + demo catalog). Idempotent.
+3. **(Optional) clear stale demo** — `pnpm --filter api prisma:reset-catalog:prod` (dry-run, then `-- --confirm`). Deletes products WITHOUT order history + purges Cloudinary. **Irreversible** (pre-launch prod has no real orders).
+4. **Verify on prod:** 7 active top cats + 80 subs, 51 brands, browse brand filter, seller brand dropdown + buyer brand facet, product JSON-LD brand.
+
+
+### Recently completed — 2026-06-10 (operator action pending)
+
+**Mobile release readiness (Android / Play Store launch prep)** — shipped to `main` (#365/#366). **Code +
+tooling complete; OPERATOR TODO remains:** generate the 2 upload keystores, set the 8 signing secrets,
+finalize prod `google-services.json`, run "Release mobile AAB" → upload to Play. Full runbook:
+`docs/mobile-release.md`. Details:
 - `apps/{buyer,seller}-mobile/android/app/build.gradle.kts` — a release `signingConfig` that loads
   `android/key.properties` (gitignored) and signs the release build with the upload key; **falls back to
   debug** when absent (local dev / internal APK builds unaffected).

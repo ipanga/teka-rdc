@@ -47,6 +47,7 @@ class CatalogRepository {
     String? cursor,
     String? cityId,
     String? attributesJson,
+    String? brandIds,
     int limit = 20,
   }) async {
     final queryParams = <String, dynamic>{
@@ -72,6 +73,10 @@ class CatalogRepository {
     // attributeId -> [selected values]. The server parses + bounds it.
     if (attributesJson != null && attributesJson.isNotEmpty) {
       queryParams['attributes'] = attributesJson;
+    }
+    // Brand facet filter — comma-separated brand ids (OR within).
+    if (brandIds != null && brandIds.isNotEmpty) {
+      queryParams['brandIds'] = brandIds;
     }
     if (cursor != null && cursor.isNotEmpty) {
       queryParams['cursor'] = cursor;
@@ -187,10 +192,40 @@ class CatalogRepository {
     return raw
         .map((e) => FacetAttribute.fromJson(e as Map<String, dynamic>))
         .where((a) =>
-            (a.type == 'SELECT' || a.type == 'MULTISELECT') &&
-            a.options.isNotEmpty)
+            ((a.type == 'SELECT' || a.type == 'MULTISELECT') &&
+                a.options.isNotEmpty) ||
+            a.type == 'BOOLEAN')
         .toList(growable: false);
   }
+
+  /// GET /v1/brands?categoryId= — active brands offered in [categoryId], for
+  /// the buyer brand-filter facet. Empty list on any error.
+  Future<List<BrandOption>> getBrands(String categoryId) async {
+    final response = await _dio.get(
+      '/v1/brands',
+      queryParameters: {'categoryId': categoryId},
+    );
+    final data = response.data;
+    final List<dynamic> raw = (data is Map && data['data'] is List)
+        ? data['data'] as List
+        : (data is List ? data : const []);
+    return raw
+        .map((e) => BrandOption.fromJson(e as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+}
+
+/// A brand in the buyer brand-filter facet.
+class BrandOption {
+  final String id;
+  final String name;
+
+  const BrandOption({required this.id, required this.name});
+
+  factory BrandOption.fromJson(Map<String, dynamic> json) => BrandOption(
+        id: json['id'] as String,
+        name: json['name']?.toString() ?? '',
+      );
 }
 
 /// A filterable category attribute (SELECT / MULTISELECT).

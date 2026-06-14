@@ -12,7 +12,34 @@ function makeService() {
 
 interface FindManyArg {
   orderBy: Array<Record<string, string>>;
+  where: Record<string, unknown>;
 }
+
+describe('BrowseService.browseProducts — brand facet filter (P6a)', () => {
+  const B1 = '15000000-0000-0000-0000-000000000003';
+  const B2 = '15000000-0000-0000-0000-000000000004';
+
+  it('filters by brandId IN the parsed list', async () => {
+    const { service, findMany } = makeService();
+    await service.browseProducts({ brandIds: `${B1},${B2}` } as never);
+    const { where } = (findMany.mock.calls as unknown as FindManyArg[][])[0][0];
+    expect(where.brandId).toEqual({ in: [B1, B2] });
+  });
+
+  it('drops non-hex tokens and dedups', async () => {
+    const { service, findMany } = makeService();
+    await service.browseProducts({ brandIds: `${B1}, not-a-uuid, ${B1}` } as never);
+    const { where } = (findMany.mock.calls as unknown as FindManyArg[][])[0][0];
+    expect(where.brandId).toEqual({ in: [B1] });
+  });
+
+  it('applies no brand filter when the param is absent', async () => {
+    const { service, findMany } = makeService();
+    await service.browseProducts({} as never);
+    const { where } = (findMany.mock.calls as unknown as FindManyArg[][])[0][0];
+    expect(where.brandId).toBeUndefined();
+  });
+});
 
 describe('BrowseService.browseProducts — real-above-demo ranking (P3a)', () => {
   it('orders by isDemo asc first (real merchant products before demo)', async () => {

@@ -81,7 +81,8 @@
     "reports": "Rapports",
     "settings": "Paramètres",
     "logout": "Se déconnecter",
-    "catalogCoverage": "Couverture catalogue"
+    "catalogCoverage": "Couverture catalogue",
+    "brands": "Marques"
   },
   "Profile": {
     "title": "Mon profil",
@@ -270,7 +271,14 @@
     "expand": "Développer",
     "collapse": "Réduire",
     "selectCategory": "Sélectionnez une catégorie pour voir ses attributs",
-    "description": "Description"
+    "description": "Description",
+    "attributeOptionsLabel": "Options",
+    "addOption": "Ajouter",
+    "optionPlaceholder": "Saisir une option puis Entrée",
+    "noOptionsYet": "Aucune option ajoutée",
+    "moveUp": "Monter",
+    "moveDown": "Descendre",
+    "booleanHint": "Type oui/non — aucune option requise"
   },
   "Moderation": {
     "title": "Produits",
@@ -720,5 +728,41 @@
     "pendingRetire": "En attente du seuil",
     "saved": "Enregistré",
     "error": "Erreur"
+  },
+  "Brands": {
+    "title": "Gestion des marques",
+    "subtitle": "Bibliothèque de marques réutilisable pour tout le catalogue",
+    "newBrand": "Nouvelle marque",
+    "editBrand": "Modifier la marque",
+    "name": "Nom",
+    "logoUrl": "URL du logo (optionnel)",
+    "sortOrder": "Ordre d'affichage",
+    "active": "Active",
+    "inactive": "Inactive",
+    "enable": "Activer",
+    "disable": "Désactiver",
+    "subcategories": "Sous-catégories",
+    "subcategoriesHint": "Sélectionnez les sous-catégories où cette marque est proposée",
+    "productCount": "{count, plural, =0 {Aucun produit} one {1 produit} other {# produits}}",
+    "categoryCount": "{count, plural, =0 {Aucune sous-catégorie} one {1 sous-catégorie} other {# sous-catégories}}",
+    "search": "Rechercher une marque",
+    "merge": "Fusionner",
+    "mergeTitle": "Fusionner la marque",
+    "mergeIntoLabel": "Fusionner « {name} » dans une autre marque :",
+    "mergeWarning": "Tous les produits de « {name} » seront réattribués à la marque cible, puis « {name} » sera supprimée. Cette action est irréversible.",
+    "selectTarget": "Sélectionner la marque cible",
+    "delete": "Supprimer",
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer cette marque ? Ses produits conserveront leur référence mais elle disparaîtra des filtres.",
+    "noBrands": "Aucune marque configurée",
+    "noBrandsFound": "Aucune marque ne correspond à votre recherche",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "saveSuccess": "Marque enregistrée avec succès",
+    "deleteSuccess": "Marque supprimée",
+    "mergeSuccess": "Marques fusionnées avec succès",
+    "errorSaving": "Erreur lors de l'enregistrement",
+    "errorDeleting": "Erreur lors de la suppression",
+    "errorMerging": "Erreur lors de la fusion",
+    "nameRequired": "Le nom de la marque est requis"
   }
 }
