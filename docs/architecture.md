@@ -379,9 +379,12 @@ Each transition is logged in the `OrderStatusLog` table with timestamp, actor (b
 |-------|---------|
 | **User** | Phone (+243), email (optional), role (BUYER/SELLER/ADMIN/SUPPORT), status, passwordHash |
 | **SellerProfile** | Shop name, description (JSON i18n), avgRating, totalReviews, walletBalance (BigInt) |
-| **Category** | Tree structure via parentCategoryId, name (JSON i18n), emoji, slug |
-| **CategoryAttribute** | Dynamic attributes per category (e.g., "Size", "Color") |
-| **Product** | Title/description (JSON i18n), priceCDF/priceUSD (BigInt), stock, condition, status |
+| **Category** | **Strict 2-level** tree via parentCategoryId (Catégorie → Sous-catégorie), plain-TEXT French name, emoji, unique slug. Since 2026-06-14 the 7-category taxonomy is the only active tree; older taxonomies are deactivated (slug nulled). See "Marketplace taxonomy + brands" below. |
+| **ProductAttribute** | Per-subcategory dynamic attribute templates. Types: `TEXT / SELECT / MULTISELECT / NUMERIC / BOOLEAN`; SELECT/MULTISELECT carry a JSON `options[]`; `isRequired`, `sortOrder`. |
+| **ProductSpecification** | Junction Product ↔ ProductAttribute holding the chosen `value` (BOOLEAN stored as `'true'`/`'false'`). `onDelete: Cascade`. |
+| **Brand** | First-class reusable brand library (name/slug unique, logoUrl, isActive, sortOrder, soft-delete). Replaces the old "Marque" SELECT-attribute approach. |
+| **BrandCategory** | Brand ↔ subcategory link (which brands are offered per subcategory). |
+| **Product** | Title/description (plain TEXT, French), `categoryId`, optional `brandId` (FK → Brand, `ON DELETE SET NULL`), priceCDF/priceUSD (BigInt), stock, condition, status, `isDemo`. |
 | **ProductImage** | Cloudinary URLs, position ordering, cover flag |
 | **Address** | Town + neighborhood + avenue (no postal codes), isDefault flag |
 
@@ -450,6 +453,10 @@ Deterministic UUIDs are used in seed data for consistency:
 | `e1000000-*` | Wishlists |
 | `e2000000-*` | Conversations |
 | `e3000000-*` | Messages |
+| `13000000-*` | Strict-taxonomy categories (7 top + 80 sub, 2026-06-14) |
+| `14000000-*` | Strict-taxonomy attribute templates |
+| `15000000-*` | Brand library |
+| `31000000-*` / `41000000-*` / `42000000-*` | Demo products / images / specifications |
 
 ## OTP Storage (PostgreSQL)
 
@@ -572,13 +579,21 @@ The 8 static info pages live in the DB under English **canonical** slugs but are
 
 Mapping lives in `apps/buyer-web/src/lib/static-pages.ts` (`PAGE_DEFINITIONS`). All 8 pages are pre-rendered at build time via `generateStaticParams`. 301 redirects in `next.config.ts` cover legacy `/pages/<slug>` paths, English-canonical-slug typos, and a wildcard `/en/:path*` → `/:path*` for any old bilingual-era links. The content API (`GET /v1/content/:slug`) keys on the canonical slug only; URL-to-canonical resolution happens in the buyer-web route handler before any API call.
 
+### Marketplace taxonomy + brands (2026-06-14)
+The catalog uses a **strict 2-level taxonomy** — **7 top categories → 80 subcategories** — defined once in `apps/api/prisma/taxonomy-data.ts` and seeded as the **only active** tree (older taxonomies are deactivated + slug-nulled, FK-safe). The 7: Supermarché · Téléphones & Accessoires · Électroménager · Mode · Beauté & Santé · Construction & Bricolage · Automobile & Moto. Deterministic id ranges: categories `13000000-`, attributes `14000000-`, brands `15000000-`.
+
+- **Dynamic attributes** — `taxonomy-data.ts` ships ~160 per-subcategory `ProductAttribute` templates (incl. BOOLEAN). Admins manage them at `/dashboard/categories` (create/edit all 5 types, chip-based SELECT options, up/down reorder via `PATCH /v1/admin/categories/:id/attributes/reorder`).
+- **Brand library** — first-class, reusable, admin-managed at `/dashboard/brands` (CRUD + activate/deactivate + **merge** [reassign products + absorb links + soft-delete source] + subcategory links). API: public `GET /v1/brands?categoryId=`; admin `/v1/admin/brands`. Sellers pick a brand on product create/edit (web + mobile); buyers filter by brand facet (`brandIds` on browse, both Prisma + FTS paths) on web + mobile.
+- **Catalog reset tooling** — `CatalogResetService` + the `pnpm db:reset-catalog` CLI (dry-run by default, `-- --confirm` executes) wipe all products **without order history** (`order_items` is `ON DELETE RESTRICT`), cascade related rows, and purge Cloudinary after the DB commit. Admin single-product hard-delete: `DELETE /v1/admin/products/:id/hard`.
+- **Ids note** — seeded ids are non-RFC4122 (`13000000-…`), so brand/category endpoints use plain-string params validated by DB lookup, not `@IsUUID`. `ParseUUIDPipe` happens to accept them; the product/browse DTOs use a hex regex (not `@IsUUID`).
+
 ### Category URLs
-Categories are served at `/categorie/<slug>` (e.g. `/categorie/smartphones`, `/categorie/maison-et-interieur`). Slugs are derived from the French category name at seed time (`frSlugify()` in `apps/api/prisma/seed.ts`) and stored in `Category.slug` (unique, indexed). The browse endpoint `GET /v1/browse/categories/:identifier` accepts either a UUID or a slug, so admin-stored category references (e.g. banner `linkTarget`) keep working.
+Categories are served at `/categorie/<slug>` (e.g. `/categorie/smartphones`, `/categorie/electromenager`). Slugs are derived from the French category name at seed time (`slugify()`; collisions like the duplicate "Hygiène personnelle" are disambiguated by parent suffix) and stored in `Category.slug` (unique, indexed). The browse endpoint `GET /v1/browse/categories/:identifier` accepts either a UUID or a slug, so admin-stored category references (e.g. banner `linkTarget`) keep working.
 
 The legacy `/categories/<id>` route is kept as a tiny server-side **308 redirect** to `/categorie/<slug>` — this preserves any external citations (Google index, social shares) from the pre-slug period.
 
 ### Sample product catalog (always-seeded)
-Every fresh install gets a "**Teka RDC Officiel**" platform-owned seller plus **152 sample products** (38 active subcategories × 2 cities — Lubumbashi + Kolwezi — × 2 variants per slot). Both are upserted by the seed (idempotent) and exist in dev + prod. Purpose: SEO content (real product URLs to crawl) and first-time-user demo (the marketplace doesn't look empty on day 1). Seeded products use Cloudinary demo placeholder images; replace by uploading real assets to the `teka-rdc` Cloudinary cloud and updating `seedSampleProducts()`.
+Every fresh install gets a "**Teka RDC Officiel**" platform-owned seller plus **152 sample products** (38 strict subcategories × 2 cities — Lubumbashi + Kolwezi — × 2 variants per slot), each mapped onto the strict taxonomy with a **brand** (where relevant) and **specifications** keyed by the new attribute templates. Both are upserted by the seed (idempotent) and exist in dev + prod. Purpose: SEO content (real product URLs to crawl) and first-time-user demo (the marketplace doesn't look empty on day 1). Seeded products use Picsum placeholder images (`cloudinaryId` prefixed `picsum/`); replace by uploading real assets to the `teka-rdc` Cloudinary cloud and updating `seedSampleProducts()`.
 
 Sample products carry **`Product.isDemo = true`** (real merchant products default `false`). They are ranked **below** real products everywhere (`orderBy isDemo asc` — P3a), and the admin **catalog-coverage** page (`/dashboard/catalog-coverage`) shows per-category real-vs-demo ACTIVE counts (P3b).
 

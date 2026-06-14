@@ -7,8 +7,9 @@
 ## Active initiative
 
 **Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — started 2026-06-14. **Phases 1 (#368)
-+ 2a (#369) + 2b-1 (#370) + 2b-2 (#371) + 3a (#372) + 3b (#373) + 4a (#374) + 4b (#375) + 5a (#376) + 5b (#377) + 5c (#378) + 6a (#379) + 6b (#380) + 6c (#381) MERGED — Phase 6 complete. Phase 7 (SEO) DONE — PR
-open, awaiting review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo
++ 2a (#369) + 2b-1 (#370) + 2b-2 (#371) + 3a (#372) + 3b (#373) + 4a (#374) + 4b (#375) + 5a (#376) + 5b (#377) + 5c (#378) + 6a (#379) + 6b (#380) + 6c (#381) + 7 (#382) MERGED. Phase 8 (docs + prod verification) DONE — PR
+open, awaiting review. This is the FINAL phase — on merge the initiative is code-complete (prod rollout
+pending, runbook below).** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo
 catalog). **Goal:** strict **2-level** taxonomy (Catégorie → Sous-catégorie) with
 the new 7-category structure, a first-class **Brand** library, per-subcategory dynamic attributes (+ BOOLEAN
 type), and a clean **catalog reset** (delete all products + related + Cloudinary, no orphans) — across API,
@@ -134,6 +135,18 @@ metadata are API-driven (strict slugs seeded P2b-1) → strict taxonomy auto-emi
 publicly launched). 108 e2e pass. **Next:** P8 tests + docs + prod verification — apply prod migration
 `2026-06-14_taxonomy_brand_foundation.sql`, run reset+seed on prod, update architecture/product-spec/CLAUDE
 docs, final cross-surface verification.
+
+**Phase 8 shipped to branch (PR open):** `feat/taxonomy-docs-prod-verify-p8`. Docs: `docs/architecture.md`
+(new "Marketplace taxonomy + brands" section + data-model/UUID-range updates), `PROGRESS.md` (initiative
+chronology entry), `CLAUDE.md` §4 (concise taxonomy/brands note, still <40k). No code change.
+
+**▶ PRODUCTION ROLLOUT RUNBOOK (operator — irreversible, do at release):**
+1. **Apply the prod migration** — Actions → *Apply prod migration* → run with `2026-06-14_taxonomy_brand_foundation.sql` (adds BOOLEAN enum value, `brands`/`brand_categories` tables, `products.brandId` FK, FK-cascade hardening). Idempotent.
+2. **Reseed prod taxonomy + brands + demo** — run `pnpm --filter api prisma:seed:prod` (or the prod seed path). Seeds the strict 7-cat taxonomy + 160 attributes + 51 brands as the only active tree (deactivates older taxonomies) + the demo catalog. Idempotent.
+3. **(Optional) clear stale prod demo products** — `pnpm --filter api prisma:reset-catalog:prod` (dry-run first, then `-- --confirm`). Deletes products WITHOUT order history + purges their Cloudinary assets. **Irreversible.** Pre-launch prod has no real orders, so this clears the entire old demo catalog before/after reseed. Skip if the seed's reconciling upsert already produced the desired state.
+4. **Verify on prod:** 7 active top cats + 80 subs, 51 brands, browse brand filter works, seller form brand dropdown + buyer brand facet render, product JSON-LD shows brand.
+
+On merge of #383, set `## Active initiative` to **None** (the initiative is code-complete) and ask the user what to start next.
 
 ---
 

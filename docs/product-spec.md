@@ -10,6 +10,12 @@
 > - `PROGRESS.md` (chronological history) + `STATUS.md` (in-flight work)
 >
 > Read this for *original scope / intent*; read those for *what to do today*.
+>
+> **Catalog (2026-06-14):** the product catalog now uses a **strict 2-level taxonomy** (7 categories → 80
+> subcategories), a first-class **Brand library** (replacing the old "Marque" attribute), per-subcategory
+> **dynamic attributes** incl. BOOLEAN, and pre-launch **catalog-reset tooling**. The "category tree /
+> dynamic attributes / brand filtering" features described below are current — see
+> `docs/architecture.md` → "Marketplace taxonomy + brands" for the authoritative model.
 
 ---
 
