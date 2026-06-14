@@ -12,6 +12,7 @@ import {
   type SortOption,
   type ConditionFilter,
   type FacetAttribute,
+  type FacetBrand,
 } from '@/components/product/product-filters';
 import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
@@ -61,12 +62,17 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
     Record<string, string[]>
   >({});
 
+  // Brand facet for this category + the buyer's selected brand ids.
+  const [brands, setBrands] = useState<FacetBrand[]>([]);
+  const [selectedBrandIds, setSelectedBrandIds] = useState<string[]>([]);
+
   const filtersRef = useRef({
     condition,
     minPrice,
     maxPrice,
     sortBy,
     selectedAttributes,
+    selectedBrandIds,
   });
   filtersRef.current = {
     condition,
@@ -74,6 +80,7 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
     maxPrice,
     sortBy,
     selectedAttributes,
+    selectedBrandIds,
   };
 
   const selectedCity = useCityStore((s) => s.selectedCity);
@@ -104,6 +111,9 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
     if (Object.keys(activeAttrs).length > 0) {
       qs.set('attributes', JSON.stringify(activeAttrs));
     }
+    if (f.selectedBrandIds.length > 0) {
+      qs.set('brandIds', f.selectedBrandIds.join(','));
+    }
     if (cursor) qs.set('cursor', cursor);
     return qs.toString();
   }
@@ -126,6 +136,8 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
     setSortBy('newest');
     setAttributes([]);
     setSelectedAttributes({});
+    setBrands([]);
+    setSelectedBrandIds([]);
 
     apiFetch<BrowseCategory[]>('/v1/browse/categories')
       .then((res) => {
@@ -134,19 +146,26 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
       })
       .catch(() => {});
 
-    // Filterable facets for this category (SELECT/MULTISELECT with options).
+    // Filterable facets for this category: SELECT/MULTISELECT (with options)
+    // plus BOOLEAN (rendered as a single yes-checkbox, no options needed).
     apiFetch<FacetAttribute[]>(`/v1/browse/categories/${categoryId}/attributes`)
       .then((res) => {
         setAttributes(
           res.data.filter(
             (a) =>
-              (a.type === 'SELECT' || a.type === 'MULTISELECT') &&
-              Array.isArray(a.options) &&
-              a.options.length > 0,
+              ((a.type === 'SELECT' || a.type === 'MULTISELECT') &&
+                Array.isArray(a.options) &&
+                a.options.length > 0) ||
+              a.type === 'BOOLEAN',
           ),
         );
       })
       .catch(() => setAttributes([]));
+
+    // Brand facet options for this category (active brands only).
+    apiFetch<FacetBrand[]>(`/v1/brands?categoryId=${categoryId}`)
+      .then((res) => setBrands(res.data))
+      .catch(() => setBrands([]));
 
     const qs = new URLSearchParams();
     qs.set('categoryId', categoryId);
@@ -193,12 +212,21 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
     });
   }
 
+  function handleBrandToggle(brandId: string) {
+    setSelectedBrandIds((prev) =>
+      prev.includes(brandId)
+        ? prev.filter((id) => id !== brandId)
+        : [...prev, brandId],
+    );
+  }
+
   function handleClearFilters() {
     setCondition('');
     setMinPrice('');
     setMaxPrice('');
     setSortBy('newest');
     setSelectedAttributes({});
+    setSelectedBrandIds([]);
     setShowMobileFilters(false);
 
     setIsLoading(true);
@@ -209,6 +237,7 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
       maxPrice: '',
       sortBy: 'newest',
       selectedAttributes: {},
+      selectedBrandIds: [],
     })
       .then((res) => {
         setProducts(res.data);
@@ -295,6 +324,9 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
                   attributes={attributes}
                   selectedAttributes={selectedAttributes}
                   onAttributeToggle={handleAttributeToggle}
+                  brands={brands}
+                  selectedBrandIds={selectedBrandIds}
+                  onBrandToggle={handleBrandToggle}
                   onApply={handleApplyFilters}
                   onClear={handleClearFilters}
                 />
@@ -340,6 +372,9 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
                       attributes={attributes}
                       selectedAttributes={selectedAttributes}
                       onAttributeToggle={handleAttributeToggle}
+                      brands={brands}
+                      selectedBrandIds={selectedBrandIds}
+                      onBrandToggle={handleBrandToggle}
                       onApply={handleApplyFilters}
                       onClear={handleClearFilters}
                     />

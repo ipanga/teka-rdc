@@ -113,7 +113,8 @@
     "loading": "Chargement...",
     "addedToCart": "Produit ajouté au panier",
     "unitsSold": "{count, plural, one {# vendu} other {# vendus}}",
-    "relatedTitle": "Produits similaires"
+    "relatedTitle": "Produits similaires",
+    "brand": "Marque"
   },
   "Search": {
     "title": "Recherche",
