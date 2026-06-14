@@ -6,9 +6,10 @@
 
 ## Active initiative
 
-**Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — started 2026-06-14. **Phase 1 (schema
-foundation) DONE — PR open, awaiting review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON
-options; D3 re-seed demo catalog). **Goal:** strict **2-level** taxonomy (Catégorie → Sous-catégorie) with
+**Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — started 2026-06-14. **Phase 1 MERGED
+(#368). Phase 2a (reset tooling) DONE — PR open, awaiting review.** D1–D3 locked (D1 first-class
+`Product.brandId`; D2 keep JSON options; D3 re-seed demo catalog). **Goal:** strict **2-level** taxonomy
+(Catégorie → Sous-catégorie) with
 the new 7-category structure, a first-class **Brand** library, per-subcategory dynamic attributes (+ BOOLEAN
 type), and a clean **catalog reset** (delete all products + related + Cloudinary, no orphans) — across API,
 DB, admin-web, seller-web/mobile, buyer-web/mobile, search, filters, SEO.
@@ -28,13 +29,19 @@ orphan FKs, migration) · 2 catalog+taxonomy reset (admin hard-delete, reset rou
 + attrs + brands) · 3 brand system (API + admin UI) · 4 attribute admin enhancements · 5 seller create/edit
 (web+mobile) · 6 buyer search & filters (web+mobile) · 7 SEO · 8 tests + docs + prod verify.
 
-**Phase 1 shipped to branch (PR open):** `feat/taxonomy-schema-foundation-p1`. Schema + idempotent manual
-migration `2026-06-14_taxonomy_brand_foundation.sql` (BOOLEAN enum value; `brands` + `brand_categories`
-tables; `products.brandId` FK `ON DELETE SET NULL`; `cart_items`/`reviews`/`wishlists`.productId
-RESTRICT→CASCADE; `order_items` left RESTRICT). Applied to dev via `db execute` (not `db push` — preserves
-generated `search_vector`). 81 unit + 108 e2e pass; no behaviour change. **Next:** on review/merge approval,
-Phase 2 (catalog + taxonomy reset — admin hard-delete, reset routine, reseed new 7-category taxonomy + attrs
-+ brand library, re-seed demo catalog per D3).
+**Phase 1 MERGED (#368):** schema + idempotent manual migration `2026-06-14_taxonomy_brand_foundation.sql`
+(BOOLEAN enum value; `brands` + `brand_categories` tables; `products.brandId` FK `ON DELETE SET NULL`;
+`cart_items`/`reviews`/`wishlists`.productId RESTRICT→CASCADE; `order_items` left RESTRICT). Applied to dev
+via `db execute` (not `db push` — preserves generated `search_vector`). **Apply to prod at release** via the
+*Apply prod migration* Action (filename above).
+
+**Phase 2a shipped to branch (PR open):** `feat/catalog-reset-tooling-p2a`. Reset tooling, no behaviour
+change to existing flows: admin `DELETE /v1/admin/products/:id/hard` (Cloudinary purge + cascade; refuses
+products with order history); `CatalogResetService` + `prisma/reset-catalog.ts` CLI (`pnpm db:reset-catalog`
+dry-run / `-- --confirm` executes — deletes products w/o order history, cascades related rows, purges
+Cloudinary after db commit). Dry-run validated on dev (212→201 deletable, 11 kept). Did NOT run `--confirm`
+on dev. 90 unit + 108 e2e pass. **Next:** P2b — rewrite `seed.ts` for the new 7-category taxonomy +
+per-subcategory attributes (+ BOOLEAN) + brand library + demo catalog (D3), then run reset+reseed on dev.
 
 ---
 

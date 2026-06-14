@@ -1,17 +1,22 @@
 import {
   Injectable,
+  Logger,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { ProductStatus } from '@prisma/client';
 import { SellerNotificationService } from '../notifications/seller-notification.service';
 import { PostHogService } from '../analytics/posthog.service';
 
 @Injectable()
 export class AdminProductsService {
+  private readonly logger = new Logger(AdminProductsService.name);
+
   constructor(
     private prisma: PrismaService,
+    private cloudinary: CloudinaryService,
     private sellerNotifications: SellerNotificationService,
     private analytics: PostHogService,
   ) {}
@@ -223,5 +228,50 @@ export class AdminProductsService {
     });
 
     return updated;
+  }
+
+  /**
+   * Permanently deletes a single product (any seller) and purges its Cloudinary
+   * assets. Mirrors the seller-side hard-delete but is unscoped — for admin
+   * catalog cleanup. Product-related rows are removed by the DB cascades
+   * (images / specifications / reviews / wishlists / cart_items); promotions are
+   * detached (SET NULL). Refuses products with order history — `order_items` is
+   * `ON DELETE RESTRICT` to preserve order records; archive those instead.
+   */
+  async hardDeleteProduct(productId: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId },
+      select: {
+        id: true,
+        images: { select: { cloudinaryId: true } },
+        _count: { select: { orderItems: true } },
+      },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Produit non trouvé');
+    }
+
+    if (product._count.orderItems > 0) {
+      throw new BadRequestException(
+        'Ce produit a un historique de commandes et ne peut pas être ' +
+          'supprimé définitivement. Archivez-le à la place.',
+      );
+    }
+
+    const cloudinaryIds = product.images.map((img) => img.cloudinaryId);
+
+    await this.prisma.product.delete({ where: { id: productId } });
+
+    if (cloudinaryIds.length > 0) {
+      await this.cloudinary.deleteImages(cloudinaryIds);
+    }
+
+    this.logger.warn(
+      `Product ${productId} hard-deleted by admin ` +
+        `(${cloudinaryIds.length} Cloudinary assets purged)`,
+    );
+
+    return { deleted: true, purgedAssets: cloudinaryIds.length };
   }
 }

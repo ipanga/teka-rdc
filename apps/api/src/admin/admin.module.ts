@@ -4,6 +4,7 @@ import { AdminUsersController } from './admin-users.controller';
 import { AdminSellersController } from './admin-sellers.controller';
 import { AdminProductsService } from './admin-products.service';
 import { AdminProductsController } from './admin-products.controller';
+import { CatalogResetService } from './catalog-reset.service';
 import { AdminDeliveryZonesController } from './admin-delivery-zones.controller';
 import { AdminOrdersService } from './admin-orders.service';
 import { AdminOrdersController } from './admin-orders.controller';
@@ -41,9 +42,11 @@ import { CloudinaryModule } from '../cloudinary/cloudinary.module';
   providers: [
     AdminUsersService,
     AdminProductsService,
+    CatalogResetService,
     AdminOrdersService,
     AdminStatsService,
     AdminReviewsService,
   ],
+  exports: [CatalogResetService],
 })
 export class AdminModule {}
