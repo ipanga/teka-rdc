@@ -8,28 +8,36 @@ class FilterOptions {
   final String? condition;
   final String? sortBy;
 
-  /// attributeId -> selected option values (SELECT / MULTISELECT facets).
+  /// attributeId -> selected option values (SELECT / MULTISELECT / BOOLEAN
+  /// facets; a BOOLEAN facet uses the single value 'true').
   final Map<String, List<String>> attributes;
+
+  /// Selected brand ids for the brand facet.
+  final List<String> brandIds;
 
   const FilterOptions({
     this.condition,
     this.sortBy,
     this.attributes = const {},
+    this.brandIds = const [],
   });
 
   FilterOptions copyWith({
     String? condition,
     String? sortBy,
     Map<String, List<String>>? attributes,
+    List<String>? brandIds,
     bool clearCondition = false,
     bool clearSortBy = false,
     bool clearAttributes = false,
+    bool clearBrandIds = false,
   }) {
     return FilterOptions(
       condition: clearCondition ? null : (condition ?? this.condition),
       sortBy: clearSortBy ? null : (sortBy ?? this.sortBy),
       attributes:
           clearAttributes ? const {} : (attributes ?? this.attributes),
+      brandIds: clearBrandIds ? const [] : (brandIds ?? this.brandIds),
     );
   }
 }
@@ -70,9 +78,11 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
   String? _condition;
   String? _sortBy;
   late Map<String, List<String>> _selectedAttributes;
+  late List<String> _selectedBrandIds;
 
   List<FacetAttribute> _attributes = const [];
   bool _loadingAttributes = true;
+  List<BrandOption> _brands = const [];
 
   @override
   void initState() {
@@ -84,7 +94,32 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
       for (final e in widget.initialFilters.attributes.entries)
         e.key: List<String>.from(e.value),
     };
+    _selectedBrandIds = List<String>.from(widget.initialFilters.brandIds);
     _loadAttributes();
+    _loadBrands();
+  }
+
+  Future<void> _loadBrands() async {
+    try {
+      final brands = await ref
+          .read(catalogRepositoryProvider)
+          .getBrands(widget.categoryId);
+      if (!mounted) return;
+      setState(() => _brands = brands);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _brands = const []);
+    }
+  }
+
+  void _toggleBrand(String brandId) {
+    setState(() {
+      if (_selectedBrandIds.contains(brandId)) {
+        _selectedBrandIds = _selectedBrandIds.where((b) => b != brandId).toList();
+      } else {
+        _selectedBrandIds = [..._selectedBrandIds, brandId];
+      }
+    });
   }
 
   Future<void> _loadAttributes() async {
@@ -198,6 +233,9 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                     _buildSortOption('price_desc', l10n.filterSortPriceHigh),
                     _buildSortOption('popular', l10n.filterSortPopular),
 
+                    // Brand facet
+                    ..._buildBrandFacet(l10n),
+
                     // Attribute facets
                     ..._buildAttributeFacets(),
 
@@ -217,6 +255,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                         _condition = null;
                         _sortBy = null;
                         _selectedAttributes = {};
+                        _selectedBrandIds = [];
                       });
                     },
                     style: OutlinedButton.styleFrom(
@@ -233,6 +272,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                         condition: _condition,
                         sortBy: _sortBy,
                         attributes: _selectedAttributes,
+                        brandIds: _selectedBrandIds,
                       ));
                     },
                     style: FilledButton.styleFrom(
@@ -248,6 +288,48 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
         ),
       ),
     );
+  }
+
+  List<Widget> _buildBrandFacet(AppLocalizations l10n) {
+    if (_brands.isEmpty) return const [];
+    return [
+      Padding(
+        padding: const EdgeInsets.only(top: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.brand,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: _brands.map((b) {
+                final isSelected = _selectedBrandIds.contains(b.id);
+                return FilterChip(
+                  label: Text(b.name),
+                  selected: isSelected,
+                  onSelected: (_) => _toggleBrand(b.id),
+                  selectedColor: TekaColors.tekaRed,
+                  checkmarkColor: Colors.white,
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : TekaColors.foreground,
+                    fontSize: 13,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    ];
   }
 
   List<Widget> _buildAttributeFacets() {
@@ -267,6 +349,32 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
 
     return _attributes.map((attr) {
       final selected = _selectedAttributes[attr.id] ?? const [];
+
+      // BOOLEAN: a single on/off chip filtering to value 'true'.
+      if (attr.type == 'BOOLEAN') {
+        final isOn = selected.contains('true');
+        return Padding(
+          padding: const EdgeInsets.only(top: 20),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: FilterChip(
+              label: Text(attr.name),
+              selected: isOn,
+              onSelected: (_) => _toggleAttribute(attr.id, 'true'),
+              selectedColor: TekaColors.tekaRed,
+              checkmarkColor: Colors.white,
+              labelStyle: TextStyle(
+                color: isOn ? Colors.white : TekaColors.foreground,
+                fontSize: 13,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+        );
+      }
+
       return Padding(
         padding: const EdgeInsets.only(top: 20),
         child: Column(

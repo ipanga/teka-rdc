@@ -206,6 +206,9 @@ class AppLocalizationsFr extends AppLocalizations {
   String get filterReset => 'Reinitialiser';
 
   @override
+  String get brand => 'Marque';
+
+  @override
   String get filterPrice => 'Etat';
 
   @override
