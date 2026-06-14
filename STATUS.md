@@ -6,8 +6,9 @@
 
 ## Active initiative
 
-**Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — started 2026-06-14. **PLANNING —
-awaiting decisions before Phase 1.** **Goal:** strict **2-level** taxonomy (Catégorie → Sous-catégorie) with
+**Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — started 2026-06-14. **Phase 1 (schema
+foundation) DONE — PR open, awaiting review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON
+options; D3 re-seed demo catalog). **Goal:** strict **2-level** taxonomy (Catégorie → Sous-catégorie) with
 the new 7-category structure, a first-class **Brand** library, per-subcategory dynamic attributes (+ BOOLEAN
 type), and a clean **catalog reset** (delete all products + related + Cloudinary, no orphans) — across API,
 DB, admin-web, seller-web/mobile, buyer-web/mobile, search, filters, SEO.
@@ -27,9 +28,13 @@ orphan FKs, migration) · 2 catalog+taxonomy reset (admin hard-delete, reset rou
 + attrs + brands) · 3 brand system (API + admin UI) · 4 attribute admin enhancements · 5 seller create/edit
 (web+mobile) · 6 buyer search & filters (web+mobile) · 7 SEO · 8 tests + docs + prod verify.
 
-**DECISIONS PENDING (block Phase 1):** D1 brand shape (first-class `Product.brandId` vs attribute-backed) ·
-D2 attribute-options storage (JSON vs normalized AttributeOption table) · D3 post-reset (re-seed demo
-catalog under new taxonomy vs start empty). **Next:** lock D1–D3, then Phase 1.
+**Phase 1 shipped to branch (PR open):** `feat/taxonomy-schema-foundation-p1`. Schema + idempotent manual
+migration `2026-06-14_taxonomy_brand_foundation.sql` (BOOLEAN enum value; `brands` + `brand_categories`
+tables; `products.brandId` FK `ON DELETE SET NULL`; `cart_items`/`reviews`/`wishlists`.productId
+RESTRICT→CASCADE; `order_items` left RESTRICT). Applied to dev via `db execute` (not `db push` — preserves
+generated `search_vector`). 81 unit + 108 e2e pass; no behaviour change. **Next:** on review/merge approval,
+Phase 2 (catalog + taxonomy reset — admin hard-delete, reset routine, reseed new 7-category taxonomy + attrs
++ brand library, re-seed demo catalog per D3).
 
 ---
 
