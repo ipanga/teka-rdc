@@ -13,9 +13,11 @@ import { AdminStatsController } from './admin-stats.controller';
 import { AdminReviewsService } from './admin-reviews.service';
 import { AdminReviewsController } from './admin-reviews.controller';
 import { AdminCitiesController } from './admin-cities.controller';
+import { AdminBrandsController } from './admin-brands.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { DeliveryZonesModule } from '../delivery-zones/delivery-zones.module';
 import { CitiesModule } from '../cities/cities.module';
+import { BrandsModule } from '../brands/brands.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { EmailModule } from '../email/email.module';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
@@ -28,6 +30,7 @@ import { CloudinaryModule } from '../cloudinary/cloudinary.module';
     NotificationsModule,
     EmailModule,
     CloudinaryModule,
+    BrandsModule,
   ],
   controllers: [
     AdminUsersController,
@@ -38,6 +41,7 @@ import { CloudinaryModule } from '../cloudinary/cloudinary.module';
     AdminStatsController,
     AdminReviewsController,
     AdminCitiesController,
+    AdminBrandsController,
   ],
   providers: [
     AdminUsersService,
