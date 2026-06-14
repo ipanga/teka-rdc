@@ -7,7 +7,7 @@ import { apiFetch } from '@/lib/api-client';
 export interface CategoryAttribute {
   id: string;
   name: string;
-  type: 'TEXT' | 'SELECT' | 'MULTISELECT' | 'NUMERIC';
+  type: 'TEXT' | 'SELECT' | 'MULTISELECT' | 'NUMERIC' | 'BOOLEAN';
   options?: string[] | null;
   isRequired: boolean;
   sortOrder: number;
@@ -20,7 +20,13 @@ interface AttributeManagerProps {
   onRefresh: () => void;
 }
 
-const ATTRIBUTE_TYPES = ['TEXT', 'SELECT', 'MULTISELECT', 'NUMERIC'] as const;
+const ATTRIBUTE_TYPES = [
+  'TEXT',
+  'SELECT',
+  'MULTISELECT',
+  'NUMERIC',
+  'BOOLEAN',
+] as const;
 
 export function AttributeManager({
   categoryId,
@@ -34,18 +40,23 @@ export function AttributeManager({
   const [showForm, setShowForm] = useState(false);
   const [editingAttr, setEditingAttr] = useState<CategoryAttribute | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isReordering, setIsReordering] = useState(false);
 
   // Form state
   const [name, setName] = useState('');
   const [type, setType] = useState<CategoryAttribute['type']>('TEXT');
-  const [options, setOptions] = useState('');
+  const [optionList, setOptionList] = useState<string[]>([]);
+  const [optionDraft, setOptionDraft] = useState('');
   const [isRequired, setIsRequired] = useState(false);
   const [sortOrder, setSortOrder] = useState(0);
+
+  const needsOptions = type === 'SELECT' || type === 'MULTISELECT';
 
   const resetForm = () => {
     setName('');
     setType('TEXT');
-    setOptions('');
+    setOptionList([]);
+    setOptionDraft('');
     setIsRequired(false);
     setSortOrder(0);
     setEditingAttr(null);
@@ -56,10 +67,25 @@ export function AttributeManager({
     setEditingAttr(attr);
     setName(attr.name || '');
     setType(attr.type);
-    setOptions(attr.options?.join(', ') || '');
+    setOptionList(attr.options ?? []);
+    setOptionDraft('');
     setIsRequired(attr.isRequired);
     setSortOrder(attr.sortOrder);
     setShowForm(true);
+  };
+
+  const addOption = () => {
+    const v = optionDraft.trim();
+    if (!v || optionList.includes(v)) {
+      setOptionDraft('');
+      return;
+    }
+    setOptionList((prev) => [...prev, v]);
+    setOptionDraft('');
+  };
+
+  const removeOption = (opt: string) => {
+    setOptionList((prev) => prev.filter((o) => o !== opt));
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -75,11 +101,8 @@ export function AttributeManager({
         sortOrder,
       };
 
-      if (type === 'SELECT' || type === 'MULTISELECT') {
-        body.options = options
-          .split(',')
-          .map((o) => o.trim())
-          .filter(Boolean);
+      if (needsOptions) {
+        body.options = optionList;
       }
 
       if (editingAttr) {
@@ -113,6 +136,26 @@ export function AttributeManager({
       onRefresh();
     } catch {
       // Error handled by apiFetch
+    }
+  };
+
+  // Move an attribute up/down and persist the new order via the reorder endpoint.
+  const move = async (index: number, direction: -1 | 1) => {
+    const target = index + direction;
+    if (target < 0 || target >= attributes.length || isReordering) return;
+    const ids = attributes.map((a) => a.id);
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    setIsReordering(true);
+    try {
+      await apiFetch(`/v1/admin/categories/${categoryId}/attributes/reorder`, {
+        method: 'PATCH',
+        body: JSON.stringify({ orderedIds: ids }),
+      });
+      onRefresh();
+    } catch {
+      // Error handled by apiFetch
+    } finally {
+      setIsReordering(false);
     }
   };
 
@@ -186,19 +229,60 @@ export function AttributeManager({
             </div>
           </div>
 
-          {(type === 'SELECT' || type === 'MULTISELECT') && (
+          {needsOptions && (
             <div>
               <label className="block text-xs font-medium text-foreground mb-1">
-                {t('attributeOptions')}
+                {t('attributeOptionsLabel')}
               </label>
-              <input
-                type="text"
-                value={options}
-                onChange={(e) => setOptions(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-sm border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder="Ex: S, M, L, XL"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={optionDraft}
+                  onChange={(e) => setOptionDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addOption();
+                    }
+                  }}
+                  className="flex-1 px-2.5 py-1.5 text-sm border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  placeholder={t('optionPlaceholder')}
+                />
+                <button
+                  type="button"
+                  onClick={addOption}
+                  className="px-3 py-1.5 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
+                >
+                  {t('addOption')}
+                </button>
+              </div>
+              {optionList.length === 0 ? (
+                <p className="mt-2 text-xs text-muted-foreground">{t('noOptionsYet')}</p>
+              ) : (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {optionList.map((opt) => (
+                    <span
+                      key={opt}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-secondary text-secondary-foreground"
+                    >
+                      {opt}
+                      <button
+                        type="button"
+                        onClick={() => removeOption(opt)}
+                        className="text-muted-foreground hover:text-destructive"
+                        aria-label={`${t('attributeOptionsLabel')}: ${opt}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
+          )}
+
+          {type === 'BOOLEAN' && (
+            <p className="text-xs text-muted-foreground">{t('booleanHint')}</p>
           )}
 
           <div className="flex items-center gap-2">
@@ -252,7 +336,7 @@ export function AttributeManager({
                   {t('attributeRequired')}
                 </th>
                 <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">
-                  {t('attributeOptions')}
+                  {t('attributeOptionsLabel')}
                 </th>
                 <th className="text-right px-3 py-2 text-xs font-medium text-muted-foreground">
                   {tCommon('actions')}
@@ -260,7 +344,7 @@ export function AttributeManager({
               </tr>
             </thead>
             <tbody>
-              {attributes.map((attr) => (
+              {attributes.map((attr, index) => (
                 <tr
                   key={attr.id}
                   className="border-b border-border last:border-0 hover:bg-muted/50"
@@ -283,6 +367,26 @@ export function AttributeManager({
                   </td>
                   <td className="px-3 py-2 text-right">
                     <div className="flex justify-end gap-1">
+                      <button
+                        onClick={() => move(index, -1)}
+                        disabled={index === 0 || isReordering}
+                        className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        title={t('moveUp')}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => move(index, 1)}
+                        disabled={index === attributes.length - 1 || isReordering}
+                        className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        title={t('moveDown')}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
                       <button
                         onClick={() => startEdit(attr)}
                         className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"

@@ -271,7 +271,14 @@
     "expand": "Développer",
     "collapse": "Réduire",
     "selectCategory": "Sélectionnez une catégorie pour voir ses attributs",
-    "description": "Description"
+    "description": "Description",
+    "attributeOptionsLabel": "Options",
+    "addOption": "Ajouter",
+    "optionPlaceholder": "Saisir une option puis Entrée",
+    "noOptionsYet": "Aucune option ajoutée",
+    "moveUp": "Monter",
+    "moveDown": "Descendre",
+    "booleanHint": "Type oui/non — aucune option requise"
   },
   "Moderation": {
     "title": "Produits",
