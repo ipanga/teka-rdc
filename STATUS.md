@@ -7,8 +7,8 @@
 ## Active initiative
 
 **Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — started 2026-06-14. **Phases 1 (#368)
-+ 2a (#369) + 2b-1 (#370) + 2b-2 (#371) + 3a (#372) + 3b (#373) + 4a (#374) + 4b (#375) + 5a (#376) + 5b (#377) + 5c (#378) MERGED — Phase 5 complete. Phase 6a (browse brand
-filter API) DONE — PR open, awaiting review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo
++ 2a (#369) + 2b-1 (#370) + 2b-2 (#371) + 3a (#372) + 3b (#373) + 4a (#374) + 4b (#375) + 5a (#376) + 5b (#377) + 5c (#378) + 6a (#379) MERGED. Phase 6b (buyer-web brand facet + BOOLEAN
+facet) DONE — PR open, awaiting review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo
 catalog). **Goal:** strict **2-level** taxonomy (Catégorie → Sous-catégorie) with
 the new 7-category structure, a first-class **Brand** library, per-subcategory dynamic attributes (+ BOOLEAN
 type), and a clean **catalog reset** (delete all products + related + Cloudinary, no orphans) — across API,
@@ -105,6 +105,17 @@ path + `p."brandId" IN (...)` on the FTS path. Facet OPTIONS reuse the existing 
 3 new unit tests; 107 unit + 108 e2e pass. (Live smoke blocked by a transient alwaysdata DB outage — logic
 unit-verified.) **Next:** P6b buyer-web brand facet + BOOLEAN attr facet + new-taxonomy nav · P6c
 buyer-mobile mirror · P7 SEO · P8 tests/docs/prod verify.
+
+**Phase 6a also live-verified** after the DB came back: brandIds filter correct on both Prisma + FTS paths
+(Smartphones: Tecno→2, Tecno+Infinix→4, junk dropped, search+brand→2).
+
+**Phase 6b shipped to branch (PR open):** `feat/buyer-web-brand-facet-p6b`. `ProductFilters` gained a brand
+checkbox facet (`FacetBrand`) + BOOLEAN attr rendered as a single yes-checkbox (filters value==='true' via
+the existing attributes param — `resolveAttributeFilterIds` has no type restriction). `category-page` fetches
+`/v1/brands?categoryId=`, includes BOOLEAN in the attr facet fetch, adds `brandIds` to the browse query +
+handlers/clear, passes props to both filter panels. New-taxonomy nav is automatic (no hardcoded category
+names; all from `/v1/browse/categories`). buyer-web build clean. **Next:** P6c buyer-mobile mirror · P7 SEO ·
+P8 tests/docs/prod verify (+ apply prod migration, run reset+seed on prod at release).
 
 ---
 
