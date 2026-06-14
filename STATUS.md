@@ -7,8 +7,8 @@
 ## Active initiative
 
 **Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — started 2026-06-14. **Phases 1 (#368)
-+ 2a (#369) + 2b-1 (#370) + 2b-2 (#371) + 3a (#372) + 3b (#373) + 4a (#374) MERGED. Phase 4b (admin-web attribute
-manager: BOOLEAN + option editor + reorder) DONE — PR open, awaiting review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo
++ 2a (#369) + 2b-1 (#370) + 2b-2 (#371) + 3a (#372) + 3b (#373) + 4a (#374) + 4b (#375) MERGED — Phase 4 complete. Phase 5a (product.brandId
+API) DONE — PR open, awaiting review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo
 catalog). **Goal:** strict **2-level** taxonomy (Catégorie → Sous-catégorie) with
 the new 7-category structure, a first-class **Brand** library, per-subcategory dynamic attributes (+ BOOLEAN
 type), and a clean **catalog reset** (delete all products + related + Cloudinary, no orphans) — across API,
@@ -76,6 +76,13 @@ dedup) replacing the comma string; up/down reorder buttons wired to `PATCH …/a
 `Categories` FR strings. Build compiles clean. **This completes Phase 4.** **Next:** P5 seller product
 create/edit (web+mobile) — brand dropdown + dynamic attrs incl BOOLEAN · P6 buyer search/filters + brand
 facet (web+mobile) · P7 SEO · P8 tests/docs/prod verify.
+
+**Phase 5a shipped to branch (PR open):** `feat/product-brand-api-p5a`. `CreateProductDto.brandId?`
+(hex-regex like categoryId so seeded brand ids pass; `null` clears on update). `products.service` create/
+update validate the brand exists (`assertBrandExists` → 400) + set `brandId`; seller `findById` now includes
+`brand {id,name}` for the edit form. 3 new unit tests; 104 unit + 108 e2e pass. **Next:** P5b seller-web
+(brand dropdown + BOOLEAN dynamic field) · P5c seller-mobile (mirror) · P6 buyer search/filters + brand
+facet · P7 SEO · P8 tests/docs/prod verify.
 
 ---
 
