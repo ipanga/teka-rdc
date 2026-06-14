@@ -6,149 +6,30 @@
 
 ## Active initiative
 
-**Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — started 2026-06-14. **Phases 1 (#368)
-+ 2a (#369) + 2b-1 (#370) + 2b-2 (#371) + 3a (#372) + 3b (#373) + 4a (#374) + 4b (#375) + 5a (#376) + 5b (#377) + 5c (#378) + 6a (#379) + 6b (#380) + 6c (#381) + 7 (#382) MERGED. Phase 8 (docs + prod verification) DONE — PR
-open, awaiting review. This is the FINAL phase — on merge the initiative is code-complete (prod rollout
-pending, runbook below).** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo
-catalog). **Goal:** strict **2-level** taxonomy (Catégorie → Sous-catégorie) with
-the new 7-category structure, a first-class **Brand** library, per-subcategory dynamic attributes (+ BOOLEAN
-type), and a clean **catalog reset** (delete all products + related + Cloudinary, no orphans) — across API,
-DB, admin-web, seller-web/mobile, buyer-web/mobile, search, filters, SEO.
-
-**Detailed checklist:** `tasks/marketplace-taxonomy-progress.md` (gitignored working tracker). **Resume
-protocol:** read this block → that tracker → `git log`/PR list → continue from the first unchecked box.
-
-**Gap analysis (investigation 2026-06-14):** `Category` supports 3 levels but only 2 are used + admin CRUD
-already exists (tighten to 2 + reseed). `ProductAttribute`/`ProductSpecification` + admin CRUD exist; **no
-BOOLEAN type**. **No Brand model** (brands are "Marque" SELECT options; no brand filter). Seller hard-delete
-+ Cloudinary purge exist, but **Review/Wishlist/CartItem/Promotion→productId have no onDelete** (orphan
-risk) and **no admin hard-delete**. `search_vector` auto-clears (generated col). No ProductVariant. OrderItem
-snapshots safe.
-
-**Phases (each = small PR(s), API→admin→seller→buyer):** 1 schema foundation (BOOLEAN, Brand model, fix
-orphan FKs, migration) · 2 catalog+taxonomy reset (admin hard-delete, reset routine, reseed new taxonomy
-+ attrs + brands) · 3 brand system (API + admin UI) · 4 attribute admin enhancements · 5 seller create/edit
-(web+mobile) · 6 buyer search & filters (web+mobile) · 7 SEO · 8 tests + docs + prod verify.
-
-**Phase 1 MERGED (#368):** schema + idempotent manual migration `2026-06-14_taxonomy_brand_foundation.sql`
-(BOOLEAN enum value; `brands` + `brand_categories` tables; `products.brandId` FK `ON DELETE SET NULL`;
-`cart_items`/`reviews`/`wishlists`.productId RESTRICT→CASCADE; `order_items` left RESTRICT). Applied to dev
-via `db execute` (not `db push` — preserves generated `search_vector`). **Apply to prod at release** via the
-*Apply prod migration* Action (filename above).
-
-**Phase 2a MERGED (#369):** reset tooling — admin `DELETE /v1/admin/products/:id/hard` (Cloudinary purge +
-cascade; refuses products with order history); `CatalogResetService` + `prisma/reset-catalog.ts` CLI
-(`pnpm db:reset-catalog` dry-run / `-- --confirm`).
-
-**Phase 2b-1 MERGED (#370):** `prisma/taxonomy-data.ts` (7 cats + 80 subcats + 160 attribute templates incl
-BOOLEAN + 51-brand library + links; ranges cats `13000000-` / attrs `14000000-` / brands `15000000-`).
-seed.ts seeds the strict tree as the only active taxonomy.
-
-**Phase 2b-2 MERGED (#371):** rewrote `seedSampleProducts` → 152 demo products across 38 strict subcats × 2
-cities, 72 brand-assigned, 298 specifications; full-reconcile upsert; legacy 8-cat block made slug-free +
-inactive. **Phase 2 complete** (reset tooling + strict taxonomy/attributes/brands + demo catalog).
-
-**Phase 3a shipped to branch (PR open):** `feat/brand-api-p3a`. New `BrandsModule` — public
-`GET /v1/brands?categoryId=` (active, optional subcat filter) + `AdminBrandsController` (`/v1/admin/brands`,
-ADMIN): list/get/create/update/activate/deactivate/set-categories/**merge**/soft-delete. Merge reassigns
-products + absorbs category links + soft-deletes source (transactional). No ParseUUIDPipe/@IsUUID — seeded
-ids (`15000000-`/`13000000-`) fail isUUID(), so existence is DB-validated. 8 new unit tests; 98 unit + 108
-e2e pass; build + type-check clean; live smoke (51 brands, Smartphones→12, Outils électriques→3). **Next:**
-P3b admin-web brand UI · P4 attribute admin (BOOLEAN/options/reorder) · P5 seller create/edit (web+mobile) ·
-P6 buyer search/filters + brand facet (web+mobile) · P7 SEO · P8 tests/docs/prod verify (+ apply prod
-migration, run reset+seed on prod at release).
-
-**Phase 3b shipped to branch (PR open):** `feat/brand-admin-ui-p3b`. admin-web `dashboard/brands/page.tsx`
-— list (logo/initials, productCount, categoryCount, active badge) + search + create/edit modal (subcategory
-checkbox picker grouped by active top cat) + activate/deactivate + **merge** (target dropdown + irreversible
-warning) + delete confirm; all via P3a endpoints, no hardcoded brand lists. Sidebar "Marques" item + 34-key
-`Brands` FR namespace. admin-web build compiles clean (route 3.44 kB). **Next:** P4 attribute admin.
-
-**Phase 4a shipped to branch (PR open):** `feat/attribute-api-p4a`. `CreateAttributeDto` now accepts `BOOLEAN`
-(was silently rejected despite enum/seed support). New reorder endpoint `PATCH /v1/admin/categories/:id/
-attributes/reorder` (declared before `:attrId`) + `reorderAttributes()` (validates orderedIds == category's
-attrs, batch sortOrder=index, transactional). Verified `ParseUUIDPipe` ACCEPTS seeded non-RFC4122 ids, so
-existing category/attr endpoints already work on the strict taxonomy. 3 new unit tests; 101 unit + 108 e2e
-pass. **Next:** P4b admin-web attribute manager (BOOLEAN option, option add/remove editor, reorder up/down).
-
-**Phase 4b shipped to branch (PR open):** `feat/attribute-admin-ui-p4b`. admin-web `attribute-manager.tsx` —
-BOOLEAN in the type dropdown (+ oui/non hint); chip-based option editor (input+Enter/Add, removable chips,
-dedup) replacing the comma string; up/down reorder buttons wired to `PATCH …/attributes/reorder`. 7 new
-`Categories` FR strings. Build compiles clean. **This completes Phase 4.** **Next:** P5 seller product
-create/edit (web+mobile) — brand dropdown + dynamic attrs incl BOOLEAN · P6 buyer search/filters + brand
-facet (web+mobile) · P7 SEO · P8 tests/docs/prod verify.
-
-**Phase 5a shipped to branch (PR open):** `feat/product-brand-api-p5a`. `CreateProductDto.brandId?`
-(hex-regex like categoryId so seeded brand ids pass; `null` clears on update). `products.service` create/
-update validate the brand exists (`assertBrandExists` → 400) + set `brandId`; seller `findById` now includes
-`brand {id,name}` for the edit form. 3 new unit tests; 104 unit + 108 e2e pass. **Next:** P5b seller-web
-(brand dropdown + BOOLEAN dynamic field) · P5c seller-mobile (mirror) · P6 buyer search/filters + brand
-facet · P7 SEO · P8 tests/docs/prod verify.
-
-**Phase 5b shipped to branch (PR open):** `feat/seller-web-brand-attrs-p5b`. BOOLEAN case in seller-web
-`dynamic-attributes-form.tsx` (checkbox→'true'/'false'); new self-hiding `BrandSelect` (fetches
-`/v1/brands?categoryId=`). New-product page: brandId state + reset on category change + sent in body. Edit
-page gained BrandSelect + DynamicAttributesForm (it had neither) — pre-fills brand + spec values, sends
-brandId (null clears) + specifications on PATCH. seller-web build clean. **Next:** P5c seller-mobile mirror ·
-P6 buyer search/filters + brand facet · P7 SEO · P8.
-
-**Phase 5c shipped to branch (PR open):** `feat/seller-mobile-brand-attrs-p5c`. Flutter seller form mirror:
-BOOLEAN case in `dynamic_attribute_field.dart` (SwitchListTile→'true'/'false'); `BrandOption` model +
-`ProductsRepository.getBrands` via the Dio chain; `product_form_screen` brand dropdown (`_brandId`/`_brands`,
-load on init+category-change, self-hides if none, drops stale selection), sends brandId on create/update;
-`SellerProductModel.brandId`. 3 ARB keys + gen-l10n. analyze 0 errors/0 warnings; tests pass. No
-connectivity-layer change. **This completes Phase 5.** **Next:** P6 buyer search/filters + brand facet
-(web+mobile) · P7 SEO · P8 tests/docs/prod verify (+ apply prod migration, run reset+seed on prod at release).
-
-**Phase 6a shipped to branch (PR open):** `feat/browse-brand-filter-p6a`. `BrowseProductsQueryDto.brandIds?`
-(comma-separated); `browseProducts` parses (hex-validate/dedup/cap 50) → `where.brandId={in}` on the Prisma
-path + `p."brandId" IN (...)` on the FTS path. Facet OPTIONS reuse the existing `/v1/brands?categoryId=`.
-3 new unit tests; 107 unit + 108 e2e pass. (Live smoke blocked by a transient alwaysdata DB outage — logic
-unit-verified.) **Next:** P6b buyer-web brand facet + BOOLEAN attr facet + new-taxonomy nav · P6c
-buyer-mobile mirror · P7 SEO · P8 tests/docs/prod verify.
-
-**Phase 6a also live-verified** after the DB came back: brandIds filter correct on both Prisma + FTS paths
-(Smartphones: Tecno→2, Tecno+Infinix→4, junk dropped, search+brand→2).
-
-**Phase 6b shipped to branch (PR open):** `feat/buyer-web-brand-facet-p6b`. `ProductFilters` gained a brand
-checkbox facet (`FacetBrand`) + BOOLEAN attr rendered as a single yes-checkbox (filters value==='true' via
-the existing attributes param — `resolveAttributeFilterIds` has no type restriction). `category-page` fetches
-`/v1/brands?categoryId=`, includes BOOLEAN in the attr facet fetch, adds `brandIds` to the browse query +
-handlers/clear, passes props to both filter panels. New-taxonomy nav is automatic (no hardcoded category
-names; all from `/v1/browse/categories`). buyer-web build clean. **Next:** P6c buyer-mobile mirror · P7 SEO ·
-P8 tests/docs/prod verify (+ apply prod migration, run reset+seed on prod at release).
-
-**Phase 6c shipped to branch (PR open):** `feat/buyer-mobile-brand-facet-p6c`. Flutter mirror of P6b:
-`catalog_repository` brandIds param + `getBrands`/`BrandOption` + BOOLEAN in facet fetch;
-`BrowseProductsParams.brandIds`; `category_screen` maps `_filters.brandIds`→query; `filter_bottom_sheet`
-gains `FilterOptions.brandIds` + a brand FilterChip facet + BOOLEAN single on/off chip (value 'true') +
-reset/apply. ARB `brand` + gen-l10n. analyze 0 errors/0 warnings; 76 tests pass. **This completes Phase 6.**
-**Next:** P7 SEO (category slugs/URLs/sitemap/structured data/redirects for the strict taxonomy) · P8
-tests/docs/prod verify (+ apply prod migration `2026-06-14_taxonomy_brand_foundation.sql`, run reset+seed on
-prod at release).
-
-**Phase 7 shipped to branch (PR open):** `feat/seo-brand-structured-data-p7`. Product JSON-LD `brand` now
-emits the real first-class brand (`{'@type':'Brand', name}`) with seller/Teka RDC fallback (was hardcoding
-the seller). `getProductDetail` include + buyer-web `ProductData` gained `brand`. Audit: sitemap + category
-metadata are API-driven (strict slugs seeded P2b-1) → strict taxonomy auto-emits; verified live (PDP returns
-`brand:{Tecno}`, category resolves by slug `smartphones`). Legacy redirects N/A (interim taxonomies never
-publicly launched). 108 e2e pass. **Next:** P8 tests + docs + prod verification — apply prod migration
-`2026-06-14_taxonomy_brand_foundation.sql`, run reset+seed on prod, update architecture/product-spec/CLAUDE
-docs, final cross-surface verification.
-
-**Phase 8 shipped to branch (PR open):** `feat/taxonomy-docs-prod-verify-p8`. Docs: `docs/architecture.md`
-(new "Marketplace taxonomy + brands" section + data-model/UUID-range updates), `PROGRESS.md` (initiative
-chronology entry), `CLAUDE.md` §4 (concise taxonomy/brands note, still <40k). No code change.
-
-**▶ PRODUCTION ROLLOUT RUNBOOK (operator — irreversible, do at release):**
-1. **Apply the prod migration** — Actions → *Apply prod migration* → run with `2026-06-14_taxonomy_brand_foundation.sql` (adds BOOLEAN enum value, `brands`/`brand_categories` tables, `products.brandId` FK, FK-cascade hardening). Idempotent.
-2. **Reseed prod taxonomy + brands + demo** — run `pnpm --filter api prisma:seed:prod` (or the prod seed path). Seeds the strict 7-cat taxonomy + 160 attributes + 51 brands as the only active tree (deactivates older taxonomies) + the demo catalog. Idempotent.
-3. **(Optional) clear stale prod demo products** — `pnpm --filter api prisma:reset-catalog:prod` (dry-run first, then `-- --confirm`). Deletes products WITHOUT order history + purges their Cloudinary assets. **Irreversible.** Pre-launch prod has no real orders, so this clears the entire old demo catalog before/after reseed. Skip if the seed's reconciling upsert already produced the desired state.
-4. **Verify on prod:** 7 active top cats + 80 subs, 51 brands, browse brand filter works, seller form brand dropdown + buyer brand facet render, product JSON-LD shows brand.
-
-On merge of #383, set `## Active initiative` to **None** (the initiative is code-complete) and ask the user what to start next.
+**None.** The *Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset* initiative is **code-complete**
+(see "Recently completed" below). No in-flight work — per CLAUDE.md §7.2, ask the user what to start next.
 
 ---
+
+### Recently completed — 2026-06-14 (Marketplace Taxonomy — prod rollout pending)
+
+**Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — 8 phases, **16 PRs #368–#383, all
+merged**. Strict **2-level taxonomy** (7 categories → 80 subcategories, `apps/api/prisma/taxonomy-data.ts`),
+first-class **Brand library** (CRUD/merge/activate; `Product.brandId`; buyer brand-filter facet), per-subcat
+**dynamic attributes** (incl BOOLEAN; admin BOOLEAN/option-editor/reorder), and pre-launch **catalog-reset
+tooling** (`pnpm db:reset-catalog` + admin hard-delete). Seller create/edit (web+mobile) get a brand dropdown
++ BOOLEAN field; buyer search (web+mobile) gets a brand facet + BOOLEAN facet; product JSON-LD emits the real
+brand. Decisions D1 first-class brandId · D2 keep JSON attribute options · D3 re-seed demo catalog. Migration
+`2026-06-14_taxonomy_brand_foundation.sql` + reset+seed applied to **dev**; everything verified live there.
+Detail: `PROGRESS.md` (Jun-14 entry) · `docs/architecture.md` → "Marketplace taxonomy + brands" ·
+`tasks/marketplace-taxonomy-progress.md`.
+
+**▶ PROD ROLLOUT (operator — irreversible, at release):**
+1. **Apply migration** — Actions → *Apply prod migration* → `2026-06-14_taxonomy_brand_foundation.sql` (BOOLEAN enum value, `brands`/`brand_categories` tables, `products.brandId` FK, FK-cascade hardening). Idempotent.
+2. **Reseed** — `pnpm --filter api prisma:seed:prod` (strict taxonomy + 160 attributes + 51 brands as the only active tree, deactivating older taxonomies, + demo catalog). Idempotent.
+3. **(Optional) clear stale demo** — `pnpm --filter api prisma:reset-catalog:prod` (dry-run, then `-- --confirm`). Deletes products WITHOUT order history + purges Cloudinary. **Irreversible** (pre-launch prod has no real orders).
+4. **Verify on prod:** 7 active top cats + 80 subs, 51 brands, browse brand filter, seller brand dropdown + buyer brand facet, product JSON-LD brand.
+
 
 ### Recently completed — 2026-06-10 (operator action pending)
 
