@@ -7,9 +7,9 @@
 ## Active initiative
 
 **Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — started 2026-06-14. **Phases 1 (#368)
-+ 2a (#369) + 2b-1 (#370) MERGED. Phase 2b-2 (demo catalog on strict taxonomy) DONE — PR open, awaiting
-review** — completes Phase 2. D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3
-re-seed demo catalog). **Goal:** strict **2-level** taxonomy (Catégorie → Sous-catégorie) with
++ 2a (#369) + 2b-1 (#370) + 2b-2 (#371) MERGED — Phase 2 complete. Phase 3a (Brand API) DONE — PR open,
+awaiting review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo
+catalog). **Goal:** strict **2-level** taxonomy (Catégorie → Sous-catégorie) with
 the new 7-category structure, a first-class **Brand** library, per-subcategory dynamic attributes (+ BOOLEAN
 type), and a clean **catalog reset** (delete all products + related + Cloudinary, no orphans) — across API,
 DB, admin-web, seller-web/mobile, buyer-web/mobile, search, filters, SEO.
@@ -43,16 +43,19 @@ cascade; refuses products with order history); `CatalogResetService` + `prisma/r
 BOOLEAN + 51-brand library + links; ranges cats `13000000-` / attrs `14000000-` / brands `15000000-`).
 seed.ts seeds the strict tree as the only active taxonomy.
 
-**Phase 2b-2 shipped to branch (PR open):** `feat/demo-catalog-strict-taxonomy-p2b2`. Rewrote
-`seedSampleProducts` → **152 demo products** across 38 strict subcats × 2 cities, **72 brand-assigned, 298
-specifications** (all on strict attrs); full-reconcile upsert update block; re-enabled the call. Idempotency
-fix: legacy interim 8-cat block made slug-free + inactive (it ran before the strict block and collided for
-slugs like "boissons" on re-seed). End-to-end verified on dev: reset `--confirm` (201 del / 11 kept / 385
-purged) → seed → 152 demos, 0 on inactive/non-strict, 0 orphan brand/spec refs; re-ran seed clean
-(idempotent). 90 unit + 108 e2e pass. **This completes Phase 2.** **Next:** P3 brand CRUD/merge API +
-admin-web UI · P4 attribute admin (BOOLEAN/options/reorder) · P5 seller create/edit (web+mobile) · P6 buyer
-search/filters + brand facet (web+mobile) · P7 SEO · P8 tests/docs/prod verify (+ apply prod migration, run
-reset+seed on prod at release).
+**Phase 2b-2 MERGED (#371):** rewrote `seedSampleProducts` → 152 demo products across 38 strict subcats × 2
+cities, 72 brand-assigned, 298 specifications; full-reconcile upsert; legacy 8-cat block made slug-free +
+inactive. **Phase 2 complete** (reset tooling + strict taxonomy/attributes/brands + demo catalog).
+
+**Phase 3a shipped to branch (PR open):** `feat/brand-api-p3a`. New `BrandsModule` — public
+`GET /v1/brands?categoryId=` (active, optional subcat filter) + `AdminBrandsController` (`/v1/admin/brands`,
+ADMIN): list/get/create/update/activate/deactivate/set-categories/**merge**/soft-delete. Merge reassigns
+products + absorbs category links + soft-deletes source (transactional). No ParseUUIDPipe/@IsUUID — seeded
+ids (`15000000-`/`13000000-`) fail isUUID(), so existence is DB-validated. 8 new unit tests; 98 unit + 108
+e2e pass; build + type-check clean; live smoke (51 brands, Smartphones→12, Outils électriques→3). **Next:**
+P3b admin-web brand UI · P4 attribute admin (BOOLEAN/options/reorder) · P5 seller create/edit (web+mobile) ·
+P6 buyer search/filters + brand facet (web+mobile) · P7 SEO · P8 tests/docs/prod verify (+ apply prod
+migration, run reset+seed on prod at release).
 
 ---
 
