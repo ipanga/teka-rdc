@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../data/models/attribute_model.dart';
+import '../../data/models/brand_option_model.dart';
 import '../../data/models/product_model.dart';
 import '../../data/products_repository.dart';
 import '../providers/products_provider.dart';
@@ -37,6 +38,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   bool _isLoadingAttributes = false;
   final Map<String, String> _specValues = {};
 
+  String? _brandId;
+  List<BrandOption> _brands = [];
+
   bool get _isEditing => widget.product != null;
 
   @override
@@ -58,6 +62,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       text: p?.quantity.toString() ?? '',
     );
     _selectedCategoryId = p?.categoryId;
+    _brandId = p?.brandId;
     _condition = p?.condition ?? ProductCondition.newItem;
 
     // Initialize spec values from existing product
@@ -69,9 +74,28 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       }
     }
 
-    // Load attributes if editing and category is set
+    // Load attributes + brands if editing and category is set
     if (_selectedCategoryId != null) {
       _loadAttributes(_selectedCategoryId!);
+      _loadBrands(_selectedCategoryId!);
+    }
+  }
+
+  Future<void> _loadBrands(String categoryId) async {
+    try {
+      final repository = ref.read(productsRepositoryProvider);
+      final brands = await repository.getBrands(categoryId);
+      if (mounted) {
+        setState(() {
+          _brands = brands;
+          // Drop a stale selection that isn't offered in this category.
+          if (_brandId != null && !brands.any((b) => b.id == _brandId)) {
+            _brandId = null;
+          }
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _brands = []);
     }
   }
 
@@ -127,11 +151,34 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   _selectedCategoryId = cat.id;
                   _specValues.clear();
                   _attributes = [];
+                  _brandId = null;
+                  _brands = [];
                 });
                 _loadAttributes(cat.id);
+                _loadBrands(cat.id);
               },
             ),
             const SizedBox(height: 16),
+
+            // Brand (scoped to the chosen subcategory; hidden if none offered)
+            if (_brands.isNotEmpty) ...[
+              DropdownButtonFormField<String>(
+                initialValue: _brandId,
+                decoration: InputDecoration(labelText: l10n.brand),
+                hint: Text(l10n.selectBrand),
+                items: [
+                  DropdownMenuItem<String>(
+                    value: null,
+                    child: Text(l10n.noBrand),
+                  ),
+                  ..._brands.map(
+                    (b) => DropdownMenuItem(value: b.id, child: Text(b.name)),
+                  ),
+                ],
+                onChanged: (v) => setState(() => _brandId = v),
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // Title (French — platform is monolingual since May 2026)
             TextFormField(
@@ -359,6 +406,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         'title': title,
         'description': description,
         'categoryId': _selectedCategoryId,
+        // null clears the brand on edit; omitted-as-null is fine on create.
+        'brandId': _brandId,
         'priceCDF': priceCDFCentimes,
         'quantity': int.parse(_quantityController.text.trim()),
         'condition': productConditionToApi(_condition),

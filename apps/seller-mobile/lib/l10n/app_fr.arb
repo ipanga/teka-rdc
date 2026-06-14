@@ -330,5 +330,9 @@
   "connectivityBannerNoInternet": "Internet limité",
   "connectivityBannerUnstable": "Connexion instable",
   "connectivityBannerReconnecting": "Reconnexion...",
-  "connectivityBannerRestored": "Connexion rétablie"
+  "connectivityBannerRestored": "Connexion rétablie",
+
+  "brand": "Marque",
+  "selectBrand": "Sélectionner une marque",
+  "noBrand": "Sans marque"
 }
