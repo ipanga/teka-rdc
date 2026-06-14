@@ -7,9 +7,9 @@
 ## Active initiative
 
 **Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — started 2026-06-14. **Phases 1 (#368)
-+ 2a (#369) MERGED. Phase 2b-1 (strict taxonomy + attributes + brand library) DONE — PR open, awaiting
-review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo catalog).
-**Goal:** strict **2-level** taxonomy (Catégorie → Sous-catégorie) with
++ 2a (#369) + 2b-1 (#370) MERGED. Phase 2b-2 (demo catalog on strict taxonomy) DONE — PR open, awaiting
+review** — completes Phase 2. D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3
+re-seed demo catalog). **Goal:** strict **2-level** taxonomy (Catégorie → Sous-catégorie) with
 the new 7-category structure, a first-class **Brand** library, per-subcategory dynamic attributes (+ BOOLEAN
 type), and a clean **catalog reset** (delete all products + related + Cloudinary, no orphans) — across API,
 DB, admin-web, seller-web/mobile, buyer-web/mobile, search, filters, SEO.
@@ -39,14 +39,20 @@ via `db execute` (not `db push` — preserves generated `search_vector`). **Appl
 cascade; refuses products with order history); `CatalogResetService` + `prisma/reset-catalog.ts` CLI
 (`pnpm db:reset-catalog` dry-run / `-- --confirm`).
 
-**Phase 2b-1 shipped to branch (PR open):** `feat/strict-taxonomy-brands-p2b1`. New `prisma/taxonomy-data.ts`
-(7 cats + 80 subcats + 160 attribute templates incl BOOLEAN + 51-brand library + brand↔subcat links; ranges
-cats `13000000-` / attrs `14000000-` / brands `15000000-`). seed.ts deactivates+nulls-slug ALL prior cats
-then seeds the strict tree as the only active taxonomy; collision-safe slugs; `seedSampleProducts` paused at
-the call site. Reseed verified on dev (7 top + 80 sub, 0 non-strict active, 51 brands/121 links/0 orphans,
-160 attrs, no dup slugs). 90 unit + 108 e2e pass. **Next:** P2b-2 — rewrite `seedSampleProducts` → demo
-catalog on the new strict subcats + brands (D3), re-enable, verify storefront non-empty. Then P3 brand
-CRUD/merge UI, P4 attribute admin, P5 seller create/edit, P6 buyer search/filters, P7 SEO, P8 tests/docs.
+**Phase 2b-1 MERGED (#370):** `prisma/taxonomy-data.ts` (7 cats + 80 subcats + 160 attribute templates incl
+BOOLEAN + 51-brand library + links; ranges cats `13000000-` / attrs `14000000-` / brands `15000000-`).
+seed.ts seeds the strict tree as the only active taxonomy.
+
+**Phase 2b-2 shipped to branch (PR open):** `feat/demo-catalog-strict-taxonomy-p2b2`. Rewrote
+`seedSampleProducts` → **152 demo products** across 38 strict subcats × 2 cities, **72 brand-assigned, 298
+specifications** (all on strict attrs); full-reconcile upsert update block; re-enabled the call. Idempotency
+fix: legacy interim 8-cat block made slug-free + inactive (it ran before the strict block and collided for
+slugs like "boissons" on re-seed). End-to-end verified on dev: reset `--confirm` (201 del / 11 kept / 385
+purged) → seed → 152 demos, 0 on inactive/non-strict, 0 orphan brand/spec refs; re-ran seed clean
+(idempotent). 90 unit + 108 e2e pass. **This completes Phase 2.** **Next:** P3 brand CRUD/merge API +
+admin-web UI · P4 attribute admin (BOOLEAN/options/reorder) · P5 seller create/edit (web+mobile) · P6 buyer
+search/filters + brand facet (web+mobile) · P7 SEO · P8 tests/docs/prod verify (+ apply prod migration, run
+reset+seed on prod at release).
 
 ---
 
