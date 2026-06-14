@@ -294,4 +294,41 @@ export class CategoriesService {
 
     return { message: 'Attribut supprimé avec succès' };
   }
+
+  /**
+   * Reorders a category's attributes. `orderedIds` is the full set of the
+   * category's attribute ids in the desired display order; each row's
+   * sortOrder is set to its index. Validates that the ids exactly match the
+   * category's attributes (no foreign / missing ids) before writing.
+   */
+  async reorderAttributes(categoryId: string, orderedIds: string[]) {
+    const existing = await this.prisma.productAttribute.findMany({
+      where: { categoryId },
+      select: { id: true },
+    });
+    const existingIds = new Set(existing.map((a) => a.id));
+
+    if (
+      orderedIds.length !== existingIds.size ||
+      !orderedIds.every((id) => existingIds.has(id))
+    ) {
+      throw new BadRequestException(
+        'La liste doit contenir exactement les attributs de cette catégorie',
+      );
+    }
+
+    await this.prisma.$transaction(
+      orderedIds.map((id, index) =>
+        this.prisma.productAttribute.update({
+          where: { id },
+          data: { sortOrder: index },
+        }),
+      ),
+    );
+
+    return this.prisma.productAttribute.findMany({
+      where: { categoryId },
+      orderBy: { sortOrder: 'asc' },
+    });
+  }
 }

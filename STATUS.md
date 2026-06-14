@@ -7,8 +7,8 @@
 ## Active initiative
 
 **Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — started 2026-06-14. **Phases 1 (#368)
-+ 2a (#369) + 2b-1 (#370) + 2b-2 (#371) + 3a (#372) MERGED. Phase 3b (admin-web brand UI) DONE — PR open,
-awaiting review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo
++ 2a (#369) + 2b-1 (#370) + 2b-2 (#371) + 3a (#372) + 3b (#373) MERGED — Phase 3 complete. Phase 4a
+(attribute API: BOOLEAN + reorder) DONE — PR open, awaiting review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo
 catalog). **Goal:** strict **2-level** taxonomy (Catégorie → Sous-catégorie) with
 the new 7-category structure, a first-class **Brand** library, per-subcategory dynamic attributes (+ BOOLEAN
 type), and a clean **catalog reset** (delete all products + related + Cloudinary, no orphans) — across API,
@@ -62,6 +62,13 @@ migration, run reset+seed on prod at release).
 checkbox picker grouped by active top cat) + activate/deactivate + **merge** (target dropdown + irreversible
 warning) + delete confirm; all via P3a endpoints, no hardcoded brand lists. Sidebar "Marques" item + 34-key
 `Brands` FR namespace. admin-web build compiles clean (route 3.44 kB). **Next:** P4 attribute admin.
+
+**Phase 4a shipped to branch (PR open):** `feat/attribute-api-p4a`. `CreateAttributeDto` now accepts `BOOLEAN`
+(was silently rejected despite enum/seed support). New reorder endpoint `PATCH /v1/admin/categories/:id/
+attributes/reorder` (declared before `:attrId`) + `reorderAttributes()` (validates orderedIds == category's
+attrs, batch sortOrder=index, transactional). Verified `ParseUUIDPipe` ACCEPTS seeded non-RFC4122 ids, so
+existing category/attr endpoints already work on the strict taxonomy. 3 new unit tests; 101 unit + 108 e2e
+pass. **Next:** P4b admin-web attribute manager (BOOLEAN option, option add/remove editor, reorder up/down).
 
 ---
 

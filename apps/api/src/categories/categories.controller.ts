@@ -11,7 +11,10 @@ import {
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
-import { CreateAttributeDto } from './dto/create-attribute.dto';
+import {
+  CreateAttributeDto,
+  ReorderAttributesDto,
+} from './dto/create-attribute.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 
 @Controller('v1/admin/categories')
@@ -53,6 +56,15 @@ export class CategoriesController {
     @Body() dto: CreateAttributeDto,
   ) {
     return this.categoriesService.createAttribute(id, dto);
+  }
+
+  // Declared BEFORE :attrId so "reorder" isn't captured as an attribute id.
+  @Patch(':id/attributes/reorder')
+  reorderAttributes(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ReorderAttributesDto,
+  ) {
+    return this.categoriesService.reorderAttributes(id, dto.orderedIds);
   }
 
   @Patch(':id/attributes/:attrId')
