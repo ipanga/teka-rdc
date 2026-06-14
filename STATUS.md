@@ -6,10 +6,10 @@
 
 ## Active initiative
 
-**Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — started 2026-06-14. **Phase 1 MERGED
-(#368). Phase 2a (reset tooling) DONE — PR open, awaiting review.** D1–D3 locked (D1 first-class
-`Product.brandId`; D2 keep JSON options; D3 re-seed demo catalog). **Goal:** strict **2-level** taxonomy
-(Catégorie → Sous-catégorie) with
+**Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — started 2026-06-14. **Phases 1 (#368)
++ 2a (#369) MERGED. Phase 2b-1 (strict taxonomy + attributes + brand library) DONE — PR open, awaiting
+review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo catalog).
+**Goal:** strict **2-level** taxonomy (Catégorie → Sous-catégorie) with
 the new 7-category structure, a first-class **Brand** library, per-subcategory dynamic attributes (+ BOOLEAN
 type), and a clean **catalog reset** (delete all products + related + Cloudinary, no orphans) — across API,
 DB, admin-web, seller-web/mobile, buyer-web/mobile, search, filters, SEO.
@@ -35,13 +35,18 @@ orphan FKs, migration) · 2 catalog+taxonomy reset (admin hard-delete, reset rou
 via `db execute` (not `db push` — preserves generated `search_vector`). **Apply to prod at release** via the
 *Apply prod migration* Action (filename above).
 
-**Phase 2a shipped to branch (PR open):** `feat/catalog-reset-tooling-p2a`. Reset tooling, no behaviour
-change to existing flows: admin `DELETE /v1/admin/products/:id/hard` (Cloudinary purge + cascade; refuses
-products with order history); `CatalogResetService` + `prisma/reset-catalog.ts` CLI (`pnpm db:reset-catalog`
-dry-run / `-- --confirm` executes — deletes products w/o order history, cascades related rows, purges
-Cloudinary after db commit). Dry-run validated on dev (212→201 deletable, 11 kept). Did NOT run `--confirm`
-on dev. 90 unit + 108 e2e pass. **Next:** P2b — rewrite `seed.ts` for the new 7-category taxonomy +
-per-subcategory attributes (+ BOOLEAN) + brand library + demo catalog (D3), then run reset+reseed on dev.
+**Phase 2a MERGED (#369):** reset tooling — admin `DELETE /v1/admin/products/:id/hard` (Cloudinary purge +
+cascade; refuses products with order history); `CatalogResetService` + `prisma/reset-catalog.ts` CLI
+(`pnpm db:reset-catalog` dry-run / `-- --confirm`).
+
+**Phase 2b-1 shipped to branch (PR open):** `feat/strict-taxonomy-brands-p2b1`. New `prisma/taxonomy-data.ts`
+(7 cats + 80 subcats + 160 attribute templates incl BOOLEAN + 51-brand library + brand↔subcat links; ranges
+cats `13000000-` / attrs `14000000-` / brands `15000000-`). seed.ts deactivates+nulls-slug ALL prior cats
+then seeds the strict tree as the only active taxonomy; collision-safe slugs; `seedSampleProducts` paused at
+the call site. Reseed verified on dev (7 top + 80 sub, 0 non-strict active, 51 brands/121 links/0 orphans,
+160 attrs, no dup slugs). 90 unit + 108 e2e pass. **Next:** P2b-2 — rewrite `seedSampleProducts` → demo
+catalog on the new strict subcats + brands (D3), re-enable, verify storefront non-empty. Then P3 brand
+CRUD/merge UI, P4 attribute admin, P5 seller create/edit, P6 buyer search/filters, P7 SEO, P8 tests/docs.
 
 ---
 
