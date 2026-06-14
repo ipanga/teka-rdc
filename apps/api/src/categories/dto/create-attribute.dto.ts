@@ -6,6 +6,7 @@ import {
   IsIn,
   IsArray,
   IsNotEmpty,
+  ArrayNotEmpty,
 } from 'class-validator';
 
 export class CreateAttributeDto {
@@ -14,8 +15,8 @@ export class CreateAttributeDto {
   name: string;
 
   @IsString({ message: 'Le type doit être une chaîne de caractères' })
-  @IsIn(['TEXT', 'SELECT', 'MULTISELECT', 'NUMERIC'], {
-    message: 'Le type doit être TEXT, SELECT, MULTISELECT ou NUMERIC',
+  @IsIn(['TEXT', 'SELECT', 'MULTISELECT', 'NUMERIC', 'BOOLEAN'], {
+    message: 'Le type doit être TEXT, SELECT, MULTISELECT, NUMERIC ou BOOLEAN',
   })
   type: string;
 
@@ -34,4 +35,12 @@ export class CreateAttributeDto {
   @IsOptional()
   @IsNumber({}, { message: "L'ordre de tri doit être un nombre" })
   sortOrder?: number;
+}
+
+export class ReorderAttributesDto {
+  /** Full set of the category's attribute ids in the desired display order. */
+  @IsArray({ message: 'orderedIds doit être un tableau' })
+  @ArrayNotEmpty({ message: 'orderedIds ne peut pas être vide' })
+  @IsString({ each: true })
+  orderedIds: string[];
 }
