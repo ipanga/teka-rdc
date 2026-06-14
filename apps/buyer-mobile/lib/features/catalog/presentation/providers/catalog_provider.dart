@@ -31,6 +31,10 @@ class BrowseProductsParams {
   /// family key (a Map would break ==/hashCode).
   final String? attributesJson;
 
+  /// Comma-separated brand ids for the brand facet (OR within). Kept as a
+  /// String so this param stays value-equatable for the provider family key.
+  final String? brandIds;
+
   const BrowseProductsParams({
     this.categoryId,
     this.search,
@@ -38,6 +42,7 @@ class BrowseProductsParams {
     this.sortBy,
     this.cityId,
     this.attributesJson,
+    this.brandIds,
   });
 
   @override
@@ -50,7 +55,8 @@ class BrowseProductsParams {
           condition == other.condition &&
           sortBy == other.sortBy &&
           cityId == other.cityId &&
-          attributesJson == other.attributesJson;
+          attributesJson == other.attributesJson &&
+          brandIds == other.brandIds;
 
   @override
   int get hashCode =>
@@ -59,7 +65,8 @@ class BrowseProductsParams {
       condition.hashCode ^
       sortBy.hashCode ^
       cityId.hashCode ^
-      attributesJson.hashCode;
+      attributesJson.hashCode ^
+      brandIds.hashCode;
 
   BrowseProductsParams copyWith({
     String? categoryId,
@@ -68,12 +75,14 @@ class BrowseProductsParams {
     String? sortBy,
     String? cityId,
     String? attributesJson,
+    String? brandIds,
     bool clearCategoryId = false,
     bool clearSearch = false,
     bool clearCondition = false,
     bool clearSortBy = false,
     bool clearCityId = false,
     bool clearAttributes = false,
+    bool clearBrandIds = false,
   }) {
     return BrowseProductsParams(
       categoryId: clearCategoryId ? null : (categoryId ?? this.categoryId),
@@ -83,6 +92,7 @@ class BrowseProductsParams {
       cityId: clearCityId ? null : (cityId ?? this.cityId),
       attributesJson:
           clearAttributes ? null : (attributesJson ?? this.attributesJson),
+      brandIds: clearBrandIds ? null : (brandIds ?? this.brandIds),
     );
   }
 }
@@ -141,6 +151,7 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
         sortBy: _params.sortBy,
         cityId: _params.cityId,
         attributesJson: _params.attributesJson,
+        brandIds: _params.brandIds,
       );
       state = state.copyWith(
         products: result.data,
@@ -172,6 +183,7 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
         sortBy: _params.sortBy,
         cityId: _params.cityId,
         attributesJson: _params.attributesJson,
+        brandIds: _params.brandIds,
         cursor: state.pagination?.nextCursor,
       );
       state = state.copyWith(

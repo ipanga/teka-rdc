@@ -472,6 +472,12 @@ abstract class AppLocalizations {
   /// **'Reinitialiser'**
   String get filterReset;
 
+  /// No description provided for @brand.
+  ///
+  /// In fr, this message translates to:
+  /// **'Marque'**
+  String get brand;
+
   /// No description provided for @filterPrice.
   ///
   /// In fr, this message translates to:

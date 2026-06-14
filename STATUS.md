@@ -7,8 +7,8 @@
 ## Active initiative
 
 **Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — started 2026-06-14. **Phases 1 (#368)
-+ 2a (#369) + 2b-1 (#370) + 2b-2 (#371) + 3a (#372) + 3b (#373) + 4a (#374) + 4b (#375) + 5a (#376) + 5b (#377) + 5c (#378) + 6a (#379) MERGED. Phase 6b (buyer-web brand facet + BOOLEAN
-facet) DONE — PR open, awaiting review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo
++ 2a (#369) + 2b-1 (#370) + 2b-2 (#371) + 3a (#372) + 3b (#373) + 4a (#374) + 4b (#375) + 5a (#376) + 5b (#377) + 5c (#378) + 6a (#379) + 6b (#380) MERGED. Phase 6c (buyer-mobile brand facet + BOOLEAN)
+DONE — PR open, awaiting review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo
 catalog). **Goal:** strict **2-level** taxonomy (Catégorie → Sous-catégorie) with
 the new 7-category structure, a first-class **Brand** library, per-subcategory dynamic attributes (+ BOOLEAN
 type), and a clean **catalog reset** (delete all products + related + Cloudinary, no orphans) — across API,
@@ -116,6 +116,15 @@ the existing attributes param — `resolveAttributeFilterIds` has no type restri
 handlers/clear, passes props to both filter panels. New-taxonomy nav is automatic (no hardcoded category
 names; all from `/v1/browse/categories`). buyer-web build clean. **Next:** P6c buyer-mobile mirror · P7 SEO ·
 P8 tests/docs/prod verify (+ apply prod migration, run reset+seed on prod at release).
+
+**Phase 6c shipped to branch (PR open):** `feat/buyer-mobile-brand-facet-p6c`. Flutter mirror of P6b:
+`catalog_repository` brandIds param + `getBrands`/`BrandOption` + BOOLEAN in facet fetch;
+`BrowseProductsParams.brandIds`; `category_screen` maps `_filters.brandIds`→query; `filter_bottom_sheet`
+gains `FilterOptions.brandIds` + a brand FilterChip facet + BOOLEAN single on/off chip (value 'true') +
+reset/apply. ARB `brand` + gen-l10n. analyze 0 errors/0 warnings; 76 tests pass. **This completes Phase 6.**
+**Next:** P7 SEO (category slugs/URLs/sitemap/structured data/redirects for the strict taxonomy) · P8
+tests/docs/prod verify (+ apply prod migration `2026-06-14_taxonomy_brand_foundation.sql`, run reset+seed on
+prod at release).
 
 ---
 
