@@ -6,9 +6,39 @@
 
 ## Active initiative
 
-**Mobile release readiness (Android / Play Store launch prep)** — started 2026-06-10. **Goal:** make
-buyer-mobile + seller-mobile shippable to the Play Store (they were stuck on debug signing). **Scaffolded
-everything except the keystore itself** (operator must generate that). **Done (this branch / PR):**
+**Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — started 2026-06-14. **PLANNING —
+awaiting decisions before Phase 1.** **Goal:** strict **2-level** taxonomy (Catégorie → Sous-catégorie) with
+the new 7-category structure, a first-class **Brand** library, per-subcategory dynamic attributes (+ BOOLEAN
+type), and a clean **catalog reset** (delete all products + related + Cloudinary, no orphans) — across API,
+DB, admin-web, seller-web/mobile, buyer-web/mobile, search, filters, SEO.
+
+**Detailed checklist:** `tasks/marketplace-taxonomy-progress.md` (gitignored working tracker). **Resume
+protocol:** read this block → that tracker → `git log`/PR list → continue from the first unchecked box.
+
+**Gap analysis (investigation 2026-06-14):** `Category` supports 3 levels but only 2 are used + admin CRUD
+already exists (tighten to 2 + reseed). `ProductAttribute`/`ProductSpecification` + admin CRUD exist; **no
+BOOLEAN type**. **No Brand model** (brands are "Marque" SELECT options; no brand filter). Seller hard-delete
++ Cloudinary purge exist, but **Review/Wishlist/CartItem/Promotion→productId have no onDelete** (orphan
+risk) and **no admin hard-delete**. `search_vector` auto-clears (generated col). No ProductVariant. OrderItem
+snapshots safe.
+
+**Phases (each = small PR(s), API→admin→seller→buyer):** 1 schema foundation (BOOLEAN, Brand model, fix
+orphan FKs, migration) · 2 catalog+taxonomy reset (admin hard-delete, reset routine, reseed new taxonomy
++ attrs + brands) · 3 brand system (API + admin UI) · 4 attribute admin enhancements · 5 seller create/edit
+(web+mobile) · 6 buyer search & filters (web+mobile) · 7 SEO · 8 tests + docs + prod verify.
+
+**DECISIONS PENDING (block Phase 1):** D1 brand shape (first-class `Product.brandId` vs attribute-backed) ·
+D2 attribute-options storage (JSON vs normalized AttributeOption table) · D3 post-reset (re-seed demo
+catalog under new taxonomy vs start empty). **Next:** lock D1–D3, then Phase 1.
+
+---
+
+### Recently completed — 2026-06-10 (operator action pending)
+
+**Mobile release readiness (Android / Play Store launch prep)** — shipped to `main` (#365/#366). **Code +
+tooling complete; OPERATOR TODO remains:** generate the 2 upload keystores, set the 8 signing secrets,
+finalize prod `google-services.json`, run "Release mobile AAB" → upload to Play. Full runbook:
+`docs/mobile-release.md`. Details:
 - `apps/{buyer,seller}-mobile/android/app/build.gradle.kts` — a release `signingConfig` that loads
   `android/key.properties` (gitignored) and signs the release build with the upload key; **falls back to
   debug** when absent (local dev / internal APK builds unaffected).
