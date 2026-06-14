@@ -7,6 +7,8 @@ import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { ProductStatusBadge } from '@/components/product/product-status-badge';
 import { ImageUploader } from '@/components/product/image-uploader';
+import DynamicAttributesForm from '@/components/products/dynamic-attributes-form';
+import BrandSelect from '@/components/products/brand-select';
 
 interface ProductImage {
   id: string;
@@ -32,6 +34,8 @@ interface Product {
   condition: string;
   categoryId: string;
   category?: { id: string; name: string };
+  brandId?: string | null;
+  brand?: { id: string; name: string } | null;
   images: ProductImage[];
   specifications?: { attributeId: string; value: string }[];
   rejectionReason?: string | null;
@@ -57,11 +61,19 @@ export default function ProductDetailPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [brandId, setBrandId] = useState('');
   const [priceCDF, setPriceCDF] = useState('');
   const [priceUSD, setPriceUSD] = useState('');
   const [quantity, setQuantity] = useState('');
   const [condition, setCondition] = useState<'NEW' | 'USED'>('NEW');
   const [images, setImages] = useState<ProductImage[]>([]);
+  const [specifications, setSpecifications] = useState<{ attributeId: string; value: string }[]>([]);
+  const [initialSpecValues, setInitialSpecValues] = useState<Record<string, string>>({});
+
+  const handleSpecificationsChange = useCallback(
+    (specs: { attributeId: string; value: string }[]) => setSpecifications(specs),
+    [],
+  );
 
   const isEditable = product?.status === 'DRAFT' || product?.status === 'REJECTED';
   const canSubmit = product?.status === 'DRAFT';
@@ -76,11 +88,17 @@ export default function ProductDetailPage() {
       setTitle(p.title || '');
       setDescription(p.description || '');
       setCategoryId(p.categoryId || '');
+      setBrandId(p.brand?.id || p.brandId || '');
       setPriceCDF(p.priceCDF ? String(Number(p.priceCDF) / 100) : '');
       setPriceUSD(p.priceUSD ? String(Number(p.priceUSD) / 100) : '');
       setQuantity(String(p.quantity ?? 0));
       setCondition((p.condition as 'NEW' | 'USED') || 'NEW');
       setImages(p.images || []);
+      const specs = p.specifications || [];
+      setSpecifications(specs);
+      setInitialSpecValues(
+        Object.fromEntries(specs.map((s) => [s.attributeId, s.value])),
+      );
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
@@ -163,6 +181,10 @@ export default function ProductDetailPage() {
         priceCDF: String(Math.round(Number(priceCDF) * 100)),
         quantity: Number(quantity),
         condition,
+        // null clears the brand; a value sets it (the API treats undefined as
+        // "leave unchanged", but on edit we always send the current selection).
+        brandId: brandId || null,
+        specifications,
       };
 
       if (priceUSD && Number(priceUSD) > 0) {
@@ -327,7 +349,7 @@ export default function ProductDetailPage() {
                   <select
                     id="categoryId"
                     value={categoryId}
-                    onChange={(e) => { setCategoryId(e.target.value); setFieldErrors((prev) => ({ ...prev, categoryId: '' })); }}
+                    onChange={(e) => { setCategoryId(e.target.value); setBrandId(''); setSpecifications([]); setInitialSpecValues({}); setFieldErrors((prev) => ({ ...prev, categoryId: '' })); }}
                     className={`w-full px-3 py-2 border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring ${
                       fieldErrors.categoryId ? 'border-destructive' : 'border-input'
                     }`}
@@ -430,6 +452,18 @@ export default function ProductDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Brand + dynamic attributes (editable products only) */}
+          {isEditable && categoryId && (
+            <>
+              <BrandSelect categoryId={categoryId} value={brandId} onChange={setBrandId} />
+              <DynamicAttributesForm
+                categoryId={categoryId}
+                onChange={handleSpecificationsChange}
+                initialValues={initialSpecValues}
+              />
+            </>
+          )}
 
           {/* Pricing Section */}
           <div className="bg-white rounded-xl border border-border p-6">

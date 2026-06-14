@@ -7,8 +7,8 @@
 ## Active initiative
 
 **Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — started 2026-06-14. **Phases 1 (#368)
-+ 2a (#369) + 2b-1 (#370) + 2b-2 (#371) + 3a (#372) + 3b (#373) + 4a (#374) + 4b (#375) MERGED — Phase 4 complete. Phase 5a (product.brandId
-API) DONE — PR open, awaiting review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo
++ 2a (#369) + 2b-1 (#370) + 2b-2 (#371) + 3a (#372) + 3b (#373) + 4a (#374) + 4b (#375) + 5a (#376) MERGED. Phase 5b (seller-web brand dropdown +
+BOOLEAN + edit attrs) DONE — PR open, awaiting review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo
 catalog). **Goal:** strict **2-level** taxonomy (Catégorie → Sous-catégorie) with
 the new 7-category structure, a first-class **Brand** library, per-subcategory dynamic attributes (+ BOOLEAN
 type), and a clean **catalog reset** (delete all products + related + Cloudinary, no orphans) — across API,
@@ -83,6 +83,13 @@ update validate the brand exists (`assertBrandExists` → 400) + set `brandId`; 
 `brand {id,name}` for the edit form. 3 new unit tests; 104 unit + 108 e2e pass. **Next:** P5b seller-web
 (brand dropdown + BOOLEAN dynamic field) · P5c seller-mobile (mirror) · P6 buyer search/filters + brand
 facet · P7 SEO · P8 tests/docs/prod verify.
+
+**Phase 5b shipped to branch (PR open):** `feat/seller-web-brand-attrs-p5b`. BOOLEAN case in seller-web
+`dynamic-attributes-form.tsx` (checkbox→'true'/'false'); new self-hiding `BrandSelect` (fetches
+`/v1/brands?categoryId=`). New-product page: brandId state + reset on category change + sent in body. Edit
+page gained BrandSelect + DynamicAttributesForm (it had neither) — pre-fills brand + spec values, sends
+brandId (null clears) + specifications on PATCH. seller-web build clean. **Next:** P5c seller-mobile mirror ·
+P6 buyer search/filters + brand facet · P7 SEO · P8.
 
 ---
 
