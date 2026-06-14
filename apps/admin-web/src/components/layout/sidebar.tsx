@@ -52,6 +52,7 @@ export function Sidebar() {
     },
     { href: '/dashboard/admins', label: t('admins'), icon: '\u272a' },
     { href: '/dashboard/categories', label: t('categories'), icon: '\u2630' },
+    { href: '/dashboard/brands', label: t('brands'), icon: '\ud83c\udff7' },
     { href: '/dashboard/products', label: t('products'), icon: '\u2610' },
     { href: '/dashboard/catalog-coverage', label: t('catalogCoverage'), icon: '\u25f7' },
     { href: '/dashboard/orders', label: t('orders'), icon: '\uD83D\uDCE6' },
