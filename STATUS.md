@@ -7,8 +7,8 @@
 ## Active initiative
 
 **Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — started 2026-06-14. **Phases 1 (#368)
-+ 2a (#369) + 2b-1 (#370) + 2b-2 (#371) + 3a (#372) + 3b (#373) + 4a (#374) + 4b (#375) + 5a (#376) + 5b (#377) + 5c (#378) + 6a (#379) + 6b (#380) MERGED. Phase 6c (buyer-mobile brand facet + BOOLEAN)
-DONE — PR open, awaiting review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo
++ 2a (#369) + 2b-1 (#370) + 2b-2 (#371) + 3a (#372) + 3b (#373) + 4a (#374) + 4b (#375) + 5a (#376) + 5b (#377) + 5c (#378) + 6a (#379) + 6b (#380) + 6c (#381) MERGED — Phase 6 complete. Phase 7 (SEO) DONE — PR
+open, awaiting review.** D1–D3 locked (D1 first-class `Product.brandId`; D2 keep JSON options; D3 re-seed demo
 catalog). **Goal:** strict **2-level** taxonomy (Catégorie → Sous-catégorie) with
 the new 7-category structure, a first-class **Brand** library, per-subcategory dynamic attributes (+ BOOLEAN
 type), and a clean **catalog reset** (delete all products + related + Cloudinary, no orphans) — across API,
@@ -125,6 +125,15 @@ reset/apply. ARB `brand` + gen-l10n. analyze 0 errors/0 warnings; 76 tests pass.
 **Next:** P7 SEO (category slugs/URLs/sitemap/structured data/redirects for the strict taxonomy) · P8
 tests/docs/prod verify (+ apply prod migration `2026-06-14_taxonomy_brand_foundation.sql`, run reset+seed on
 prod at release).
+
+**Phase 7 shipped to branch (PR open):** `feat/seo-brand-structured-data-p7`. Product JSON-LD `brand` now
+emits the real first-class brand (`{'@type':'Brand', name}`) with seller/Teka RDC fallback (was hardcoding
+the seller). `getProductDetail` include + buyer-web `ProductData` gained `brand`. Audit: sitemap + category
+metadata are API-driven (strict slugs seeded P2b-1) → strict taxonomy auto-emits; verified live (PDP returns
+`brand:{Tecno}`, category resolves by slug `smartphones`). Legacy redirects N/A (interim taxonomies never
+publicly launched). 108 e2e pass. **Next:** P8 tests + docs + prod verification — apply prod migration
+`2026-06-14_taxonomy_brand_foundation.sql`, run reset+seed on prod, update architecture/product-spec/CLAUDE
+docs, final cross-surface verification.
 
 ---
 

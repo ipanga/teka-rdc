@@ -752,6 +752,9 @@ export class BrowseService {
       city: {
         select: { id: true, slug: true, name: true, province: true },
       },
+      brand: {
+        select: { id: true, name: true, slug: true },
+      },
       seller: {
         select: {
           id: true,
