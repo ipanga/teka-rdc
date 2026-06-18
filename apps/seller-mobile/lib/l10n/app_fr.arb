@@ -86,6 +86,8 @@
   "conditionUsed": "Occasion",
   "category": "Categorie",
   "selectCategory": "Selectionner une categorie",
+  "searchCategoryHint": "Rechercher une categorie...",
+  "noCategoryFound": "Aucune categorie trouvee",
 
   "images": "Images",
   "uploadImage": "Ajouter",

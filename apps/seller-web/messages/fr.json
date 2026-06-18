@@ -188,6 +188,8 @@
     "maxImages": "{count}/8 images",
     "category": "Catégorie",
     "selectCategory": "Sélectionner une catégorie",
+    "searchCategory": "Rechercher une catégorie...",
+    "noCategoryFound": "Aucune catégorie trouvée",
     "priceCDF": "Prix en CDF",
     "priceUSD": "Prix en USD (optionnel)",
     "quantity": "Quantité",
