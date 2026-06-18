@@ -15,8 +15,14 @@ function makeService(over: Record<string, any> = {}) {
     ...over,
   };
   const analytics = { capture: jest.fn() };
-  const service = new ProductsService(prisma as never, {} as never, analytics as never);
-  return { service, prisma };
+  const adminNotifications = { create: jest.fn().mockResolvedValue(undefined) };
+  const service = new ProductsService(
+    prisma as never,
+    {} as never,
+    analytics as never,
+    adminNotifications as never,
+  );
+  return { service, prisma, adminNotifications };
 }
 
 const baseDto = {
