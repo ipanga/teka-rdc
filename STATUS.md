@@ -6,48 +6,38 @@
 
 ## Active initiative
 
-**Admin product notifications + seller session/auth isolation** (started 2026-06-18). Two prod defects
-found in live testing: (1) admins get no signal when a seller submits a product; (2) sellers get logged out
-after creating a product. Root causes + plan: `~/.claude/plans/teka-rdc-generic-honey.md`. Two feature
-branches off `develop`: `feat/seller-session-isolation` (Workstream A) + `feat/admin-product-notifications`
-(Workstream B). A is higher priority (live logout + security).
+**None.** The *Admin product notifications + seller session/auth isolation* initiative (incl. the
+refresh-cookie hotfix) is **SHIPPED + VERIFIED on prod 2026-06-18** — see below. `develop == main` @ `9d71802`.
+No in-flight work — per CLAUDE.md §7.2, ask the user what to start next.
 
-**Workstream A — session/auth isolation (branch `feat/seller-session-isolation`):**
-- [x] **A1** API: refresh-token rotation **grace window** (a token revoked <15s ago = benign race → re-issue,
-  no revoke-all; beyond grace still trips revoke-all replay defense — uses existing `revokedAt`, no
-  migration); **scoped logout** (`logout(userId, jti)` revokes only the current session); Sentry/log
-  breadcrumbs at replay / race / logout (no PII). `auth.service.ts` + `auth.controller.ts`.
-- [x] **A2** API: **per-surface cookies** — `teka_{admin,seller,buyer}_{access,refresh,session}`. New
-  `auth/surface.util.ts` resolves surface from the `X-Teka-Surface` header; `jwt.strategy` cookie extractor +
-  `setAuthCookies`/`clearAuthCookies`/`refreshSessionHint`/`refresh` all surface-aware; `main.ts` CORS
-  `allowedHeaders += X-Teka-Surface`. Bearer/mobile path untouched.
-- [x] **A3** Web (×3): each api-client sends `X-Teka-Surface` + reads its own `teka_{surface}_session`;
-  middlewares read per-surface cookie names; `apiFetch` is now FormData-aware; **all** authenticated raw
-  fetches (image-uploader, avatar ×3, KYC doc, admin CSV) routed through apiFetch / given the surface header;
-  `fetchUser` only nulls the user on a genuine 401 (not transient/5xx).
-- [x] **A tests**: `auth.service.spec.ts` (7 — grace/replay/scoped-logout); buyer-web middleware cookie names
-  updated. Green: api 115 unit + 112 e2e; buyer-web 51; all type-checks clean.
-- [x] **A**: committed + **PR #385** `feat/seller-session-isolation → develop` (open).
+---
 
-**Workstream B — admin product notifications (branch `feat/admin-product-notifications`, stacked on A so
-STATUS/docs stay coherent — retarget the PR to `develop` once #385 merges):**
-- [x] **B1** API: `AdminNotification` model + enum + idempotent prod migration
-  `2026-06-18_admin_notifications.sql` (applied to dev via `prisma db execute`); `AdminNotificationService`
-  (Prisma-only, fire-and-forget); emit `PRODUCT_SUBMITTED` in `submitForReview`; `pendingProductsCount` in
-  admin stats; `GET /v1/admin/notifications(+/unread-count)` + `PATCH .../:id/read(+/read-all)`. e2e (4 authz)
-  + stats + products mock. Green: api 115 unit + 112 e2e.
-- [x] **B2** admin-web: Produits sidebar badge + dashboard alert (deep-links to `?status=PENDING_REVIEW`) +
-  header `NotificationBell` (unread poll, dropdown, mark-read/all). type-check + prod build green.
-- [x] **Docs**: CLAUDE.md auth/session + docs index; `docs/session-management.md` (new); architecture
-  admin-notification flow; STATUS; PROGRESS; AUTH_COOKIE_NAMES memory.
-- [x] **B**: **PR #386** opened, **retargeted to `develop`** (base no longer stacked; #385 merged 2026-06-18 →
-  #386 diff is B-only, MERGEABLE/CLEAN).
+### Recently completed — 2026-06-18 (SHIPPED + VERIFIED on prod)
 
-**Remaining (operator/sequencing):** ~~merge #385 → develop~~ ✅ (merged 2026-06-18); merge **#386 → develop**;
-release `develop → main`; **apply prod migration** `2026-06-18_admin_notifications.sql` (Apply-prod-migration
-Action).
-**⚠ Deploy risk (A2):** cookie rename forces a **one-time re-login** for all currently-active web users (old
-`teka_access_token` no longer read). Deploy at low traffic; announce.
+**Admin product notifications + seller session/auth isolation.** Two prod defects from live testing — shipped
+as 3 PRs (#385, #386, hotfix #388) across releases #387, #389 (+ main→develop back-merge). Full narrative:
+`PROGRESS.md` (Jun-18). Reference: `docs/session-management.md`.
+
+- **Issue 2 — sellers logged out after creating a product. TRUE ROOT CAUSE (hotfix #388 → release #389):**
+  `RefreshTokenDto.refreshToken` was required, so the global ValidationPipe **400'd every cookie-based `{}`
+  refresh BEFORE the controller's cookie-fallback ran** → web auto-refresh never worked → logout the moment
+  the 15-min access token expired mid-session (e.g. during image uploads — exactly the reported flow). Fix:
+  mark the field `@IsOptional()`. **Reproduced locally** (JWT_EXPIRY=5s: /refresh cookie+`{}` 400→200, /me
+  recovers) + regression test `refresh-token.dto.spec.ts`. **Verified on prod** (refresh now reaches the
+  handler). Mobile (sends `{refreshToken}`) unaffected.
+- **Issue 2 — adjacent hardening (#385 → release #387):** refresh rotation **15s grace window** (no
+  revoke-all on benign races; uses existing `revokedAt`, no migration); **per-surface cookies**
+  `teka_{admin,seller,buyer}_{access,refresh,session}` (via `X-Teka-Surface`; `auth/surface.util.ts`);
+  **scoped logout** (current `jti`); `apiFetch` FormData-aware + all authed raw fetches routed through it;
+  `fetchUser` nulls only on genuine 401; Sentry breadcrumbs. **Cookie rename forced a one-time re-login** for
+  active web users on deploy (expected, done).
+- **Issue 1 — admins unaware of new products (#386 → release #387):** `AdminNotification` model + enum (prod
+  migration `2026-06-18_admin_notifications.sql` **applied via the Action**); `AdminNotificationService`
+  emits `PRODUCT_SUBMITTED` on `submitForReview`; `pendingProductsCount` in admin stats; admin notification
+  endpoints; admin-web sidebar badge + dashboard alert + header `NotificationBell`. Admin has no mobile app →
+  no mobile parity.
+- **Green:** api 119 unit + 112 e2e; buyer-web 51; admin-web type-check + prod build. **Initiative fully
+  shipped + verified — no follow-up.**
 
 ---
 
