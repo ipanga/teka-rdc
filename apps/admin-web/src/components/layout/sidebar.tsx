@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api-client';
+import { NotificationBell } from './notification-bell';
 
 interface NavItem {
   href: string;
@@ -22,15 +23,20 @@ export function Sidebar() {
   const logout = useAuthStore((s) => s.logout);
   const router = useRouter();
 
-  // Pending seller applications → a count badge on the Vendeurs nav item, so
-  // admins see new applications awaiting review without opening the page.
+  // Count badges on the Vendeurs + Produits nav items, so admins see new
+  // seller applications / products awaiting review without opening the page.
   const [pendingSellers, setPendingSellers] = useState(0);
+  const [pendingProducts, setPendingProducts] = useState(0);
   useEffect(() => {
     let cancelled = false;
-    apiFetch<{ pendingSellerApplicationsCount?: number }>('/v1/admin/stats')
+    apiFetch<{
+      pendingSellerApplicationsCount?: number;
+      pendingProductsCount?: number;
+    }>('/v1/admin/stats')
       .then((res) => {
         if (!cancelled) {
           setPendingSellers(res.data.pendingSellerApplicationsCount ?? 0);
+          setPendingProducts(res.data.pendingProductsCount ?? 0);
         }
       })
       .catch(() => {
@@ -53,7 +59,12 @@ export function Sidebar() {
     { href: '/dashboard/admins', label: t('admins'), icon: '\u272a' },
     { href: '/dashboard/categories', label: t('categories'), icon: '\u2630' },
     { href: '/dashboard/brands', label: t('brands'), icon: '\ud83c\udff7' },
-    { href: '/dashboard/products', label: t('products'), icon: '\u2610' },
+    {
+      href: '/dashboard/products',
+      label: t('products'),
+      icon: '\u2610',
+      badge: pendingProducts,
+    },
     { href: '/dashboard/catalog-coverage', label: t('catalogCoverage'), icon: '\u25f7' },
     { href: '/dashboard/orders', label: t('orders'), icon: '\uD83D\uDCE6' },
     { href: '/dashboard/cities', label: t('cities'), icon: '\uD83C\uDFD9' },
@@ -85,14 +96,17 @@ export function Sidebar() {
   return (
     <aside className="w-64 min-h-screen bg-foreground text-white flex flex-col">
       <div className="p-6 border-b border-white/10">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/logo-white.svg"
-          alt="Teka RDC"
-          className="h-7 w-auto"
-          width={140}
-          height={28}
-        />
+        <div className="flex items-start justify-between gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-white.svg"
+            alt="Teka RDC"
+            className="h-7 w-auto"
+            width={140}
+            height={28}
+          />
+          <NotificationBell />
+        </div>
         <p className="text-sm text-white/60 mt-2">{t('adminPanel')}</p>
       </div>
 

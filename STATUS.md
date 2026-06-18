@@ -26,18 +26,28 @@ branches off `develop`: `feat/seller-session-isolation` (Workstream A) + `feat/a
   fetches (image-uploader, avatar ×3, KYC doc, admin CSV) routed through apiFetch / given the surface header;
   `fetchUser` only nulls the user on a genuine 401 (not transient/5xx).
 - [x] **A tests**: `auth.service.spec.ts` (7 — grace/replay/scoped-logout); buyer-web middleware cookie names
-  updated. Green: api 114 unit + 108 e2e; buyer-web 51; all type-checks clean.
-- [ ] **A**: commit + open PR `feat/seller-session-isolation → develop`.
+  updated. Green: api 115 unit + 112 e2e; buyer-web 51; all type-checks clean.
+- [x] **A**: committed + **PR #385** `feat/seller-session-isolation → develop` (open).
 
-**Workstream B — admin product notifications (branch `feat/admin-product-notifications`):** NOT STARTED.
-- [ ] **B1** API: `AdminNotification` model + manual prod migration; `AdminNotificationService`; emit in
-  `submitForReview`; `pendingProductsCount` in admin stats; notification endpoints.
-- [ ] **B2** admin-web: Products sidebar badge + dashboard alert + header notification bell.
-- [ ] **Docs/closeout**: CLAUDE.md auth/session section; `docs/session-management.md`; architecture notif
-  flow; PROGRESS.md; refresh AUTH_COOKIE_NAMES memory.
+**Workstream B — admin product notifications (branch `feat/admin-product-notifications`, stacked on A so
+STATUS/docs stay coherent — retarget the PR to `develop` once #385 merges):**
+- [x] **B1** API: `AdminNotification` model + enum + idempotent prod migration
+  `2026-06-18_admin_notifications.sql` (applied to dev via `prisma db execute`); `AdminNotificationService`
+  (Prisma-only, fire-and-forget); emit `PRODUCT_SUBMITTED` in `submitForReview`; `pendingProductsCount` in
+  admin stats; `GET /v1/admin/notifications(+/unread-count)` + `PATCH .../:id/read(+/read-all)`. e2e (4 authz)
+  + stats + products mock. Green: api 115 unit + 112 e2e.
+- [x] **B2** admin-web: Produits sidebar badge + dashboard alert (deep-links to `?status=PENDING_REVIEW`) +
+  header `NotificationBell` (unread poll, dropdown, mark-read/all). type-check + prod build green.
+- [x] **Docs**: CLAUDE.md auth/session + docs index; `docs/session-management.md` (new); architecture
+  admin-notification flow; STATUS; PROGRESS; AUTH_COOKIE_NAMES memory.
+- [x] **B**: **PR #386** opened, **retargeted to `develop`** (base no longer stacked; #385 merged 2026-06-18 →
+  #386 diff is B-only, MERGEABLE/CLEAN).
 
-**⚠ Deploy risk (A2):** cookie rename forces a **one-time re-login** for all currently-active web users
-(old `teka_access_token` no longer read). Deploy at low traffic; announce.
+**Remaining (operator/sequencing):** ~~merge #385 → develop~~ ✅ (merged 2026-06-18); merge **#386 → develop**;
+release `develop → main`; **apply prod migration** `2026-06-18_admin_notifications.sql` (Apply-prod-migration
+Action).
+**⚠ Deploy risk (A2):** cookie rename forces a **one-time re-login** for all currently-active web users (old
+`teka_access_token` no longer read). Deploy at low traffic; announce.
 
 ---
 

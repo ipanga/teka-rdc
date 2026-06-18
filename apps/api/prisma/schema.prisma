@@ -1091,3 +1091,29 @@ model DeviceToken {
   @@index([userId, isActive])
   @@map("device_tokens")
 }
+
+// In-app notification feed for the admin dashboard. Not tied to a single
+// admin — every admin sees the same global feed (the platform's moderation
+// inbox). `entityType` + `entityId` deep-link the notification to the
+// relevant record (e.g. a product pending review). `readAt` drives the
+// unread badge. Transient ops data — no soft-delete.
+enum AdminNotificationType {
+  PRODUCT_SUBMITTED
+}
+
+model AdminNotification {
+  id         String                @id @default(uuid()) @db.Uuid
+  type       AdminNotificationType
+  title      String
+  body       String
+  // Deep-link target. `entityId` is plain text (not @db.Uuid) because some
+  // product ids are non-RFC4122 seeded ids.
+  entityType String?
+  entityId   String?
+  readAt     DateTime?
+  createdAt  DateTime              @default(now())
+
+  @@index([readAt])
+  @@index([createdAt])
+  @@map("admin_notifications")
+}

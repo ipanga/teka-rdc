@@ -17,6 +17,7 @@ import {
   generateShortCode,
 } from '../common/utils/slugify';
 import { PostHogService } from '../analytics/posthog.service';
+import { AdminNotificationService } from '../notifications/admin-notification.service';
 
 @Injectable()
 export class ProductsService {
@@ -26,6 +27,7 @@ export class ProductsService {
     private prisma: PrismaService,
     private cloudinary: CloudinaryService,
     private analytics: PostHogService,
+    private adminNotifications: AdminNotificationService,
   ) {}
 
   /**
@@ -391,6 +393,16 @@ export class ProductsService {
         },
         category: true,
       },
+    });
+
+    // Notify admins a product is awaiting moderation. Fire-and-forget — the
+    // service swallows its own errors, so this never blocks the submission.
+    void this.adminNotifications.create({
+      type: 'PRODUCT_SUBMITTED',
+      title: 'Nouveau produit à valider',
+      body: `« ${submitted.title} » a été soumis et attend votre validation.`,
+      entityType: 'product',
+      entityId: submitted.id,
     });
 
     return submitted;

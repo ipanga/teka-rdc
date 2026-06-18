@@ -57,6 +57,23 @@ export default function ProductModerationPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // Honor a `?status=` deep-link on mount (e.g. the dashboard "produits en
+  // attente" alert / notification bell link to ?status=PENDING_REVIEW). Read
+  // from window (not useSearchParams) to avoid a Suspense-boundary requirement.
+  useEffect(() => {
+    const valid: StatusFilter[] = [
+      'PENDING_REVIEW',
+      'ACTIVE',
+      'REJECTED',
+      'ARCHIVED',
+      'DRAFT',
+    ];
+    const fromUrl = new URLSearchParams(window.location.search).get('status');
+    if (fromUrl && (valid as string[]).includes(fromUrl)) {
+      setStatusFilter(fromUrl as StatusFilter);
+    }
+  }, []);
+
   // Rejection modal state
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');

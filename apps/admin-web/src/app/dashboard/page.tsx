@@ -25,6 +25,7 @@ interface AdminStats {
   totalOrders: number;
   totalRevenueCDF: string;
   pendingSellerApplicationsCount: number;
+  pendingProductsCount: number;
 }
 
 interface TrendPoint {
@@ -154,6 +155,31 @@ export default function AdminDashboardPage() {
           </div>
           <span className="text-sm font-medium text-primary whitespace-nowrap">
             {t('pendingSellerApplicationsCta')} &rarr;
+          </span>
+        </Link>
+      )}
+
+      {/* Pending products alert — products awaiting moderation. */}
+      {!isLoading && (stats?.pendingProductsCount ?? 0) > 0 && (
+        <Link
+          href="/dashboard/products?status=PENDING_REVIEW"
+          className="flex items-center justify-between gap-4 mb-6 p-4 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex items-center justify-center w-9 h-9 rounded-full bg-primary text-white text-sm font-bold">
+              {stats?.pendingProductsCount}
+            </span>
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {t('pendingProductsTitle')}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {t('pendingProductsSubtitle')}
+              </p>
+            </div>
+          </div>
+          <span className="text-sm font-medium text-primary whitespace-nowrap">
+            {t('pendingProductsCta')} &rarr;
           </span>
         </Link>
       )}

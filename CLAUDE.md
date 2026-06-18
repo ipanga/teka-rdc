@@ -157,7 +157,7 @@ GitHub Actions handles CI/CD with **zero-downtime** deploys (lint → type-check
 | buyer-mobile | Consumer-facing app. Primary user interface for most customers |
 | seller-mobile | Seller dashboard: manage products, orders, earnings |
 
-Both apps target Android first (APK distribution + Play Store). iOS as future phase.
+Android is the shipping target for both apps (APK distribution + Play Store). iOS is early/in-progress: buyer-mobile has a native iOS project scaffold under `apps/buyer-mobile/ios/` (Runner workspace + Podfile), currently untracked and not yet wired into CI or flavors; seller-mobile has no `ios/` directory yet. Treat iOS as not-yet-released — don't assume parity with the Android flavor/release tooling.
 
 ### Repository Layout
 
@@ -177,7 +177,8 @@ Both apps target Android first (APK distribution + Play Store). iOS as future ph
 history) · `url-and-seo-strategy.md` (city-first URLs/slugs/redirects) · `analytics.md` (PostHog) ·
 `clarity.md` (Microsoft Clarity) · `api-reference.md` · `deployment.md` (§5b admin seeding) ·
 `mobile-connectivity.md` (Rule 15) · `mobile-flavors.md` · `mobile-release.md` (Android signing + Play
-Store) · `payouts.md` (seller payouts + settlement) · `push-notifications.md` (FCM) · `sentry.md`.
+Store) · `payouts.md` (seller payouts + settlement) · `push-notifications.md` (FCM) ·
+`session-management.md` (per-surface cookies + token rotation) · `sentry.md`.
 
 ---
 
@@ -188,7 +189,7 @@ Store) · `payouts.md` (seller payouts + settlement) · `push-notifications.md` 
 Key categories (see `.env.example` for the full list with comments):
 
 - **Database** — `DATABASE_URL` (cloud Postgres; no local instance)
-- **Auth** — `JWT_SECRET`, `JWT_REFRESH_SECRET`, `JWT_EXPIRY`, `JWT_REFRESH_EXPIRY`, `COOKIE_DOMAIN` (empty in dev, `.teka.cd` in prod for cross-subdomain cookies)
+- **Auth** — `JWT_SECRET`, `JWT_REFRESH_SECRET`, `JWT_EXPIRY`, `JWT_REFRESH_EXPIRY`, `COOKIE_DOMAIN` (empty in dev, `.teka.cd` in prod for cross-subdomain cookies). Cookies are **per-surface** since 2026-06-18 — `teka_{admin,seller,buyer}_{access,refresh,session}`, selected via the `X-Teka-Surface` header — so the three sessions stay isolated and logout is session-scoped. Refresh rotates with a 15s grace window (no revoke-all on benign races). Full model: `docs/session-management.md`.
 - **Password hashing & setup links** — `BCRYPT_ROUNDS`, `PASSWORD_RESET_EXPIRY_MINUTES`, `SELLER_SETUP_EXPIRY_HOURS`, `BUYER_SETUP_EXPIRY_HOURS`
 - **Push notifications (FCM)** — see the push entry below
 - **Payments** — no env vars; COD-only since 2026-05-26 (Flexpay removed)

@@ -5,10 +5,19 @@ import { PushModule } from '../push/push.module';
 import { EmailModule } from '../email/email.module';
 import { OrderNotificationService } from './order-notification.service';
 import { SellerNotificationService } from './seller-notification.service';
+import { AdminNotificationService } from './admin-notification.service';
 
 @Module({
   imports: [PrismaModule, UsersModule, PushModule, EmailModule],
-  providers: [OrderNotificationService, SellerNotificationService],
-  exports: [OrderNotificationService, SellerNotificationService],
+  providers: [
+    OrderNotificationService,
+    SellerNotificationService,
+    AdminNotificationService,
+  ],
+  exports: [
+    OrderNotificationService,
+    SellerNotificationService,
+    AdminNotificationService,
+  ],
 })
 export class NotificationsModule {}
