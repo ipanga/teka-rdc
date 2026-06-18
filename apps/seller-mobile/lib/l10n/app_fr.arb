@@ -88,6 +88,9 @@
   "selectCategory": "Selectionner une categorie",
   "searchCategoryHint": "Rechercher une categorie...",
   "noCategoryFound": "Aucune categorie trouvee",
+  "notificationsTitle": "Notifications",
+  "notificationsMarkAllRead": "Tout marquer comme lu",
+  "notificationsEmpty": "Aucune notification",
 
   "images": "Images",
   "uploadImage": "Ajouter",
