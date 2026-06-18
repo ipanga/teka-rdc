@@ -3,8 +3,7 @@
 import { useState, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { compressImageForUpload } from '@/lib/image-compress';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5050/api';
+import { apiFetch, ApiError } from '@/lib/api-client';
 
 interface ProductImage {
   id: string;
@@ -45,23 +44,18 @@ export function ImageUploader({ productId, images, onImagesChange, readOnly }: I
       const formData = new FormData();
       formData.append('image', fileToUpload);
 
-      const res = await fetch(`${API_BASE}/v1/sellers/products/${productId}/images`, {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
-      });
+      // Through apiFetch (not raw fetch) so an expired access token is
+      // transparently refreshed mid-upload instead of failing — and so the
+      // seller isn't left in a broken auth state after posting a product.
+      const json = await apiFetch<{ image?: ProductImage }>(
+        `/v1/sellers/products/${productId}/images`,
+        { method: 'POST', body: formData },
+      );
 
-      const json = await res.json();
-
-      if (!res.ok) {
-        setError(json?.error?.message || 'Upload failed');
-        return;
-      }
-
-      const newImage: ProductImage = json.data.image || json.data;
+      const newImage = json.data.image ?? (json.data as unknown as ProductImage);
       onImagesChange([...images, newImage]);
-    } catch {
-      setError('Upload failed');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Upload failed');
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -75,21 +69,14 @@ export function ImageUploader({ productId, images, onImagesChange, readOnly }: I
     setError('');
 
     try {
-      const res = await fetch(`${API_BASE}/v1/sellers/products/${productId}/images/${imageId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-      });
-
-      if (!res.ok) {
-        const json = await res.json();
-        setError(json?.error?.message || 'Delete failed');
-        return;
-      }
+      await apiFetch(
+        `/v1/sellers/products/${productId}/images/${imageId}`,
+        { method: 'DELETE' },
+      );
 
       onImagesChange(images.filter((img) => img.id !== imageId));
-    } catch {
-      setError('Delete failed');
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Delete failed');
     } finally {
       setDeletingId(null);
     }

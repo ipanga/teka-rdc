@@ -6,8 +6,38 @@
 
 ## Active initiative
 
-**None.** The *Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset* initiative is **code-complete**
-(see "Recently completed" below). No in-flight work — per CLAUDE.md §7.2, ask the user what to start next.
+**Admin product notifications + seller session/auth isolation** (started 2026-06-18). Two prod defects
+found in live testing: (1) admins get no signal when a seller submits a product; (2) sellers get logged out
+after creating a product. Root causes + plan: `~/.claude/plans/teka-rdc-generic-honey.md`. Two feature
+branches off `develop`: `feat/seller-session-isolation` (Workstream A) + `feat/admin-product-notifications`
+(Workstream B). A is higher priority (live logout + security).
+
+**Workstream A — session/auth isolation (branch `feat/seller-session-isolation`):**
+- [x] **A1** API: refresh-token rotation **grace window** (a token revoked <15s ago = benign race → re-issue,
+  no revoke-all; beyond grace still trips revoke-all replay defense — uses existing `revokedAt`, no
+  migration); **scoped logout** (`logout(userId, jti)` revokes only the current session); Sentry/log
+  breadcrumbs at replay / race / logout (no PII). `auth.service.ts` + `auth.controller.ts`.
+- [x] **A2** API: **per-surface cookies** — `teka_{admin,seller,buyer}_{access,refresh,session}`. New
+  `auth/surface.util.ts` resolves surface from the `X-Teka-Surface` header; `jwt.strategy` cookie extractor +
+  `setAuthCookies`/`clearAuthCookies`/`refreshSessionHint`/`refresh` all surface-aware; `main.ts` CORS
+  `allowedHeaders += X-Teka-Surface`. Bearer/mobile path untouched.
+- [x] **A3** Web (×3): each api-client sends `X-Teka-Surface` + reads its own `teka_{surface}_session`;
+  middlewares read per-surface cookie names; `apiFetch` is now FormData-aware; **all** authenticated raw
+  fetches (image-uploader, avatar ×3, KYC doc, admin CSV) routed through apiFetch / given the surface header;
+  `fetchUser` only nulls the user on a genuine 401 (not transient/5xx).
+- [x] **A tests**: `auth.service.spec.ts` (7 — grace/replay/scoped-logout); buyer-web middleware cookie names
+  updated. Green: api 114 unit + 108 e2e; buyer-web 51; all type-checks clean.
+- [ ] **A**: commit + open PR `feat/seller-session-isolation → develop`.
+
+**Workstream B — admin product notifications (branch `feat/admin-product-notifications`):** NOT STARTED.
+- [ ] **B1** API: `AdminNotification` model + manual prod migration; `AdminNotificationService`; emit in
+  `submitForReview`; `pendingProductsCount` in admin stats; notification endpoints.
+- [ ] **B2** admin-web: Products sidebar badge + dashboard alert + header notification bell.
+- [ ] **Docs/closeout**: CLAUDE.md auth/session section; `docs/session-management.md`; architecture notif
+  flow; PROGRESS.md; refresh AUTH_COOKIE_NAMES memory.
+
+**⚠ Deploy risk (A2):** cookie rename forces a **one-time re-login** for all currently-active web users
+(old `teka_access_token` no longer read). Deploy at low traffic; announce.
 
 ---
 
