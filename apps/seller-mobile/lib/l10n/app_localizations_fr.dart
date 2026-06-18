@@ -221,6 +221,21 @@ class AppLocalizationsFr extends AppLocalizations {
   String get selectCategory => 'Selectionner une categorie';
 
   @override
+  String get searchCategoryHint => 'Rechercher une categorie...';
+
+  @override
+  String get noCategoryFound => 'Aucune categorie trouvee';
+
+  @override
+  String get notificationsTitle => 'Notifications';
+
+  @override
+  String get notificationsMarkAllRead => 'Tout marquer comme lu';
+
+  @override
+  String get notificationsEmpty => 'Aucune notification';
+
+  @override
   String get images => 'Images';
 
   @override

@@ -88,6 +88,13 @@
     "profile": "Mon profil",
     "logout": "Se déconnecter"
   },
+  "Notifications": {
+    "aria": "Notifications",
+    "title": "Notifications",
+    "markAllRead": "Tout marquer comme lu",
+    "loading": "Chargement...",
+    "empty": "Aucune notification"
+  },
   "Profile": {
     "title": "Mon profil",
     "subtitle": "Gérez vos informations personnelles et celles de votre boutique",
@@ -188,6 +195,8 @@
     "maxImages": "{count}/8 images",
     "category": "Catégorie",
     "selectCategory": "Sélectionner une catégorie",
+    "searchCategory": "Rechercher une catégorie...",
+    "noCategoryFound": "Aucune catégorie trouvée",
     "priceCDF": "Prix en CDF",
     "priceUSD": "Prix en USD (optionnel)",
     "quantity": "Quantité",

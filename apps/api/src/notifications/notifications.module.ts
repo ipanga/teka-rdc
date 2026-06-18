@@ -6,18 +6,23 @@ import { EmailModule } from '../email/email.module';
 import { OrderNotificationService } from './order-notification.service';
 import { SellerNotificationService } from './seller-notification.service';
 import { AdminNotificationService } from './admin-notification.service';
+import { UserNotificationService } from './user-notification.service';
+import { SellerNotificationsController } from './seller-notifications.controller';
 
 @Module({
   imports: [PrismaModule, UsersModule, PushModule, EmailModule],
+  controllers: [SellerNotificationsController],
   providers: [
     OrderNotificationService,
     SellerNotificationService,
     AdminNotificationService,
+    UserNotificationService,
   ],
   exports: [
     OrderNotificationService,
     SellerNotificationService,
     AdminNotificationService,
+    UserNotificationService,
   ],
 })
 export class NotificationsModule {}

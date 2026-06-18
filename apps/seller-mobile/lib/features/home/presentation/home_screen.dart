@@ -10,6 +10,7 @@ import '../../orders/presentation/providers/orders_provider.dart';
 import '../../products/data/models/product_model.dart';
 import '../../products/presentation/providers/products_provider.dart';
 import '../../products/presentation/widgets/status_badge.dart';
+import '../../notifications/presentation/providers/notifications_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -21,13 +22,22 @@ class HomeScreen extends ConsumerWidget {
     final productsState = ref.watch(sellerProductsProvider);
     final ordersState = ref.watch(sellerOrdersProvider);
     final userName = authState.user?['firstName'] as String? ?? '';
+    final unread = ref.watch(notificationsProvider.select((s) => s.unread));
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Teka Vendeur'),
         actions: [
-          // Messages icon retired 2026-05-17 — direct buyer↔seller
-          // messaging removed in favour of "Contacter le support".
+          // Notification center: bell with an unread badge.
+          IconButton(
+            icon: Badge(
+              isLabelVisible: unread > 0,
+              label: Text(unread > 9 ? '9+' : '$unread'),
+              child: const Icon(Icons.notifications_outlined),
+            ),
+            tooltip: l10n.notificationsTitle,
+            onPressed: () => context.push('/notifications'),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: l10n.authLogout,

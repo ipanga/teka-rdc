@@ -155,11 +155,131 @@ class _CategoryList extends StatefulWidget {
   State<_CategoryList> createState() => _CategoryListState();
 }
 
+// Lowercases + strips common French accents so "tele"/"chauss" match
+// "Téléphones"/"Chaussures". Dart has no built-in unaccent; this covers the
+// accents used in the taxonomy.
+String _normalizeCat(String s) {
+  const from = 'àáâãäåçèéêëìíîïñòóôõöùúûüýÿ';
+  const to = 'aaaaaaceeeeiiiinooooouuuuyy';
+  var r = s.toLowerCase();
+  for (var i = 0; i < from.length; i++) {
+    r = r.replaceAll(from[i], to[i]);
+  }
+  return r.trim();
+}
+
+class _FlatMatch {
+  final CategoryModel node;
+  final String? parentName;
+  const _FlatMatch(this.node, this.parentName);
+}
+
 class _CategoryListState extends State<_CategoryList> {
   final Set<String> _expandedIds = {};
+  final TextEditingController _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  // Flat matches across category AND subcategory names (own-name match), each
+  // subcategory carrying its parent for context. Filtering is client-side —
+  // the full taxonomy is already loaded.
+  List<_FlatMatch> _matches(String query) {
+    final nq = _normalizeCat(query);
+    final out = <_FlatMatch>[];
+    for (final cat in widget.categories) {
+      if (_normalizeCat(cat.name).contains(nq)) {
+        out.add(_FlatMatch(cat, null));
+      }
+      for (final sub in cat.subcategories) {
+        if (_normalizeCat(sub.name).contains(nq)) {
+          out.add(_FlatMatch(sub, cat.name));
+        }
+      }
+    }
+    return out;
+  }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final searching = _query.trim().isNotEmpty;
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: TextField(
+            controller: _searchController,
+            autofocus: false,
+            decoration: InputDecoration(
+              hintText: l10n.searchCategoryHint,
+              prefixIcon: const Icon(Icons.search),
+              isDense: true,
+              suffixIcon: searching
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _query = '');
+                      },
+                    )
+                  : null,
+            ),
+            onChanged: (v) => setState(() => _query = v),
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: searching
+              ? _buildSearchResults(l10n)
+              : _buildTree(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchResults(AppLocalizations l10n) {
+    final matches = _matches(_query);
+    if (matches.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(l10n.noCategoryFound),
+        ),
+      );
+    }
+    return ListView.builder(
+      controller: widget.scrollController,
+      itemCount: matches.length,
+      itemBuilder: (context, index) {
+        final m = matches[index];
+        return ListTile(
+          leading: m.node.emoji != null
+              ? Text(m.node.emoji!, style: const TextStyle(fontSize: 22))
+              : Icon(
+                  m.parentName == null
+                      ? Icons.category_outlined
+                      : Icons.subdirectory_arrow_right,
+                  size: 20,
+                ),
+          title: Text(m.node.name),
+          subtitle: m.parentName != null ? Text(m.parentName!) : null,
+          trailing: widget.selectedId == m.node.id
+              ? const Icon(Icons.check, color: TekaColors.success)
+              : null,
+          selected: widget.selectedId == m.node.id,
+          onTap: () => widget.onSelect(m.node),
+        );
+      },
+    );
+  }
+
+  Widget _buildTree() {
     return ListView.builder(
       controller: widget.scrollController,
       itemCount: widget.categories.length,

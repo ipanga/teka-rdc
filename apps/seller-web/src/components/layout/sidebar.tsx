@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
+import { NotificationBell } from './notification-bell';
 
 interface NavItem {
   href: string;
@@ -48,14 +49,17 @@ export function Sidebar() {
   return (
     <aside className="w-64 min-h-screen bg-foreground text-white flex flex-col shrink-0">
       <div className="p-6 border-b border-white/10">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/logo-white.svg"
-          alt="Teka RDC"
-          className="h-7 w-auto"
-          width={140}
-          height={28}
-        />
+        <div className="flex items-start justify-between gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-white.svg"
+            alt="Teka RDC"
+            className="h-7 w-auto"
+            width={140}
+            height={28}
+          />
+          <NotificationBell />
+        </div>
         <p className="text-sm text-white/60 mt-2">{t('sellerPortal')}</p>
       </div>
 
