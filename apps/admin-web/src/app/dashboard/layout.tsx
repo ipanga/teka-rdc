@@ -15,11 +15,10 @@ export default function DashboardLayout({
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
 
-  // Role gate. COOKIE_DOMAIN=.teka.cd lets buyer/seller cookies reach
-  // this subdomain, so middleware can't tell a real admin from another
-  // authenticated user who navigated to admin.teka.cd. Once /me returns
-  // we double-check role here: anything other than ADMIN gets logged
-  // out and bounced back to /login so they don't sit on a broken admin
+  // Role gate (defense in depth). Cookies are per-surface now (teka_admin_*),
+  // so a logged-in buyer/seller no longer reaches this dashboard with a live
+  // session. We still double-check the role once /me returns: anything other
+  // than ADMIN gets logged out and bounced to /login rather than sitting on a
   // dashboard full of 403s.
   useEffect(() => {
     if (isLoading) return;
