@@ -40,10 +40,12 @@ STATUS/docs stay coherent — retarget the PR to `develop` once #385 merges):**
   header `NotificationBell` (unread poll, dropdown, mark-read/all). type-check + prod build green.
 - [x] **Docs**: CLAUDE.md auth/session + docs index; `docs/session-management.md` (new); architecture
   admin-notification flow; STATUS; PROGRESS; AUTH_COOKIE_NAMES memory.
-- [x] **B**: **PR #386** opened (base = `feat/seller-session-isolation`, stacked; retarget to `develop` after #385 merges).
+- [x] **B**: **PR #386** opened, **retargeted to `develop`** (base no longer stacked; #385 merged 2026-06-18 →
+  #386 diff is B-only, MERGEABLE/CLEAN).
 
-**Remaining (operator/sequencing):** merge #385 → develop; retarget + merge #386 → develop; release
-`develop → main`; **apply prod migration** `2026-06-18_admin_notifications.sql` (Apply-prod-migration Action).
+**Remaining (operator/sequencing):** ~~merge #385 → develop~~ ✅ (merged 2026-06-18); merge **#386 → develop**;
+release `develop → main`; **apply prod migration** `2026-06-18_admin_notifications.sql` (Apply-prod-migration
+Action).
 **⚠ Deploy risk (A2):** cookie rename forces a **one-time re-login** for all currently-active web users (old
 `teka_access_token` no longer read). Deploy at low traffic; announce.
 
