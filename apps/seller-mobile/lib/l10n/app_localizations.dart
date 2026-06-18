@@ -502,6 +502,18 @@ abstract class AppLocalizations {
   /// **'Selectionner une categorie'**
   String get selectCategory;
 
+  /// No description provided for @searchCategoryHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rechercher une categorie...'**
+  String get searchCategoryHint;
+
+  /// No description provided for @noCategoryFound.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucune categorie trouvee'**
+  String get noCategoryFound;
+
   /// No description provided for @images.
   ///
   /// In fr, this message translates to:

@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import DynamicAttributesForm from '@/components/products/dynamic-attributes-form';
 import BrandSelect from '@/components/products/brand-select';
+import CategoryCombobox from '@/components/products/category-combobox';
 
 interface Category {
   id: string;
@@ -60,19 +61,6 @@ export default function NewProductPage() {
     }
     loadCategories();
   }, [t]);
-
-  const flattenCategories = (cats: Category[], depth = 0): { id: string; label: string; depth: number }[] => {
-    const result: { id: string; label: string; depth: number }[] = [];
-    for (const cat of cats) {
-      const label = cat.name || '---';
-      result.push({ id: cat.id, label, depth });
-      const kids = cat.children || cat.subcategories || [];
-      if (kids.length > 0) {
-        result.push(...flattenCategories(kids, depth + 1));
-      }
-    }
-    return result;
-  };
 
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
@@ -145,8 +133,6 @@ export default function NewProductPage() {
     }
   };
 
-  const flatCats = flattenCategories(categories);
-
   return (
     <div>
       <div className="mb-6">
@@ -178,21 +164,17 @@ export default function NewProductPage() {
               {isLoadingCategories ? (
                 <div className="h-10 bg-muted rounded-lg animate-pulse" />
               ) : (
-                <select
-                  id="categoryId"
+                <CategoryCombobox
+                  categories={categories}
                   value={categoryId}
-                  onChange={(e) => { setCategoryId(e.target.value); setSpecifications([]); setBrandId(''); setFieldErrors((prev) => ({ ...prev, categoryId: '' })); }}
-                  className={`w-full px-3 py-2 border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring ${
-                    fieldErrors.categoryId ? 'border-destructive' : 'border-input'
-                  }`}
-                >
-                  <option value="">{t('selectCategory')}</option>
-                  {flatCats.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {'\u00A0'.repeat(cat.depth * 4)}{cat.label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(id) => {
+                    setCategoryId(id);
+                    setSpecifications([]);
+                    setBrandId('');
+                    setFieldErrors((prev) => ({ ...prev, categoryId: '' }));
+                  }}
+                  hasError={!!fieldErrors.categoryId}
+                />
               )}
               {fieldErrors.categoryId && (
                 <p className="text-xs text-destructive mt-1">{fieldErrors.categoryId}</p>
