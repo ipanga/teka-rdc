@@ -6,9 +6,27 @@
 
 ## Active initiative
 
-**None.** The *Admin product notifications + seller session/auth isolation* initiative (incl. the
-refresh-cookie hotfix) is **SHIPPED + VERIFIED on prod 2026-06-18** — see below. `develop == main` as of the
-2026-06-18 releases. No in-flight work — per CLAUDE.md §7.2, ask the user what to start next.
+**Seller Product Management UX** (started 2026-06-18). Two usability gaps from live testing, shipped as 2
+PRs off `develop` (F2 stacked on F1 to avoid ARB/l10n conflicts; retarget F2 → develop once F1 merges).
+
+- **F1 — Searchable category selector** (PR #392, `feat/searchable-category-selector`): the 7→80+
+  taxonomy made the product Category dropdown unwieldy. Client-side filtering only (full tree already
+  loaded — no API/DB change). seller-web: custom `CategoryCombobox` (accent-insensitive, keyboard nav)
+  replacing the native `<select>` in product create+edit. seller-mobile: search field in the existing
+  category bottom sheet. Green: seller-web type-check+build; seller-mobile analyze (changed files).
+- **F2 — Seller product approval/rejection notifications** (branch `feat/seller-notifications`, stacked on
+  F1): sellers had only ephemeral push. New **per-user `UserNotification`** model + service (ownership-
+  scoped) + `/v1/seller/notifications` endpoints + idempotent migration `2026-06-18_user_notifications.sql`
+  (applied to dev). `SellerNotificationService.notifyProductApproved/Rejected` now persist in-app + push-
+  primary + email-fallback (new product-approved/rejected FR templates). Approve **and** reject both
+  notified. seller-web notification bell + seller-mobile `/notifications` center (home bell + unread badge).
+  Decisions: new per-user model (not generalizing the admin feed); approve+reject; in-app + push + email-
+  fallback. Green: api 129 unit + 116 e2e; seller-web build; seller-mobile analyze + tests.
+- [ ] **Remaining:** open PR for F2; merge F1 (#392) → develop; retarget+merge F2 → develop; release
+  `develop → main`; **apply prod migration** `2026-06-18_user_notifications.sql` after deploy.
+
+Prior initiative (*Admin product notifications + seller session/auth isolation* + refresh-cookie hotfix) is
+**SHIPPED + VERIFIED on prod 2026-06-18** (`develop == main` as of those releases) — see below.
 
 ---
 

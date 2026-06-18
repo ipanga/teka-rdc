@@ -514,6 +514,24 @@ abstract class AppLocalizations {
   /// **'Aucune categorie trouvee'**
   String get noCategoryFound;
 
+  /// No description provided for @notificationsTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Notifications'**
+  String get notificationsTitle;
+
+  /// No description provided for @notificationsMarkAllRead.
+  ///
+  /// In fr, this message translates to:
+  /// **'Tout marquer comme lu'**
+  String get notificationsMarkAllRead;
+
+  /// No description provided for @notificationsEmpty.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucune notification'**
+  String get notificationsEmpty;
+
   /// No description provided for @images.
   ///
   /// In fr, this message translates to:

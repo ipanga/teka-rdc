@@ -228,6 +228,7 @@ model User {
   addresses           Address[]
   refreshTokens       RefreshToken[]
   deviceTokens        DeviceToken[]
+  notifications       UserNotification[]
   products            Product[]       @relation("SellerProducts")
   cart                Cart?
   buyerOrders         Order[]         @relation("BuyerOrders")
@@ -1116,4 +1117,32 @@ model AdminNotification {
   @@index([readAt])
   @@index([createdAt])
   @@map("admin_notifications")
+}
+
+// Per-USER in-app notification feed (distinct from the global admin inbox
+// above — this one is owned by a single user and queries are always scoped to
+// `userId`). Today it backs seller product-approval/rejection notifications;
+// reusable for buyers later. `entityType`/`entityId` deep-link to the record
+// (e.g. the product). `readAt` drives the unread badge.
+enum UserNotificationType {
+  PRODUCT_APPROVED
+  PRODUCT_REJECTED
+}
+
+model UserNotification {
+  id         String               @id @default(uuid()) @db.Uuid
+  userId     String               @db.Uuid
+  type       UserNotificationType
+  title      String
+  body       String
+  entityType String?
+  entityId   String?
+  readAt     DateTime?
+  createdAt  DateTime             @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@map("user_notifications")
 }
