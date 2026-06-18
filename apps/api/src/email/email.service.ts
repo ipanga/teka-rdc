@@ -21,6 +21,8 @@ import { sellerApplicationRejectedTemplate } from './templates/seller-applicatio
 import { payoutApprovedTemplate } from './templates/payout-approved.template';
 import { payoutPaidTemplate } from './templates/payout-paid.template';
 import { payoutRejectedTemplate } from './templates/payout-rejected.template';
+import { productApprovedTemplate } from './templates/product-approved.template';
+import { productRejectedTemplate } from './templates/product-rejected.template';
 
 /**
  * Buyer-facing order lifecycle events that can be emailed.
@@ -190,6 +192,42 @@ export class EmailService {
     const html = payoutRejectedTemplate(
       firstName,
       amountLabel,
+      reason,
+      dashboardUrl,
+    );
+    return this.sendEmail(email, subject, html);
+  }
+
+  /** Email fallback for the seller "product approved" event. */
+  async sendProductApproved(
+    email: string,
+    firstName: string | null,
+    productName: string,
+  ): Promise<boolean> {
+    const dashboardUrl = this.configService.get<string>(
+      'SELLER_WEB_URL',
+      'https://seller.teka.cd',
+    );
+    const subject = 'Votre produit a été approuvé — Teka RDC';
+    const html = productApprovedTemplate(firstName, productName, dashboardUrl);
+    return this.sendEmail(email, subject, html);
+  }
+
+  /** Email fallback for the seller "product rejected" event. */
+  async sendProductRejected(
+    email: string,
+    firstName: string | null,
+    productName: string,
+    reason: string,
+  ): Promise<boolean> {
+    const dashboardUrl = this.configService.get<string>(
+      'SELLER_WEB_URL',
+      'https://seller.teka.cd',
+    );
+    const subject = "Votre produit n'a pas été approuvé — Teka RDC";
+    const html = productRejectedTemplate(
+      firstName,
+      productName,
       reason,
       dashboardUrl,
     );

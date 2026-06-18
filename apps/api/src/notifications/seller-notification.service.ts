@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NotificationPrefsService } from '../users/notification-prefs.service';
 import { PushService, PushPayload } from '../push/push.service';
 import { EmailService } from '../email/email.service';
+import { UserNotificationService } from './user-notification.service';
 
 /**
  * Push-only notifications for seller-specific events that don't fit
@@ -37,6 +38,7 @@ export class SellerNotificationService {
     private notificationPrefs: NotificationPrefsService,
     private pushService: PushService,
     private emailService: EmailService,
+    private userNotifications: UserNotificationService,
   ) {}
 
   /**
@@ -54,15 +56,37 @@ export class SellerNotificationService {
   }): Promise<void> {
     try {
       const productName = this.resolveProductLabel(product);
-      this.sendPushToSeller(product.sellerId, {
+      const body = `${productName} a été approuvé et est maintenant en vente.`;
+
+      // 1) In-app feed entry — the durable record the seller sees in their
+      //    notification center (web + mobile).
+      await this.userNotifications.create({
+        userId: product.sellerId,
+        type: 'PRODUCT_APPROVED',
         title: 'Produit approuvé',
-        body: `${productName} a été approuvé et est maintenant en vente.`,
-        data: {
-          productId: product.id,
-          screen: 'product-details',
-          event: 'product-approved',
-        },
+        body,
+        entityType: 'product',
+        entityId: product.id,
       });
+
+      // 2) Push-primary + email-fallback (email only when the seller has no
+      //    active device — mirrors the payout pattern).
+      const user = await this.loadSellerUser(product.sellerId);
+      if (!user) return;
+      await this.pushOrEmailToSeller(
+        user,
+        {
+          title: 'Produit approuvé',
+          body,
+          data: {
+            productId: product.id,
+            screen: 'product-details',
+            event: 'product-approved',
+          },
+        },
+        (email, firstName) =>
+          this.emailService.sendProductApproved(email, firstName, productName),
+      );
     } catch (error: any) {
       this.logger.error(
         `Échec de notification approbation produit ${product.id}: ${error?.message ?? error}`,
@@ -87,21 +111,47 @@ export class SellerNotificationService {
   ): Promise<void> {
     try {
       const productName = this.resolveProductLabel(product);
-      // FCM has a soft cap of ~4KB on notification payloads. Truncate
-      // long admin-supplied reasons to keep the body readable.
-      const truncatedReason =
+      // FCM has a soft cap of ~4KB on notification payloads. Truncate long
+      // admin-supplied reasons for the push/in-app body; the email carries
+      // the full reason.
+      const shortReason =
         rejectionReason.length > 140
           ? rejectionReason.slice(0, 137) + '…'
           : rejectionReason;
-      this.sendPushToSeller(product.sellerId, {
+      const body = `${productName} a été rejeté. Raison : ${shortReason}`;
+
+      // 1) In-app feed entry.
+      await this.userNotifications.create({
+        userId: product.sellerId,
+        type: 'PRODUCT_REJECTED',
         title: 'Produit rejeté',
-        body: `${productName} a été rejeté. Raison : ${truncatedReason}`,
-        data: {
-          productId: product.id,
-          screen: 'product-details',
-          event: 'product-rejected',
-        },
+        body,
+        entityType: 'product',
+        entityId: product.id,
       });
+
+      // 2) Push-primary + email-fallback (full reason in the email).
+      const user = await this.loadSellerUser(product.sellerId);
+      if (!user) return;
+      await this.pushOrEmailToSeller(
+        user,
+        {
+          title: 'Produit rejeté',
+          body,
+          data: {
+            productId: product.id,
+            screen: 'product-details',
+            event: 'product-rejected',
+          },
+        },
+        (email, firstName) =>
+          this.emailService.sendProductRejected(
+            email,
+            firstName,
+            productName,
+            rejectionReason,
+          ),
+      );
     } catch (error: any) {
       this.logger.error(
         `Échec de notification rejet produit ${product.id}: ${error?.message ?? error}`,
@@ -321,6 +371,23 @@ export class SellerNotificationService {
       reference: payout.externalReference,
       reason: payout.rejectionReason,
     };
+  }
+
+  /**
+   * Loads a seller's user row (id + email + firstName) for push/email
+   * fan-out. `sellerId` on a Product is the seller's User id (the same id
+   * PushService.sendToUser + DeviceToken.userId use).
+   */
+  private async loadSellerUser(sellerId: string): Promise<{
+    id: string;
+    email: string | null;
+    firstName: string | null;
+  } | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: sellerId, deletedAt: null },
+      select: { id: true, email: true, firstName: true },
+    });
+    return user ?? null;
   }
 
   /** Format BigInt centimes as a French CDF label, e.g. "63 000 CDF". */
