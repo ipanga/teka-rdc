@@ -9,6 +9,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import * as Sentry from '@sentry/node';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
@@ -36,6 +37,17 @@ export interface AuthTokens {
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+
+  // Refresh-token rotation grace window. The access token is short-lived
+  // (15 min) and the refresh token rotates on EVERY refresh, while the
+  // `.teka.cd` cookie is shared across tabs/subdomains — so two near-
+  // simultaneous refreshes (or a retried request) can legitimately replay a
+  // token that was rotated milliseconds ago. Presenting a token that was
+  // revoked within this window is treated as a benign race (re-issue a fresh
+  // session) rather than a stolen-token replay (revoke every session). Kept
+  // small so genuine reuse beyond the window still trips the revoke-all
+  // defense. See refreshTokens().
+  private static readonly ROTATION_GRACE_MS = 15_000;
 
   constructor(
     private prisma: PrismaService,
@@ -366,16 +378,16 @@ export class AuthService {
         where: { id: payload.jti },
       });
 
-      if (!storedToken || storedToken.revokedAt) {
-        if (storedToken?.revokedAt) {
-          this.logger.warn(
-            `Token replay detected for user ${payload.sub}. Revoking all tokens.`,
-          );
-          await this.revokeAllUserTokens(payload.sub);
-        }
+      // Unknown jti — the row never existed or was pruned. Nothing to revoke;
+      // just reject.
+      if (!storedToken) {
         throw new UnauthorizedException('Token révoqué ou invalide');
       }
 
+      // The presented token must match the stored hash. A jti that resolves
+      // to a row but whose bytes don't match is forged/garbage — reject
+      // without escalating to revoke-all (there's no proof a genuine prior
+      // session is being replayed).
       const hashMatches = await bcrypt.compare(
         refreshToken,
         storedToken.tokenHash,
@@ -384,10 +396,42 @@ export class AuthService {
         throw new UnauthorizedException('Token invalide');
       }
 
-      await this.prisma.refreshToken.update({
-        where: { id: payload.jti },
-        data: { revokedAt: new Date() },
-      });
+      if (storedToken.revokedAt) {
+        const sinceRevokedMs = Date.now() - storedToken.revokedAt.getTime();
+        if (sinceRevokedMs < AuthService.ROTATION_GRACE_MS) {
+          // Benign rotation race (see ROTATION_GRACE_MS): the token was
+          // legitimately rotated milliseconds ago by a concurrent refresh.
+          // Re-issue a fresh session below — do NOT revoke-all. The already-
+          // revoked row stays revoked; generateTokens mints a new one.
+          this.logger.warn(
+            `Refresh rotation race for user ${payload.sub} (jti=${payload.jti}, ${sinceRevokedMs}ms after rotation) — re-issuing without revoke-all.`,
+          );
+          Sentry.captureMessage('auth.refresh.rotation_race', {
+            level: 'info',
+            tags: { kind: 'rotation_race' },
+            extra: { userId: payload.sub, jti: payload.jti, sinceRevokedMs },
+          });
+        } else {
+          // A token revoked long ago is being presented — genuine reuse
+          // (possible theft). Revoke everything and force re-auth.
+          this.logger.warn(
+            `Token replay detected for user ${payload.sub} (jti=${payload.jti}, ${sinceRevokedMs}ms after rotation). Revoking all tokens.`,
+          );
+          Sentry.captureMessage('auth.refresh.replay_detected', {
+            level: 'warning',
+            tags: { kind: 'replay_detected' },
+            extra: { userId: payload.sub, jti: payload.jti, sinceRevokedMs },
+          });
+          await this.revokeAllUserTokens(payload.sub);
+          throw new UnauthorizedException('Token révoqué ou invalide');
+        }
+      } else {
+        // Normal rotation: revoke the token we just consumed.
+        await this.prisma.refreshToken.update({
+          where: { id: payload.jti },
+          data: { revokedAt: new Date() },
+        });
+      }
 
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub, deletedAt: null },
@@ -424,12 +468,20 @@ export class AuthService {
 
   async logout(userId: string, tokenId?: string) {
     if (tokenId) {
+      // Scoped logout: revoke ONLY the current session's refresh token so
+      // signing out of one surface (e.g. seller.teka.cd) leaves the user's
+      // sessions on other surfaces (admin/buyer) intact.
       await this.prisma.refreshToken.updateMany({
         where: { id: tokenId, userId },
         data: { revokedAt: new Date() },
       });
+      this.logger.debug(
+        `Scoped logout for user ${userId} (jti=${tokenId}).`,
+      );
     } else {
+      // No session id available — revoke everything (e.g. password change).
       await this.revokeAllUserTokens(userId);
+      this.logger.debug(`Full logout (all sessions) for user ${userId}.`);
     }
   }
 

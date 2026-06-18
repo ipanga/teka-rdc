@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { apiFetch } from './api-client';
+import { apiFetch, ApiError } from './api-client';
 
 export interface User {
   id: string;
@@ -30,8 +30,19 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const res = await apiFetch<User>('/v1/auth/me');
       set({ user: res.data, isLoading: false });
-    } catch {
-      set({ user: null, isLoading: false });
+    } catch (err) {
+      // Only a genuine 401 (auth failed even after the api-client's own
+      // refresh attempt) means "logged out" → null the user. A transient
+      // network error or a 5xx must NOT null an existing session — doing so
+      // turned a momentary hiccup into a full logout (the seller was kicked
+      // to /login after creating a product). Network errors aren't ApiErrors
+      // (status 0) and 5xx carry their own status, so both are preserved.
+      const status = err instanceof ApiError ? err.status : 0;
+      if (status === 401) {
+        set({ user: null, isLoading: false });
+      } else {
+        set({ isLoading: false });
+      }
     }
   },
   logout: async () => {

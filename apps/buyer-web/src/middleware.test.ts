@@ -15,18 +15,18 @@ describe('middleware', () => {
     it('/connexion with a lingering access-token cookie is NOT redirected', () => {
       // The bug: a dead session whose cookie merely lingers used to bounce
       // /connexion → home, stranding the logged-out user (heart looked inert).
-      const res = middleware(req('/connexion', 'teka_access_token=stale'));
+      const res = middleware(req('/connexion', 'teka_buyer_access_token=stale'));
       expect(location(res)).toBeNull();
     });
 
     it('/connexion with a lingering refresh-token cookie is NOT redirected', () => {
-      const res = middleware(req('/connexion', 'teka_refresh_token=stale'));
+      const res = middleware(req('/connexion', 'teka_buyer_refresh_token=stale'));
       expect(location(res)).toBeNull();
     });
 
     it('/connexion?redirect=… with a session cookie is NOT redirected', () => {
       const res = middleware(
-        req('/connexion?redirect=%2Flubumbashi', 'teka_access_token=stale'),
+        req('/connexion?redirect=%2Flubumbashi', 'teka_buyer_access_token=stale'),
       );
       expect(location(res)).toBeNull();
     });
@@ -37,7 +37,7 @@ describe('middleware', () => {
     });
 
     it('/reclamer-compte with a session cookie is NOT redirected', () => {
-      const res = middleware(req('/reclamer-compte', 'teka_refresh_token=stale'));
+      const res = middleware(req('/reclamer-compte', 'teka_buyer_refresh_token=stale'));
       expect(location(res)).toBeNull();
     });
   });
@@ -61,7 +61,7 @@ describe('middleware', () => {
     it('/commandes WITH a session cookie is allowed through (not redirected)', () => {
       // A stale cookie lets the user in; the page API 401s and it can now
       // reach /connexion to recover — benign, by design.
-      const res = middleware(req('/commandes', 'teka_refresh_token=live'));
+      const res = middleware(req('/commandes', 'teka_buyer_refresh_token=live'));
       expect(location(res)).toBeNull();
     });
   });

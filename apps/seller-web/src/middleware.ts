@@ -11,8 +11,8 @@ export default function middleware(request: NextRequest) {
   // token is the real session signal; if it's present, apiFetch will
   // mint a new access token on the next API call.
   const hasSession =
-    request.cookies.has('teka_access_token') ||
-    request.cookies.has('teka_refresh_token');
+    request.cookies.has('teka_seller_access_token') ||
+    request.cookies.has('teka_seller_refresh_token');
 
   const isProtected = protectedRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
@@ -31,10 +31,10 @@ export default function middleware(request: NextRequest) {
   }
 
   // NOTE: no authOnly /login → /dashboard redirect on this surface.
-  // COOKIE_DOMAIN=.teka.cd makes buyer cookies visible to seller.teka.cd
-  // middleware, so cookie-presence alone is not enough to decide a user
-  // is a seller. Render the login form unconditionally; the dashboard
-  // layout itself does the role gate and bounces wrong-role users.
+  // Cookies are now per-surface (teka_seller_*), so a logged-in buyer/admin
+  // on .teka.cd no longer trips this gate. We still render the login form
+  // unconditionally and let the dashboard layout do the SELLER role check as
+  // defense in depth.
 
   return NextResponse.next();
 }

@@ -80,6 +80,11 @@ async function bootstrap() {
       'http://localhost:8080',
     ],
     credentials: true,
+    // `X-Teka-Surface` lets the web api-clients tell the API which session
+    // cookie namespace (admin/seller/buyer) they belong to — required for the
+    // per-surface cookie isolation. The other two are the only headers the
+    // API consumes (JSON body + mobile bearer auth).
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Teka-Surface'],
   });
 
   // Validation

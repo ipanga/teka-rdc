@@ -1,5 +1,12 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5050/api';
 
+// This app's session surface. The API keeps a separate cookie namespace per
+// surface (teka_{surface}_access_token, …) so buyer/seller/admin sessions stay
+// isolated in one browser. Every request advertises its surface via the
+// `X-Teka-Surface` header so the API reads/writes the right cookie set.
+export const SURFACE = 'seller';
+const SESSION_COOKIE = `teka_${SURFACE}_session`;
+
 interface ApiErrorData {
   error?: {
     message?: string;
@@ -31,7 +38,9 @@ function hasSessionHint(): boolean {
   return document.cookie
     .split(';')
     .map((c) => c.trim())
-    .some((c) => c.startsWith('teka_session=') && c !== 'teka_session=');
+    .some(
+      (c) => c.startsWith(`${SESSION_COOKIE}=`) && c !== `${SESSION_COOKIE}=`,
+    );
 }
 
 // Concurrent-safe refresh: if N requests 401 at the same time, they all
@@ -47,7 +56,10 @@ async function tryRefresh(): Promise<boolean> {
       const res = await fetch(`${API_BASE}/v1/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Teka-Surface': SURFACE,
+        },
         body: '{}',
       });
       return res.ok;
@@ -72,12 +84,20 @@ export async function apiFetch<T = unknown>(
   // an infinite loop if the refresh token is also dead.
   const isRefreshCall = path === '/v1/auth/refresh';
 
+  // FormData bodies (file uploads) must NOT carry an explicit Content-Type —
+  // the browser sets the multipart boundary itself. Forcing application/json
+  // here previously forced callers to bypass apiFetch with a raw fetch and
+  // thus lose the 401 auto-refresh.
+  const isFormData =
+    typeof FormData !== 'undefined' && options?.body instanceof FormData;
+
   const doFetch = () =>
     fetch(`${API_BASE}${path}`, {
       ...options,
       credentials: 'include',
       headers: {
-        'Content-Type': 'application/json',
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+        'X-Teka-Surface': SURFACE,
         ...options?.headers,
       },
     });

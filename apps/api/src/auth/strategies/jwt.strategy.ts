@@ -4,6 +4,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import type { Request } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
+import { resolveSurface, cookieNamesFor } from '../surface.util';
 
 export interface JwtPayload {
   sub: string;
@@ -22,7 +23,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
-        (req: Request) => req?.cookies?.['teka_access_token'] || null,
+        // Read the access token from the cookie set for the requesting
+        // surface (admin/seller/buyer) so each web app only ever authenticates
+        // with its OWN session cookie. Bearer header stays the fallback for
+        // mobile (no cookies, no surface header).
+        (req: Request) =>
+          req?.cookies?.[cookieNamesFor(resolveSurface(req)).access] || null,
         ExtractJwt.fromAuthHeaderAsBearerToken(),
       ]),
       ignoreExpiration: false,
