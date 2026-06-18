@@ -262,6 +262,8 @@ WhatsApp factory uses the `warnIfMockInProd` discipline (loud startup ERROR if m
 
 **`SmsService` and its providers (Orange DRC, Africa's Talking, mock) were deleted 2026-05-26** in the Orange/AT/Flexpay removal initiative. Order events ride Push primary + Email fallback (`OrderNotificationService` since PR A2); admin broadcasts ride Push + Email per-channel toggle (`BroadcastsService` since PR A3, SMS branch dropped in PR C2).
 
+**Admin in-app notifications (2026-06-18).** A fourth, deliberately minimal stack: `AdminNotificationService` (`apps/api/src/notifications/`, Prisma-only — no push/email) writes rows to the `AdminNotification` model (`AdminNotificationType` enum). `ProductsService.submitForReview()` emits `PRODUCT_SUBMITTED` fire-and-forget when a seller submits a product, so admins get a dashboard signal (sidebar "Produits" badge via `pendingProductsCount`, a dashboard alert, and a header notification bell) instead of having to poll the moderation queue. Read API: `GET /v1/admin/notifications` (+`/unread-count`) and `PATCH .../:id/read` (+`/read-all`), all `@Roles('ADMIN')`. It is an in-dashboard feed only — push/email are intentionally not wired.
+
 ### Frontend design tokens (web + mobile)
 
 The buyer surfaces share a token-driven design system anchored on Rakuten France's official corporate red (`#BF0000`, PANTONE 485 C). Tokens live in two authoritative files that must be kept in sync when adjusting:

@@ -154,7 +154,17 @@
     "period90d": "90 jours",
     "pendingSellerApplicationsTitle": "Demandes vendeurs en attente",
     "pendingSellerApplicationsSubtitle": "De nouvelles demandes attendent votre approbation.",
-    "pendingSellerApplicationsCta": "Examiner les demandes"
+    "pendingSellerApplicationsCta": "Examiner les demandes",
+    "pendingProductsTitle": "Produits en attente de validation",
+    "pendingProductsSubtitle": "De nouveaux produits attendent votre validation.",
+    "pendingProductsCta": "Examiner les produits"
+  },
+  "Notifications": {
+    "aria": "Notifications",
+    "title": "Notifications",
+    "markAllRead": "Tout marquer comme lu",
+    "loading": "Chargement...",
+    "empty": "Aucune notification"
   },
   "Buyers": {
     "title": "Acheteurs",

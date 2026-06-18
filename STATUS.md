@@ -6,12 +6,52 @@
 
 ## Active initiative
 
-**None.** The *Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset* initiative is **code-complete**
-(see "Recently completed" below). No in-flight work — per CLAUDE.md §7.2, ask the user what to start next.
+**Admin product notifications + seller session/auth isolation** (started 2026-06-18). Two prod defects
+found in live testing: (1) admins get no signal when a seller submits a product; (2) sellers get logged out
+after creating a product. Root causes + plan: `~/.claude/plans/teka-rdc-generic-honey.md`. Two feature
+branches off `develop`: `feat/seller-session-isolation` (Workstream A) + `feat/admin-product-notifications`
+(Workstream B). A is higher priority (live logout + security).
+
+**Workstream A — session/auth isolation (branch `feat/seller-session-isolation`):**
+- [x] **A1** API: refresh-token rotation **grace window** (a token revoked <15s ago = benign race → re-issue,
+  no revoke-all; beyond grace still trips revoke-all replay defense — uses existing `revokedAt`, no
+  migration); **scoped logout** (`logout(userId, jti)` revokes only the current session); Sentry/log
+  breadcrumbs at replay / race / logout (no PII). `auth.service.ts` + `auth.controller.ts`.
+- [x] **A2** API: **per-surface cookies** — `teka_{admin,seller,buyer}_{access,refresh,session}`. New
+  `auth/surface.util.ts` resolves surface from the `X-Teka-Surface` header; `jwt.strategy` cookie extractor +
+  `setAuthCookies`/`clearAuthCookies`/`refreshSessionHint`/`refresh` all surface-aware; `main.ts` CORS
+  `allowedHeaders += X-Teka-Surface`. Bearer/mobile path untouched.
+- [x] **A3** Web (×3): each api-client sends `X-Teka-Surface` + reads its own `teka_{surface}_session`;
+  middlewares read per-surface cookie names; `apiFetch` is now FormData-aware; **all** authenticated raw
+  fetches (image-uploader, avatar ×3, KYC doc, admin CSV) routed through apiFetch / given the surface header;
+  `fetchUser` only nulls the user on a genuine 401 (not transient/5xx).
+- [x] **A tests**: `auth.service.spec.ts` (7 — grace/replay/scoped-logout); buyer-web middleware cookie names
+  updated. Green: api 115 unit + 112 e2e; buyer-web 51; all type-checks clean.
+- [x] **A**: committed + **PR #385** `feat/seller-session-isolation → develop` (open).
+
+**Workstream B — admin product notifications (branch `feat/admin-product-notifications`, stacked on A so
+STATUS/docs stay coherent — retarget the PR to `develop` once #385 merges):**
+- [x] **B1** API: `AdminNotification` model + enum + idempotent prod migration
+  `2026-06-18_admin_notifications.sql` (applied to dev via `prisma db execute`); `AdminNotificationService`
+  (Prisma-only, fire-and-forget); emit `PRODUCT_SUBMITTED` in `submitForReview`; `pendingProductsCount` in
+  admin stats; `GET /v1/admin/notifications(+/unread-count)` + `PATCH .../:id/read(+/read-all)`. e2e (4 authz)
+  + stats + products mock. Green: api 115 unit + 112 e2e.
+- [x] **B2** admin-web: Produits sidebar badge + dashboard alert (deep-links to `?status=PENDING_REVIEW`) +
+  header `NotificationBell` (unread poll, dropdown, mark-read/all). type-check + prod build green.
+- [x] **Docs**: CLAUDE.md auth/session + docs index; `docs/session-management.md` (new); architecture
+  admin-notification flow; STATUS; PROGRESS; AUTH_COOKIE_NAMES memory.
+- [x] **B**: **PR #386** opened, **retargeted to `develop`** (base no longer stacked; #385 merged 2026-06-18 →
+  #386 diff is B-only, MERGEABLE/CLEAN).
+
+**Remaining (operator/sequencing):** ~~merge #385 → develop~~ ✅ (merged 2026-06-18); merge **#386 → develop**;
+release `develop → main`; **apply prod migration** `2026-06-18_admin_notifications.sql` (Apply-prod-migration
+Action).
+**⚠ Deploy risk (A2):** cookie rename forces a **one-time re-login** for all currently-active web users (old
+`teka_access_token` no longer read). Deploy at low traffic; announce.
 
 ---
 
-### Recently completed — 2026-06-14 (Marketplace Taxonomy — prod rollout pending)
+### Recently completed — 2026-06-14 (Marketplace Taxonomy — SHIPPED TO PROD)
 
 **Marketplace Taxonomy, Dynamic Attributes, Brands & Catalog Reset** — 8 phases, **16 PRs #368–#383, all
 merged**. Strict **2-level taxonomy** (7 categories → 80 subcategories, `apps/api/prisma/taxonomy-data.ts`),
@@ -19,16 +59,18 @@ first-class **Brand library** (CRUD/merge/activate; `Product.brandId`; buyer bra
 **dynamic attributes** (incl BOOLEAN; admin BOOLEAN/option-editor/reorder), and pre-launch **catalog-reset
 tooling** (`pnpm db:reset-catalog` + admin hard-delete). Seller create/edit (web+mobile) get a brand dropdown
 + BOOLEAN field; buyer search (web+mobile) gets a brand facet + BOOLEAN facet; product JSON-LD emits the real
-brand. Decisions D1 first-class brandId · D2 keep JSON attribute options · D3 re-seed demo catalog. Migration
-`2026-06-14_taxonomy_brand_foundation.sql` + reset+seed applied to **dev**; everything verified live there.
+brand. Decisions D1 first-class brandId · D2 keep JSON attribute options · D3 re-seed demo catalog.
 Detail: `PROGRESS.md` (Jun-14 entry) · `docs/architecture.md` → "Marketplace taxonomy + brands" ·
 `tasks/marketplace-taxonomy-progress.md`.
 
-**▶ PROD ROLLOUT (operator — irreversible, at release):**
-1. **Apply migration** — Actions → *Apply prod migration* → `2026-06-14_taxonomy_brand_foundation.sql` (BOOLEAN enum value, `brands`/`brand_categories` tables, `products.brandId` FK, FK-cascade hardening). Idempotent.
-2. **Reseed** — `pnpm --filter api prisma:seed:prod` (strict taxonomy + 160 attributes + 51 brands as the only active tree, deactivating older taxonomies, + demo catalog). Idempotent.
-3. **(Optional) clear stale demo** — `pnpm --filter api prisma:reset-catalog:prod` (dry-run, then `-- --confirm`). Deletes products WITHOUT order history + purges Cloudinary. **Irreversible** (pre-launch prod has no real orders).
-4. **Verify on prod:** 7 active top cats + 80 subs, 51 brands, browse brand filter, seller brand dropdown + buyer brand facet, product JSON-LD brand.
+**▶ PROD ROLLOUT — DONE (2026-06-14, release #384):** `develop→main` merge → deploy (api + 3 web) →
+**applied** migration `2026-06-14_taxonomy_brand_foundation.sql` (Apply-prod-migration Action) → **ran** prod
+seed (Run-prod-seed Action: deactivated 116 prior cats; seeded 7 cats / 80 subs / 160 attrs / 51 brands /
+121 links / 152 demo products). **Catalog reset skipped** (reconciling seed handled the demo catalog —
+nothing irreversible run). **Verified live on prod:** 7 active top cats + 80 subs, 51 brands, Smartphones→12,
+brand filter (Prisma + FTS), BOOLEAN attr "Sous garantie", PDP JSON-LD `"brand":{"@type":"Brand","name":
+"Tecno"}`, sitemap strict slugs, admin/seller/buyer pages 200. **Initiative fully shipped + verified — no
+follow-up.**
 
 
 ### Recently completed — 2026-06-10 (operator action pending)

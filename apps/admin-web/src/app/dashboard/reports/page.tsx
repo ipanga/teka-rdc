@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, SURFACE } from '@/lib/api-client';
 
 type ReportTab = 'sales' | 'financial' | 'sellers' | 'payouts';
 
@@ -64,10 +64,14 @@ export default function ReportsPage() {
       if (SELLER_FILTERABLE.includes(activeTab) && sellerId) params.set('sellerId', sellerId);
 
       const url = `${API_BASE}/v1/admin/reports/${activeTab}/csv?${params}`;
+      // Raw fetch (not apiFetch) because the response is a CSV blob, not JSON.
+      // Still must send X-Teka-Surface so the API reads the admin session
+      // cookie (per-surface cookie auth).
       const response = await fetch(url, {
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'X-Teka-Surface': SURFACE,
         },
       });
 

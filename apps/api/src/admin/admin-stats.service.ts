@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { OrderStatus, PayoutStatus } from '@prisma/client';
+import { OrderStatus, PayoutStatus, ProductStatus } from '@prisma/client';
 
 export interface DashboardStats {
   totalUsers: number;
@@ -11,6 +11,7 @@ export interface DashboardStats {
   pendingPayoutsCount: number;
   pendingPayoutsAmountCDF: string;
   pendingSellerApplicationsCount: number;
+  pendingProductsCount: number;
   ordersThisMonth: number;
   revenueThisMonthCDF: string;
 }
@@ -57,6 +58,7 @@ export class AdminStatsService {
       totalCommissionAgg,
       pendingPayoutsAgg,
       pendingSellerApplicationsCount,
+      pendingProductsCount,
       ordersThisMonth,
       revenueThisMonthAgg,
     ] = await Promise.all([
@@ -109,6 +111,14 @@ export class AdminStatsService {
         },
       }),
 
+      // Products awaiting moderation (submitted by sellers)
+      this.prisma.product.count({
+        where: {
+          status: ProductStatus.PENDING_REVIEW,
+          deletedAt: null,
+        },
+      }),
+
       // Orders this month
       this.prisma.order.count({
         where: {
@@ -141,6 +151,7 @@ export class AdminStatsService {
         pendingPayoutsAgg._sum.amountCDF ?? BigInt(0)
       ).toString(),
       pendingSellerApplicationsCount,
+      pendingProductsCount,
       ordersThisMonth,
       revenueThisMonthCDF: (
         revenueThisMonthAgg._sum.totalCDF ?? BigInt(0)

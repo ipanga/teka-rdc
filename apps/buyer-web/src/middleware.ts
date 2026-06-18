@@ -24,8 +24,8 @@ export default function middleware(request: NextRequest) {
   // if it's present, apiFetch will silently mint a new access token on the
   // next API call (see api-client.ts auto-refresh).
   const hasSession =
-    request.cookies.has('teka_access_token') ||
-    request.cookies.has('teka_refresh_token');
+    request.cookies.has('teka_buyer_access_token') ||
+    request.cookies.has('teka_buyer_refresh_token');
 
   const isProtected = protectedRoutes.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),

@@ -14,6 +14,7 @@ import { AdminReviewsService } from './admin-reviews.service';
 import { AdminReviewsController } from './admin-reviews.controller';
 import { AdminCitiesController } from './admin-cities.controller';
 import { AdminBrandsController } from './admin-brands.controller';
+import { AdminNotificationsController } from './admin-notifications.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { DeliveryZonesModule } from '../delivery-zones/delivery-zones.module';
 import { CitiesModule } from '../cities/cities.module';
@@ -42,6 +43,7 @@ import { CloudinaryModule } from '../cloudinary/cloudinary.module';
     AdminReviewsController,
     AdminCitiesController,
     AdminBrandsController,
+    AdminNotificationsController,
   ],
   providers: [
     AdminUsersService,

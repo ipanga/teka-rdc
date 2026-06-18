@@ -8,8 +8,6 @@ import { apiFetch, ApiError } from '@/lib/api-client';
 import { compressImageForUpload } from '@/lib/image-compress';
 import { useAuthStore } from '@/lib/auth-store';
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5050/api';
 
 interface City {
   id: string;
@@ -86,19 +84,16 @@ export default function DevenirVendeurPage() {
       const compressed = await compressImageForUpload(file);
       const formData = new FormData();
       formData.append('document', compressed);
-      const res = await fetch(`${API_BASE}/v1/sellers/documents`, {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setDocError(json?.error?.message || t('documentUploadError'));
-        return;
-      }
-      setIdDocumentCloudinaryId(json.data.cloudinaryId as string);
-    } catch {
-      setDocError(t('documentUploadError'));
+      // Through apiFetch (FormData-aware) so it carries the X-Teka-Surface
+      // header (required for per-surface cookie auth) and auto-refreshes an
+      // expired access token mid-upload.
+      const json = await apiFetch<{ cloudinaryId: string }>(
+        '/v1/sellers/documents',
+        { method: 'POST', body: formData },
+      );
+      setIdDocumentCloudinaryId(json.data.cloudinaryId);
+    } catch (err) {
+      setDocError(err instanceof ApiError ? err.message : t('documentUploadError'));
     } finally {
       setUploadingDoc(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

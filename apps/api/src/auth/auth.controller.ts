@@ -29,6 +29,11 @@ import { BuyerClaimRequestDto } from './dto/buyer-claim-request.dto';
 import { BuyerClaimVerifyDto } from './dto/buyer-claim-verify.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
+import {
+  resolveSurface,
+  cookieNamesFor,
+  type AuthSurface,
+} from './surface.util';
 
 @Controller('v1/auth')
 export class AuthController {
@@ -57,7 +62,7 @@ export class AuthController {
       dto,
       this.extractDevice(req),
     );
-    this.setAuthCookies(res, result.tokens);
+    this.setAuthCookies(res, result.tokens, resolveSurface(req));
     return result;
   }
 
@@ -73,7 +78,7 @@ export class AuthController {
       dto,
       this.extractDevice(req),
     );
-    this.setAuthCookies(res, result.tokens);
+    this.setAuthCookies(res, result.tokens, resolveSurface(req));
     return result;
   }
 
@@ -136,7 +141,7 @@ export class AuthController {
       dto.lastName,
       this.extractDevice(req),
     );
-    this.setAuthCookies(res, result.tokens);
+    this.setAuthCookies(res, result.tokens, resolveSurface(req));
     return result;
   }
 
@@ -174,7 +179,7 @@ export class AuthController {
       dto.code,
       this.extractDevice(req),
     );
-    this.setAuthCookies(res, result.tokens);
+    this.setAuthCookies(res, result.tokens, resolveSurface(req));
     return result;
   }
 
@@ -199,7 +204,9 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const token = dto.refreshToken || req.cookies?.['teka_refresh_token'];
+    const surface = resolveSurface(req);
+    const token =
+      dto.refreshToken || req.cookies?.[cookieNamesFor(surface).refresh];
     if (!token) {
       throw new BadRequestException('Token de rafraîchissement requis');
     }
@@ -207,7 +214,7 @@ export class AuthController {
       token,
       this.extractDevice(req),
     );
-    this.setAuthCookies(res, tokens);
+    this.setAuthCookies(res, tokens, surface);
     return { tokens };
   }
 
@@ -215,16 +222,23 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async logout(
     @CurrentUser('userId') userId: string,
+    @CurrentUser('jti') jti: string | undefined,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    await this.authService.logout(userId);
-    this.clearAuthCookies(res);
+    // Scope the logout to the current session (jti from the access token) so
+    // signing out of one surface doesn't revoke the user's sessions on the
+    // other surfaces. Falls back to a full logout when jti is absent (e.g. a
+    // bearer/mobile token issued before jti was carried).
+    await this.authService.logout(userId, jti);
+    this.clearAuthCookies(res, resolveSurface(req));
     return { message: 'Déconnexion réussie' };
   }
 
   @Get('me')
   async getProfile(
     @CurrentUser('userId') userId: string,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     // Auto-heal the session-hint cookie. Users whose sessions predate the
@@ -233,7 +247,7 @@ export class AuthController {
     // circuits the /me call and renders them as logged out. Re-issuing
     // the hint cookie on every successful /me restores parity for those
     // sessions without forcing a re-login.
-    this.refreshSessionHint(res);
+    this.refreshSessionHint(res, resolveSurface(req));
     return this.authService.getProfile(userId);
   }
 
@@ -253,9 +267,16 @@ export class AuthController {
   // Cookie helpers
   // ---------------------------------------------------------------------------
 
+  // Per-surface cookies: admin / seller / buyer each get their OWN cookie
+  // names (teka_{surface}_access_token, …) even though all share the
+  // `.teka.cd` domain (required so the API on api.teka.cd receives them).
+  // This keeps the three sessions isolated in one browser — logging out or
+  // expiring on one surface no longer touches the others. The surface is
+  // resolved from the `X-Teka-Surface` header each web app's api-client sends.
   private setAuthCookies(
     res: Response,
     tokens: { accessToken: string; refreshToken: string },
+    surface: AuthSurface,
   ) {
     const isProduction = this.configService.get('NODE_ENV') === 'production';
     // Cross-subdomain cookies: API runs on api.teka.cd but the cookie has to
@@ -263,8 +284,9 @@ export class AuthController {
     // middlewares can detect auth state. Without this, browsers scope the
     // cookie to api.teka.cd only and protected routes always 401-redirect.
     const domain = this.configService.get<string>('COOKIE_DOMAIN') || undefined;
+    const names = cookieNamesFor(surface);
 
-    res.cookie('teka_access_token', tokens.accessToken, {
+    res.cookie(names.access, tokens.accessToken, {
       httpOnly: true,
       secure: isProduction,
       sameSite: 'lax',
@@ -273,7 +295,7 @@ export class AuthController {
       ...(domain ? { domain } : {}),
     });
 
-    res.cookie('teka_refresh_token', tokens.refreshToken, {
+    res.cookie(names.refresh, tokens.refreshToken, {
       httpOnly: true,
       secure: isProduction,
       sameSite: 'lax',
@@ -283,14 +305,13 @@ export class AuthController {
     });
 
     // Non-HttpOnly "session hint" cookie. The two cookies above are HttpOnly
-    // (correct — never expose tokens to JS), so the buyer-web auth store
-    // can't tell whether a session exists without calling /v1/auth/me. That
-    // call returned 401 on every guest page load, generating console noise
-    // and an unnecessary round-trip on slow 2G/3G connections. This hint
-    // cookie carries no auth value — just a boolean flag the frontend
-    // checks before issuing the /me call. Lifetime matches the refresh
-    // token so the hint accurately reflects session lifetime.
-    res.cookie('teka_session', '1', {
+    // (correct — never expose tokens to JS), so the web auth store can't tell
+    // whether a session exists without calling /v1/auth/me. That call returned
+    // 401 on every guest page load, generating console noise and an
+    // unnecessary round-trip on slow 2G/3G connections. This hint cookie
+    // carries no auth value — just a boolean flag the frontend checks before
+    // issuing the /me call. Lifetime matches the refresh token.
+    res.cookie(names.session, '1', {
       httpOnly: false,
       secure: isProduction,
       sameSite: 'lax',
@@ -300,29 +321,30 @@ export class AuthController {
     });
   }
 
-  private clearAuthCookies(res: Response) {
+  private clearAuthCookies(res: Response, surface: AuthSurface) {
     const domain = this.configService.get<string>('COOKIE_DOMAIN') || undefined;
-    res.clearCookie('teka_access_token', {
+    const names = cookieNamesFor(surface);
+    res.clearCookie(names.access, {
       path: '/',
       ...(domain ? { domain } : {}),
     });
-    res.clearCookie('teka_refresh_token', {
+    res.clearCookie(names.refresh, {
       path: '/',
       ...(domain ? { domain } : {}),
     });
-    res.clearCookie('teka_session', {
+    res.clearCookie(names.session, {
       path: '/',
       ...(domain ? { domain } : {}),
     });
   }
 
   // Idempotent helper: re-sets the non-HttpOnly session-hint cookie with
-  // the canonical attributes. Called by /me to auto-heal pre-PR#80
-  // sessions and to bump the cookie's TTL on every active session check.
-  private refreshSessionHint(res: Response) {
+  // the canonical attributes. Called by /me to auto-heal sessions whose hint
+  // cookie is missing and to bump the cookie's TTL on every active check.
+  private refreshSessionHint(res: Response, surface: AuthSurface) {
     const isProduction = this.configService.get('NODE_ENV') === 'production';
     const domain = this.configService.get<string>('COOKIE_DOMAIN') || undefined;
-    res.cookie('teka_session', '1', {
+    res.cookie(cookieNamesFor(surface).session, '1', {
       httpOnly: false,
       secure: isProduction,
       sameSite: 'lax',

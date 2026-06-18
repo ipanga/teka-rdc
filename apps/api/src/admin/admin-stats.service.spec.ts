@@ -28,6 +28,7 @@ function makeService() {
             ),
         ),
     },
+    product: { count: jest.fn().mockResolvedValue(5) },
   };
   const service = new AdminStatsService(prisma as never);
   return { service };
@@ -39,6 +40,12 @@ describe('AdminStatsService.getDashboardStats — pending seller applications (Q
     const res = await service.getDashboardStats();
     expect(res.data.pendingSellerApplicationsCount).toBe(7);
     expect(res.data.totalSellers).toBe(2); // APPROVED only
+  });
+
+  it('returns pendingProductsCount (products awaiting moderation)', async () => {
+    const { service } = makeService();
+    const res = await service.getDashboardStats();
+    expect(res.data.pendingProductsCount).toBe(5);
   });
 });
 

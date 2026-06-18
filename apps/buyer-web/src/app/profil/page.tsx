@@ -25,7 +25,6 @@ interface SessionDto {
   current: boolean;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5050/api';
 
 export default function BuyerProfilePage() {
   const t = useTranslations('Profile');
@@ -163,15 +162,15 @@ export default function BuyerProfilePage() {
     if (!file) return;
     setUploading(true);
     try {
+      // Through apiFetch (FormData-aware) so it carries the X-Teka-Surface
+      // header (per-surface cookie auth) and auto-refreshes an expired access
+      // token mid-upload.
       const fd = new FormData();
       fd.append('image', file);
-      const res = await fetch(`${API_BASE}/v1/users/avatar`, {
+      const json = await apiFetch<{ avatar: string }>('/v1/users/avatar', {
         method: 'POST',
         body: fd,
-        credentials: 'include',
       });
-      if (!res.ok) throw new Error('upload failed');
-      const json = (await res.json()) as { success: boolean; data: { avatar: string } };
       setUser((u) => (u ? { ...u, avatar: json.data.avatar } : u));
       if (authUser) setAuthUser({ ...authUser, avatar: json.data.avatar });
       showFeedback('success', t('saveSuccess'));
