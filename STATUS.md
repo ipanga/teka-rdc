@@ -7,8 +7,8 @@
 ## Active initiative
 
 **None.** The *Admin product notifications + seller session/auth isolation* initiative (incl. the
-refresh-cookie hotfix) is **SHIPPED + VERIFIED on prod 2026-06-18** — see below. `develop == main` @ `9d71802`.
-No in-flight work — per CLAUDE.md §7.2, ask the user what to start next.
+refresh-cookie hotfix) is **SHIPPED + VERIFIED on prod 2026-06-18** — see below. `develop == main` as of the
+2026-06-18 releases. No in-flight work — per CLAUDE.md §7.2, ask the user what to start next.
 
 ---
 
