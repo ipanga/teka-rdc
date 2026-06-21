@@ -52,19 +52,20 @@ over already-rendered content (never an SSR gate).
 
 ## Phase plan
 
-### Phase 0 — API/DB foundation (branch `feat/town-arch-p0-api`)
-- [ ] **P0.1** Prisma: `City.accentColor String?`, `City.heroImageUrl String?`; `User.preferredCityId String?
-  @db.Uuid` + relation + index. `pnpm db:push` to dev.
-- [ ] **P0.2** Idempotent manual prod migration
+### Phase 0 — API/DB foundation (branch `feat/town-arch-p0-api`) — CODE-COMPLETE
+- [x] **P0.1** Prisma: `City.accentColor String?`, `City.heroImageUrl String?`; `User.preferredCityId String?
+  @db.Uuid` + relation + index. Applied to dev via `prisma db execute` (plain `db push` would drop the
+  raw-SQL `search_vector` FTS column — known divergence; additive migration used instead).
+- [x] **P0.2** Idempotent manual prod migration
   `apps/api/prisma/migrations/manual/2026-06-21_town_architecture.sql` (ADD COLUMN IF NOT EXISTS ×3 + FK guard
-  + index). Apply to prod via the Action **at release only** (with explicit user authz).
-- [ ] **P0.3** `GET /v1/cities` returns `accentColor` + `heroImageUrl`; shared `City` type gains the two
-  fields; admin cities CRUD DTO accepts them.
-- [ ] **P0.4** `PATCH /v1/users/me/preferred-city` (`{ cityId: string | null }`, validates the city exists +
-  is active); include `preferredCityId` (and resolved city) in the `/me` / auth-user response so web + mobile
-  can hydrate on login.
-- [ ] **P0.5** Unit/e2e: cities response shape; preferred-city set/clear + auth guard; `/me` carries
-  `preferredCityId`. `pnpm test` + `pnpm test:e2e` green. PR → develop.
+  + index). **Apply to prod via the Action at release only (with explicit user authz).**
+- [x] **P0.3** `GET /v1/cities` returns `accentColor` + `heroImageUrl` (scalar columns auto-returned); shared
+  `City` type gains the two fields; admin cities create/update DTO + service accept them.
+- [x] **P0.4** `PATCH /v1/users/me/preferred-city` (`{ cityId: string | null }`, validates the city exists +
+  is active; `UsersService.setPreferredCity`); `/me` (auth) + `/v1/users/profile` include `preferredCityId`
+  (scalar) + resolved `preferredCity` so web + mobile hydrate on login.
+- [x] **P0.5** Unit: `users.service.spec.ts` set/clear/invalid (3). Auth guard is inherited (UsersController
+  has no `@Public`). Full suite green: **132 unit + 116 e2e**; shared + api type-check clean. PR → develop.
 
 ### Phase 1 — buyer-web (branch `feat/town-arch-p1-buyer-web`)
 - [ ] **P1.1** `lib/city-store.ts`: add cookie persistence (`teka_city`, non-httpOnly, readable by SSR);

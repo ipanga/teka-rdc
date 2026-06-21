@@ -56,6 +56,8 @@ export class CitiesService {
     province: string;
     isActive?: boolean;
     sortOrder?: number;
+    accentColor?: string;
+    heroImageUrl?: string;
   }) {
     const city = await this.prisma.city.create({
       data: {
@@ -66,6 +68,8 @@ export class CitiesService {
         province: data.province,
         isActive: data.isActive ?? false,
         sortOrder: data.sortOrder ?? 0,
+        accentColor: data.accentColor ?? null,
+        heroImageUrl: data.heroImageUrl ?? null,
       },
     });
     this.logger.log(`City created: ${city.id}`);
@@ -82,6 +86,8 @@ export class CitiesService {
       province?: string;
       isActive?: boolean;
       sortOrder?: number;
+      accentColor?: string;
+      heroImageUrl?: string;
     },
   ) {
     const city = await this.prisma.city.findUnique({ where: { id } });
@@ -101,6 +107,10 @@ export class CitiesService {
         ...(data.province !== undefined && { province: data.province }),
         ...(data.isActive !== undefined && { isActive: data.isActive }),
         ...(data.sortOrder !== undefined && { sortOrder: data.sortOrder }),
+        ...(data.accentColor !== undefined && { accentColor: data.accentColor }),
+        ...(data.heroImageUrl !== undefined && {
+          heroImageUrl: data.heroImageUrl,
+        }),
       },
     });
     this.logger.log(`City updated: ${id} (isActive: ${updated.isActive})`);

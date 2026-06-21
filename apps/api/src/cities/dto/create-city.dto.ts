@@ -22,6 +22,16 @@ export class CreateCityDto {
   @IsOptional()
   @IsNumber()
   sortOrder?: number;
+
+  // Data-driven town identity (Town Architecture Refactor). accentColor: accent
+  // key ('copper' | 'cobalt' | hex); heroImageUrl: town hero/landing image URL.
+  @IsOptional()
+  @IsString()
+  accentColor?: string;
+
+  @IsOptional()
+  @IsString()
+  heroImageUrl?: string;
 }
 
 export class UpdateCityDto {
@@ -41,6 +51,14 @@ export class UpdateCityDto {
   @IsOptional()
   @IsNumber()
   sortOrder?: number;
+
+  @IsOptional()
+  @IsString()
+  accentColor?: string;
+
+  @IsOptional()
+  @IsString()
+  heroImageUrl?: string;
 }
 
 export class CreateCommuneDto {

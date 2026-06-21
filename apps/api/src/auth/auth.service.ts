@@ -488,7 +488,10 @@ export class AuthService {
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId, deletedAt: null },
-      include: { sellerProfile: true },
+      // preferredCity lets the buyer apps hydrate the selected town from the
+      // profile on login (Town Architecture Refactor). preferredCityId scalar
+      // is enough on its own; the resolved object saves a lookup.
+      include: { sellerProfile: true, preferredCity: true },
     });
     if (!user) {
       throw new UnauthorizedException('Utilisateur non trouvé');
