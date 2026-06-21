@@ -6,8 +6,20 @@
 
 ## Active initiative
 
-**None.** The Town Architecture Refactor shipped + verified on prod 2026-06-21 (see below). No in-flight build
-work — ask the user what to start next.
+**Category image tiles** (started 2026-06-21). Replace the emoji category cards with real product-photo icons
+in a circle + label below, on **buyer-web** + **buyer-mobile**. Images are **bundled static assets keyed by
+category slug** (`public/categories/<slug>.png` web · `assets/categories/<slug>.png` mobile) with **emoji
+fallback** for subcategories / future categories — chosen over a DB/Cloudinary field because the 7 top
+categories are a fixed taxonomy and bundling is faster + offline-friendly on DRC 2G/3G. 7 images supplied by
+the user (Supermarché, Téléphones & Accessoires, Électroménager, Mode, Beauté & Santé, Construction &
+Bricolage, Automobile & Moto), resized to 256px.
+- **buyer-web:** `lib/category-images.ts` (slug→path) + `components/category/category-icon.tsx` (circle image
+  / emoji fallback), used by home-page, city-landing-page, all-categories page. type-check + 51 tests + ESLint
+  green; all 7 images serve 200.
+- **buyer-mobile:** `category_images.dart` + `category_circle.dart` (circle+label strip replaces the pill
+  strip on home), `CategoryModel.slug` added, `pubspec.yaml` assets entry. analyze clean + 79 + 3 new tests.
+- **Status: code-complete on `feat/category-image-tiles`** — pending user review + PR/release. To add a future
+  category image: drop `<slug>.png` in both asset dirs + add one map line.
 
 ---
 
