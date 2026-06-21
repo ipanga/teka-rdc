@@ -25,8 +25,13 @@ cookie+profile persistence, SEO-safe first-visit auto-modal, remove the homepage
 data-driven accent/hero (`City.accentColor`/`City.heroImageUrl` replace the hardcoded `city-accent.ts` /
 `teka_colors.dart` slug switches), seller city picker.
 
-**Phasing (each = own PR off `develop`):** P0 API/DB foundation (`feat/town-arch-p0-api`) → P1 buyer-web →
-P2 buyer-mobile → P3 seller apps. **In progress: P0.**
+**Phasing (each = own PR off `develop`):** P0 API/DB foundation → P1 buyer-web → P2 buyer-mobile → P3 seller
+apps. **Progress:** ✅ **P0 SHIPPED to develop** (#404 merged — `City.accentColor`/`heroImageUrl` +
+`User.preferredCityId` + `PATCH /v1/users/me/preferred-city`; prod migration `2026-06-21_town_architecture.sql`
+**still pending the release Action**). 🔄 **P1 buyer-web — PR #405 OPEN, awaiting user review** (header
+selector, SEO-safe first-visit modal, cookie+profile persistence, footer city links, data-driven accent/hero
++ backfill migration `2026-06-21_town_identity_backfill.sql` pending prod). ⏳ **P2 buyer-mobile + P3 seller
+apps PENDING** (depend only on P0, can start off develop). Full checklist: `docs/town-architecture-refactor.md`.
 
 ---
 
