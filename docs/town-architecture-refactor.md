@@ -111,9 +111,13 @@ over already-rendered content (never an SSR gate).
 - [x] **P3.3** Verify: api 132 unit + 116 e2e; seller-web type-check + ESLint; seller-mobile analyze (0
   errors/warnings) + tests. PR → develop.
 
-### Release
-- [ ] Real merge `develop → main` per phase or batched (NEVER squash); apply the P0 migration via the Action
-  **with explicit user authorization**; back-merge `main → develop`; verify prod; tick here + PROGRESS.md.
+### Release — DONE (2026-06-21)
+- [x] Real merge `develop → main` (release PR #408, batched P0–P3; NEVER squashed). Both prod migrations
+  applied via the Action (concurrency-queued behind the deploy): `2026-06-21_town_architecture.sql` then
+  `2026-06-21_town_identity_backfill.sql` — both **success**. Back-merged `main → develop` (FF; `develop ==
+  main` @ `3cd278e`). **Prod verified:** `/v1/cities` → `accent=copper/cobalt` + hero; `PATCH …/preferred-city`
+  live (401, not 404); teka.cd + `/lubumbashi` + seller/admin + api all 200. **SHIPPED + VERIFIED — no
+  follow-up.**
 
 ## Verification checklist (per phase)
 API: `pnpm test` + `pnpm test:e2e` in `apps/api`. Web: `pnpm --filter {app} type-check` + `build` (NEVER while

@@ -6,31 +6,35 @@
 
 ## Active initiative
 
-**Town Architecture Refactor** (started 2026-06-21). Replace the homepage "Achetez dans votre ville" section
-with a scalable, Amazon-style town-selection architecture: prominent header town selector, SEO-safe first-visit
-modal, town persisted to **cookie + localStorage + user profile**, all catalog browsing auto-scoped to the
-selected town, `/{ville}` SEO landing pages preserved, and **future towns configurable from data only** (no
-hardcoded Lubumbashi/Kolwezi). **Resume anchor + full phased checklist: `docs/town-architecture-refactor.md`**
-(read it first).
+**None.** The Town Architecture Refactor shipped + verified on prod 2026-06-21 (see below). No in-flight build
+work — ask the user what to start next.
 
-**Locked decisions (user, 2026-06-21):** D1 first-visit = **auto-modal, SEO-safe** (client overlay over SSR
-content, cookie-gated to show once); D2 = **add `User.preferredCityId`** + `PATCH /v1/users/me/preferred-city`,
-hydrate on login; D3 = **keep promotions/banners/categories global** (products+search already town-scoped);
-D4 = town-selection in **buyer apps only**, sellers get a **city picker in profile** (existing
-`SellerProfile.cityId`, not browsing).
+---
 
-**Audit baseline (much already exists):** header town selector + `/{ville}` SEO landing pages (auto-set city,
-reuse homepage components) + products/search town-scoping all DONE; city list is data-driven. **New work:**
-cookie+profile persistence, SEO-safe first-visit auto-modal, remove the homepage city-links section (→ footer),
-data-driven accent/hero (`City.accentColor`/`City.heroImageUrl` replace the hardcoded `city-accent.ts` /
-`teka_colors.dart` slug switches), seller city picker.
+### Recently completed — 2026-06-21 (Town Architecture Refactor — SHIPPED + VERIFIED on prod)
 
-**Phasing (each = own PR off `develop`):** P0 API/DB foundation → P1 buyer-web → P2 buyer-mobile → P3 seller
-apps. **ALL 4 PHASES MERGED TO `develop`** (#404 P0, #405 P1, #406 P2, #407 P3). **Releasing develop→main now.**
-**Two prod migrations apply via the Action right after the deploy** (concurrency-queued behind it; the api
-image must ship them first): `2026-06-21_town_architecture.sql` (columns + FK) **then**
-`2026-06-21_town_identity_backfill.sql` (Lubumbashi=copper / Kolwezi=cobalt + hero as data). Full checklist:
-`docs/town-architecture-refactor.md`. **Pending: prod verification + back-merge main→develop.**
+**Town Architecture Refactor** — scalable, Amazon-style town selection across all 4 apps + API. Shipped as
+4 phased PRs (#404 P0, #405 P1, #406 P2, #407 P3) → release #408 (`develop == main` @ `3cd278e`); two prod
+migrations applied via the Action. Full tracker: `docs/town-architecture-refactor.md`.
+
+- **P0 — API/DB:** `City.accentColor`/`heroImageUrl` (data-driven towns), `User.preferredCityId` + `PATCH
+  /v1/users/me/preferred-city`, `/me` carries the resolved `preferredCity`; seller-profile update accepts
+  `cityId`. Migration `2026-06-21_town_architecture.sql` (columns + FK + index).
+- **P1 — buyer-web:** Amazon-style header town selector ("Livrer à / {ville}"), **SEO-safe first-visit modal**
+  (client overlay over SSR content, cookie-gated), persistence to **cookie + localStorage + profile**, homepage
+  "Achetez dans votre ville" section removed → crawlable `/{ville}` links moved to the footer, data-driven
+  accent/hero (`lib/city-accent.ts` reads city data — no slug switch). Backfill migration
+  `2026-06-21_town_identity_backfill.sql` (Lubumbashi=copper / Kolwezi=cobalt + hero as data).
+- **P2 — buyer-mobile:** profile hydration (`hydrateFromProfile` via `ref.listen(authProvider)`) + `PATCH
+  preferred-city` sync + data-driven `TekaColors.cityAccent`. First-launch gate already existed.
+- **P3 — seller apps:** seller-web + seller-mobile profile **city picker** (existing `SellerProfile.cityId`,
+  `/v1/cities`); `location` kept as free-text address detail. Sellers don't browse by town (D4).
+- **Decisions:** D1 SEO-safe auto-modal · D2 `User.preferredCityId` · D3 promos/banners/categories stay global
+  (products+search already town-scoped) · D4 buyer apps select town / sellers get a profile city picker.
+- **Prod verified (2026-06-21):** `/v1/cities` returns `accent=copper/cobalt` + hero; `PATCH …/preferred-city`
+  live (401 unauth, not 404); teka.cd + `/lubumbashi` + seller/admin + api all 200. `develop == main`.
+  **Future towns are now config-only** (set `accentColor`/`heroImageUrl` on the City row — no code change).
+  **Initiative fully shipped + verified — no follow-up.**
 
 ---
 
