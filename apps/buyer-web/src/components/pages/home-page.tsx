@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { ProductGrid } from '@/components/product/product-grid';
@@ -15,7 +16,7 @@ import { useCityStore } from '@/lib/city-store';
 import { CitySelectorModal } from '@/components/city/city-selector-modal';
 import { CityPrompt } from '@/components/city/city-prompt';
 import { categoryHref, cityHref } from '@/lib/urls';
-import { cityAccentClasses } from '@/lib/city-accent';
+import { cityAccentClasses, heroImageForCity } from '@/lib/city-accent';
 import type { BrowseCategory, BrowseProduct } from '@/lib/types';
 
 export default function HomePage({ serverH1 }: { serverH1?: string }) {
@@ -78,6 +79,7 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
   // Town accent for the hero's location badge (copper = Lubumbashi, cobalt =
   // Kolwezi, brand red otherwise).
   const heroAccent = cityAccentClasses(selectedCity?.slug);
+  const heroImage = heroImageForCity(selectedCity?.slug);
 
   return (
     <div className="min-h-screen flex flex-col bg-surface-muted">
@@ -92,38 +94,50 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
         {/* Banner Carousel — replaces static hero when banners are available */}
         <BannerCarousel
           fallback={
-            <section className="relative overflow-hidden border-b border-border bg-gradient-to-b from-primary-50 via-background to-background">
-              {/* soft brand glow, kept subtle so the hero reads light, not a wall of red */}
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
-              />
-              <Container className="relative py-10 md:py-16">
-                <div className="max-w-2xl">
-                  {selectedCity && (
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold mb-4 ${heroAccent.badge}`}
+            <section className="relative overflow-hidden border-b border-border">
+              {/* City-specific hero image (copper Lubumbashi / cobalt Kolwezi
+                  shots; Lubumbashi as the default). LCP element → priority. */}
+              <div className="relative h-[320px] sm:h-[380px] md:h-[460px]">
+                <Image
+                  src={heroImage}
+                  alt=""
+                  fill
+                  priority
+                  sizes="100vw"
+                  className="object-cover"
+                />
+                {/* Legibility scrim — darkest on the left where the copy sits. */}
+                <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/55 to-black/15" />
+                <Container className="relative h-full flex flex-col justify-center">
+                  <div className="max-w-xl text-white">
+                    {selectedCity && (
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold mb-4 ${heroAccent.badge}`}
+                      >
+                        <span className={`h-1.5 w-1.5 rounded-full ${heroAccent.dot}`} />
+                        {t('deliveringTo', { city: selectedCity.name })}
+                      </span>
+                    )}
+                    <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-3 drop-shadow-sm">
+                      {serverH1 || t('title')}
+                    </h1>
+                    <p className="text-base md:text-lg text-white/90 mb-6 max-w-md">
+                      {t('subtitle', { city: selectedCity ? selectedCity.name : 'Congo' })}
+                    </p>
+                    <Link
+                      href="/categories"
+                      className={buttonVariants({ variant: 'default', size: 'lg' })}
                     >
-                      <span className={`h-1.5 w-1.5 rounded-full ${heroAccent.dot}`} />
-                      {t('deliveringTo', { city: selectedCity.name })}
-                    </span>
-                  )}
-                  <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-foreground mb-3">
-                    {serverH1 || t('title')}
-                  </h1>
-                  <p className="text-base md:text-lg text-muted-foreground mb-6 max-w-xl">
-                    {t('subtitle', { city: selectedCity ? selectedCity.name : 'Congo' })}
-                  </p>
-                  <Link
-                    href="/categories"
-                    className={buttonVariants({ variant: 'default', size: 'lg' })}
-                  >
-                    {t('cta')}
-                  </Link>
-                </div>
+                      {t('cta')}
+                    </Link>
+                  </div>
+                </Container>
+              </div>
 
-                {/* Trust signals — fast local delivery, COD, verified sellers */}
-                <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl">
+              {/* Trust signals — light band below the image (fast local
+                  delivery, COD, verified sellers) */}
+              <Container className="py-3 md:py-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   {[
                     {
                       label: t('trustDelivery'),

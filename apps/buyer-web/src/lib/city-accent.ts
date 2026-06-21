@@ -65,3 +65,20 @@ const ACCENT_CLASSES: Record<CityAccent, AccentClasses> = {
 export function cityAccentClasses(slug?: string | null): AccentClasses {
   return ACCENT_CLASSES[accentForCity(slug)];
 }
+
+/**
+ * City-specific homepage hero background image (local, in `public/hero/`).
+ * Lubumbashi and Kolwezi each have their own real supermarket photo; any other
+ * / unselected city uses the Lubumbashi shot as a general "Teka supermarket"
+ * default.
+ */
+export function heroImageForCity(slug?: string | null): string {
+  switch (slug) {
+    case 'kolwezi':
+      return '/hero/kolwezi.webp';
+    case 'lubumbashi':
+      return '/hero/lubumbashi.webp';
+    default:
+      return '/hero/lubumbashi.webp';
+  }
+}
