@@ -6,27 +6,36 @@
 
 ## Active initiative
 
-**Buyer experience visual redesign** (started 2026-06-21). **Phase 1 (buyer-web) SHIPPED + VERIFIED on prod
-2026-06-21** (releases #398; `develop == main`; teka.cd live with Modern Ruby + city hero images). **Phase 2
-(buyer-mobile) code-complete** on branch `feat/buyer-mobile-redesign` — `teka_colors.dart` → Modern Ruby
-(#C8102E) + copper/cobalt town accents (city app-bar + selector); ripples app-wide via the theme; analyze
-clean + 76 tests pass (shipped — release #401). **Phase 3 (seller-web/admin-web/seller-mobile) code-complete**
-on branch `feat/phase3-brand-consistency` — canonical red `#BF0000` → Modern Ruby `#C8102E` in each app's
-primary token (web `globals.css` + `global-error.tsx`; seller-mobile `teka_colors.dart`); type-check/build +
-analyze/tests green; PR pending. **Redesign initiative complete across all surfaces.** Full tracker:
-`docs/buyer-web-redesign.md`. Original objective below.
+**Town Architecture Refactor** (started 2026-06-21). Replace the homepage "Achetez dans votre ville" section
+with a scalable, Amazon-style town-selection architecture: prominent header town selector, SEO-safe first-visit
+modal, town persisted to **cookie + localStorage + user profile**, all catalog browsing auto-scoped to the
+selected town, `/{ville}` SEO landing pages preserved, and **future towns configurable from data only** (no
+hardcoded Lubumbashi/Kolwezi). **Resume anchor + full phased checklist: `docs/town-architecture-refactor.md`**
+(read it first).
 
-**Buyer-web visual redesign** (started 2026-06-21). Modernize teka.cd (buyer-web) — new premium red palette,
-town accents (Lubumbashi copper / Kolwezi cobalt), hero, categories, product cards, header, mobile — while
-preserving all functionality, SEO, analytics, API contracts. **Buyer-web ONLY in Phase 1** (seller/admin/
-mobile deferred). Branch `feat/buyer-web-redesign`. **Resume anchor + full phased checklist:
-`docs/buyer-web-redesign.md`** (read it first). **Phase 1 code-complete + validated** (palette/hero
-checkpoint approved 2026-06-21): Modern Ruby red `#C8102E`, town accents copper(Lubumbashi)/cobalt(Kolwezi),
-modern hero, larger category cards, reworked product cards (dark CDF + USD, less red), accented city
-selector. Token-driven → low-risk; **no SEO/analytics/API/server-page changes** (only presentational
-components + globals.css + a dev-only next/image host for the legacy picsum seed). type-check + build green.
-**Remaining:** open PR → develop, review live, release. **Deferred:** Phase 2 (buyer-mobile color/identity
-alignment), Phase 3 (seller/admin brand-consistency pass).
+**Locked decisions (user, 2026-06-21):** D1 first-visit = **auto-modal, SEO-safe** (client overlay over SSR
+content, cookie-gated to show once); D2 = **add `User.preferredCityId`** + `PATCH /v1/users/me/preferred-city`,
+hydrate on login; D3 = **keep promotions/banners/categories global** (products+search already town-scoped);
+D4 = town-selection in **buyer apps only**, sellers get a **city picker in profile** (existing
+`SellerProfile.cityId`, not browsing).
+
+**Audit baseline (much already exists):** header town selector + `/{ville}` SEO landing pages (auto-set city,
+reuse homepage components) + products/search town-scoping all DONE; city list is data-driven. **New work:**
+cookie+profile persistence, SEO-safe first-visit auto-modal, remove the homepage city-links section (→ footer),
+data-driven accent/hero (`City.accentColor`/`City.heroImageUrl` replace the hardcoded `city-accent.ts` /
+`teka_colors.dart` slug switches), seller city picker.
+
+**Phasing (each = own PR off `develop`):** P0 API/DB foundation (`feat/town-arch-p0-api`) → P1 buyer-web →
+P2 buyer-mobile → P3 seller apps. **In progress: P0.**
+
+---
+
+### Recently completed — 2026-06-21 (Buyer experience visual redesign — SHIPPED to prod)
+
+**Buyer experience visual redesign** — Phase 1 (buyer-web) release #398, Phase 2 (buyer-mobile) release #401,
+Phase 3 (seller-web/admin-web/seller-mobile) brand-consistency pass. Modern Ruby red `#C8102E` + copper/cobalt
+town accents (buyer surfaces only). Token-driven, low-risk; no SEO/analytics/API/server-page changes. Full
+tracker: `docs/buyer-web-redesign.md`. `develop == main` @ e4743f0. **Initiative complete across all surfaces.**
 
 ---
 
