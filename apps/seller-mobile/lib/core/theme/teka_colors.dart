@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class TekaColors {
   TekaColors._();
-  static const Color tekaRed = Color(0xFFBF0000);
+  static const Color tekaRed = Color(0xFFC8102E);
   static const Color success = Color(0xFF16A34A);
   static const Color warning = Color(0xFFF59E0B);
   static const Color destructive = Color(0xFFEF4444);
