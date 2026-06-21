@@ -10,9 +10,13 @@
 town accents (Lubumbashi copper / Kolwezi cobalt), hero, categories, product cards, header, mobile — while
 preserving all functionality, SEO, analytics, API contracts. **Buyer-web ONLY in Phase 1** (seller/admin/
 mobile deferred). Branch `feat/buyer-web-redesign`. **Resume anchor + full phased checklist:
-`docs/buyer-web-redesign.md`** (read it first). **Phase 0 (audit+plan) done; awaiting palette/direction
-validation before any design code.** Audit headline: design is fully token-driven (zero hardcoded hex) →
-palette is a low-risk token swap; SEO/analytics layer is cleanly separated (DO-NOT-TOUCH list in the doc).
+`docs/buyer-web-redesign.md`** (read it first). **Phase 1 code-complete + validated** (palette/hero
+checkpoint approved 2026-06-21): Modern Ruby red `#C8102E`, town accents copper(Lubumbashi)/cobalt(Kolwezi),
+modern hero, larger category cards, reworked product cards (dark CDF + USD, less red), accented city
+selector. Token-driven → low-risk; **no SEO/analytics/API/server-page changes** (only presentational
+components + globals.css + a dev-only next/image host for the legacy picsum seed). type-check + build green.
+**Remaining:** open PR → develop, review live, release. **Deferred:** Phase 2 (buyer-mobile color/identity
+alignment), Phase 3 (seller/admin brand-consistency pass).
 
 ---
 

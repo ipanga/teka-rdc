@@ -24,7 +24,8 @@ export function SectionHeader({
   return (
     <div className={cn('flex items-end justify-between gap-4 mb-4 md:mb-6', className)}>
       <div className="min-w-0">
-        <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
+        <h2 className="flex items-center gap-2.5 text-xl md:text-2xl font-bold tracking-tight text-foreground">
+          <span aria-hidden className="h-6 w-1 shrink-0 rounded-full bg-primary" />
           {title}
         </h2>
         {subtitle && (

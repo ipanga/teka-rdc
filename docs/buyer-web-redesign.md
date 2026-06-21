@@ -4,8 +4,12 @@
 > initiative. On any resume: read this first, then `git log --oneline -20`, then continue from the first
 > unchecked `[ ]` box. Each sub-task is its own commit; each phase is its own PR. STATUS.md points here.
 
-**Status:** Phase 0 (audit + plan) complete. **Awaiting palette/direction validation before any design code.**
-**Branch:** `feat/buyer-web-redesign` (Phase 1 lands here as stacked sub-commits / per-phase PRs).
+**Status:** Phase 1 (buyer-web) **code-complete + validated** (palette/hero checkpoint approved by user
+2026-06-21). type-check + production build green; PR open → develop. Phases 2 (mobile) + 3 (seller/admin)
+deferred.
+**Branch:** `feat/buyer-web-redesign`.
+**Decisions (validated):** Modern Ruby red (`#C8102E`); town accents copper `#B87333` (Lubumbashi) / cobalt
+`#1A56DB` (Kolwezi); checkpoint after palette+hero.
 **Constraint:** buyer-web ONLY for Phase 1. No seller/admin/mobile until buyer-web is validated. Token-level,
 low-risk changes; preserve all functionality, SEO, analytics, API contracts.
 
@@ -45,20 +49,26 @@ presentational client layer.
 
 ## Phase plan (Phase 1 = buyer-web)
 
-- [ ] **P1.0 Foundation — palette + tokens.** Swap `--color-primary-*` scale; add `--color-accent-copper`/
-  `--color-accent-cobalt` + a small `cityAccent()` helper. Refine shadow/radius if needed. (globals.css +
-  one helper.) Verify build + a visual smoke pass.
-- [ ] **P1.1 Hero.** Replace the all-red fallback hero with a modern, lighter, conversion-focused hero
-  (value prop + search/CTA + delivery/trust signals + location-aware line). Less red.
-- [ ] **P1.2 Categories section.** Larger cards, stronger hierarchy, better spacing/interaction, mobile-first.
-- [ ] **P1.3 Product cards.** Price hierarchy, badges, discount, stock, rating, add-to-cart CTA — preserve
-  image/href/track/wishlist wiring.
-- [ ] **P1.4 Header / nav / search.** Modern header + search prominence + mobile nav polish.
-- [ ] **P1.5 Town accents.** City badge/chips/banner/delivery using copper/cobalt.
-- [ ] **P1.6 Typography + spacing pass.** Type scale, readability, consistency (keep Inter for perf/SEO).
-- [ ] **P1.7 Mobile QA pass.** Touch targets, responsive layouts, browse/search/product on small screens.
-- [ ] **P1.8 Verify + document.** type-check + build; SEO intact (metadata/JSON-LD/sitemap/OG); analytics
-  call sites intact; CWV not regressed; update this tracker + STATUS/PROGRESS. PR(s) → develop.
+- [x] **P1.0 Foundation — palette + tokens.** `globals.css` Modern Ruby `--color-primary-*` + copper/cobalt
+  accent tokens; `lib/city-accent.ts` helper. (commit 57eb15f)
+- [x] **P1.1 Hero.** Light, conversion-focused fallback hero: town-accent location badge + value prop + CTA +
+  trust strip (delivery / COD / verified sellers). Much less red. (57eb15f)
+- [x] **P1.2 Categories section.** Larger rounded-2xl cards, emoji-in-circle, stronger hierarchy/hover,
+  2/3/4/6 grid. (1cee3dc)
+- [x] **P1.3 Product cards.** Bold dark CDF + secondary USD price (red reserved for CTA), declutter condition
+  badge (USED only), polished quick-add. **All wiring preserved** (thumbnailUrl/href/add_to_cart track/
+  wishlist). NB: no rating/discount in the browse API → not added (would need an API change). (1cee3dc)
+- [x] **P1.4 Header / nav / search.** City selector restyled; PinIcon. (1cee3dc)
+- [x] **P1.5 Town accents.** City selector (desktop+mobile) + CityPrompt chips wear copper/cobalt. (1cee3dc)
+- [x] **P1.6 Typography + spacing pass.** SectionHeader accent bar + larger touch target on quick-add.
+- [x] **P1.7 Mobile QA.** Responsive grids/header/menu retained; touch targets bumped. (live mobile review =
+  user's browser; screenshot sandbox couldn't reach the local API).
+- [x] **P1.8 Verify + document.** type-check + production build green; diff touches only presentational
+  components + globals.css + dev-only image config (NO server pages / JSON-LD / sitemap / analytics /
+  urls.ts); `add_to_cart` track site intact; tracker + STATUS + PROGRESS updated. PR → develop.
+
+**Dev-env note:** local DB has legacy `picsum.photos` seed images; `next.config.ts` now allows that host in
+**development only** (prod product images are all Cloudinary) so buyer-web dev doesn't crash on next/image.
 
 ### Deferred (after buyer-web validated)
 - **Phase 2 — buyer-mobile (Flutter):** align colors/identity/category presentation where appropriate

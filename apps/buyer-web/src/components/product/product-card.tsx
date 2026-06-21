@@ -144,7 +144,7 @@ export function ProductCard({ product }: ProductCardProps) {
             onClick={handleQuickAdd}
             disabled={adding}
             aria-label={t('addToCart')}
-            className={`w-full inline-flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium transition-colors disabled:opacity-60 ${
+            className={`w-full inline-flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-colors disabled:opacity-60 ${
               added
                 ? 'bg-success-subtle text-success'
                 : 'bg-primary text-primary-foreground hover:bg-primary/90'
