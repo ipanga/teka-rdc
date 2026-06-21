@@ -70,10 +70,19 @@ presentational client layer.
 **Dev-env note:** local DB has legacy `picsum.photos` seed images; `next.config.ts` now allows that host in
 **development only** (prod product images are all Cloudinary) so buyer-web dev doesn't crash on next/image.
 
-### Deferred (after buyer-web validated)
-- **Phase 2 — buyer-mobile (Flutter):** align colors/identity/category presentation where appropriate
-  (`teka_colors.dart` + `app_theme.dart`), respecting native UX.
-- **Phase 3 — seller-web + admin-web:** minimal brand-consistency pass (token alignment), no workflow redesign.
+### Phase 1 — SHIPPED to prod 2026-06-21 (releases #398; `develop == main`). teka.cd live, city hero images served.
+
+### Phase 2 — buyer-mobile (Flutter) — DONE (branch `feat/buyer-mobile-redesign`)
+- `teka_colors.dart` brand red → **Modern Ruby** scale (#C8102E) + copper/cobalt town-accent colors +
+  `cityAccent(slug)` helper (mirrors web `lib/city-accent.ts`). Ripples through the whole app via
+  `app_theme.dart` (seed/primary/appbar/buttons/chips all consume `TekaColors.tekaRed`).
+- Town accents applied to the home app-bar city display + each city tile in the selection screen
+  (copper Lubumbashi / cobalt Kolwezi). Category chips kept as the native horizontal-pill pattern (now
+  Modern Ruby) — web grid NOT forced onto mobile. Green: analyze clean on changed files + 76 tests pass.
+
+### Phase 3 — seller-web + admin-web + seller-mobile (deferred)
+- Minimal brand-consistency pass (token alignment to Modern Ruby), no workflow redesign. seller-mobile has
+  its own `teka_colors.dart` (still old red) to align too.
 
 ## Verification checklist (per phase)
 `pnpm --filter buyer-web type-check` + `build`; confirm server components unchanged (no new `'use client'`
