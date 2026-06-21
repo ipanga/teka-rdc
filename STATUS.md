@@ -6,6 +6,13 @@
 
 ## Active initiative
 
+**Buyer experience visual redesign** (started 2026-06-21). **Phase 1 (buyer-web) SHIPPED + VERIFIED on prod
+2026-06-21** (releases #398; `develop == main`; teka.cd live with Modern Ruby + city hero images). **Phase 2
+(buyer-mobile) code-complete** on branch `feat/buyer-mobile-redesign` — `teka_colors.dart` → Modern Ruby
+(#C8102E) + copper/cobalt town accents (city app-bar + selector); ripples app-wide via the theme; analyze
+clean + 76 tests pass; PR pending. **Phase 3 (seller-web/admin-web/seller-mobile)** brand-consistency pass
+deferred. Full tracker: `docs/buyer-web-redesign.md`. Original objective below.
+
 **Buyer-web visual redesign** (started 2026-06-21). Modernize teka.cd (buyer-web) — new premium red palette,
 town accents (Lubumbashi copper / Kolwezi cobalt), hero, categories, product cards, header, mobile — while
 preserving all functionality, SEO, analytics, API contracts. **Buyer-web ONLY in Phase 1** (seller/admin/
