@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { Badge } from '@/components/ui';
 import { WishlistButton } from '@/components/wishlist-button';
 import { useCartStore } from '@/lib/cart-store';
 import { formatCDF, formatUSD } from '@/lib/format';
@@ -74,28 +73,27 @@ export function ProductCard({ product }: ProductCardProps) {
             </div>
           )}
 
-          {/* Top-left: stacked stock + condition badges */}
-          <div className="absolute top-2 left-2 flex flex-col gap-1">
+          {/* Top-left: stacked stock + condition badges. Custom solid pills
+              (not the subtle Badge variants) with high-contrast text + shadow
+              so they stay legible over ANY product photo. */}
+          <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
             {outOfStock && (
-              <Badge variant="solid" size="sm" className="shadow-sm">
+              <span className="rounded-md bg-foreground px-2 py-0.5 text-[11px] font-semibold text-white shadow-md">
                 {t('outOfStock')}
-              </Badge>
+              </span>
             )}
             {lowStock && (
-              <Badge
-                variant="warning"
-                size="sm"
-                className="shadow-sm w-fit bg-warning text-white"
-              >
+              <span className="rounded-md bg-warning px-2 py-0.5 text-[11px] font-semibold text-foreground shadow-md">
                 {t('lowStock', { count: product.quantity })}
-              </Badge>
+              </span>
             )}
             {/* Only badge second-hand items — "Neuf" is the default, so
-                badging every new product just adds noise. */}
+                badging every new product just adds noise. White pill + dark
+                text reads cleanly over photos. */}
             {product.condition === 'USED' && (
-              <Badge variant="used" size="sm" className="shadow-sm w-fit">
+              <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-foreground shadow-md ring-1 ring-black/5">
                 {t('condition_USED')}
-              </Badge>
+              </span>
             )}
           </div>
         </div>
