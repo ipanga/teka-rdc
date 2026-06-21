@@ -15,6 +15,7 @@ import { useCityStore } from '@/lib/city-store';
 import { CitySelectorModal } from '@/components/city/city-selector-modal';
 import { CityPrompt } from '@/components/city/city-prompt';
 import { categoryHref, cityHref } from '@/lib/urls';
+import { cityAccentClasses } from '@/lib/city-accent';
 import type { BrowseCategory, BrowseProduct } from '@/lib/types';
 
 export default function HomePage({ serverH1 }: { serverH1?: string }) {
@@ -74,6 +75,10 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
       .finally(() => setLoadingNewest(false));
   }, [selectedCity, cityInitialized]);
 
+  // Town accent for the hero's location badge (copper = Lubumbashi, cobalt =
+  // Kolwezi, brand red otherwise).
+  const heroAccent = cityAccentClasses(selectedCity?.slug);
+
   return (
     <div className="min-h-screen flex flex-col bg-surface-muted">
       <Header />
@@ -87,20 +92,83 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
         {/* Banner Carousel — replaces static hero when banners are available */}
         <BannerCarousel
           fallback={
-            <section className="bg-gradient-to-br from-primary-700 via-primary to-primary-500 text-primary-foreground">
-              <Container className="py-12 md:py-20 text-center">
-                <h1 className="text-3xl md:text-5xl font-bold mb-3 tracking-tight">
-                  {serverH1 || t('title')}
-                </h1>
-                <p className="text-lg md:text-xl opacity-90 mb-6 max-w-2xl mx-auto">
-                  {t('subtitle', { city: selectedCity ? selectedCity.name : 'Congo' })}
-                </p>
-                <Link
-                  href="/categories"
-                  className={buttonVariants({ variant: 'secondary', size: 'lg' })}
-                >
-                  {t('cta')}
-                </Link>
+            <section className="relative overflow-hidden border-b border-border bg-gradient-to-b from-primary-50 via-background to-background">
+              {/* soft brand glow, kept subtle so the hero reads light, not a wall of red */}
+              <div
+                aria-hidden
+                className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-primary/10 blur-3xl"
+              />
+              <Container className="relative py-10 md:py-16">
+                <div className="max-w-2xl">
+                  {selectedCity && (
+                    <span
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold mb-4 ${heroAccent.badge}`}
+                    >
+                      <span className={`h-1.5 w-1.5 rounded-full ${heroAccent.dot}`} />
+                      {t('deliveringTo', { city: selectedCity.name })}
+                    </span>
+                  )}
+                  <h1 className="text-3xl md:text-5xl font-bold tracking-tight text-foreground mb-3">
+                    {serverH1 || t('title')}
+                  </h1>
+                  <p className="text-base md:text-lg text-muted-foreground mb-6 max-w-xl">
+                    {t('subtitle', { city: selectedCity ? selectedCity.name : 'Congo' })}
+                  </p>
+                  <Link
+                    href="/categories"
+                    className={buttonVariants({ variant: 'default', size: 'lg' })}
+                  >
+                    {t('cta')}
+                  </Link>
+                </div>
+
+                {/* Trust signals — fast local delivery, COD, verified sellers */}
+                <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl">
+                  {[
+                    {
+                      label: t('trustDelivery'),
+                      icon: (
+                        <path d="M3 7h11v8H3V7zm11 2h3l3 3v3h-2m-9 0H8m9 0a2 2 0 11-4 0 2 2 0 014 0zm-9 0a2 2 0 11-4 0 2 2 0 014 0z" />
+                      ),
+                    },
+                    {
+                      label: t('trustCod'),
+                      icon: (
+                        <>
+                          <rect x="2.5" y="6" width="19" height="12" rx="2" />
+                          <circle cx="12" cy="12" r="2.5" />
+                        </>
+                      ),
+                    },
+                    {
+                      label: t('trustSellers'),
+                      icon: <path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3zm-1 11l4-4-1.4-1.4L11 11.2 9.4 9.6 8 11l3 3z" />,
+                    },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex items-center gap-2.5 rounded-xl border border-border bg-surface px-4 py-3 shadow-xs"
+                    >
+                      <span className="flex items-center justify-center w-9 h-9 rounded-full bg-primary-subtle text-primary shrink-0">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.7"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="w-5 h-5"
+                          aria-hidden
+                        >
+                          {item.icon}
+                        </svg>
+                      </span>
+                      <span className="text-sm font-medium text-foreground">
+                        {item.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </Container>
             </section>
           }

@@ -5,36 +5,47 @@
 @plugin "@tailwindcss/typography";
 
 /* ---------------------------------------------------------------------------
- * Teka design tokens (2026-05-16)
+ * Teka design tokens — "Modern Ruby" (2026-06-21 buyer-web redesign)
  *
- * Built around Rakuten France's official corporate red (#BF0000, PANTONE
- * 485 C — Rakuten Brand Guideline v2.5). The semantic `--color-primary`
- * always points at `--color-primary-600` so every Tailwind utility
- * (bg-primary, text-primary, ring-primary, etc.) renders the canonical
- * brand red. Use the numbered scale directly when you need a tonal
- * variant (hover = 700, pressed = 800, subtle backgrounds = 50/100, etc.).
+ * Brand red is a premium cardinal/ruby (`#C8102E`, --color-primary-600):
+ * cleaner + brighter than the previous #BF0000 yet still passing WCAG AA for
+ * white text on buttons, used as an accent against white space rather than a
+ * flood. The semantic `--color-primary` always points at 600 so every Tailwind
+ * utility (bg-primary, text-primary, ring-primary, …) renders the canonical
+ * brand red; use the numbered scale for tonal variants (hover = 700,
+ * pressed = 800, subtle = 50/100, bright accent = 500).
  *
- * Mirrored on Flutter at `apps/buyer-mobile/lib/core/theme/teka_colors.dart`.
- * Keep both in sync when adjusting brand colors.
+ * Town accents (subtle, NOT per-city themes): Lubumbashi = copper, Kolwezi =
+ * cobalt — used only on city badge/chips/banners/delivery; the global brand
+ * stays unified. See `lib/city-accent.ts`.
+ *
+ * Mirrored on Flutter at `apps/buyer-mobile/lib/core/theme/teka_colors.dart`
+ * (aligned in redesign Phase 2). Keep both in sync when adjusting brand colors.
  * --------------------------------------------------------------------------- */
 
 @theme inline {
-  /* === Brand red — Rakuten 485 C tonal scale ============================ */
-  --color-primary-50:  #FFF5F5;
-  --color-primary-100: #FFE3E3;
-  --color-primary-200: #FFC9C9;
-  --color-primary-300: #FFA8A8;
-  --color-primary-400: #FF6B6B;
-  --color-primary-500: #E53935;
-  --color-primary-600: #BF0000; /* canonical brand red (Rakuten 485 C) */
-  --color-primary-700: #A60000;
-  --color-primary-800: #8A0000;
-  --color-primary-900: #660000;
+  /* === Brand red — Teka "Modern Ruby" tonal scale ====================== */
+  --color-primary-50:  #FFF1F2;
+  --color-primary-100: #FFE0E2;
+  --color-primary-200: #FFC5CA;
+  --color-primary-300: #FB7A85;
+  --color-primary-400: #F24A5A;
+  --color-primary-500: #E11D33; /* bright accent */
+  --color-primary-600: #C8102E; /* canonical brand red (ruby, AA on white) */
+  --color-primary-700: #A60D26; /* hover */
+  --color-primary-800: #850A1F; /* pressed */
+  --color-primary-900: #6B0A1A;
   --color-primary: var(--color-primary-600);
   --color-primary-foreground: #FFFFFF;
   --color-primary-hover: var(--color-primary-700);
   --color-primary-pressed: var(--color-primary-800);
   --color-primary-subtle: var(--color-primary-50);
+
+  /* === Town accents — copper (Lubumbashi) / cobalt (Kolwezi) ============ */
+  --color-accent-copper: #B87333;
+  --color-accent-copper-subtle: #F7EEE4;
+  --color-accent-cobalt: #1A56DB;
+  --color-accent-cobalt-subtle: #E8EEFD;
 
   /* === Neutrals (slate scale, semantic aliases) ========================== */
   --color-background: #FFFFFF;
