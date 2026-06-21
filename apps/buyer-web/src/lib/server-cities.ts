@@ -8,6 +8,9 @@ export interface ServerCity {
   province: string;
   isActive: boolean;
   sortOrder: number;
+  // Data-driven town identity (Town Architecture Refactor).
+  accentColor?: string | null;
+  heroImageUrl?: string | null;
 }
 
 /** Active cities, ordered by sortOrder (server-side, ISR-cached). */

@@ -420,7 +420,9 @@
   },
   "City": {
     "selectCity": "Choisissez votre ville",
+    "selectCityShort": "Choisir une ville",
     "selectCityDescription": "Pour vous montrer les produits disponibles près de chez vous",
+    "deliverTo": "Livrer à",
     "currentCity": "Ville actuelle",
     "changeCity": "Changer de ville",
     "seeAll": "Voir toutes les villes",

@@ -4,23 +4,28 @@
  * accent on the city badge / chips / delivery banner so a buyer instantly knows
  * which city they're browsing.
  *
- * Lubumbashi → copper, Kolwezi → cobalt blue (Katanga/Lualaba copper-cobalt
- * identity). Any other / unselected city falls back to the brand red accent.
+ * Data-driven (Town Architecture Refactor): the accent + hero come from the
+ * city record (`City.accentColor` / `City.heroImageUrl`), NOT from a hardcoded
+ * slug switch — so future towns are configurable from data alone. `accentColor`
+ * is an accent KEY ('copper' | 'cobalt' | 'default'); the class strings stay
+ * literal here so Tailwind's scanner generates the utilities. A town with no
+ * accent set falls back to the brand-red accent + the default hero image.
  *
- * Class strings are LITERAL here so Tailwind's scanner generates the utilities.
  * Tokens live in `app/globals.css` (`--color-accent-*`).
  */
 export type CityAccent = 'copper' | 'cobalt' | 'default';
 
-export function accentForCity(slug?: string | null): CityAccent {
-  switch (slug) {
-    case 'lubumbashi':
-      return 'copper';
-    case 'kolwezi':
-      return 'cobalt';
-    default:
-      return 'default';
-  }
+/** Town-record shape this module reads. Kept structural so any City-like object works. */
+interface CityLike {
+  accentColor?: string | null;
+  heroImageUrl?: string | null;
+}
+
+const DEFAULT_HERO = '/hero/lubumbashi.webp';
+
+export function resolveAccent(city?: CityLike | null): CityAccent {
+  const key = city?.accentColor;
+  return key === 'copper' || key === 'cobalt' ? key : 'default';
 }
 
 interface AccentClasses {
@@ -62,23 +67,14 @@ const ACCENT_CLASSES: Record<CityAccent, AccentClasses> = {
   },
 };
 
-export function cityAccentClasses(slug?: string | null): AccentClasses {
-  return ACCENT_CLASSES[accentForCity(slug)];
+export function cityAccentClasses(city?: CityLike | null): AccentClasses {
+  return ACCENT_CLASSES[resolveAccent(city)];
 }
 
 /**
- * City-specific homepage hero background image (local, in `public/hero/`).
- * Lubumbashi and Kolwezi each have their own real supermarket photo; any other
- * / unselected city uses the Lubumbashi shot as a general "Teka supermarket"
- * default.
+ * City homepage hero background image. Driven by `City.heroImageUrl` (data); a
+ * town with none set falls back to a generic "Teka supermarket" default.
  */
-export function heroImageForCity(slug?: string | null): string {
-  switch (slug) {
-    case 'kolwezi':
-      return '/hero/kolwezi.webp';
-    case 'lubumbashi':
-      return '/hero/lubumbashi.webp';
-    default:
-      return '/hero/lubumbashi.webp';
-  }
+export function heroImageForCity(city?: CityLike | null): string {
+  return city?.heroImageUrl || DEFAULT_HERO;
 }

@@ -15,7 +15,7 @@ import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
 import { CitySelectorModal } from '@/components/city/city-selector-modal';
 import { CityPrompt } from '@/components/city/city-prompt';
-import { categoryHref, cityHref } from '@/lib/urls';
+import { categoryHref } from '@/lib/urls';
 import { cityAccentClasses, heroImageForCity } from '@/lib/city-accent';
 import type { BrowseCategory, BrowseProduct } from '@/lib/types';
 
@@ -23,7 +23,6 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
   const t = useTranslations('Hero');
   const tCat = useTranslations('Categories');
   const tProd = useTranslations('Products');
-  const tCity = useTranslations('City');
   const [categories, setCategories] = useState<BrowseCategory[]>([]);
   const [popularProducts, setPopularProducts] = useState<BrowseProduct[]>([]);
   const [newestProducts, setNewestProducts] = useState<BrowseProduct[]>([]);
@@ -32,19 +31,21 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
   const [loadingNewest, setLoadingNewest] = useState(true);
 
   // City store
-  const { selectedCity, cities, initFromStorage, fetchCities } = useCityStore();
+  const { selectedCity, initFromStorage, fetchCities, maybePromptFirstVisit } =
+    useCityStore();
   const [cityInitialized, setCityInitialized] = useState(false);
 
-  // Initialize city from localStorage + load the city list on mount.
-  // We deliberately DO NOT force the city-selector modal open anymore: the
-  // homepage must render full, crawlable content with no interaction gate
-  // (SEO). A visitor without a stored city sees all-cities listings plus the
-  // non-blocking <CityPrompt> banner, and can pick a city at any time via the
-  // header "Changer de ville" button or that banner.
+  // Initialize town from localStorage + load the town list on mount, THEN run
+  // the SEO-safe first-visit gate (decision D1): a visitor with no town and no
+  // "prompted" cookie gets the town selector auto-opened ONCE — as a client
+  // overlay over this already-rendered page (never a content gate, so crawlers
+  // still see the full homepage underneath). Returning/known visitors are never
+  // interrupted.
   useEffect(() => {
     initFromStorage();
     fetchCities().finally(() => {
       setCityInitialized(true);
+      maybePromptFirstVisit();
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -76,16 +77,17 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
       .finally(() => setLoadingNewest(false));
   }, [selectedCity, cityInitialized]);
 
-  // Town accent for the hero's location badge (copper = Lubumbashi, cobalt =
-  // Kolwezi, brand red otherwise).
-  const heroAccent = cityAccentClasses(selectedCity?.slug);
-  const heroImage = heroImageForCity(selectedCity?.slug);
+  // Town accent + hero image for the selected town — driven by the city record
+  // (data-driven; copper / cobalt / brand-red default + per-town hero).
+  const heroAccent = cityAccentClasses(selectedCity);
+  const heroImage = heroImageForCity(selectedCity);
 
   return (
     <div className="min-h-screen flex flex-col bg-surface-muted">
       <Header />
-      {/* Opt-in only — opened via the header "Changer de ville" button, never
-          auto-forced on load. */}
+      {/* Town selector overlay. Opened via the header selector, the inline
+          CityPrompt, OR the SEO-safe first-visit gate (maybePromptFirstVisit) —
+          always a client overlay over rendered content, never an SSR gate. */}
       <CitySelectorModal />
 
       <main className="flex-1">
@@ -240,32 +242,10 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
           </Container>
         </section>
 
-        {/* City links — crawlable Homepage → City-landing internal links.
-            Always rendered (independent of the client-side selected city) so
-            search engines can discover every /{ville} page. */}
-        {cities.filter((c) => c.isActive && c.slug).length > 0 && (
-          <section className="bg-surface-muted">
-            <Container className="py-8">
-              <h2 className="text-lg font-semibold text-foreground mb-3">
-                {tCity('shopByCity')}
-              </h2>
-              <div className="flex flex-wrap gap-2">
-                {cities
-                  .filter((c) => c.isActive && c.slug)
-                  .map((c) => (
-                    <Link
-                      key={c.id}
-                      href={cityHref(c.slug as string)}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-4 py-2 text-sm font-medium text-foreground transition-colors hover:border-primary/40 hover:text-primary"
-                    >
-                      <span aria-hidden>{'📍'}</span>
-                      {c.name}
-                    </Link>
-                  ))}
-              </div>
-            </Container>
-          </section>
-        )}
+        {/* The old "Achetez dans votre ville" homepage section was removed in
+            the Town Architecture Refactor — town selection now lives in the
+            header + first-visit modal. The crawlable /{ville} internal links
+            moved to the global footer (CityLinks) so SEO discovery is kept. */}
 
         {/* Recently viewed (client-local; renders nothing until the buyer has
             viewed products). */}
