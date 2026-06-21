@@ -15,6 +15,14 @@ export class UpdateSellerProfileDto {
   @IsString()
   location?: string;
 
+  // Structured business town (Town Architecture Refactor / D4). The seller
+  // picks their town from /v1/cities instead of (or alongside) the free-text
+  // `location`. Validated by DB lookup in the service — seeded city ids are
+  // non-RFC4122 so `@IsUUID` would wrongly reject them.
+  @IsOptional()
+  @IsString()
+  cityId?: string;
+
   @IsOptional()
   @IsString()
   description?: string;

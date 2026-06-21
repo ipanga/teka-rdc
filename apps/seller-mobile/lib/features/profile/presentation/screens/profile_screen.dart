@@ -42,6 +42,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _businessNameCtrl = TextEditingController();
   final _businessPhoneCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
+  // Business town (Town Architecture Refactor / D4).
+  String? _selectedCityId;
+  List<CityOption> _cities = const [];
   final _descriptionCtrl = TextEditingController();
   final _currentPasswordCtrl = TextEditingController();
   final _newPasswordCtrl = TextEditingController();
@@ -72,6 +75,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     try {
       final repo = ref.read(profileRepositoryProvider);
       final me = await repo.getMe();
+      // Town list is best-effort — failure just leaves the picker empty.
+      List<CityOption> cities = const [];
+      try {
+        cities = await repo.getCities();
+      } catch (_) {
+        cities = const [];
+      }
       // Notification prefs are best-effort — failure shouldn't block the
       // profile screen from rendering. Defaults are all-on.
       NotificationPrefs? prefs;
@@ -87,6 +97,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(() {
         _user = me;
         _notifPrefs = prefs;
+        _cities = cities;
         _firstNameCtrl.text = me.firstName ?? '';
         _lastNameCtrl.text = me.lastName ?? '';
         _emailCtrl.text = me.email ?? '';
@@ -94,6 +105,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           _businessNameCtrl.text = me.sellerProfile!.businessName;
           _businessPhoneCtrl.text = me.sellerProfile!.phone;
           _locationCtrl.text = me.sellerProfile!.location;
+          _selectedCityId = me.sellerProfile!.cityId;
           _descriptionCtrl.text = me.sellerProfile!.description ?? '';
         }
       });
@@ -278,6 +290,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (_locationCtrl.text.trim() != (sp?.location ?? '')) {
         body['location'] = _locationCtrl.text.trim();
       }
+      if ((_selectedCityId ?? '') != (sp?.cityId ?? '') &&
+          (_selectedCityId ?? '').isNotEmpty) {
+        body['cityId'] = _selectedCityId!;
+      }
       if (_descriptionCtrl.text.trim() != (sp?.description ?? '')) {
         body['description'] = _descriptionCtrl.text.trim();
       }
@@ -286,6 +302,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             businessName: body['businessName'],
             phone: body['phone'],
             location: body['location'],
+            cityId: body['cityId'],
             description: body['description'],
           );
       await _load();
@@ -477,10 +494,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: _cities.any((c) => c.id == _selectedCityId)
+                        ? _selectedCityId
+                        : null,
+                    isExpanded: true,
+                    decoration:
+                        InputDecoration(labelText: l10n.profileCity),
+                    hint: Text(l10n.profileCitySelect),
+                    items: _cities
+                        .map((c) => DropdownMenuItem<String>(
+                              value: c.id,
+                              child: Text(
+                                '${c.name} — ${c.province}',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ))
+                        .toList(),
+                    onChanged: businessEditable
+                        ? (v) => setState(() => _selectedCityId = v)
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
                   TextField(
                     controller: _locationCtrl,
                     enabled: businessEditable,
-                    decoration: InputDecoration(labelText: l10n.profileLocation),
+                    decoration: InputDecoration(
+                      labelText: l10n.profileLocation,
+                      helperText: l10n.profileLocationHint,
+                      helperMaxLines: 2,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextField(

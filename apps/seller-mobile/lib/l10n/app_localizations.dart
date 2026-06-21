@@ -1210,11 +1210,29 @@ abstract class AppLocalizations {
   /// **'Nom de la boutique'**
   String get profileBusinessName;
 
+  /// No description provided for @profileCity.
+  ///
+  /// In fr, this message translates to:
+  /// **'Ville'**
+  String get profileCity;
+
+  /// No description provided for @profileCitySelect.
+  ///
+  /// In fr, this message translates to:
+  /// **'Sélectionnez votre ville'**
+  String get profileCitySelect;
+
   /// No description provided for @profileLocation.
   ///
   /// In fr, this message translates to:
-  /// **'Localisation'**
+  /// **'Adresse / quartier'**
   String get profileLocation;
+
+  /// No description provided for @profileLocationHint.
+  ///
+  /// In fr, this message translates to:
+  /// **'Détail de l\'adresse (rue, quartier) en complément de la ville.'**
+  String get profileLocationHint;
 
   /// No description provided for @profileDescription.
   ///

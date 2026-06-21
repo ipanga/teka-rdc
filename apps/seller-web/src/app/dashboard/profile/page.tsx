@@ -8,8 +8,17 @@ interface SellerProfileShape {
   businessName: string;
   phone: string;
   location: string;
+  // Structured business town (Town Architecture Refactor / D4) — the seller
+  // picks it from /v1/cities; `location` stays as free-text address detail.
+  cityId: string | null;
   description: string | null;
   applicationStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
+}
+
+interface CityOption {
+  id: string;
+  name: string;
+  province: string;
 }
 
 interface MeResponse {
@@ -46,6 +55,8 @@ export default function SellerProfilePage() {
   const [businessName, setBusinessName] = useState('');
   const [businessPhone, setBusinessPhone] = useState('');
   const [location, setLocation] = useState('');
+  const [cityId, setCityId] = useState('');
+  const [cities, setCities] = useState<CityOption[]>([]);
   const [description, setDescription] = useState('');
 
   // UI state
@@ -83,6 +94,7 @@ export default function SellerProfilePage() {
         setBusinessName(me.sellerProfile.businessName);
         setBusinessPhone(me.sellerProfile.phone);
         setLocation(me.sellerProfile.location);
+        setCityId(me.sellerProfile.cityId ?? '');
         setDescription(me.sellerProfile.description ?? '');
       }
     } catch {
@@ -104,6 +116,15 @@ export default function SellerProfilePage() {
     }
   }, []);
 
+  const loadCities = useCallback(async () => {
+    try {
+      const res = await apiFetch<CityOption[]>('/v1/cities');
+      setCities(res.data);
+    } catch {
+      // Non-fatal: the town picker just stays empty.
+    }
+  }, []);
+
   const loadSessions = useCallback(async () => {
     setSessionsLoading(true);
     try {
@@ -122,7 +143,8 @@ export default function SellerProfilePage() {
     loadMe();
     loadNotificationPrefs();
     loadSessions();
-  }, [loadMe, loadNotificationPrefs, loadSessions]);
+    loadCities();
+  }, [loadMe, loadNotificationPrefs, loadSessions, loadCities]);
 
   const revokeSession = async (id: string) => {
     setSessionAction(id);
@@ -260,6 +282,7 @@ export default function SellerProfilePage() {
       if (businessName !== (original?.businessName ?? '')) body.businessName = businessName.trim();
       if (businessPhone !== (original?.phone ?? '')) body.phone = businessPhone.trim();
       if (location !== (original?.location ?? '')) body.location = location.trim();
+      if (cityId !== (original?.cityId ?? '')) body.cityId = cityId;
       if (description !== (original?.description ?? '')) body.description = description.trim();
       if (Object.keys(body).length === 0) {
         setSavingBusiness(false);
@@ -425,15 +448,33 @@ export default function SellerProfilePage() {
               <p className="text-xs text-muted-foreground mt-1">{t('phoneHint')}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">{t('location')}</label>
-              <input
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
+              <label className="block text-sm font-medium text-foreground mb-1">{t('city')}</label>
+              <select
+                value={cityId}
+                onChange={(e) => setCityId(e.target.value)}
                 disabled={!businessEditable}
                 className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
-              />
+              >
+                <option value="">{t('cityPlaceholder')}</option>
+                {cities.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} — {c.province}
+                  </option>
+                ))}
+              </select>
             </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1">{t('location')}</label>
+            <input
+              type="text"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              disabled={!businessEditable}
+              placeholder={t('locationPlaceholder')}
+              className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
+            />
+            <p className="text-xs text-muted-foreground mt-1">{t('locationHint')}</p>
           </div>
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">{t('description')}</label>

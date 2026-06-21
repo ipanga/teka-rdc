@@ -47,6 +47,9 @@ class SellerProfileInfo {
   final String businessName;
   final String phone;
   final String location;
+  // Structured business town (Town Architecture Refactor / D4) — picked from
+  // /v1/cities; `location` stays free-text address detail.
+  final String? cityId;
   final String? description;
   final String applicationStatus; // PENDING | APPROVED | REJECTED
 
@@ -55,6 +58,7 @@ class SellerProfileInfo {
     required this.businessName,
     required this.phone,
     required this.location,
+    this.cityId,
     this.description,
     required this.applicationStatus,
   });
@@ -65,9 +69,31 @@ class SellerProfileInfo {
       businessName: json['businessName']?.toString() ?? '',
       phone: json['phone']?.toString() ?? '',
       location: json['location']?.toString() ?? '',
+      cityId: json['cityId'] as String?,
       description: json['description'] as String?,
       applicationStatus:
           json['applicationStatus'] as String? ?? 'PENDING',
+    );
+  }
+}
+
+/// Lightweight town option for the seller profile city picker (GET /v1/cities).
+class CityOption {
+  final String id;
+  final String name;
+  final String province;
+
+  const CityOption({
+    required this.id,
+    required this.name,
+    required this.province,
+  });
+
+  factory CityOption.fromJson(Map<String, dynamic> json) {
+    return CityOption(
+      id: json['id'] as String? ?? '',
+      name: json['name']?.toString() ?? '',
+      province: json['province']?.toString() ?? '',
     );
   }
 }
@@ -98,20 +124,34 @@ class ProfileRepository {
     return ProfileUser.fromJson(raw);
   }
 
-  /// PATCH /v1/sellers/profile — businessName, phone, location, description.
-  /// Server rejects with 400 if applicationStatus != APPROVED.
+  /// PATCH /v1/sellers/profile — businessName, phone, location, cityId,
+  /// description. Server rejects with 400 if applicationStatus != APPROVED.
   Future<void> updateSellerProfile({
     String? businessName,
     String? phone,
     String? location,
+    String? cityId,
     String? description,
   }) async {
     final body = <String, dynamic>{};
     if (businessName != null) body['businessName'] = businessName;
     if (phone != null) body['phone'] = phone;
     if (location != null) body['location'] = location;
+    if (cityId != null) body['cityId'] = cityId;
     if (description != null) body['description'] = description;
     await _dio.patch('/v1/sellers/profile', data: body);
+  }
+
+  /// GET /v1/cities — active towns for the seller profile city picker.
+  Future<List<CityOption>> getCities() async {
+    final response = await _dio.get('/v1/cities');
+    final data = response.data;
+    final List<dynamic> rawList = data is Map && data['data'] != null
+        ? data['data'] as List
+        : (data is List ? data : const []);
+    return rawList
+        .map((e) => CityOption.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// POST /v1/users/avatar — multipart `image` field. Reuses the same

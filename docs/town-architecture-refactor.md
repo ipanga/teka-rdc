@@ -94,11 +94,17 @@ over already-rendered content (never an SSR gate).
   slug switch; default fallback.
 - [ ] **P2.3** Verify: `flutter analyze` + tests green; PR → develop.
 
-### Phase 3 — seller-web + seller-mobile (branch `feat/town-arch-p3-seller`)
-- [ ] **P3.1** seller-web profile: replace free-text `location` with a city PICKER (`/v1/cities` →
-  `SellerProfile.cityId`); keep `location` for any free-text addendum if needed.
-- [ ] **P3.2** seller-mobile profile: mirror the city picker.
-- [ ] **P3.3** Verify both; PR → develop.
+### Phase 3 — seller-web + seller-mobile (branch `feat/town-arch-p3-seller`) — CODE-COMPLETE
+- [x] **P3.0** API: `UpdateSellerProfileDto.cityId` (validated by DB lookup — seeded city ids are
+  non-RFC4122; empty string = no change); `/me` already returns `sellerProfile.cityId`.
+- [x] **P3.1** seller-web profile: added a **Ville** `<select>` (from `/v1/cities`) bound to
+  `SellerProfile.cityId`; `location` kept as a free-text **address/quartier** field (with hint). New FR strings
+  `city`/`cityPlaceholder`/`locationPlaceholder`/`locationHint`.
+- [x] **P3.2** seller-mobile profile: mirror — `DropdownButtonFormField` city picker (`ProfileRepository.getCities`
+  + `CityOption`), `SellerProfileInfo.cityId`, `updateSellerProfile(cityId:)`; ARB `profileCity`/`profileCitySelect`/
+  `profileLocationHint` + `flutter gen-l10n`.
+- [x] **P3.3** Verify: api 132 unit + 116 e2e; seller-web type-check + ESLint; seller-mobile analyze (0
+  errors/warnings) + tests. PR → develop.
 
 ### Release
 - [ ] Real merge `develop → main` per phase or batched (NEVER squash); apply the P0 migration via the Action
