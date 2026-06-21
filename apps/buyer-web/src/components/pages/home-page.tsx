@@ -15,6 +15,7 @@ import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
 import { CitySelectorModal } from '@/components/city/city-selector-modal';
 import { CityPrompt } from '@/components/city/city-prompt';
+import { CategoryIcon } from '@/components/category/category-icon';
 import { categoryHref } from '@/lib/urls';
 import { cityAccentClasses, heroImageForCity } from '@/lib/city-accent';
 import type { BrowseCategory, BrowseProduct } from '@/lib/types';
@@ -217,24 +218,17 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
                 {tCat('noCategories')}
               </p>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-4">
-                {categories.slice(0, 12).map((cat) => (
+              <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-4 md:gap-5">
+                {categories.slice(0, 14).map((cat) => (
                   <Link
                     key={cat.id}
                     href={categoryHref(selectedCity?.slug, cat)}
-                    className="group flex flex-col items-center text-center gap-3 rounded-2xl border border-border bg-surface p-5 shadow-xs hover:shadow-md hover:border-primary/40 hover:-translate-y-1 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="group flex flex-col items-center text-center gap-2.5 rounded-xl p-2 hover:bg-surface-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
-                    <span className="flex items-center justify-center w-16 h-16 rounded-full bg-primary-subtle text-3xl transition-all duration-200 group-hover:scale-110 group-hover:bg-primary/10">
-                      {cat.emoji || '📦'}
-                    </span>
-                    <span className="min-w-0">
-                      <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
-                        {cat.name ?? ''}
-                      </h3>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {tCat('productCount', { count: cat.productCount })}
-                      </p>
-                    </span>
+                    <CategoryIcon slug={cat.slug} emoji={cat.emoji} size="lg" />
+                    <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
+                      {cat.name ?? ''}
+                    </h3>
                   </Link>
                 ))}
               </div>
