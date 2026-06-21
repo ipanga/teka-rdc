@@ -10,6 +10,7 @@ import { Container, SectionHeader, buttonVariants } from '@/components/ui';
 import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
 import { categoryHref } from '@/lib/urls';
+import { CategoryIcon } from '@/components/category/category-icon';
 import type { BrowseCategory, BrowseProduct } from '@/lib/types';
 
 interface CityLandingPageProps {
@@ -122,16 +123,14 @@ export default function CityLandingPage({
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
-                {categories.slice(0, 12).map((cat) => (
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-7 gap-4 md:gap-5">
+                {categories.slice(0, 14).map((cat) => (
                   <Link
                     key={cat.id}
                     href={categoryHref(citySlug, cat)}
-                    className="group bg-surface rounded-xl border border-border p-4 text-center shadow-xs hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5 transition-all duration-200"
+                    className="group flex flex-col items-center text-center gap-2.5 rounded-xl p-2 hover:bg-surface-muted/60 transition-colors"
                   >
-                    <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">
-                      {cat.emoji || '📦'}
-                    </div>
+                    <CategoryIcon slug={cat.slug} emoji={cat.emoji} size="lg" />
                     <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
                       {cat.name ?? ''}
                     </h3>

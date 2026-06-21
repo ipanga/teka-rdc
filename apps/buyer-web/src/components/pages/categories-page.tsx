@@ -8,6 +8,7 @@ import { Footer } from '@/components/layout/footer';
 import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
 import { categoryHref } from '@/lib/urls';
+import { CategoryIcon } from '@/components/category/category-icon';
 import type { BrowseCategory } from '@/lib/types';
 
 export default function CategoriesPage() {
@@ -67,7 +68,9 @@ export default function CategoriesPage() {
                 href={categoryHref(selectedCity?.slug, cat)}
                 className="group bg-white rounded-lg border border-border p-6 text-center hover:shadow-lg hover:border-primary/30 transition-all"
               >
-                <div className="text-4xl mb-3">{cat.emoji || '📦'}</div>
+                <div className="flex justify-center mb-3">
+                  <CategoryIcon slug={cat.slug} emoji={cat.emoji} size="lg" />
+                </div>
                 <h2 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
                   {(cat.name ?? '')}
                 </h2>

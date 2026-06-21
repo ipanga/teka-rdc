@@ -8,7 +8,7 @@ import '../../cart/presentation/providers/cart_provider.dart';
 import '../../catalog/data/models/category_model.dart';
 import '../../catalog/data/models/product_model.dart';
 import '../../catalog/presentation/providers/catalog_provider.dart';
-import '../../catalog/presentation/widgets/category_chip.dart';
+import '../../catalog/presentation/widgets/category_circle.dart';
 import '../../catalog/presentation/widgets/product_card.dart';
 import '../../catalog/presentation/widgets/recently_viewed_section.dart';
 import '../../city/presentation/providers/city_provider.dart';
@@ -161,19 +161,19 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             categories.when(
               data: (cats) => SizedBox(
-                height: 40,
+                height: 112,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: cats.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 8),
-                  itemBuilder: (context, index) => CategoryChip(
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) => CategoryCircle(
                     category: cats[index],
                   ),
                 ),
               ),
               loading: () => const SizedBox(
-                height: 40,
+                height: 112,
                 child: Center(
                   child: SizedBox(
                     width: 20,
