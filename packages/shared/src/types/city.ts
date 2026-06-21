@@ -9,6 +9,12 @@ export interface City extends Timestamps {
   province: string;
   isActive: boolean;
   sortOrder: number;
+  // Data-driven town identity (Town Architecture Refactor) so future towns are
+  // config-only. accentColor: accent key ('copper' | 'cobalt' | hex) for the
+  // town badge/chips; heroImageUrl: town hero/landing image URL. Both null on
+  // towns that haven't set them (-> brand-red accent + default hero).
+  accentColor?: string | null;
+  heroImageUrl?: string | null;
   communes?: Commune[];
 }
 

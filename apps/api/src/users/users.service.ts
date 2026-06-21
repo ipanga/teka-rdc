@@ -17,7 +17,7 @@ export class UsersService {
   async getProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId, deletedAt: null },
-      include: { sellerProfile: true },
+      include: { sellerProfile: true, preferredCity: true },
     });
 
     if (!user) {
@@ -26,6 +26,31 @@ export class UsersService {
 
     const { passwordHash, deletedAt, ...profile } = user;
     return profile;
+  }
+
+  /**
+   * Set (or clear) the authenticated user's preferred delivery town
+   * (Town Architecture Refactor). Passing `cityId: null` clears it. A non-null
+   * city must exist and be active. Returns `{ preferredCityId }` so the client
+   * can reconcile its local town state.
+   */
+  async setPreferredCity(userId: string, cityId: string | null) {
+    if (cityId) {
+      const city = await this.prisma.city.findFirst({
+        where: { id: cityId, isActive: true },
+        select: { id: true },
+      });
+      if (!city) {
+        throw new BadRequestException('Ville invalide ou inactive');
+      }
+    }
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { preferredCityId: cityId },
+    });
+
+    return { preferredCityId: cityId };
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
