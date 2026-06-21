@@ -138,9 +138,23 @@ export class SellersService {
       );
     }
 
+    // Normalize: an empty-string cityId means "no change" (avoids an invalid
+    // empty FK on spread). A non-empty cityId is validated by DB lookup —
+    // seeded city ids are non-RFC4122 so a UUID validator would wrongly reject.
+    const { cityId, ...rest } = dto;
+    if (cityId) {
+      const city = await this.prisma.city.findFirst({
+        where: { id: cityId, isActive: true },
+        select: { id: true },
+      });
+      if (!city) {
+        throw new BadRequestException('Ville invalide ou inactive');
+      }
+    }
+
     return this.prisma.sellerProfile.update({
       where: { userId },
-      data: dto,
+      data: { ...rest, ...(cityId ? { cityId } : {}) },
     });
   }
 }
