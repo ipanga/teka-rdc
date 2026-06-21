@@ -26,12 +26,11 @@ data-driven accent/hero (`City.accentColor`/`City.heroImageUrl` replace the hard
 `teka_colors.dart` slug switches), seller city picker.
 
 **Phasing (each = own PR off `develop`):** P0 API/DB foundation → P1 buyer-web → P2 buyer-mobile → P3 seller
-apps. **Progress:** ✅ **P0 SHIPPED to develop** (#404 merged — `City.accentColor`/`heroImageUrl` +
-`User.preferredCityId` + `PATCH /v1/users/me/preferred-city`; prod migration `2026-06-21_town_architecture.sql`
-**still pending the release Action**). 🔄 **P1 buyer-web — PR #405 OPEN, awaiting user review** (header
-selector, SEO-safe first-visit modal, cookie+profile persistence, footer city links, data-driven accent/hero
-+ backfill migration `2026-06-21_town_identity_backfill.sql` pending prod). ⏳ **P2 buyer-mobile + P3 seller
-apps PENDING** (depend only on P0, can start off develop). Full checklist: `docs/town-architecture-refactor.md`.
+apps. **ALL 4 PHASES MERGED TO `develop`** (#404 P0, #405 P1, #406 P2, #407 P3). **Releasing develop→main now.**
+**Two prod migrations apply via the Action right after the deploy** (concurrency-queued behind it; the api
+image must ship them first): `2026-06-21_town_architecture.sql` (columns + FK) **then**
+`2026-06-21_town_identity_backfill.sql` (Lubumbashi=copper / Kolwezi=cobalt + hero as data). Full checklist:
+`docs/town-architecture-refactor.md`. **Pending: prod verification + back-merge main→develop.**
 
 ---
 
