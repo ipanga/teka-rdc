@@ -4,10 +4,9 @@ import { useState } from 'react';
 import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { Badge } from '@/components/ui';
 import { WishlistButton } from '@/components/wishlist-button';
 import { useCartStore } from '@/lib/cart-store';
-import { formatCDF } from '@/lib/format';
+import { formatCDF, formatUSD } from '@/lib/format';
 import { productHref } from '@/lib/urls';
 import type { BrowseProduct } from '@/lib/types';
 
@@ -74,45 +73,53 @@ export function ProductCard({ product }: ProductCardProps) {
             </div>
           )}
 
-          {/* Top-left: stacked stock + condition badges */}
-          <div className="absolute top-2 left-2 flex flex-col gap-1">
+          {/* Top-left: stacked stock + condition badges. Custom solid pills
+              (not the subtle Badge variants) with high-contrast text + shadow
+              so they stay legible over ANY product photo. */}
+          <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
             {outOfStock && (
-              <Badge variant="solid" size="sm" className="shadow-sm">
+              <span className="rounded-md bg-foreground px-2 py-0.5 text-[11px] font-semibold text-white shadow-md">
                 {t('outOfStock')}
-              </Badge>
+              </span>
             )}
             {lowStock && (
-              <Badge
-                variant="warning"
-                size="sm"
-                className="shadow-sm w-fit bg-warning text-white"
-              >
+              <span className="rounded-md bg-warning px-2 py-0.5 text-[11px] font-semibold text-foreground shadow-md">
                 {t('lowStock', { count: product.quantity })}
-              </Badge>
+              </span>
             )}
-            <Badge
-              variant={product.condition === 'NEW' ? 'new' : 'used'}
-              size="sm"
-              className="shadow-sm w-fit"
-            >
-              {t(`condition_${product.condition}`)}
-            </Badge>
+            {/* Only badge second-hand items — "Neuf" is the default, so
+                badging every new product just adds noise. White pill + dark
+                text reads cleanly over photos. */}
+            {product.condition === 'USED' && (
+              <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-foreground shadow-md ring-1 ring-black/5">
+                {t('condition_USED')}
+              </span>
+            )}
           </div>
         </div>
 
         {/* Info */}
-        <div className="p-3 space-y-1.5">
+        <div className="p-3 space-y-1">
           <h3 className="text-sm font-medium text-foreground line-clamp-2 min-h-[2.5rem] leading-snug">
             {title}
           </h3>
-          <p className="text-lg font-bold text-primary tracking-tight">
-            {formatCDF(product.priceCDF)}
-          </p>
+          {/* Price hierarchy: bold CDF (dark, premium) + secondary USD. The red
+              is reserved for the add-to-cart CTA, not flooded across the grid. */}
+          <div className="flex items-baseline gap-2 flex-wrap pt-0.5">
+            <span className="text-base md:text-lg font-extrabold text-foreground tracking-tight">
+              {formatCDF(product.priceCDF)}
+            </span>
+            {product.priceUSD != null && product.priceUSD > 0 && (
+              <span className="text-xs font-medium text-muted-foreground">
+                {formatUSD(product.priceUSD)}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground truncate group-hover:text-foreground transition-colors">
             {product.seller.businessName}
           </p>
           {product.unitsSold != null && product.unitsSold > 0 && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground">
               {t('unitsSold', { count: product.unitsSold })}
             </p>
           )}
@@ -135,7 +142,7 @@ export function ProductCard({ product }: ProductCardProps) {
             onClick={handleQuickAdd}
             disabled={adding}
             aria-label={t('addToCart')}
-            className={`w-full inline-flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium transition-colors disabled:opacity-60 ${
+            className={`w-full inline-flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-colors disabled:opacity-60 ${
               added
                 ? 'bg-success-subtle text-success'
                 : 'bg-primary text-primary-foreground hover:bg-primary/90'

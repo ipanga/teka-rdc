@@ -61,7 +61,11 @@
   "Hero": {
     "title": "Bienvenue sur Teka",
     "subtitle": "Le marché en ligne de {city}",
-    "cta": "Découvrir les produits"
+    "cta": "Découvrir les produits",
+    "deliveringTo": "Livraison à {city}",
+    "trustDelivery": "Livraison locale rapide",
+    "trustCod": "Paiement à la livraison",
+    "trustSellers": "Vendeurs vérifiés"
   },
   "Categories": {
     "title": "Catégories",

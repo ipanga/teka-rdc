@@ -10,6 +10,16 @@ import { CartBadge } from '@/components/cart/cart-badge';
 import { WishlistBadge } from '@/components/wishlist/wishlist-badge';
 import { SearchAutocomplete } from './search-autocomplete';
 import { buttonVariants } from '@/components/ui';
+import { cityAccentClasses } from '@/lib/city-accent';
+
+// Location pin — small filled marker for the city selector.
+function PinIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1112 6a2.5 2.5 0 010 5.5z" />
+    </svg>
+  );
+}
 
 export function Header() {
   const t = useTranslations('Header');
@@ -20,6 +30,9 @@ export function Header() {
   const logout = useAuthStore((s) => s.logout);
   const { selectedCity, openSelector } = useCityStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Town accent for the city selector (copper = Lubumbashi, cobalt = Kolwezi).
+  const cityAcc = cityAccentClasses(selectedCity?.slug);
 
   // Direct buyer↔seller messaging removed on 2026-05-17 — buyers now
   // contact Teka RDC support instead of the seller (see /contact). The
@@ -53,21 +66,18 @@ export function Header() {
             chosen city, or a "choose a city" affordance. */}
         <button
           onClick={openSelector}
-          className="hidden md:flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border hover:border-primary/40 hover:bg-muted/50 transition-colors text-sm shrink-0"
+          className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm shrink-0 transition-colors ${
+            selectedCity
+              ? `${cityAcc.surface} border-transparent hover:brightness-95`
+              : 'border-border text-foreground hover:border-primary/40 hover:bg-muted/50'
+          }`}
           title={selectedCity ? tCity('changeCity') : tCity('selectCity')}
         >
-          <span className="text-xs">{'\uD83D\uDCCD'}</span>
-          <span className="font-medium text-foreground">
-            {selectedCity ? (
-              <>
-                {selectedCity.name}
-                {selectedCity.province && <span className="text-muted-foreground font-normal">, {selectedCity.province}</span>}
-              </>
-            ) : (
-              tCity('selectCity')
-            )}
+          <PinIcon className="w-3.5 h-3.5" />
+          <span className="font-semibold">
+            {selectedCity ? selectedCity.name : tCity('selectCity')}
           </span>
-          <svg className="w-3 h-3 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-3 h-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>
@@ -157,18 +167,17 @@ export function Header() {
               openSelector();
               setMobileMenuOpen(false);
             }}
-            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-border hover:border-primary/40 hover:bg-muted/50 transition-colors text-sm"
+            className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm transition-colors ${
+              selectedCity
+                ? `${cityAcc.surface} border-transparent`
+                : 'border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/50'
+            }`}
           >
-            <span className="text-xs">{'\uD83D\uDCCD'}</span>
-            {selectedCity ? (
-              <span className="font-medium text-foreground">
-                {selectedCity.name}
-                {selectedCity.province && <span className="text-muted-foreground font-normal">, {selectedCity.province}</span>}
-              </span>
-            ) : (
-              <span className="text-muted-foreground">{tCity('selectCity')}</span>
-            )}
-            <svg className="w-3 h-3 text-muted-foreground ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <PinIcon className="w-4 h-4" />
+            <span className="font-semibold">
+              {selectedCity ? selectedCity.name : tCity('selectCity')}
+            </span>
+            <svg className="w-3 h-3 opacity-70 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>

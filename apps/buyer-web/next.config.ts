@@ -30,7 +30,17 @@ const nextConfig: NextConfig = {
   // don't reach Node at runtime (its package.json main points at src/).
   transpilePackages: ['@teka/shared'],
   images: {
-    remotePatterns: [{ protocol: 'https', hostname: 'res.cloudinary.com' }],
+    remotePatterns: [
+      { protocol: 'https', hostname: 'res.cloudinary.com' },
+      // Dev-only: the local/sample seed catalog still uses picsum.photos
+      // placeholder images. Prod product images are all on Cloudinary, so this
+      // host is NOT allowed in production (keeps the prod allow-list tight).
+      // Without it, next/image throws "unconfigured host" and crashes product
+      // cards when running buyer-web against a picsum-seeded dev DB.
+      ...(process.env.NODE_ENV !== 'production'
+        ? [{ protocol: 'https' as const, hostname: 'picsum.photos' }]
+        : []),
+    ],
   },
 
   // PostHog reverse proxy. The browser talks to teka.cd/ingest/* (same origin)
