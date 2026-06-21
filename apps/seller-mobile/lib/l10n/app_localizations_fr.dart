@@ -588,7 +588,17 @@ class AppLocalizationsFr extends AppLocalizations {
   String get profileBusinessName => 'Nom de la boutique';
 
   @override
-  String get profileLocation => 'Localisation';
+  String get profileCity => 'Ville';
+
+  @override
+  String get profileCitySelect => 'Sélectionnez votre ville';
+
+  @override
+  String get profileLocation => 'Adresse / quartier';
+
+  @override
+  String get profileLocationHint =>
+      'Détail de l\'adresse (rue, quartier) en complément de la ville.';
 
   @override
   String get profileDescription => 'Description';

@@ -8,6 +8,11 @@ class CityModel {
   final String province;
   final bool isActive;
   final int sortOrder;
+  // Data-driven town identity (Town Architecture Refactor) — mirrors the web
+  // City shape. accentColor: accent key ('copper' | 'cobalt' | …) driving the
+  // town accent; heroImageUrl: town hero image. Null → brand-red default.
+  final String? accentColor;
+  final String? heroImageUrl;
 
   const CityModel({
     required this.id,
@@ -16,6 +21,8 @@ class CityModel {
     required this.province,
     required this.isActive,
     required this.sortOrder,
+    this.accentColor,
+    this.heroImageUrl,
   });
 
   factory CityModel.fromJson(Map<String, dynamic> json) {
@@ -26,6 +33,8 @@ class CityModel {
       province: json['province'] as String? ?? '',
       isActive: json['isActive'] as bool? ?? true,
       sortOrder: json['sortOrder'] as int? ?? 0,
+      accentColor: json['accentColor'] as String?,
+      heroImageUrl: json['heroImageUrl'] as String?,
     );
   }
 }

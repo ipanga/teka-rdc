@@ -125,6 +125,8 @@ export default async function Page({ params }: Props) {
         citySlug={city.slug}
         cityName={city.name}
         province={city.province}
+        accentColor={city.accentColor ?? null}
+        heroImageUrl={city.heroImageUrl ?? null}
       />
     );
   }

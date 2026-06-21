@@ -15,6 +15,7 @@ import { NotificationPrefsService } from './notification-prefs.service';
 import { SessionsService } from './sessions.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { NotificationPrefsDto } from './dto/notification-prefs.dto';
+import { PreferredCityDto } from './dto/preferred-city.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('v1/users')
@@ -55,6 +56,20 @@ export class UsersController {
   @Delete('profile')
   async deleteAccount(@CurrentUser('userId') userId: string) {
     return this.usersService.deleteAccount(userId);
+  }
+
+  /**
+   * Set (or clear with `cityId: null`) the current buyer's preferred delivery
+   * town (Town Architecture Refactor). Lets the chosen town follow the user
+   * across devices — the buyer apps call this on town change while logged in,
+   * and hydrate from `preferredCityId` on the next /me.
+   */
+  @Patch('me/preferred-city')
+  async setPreferredCity(
+    @CurrentUser('userId') userId: string,
+    @Body() dto: PreferredCityDto,
+  ) {
+    return this.usersService.setPreferredCity(userId, dto.cityId ?? null);
   }
 
   /**

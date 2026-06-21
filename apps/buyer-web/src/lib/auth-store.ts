@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { apiFetch, ApiError } from './api-client';
+import type { City } from './city-store';
 
 export interface User {
   id: string;
@@ -14,6 +15,10 @@ export interface User {
   avatar?: string | null;
   phoneVerified: boolean;
   emailVerified: boolean;
+  // Preferred delivery town (Town Architecture Refactor). preferredCity is the
+  // resolved row from /me; lets the buyer apps hydrate the town on login.
+  preferredCityId?: string | null;
+  preferredCity?: City | null;
 }
 
 interface AuthState {

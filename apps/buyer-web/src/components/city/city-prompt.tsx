@@ -51,7 +51,7 @@ export function CityPrompt() {
               <button
                 key={city.id}
                 onClick={() => setCity(city)}
-                className={`rounded-full bg-surface px-4 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${cityAccentClasses(city.slug).chip}`}
+                className={`rounded-full bg-surface px-4 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${cityAccentClasses(city).chip}`}
               >
                 {city.name}
               </button>

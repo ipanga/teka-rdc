@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../../core/storage/secure_storage.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/city_repository.dart';
 import '../../data/models/city_model.dart';
 
@@ -81,11 +82,38 @@ class CityNotifier extends StateNotifier<CityState> {
   Future<void> selectCity(CityModel city) async {
     state = state.copyWith(selectedCity: city);
     await _storage.write(key: _cityIdKey, value: city.id);
+    // Persist to the profile so the town follows the buyer across devices.
+    // Fire-and-forget: a sync failure must never block town selection (the
+    // secure-storage write above already holds the choice locally).
+    _syncPreferredCity(city.id);
   }
 
   Future<void> clearCity() async {
     state = state.copyWith(clearSelectedCity: true);
     await _storage.delete(key: _cityIdKey);
+    _syncPreferredCity(null);
+  }
+
+  /// Adopt the town saved on the user's profile (preferredCityId) after login,
+  /// but only when the buyer has no local selection — the on-device choice wins.
+  /// Lets the town set on the web (or another device) carry over. Does NOT
+  /// re-sync to the profile (the value already came from there).
+  Future<void> hydrateFromProfile(String? preferredCityId) async {
+    if (preferredCityId == null || preferredCityId.isEmpty) return;
+    if (state.hasCity) return;
+    if (state.cities.isEmpty) await fetchCities();
+    if (state.hasCity) return; // fetchCities may have resolved a local choice
+    final match =
+        state.cities.where((c) => c.id == preferredCityId).toList();
+    if (match.isNotEmpty) {
+      state = state.copyWith(selectedCity: match.first);
+      await _storage.write(key: _cityIdKey, value: match.first.id);
+    }
+  }
+
+  void _syncPreferredCity(String? cityId) {
+    // ignore: avoid-ignoring-return-values — fire-and-forget profile sync
+    _repository.setPreferredCity(cityId).catchError((_) {});
   }
 
   /// Check if a city ID is stored (without needing cities to be loaded)
@@ -96,8 +124,21 @@ class CityNotifier extends StateNotifier<CityState> {
 }
 
 final cityProvider = StateNotifierProvider<CityNotifier, CityState>((ref) {
-  return CityNotifier(
+  final notifier = CityNotifier(
     ref.read(cityRepositoryProvider),
     ref.read(secureStorageProvider),
   );
+  // When the session resolves to authenticated, adopt the town saved on the
+  // profile (preferredCityId from /v1/auth/me) if the buyer has no local
+  // choice — so the town follows the user across devices (and the post-login
+  // city gate is skipped when a profile town exists).
+  ref.listen<AuthState>(authProvider, (_, next) {
+    if (next.status == AuthStatus.authenticated) {
+      final preferredCityId = next.user?['preferredCityId'] as String?;
+      if (preferredCityId != null) {
+        notifier.hydrateFromProfile(preferredCityId);
+      }
+    }
+  }, fireImmediately: true);
+  return notifier;
 });
