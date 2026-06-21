@@ -192,12 +192,14 @@ class _CityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Town accent: each city shows its own colour (copper = Lubumbashi,
+    // cobalt = Kolwezi, brand red otherwise) so the city identity reads at a
+    // glance.
+    final (accent, accentSubtle) = TekaColors.cityAccent(city.slug);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: isSelected
-            ? TekaColors.tekaRed.withOpacity(0.05)
-            : TekaColors.background,
+        color: isSelected ? accentSubtle : TekaColors.background,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: onTap,
@@ -206,7 +208,7 @@ class _CityCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
               border: Border.all(
-                color: isSelected ? TekaColors.tekaRed : TekaColors.border,
+                color: isSelected ? accent : TekaColors.border,
                 width: isSelected ? 2 : 1,
               ),
               borderRadius: BorderRadius.circular(12),
@@ -217,16 +219,12 @@ class _CityCard extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? TekaColors.tekaRed.withOpacity(0.1)
-                        : TekaColors.muted,
+                    color: accentSubtle,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     Icons.location_on_outlined,
-                    color: isSelected
-                        ? TekaColors.tekaRed
-                        : TekaColors.mutedForeground,
+                    color: accent,
                     size: 20,
                   ),
                 ),
@@ -237,16 +235,14 @@ class _CityCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           fontWeight:
                               isSelected ? FontWeight.w600 : FontWeight.w500,
-                          color: isSelected
-                              ? TekaColors.tekaRed
-                              : TekaColors.foreground,
+                          color: isSelected ? accent : TekaColors.foreground,
                         ),
                   ),
                 ),
                 if (isSelected)
-                  const Icon(
+                  Icon(
                     Icons.check_circle,
-                    color: TekaColors.tekaRed,
+                    color: accent,
                     size: 24,
                   ),
               ],

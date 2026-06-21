@@ -1,27 +1,49 @@
 import 'package:flutter/material.dart';
 
 /// Teka design tokens — mirrors the web `@theme inline` block at
-/// `apps/buyer-web/src/app/globals.css`. The brand red is Rakuten France's
-/// official corporate red (#BF0000, PANTONE 485 C — Rakuten Brand Guideline
-/// v2.5). Keep web and mobile in sync when adjusting.
+/// `apps/buyer-web/src/app/globals.css`. The brand red is "Modern Ruby"
+/// (#C8102E — cleaner/brighter than the old #BF0000, AA-safe for white text,
+/// used as accent not flood), aligned 2026-06-21. Keep web and mobile in sync
+/// when adjusting.
 class TekaColors {
   TekaColors._();
 
-  // === Brand red — Rakuten 485 C tonal scale ===========================
-  static const Color tekaRed50 = Color(0xFFFFF5F5);
-  static const Color tekaRed100 = Color(0xFFFFE3E3);
-  static const Color tekaRed200 = Color(0xFFFFC9C9);
-  static const Color tekaRed300 = Color(0xFFFFA8A8);
-  static const Color tekaRed400 = Color(0xFFFF6B6B);
-  static const Color tekaRed500 = Color(0xFFE53935);
-  static const Color tekaRed600 = Color(0xFFBF0000); // canonical brand red
-  static const Color tekaRed700 = Color(0xFFA60000);
-  static const Color tekaRed800 = Color(0xFF8A0000);
-  static const Color tekaRed900 = Color(0xFF660000);
+  // === Brand red — Teka "Modern Ruby" tonal scale ======================
+  static const Color tekaRed50 = Color(0xFFFFF1F2);
+  static const Color tekaRed100 = Color(0xFFFFE0E2);
+  static const Color tekaRed200 = Color(0xFFFFC5CA);
+  static const Color tekaRed300 = Color(0xFFFB7A85);
+  static const Color tekaRed400 = Color(0xFFF24A5A);
+  static const Color tekaRed500 = Color(0xFFE11D33); // bright accent
+  static const Color tekaRed600 = Color(0xFFC8102E); // canonical brand red
+  static const Color tekaRed700 = Color(0xFFA60D26);
+  static const Color tekaRed800 = Color(0xFF850A1F);
+  static const Color tekaRed900 = Color(0xFF6B0A1A);
   static const Color tekaRed = tekaRed600;
   static const Color tekaRedHover = tekaRed700;
   static const Color tekaRedPressed = tekaRed800;
   static const Color tekaRedSubtle = tekaRed50;
+
+  // === Town accents — copper (Lubumbashi) / cobalt (Kolwezi) ===========
+  // Subtle, for city badge/chips only — the global brand stays unified.
+  // Mirrors web `lib/city-accent.ts`.
+  static const Color accentCopper = Color(0xFFB87333);
+  static const Color accentCopperSubtle = Color(0xFFF7EEE4);
+  static const Color accentCobalt = Color(0xFF1A56DB);
+  static const Color accentCobaltSubtle = Color(0xFFE8EEFD);
+
+  /// Town accent for a city slug (copper = Lubumbashi, cobalt = Kolwezi,
+  /// brand red otherwise). Returns the (accent, subtle) pair.
+  static (Color, Color) cityAccent(String? slug) {
+    switch (slug) {
+      case 'lubumbashi':
+        return (accentCopper, accentCopperSubtle);
+      case 'kolwezi':
+        return (accentCobalt, accentCobaltSubtle);
+      default:
+        return (tekaRed, tekaRedSubtle);
+    }
+  }
 
   // === Neutrals (slate scale) ==========================================
   static const Color background = Color(0xFFFFFFFF);

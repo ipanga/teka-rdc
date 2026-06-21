@@ -30,6 +30,9 @@ class HomeScreen extends ConsumerWidget {
     final userName = authState.user?['firstName'] as String? ?? '';
     final cityState = ref.watch(cityProvider);
     final cityName = cityState.selectedCity?.name;
+    // Town accent (copper = Lubumbashi, cobalt = Kolwezi, brand red otherwise).
+    final cityAccent =
+        TekaColors.cityAccent(cityState.selectedCity?.slug).$1;
     final categories = ref.watch(categoriesProvider);
     final popular = ref.watch(popularProductsProvider);
     final newest = ref.watch(newestProductsProvider);
@@ -62,14 +65,15 @@ class HomeScreen extends ConsumerWidget {
                     Icon(
                       Icons.location_on,
                       size: 12,
-                      color: TekaColors.tekaRed,
+                      color: cityAccent,
                     ),
                     const SizedBox(width: 2),
                     Text(
                       cityName,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: TekaColors.mutedForeground,
+                            color: cityAccent,
                             fontSize: 12,
+                            fontWeight: FontWeight.w600,
                           ),
                     ),
                     const SizedBox(width: 2),
