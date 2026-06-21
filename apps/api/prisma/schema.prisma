@@ -151,6 +151,14 @@ model City {
   province  String
   isActive  Boolean  @default(false)
   sortOrder Int      @default(0)
+  // Data-driven town identity (Town Architecture Refactor, 2026-06-21) so future
+  // towns are config-only — no hardcoded slug switches in app code.
+  // accentColor: short accent key ('copper' | 'cobalt' | hex) consumed by the
+  // buyer apps for the town badge/chips; null -> brand-red default.
+  // heroImageUrl: town landing/hero image (public or Cloudinary URL); null ->
+  // default hero.
+  accentColor  String?
+  heroImageUrl String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -158,6 +166,7 @@ model City {
   products       Product[]
   addresses      Address[]
   sellerProfiles SellerProfile[]
+  preferredByUsers User[]        @relation("UserPreferredCity")
 
   @@index([isActive])
   @@index([slug])
@@ -216,6 +225,11 @@ model User {
   // opt-out-able and ignore this column.
   notificationPrefs Json?
 
+  // Preferred delivery town (Town Architecture Refactor, 2026-06-21). Set when an
+  // authenticated buyer picks a town; hydrated on login so the town follows the
+  // user across devices. Nullable — buyers who never picked one have null.
+  preferredCityId String? @db.Uuid
+
   // Timestamps & soft delete
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -223,6 +237,7 @@ model User {
   lastLoginAt DateTime?
 
   // Relations
+  preferredCity       City?           @relation("UserPreferredCity", fields: [preferredCityId], references: [id])
   sellerProfile       SellerProfile?  @relation("UserSellerProfile")
   approvedSellers     SellerProfile[] @relation("SellerApprover")
   addresses           Address[]
@@ -260,6 +275,7 @@ model User {
   @@index([role])
   @@index([status])
   @@index([deletedAt])
+  @@index([preferredCityId])
   @@map("users")
 }
 
