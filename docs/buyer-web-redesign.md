@@ -80,9 +80,12 @@ presentational client layer.
   (copper Lubumbashi / cobalt Kolwezi). Category chips kept as the native horizontal-pill pattern (now
   Modern Ruby) — web grid NOT forced onto mobile. Green: analyze clean on changed files + 76 tests pass.
 
-### Phase 3 — seller-web + admin-web + seller-mobile (deferred)
-- Minimal brand-consistency pass (token alignment to Modern Ruby), no workflow redesign. seller-mobile has
-  its own `teka_colors.dart` (still old red) to align too.
+### Phase 3 — seller-web + admin-web + seller-mobile — DONE (branch `feat/phase3-brand-consistency`)
+- Minimal brand-consistency pass: canonical brand red `#BF0000` → **Modern Ruby `#C8102E`** in each app's
+  single primary token — `seller-web` + `admin-web` `globals.css` (`--color-primary` + `--color-ring`) and
+  their `global-error.tsx` inline fallback; `seller-mobile` `teka_colors.dart` (`tekaRed`). Token-driven →
+  ripples through each app. **No town accents** (a buyer-only concept), no workflow/layout redesign. Green:
+  seller-web + admin-web type-check + build; seller-mobile analyze + tests. **Redesign initiative complete.**
 
 ## Verification checklist (per phase)
 `pnpm --filter buyer-web type-check` + `build`; confirm server components unchanged (no new `'use client'`

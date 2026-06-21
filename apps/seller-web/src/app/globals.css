@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme inline {
-  --color-primary: #BF0000;
+  --color-primary: #C8102E;
   --color-primary-foreground: #FFFFFF;
   --color-secondary: #F1F5F9;
   --color-secondary-foreground: #1E293B;
@@ -14,7 +14,7 @@
   --color-muted-foreground: #64748B;
   --color-border: #E2E8F0;
   --color-input: #E2E8F0;
-  --color-ring: #BF0000;
+  --color-ring: #C8102E;
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   --radius-sm: 0.25rem;
