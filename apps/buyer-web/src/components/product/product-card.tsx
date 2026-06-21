@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui';
 import { WishlistButton } from '@/components/wishlist-button';
 import { useCartStore } from '@/lib/cart-store';
-import { formatCDF } from '@/lib/format';
+import { formatCDF, formatUSD } from '@/lib/format';
 import { productHref } from '@/lib/urls';
 import type { BrowseProduct } from '@/lib/types';
 
@@ -90,29 +90,38 @@ export function ProductCard({ product }: ProductCardProps) {
                 {t('lowStock', { count: product.quantity })}
               </Badge>
             )}
-            <Badge
-              variant={product.condition === 'NEW' ? 'new' : 'used'}
-              size="sm"
-              className="shadow-sm w-fit"
-            >
-              {t(`condition_${product.condition}`)}
-            </Badge>
+            {/* Only badge second-hand items — "Neuf" is the default, so
+                badging every new product just adds noise. */}
+            {product.condition === 'USED' && (
+              <Badge variant="used" size="sm" className="shadow-sm w-fit">
+                {t('condition_USED')}
+              </Badge>
+            )}
           </div>
         </div>
 
         {/* Info */}
-        <div className="p-3 space-y-1.5">
+        <div className="p-3 space-y-1">
           <h3 className="text-sm font-medium text-foreground line-clamp-2 min-h-[2.5rem] leading-snug">
             {title}
           </h3>
-          <p className="text-lg font-bold text-primary tracking-tight">
-            {formatCDF(product.priceCDF)}
-          </p>
+          {/* Price hierarchy: bold CDF (dark, premium) + secondary USD. The red
+              is reserved for the add-to-cart CTA, not flooded across the grid. */}
+          <div className="flex items-baseline gap-2 flex-wrap pt-0.5">
+            <span className="text-base md:text-lg font-extrabold text-foreground tracking-tight">
+              {formatCDF(product.priceCDF)}
+            </span>
+            {product.priceUSD != null && product.priceUSD > 0 && (
+              <span className="text-xs font-medium text-muted-foreground">
+                {formatUSD(product.priceUSD)}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground truncate group-hover:text-foreground transition-colors">
             {product.seller.businessName}
           </p>
           {product.unitsSold != null && product.unitsSold > 0 && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-[11px] text-muted-foreground">
               {t('unitsSold', { count: product.unitsSold })}
             </p>
           )}

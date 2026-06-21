@@ -187,11 +187,12 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
             />
 
             {loadingCategories ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-4">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="bg-surface rounded-xl border border-border p-4 animate-pulse">
-                    <div className="w-12 h-12 bg-muted rounded-full mx-auto mb-3" />
-                    <div className="h-4 bg-muted rounded w-3/4 mx-auto" />
+                  <div key={i} className="flex flex-col items-center gap-3 rounded-2xl border border-border bg-surface p-5 animate-pulse">
+                    <div className="w-16 h-16 bg-muted rounded-full" />
+                    <div className="h-4 bg-muted rounded w-3/4" />
+                    <div className="h-3 bg-muted rounded w-1/2" />
                   </div>
                 ))}
               </div>
@@ -200,22 +201,24 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
                 {tCat('noCategories')}
               </p>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 md:gap-4">
                 {categories.slice(0, 12).map((cat) => (
                   <Link
                     key={cat.id}
                     href={categoryHref(selectedCity?.slug, cat)}
-                    className="group bg-surface rounded-xl border border-border p-4 text-center shadow-xs hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="group flex flex-col items-center text-center gap-3 rounded-2xl border border-border bg-surface p-5 shadow-xs hover:shadow-md hover:border-primary/40 hover:-translate-y-1 transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                   >
-                    <div className="text-4xl mb-2 group-hover:scale-110 transition-transform">
+                    <span className="flex items-center justify-center w-16 h-16 rounded-full bg-primary-subtle text-3xl transition-all duration-200 group-hover:scale-110 group-hover:bg-primary/10">
                       {cat.emoji || '📦'}
-                    </div>
-                    <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
-                      {cat.name ?? ''}
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {tCat('productCount', { count: cat.productCount })}
-                    </p>
+                    </span>
+                    <span className="min-w-0">
+                      <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug">
+                        {cat.name ?? ''}
+                      </h3>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {tCat('productCount', { count: cat.productCount })}
+                      </p>
+                    </span>
                   </Link>
                 ))}
               </div>
