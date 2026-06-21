@@ -192,10 +192,10 @@ class _CityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Town accent: each city shows its own colour (copper = Lubumbashi,
-    // cobalt = Kolwezi, brand red otherwise) so the city identity reads at a
-    // glance.
-    final (accent, accentSubtle) = TekaColors.cityAccent(city.slug);
+    // Town accent: each city shows its own colour from its data-driven
+    // accentColor (copper / cobalt / brand-red default) so the town identity
+    // reads at a glance.
+    final (accent, accentSubtle) = TekaColors.cityAccent(city.accentColor);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(

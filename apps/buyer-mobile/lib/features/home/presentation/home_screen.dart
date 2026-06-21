@@ -30,9 +30,10 @@ class HomeScreen extends ConsumerWidget {
     final userName = authState.user?['firstName'] as String? ?? '';
     final cityState = ref.watch(cityProvider);
     final cityName = cityState.selectedCity?.name;
-    // Town accent (copper = Lubumbashi, cobalt = Kolwezi, brand red otherwise).
+    // Town accent — driven by the city's accentColor (data-driven; copper /
+    // cobalt / brand-red default).
     final cityAccent =
-        TekaColors.cityAccent(cityState.selectedCity?.slug).$1;
+        TekaColors.cityAccent(cityState.selectedCity?.accentColor).$1;
     final categories = ref.watch(categoriesProvider);
     final popular = ref.watch(popularProductsProvider);
     final newest = ref.watch(newestProductsProvider);

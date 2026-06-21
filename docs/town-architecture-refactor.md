@@ -87,12 +87,17 @@ over already-rendered content (never an SSR gate).
   server-component→client conversion, no `track()` site moved, no sitemap/JSON-LD/urls.ts change. PR → develop.
   *(Prod build not run — dev-server-collision rule; type-check used for verification.)*
 
-### Phase 2 — buyer-mobile (branch `feat/town-arch-p2-buyer-mobile`)
-- [ ] **P2.1** First-launch town gate (no stored city → city selection screen), profile hydrate on login +
-  `PATCH preferred-city` on change.
-- [ ] **P2.2** Data-driven accent: `teka_colors.dart cityAccent` reads city data (accentColor) instead of the
-  slug switch; default fallback.
-- [ ] **P2.3** Verify: `flutter analyze` + tests green; PR → develop.
+### Phase 2 — buyer-mobile (branch `feat/town-arch-p2-buyer-mobile`) — CODE-COMPLETE
+- [x] **P2.1** First-launch town gate **already existed** (router redirects authed users with no city →
+  `/city-selection`). Added the missing pieces: profile **hydration** (`CityNotifier.hydrateFromProfile` wired
+  via `ref.listen(authProvider)` in the `cityProvider` factory — adopts `preferredCityId` from `/me` when no
+  local choice, so the gate is skipped when a profile town exists) + **PATCH** `/v1/users/me/preferred-city`
+  on `selectCity`/`clearCity` (`CityRepository.setPreferredCity`, fire-and-forget). `CityModel` gains
+  `accentColor` + `heroImageUrl`.
+- [x] **P2.2** Data-driven accent: `TekaColors.cityAccent` now keys on `City.accentColor` (not slug); call
+  sites (home app-bar, city-selection tiles) pass `accentColor`. No hardcoded Lubumbashi/Kolwezi.
+- [x] **P2.3** Verify: `flutter analyze` clean (0 errors/warnings; pre-existing infos only); **76 + 3 new**
+  tests green (`test/city/city_town_identity_test.dart`). PR → develop.
 
 ### Phase 3 — seller-web + seller-mobile (branch `feat/town-arch-p3-seller`)
 - [ ] **P3.1** seller-web profile: replace free-text `location` with a city PICKER (`/v1/cities` →

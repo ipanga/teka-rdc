@@ -32,13 +32,15 @@ class TekaColors {
   static const Color accentCobalt = Color(0xFF1A56DB);
   static const Color accentCobaltSubtle = Color(0xFFE8EEFD);
 
-  /// Town accent for a city slug (copper = Lubumbashi, cobalt = Kolwezi,
-  /// brand red otherwise). Returns the (accent, subtle) pair.
-  static (Color, Color) cityAccent(String? slug) {
-    switch (slug) {
-      case 'lubumbashi':
+  /// Town accent for a city's data-driven accent key (Town Architecture
+  /// Refactor): 'copper' / 'cobalt' come from `City.accentColor`, so future
+  /// towns are config-only — no hardcoded slug switch. Anything else (incl.
+  /// null) falls back to the brand red. Returns the (accent, subtle) pair.
+  static (Color, Color) cityAccent(String? accentColor) {
+    switch (accentColor) {
+      case 'copper':
         return (accentCopper, accentCopperSubtle);
-      case 'kolwezi':
+      case 'cobalt':
         return (accentCobalt, accentCobaltSubtle);
       default:
         return (tekaRed, tekaRedSubtle);

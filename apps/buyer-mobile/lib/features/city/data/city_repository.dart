@@ -27,6 +27,16 @@ class CityRepository {
         .toList();
   }
 
+  /// PATCH /v1/users/me/preferred-city — persist the buyer's selected town to
+  /// their profile so it follows them across devices (Town Architecture
+  /// Refactor). `cityId: null` clears it. Auth-guarded; callers fire-and-forget.
+  Future<void> setPreferredCity(String? cityId) async {
+    await _dio.patch(
+      '/v1/users/me/preferred-city',
+      data: {'cityId': cityId},
+    );
+  }
+
   Future<List<CommuneModel>> getCommunes(String cityId) async {
     final response = await _dio.get('/v1/cities/$cityId/communes');
     final responseData = response.data;
