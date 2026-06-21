@@ -24,6 +24,10 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isPaused, setIsPaused] = useState(false);
+  // Banners whose image failed to load (e.g. a stale/broken Cloudinary URL).
+  // We drop them so a broken banner gracefully falls back to the hero instead
+  // of showing an empty dark box.
+  const [failedIds, setFailedIds] = useState<Set<string>>(new Set());
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -133,14 +137,17 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
     scrollToIndex(index);
   }
 
-  // Don't render anything if loading or no banners
+  // Drop banners whose image failed → broken banners fall back to the hero.
+  const visibleBanners = banners.filter((b) => !failedIds.has(b.id));
+
+  // Don't render anything if loading or no (valid) banners
   if (loading) {
     return (
       <div className="w-full aspect-[4/3] md:aspect-[16/6] bg-muted animate-pulse" />
     );
   }
 
-  if (banners.length === 0) {
+  if (visibleBanners.length === 0) {
     return fallback ? <>{fallback}</> : null;
   }
 
@@ -156,7 +163,7 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
         className="flex w-full overflow-x-auto snap-x snap-mandatory scrollbar-hide"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
       >
-        {banners.map((banner) => {
+        {visibleBanners.map((banner) => {
           const title = banner.title;
           const subtitle = banner.subtitle ?? null;
           const hasLink = banner.linkType && banner.linkTarget;
@@ -184,7 +191,10 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
                 fill
                 sizes="100vw"
                 className="object-cover"
-                priority={banners.indexOf(banner) === 0}
+                priority={visibleBanners.indexOf(banner) === 0}
+                onError={() =>
+                  setFailedIds((prev) => new Set(prev).add(banner.id))
+                }
               />
 
               {/* Dark gradient overlay at bottom (Rakuten-style soft, longer fade) */}
@@ -212,9 +222,9 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
       </div>
 
       {/* Dot indicators */}
-      {banners.length > 1 && (
+      {visibleBanners.length > 1 && (
         <div className="absolute bottom-3 md:bottom-5 right-4 md:right-8 flex items-center gap-1.5">
-          {banners.map((_, index) => (
+          {visibleBanners.map((_, index) => (
             <button
               key={index}
               onClick={(e) => {

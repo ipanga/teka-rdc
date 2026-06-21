@@ -6,24 +6,34 @@
 
 ## Active initiative
 
-**Seller Product Management UX** (started 2026-06-18). Two usability gaps from live testing, shipped as 2
-PRs off `develop` (F2 stacked on F1 to avoid ARB/l10n conflicts; retarget F2 → develop once F1 merges).
+**Buyer-web visual redesign** (started 2026-06-21). Modernize teka.cd (buyer-web) — new premium red palette,
+town accents (Lubumbashi copper / Kolwezi cobalt), hero, categories, product cards, header, mobile — while
+preserving all functionality, SEO, analytics, API contracts. **Buyer-web ONLY in Phase 1** (seller/admin/
+mobile deferred). Branch `feat/buyer-web-redesign`. **Resume anchor + full phased checklist:
+`docs/buyer-web-redesign.md`** (read it first). **Phase 1 code-complete + validated** (palette/hero
+checkpoint approved 2026-06-21): Modern Ruby red `#C8102E`, town accents copper(Lubumbashi)/cobalt(Kolwezi),
+modern hero, larger category cards, reworked product cards (dark CDF + USD, less red), accented city
+selector. Token-driven → low-risk; **no SEO/analytics/API/server-page changes** (only presentational
+components + globals.css + a dev-only next/image host for the legacy picsum seed). type-check + build green.
+**Remaining:** open PR → develop, review live, release. **Deferred:** Phase 2 (buyer-mobile color/identity
+alignment), Phase 3 (seller/admin brand-consistency pass).
 
-- **F1 — Searchable category selector** (PR #392, `feat/searchable-category-selector`): the 7→80+
-  taxonomy made the product Category dropdown unwieldy. Client-side filtering only (full tree already
-  loaded — no API/DB change). seller-web: custom `CategoryCombobox` (accent-insensitive, keyboard nav)
-  replacing the native `<select>` in product create+edit. seller-mobile: search field in the existing
-  category bottom sheet. Green: seller-web type-check+build; seller-mobile analyze (changed files).
-- **F2 — Seller product approval/rejection notifications** (branch `feat/seller-notifications`, stacked on
-  F1): sellers had only ephemeral push. New **per-user `UserNotification`** model + service (ownership-
-  scoped) + `/v1/seller/notifications` endpoints + idempotent migration `2026-06-18_user_notifications.sql`
-  (applied to dev). `SellerNotificationService.notifyProductApproved/Rejected` now persist in-app + push-
-  primary + email-fallback (new product-approved/rejected FR templates). Approve **and** reject both
-  notified. seller-web notification bell + seller-mobile `/notifications` center (home bell + unread badge).
-  Decisions: new per-user model (not generalizing the admin feed); approve+reject; in-app + push + email-
-  fallback. Green: api 129 unit + 116 e2e; seller-web build; seller-mobile analyze + tests.
-- [ ] **Remaining:** open PR for F2; merge F1 (#392) → develop; retarget+merge F2 → develop; release
-  `develop → main`; **apply prod migration** `2026-06-18_user_notifications.sql` after deploy.
+---
+
+### Recently completed — 2026-06-21
+
+**Dependabot joi 17 → 18.2.1** (#367 → release #396) — major bump; verified against current code (PR CI was
+stale): type-check + 129 unit + 116 e2e green, post-merge develop CI green, prod deploy healthy (joi runs the
+env-validation schema at boot). `develop == main`. Other open Dependabot PRs remain (multer 2.2.0, form-data,
+protobufjs) + 9 flagged vulnerabilities — triage when convenient.
+
+---
+
+### Previously — Seller Product Management UX (SHIPPED + VERIFIED on prod 2026-06-18/21)
+
+**Seller Product Management UX** — two usability gaps, shipped as PRs #392 (searchable category selector) +
+#393 (seller approval/rejection notifications: per-user `UserNotification` model + in-app + push + email),
+released #394, migration `2026-06-18_user_notifications.sql` applied. Full narrative in PROGRESS.md (Jun-18).
 
 Prior initiative (*Admin product notifications + seller session/auth isolation* + refresh-cookie hotfix) is
 **SHIPPED + VERIFIED on prod 2026-06-18** (`develop == main` as of those releases) — see below.

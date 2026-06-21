@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useCityStore } from '@/lib/city-store';
+import { cityAccentClasses } from '@/lib/city-accent';
 
 /**
  * Non-blocking, inline city chooser shown on the homepage when the visitor
@@ -50,7 +51,7 @@ export function CityPrompt() {
               <button
                 key={city.id}
                 onClick={() => setCity(city)}
-                className="rounded-full border border-primary/30 bg-surface px-4 py-1.5 text-sm font-medium text-primary transition-colors hover:border-primary hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                className={`rounded-full bg-surface px-4 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${cityAccentClasses(city.slug).chip}`}
               >
                 {city.name}
               </button>
