@@ -220,9 +220,21 @@ async function main() {
   const cityId = (n: number) => `01000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
   const communeId = (n: number) => `02000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
 
-  const cities = [
-    { n: 1, fr: 'Lubumbashi', province: 'Haut-Katanga', isActive: true },
-    { n: 2, fr: 'Kolwezi', province: 'Lualaba', isActive: true },
+  // accent/hero are the data-driven town identity (Town Architecture Refactor):
+  // the buyer apps read these instead of hardcoding per-slug accents/heroes, so
+  // future towns are config-only. Lubumbashi = copper, Kolwezi = cobalt (the
+  // Katanga/Lualaba copper-cobalt identity); other towns inherit the brand-red
+  // default + default hero until configured.
+  const cities: Array<{
+    n: number;
+    fr: string;
+    province: string;
+    isActive: boolean;
+    accent?: string;
+    hero?: string;
+  }> = [
+    { n: 1, fr: 'Lubumbashi', province: 'Haut-Katanga', isActive: true, accent: 'copper', hero: '/hero/lubumbashi.webp' },
+    { n: 2, fr: 'Kolwezi', province: 'Lualaba', isActive: true, accent: 'cobalt', hero: '/hero/kolwezi.webp' },
     { n: 3, fr: 'Kinshasa', province: 'Kinshasa', isActive: false },
     { n: 4, fr: 'Likasi', province: 'Haut-Katanga', isActive: false },
     { n: 5, fr: 'Goma', province: 'Nord-Kivu', isActive: false },
@@ -235,7 +247,12 @@ async function main() {
     const citySlug = frSlugify(city.fr); // {ville} URL segment, e.g. "lubumbashi"
     await prisma.city.upsert({
       where: { id: cityId(city.n) },
-      update: { isActive: city.isActive, slug: citySlug },
+      update: {
+        isActive: city.isActive,
+        slug: citySlug,
+        accentColor: city.accent ?? null,
+        heroImageUrl: city.hero ?? null,
+      },
       create: {
         id: cityId(city.n),
         name: city.fr,
@@ -243,6 +260,8 @@ async function main() {
         province: city.province,
         isActive: city.isActive,
         sortOrder: city.n,
+        accentColor: city.accent ?? null,
+        heroImageUrl: city.hero ?? null,
       },
     });
   }

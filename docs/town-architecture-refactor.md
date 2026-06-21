@@ -67,20 +67,25 @@ over already-rendered content (never an SSR gate).
 - [x] **P0.5** Unit: `users.service.spec.ts` set/clear/invalid (3). Auth guard is inherited (UsersController
   has no `@Public`). Full suite green: **132 unit + 116 e2e**; shared + api type-check clean. PR → develop.
 
-### Phase 1 — buyer-web (branch `feat/town-arch-p1-buyer-web`)
-- [ ] **P1.1** `lib/city-store.ts`: add cookie persistence (`teka_city`, non-httpOnly, readable by SSR);
-  on auth, hydrate from `user.preferredCityId` (profile wins if local empty); on `setCity` while authed, fire
-  `PATCH /v1/users/me/preferred-city` (fire-and-forget).
-- [ ] **P1.2** First-visit SEO-safe auto-modal: when no town cookie/localStorage on mount, open
-  `CitySelectorModal` as a client overlay (content already rendered); set the cookie on pick/dismiss so it
-  shows once. Keep `CityPrompt` as the in-flow fallback.
-- [ ] **P1.3** Remove the homepage "Achetez dans votre ville" section; relocate the crawlable `/{ville}`
-  links to the footer (preserve SEO discovery).
-- [ ] **P1.4** Header: make the town selector prominent/Amazon-style (`📍 Livrer à {ville} ▼`).
-- [ ] **P1.5** Data-driven accents/hero: `lib/city-accent.ts` reads `city.accentColor` / `city.heroImageUrl`
-  from city data (fallback to brand red + default hero); remove the hardcoded `switch(slug)`.
-- [ ] **P1.6** Verify: `pnpm --filter buyer-web type-check` + build green; no server-page/SEO/analytics diff;
-  PR → develop.
+### Phase 1 — buyer-web (branch `feat/town-arch-p1-buyer-web`) — CODE-COMPLETE
+- [x] **P1.1** `lib/city-store.ts`: cookie persistence (`teka_city` = town id, non-httpOnly, SameSite=Lax,
+  1y) + `teka_city_prompted` gate cookie; `setCity` fires `PATCH /v1/users/me/preferred-city` when authed
+  (fire-and-forget via `useAuthStore`); `clearCity` clears the profile too; `hydrateFromProfile` (auth-provider
+  calls it after `/me` — adopts the profile town only when no local selection; device choice wins).
+- [x] **P1.2** First-visit SEO-safe auto-modal: `maybePromptFirstVisit()` opens `CitySelectorModal` as a
+  client overlay AFTER the homepage renders (content already SSR'd → no crawler gate), cookie-gated to show
+  once; pick OR dismiss sets `teka_city_prompted`. `CityPrompt` kept as the in-flow fallback.
+- [x] **P1.3** Removed the homepage "Achetez dans votre ville" section; crawlable `/{ville}` links relocated
+  to the **global footer** (site-wide internal linking; sitemap already covers them).
+- [x] **P1.4** Header town selector → Amazon-style two-line "Livrer à / {ville}" (`deliverTo` +
+  `selectCityShort` FR strings); data-driven accent surface.
+- [x] **P1.5** Data-driven accents/hero: `lib/city-accent.ts` reads `accentColor` / `heroImageUrl` from the
+  city record (no `switch(slug)`); all call sites pass the city object. Backfilled the two launch towns via
+  `seed.ts` + idempotent migration `2026-06-21_town_identity_backfill.sql` (applied to dev). `[ville]` landing
+  passes accent/hero through so the adopted town keeps its identity.
+- [x] **P1.6** Verify: buyer-web type-check + 51 tests + scoped ESLint green; api type-check green; no
+  server-component→client conversion, no `track()` site moved, no sitemap/JSON-LD/urls.ts change. PR → develop.
+  *(Prod build not run — dev-server-collision rule; type-check used for verification.)*
 
 ### Phase 2 — buyer-mobile (branch `feat/town-arch-p2-buyer-mobile`)
 - [ ] **P2.1** First-launch town gate (no stored city → city selection screen), profile hydrate on login +

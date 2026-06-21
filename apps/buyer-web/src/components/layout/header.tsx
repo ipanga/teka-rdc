@@ -31,8 +31,9 @@ export function Header() {
   const { selectedCity, openSelector } = useCityStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Town accent for the city selector (copper = Lubumbashi, cobalt = Kolwezi).
-  const cityAcc = cityAccentClasses(selectedCity?.slug);
+  // Town accent for the city selector — driven by the city record's accentColor
+  // (data-driven; copper / cobalt / brand-red default).
+  const cityAcc = cityAccentClasses(selectedCity);
 
   // Direct buyer↔seller messaging removed on 2026-05-17 — buyers now
   // contact Teka RDC support instead of the seller (see /contact). The
@@ -61,23 +62,28 @@ export function Header() {
           />
         </Link>
 
-        {/* City selector \u2014 always present so no-city visitors keep an entry
-            point (the homepage no longer force-opens the modal). Shows the
-            chosen city, or a "choose a city" affordance. */}
+        {/* Town selector \u2014 Amazon-style "Livrer \u00e0 {ville}" delivery-location
+            picker. Always present so no-town visitors keep an entry point.
+            Two-line affordance: a small "Livrer \u00e0" prefix over the town name. */}
         <button
           onClick={openSelector}
-          className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm shrink-0 transition-colors ${
+          className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border shrink-0 transition-colors ${
             selectedCity
               ? `${cityAcc.surface} border-transparent hover:brightness-95`
               : 'border-border text-foreground hover:border-primary/40 hover:bg-muted/50'
           }`}
           title={selectedCity ? tCity('changeCity') : tCity('selectCity')}
         >
-          <PinIcon className="w-3.5 h-3.5" />
-          <span className="font-semibold">
-            {selectedCity ? selectedCity.name : tCity('selectCity')}
+          <PinIcon className="w-4 h-4 shrink-0" />
+          <span className="flex flex-col items-start leading-tight text-left">
+            <span className="text-[10px] font-medium opacity-80">
+              {tCity('deliverTo')}
+            </span>
+            <span className="text-sm font-bold -mt-0.5">
+              {selectedCity ? selectedCity.name : tCity('selectCityShort')}
+            </span>
           </span>
-          <svg className="w-3 h-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-3 h-3 opacity-70 self-end mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </button>

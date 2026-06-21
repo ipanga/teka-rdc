@@ -17,6 +17,10 @@ interface CityLandingPageProps {
   citySlug: string;
   cityName: string;
   province: string;
+  // Data-driven town identity (Town Architecture Refactor) so the adopted town
+  // carries its accent/hero — keeps the header town badge correct on /{ville}.
+  accentColor?: string | null;
+  heroImageUrl?: string | null;
 }
 
 /**
@@ -29,6 +33,8 @@ export default function CityLandingPage({
   citySlug,
   cityName,
   province,
+  accentColor = null,
+  heroImageUrl = null,
 }: CityLandingPageProps) {
   const tCat = useTranslations('Categories');
   const tProd = useTranslations('Products');
@@ -51,8 +57,10 @@ export default function CityLandingPage({
       province,
       isActive: true,
       sortOrder: 0,
+      accentColor,
+      heroImageUrl,
     });
-  }, [cityId, cityName, citySlug, province, setCity]);
+  }, [cityId, cityName, citySlug, province, accentColor, heroImageUrl, setCity]);
 
   useEffect(() => {
     setLoadingCats(true);
