@@ -6,16 +6,29 @@
 
 ## Active initiative
 
-**Mobile guest browsing + enterprise error handling** (started 2026-06-22). **Resume anchor + full checklist:
-`docs/mobile-guest-and-errors.md`** (read it first). Two parts: (1) let buyer-mobile users **browse without
-logging in** (login only on protected actions — checkout/orders/favorites/profile); (2) **centralized,
-friendly error handling** across buyer-mobile + seller-mobile (never show raw `DioException`/stack traces;
-technical detail → Sentry only). **Root cause P1:** one line in `app_router.dart` forces every guest to login
-(the browse APIs are already public). **Root cause P2:** auth providers/screens bypass the existing
-`dio_error_messages.dart` mapper and set `error: e.toString()` (~23 leak sites; seller-mobile has no mapper).
-**Decisions (user, 2026-06-22):** guest cart = gate-on-action (no local cart); error text = prefer API message
-+ friendly generics. **No API/DB changes.** **Phasing:** P1 guest browsing (`feat/mobile-guest-browsing`) →
-P2 error handling (`feat/mobile-error-handling`). **In progress: P1.1.**
+**None.** Mobile guest browsing + enterprise error handling shipped 2026-06-22 (see below). No in-flight build
+work — ask the user what to start next.
+
+---
+
+### Recently completed — 2026-06-22 (Mobile guest browsing + enterprise error handling — SHIPPED)
+
+**Mobile guest browsing + enterprise error handling** — two parts, P1 #417 + P2 #418, released `develop ==
+main`. **No API/DB/migration.** Full tracker: `docs/mobile-guest-and-errors.md`.
+- **P1 — Guest browsing (buyer-mobile):** root cause = `app_router.dart` forced every guest to login (browse
+  APIs already public). Selective router gate (city-first for everyone; only cart/checkout/orders/wishlist/
+  profile require auth, with `returnToRouteProvider`); `ensureAuthenticated()` on inline actions; guest-safe
+  home (badges/heart/city-sync skip auth-only calls). **Device-verified:** launch→city→browse as guest, 0
+  auth-only calls / 0×401, protected tap → OTP login + return.
+- **P2 — Error handling (buyer + seller):** root cause = auth providers/screens set `error: e.toString()` (raw
+  `DioException` to users); mapper bypassed; seller had none. Upgraded `dio_error_messages.dart` (both apps,
+  identical): friendly FR per category, prefer-API for business 4xx, never `.toString()`; replaced all ~23 leak
+  sites; `friendlyErrorMessage` auto-captures only UNEXPECTED errors to Sentry (endpoint/status/type + userId
+  id+role + active city); PostHog auth events (`auth_otp_requested`/`auth_login_success|failure` + category);
+  hardened `PosthogAnalytics._enabled`. analyze 0 errors/warnings; buyer 93 + seller 3 tests.
+- **Decisions:** guest cart = gate-on-action (no local cart); error text = prefer-API + friendly generics.
+- **Ships to devices on the next Play Store build (buyer + seller AABs).** Follow-up (optional): shared
+  retry-error widget; guest-cart-merge if desired later. **No other follow-up.**
 
 ---
 

@@ -71,9 +71,11 @@ so a raw `DioException [connection timeout]…` reaches the user. ~23 leak sites
   category tests), seller **3**. Mapper unit tests prove: no raw `.toString()`, friendly FR per category,
   prefer-API for 4xx. PR → develop.
 
-## Release
-- [ ] Real merge `develop → main` per phase (NEVER squash); back-merge; verify (mobile ships to devices on the
-  next Play Store build — web unaffected); tick here + PROGRESS.md.
+## Release — DONE (2026-06-22)
+- [x] P1 #417 + P2 #418 merged to develop; released `develop → main`; back-merged. No API/DB/migration.
+  **Mobile reaches devices on the next Play Store build (buyer + seller AABs) — web/api unaffected.** P1
+  device-verified (guest browse, 0 auth-only calls, login-trigger); P2 verified by analyze + 93/3 tests incl.
+  the mapper category suite. **SHIPPED — no follow-up beyond the noted retry-error-widget nicety.**
 
 ## Guardrails
 No API/DB/migration. Preserve existing authenticated flows, Sentry scrub, PostHog identity (id+role only, no
