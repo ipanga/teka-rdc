@@ -37,9 +37,13 @@ so a raw `DioException [connection timeout]…` reaches the user. ~23 leak sites
 - [x] **P1.3 — Guest-safe home.** Wishlist + cart badges and the `loadWishlistIds` listeners only run when
   authenticated (Riverpod lazy-watch → guests never construct the auth-only providers → no 401). Icons still
   route to `/wishlist` `/cart` (router gates guests to login).
-- [x] **P1.4 — Verify (automated).** `flutter analyze` 0 errors/warnings; **84 + 3 new** tests
-  (`test/router/protected_route_test.dart`). On-device guest-browse smoke test pending a working emulator
-  (current emulator has no DNS). PR → develop.
+- [x] **P1.4 — Verify.** `flutter analyze` 0 errors/warnings; **87 tests** (incl. 3 new
+  `test/router/protected_route_test.dart`). **Verified on the prod-flavor app (emulator → api.teka.cd):**
+  (1) launch → **city-selection** (guest, NOT login); (2) pick town → full home browse (hero, categories,
+  products, prices, images) as a guest; (3) guest browse fires **ZERO auth-only calls / 0 × 401** (only
+  `/v1/browse/*` + `/v1/cities`); (4) tapping the wishlist heart (protected) → **WhatsApp OTP login** with a
+  back arrow. Two on-device fixes folded in (commit be8c3cf): product-card heart + city-sync no longer call
+  auth-only endpoints for guests. PR → develop.
 
 ## Phase 2 — Mobile error handling (branch `feat/mobile-error-handling`)
 - [ ] **P2.1 — Mapper upgrade (both apps, byte-identical per Rule 15).** `dio_error_messages.dart`:
