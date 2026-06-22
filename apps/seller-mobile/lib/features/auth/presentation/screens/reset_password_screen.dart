@@ -1,6 +1,6 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../providers/auth_provider.dart';
@@ -50,13 +50,8 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
           .read(authProvider.notifier)
           .confirmPasswordReset(widget.token!, _passwordController.text);
       if (mounted) setState(() => _success = true);
-    } on DioException catch (e) {
-      setState(() {
-        _errorMessage = e.response?.data?['error']?['message'] ??
-            'Lien invalide ou expire.';
-      });
-    } catch (_) {
-      setState(() => _errorMessage = 'Une erreur est survenue.');
+    } catch (e) {
+      setState(() => _errorMessage = friendlyErrorMessage(e));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

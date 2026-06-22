@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/city_repository.dart';
@@ -90,6 +91,11 @@ class CityNotifier extends StateNotifier<CityState> {
   Future<void> selectCity(CityModel city) async {
     state = state.copyWith(selectedCity: city);
     await _storage.write(key: _cityIdKey, value: city.id);
+    // Tag the active town on the Sentry scope so captured errors are
+    // location-aware (enterprise error handling, 2026-06-22).
+    Sentry.configureScope(
+      (scope) => scope.setTag('city', city.slug ?? city.id),
+    );
     // Persist to the profile so the town follows the buyer across devices.
     // Fire-and-forget: a sync failure must never block town selection (the
     // secure-storage write above already holds the choice locally).

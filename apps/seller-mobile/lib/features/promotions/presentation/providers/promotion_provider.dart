@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../data/models/promotion_model.dart';
 import '../../data/promotion_repository.dart';
 
@@ -72,7 +73,7 @@ class PromotionsListNotifier extends StateNotifier<PromotionsListState> {
       if (mounted) {
         state = state.copyWith(
           isLoading: false,
-          error: e.toString(),
+          error: friendlyErrorMessage(e),
         );
       }
     }
@@ -99,7 +100,7 @@ class PromotionsListNotifier extends StateNotifier<PromotionsListState> {
       if (mounted) {
         state = state.copyWith(
           isLoadingMore: false,
-          error: e.toString(),
+          error: friendlyErrorMessage(e),
         );
       }
     }

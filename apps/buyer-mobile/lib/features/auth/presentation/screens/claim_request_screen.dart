@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
@@ -30,7 +31,7 @@ class _ClaimRequestScreenState extends ConsumerState<ClaimRequestScreen> {
           .requestClaim(_emailController.text.trim().toLowerCase());
       setState(() => _submitted = true);
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = friendlyErrorMessage(e));
     }
   }
 

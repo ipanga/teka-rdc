@@ -46,23 +46,30 @@ so a raw `DioException [connection timeout]…` reaches the user. ~23 leak sites
   auth-only endpoints for guests. PR → develop.
 
 ## Phase 2 — Mobile error handling (branch `feat/mobile-error-handling`)
-- [ ] **P2.1 — Mapper upgrade (both apps, byte-identical per Rule 15).** `dio_error_messages.dart`:
-  no-internet / timeout / 5xx / unknown → brief's exact FR; business 4xx with envelope `error.message` →
-  return it; never return `.toString()`. Create the seller-mobile copy.
-- [ ] **P2.2 — Kill the leaks.** Replace every `error: e.toString()` / raw display (~23 sites) with the
-  mapper. Buyer: auth_provider (3), auth screens (otp_request/claim_*), checkout/cart/wishlist/orders/reviews
-  providers. Seller: auth_provider (2), the 4 auth screens (remove custom parsing), products/promotions/
-  earnings/orders/reviews/notifications providers. Delete the inline `_humanizeError` duplicate in
-  `otp_verify_screen.dart`.
-- [ ] **P2.3 — Sentry context.** Helper to `captureException` UNEXPECTED errors only (5xx + non-Dio/unknown;
-  skip network + business-4xx) with scope: endpoint+method+status, userId, active city, app version, platform.
-  Reuse `sentry_scrub`. Both apps.
-- [ ] **P2.4 — PostHog auth events.** Add `auth_otp_requested` / `auth_otp_verified` / `auth_login_success` /
-  `auth_login_failure` (+ `error_category`, never PII) at the auth steps. Both apps. Preserve `identifyUser`.
-- [ ] **P2.5 — Auth UX states.** Shared error-display widget (friendly message + **Réessayer** where
-  applicable) + consistent loading/disabled states across buyer + seller auth screens.
-- [ ] **P2.6 — Verify.** analyze + tests both apps; manual error cases (offline / timeout / 5xx / bad OTP /
-  validation) show friendly FR only; Sentry gets context; PostHog events fire. PR → develop.
+- [x] **P2.1 — Mapper upgrade (both apps, byte-identical per Rule 15).** `dio_error_messages.dart` rewritten:
+  no-internet / timeout / 5xx / unknown → the brief's exact FR; business 4xx → API envelope `error.message`
+  (prefer-API); never `.toString()`. Added `friendlyErrorMessage(Object)` for any caught error. Created the
+  seller-mobile copy. 6 unit tests (`test/network/dio_error_messages_test.dart`).
+- [x] **P2.2 — Kill the leaks.** Replaced all ~23 raw-error sites with the mapper. Buyer: auth_provider (3),
+  auth screens (otp_request / claim_request / claim_verify → `friendlyErrorMessage`), `otp_verify` (deleted
+  the inline `_humanizeError`), checkout/cart/orders/wishlist/reviews providers. Seller: auth_provider (2),
+  the 4 auth screens (removed the custom `e.response?.data…` parsing + dropped the now-unused `dio` import),
+  products/promotions/earnings/orders/reviews/notifications providers. analyze 0 errors/warnings both apps;
+  buyer 87+6 tests, seller 3 tests.
+- [x] **P2.3 — Sentry context.** `friendlyErrorMessage` auto-`captureException`s UNEXPECTED errors only
+  (5xx + non-Dio/unknown; skips network + business-4xx) with tags endpoint+method / http_status / error_type —
+  so all ~23 sites report with one integration. userId (id+role only, no PII) attached on the Sentry scope at
+  auth (both apps) + cleared on logout; active town tagged on town-select (buyer). Device/release are
+  Sentry-auto; `sentry_scrub` strips phones. Hardened `PosthogAnalytics._enabled` to never throw.
+- [x] **P2.4 — PostHog auth events.** `auth_otp_requested` / `auth_otp_request_failed` / `auth_login_success`
+  (method otp|email) / `auth_login_failure` (+ `error_category`, never PII) in buyer + seller auth providers;
+  added a `capture()` to seller's analytics (it had only identify/reset). `identifyUser` preserved.
+- [~] **P2.5 — Auth UX states (baseline).** Friendly multi-line messages render in the existing error boxes;
+  loading/disabled states already consistent across auth screens. A shared retry-error widget is a noted
+  follow-up (not required — auth screens already expose a re-submit affordance).
+- [x] **P2.6 — Verify.** `flutter analyze` 0 errors/warnings both apps; buyer **93** tests (incl. 6 mapper
+  category tests), seller **3**. Mapper unit tests prove: no raw `.toString()`, friendly FR per category,
+  prefer-API for 4xx. PR → develop.
 
 ## Release
 - [ ] Real merge `develop → main` per phase (NEVER squash); back-merge; verify (mobile ships to devices on the

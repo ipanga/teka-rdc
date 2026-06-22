@@ -16,8 +16,15 @@ import '../config/flavor.dart';
 class PosthogAnalytics {
   const PosthogAnalytics();
 
-  static bool get _enabled =>
-      (FlavorConfig.instance.posthogApiKey ?? '').isNotEmpty;
+  static bool get _enabled {
+    // Defensive: analytics must never crash the app (or a unit test) when the
+    // flavor config isn't initialised — just treat it as disabled.
+    try {
+      return (FlavorConfig.instance.posthogApiKey ?? '').isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
 
   /// Identify the signed-in user. Distinct id is the public `user.id` so
   /// mobile events stitch to the same PostHog person as the server (which

@@ -1,8 +1,26 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+import '../../../../core/analytics/posthog_analytics.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../data/auth_repository.dart';
 import '../../../../core/storage/secure_storage.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated, wrongRole }
+
+/// Attach (or clear) the signed-in seller on the Sentry scope — id + role ONLY
+/// (no PII); errors are also phone-scrubbed by the global beforeSend.
+void _applySentryUser(Map<String, dynamic>? user) {
+  Sentry.configureScope((scope) {
+    scope.setUser(
+      user == null
+          ? null
+          : SentryUser(
+              id: user['id'] as String?,
+              data: {'role': user['role']?.toString() ?? 'SELLER'},
+            ),
+    );
+  });
+}
 
 class AuthState {
   final AuthStatus status;
@@ -62,6 +80,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     if (user != null) {
       final role = user['role'] as String?;
       if (role == 'SELLER' || role == 'ADMIN') {
+        _applySentryUser(user);
         state = state.copyWith(
           status: AuthStatus.authenticated,
           user: user,
@@ -93,8 +112,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // response omits it) — the router's application gate reads
       // sellerProfile.applicationStatus.
       await checkAuthStatus();
+      const PosthogAnalytics().capture(
+        'auth_login_success',
+        properties: {'method': 'email'},
+      );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      const PosthogAnalytics().capture(
+        'auth_login_failure',
+        properties: {'error_category': errorCategory(e)},
+      );
+      state = state.copyWith(isLoading: false, error: friendlyErrorMessage(e));
       rethrow;
     }
   }
@@ -119,7 +146,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // profile and routes to the application flow.
       await checkAuthStatus();
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: friendlyErrorMessage(e));
       rethrow;
     }
   }

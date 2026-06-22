@@ -142,7 +142,7 @@ class CartNotifier extends StateNotifier<CartState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: friendlyErrorMessage(e),
       );
     }
   }

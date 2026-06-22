@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../../products/data/models/product_model.dart';
 import '../../../products/data/products_repository.dart';
 import '../../data/models/review_model.dart';
@@ -98,7 +99,7 @@ class SellerReviewsNotifier extends StateNotifier<SellerReviewsState> {
       if (mounted) {
         state = state.copyWith(
           isLoadingProducts: false,
-          error: e.toString(),
+          error: friendlyErrorMessage(e),
         );
       }
     }
@@ -140,7 +141,7 @@ class SellerReviewsNotifier extends StateNotifier<SellerReviewsState> {
       if (mounted) {
         state = state.copyWith(
           isLoadingReviews: false,
-          error: e.toString(),
+          error: friendlyErrorMessage(e),
         );
       }
     }
