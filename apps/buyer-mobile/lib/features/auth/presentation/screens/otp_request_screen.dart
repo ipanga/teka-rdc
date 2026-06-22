@@ -3,6 +3,7 @@ import '../../../../core/network/dio_error_messages.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/router/app_router.dart';
 import '../../../../core/utils/phone.dart';
 import '../providers/auth_provider.dart';
 
@@ -49,7 +50,24 @@ class _OtpRequestScreenState extends ConsumerState<OtpRequestScreen> {
   Widget build(BuildContext context) {
     final isLoading = ref.watch(authProvider).isLoading;
     return Scaffold(
-      appBar: AppBar(title: const Text('Connexion ou inscription')),
+      appBar: AppBar(
+        // Guests reach this screen by tapping a protected tab/action (a
+        // redirect, so there's nothing to pop). Give them an explicit way back
+        // to browsing instead of stranding them on the login screen.
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          tooltip: 'Fermer',
+          onPressed: () {
+            ref.read(returnToRouteProvider.notifier).state = null;
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/');
+            }
+          },
+        ),
+        title: const Text('Connexion ou inscription'),
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),

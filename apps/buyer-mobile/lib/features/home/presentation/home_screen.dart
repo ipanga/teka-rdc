@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/teka_colors.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
-import '../../cart/presentation/providers/cart_provider.dart';
 import '../../catalog/data/models/category_model.dart';
 import '../../catalog/data/models/product_model.dart';
 import '../../catalog/presentation/providers/catalog_provider.dart';
@@ -25,8 +24,6 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authProvider);
-    final userName = authState.user?['firstName'] as String? ?? '';
     final cityState = ref.watch(cityProvider);
     final cityName = cityState.selectedCity?.name;
     // Town accent — driven by the city's accentColor (data-driven; copper /
@@ -92,18 +89,12 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
         actions: [
-          const _WishlistIconButton(),
-          const _CartIconButton(),
           IconButton(
-            icon: const Icon(Icons.search),
-            tooltip: "Rechercher",
-            onPressed: () => context.push('/search'),
+            icon: const Icon(Icons.notifications_none_rounded),
+            tooltip: "Notifications",
+            onPressed: () => context.push('/notifications'),
           ),
-          IconButton(
-            icon: const Icon(Icons.person_outline),
-            tooltip: "Mon profil",
-            onPressed: () => context.push('/profile'),
-          ),
+          const SizedBox(width: 4),
         ],
       ),
       body: RefreshIndicator(
@@ -125,6 +116,10 @@ class HomeScreen extends ConsumerWidget {
         },
         child: ListView(
           children: [
+            // Prominent search entry — search is an action, not a tab, so it
+            // lives at the top of the home feed (taps open the search screen).
+            const _HomeSearchBar(),
+
             // City hero — premium, city-branded header (mirrors the web city
             // landing hero). Renders nothing until a town is selected.
             const SizedBox(height: 8),
@@ -133,32 +128,6 @@ class HomeScreen extends ConsumerWidget {
 
             // Banner carousel
             const BannerCarousel(),
-            const SizedBox(height: 16),
-
-            // Flash deals section
-            const FlashDealsSection(),
-            const SizedBox(height: 8),
-
-            // Recently viewed (client-local; self-hides until the buyer has
-            // viewed products).
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: RecentlyViewedSection(),
-            ),
-
-            // Welcome message
-            if (userName.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: Text(
-                  'Bonjour, $userName !',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: TekaColors.foreground,
-                      ),
-                ),
-              ),
-
             const SizedBox(height: 16),
 
             // Categories strip
@@ -316,6 +285,18 @@ class HomeScreen extends ConsumerWidget {
             ),
 
             const SizedBox(height: 24),
+
+            // Flash deals section (self-hides when there are no active deals).
+            const FlashDealsSection(),
+
+            // Recently viewed (client-local; self-hides until the buyer has
+            // viewed products).
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: RecentlyViewedSection(),
+            ),
+
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -323,108 +304,38 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-// _MessagesIconButton removed 2026-05-17 — direct buyer↔seller messaging
-// retired in favour of "Contacter le support".
-
-class _WishlistIconButton extends ConsumerWidget {
-  const _WishlistIconButton();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Authoritative active-filtered count (GET /v1/wishlist/count), kept in
-    // sync optimistically on toggle. Mirrors buyer-web's header WishlistBadge.
-    // Guests don't watch the wishlist provider (auth-only endpoint) → no 401;
-    // tapping the heart routes to login via the protected /wishlist route.
-    final authed = ref.watch(
-      authProvider.select((s) => s.status == AuthStatus.authenticated),
-    );
-    final count = authed
-        ? ref.watch(wishlistProvider.select((s) => s.count))
-        : 0;
-
-    return IconButton(
-      tooltip: "Mes favoris",
-      icon: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          const Icon(Icons.favorite_border),
-          if (count > 0)
-            Positioned(
-              right: -6,
-              top: -4,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: TekaColors.tekaRed,
-                  shape: BoxShape.circle,
-                ),
-                constraints: const BoxConstraints(
-                  minWidth: 18,
-                  minHeight: 18,
-                ),
-                child: Text(
-                  count > 99 ? '99+' : '$count',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-        ],
-      ),
-      onPressed: () => context.push('/wishlist'),
-    );
-  }
-}
-
-class _CartIconButton extends ConsumerWidget {
-  const _CartIconButton();
+/// Tappable search field on the home feed — styled like an input but routes to
+/// the full search screen on tap (the actual query happens there).
+class _HomeSearchBar extends StatelessWidget {
+  const _HomeSearchBar();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Guests don't watch the cart provider (auth-only) → no 401; tapping the
-    // cart routes to login via the protected /cart route.
-    final authed = ref.watch(
-      authProvider.select((s) => s.status == AuthStatus.authenticated),
-    );
-    final cartCount = authed ? ref.watch(cartItemCountProvider) : 0;
-
-    return IconButton(
-      icon: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          const Icon(Icons.shopping_cart_outlined),
-          if (cartCount > 0)
-            Positioned(
-              right: -6,
-              top: -4,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: TekaColors.tekaRed,
-                  shape: BoxShape.circle,
-                ),
-                constraints: const BoxConstraints(
-                  minWidth: 18,
-                  minHeight: 18,
-                ),
-                child: Text(
-                  cartCount > 99 ? '99+' : '$cartCount',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: GestureDetector(
+        onTap: () => context.push('/search'),
+        child: Container(
+          height: 46,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: TekaColors.surfaceMuted,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: TekaColors.border),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.search, size: 20, color: TekaColors.mutedForeground),
+              SizedBox(width: 10),
+              Text(
+                'Rechercher des produits...',
+                style:
+                    TextStyle(color: TekaColors.mutedForeground, fontSize: 14),
               ),
-            ),
-        ],
+            ],
+          ),
+        ),
       ),
-      onPressed: () => context.push('/cart'),
     );
   }
 }
