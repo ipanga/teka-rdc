@@ -6,20 +6,39 @@
 
 ## Active initiative
 
-**Category image tiles** (started 2026-06-21). Replace the emoji category cards with real product-photo icons
-in a circle + label below, on **buyer-web** + **buyer-mobile**. Images are **bundled static assets keyed by
-category slug** (`public/categories/<slug>.png` web · `assets/categories/<slug>.png` mobile) with **emoji
-fallback** for subcategories / future categories — chosen over a DB/Cloudinary field because the 7 top
-categories are a fixed taxonomy and bundling is faster + offline-friendly on DRC 2G/3G. 7 images supplied by
-the user (Supermarché, Téléphones & Accessoires, Électroménager, Mode, Beauté & Santé, Construction &
-Bricolage, Automobile & Moto), resized to 256px.
-- **buyer-web:** `lib/category-images.ts` (slug→path) + `components/category/category-icon.tsx` (circle image
-  / emoji fallback), used by home-page, city-landing-page, all-categories page. type-check + 51 tests + ESLint
-  green; all 7 images serve 200.
-- **buyer-mobile:** `category_images.dart` + `category_circle.dart` (circle+label strip replaces the pill
-  strip on home), `CategoryModel.slug` added, `pubspec.yaml` assets entry. analyze clean + 79 + 3 new tests.
-- **Status: code-complete on `feat/category-image-tiles`** — pending user review + PR/release. To add a future
-  category image: drop `<slug>.png` in both asset dirs + add one map line.
+**City landing hero parity** (started 2026-06-22). The `/{ville}` city landing pages rendered a flat
+red-gradient hero instead of the homepage's premium image hero. **Root cause:** two divergent hero
+implementations — the homepage hero lived inline in `home-page.tsx` (inside `BannerCarousel` fallback), the
+city page had its own simpler `<section>`. **Fix:** extracted a shared **`StoreHero`** component
+(`components/home/store-hero.tsx`) — single source of truth (town image + accent badge + H1 + subtitle + CTA +
+trust strip). Homepage uses it as the BannerCarousel fallback (unchanged look); city page renders it
+**directly** (so the city `<h1>` stays in SSR HTML — SEO-safe; BannerCarousel's loading skeleton would push it
+client-only). Copy is **template-driven** (`Products.cityLandingTitle/Subtitle` + `city.name`), image/accent
+from the data-driven `City.heroImageUrl`/`accentColor` → a new town auto-gets the premium hero with **zero
+code + zero per-city data** (decision: template, not new DB columns). **buyer-mobile:** new `CityHero` widget
+on the home (bundled `assets/hero/<slug>.jpg` for Lubumbashi/Kolwezi + accent-gradient fallback for other
+towns), same templated copy (`cityHero*` ARB strings). No API/DB/migration.
+- **Verified:** web type-check + ESLint + 51 tests; **SSR confirmed** — `/lubumbashi` + `/kolwezi` ship the
+  city H1 + subtitle + hero image in raw HTML; all pages 200. mobile analyze clean + 82 + 2 new tests.
+- **Status: code-complete on `feat/city-landing-hero`** — pending user review + PR/release.
+
+---
+
+### Recently completed — 2026-06-21 (Category image tiles — SHIPPED + VERIFIED on prod)
+
+**Category image tiles** — emoji category cards → real product-photo icons (circle + label) on buyer-web +
+buyer-mobile. PR #409 → release #410 (`develop == main` @ `30400bb`). **Bundled static assets keyed by category
+slug** (`public/categories/<slug>.png` web · `assets/categories/<slug>.png` mobile, 256px), emoji fallback for
+subcategories / future categories — chosen over a DB/Cloudinary field because the 7 top categories are a fixed
+taxonomy and bundling is faster + offline-friendly on DRC 2G/3G. No API/DB/migration.
+- **buyer-web:** `lib/category-images.ts` + `components/category/category-icon.tsx`, used by home-page,
+  city-landing-page, all-categories page (dropped the bordered card for a clean circle + label).
+- **buyer-mobile:** `category_images.dart` + `category_circle.dart` (circle+label strip replaces the home pill
+  strip), `CategoryModel.slug`, `pubspec.yaml` assets entry. *(Mobile change ships to devices on the next
+  Play Store build — web is live now.)*
+- **Prod verified (2026-06-21):** all 7 icons serve `200 image/png` on teka.cd; homepage + `/lubumbashi` +
+  `/categories` all 200. **To add a future category icon: drop `<slug>.png` in both asset dirs + one map line.**
+  **Initiative fully shipped + verified — no follow-up.**
 
 ---
 

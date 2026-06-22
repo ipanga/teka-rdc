@@ -9,6 +9,7 @@ import '../../catalog/data/models/category_model.dart';
 import '../../catalog/data/models/product_model.dart';
 import '../../catalog/presentation/providers/catalog_provider.dart';
 import '../../catalog/presentation/widgets/category_circle.dart';
+import 'widgets/city_hero.dart';
 import '../../catalog/presentation/widgets/product_card.dart';
 import '../../catalog/presentation/widgets/recently_viewed_section.dart';
 import '../../city/presentation/providers/city_provider.dart';
@@ -122,8 +123,13 @@ class HomeScreen extends ConsumerWidget {
         },
         child: ListView(
           children: [
-            // Banner carousel at the top
-            const SizedBox(height: 12),
+            // City hero — premium, city-branded header (mirrors the web city
+            // landing hero). Renders nothing until a town is selected.
+            const SizedBox(height: 8),
+            const CityHero(),
+            const SizedBox(height: 8),
+
+            // Banner carousel
             const BannerCarousel(),
             const SizedBox(height: 16),
 
