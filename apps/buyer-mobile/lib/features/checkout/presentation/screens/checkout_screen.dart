@@ -8,7 +8,6 @@ import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/connectivity/connectivity_provider.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../city/data/city_repository.dart';
 import '../../../city/data/models/city_model.dart';
@@ -45,7 +44,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).languageCode;
     final checkoutState = ref.watch(checkoutProvider);
     final cartState = ref.watch(cartProvider);
@@ -68,7 +66,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.checkoutTitle),
+        title: Text("Passer la commande"),
         leading: checkoutState.step == CheckoutStep.address
             ? IconButton(
                 icon: const Icon(Icons.arrow_back),
@@ -85,7 +83,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           // Step indicator
           _StepIndicator(
             currentStep: checkoutState.step,
-            l10n: l10n,
           ),
 
           // Error message
@@ -108,14 +105,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             child: _buildStepContent(
               checkoutState,
               cartState,
-              l10n,
               locale,
             ),
           ),
         ],
       ),
       bottomNavigationBar: checkoutState.step != CheckoutStep.processing
-          ? _buildBottomBar(checkoutState, l10n)
+          ? _buildBottomBar(checkoutState)
           : null,
     );
   }
@@ -123,7 +119,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
   Widget _buildStepContent(
     CheckoutState checkoutState,
     CartState cartState,
-    AppLocalizations l10n,
     String locale,
   ) {
     switch (checkoutState.step) {
@@ -132,15 +127,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           addresses: checkoutState.addresses,
           selectedAddress: checkoutState.selectedAddress,
           isLoading: checkoutState.isLoadingAddresses,
-          l10n: l10n,
           onSelect: (address) =>
               ref.read(checkoutProvider.notifier).selectAddress(address),
-          onAddAddress: () => _showAddAddressSheet(context, l10n),
+          onAddAddress: () => _showAddAddressSheet(context),
         );
       case CheckoutStep.payment:
         return _PaymentStep(
           selectedMethod: checkoutState.paymentMethod,
-          l10n: l10n,
           onSelect: (method) =>
               ref.read(checkoutProvider.notifier).selectPaymentMethod(method),
         );
@@ -149,7 +142,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           cartState: cartState,
           checkoutState: checkoutState,
           noteController: _noteController,
-          l10n: l10n,
           locale: locale,
           onNoteChanged: (note) =>
               ref.read(checkoutProvider.notifier).setBuyerNote(note),
@@ -165,7 +157,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                l10n.checkoutProcessing,
+                "Traitement en cours...",
                 style: const TextStyle(
                   color: TekaColors.mutedForeground,
                   fontSize: 15,
@@ -179,7 +171,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
   }
 
-  void _showAddAddressSheet(BuildContext context, AppLocalizations l10n) {
+  void _showAddAddressSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -187,7 +179,6 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (_) => _AddAddressSheet(
-        l10n: l10n,
         cityRepository: ref.read(cityRepositoryProvider),
         onSave: (data) async {
           final success =
@@ -198,7 +189,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     );
   }
 
-  Widget _buildBottomBar(CheckoutState checkoutState, AppLocalizations l10n) {
+  Widget _buildBottomBar(CheckoutState checkoutState) {
     final bool canProceed;
     final String buttonText;
     final VoidCallback? onPressed;
@@ -206,13 +197,13 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     switch (checkoutState.step) {
       case CheckoutStep.address:
         canProceed = checkoutState.canProceedToPayment;
-        buttonText = l10n.next;
+        buttonText = "Suivant";
         onPressed =
             canProceed ? () => ref.read(checkoutProvider.notifier).nextStep() : null;
         break;
       case CheckoutStep.payment:
         canProceed = checkoutState.canProceedToReview;
-        buttonText = l10n.next;
+        buttonText = "Suivant";
         onPressed = canProceed
             ? () => ref.read(checkoutProvider.notifier).nextStep()
             : null;
@@ -227,7 +218,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         // French explanation so the user knows what to do.
         canProceed = checkoutState.canPlaceOrder &&
             !ref.watch(isOfflineProvider);
-        buttonText = l10n.checkoutPlaceOrder;
+        buttonText = "Confirmer la commande";
         onPressed = canProceed
             ? () {
                 final idempotencyKey =
@@ -318,11 +309,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
 
 class _StepIndicator extends StatelessWidget {
   final CheckoutStep currentStep;
-  final AppLocalizations l10n;
 
   const _StepIndicator({
     required this.currentStep,
-    required this.l10n,
   });
 
   @override
@@ -397,7 +386,6 @@ class _AddressStep extends StatelessWidget {
   final List<AddressModel> addresses;
   final AddressModel? selectedAddress;
   final bool isLoading;
-  final AppLocalizations l10n;
   final ValueChanged<AddressModel> onSelect;
   final VoidCallback onAddAddress;
 
@@ -405,7 +393,6 @@ class _AddressStep extends StatelessWidget {
     required this.addresses,
     required this.selectedAddress,
     required this.isLoading,
-    required this.l10n,
     required this.onSelect,
     required this.onAddAddress,
   });
@@ -432,7 +419,7 @@ class _AddressStep extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                l10n.checkoutNoAddresses,
+                "Aucune adresse enregistree",
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: TekaColors.mutedForeground,
                     ),
@@ -442,7 +429,7 @@ class _AddressStep extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onAddAddress,
                 icon: const Icon(Icons.add_location_alt_outlined),
-                label: Text(l10n.addAddress),
+                label: Text("Ajouter une adresse"),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: TekaColors.tekaRed,
                   side: const BorderSide(color: TekaColors.tekaRed),
@@ -458,7 +445,7 @@ class _AddressStep extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         Text(
-          l10n.checkoutSelectAddress,
+          "Adresse de livraison",
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: TekaColors.foreground,
@@ -569,7 +556,7 @@ class _AddressStep extends StatelessWidget {
         OutlinedButton.icon(
           onPressed: onAddAddress,
           icon: const Icon(Icons.add_location_alt_outlined, size: 18),
-          label: Text(l10n.addAddress),
+          label: Text("Ajouter une adresse"),
           style: OutlinedButton.styleFrom(
             foregroundColor: TekaColors.tekaRed,
             side: const BorderSide(color: TekaColors.tekaRed),
@@ -583,12 +570,10 @@ class _AddressStep extends StatelessWidget {
 
 class _PaymentStep extends StatelessWidget {
   final String selectedMethod;
-  final AppLocalizations l10n;
   final ValueChanged<String> onSelect;
 
   const _PaymentStep({
     required this.selectedMethod,
-    required this.l10n,
     required this.onSelect,
   });
 
@@ -598,7 +583,7 @@ class _PaymentStep extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         Text(
-          l10n.checkoutPaymentMethod,
+          "Mode de paiement",
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: TekaColors.foreground,
@@ -606,7 +591,7 @@ class _PaymentStep extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         _PaymentOption(
-          title: l10n.checkoutCOD,
+          title: "Paiement a la livraison",
           subtitle: 'Payez a la reception de votre commande',
           icon: Icons.payments_outlined,
           isSelected: selectedMethod == 'COD',
@@ -702,7 +687,6 @@ class _ReviewStep extends StatelessWidget {
   final CartState cartState;
   final CheckoutState checkoutState;
   final TextEditingController noteController;
-  final AppLocalizations l10n;
   final String locale;
   final ValueChanged<String> onNoteChanged;
 
@@ -710,7 +694,6 @@ class _ReviewStep extends StatelessWidget {
     required this.cartState,
     required this.checkoutState,
     required this.noteController,
-    required this.l10n,
     required this.locale,
     required this.onNoteChanged,
   });
@@ -721,7 +704,7 @@ class _ReviewStep extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         Text(
-          l10n.checkoutReview,
+          "Recapitulatif",
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: TekaColors.foreground,
@@ -733,7 +716,7 @@ class _ReviewStep extends StatelessWidget {
         if (checkoutState.selectedAddress != null) ...[
           _SummarySection(
             icon: Icons.location_on_outlined,
-            title: l10n.checkoutSelectAddress,
+            title: "Adresse de livraison",
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -762,9 +745,9 @@ class _ReviewStep extends StatelessWidget {
         // Payment method summary
         _SummarySection(
           icon: Icons.payment_outlined,
-          title: l10n.checkoutPaymentMethod,
+          title: "Mode de paiement",
           child: Text(
-            l10n.checkoutCOD,
+            "Paiement a la livraison",
             style: const TextStyle(
               color: TekaColors.foreground,
               fontSize: 13,
@@ -874,7 +857,7 @@ class _ReviewStep extends StatelessWidget {
           onChanged: onNoteChanged,
           maxLines: 2,
           decoration: InputDecoration(
-            labelText: l10n.checkoutNote,
+            labelText: "Note pour le vendeur",
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: TekaColors.border),
@@ -906,7 +889,7 @@ class _ReviewStep extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    l10n.orderSubtotal,
+                    "Sous-total",
                     style: const TextStyle(
                       color: TekaColors.mutedForeground,
                       fontSize: 14,
@@ -927,7 +910,7 @@ class _ReviewStep extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    l10n.checkoutDeliveryFee,
+                    "Frais de livraison",
                     style: const TextStyle(
                       color: TekaColors.mutedForeground,
                       fontSize: 14,
@@ -951,7 +934,7 @@ class _ReviewStep extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    l10n.cartTotal,
+                    "Total",
                     style: const TextStyle(
                       color: TekaColors.foreground,
                       fontSize: 16,
@@ -1033,12 +1016,10 @@ class _SummarySection extends StatelessWidget {
 
 /// Bottom sheet for creating a new address with city/commune dropdowns.
 class _AddAddressSheet extends StatefulWidget {
-  final AppLocalizations l10n;
   final CityRepository cityRepository;
   final Future<bool> Function(Map<String, dynamic> data) onSave;
 
   const _AddAddressSheet({
-    required this.l10n,
     required this.cityRepository,
     required this.onSave,
   });
@@ -1147,8 +1128,6 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = widget.l10n;
-
     return Padding(
       padding: EdgeInsets.only(
         left: 16,
@@ -1175,7 +1154,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
             const SizedBox(height: 16),
 
             Text(
-              l10n.newAddress,
+              "Nouvelle adresse",
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: TekaColors.foreground,
@@ -1185,7 +1164,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
 
             // City dropdown
             Text(
-              '${l10n.cityLabel} *',
+              'Ville *',
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -1215,7 +1194,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                   child: DropdownButton<String>(
                     value: _selectedCity?.id,
                     hint: Text(
-                      l10n.cityPlaceholder,
+                      "Selectionnez une ville",
                       style: const TextStyle(
                         color: TekaColors.mutedForeground,
                         fontSize: 14,
@@ -1245,7 +1224,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
             // Commune dropdown
             if (_selectedCity != null) ...[
               Text(
-                '${l10n.communeLabel} *',
+                'Commune *',
                 style: const TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
@@ -1275,7 +1254,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                     child: DropdownButton<String>(
                       value: _selectedCommune?.id,
                       hint: Text(
-                        l10n.communePlaceholder,
+                        "Selectionnez une commune",
                         style: const TextStyle(
                           color: TekaColors.mutedForeground,
                           fontSize: 14,
@@ -1307,8 +1286,8 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
             TextField(
               controller: _avenueController,
               decoration: InputDecoration(
-                labelText: l10n.avenueLabel,
-                hintText: l10n.avenueHint,
+                labelText: "Avenue / Rue",
+                hintText: "Ex: Av. Lumumba n24",
                 prefixIcon: const Icon(Icons.signpost_outlined, size: 20),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -1332,8 +1311,8 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
             TextField(
               controller: _referenceController,
               decoration: InputDecoration(
-                labelText: l10n.referenceLabel,
-                hintText: l10n.referenceHint,
+                labelText: "Point de repere",
+                hintText: "Ex: En face de la pharmacie",
                 prefixIcon: const Icon(Icons.place_outlined, size: 20),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -1358,8 +1337,8 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
               controller: _recipientNameController,
               textCapitalization: TextCapitalization.words,
               decoration: InputDecoration(
-                labelText: l10n.recipientNameLabel,
-                hintText: l10n.recipientNameHint,
+                labelText: "Nom du destinataire",
+                hintText: "Nom complet",
                 prefixIcon: const Icon(Icons.person_outline, size: 20),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -1384,8 +1363,8 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
               controller: _recipientPhoneController,
               keyboardType: TextInputType.phone,
               decoration: InputDecoration(
-                labelText: l10n.recipientPhoneLabel,
-                hintText: l10n.recipientPhoneHint,
+                labelText: "Telephone du destinataire",
+                hintText: "+243...",
                 prefixIcon: const Icon(Icons.phone_outlined, size: 20),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -1415,7 +1394,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       side: const BorderSide(color: TekaColors.border),
                     ),
-                    child: Text(l10n.cancel),
+                    child: Text("Annuler"),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -1440,7 +1419,7 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
                               color: Colors.white,
                             ),
                           )
-                        : Text(l10n.saveAddress),
+                        : Text("Enregistrer"),
                   ),
                 ),
               ],

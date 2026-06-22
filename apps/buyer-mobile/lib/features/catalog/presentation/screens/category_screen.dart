@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../../city/presentation/providers/city_provider.dart';
 import '../../../wishlist/presentation/providers/wishlist_provider.dart';
 import '../providers/catalog_provider.dart';
@@ -67,7 +66,6 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final state = ref.watch(browseProductsProvider(_params));
 
     // Hydrate wishlist heart state for the visible products (batch /check).
@@ -81,11 +79,11 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.categoryName ?? l10n.categories),
+        title: Text(widget.categoryName ?? "Categories"),
         actions: [
           IconButton(
             icon: const Icon(Icons.tune),
-            tooltip: l10n.filterSort,
+            tooltip: "Trier et filtrer",
             onPressed: () async {
               final result = await FilterBottomSheet.show(
                 context,
@@ -104,14 +102,13 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
         onRefresh: () async {
           await ref.read(browseProductsProvider(_params).notifier).refresh();
         },
-        child: _buildBody(context, l10n, state),
+        child: _buildBody(context, state),
       ),
     );
   }
 
   Widget _buildBody(
     BuildContext context,
-    AppLocalizations l10n,
     BrowseProductsState state,
   ) {
     // Condition chips row
@@ -120,19 +117,19 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
       child: Row(
         children: [
           _ConditionFilterChip(
-            label: l10n.filterAll,
+            label: "Tous",
             isSelected: _filters.condition == null,
             onTap: () => _applyFilters(_filters.copyWith(clearCondition: true)),
           ),
           const SizedBox(width: 8),
           _ConditionFilterChip(
-            label: l10n.filterNew,
+            label: "Neuf",
             isSelected: _filters.condition == 'NEW',
             onTap: () => _applyFilters(_filters.copyWith(condition: 'NEW')),
           ),
           const SizedBox(width: 8),
           _ConditionFilterChip(
-            label: l10n.filterUsed,
+            label: "Occasion",
             isSelected: _filters.condition == 'USED',
             onTap: () => _applyFilters(_filters.copyWith(condition: 'USED')),
           ),
@@ -185,7 +182,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                       style: FilledButton.styleFrom(
                         backgroundColor: TekaColors.tekaRed,
                       ),
-                      child: Text(l10n.productLoadMore),
+                      child: Text("Charger plus"),
                     ),
                   ],
                 ),
@@ -214,7 +211,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      l10n.productNoResults,
+                      "Aucun produit trouve",
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             color: TekaColors.mutedForeground,
                           ),
@@ -236,7 +233,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Text(
-              '${state.pagination?.total ?? state.products.length} ${l10n.searchResults.toLowerCase()}',
+              '${state.pagination?.total ?? state.products.length} ${"Resultats".toLowerCase()}',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: TekaColors.mutedForeground,
                   ),
@@ -281,7 +278,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
                           foregroundColor: TekaColors.tekaRed,
                           side: const BorderSide(color: TekaColors.tekaRed),
                         ),
-                        child: Text(l10n.productLoadMore),
+                        child: Text("Charger plus"),
                       ),
               ),
             ),

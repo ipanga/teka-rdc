@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../providers/cart_provider.dart';
 import '../widgets/cart_item_tile.dart';
 
@@ -12,18 +11,17 @@ class CartScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     final cartState = ref.watch(cartProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.cart),
+        title: const Text('Panier'),
         actions: [
           if (cartState.items.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.delete_sweep_outlined),
-              tooltip: l10n.cartRemove,
-              onPressed: () => _confirmClearCart(context, ref, l10n),
+              tooltip: 'Supprimer',
+              onPressed: () => _confirmClearCart(context, ref),
             ),
         ],
       ),
@@ -32,7 +30,7 @@ class CartScreen extends ConsumerWidget {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : cartState.isEmpty
-              ? _EmptyCartView(l10n: l10n)
+              ? const _EmptyCartView()
               : RefreshIndicator(
                   color: TekaColors.tekaRed,
                   onRefresh: () =>
@@ -62,7 +60,6 @@ class CartScreen extends ConsumerWidget {
           ? _CartBottomBar(
               totalCDF: cartState.totalCDF,
               totalItems: cartState.totalItems,
-              l10n: l10n,
               onCheckout: () => context.push('/checkout'),
             )
           : null,
@@ -72,17 +69,16 @@ class CartScreen extends ConsumerWidget {
   void _confirmClearCart(
     BuildContext context,
     WidgetRef ref,
-    AppLocalizations l10n,
   ) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text(l10n.cartRemove),
-        content: Text(l10n.cartEmpty),
+        title: const Text('Supprimer'),
+        content: const Text('Votre panier est vide'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(l10n.filterReset),
+            child: const Text('Reinitialiser'),
           ),
           FilledButton(
             onPressed: () {
@@ -92,7 +88,7 @@ class CartScreen extends ConsumerWidget {
             style: FilledButton.styleFrom(
               backgroundColor: TekaColors.destructive,
             ),
-            child: Text(l10n.cartRemove),
+            child: const Text('Supprimer'),
           ),
         ],
       ),
@@ -101,9 +97,7 @@ class CartScreen extends ConsumerWidget {
 }
 
 class _EmptyCartView extends StatelessWidget {
-  final AppLocalizations l10n;
-
-  const _EmptyCartView({required this.l10n});
+  const _EmptyCartView();
 
   @override
   Widget build(BuildContext context) {
@@ -120,7 +114,7 @@ class _EmptyCartView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              l10n.cartEmpty,
+              'Votre panier est vide',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: TekaColors.mutedForeground,
                     fontWeight: FontWeight.w600,
@@ -135,7 +129,7 @@ class _EmptyCartView extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
               ),
-              child: Text(l10n.cartEmptyAction),
+              child: const Text('Decouvrir nos produits'),
             ),
           ],
         ),
@@ -147,13 +141,11 @@ class _EmptyCartView extends StatelessWidget {
 class _CartBottomBar extends StatelessWidget {
   final String totalCDF;
   final int totalItems;
-  final AppLocalizations l10n;
   final VoidCallback onCheckout;
 
   const _CartBottomBar({
     required this.totalCDF,
     required this.totalItems,
-    required this.l10n,
     required this.onCheckout,
   });
 
@@ -187,9 +179,9 @@ class _CartBottomBar extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  l10n.cartTotal,
-                  style: const TextStyle(
+                const Text(
+                  'Total',
+                  style: TextStyle(
                     color: TekaColors.mutedForeground,
                     fontSize: 12,
                   ),
@@ -220,7 +212,7 @@ class _CartBottomBar extends StatelessWidget {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            child: Text(l10n.cartCheckout),
+            child: const Text('Passer la commande'),
           ),
         ],
       ),

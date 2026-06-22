@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/content_repository.dart';
 import '../../data/models/content_page_model.dart';
 
@@ -18,15 +17,14 @@ class ContentPageScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     final pageAsync = ref.watch(contentPageProvider(slug));
 
     return Scaffold(
       appBar: AppBar(
         title: pageAsync.when(
           data: (page) => Text(page.title),
-          loading: () => Text(l10n.contentPages),
-          error: (_, __) => Text(l10n.contentPages),
+          loading: () => Text("Pages"),
+          error: (_, __) => Text("Pages"),
         ),
       ),
       body: pageAsync.when(
@@ -45,7 +43,7 @@ class ContentPageScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    l10n.pageNotFound,
+                    "Page non trouvee",
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           color: TekaColors.mutedForeground,
                         ),
@@ -93,7 +91,7 @@ class ContentPageScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  l10n.authGenericError,
+                  "Une erreur est survenue. Veuillez reessayer.",
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         color: TekaColors.mutedForeground,
                       ),
@@ -103,7 +101,7 @@ class ContentPageScreen extends ConsumerWidget {
                 OutlinedButton.icon(
                   onPressed: () => ref.invalidate(contentPageProvider(slug)),
                   icon: const Icon(Icons.refresh),
-                  label: Text(l10n.backToHome),
+                  label: Text("Reessayer"),
                 ),
               ],
             ),

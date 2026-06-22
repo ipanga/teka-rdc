@@ -10,7 +10,6 @@ import 'dart:async';
 import 'package:buyer_mobile/core/connectivity/connectivity_provider.dart';
 import 'package:buyer_mobile/core/connectivity/connectivity_status.dart';
 import 'package:buyer_mobile/core/connectivity/widgets/connectivity_banner.dart';
-import 'package:buyer_mobile/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -194,12 +193,11 @@ Future<void> _pumpHost(
       ],
       child: MaterialApp(
         localizationsDelegates: const [
-          AppLocalizations.delegate,
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        supportedLocales: AppLocalizations.supportedLocales,
+        supportedLocales: const [Locale('fr')],
         locale: const Locale('fr'),
         home: ConnectivityBannerHost(
           child: Scaffold(

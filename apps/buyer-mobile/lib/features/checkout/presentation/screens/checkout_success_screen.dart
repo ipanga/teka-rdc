@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/checkout_model.dart';
 
 class CheckoutSuccessScreen extends ConsumerWidget {
@@ -15,8 +14,6 @@ class CheckoutSuccessScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
-
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -32,7 +29,7 @@ class CheckoutSuccessScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  l10n.checkoutSuccess,
+                  "Commande confirmee !",
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: TekaColors.foreground,
@@ -41,7 +38,7 @@ class CheckoutSuccessScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  l10n.checkoutSuccessMessage,
+                  "Votre commande a ete passee avec succes.",
                   style: const TextStyle(
                     color: TekaColors.mutedForeground,
                     fontSize: 14,
@@ -101,7 +98,7 @@ class CheckoutSuccessScreen extends ConsumerWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    child: Text(l10n.checkoutViewOrders),
+                    child: Text("Voir mes commandes"),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -118,7 +115,7 @@ class CheckoutSuccessScreen extends ConsumerWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    child: Text(l10n.checkoutContinueShopping),
+                    child: Text("Continuer mes achats"),
                   ),
                 ),
               ],

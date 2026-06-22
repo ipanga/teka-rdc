@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../l10n/app_localizations.dart';
 import '../../../core/theme/teka_colors.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../../cart/presentation/providers/cart_provider.dart';
@@ -26,7 +25,6 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     final authState = ref.watch(authProvider);
     final userName = authState.user?['firstName'] as String? ?? '';
     final cityState = ref.watch(cityProvider);
@@ -61,7 +59,7 @@ class HomeScreen extends ConsumerWidget {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(l10n.appName),
+            Text("Teka RDC"),
             if (cityName != null)
               GestureDetector(
                 onTap: () => context.push('/city-selection'),
@@ -98,12 +96,12 @@ class HomeScreen extends ConsumerWidget {
           const _CartIconButton(),
           IconButton(
             icon: const Icon(Icons.search),
-            tooltip: l10n.search,
+            tooltip: "Rechercher",
             onPressed: () => context.push('/search'),
           ),
           IconButton(
             icon: const Icon(Icons.person_outline),
-            tooltip: l10n.profileTitle,
+            tooltip: "Mon profil",
             onPressed: () => context.push('/profile'),
           ),
         ],
@@ -165,7 +163,7 @@ class HomeScreen extends ConsumerWidget {
 
             // Categories strip
             _SectionHeader(
-              title: l10n.categories,
+              title: "Categories",
               onSeeAll: null,
             ),
             const SizedBox(height: 8),
@@ -195,7 +193,7 @@ class HomeScreen extends ConsumerWidget {
               error: (_, __) => Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
-                  l10n.authGenericError,
+                  "Une erreur est survenue. Veuillez reessayer.",
                   style: TextStyle(color: TekaColors.mutedForeground, fontSize: 13),
                 ),
               ),
@@ -205,7 +203,7 @@ class HomeScreen extends ConsumerWidget {
 
             // Popular products (horizontal scroll)
             _SectionHeader(
-              title: l10n.popularProducts,
+              title: "Produits populaires",
               onSeeAll: null,
             ),
             const SizedBox(height: 8),
@@ -214,7 +212,7 @@ class HomeScreen extends ConsumerWidget {
                   ? Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
-                        l10n.productNoResults,
+                        "Aucun produit trouve",
                         style: TextStyle(
                           color: TekaColors.mutedForeground,
                           fontSize: 13,
@@ -248,7 +246,7 @@ class HomeScreen extends ConsumerWidget {
               error: (_, __) => Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
-                  l10n.authGenericError,
+                  "Une erreur est survenue. Veuillez reessayer.",
                   style: TextStyle(color: TekaColors.mutedForeground, fontSize: 13),
                 ),
               ),
@@ -258,7 +256,7 @@ class HomeScreen extends ConsumerWidget {
 
             // Newest products (grid)
             _SectionHeader(
-              title: l10n.newestProducts,
+              title: "Nouveautes",
               onSeeAll: null,
             ),
             const SizedBox(height: 8),
@@ -268,7 +266,7 @@ class HomeScreen extends ConsumerWidget {
                       padding: const EdgeInsets.all(16),
                       child: Center(
                         child: Text(
-                          l10n.productNoResults,
+                          "Aucun produit trouve",
                           style: TextStyle(
                             color: TekaColors.mutedForeground,
                             fontSize: 13,
@@ -307,7 +305,7 @@ class HomeScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(16),
                 child: Center(
                   child: Text(
-                    l10n.authGenericError,
+                    "Une erreur est survenue. Veuillez reessayer.",
                     style: TextStyle(
                       color: TekaColors.mutedForeground,
                       fontSize: 13,
@@ -333,7 +331,6 @@ class _WishlistIconButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     // Authoritative active-filtered count (GET /v1/wishlist/count), kept in
     // sync optimistically on toggle. Mirrors buyer-web's header WishlistBadge.
     // Guests don't watch the wishlist provider (auth-only endpoint) → no 401;
@@ -346,7 +343,7 @@ class _WishlistIconButton extends ConsumerWidget {
         : 0;
 
     return IconButton(
-      tooltip: l10n.wishlistTitle,
+      tooltip: "Mes favoris",
       icon: Stack(
         clipBehavior: Clip.none,
         children: [

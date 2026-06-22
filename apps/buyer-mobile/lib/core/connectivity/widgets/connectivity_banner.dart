@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../l10n/app_localizations.dart';
 import '../../theme/teka_colors.dart';
 import '../connectivity_provider.dart';
 import '../connectivity_status.dart';
@@ -147,11 +146,9 @@ class _ConnectivityBannerHostState
     ConnectivityStatus status,
     bool showRestored,
   ) {
-    final l10n = AppLocalizations.of(context);
-    if (l10n == null) return null;
     if (showRestored && status == ConnectivityStatus.connected) {
       return _BannerSpec(
-        text: l10n.connectivityBannerRestored,
+        text: "Connexion rétablie",
         background: TekaColors.success,
         foreground: Colors.white,
         icon: Icons.check_circle_outline,
@@ -163,7 +160,7 @@ class _ConnectivityBannerHostState
         return null;
       case ConnectivityStatus.disconnected:
         return _BannerSpec(
-          text: l10n.connectivityBannerDisconnected,
+          text: "Pas de connexion internet",
           background: TekaColors.destructive,
           foreground: Colors.white,
           icon: Icons.wifi_off_outlined,
@@ -171,7 +168,7 @@ class _ConnectivityBannerHostState
         );
       case ConnectivityStatus.noInternet:
         return _BannerSpec(
-          text: l10n.connectivityBannerNoInternet,
+          text: "Internet limité",
           background: TekaColors.warning,
           foreground: Colors.white,
           icon: Icons.signal_wifi_bad_outlined,
@@ -179,7 +176,7 @@ class _ConnectivityBannerHostState
         );
       case ConnectivityStatus.unstable:
         return _BannerSpec(
-          text: l10n.connectivityBannerUnstable,
+          text: "Connexion instable",
           background: TekaColors.warning,
           foreground: Colors.white,
           icon: Icons.network_check_outlined,
@@ -187,7 +184,7 @@ class _ConnectivityBannerHostState
         );
       case ConnectivityStatus.reconnecting:
         return _BannerSpec(
-          text: l10n.connectivityBannerReconnecting,
+          text: "Reconnexion...",
           background: TekaColors.warning,
           foreground: Colors.white,
           icon: Icons.sync,

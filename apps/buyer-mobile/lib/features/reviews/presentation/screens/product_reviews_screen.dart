@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/reviews_provider.dart';
 import '../widgets/review_form_dialog.dart';
@@ -15,14 +14,13 @@ class ProductReviewsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     final reviewsState = ref.watch(reviewsProvider(productId));
     final authState = ref.watch(authProvider);
     final currentUserId = authState.user?['id'] as String?;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.reviewsTitle),
+        title: Text("Avis"),
       ),
       floatingActionButton: reviewsState.canReviewResult?.canReview == true
           ? FloatingActionButton.extended(
@@ -30,7 +28,7 @@ class ProductReviewsScreen extends ConsumerWidget {
               backgroundColor: TekaColors.tekaRed,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.rate_review_outlined),
-              label: Text(l10n.writeReview),
+              label: Text("Ecrire un avis"),
             )
           : null,
       body: reviewsState.isLoading
@@ -65,7 +63,7 @@ class ProductReviewsScreen extends ConsumerWidget {
                           style: FilledButton.styleFrom(
                             backgroundColor: TekaColors.tekaRed,
                           ),
-                          child: Text(l10n.backToHome),
+                          child: Text("Reessayer"),
                         ),
                       ],
                     ),
@@ -89,7 +87,7 @@ class ProductReviewsScreen extends ConsumerWidget {
                       // My review
                       if (reviewsState.myReview != null) ...[
                         Text(
-                          l10n.yourRating,
+                          "Votre note",
                           style:
                               Theme.of(context).textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.bold,
@@ -109,7 +107,7 @@ class ProductReviewsScreen extends ConsumerWidget {
                       // All reviews
                       if (reviewsState.reviews.isNotEmpty) ...[
                         Text(
-                          '${l10n.reviewsTitle} (${reviewsState.stats?.totalReviews ?? reviewsState.reviews.length})',
+                          'Avis (${reviewsState.stats?.totalReviews ?? reviewsState.reviews.length})',
                           style:
                               Theme.of(context).textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.bold,
@@ -143,7 +141,7 @@ class ProductReviewsScreen extends ConsumerWidget {
                                     .loadReviews(
                                         page: reviewsState.page + 1),
                                 child: Text(
-                                  l10n.productLoadMore,
+                                  "Charger plus",
                                   style: const TextStyle(
                                     color: TekaColors.tekaRed,
                                   ),
@@ -163,7 +161,7 @@ class ProductReviewsScreen extends ConsumerWidget {
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                l10n.noReviews,
+                                "Aucun avis pour le moment",
                                 style: const TextStyle(
                                   color: TekaColors.mutedForeground,
                                   fontSize: 14,
@@ -196,10 +194,9 @@ class ProductReviewsScreen extends ConsumerWidget {
       ),
     ).then((submitted) {
       if (submitted == true && context.mounted) {
-        final l10n = AppLocalizations.of(context)!;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.reviewSubmitted),
+            content: Text("Avis soumis avec succes"),
             backgroundColor: TekaColors.success,
           ),
         );
@@ -208,17 +205,15 @@ class ProductReviewsScreen extends ConsumerWidget {
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, String reviewId) {
-    final l10n = AppLocalizations.of(context)!;
-
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.deleteReview),
-        content: Text(l10n.confirmDeleteReview),
+        title: Text("Supprimer l'avis"),
+        content: Text("Voulez-vous supprimer votre avis ?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(l10n.filterReset),
+            child: Text("Reinitialiser"),
           ),
           FilledButton(
             onPressed: () async {
@@ -229,7 +224,7 @@ class ProductReviewsScreen extends ConsumerWidget {
               if (success && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text(l10n.reviewDeleted),
+                    content: Text("Avis supprime"),
                     backgroundColor: TekaColors.success,
                   ),
                 );
@@ -238,7 +233,7 @@ class ProductReviewsScreen extends ConsumerWidget {
             style: FilledButton.styleFrom(
               backgroundColor: TekaColors.destructive,
             ),
-            child: Text(l10n.deleteReview),
+            child: Text("Supprimer l'avis"),
           ),
         ],
       ),

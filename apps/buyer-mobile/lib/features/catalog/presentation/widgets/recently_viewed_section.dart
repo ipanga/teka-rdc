@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/product_model.dart';
 import '../../data/recently_viewed_store.dart';
 import 'product_card.dart';
@@ -16,7 +15,6 @@ class RecentlyViewedSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     final List<BrowseProductModel> items = ref
         .read(recentlyViewedStoreProvider)
         .getAll()
@@ -29,7 +27,7 @@ class RecentlyViewedSection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          l10n.recentlyViewedTitle,
+          "Vus recemment",
           style: Theme.of(context)
               .textTheme
               .titleMedium

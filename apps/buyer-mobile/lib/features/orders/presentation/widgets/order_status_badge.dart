@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 
 class OrderStatusBadge extends StatelessWidget {
   final String status;
@@ -9,8 +8,7 @@ class OrderStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final label = _statusLabel(l10n, status);
+    final label = _statusLabel(status);
     final color = TekaColors.orderStatusColor(status);
 
     return Container(
@@ -30,24 +28,24 @@ class OrderStatusBadge extends StatelessWidget {
     );
   }
 
-  static String _statusLabel(AppLocalizations l10n, String status) {
+  static String _statusLabel(String status) {
     switch (status.toUpperCase()) {
       case 'PENDING':
-        return l10n.orderStatusPENDING;
+        return "En attente";
       case 'CONFIRMED':
-        return l10n.orderStatusCONFIRMED;
+        return "Confirmee";
       case 'PROCESSING':
-        return l10n.orderStatusPROCESSING;
+        return "En preparation";
       case 'SHIPPED':
-        return l10n.orderStatusSHIPPED;
+        return "Expediee";
       case 'OUT_FOR_DELIVERY':
-        return l10n.orderStatusOUT_FOR_DELIVERY;
+        return "En livraison";
       case 'DELIVERED':
-        return l10n.orderStatusDELIVERED;
+        return "Livree";
       case 'CANCELLED':
-        return l10n.orderStatusCANCELLED;
+        return "Annulee";
       case 'RETURNED':
-        return l10n.orderStatusRETURNED;
+        return "Retournee";
       default:
         return status;
     }

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../../city/presentation/providers/city_provider.dart';
 import '../../../wishlist/presentation/providers/wishlist_provider.dart';
 import '../../data/catalog_repository.dart';
@@ -67,8 +66,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
@@ -81,7 +78,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             textInputAction: TextInputAction.search,
             onSubmitted: _applyQuery,
             decoration: InputDecoration(
-              hintText: l10n.searchPlaceholder,
+              hintText: "Rechercher un produit...",
               hintStyle: const TextStyle(
                 color: TekaColors.mutedForeground,
                 fontSize: 15,
@@ -103,11 +100,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
         ),
       ),
-      body: _query.isEmpty ? _buildEmptySearch(context, l10n) : _buildResults(context, l10n),
+      body: _query.isEmpty ? _buildEmptySearch(context) : _buildResults(context),
     );
   }
 
-  Widget _buildEmptySearch(BuildContext context, AppLocalizations l10n) {
+  Widget _buildEmptySearch(BuildContext context) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -121,7 +118,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
             const SizedBox(height: 16),
             Text(
-              l10n.searchPlaceholder,
+              "Rechercher un produit...",
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: TekaColors.mutedForeground,
                   ),
@@ -134,7 +131,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Widget _buildCategorySuggestions(
     BuildContext context,
-    AppLocalizations l10n,
   ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 0, 0),
@@ -142,7 +138,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            l10n.categories,
+            "Categories",
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: TekaColors.mutedForeground,
                   fontWeight: FontWeight.w600,
@@ -173,7 +169,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  Widget _buildResults(BuildContext context, AppLocalizations l10n) {
+  Widget _buildResults(BuildContext context) {
     final state = ref.watch(browseProductsProvider(_params));
 
     // Hydrate wishlist heart state for the visible products (batch /check).
@@ -238,7 +234,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                l10n.searchNoResults,
+                "Aucun resultat pour votre recherche",
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: TekaColors.mutedForeground,
@@ -259,13 +255,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         slivers: [
           // Category suggestions (autocomplete) — tappable chips above results.
           if (_categories.isNotEmpty)
-            SliverToBoxAdapter(child: _buildCategorySuggestions(context, l10n)),
+            SliverToBoxAdapter(child: _buildCategorySuggestions(context)),
           // Results count
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: Text(
-                '${state.pagination?.total ?? state.products.length} ${l10n.searchResults.toLowerCase()}',
+                '${state.pagination?.total ?? state.products.length} ${"Resultats".toLowerCase()}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: TekaColors.mutedForeground,
                     ),
@@ -310,7 +306,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                             foregroundColor: TekaColors.tekaRed,
                             side: const BorderSide(color: TekaColors.tekaRed),
                           ),
-                          child: Text(l10n.productLoadMore),
+                          child: Text("Charger plus"),
                         ),
                 ),
               ),

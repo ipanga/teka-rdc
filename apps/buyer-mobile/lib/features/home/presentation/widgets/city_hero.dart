@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../city/data/city_hero_images.dart';
 import '../../../city/presentation/providers/city_provider.dart';
@@ -17,7 +16,6 @@ class CityHero extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     final city = ref.watch(cityProvider).selectedCity;
     if (city == null) return const SizedBox.shrink();
 
@@ -74,7 +72,7 @@ class CityHero extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(100),
                       ),
                       child: Text(
-                        l10n.cityHeroBadge(city.name),
+                        "Livraison à ${city.name}",
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 11,
@@ -84,7 +82,7 @@ class CityHero extends ConsumerWidget {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      l10n.cityHeroTitle(city.name),
+                      "Achetez en ligne à ${city.name}",
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -96,7 +94,7 @@ class CityHero extends ConsumerWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      l10n.cityHeroSubtitle(city.name),
+                      "Découvrez les meilleurs produits disponibles à ${city.name} avec livraison locale rapide.",
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -118,7 +116,7 @@ class CityHero extends ConsumerWidget {
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       child: Text(
-                        l10n.browseProducts,
+                        "Decouvrir les produits",
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
