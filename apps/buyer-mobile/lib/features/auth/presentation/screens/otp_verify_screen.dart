@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_error_messages.dart';
+import '../../../../core/router/app_router.dart';
 import '../providers/auth_provider.dart';
 
 class OtpVerifyScreen extends ConsumerStatefulWidget {
@@ -64,10 +65,14 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
             phone: widget.phone,
             code: code,
           );
-      // On success the auth state flips to authenticated and the router
-      // redirect navigates to the saved return-to route (the protected action
-      // the guest came from) or home — see app_router.dart. Don't navigate here
-      // (that would race the redirect and ignore the return-to).
+      if (!mounted) return;
+      // Navigate explicitly to the saved return-to (the protected action the
+      // guest came from) or home. Done here rather than via the router redirect:
+      // refreshListenable doesn't reliably navigate off a PUSHED auth route, so
+      // relying on it left the user stuck on this screen after a valid code.
+      final returnTo = ref.read(returnToRouteProvider);
+      ref.read(returnToRouteProvider.notifier).state = null;
+      context.go(returnTo ?? '/');
     } on SellerAccountException {
       if (!mounted) return;
       _codeController.clear();
