@@ -44,6 +44,14 @@ class CityNotifier extends StateNotifier<CityState> {
 
   static const _cityIdKey = 'teka_selected_city_id';
 
+  // Whether the user is signed in — drives whether we sync the town to the
+  // profile. Set by the provider's auth listener (Guest Browsing, 2026-06-22):
+  // guests select towns locally and must NOT call the auth-only preferred-city
+  // endpoint (which would 401 on every selection).
+  bool _isAuthenticated = false;
+  // ignore: avoid_setters_without_getters
+  set isAuthenticated(bool value) => _isAuthenticated = value;
+
   CityNotifier(this._repository, this._storage) : super(const CityState()) {
     _init();
   }
@@ -112,6 +120,8 @@ class CityNotifier extends StateNotifier<CityState> {
   }
 
   void _syncPreferredCity(String? cityId) {
+    // Guests have no account to sync to — skip the auth-only endpoint entirely.
+    if (!_isAuthenticated) return;
     // ignore: avoid-ignoring-return-values — fire-and-forget profile sync
     _repository.setPreferredCity(cityId).catchError((_) {});
   }
@@ -133,6 +143,9 @@ final cityProvider = StateNotifierProvider<CityNotifier, CityState>((ref) {
   // choice — so the town follows the user across devices (and the post-login
   // city gate is skipped when a profile town exists).
   ref.listen<AuthState>(authProvider, (_, next) {
+    // Gate the profile-sync so guests never call the auth-only preferred-city
+    // endpoint.
+    notifier.isAuthenticated = next.status == AuthStatus.authenticated;
     if (next.status == AuthStatus.authenticated) {
       final preferredCityId = next.user?['preferredCityId'] as String?;
       if (preferredCityId != null) {
