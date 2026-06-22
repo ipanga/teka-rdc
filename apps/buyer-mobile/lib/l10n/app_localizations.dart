@@ -1222,6 +1222,18 @@ abstract class AppLocalizations {
   /// **'Pour voir les produits disponibles'**
   String get selectCityDescription;
 
+  /// No description provided for @citySearchPlaceholder.
+  ///
+  /// In fr, this message translates to:
+  /// **'Rechercher une ville…'**
+  String get citySearchPlaceholder;
+
+  /// No description provided for @cityNoResults.
+  ///
+  /// In fr, this message translates to:
+  /// **'Aucune ville trouvée'**
+  String get cityNoResults;
+
   /// No description provided for @currentCity.
   ///
   /// In fr, this message translates to:

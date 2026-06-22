@@ -6,8 +6,15 @@
 
 ## Active initiative
 
-**None.** City landing hero parity shipped + verified on prod 2026-06-22 (see below). No in-flight build work —
-ask the user what to start next.
+**Town switcher fix + town-selection UX** (started 2026-06-22). **Resume anchor + full checklist:
+`docs/town-switcher-ux.md`** (read it first). **Bug:** the header "Livrer à {city}" selector does nothing on
+non-home pages (PDP/category/search) — it only opens after navigating back to `/`. **Root cause:**
+`<CitySelectorModal />` is mounted in `home-page.tsx` only, while the header (global) just flips the
+`showSelector` store flag → no modal mounted elsewhere to render it. **Fix:** mount the modal once in the root
+layout (global), redesign it (compact, searchable, a11y, mobile bottom-sheet), and add **smart centralized
+town-switch routing** (`resolveTownSwitchUrl`: category → same category in new town, else `/{newSlug}`).
+**Decisions (user, 2026-06-22):** smart centralized routing; web fix + mobile search polish. **No API/DB.**
+**In progress: W1.**
 
 ---
 

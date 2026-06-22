@@ -600,6 +600,12 @@ class AppLocalizationsFr extends AppLocalizations {
   String get selectCityDescription => 'Pour voir les produits disponibles';
 
   @override
+  String get citySearchPlaceholder => 'Rechercher une ville…';
+
+  @override
+  String get cityNoResults => 'Aucune ville trouvée';
+
+  @override
   String get currentCity => 'Ville';
 
   @override

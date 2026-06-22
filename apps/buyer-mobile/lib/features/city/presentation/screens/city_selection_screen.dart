@@ -6,11 +6,20 @@ import '../../../../core/theme/teka_colors.dart';
 import '../../data/models/city_model.dart';
 import '../providers/city_provider.dart';
 
-class CitySelectionScreen extends ConsumerWidget {
+class CitySelectionScreen extends ConsumerStatefulWidget {
   const CitySelectionScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CitySelectionScreen> createState() =>
+      _CitySelectionScreenState();
+}
+
+class _CitySelectionScreenState extends ConsumerState<CitySelectionScreen> {
+  // Search query — keeps the picker usable as the town list grows (10 / 50+).
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final cityState = ref.watch(cityProvider);
     final locale = Localizations.localeOf(context).languageCode;
@@ -21,22 +30,22 @@ class CitySelectionScreen extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             children: [
-              const SizedBox(height: 48),
+              const SizedBox(height: 40),
               // City icon
               Container(
-                width: 80,
-                height: 80,
+                width: 72,
+                height: 72,
                 decoration: BoxDecoration(
-                  color: TekaColors.tekaRed.withOpacity(0.1),
+                  color: TekaColors.tekaRed.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.location_city_rounded,
-                  size: 40,
+                  size: 36,
                   color: TekaColors.tekaRed,
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               // Title
               Text(
                 l10n.selectCity,
@@ -55,7 +64,21 @@ class CitySelectionScreen extends ConsumerWidget {
                     ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
+              // Search field
+              TextField(
+                onChanged: (v) => setState(() => _query = v),
+                decoration: InputDecoration(
+                  hintText: l10n.citySearchPlaceholder,
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
               // City list
               Expanded(
                 child: _buildCityList(
@@ -128,9 +151,27 @@ class CitySelectionScreen extends ConsumerWidget {
       );
     }
 
-    // Group cities by province
+    // Filter by the search query (name or province), then group by province.
+    final q = _query.trim().toLowerCase();
+    final filtered = q.isEmpty
+        ? cityState.cities
+        : cityState.cities
+            .where((c) =>
+                c.name.toLowerCase().contains(q) ||
+                c.province.toLowerCase().contains(q))
+            .toList();
+
+    if (filtered.isEmpty) {
+      return Center(
+        child: Text(
+          AppLocalizations.of(context)!.cityNoResults,
+          style: TextStyle(color: TekaColors.mutedForeground),
+        ),
+      );
+    }
+
     final grouped = <String, List<CityModel>>{};
-    for (final city in cityState.cities) {
+    for (final city in filtered) {
       grouped.putIfAbsent(city.province, () => []).add(city);
     }
 

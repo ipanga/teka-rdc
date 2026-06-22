@@ -251,6 +251,8 @@
   "learnMore": "En savoir plus",
   "selectCity": "Choisissez votre ville",
   "selectCityDescription": "Pour voir les produits disponibles",
+  "citySearchPlaceholder": "Rechercher une ville…",
+  "cityNoResults": "Aucune ville trouvée",
   "currentCity": "Ville",
   "changeCity": "Changer",
   "addAddress": "Ajouter une adresse",
