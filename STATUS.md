@@ -6,15 +6,27 @@
 
 ## Active initiative
 
-**Town switcher fix + town-selection UX** (started 2026-06-22). **Resume anchor + full checklist:
-`docs/town-switcher-ux.md`** (read it first). **Bug:** the header "Livrer à {city}" selector does nothing on
-non-home pages (PDP/category/search) — it only opens after navigating back to `/`. **Root cause:**
-`<CitySelectorModal />` is mounted in `home-page.tsx` only, while the header (global) just flips the
-`showSelector` store flag → no modal mounted elsewhere to render it. **Fix:** mount the modal once in the root
-layout (global), redesign it (compact, searchable, a11y, mobile bottom-sheet), and add **smart centralized
-town-switch routing** (`resolveTownSwitchUrl`: category → same category in new town, else `/{newSlug}`).
-**Decisions (user, 2026-06-22):** smart centralized routing; web fix + mobile search polish. **No API/DB.**
-**In progress: W1.**
+**None.** Town switcher fix + town-selection UX shipped + verified on prod 2026-06-22 (see below). No in-flight
+build work — ask the user what to start next.
+
+---
+
+### Recently completed — 2026-06-22 (Town switcher fix + town-selection UX — SHIPPED + VERIFIED on prod)
+
+**Town switcher fix + town-selection UX** — the header "Livrer à {city}" selector did nothing on non-home
+pages; it only opened after navigating back to `/`. PR #415 → release #416 (`develop == main` @ `5036e7f`).
+**Root cause:** `<CitySelectorModal />` was mounted in `home-page.tsx` only, while the header (global) just
+flips the `showSelector` store flag → no modal mounted on PDP/category/search to render it. **Fix:** mounted the
+modal once in `app/layout.tsx` (global; renders `null` until opened → no SSR footprint), removed the homepage
+mount; **redesigned** it (compact, searchable for 50+ towns, province grouping, town-accent selected state,
+full a11y, mobile bottom-sheet); added **smart centralized town-switch routing** (`lib/town-switch.ts`
+`resolveTownSwitchUrl` + `lib/use-select-town.ts` — category → same category in new town, else `/{newSlug}`;
+modal + `CityPrompt` both go through it). buyer-mobile: searchable city screen (scalability parity; no bug
+there). **No API/DB/migration.** Full tracker: `docs/town-switcher-ux.md`.
+- **Prod verified (2026-06-22):** deploy success; SSR non-regression (`/`, `/lubumbashi`, `/categories`, real
+  PDP → 200, **0** `role="dialog"` in raw HTML); new modal strings live in the served payload. web 54 tests +
+  mobile 84 tests green. **Known follow-up (pre-existing, out of scope):** cold deep-links to category/PDP
+  don't yet adopt the URL town into the header (only `/{ville}` landing does). **No other follow-up.**
 
 ---
 

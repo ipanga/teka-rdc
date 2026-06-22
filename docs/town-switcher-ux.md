@@ -42,9 +42,11 @@ then sees `showSelector === true` and opens. → **Per-page mount bug. Fix = mou
   `citySearchPlaceholder` / `cityNoResults` (+ gen-l10n). Also fixed the screen's pre-existing `withOpacity`
   deprecation. `flutter analyze` clean + 84 tests.
 
-### Release
-- [ ] Real merge `develop → main` (NEVER squash); back-merge `main → develop`; verify prod (modal opens from a
-  PDP on teka.cd; no SSR regression); tick here + PROGRESS.md. No API/DB/migration.
+### Release — DONE (2026-06-22)
+- [x] PR #415 → release #416 (`develop == main` @ `5036e7f`); back-merged. **Prod verified:** deploy success;
+  SSR non-regression (`/`, `/lubumbashi`, `/categories`, real PDP → 200, **0** `role="dialog"` in raw HTML);
+  new modal strings ("Choisissez votre ville de livraison", "Rechercher une ville", "Aucune ville trouvée")
+  live in the served payload. No API/DB/migration. **SHIPPED + VERIFIED — no follow-up.**
 
 ## SEO guardrails
 Modal is a client overlay rendering `null` until opened → not in SSR. Town switch navigates to real
