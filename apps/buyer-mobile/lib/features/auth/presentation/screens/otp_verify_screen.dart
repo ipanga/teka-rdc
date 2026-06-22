@@ -64,8 +64,10 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
             phone: widget.phone,
             code: code,
           );
-      if (!mounted) return;
-      context.go('/');
+      // On success the auth state flips to authenticated and the router
+      // redirect navigates to the saved return-to route (the protected action
+      // the guest came from) or home — see app_router.dart. Don't navigate here
+      // (that would race the redirect and ignore the return-to).
     } on SellerAccountException {
       if (!mounted) return;
       _codeController.clear();

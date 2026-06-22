@@ -26,23 +26,20 @@ so a raw `DioException [connection timeout]…` reaches the user. ~23 leak sites
   the brief's exact FR strings (client-controlled). Business 4xx (auth/OTP/validation) → the API envelope's
   French message (already contextual). Honors "preserve APIs".
 
-## Phase 1 — Buyer-mobile guest browsing (branch `feat/mobile-guest-browsing`)
-- [ ] **P1.1 — Router.** `app_router.dart`: replace the blanket auth gate with a **selective** one. Order:
-  (1) `unknown` → null; (2) **city-first** — `!hasCity && !isCityRoute` → `/city-selection` (everyone);
-  (3) `!isAuth && isProtectedRoute(loc)` → save `returnToRoute` + `/auth/connexion`; (4) `isAuth && isAuthRoute`
-  → `returnToRoute` (consume) else `/`. Protected prefixes: `/cart`, `/checkout`, `/orders`, `/wishlist`,
-  `/profile`. Add `returnToRouteProvider` (StateProvider<String?>).
-- [ ] **P1.2 — Auth guard helper.** `core/auth/auth_guard.dart` `ensureAuthenticated(context, ref)` → if not
-  authed: set `returnToRoute` = current location, `context.go('/auth/connexion')`, return false; else true.
-  Apply at the inline protected actions: `wishlist_button.dart` toggle, `product_card.dart` quick-add,
-  `product_detail_screen.dart` add-to-cart. Auth screens must NOT hard-code `context.go('/')` on success (let
-  the router redirect consume `returnToRoute`).
-- [ ] **P1.3 — Guest-safe home.** Home must not fire authed calls for guests: only watch the cart + wishlist
-  badges (and `loadWishlistIds`) when `authenticated` (Riverpod is lazy → guarding the watch prevents the
-  providers constructing + 401-ing for guests). Guest taps on cart/wishlist icons → `ensureAuthenticated`.
-- [ ] **P1.4 — Verify.** `flutter analyze` (0 errors/warnings) + tests; manual on the emulator (needs DNS):
-  launch → city → browse home/category/PDP/search as guest; guest add-to-cart/favorite → login → return;
-  authed flows unchanged. PR → develop.
+## Phase 1 — Buyer-mobile guest browsing (branch `feat/mobile-guest-browsing`) — CODE-COMPLETE
+- [x] **P1.1 — Router.** `app_router.dart`: selective gate — (1) `unknown` → null; (2) **city-first**
+  `!hasCity && !isCityRoute` → `/city-selection` (everyone); (3) `!isAuth && isProtectedRoute(loc)` → save
+  `returnToRoute` + `/auth/connexion`; (4) `isAuth && isAuthRoute` → consume `returnToRoute` (microtask-clear)
+  else `/`. `returnToRouteProvider` + public `isProtectedRoute()` (cart/checkout/orders/wishlist/profile).
+- [x] **P1.2 — Auth guard helper.** `core/auth/auth_guard.dart` `ensureAuthenticated` applied at
+  `wishlist_button` toggle + `product_card` quick-add + `product_detail_screen` add-to-cart. Removed the
+  hard-coded `context.go('/')` from `otp_verify_screen` + `claim_verify_screen` (router consumes returnTo).
+- [x] **P1.3 — Guest-safe home.** Wishlist + cart badges and the `loadWishlistIds` listeners only run when
+  authenticated (Riverpod lazy-watch → guests never construct the auth-only providers → no 401). Icons still
+  route to `/wishlist` `/cart` (router gates guests to login).
+- [x] **P1.4 — Verify (automated).** `flutter analyze` 0 errors/warnings; **84 + 3 new** tests
+  (`test/router/protected_route_test.dart`). On-device guest-browse smoke test pending a working emulator
+  (current emulator has no DNS). PR → develop.
 
 ## Phase 2 — Mobile error handling (branch `feat/mobile-error-handling`)
 - [ ] **P2.1 — Mapper upgrade (both apps, byte-identical per Rule 15).** `dio_error_messages.dart`:

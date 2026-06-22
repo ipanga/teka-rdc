@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/auth/auth_guard.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -38,6 +39,8 @@ class WishlistButton extends ConsumerWidget {
           ? l10n.removeFromWishlist
           : l10n.addedToWishlist,
       onPressed: () async {
+        // Favorites require an account — gate guests to login, then return.
+        if (!ensureAuthenticated(context, ref)) return;
         try {
           await ref.read(wishlistProvider.notifier).toggleWishlist(productId);
           if (context.mounted) {

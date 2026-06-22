@@ -25,6 +25,26 @@ import '../../features/content/presentation/screens/content_page_screen.dart';
 import '../../features/reviews/presentation/screens/product_reviews_screen.dart';
 import '../../features/wishlist/presentation/screens/wishlist_screen.dart';
 
+/// The route a guest tried to reach (or the screen they acted on) before being
+/// sent to login. Consumed by the router redirect right after authentication so
+/// the user returns to where they were (Guest Browsing, 2026-06-22).
+final returnToRouteProvider = StateProvider<String?>((ref) => null);
+
+/// Routes that require authentication. Everything else (home, categories,
+/// product detail, search, city selection, content pages) is public for guests.
+const _protectedPrefixes = <String>[
+  '/cart',
+  '/checkout',
+  '/orders',
+  '/wishlist',
+  '/profile',
+];
+
+/// True when a route requires authentication (so guests are sent to login).
+/// Public for unit testing.
+bool isProtectedRoute(String location) =>
+    _protectedPrefixes.any((p) => location == p || location.startsWith('$p/'));
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   // Build GoRouter exactly once. Auth/city state changes trigger a
   // redirect re-evaluation via `refreshListenable` below — they must
@@ -45,23 +65,40 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final authState = ref.read(authProvider);
       final cityState = ref.read(cityProvider);
       final isAuth = authState.status == AuthStatus.authenticated;
-      final isLoading = authState.status == AuthStatus.unknown;
-      final isAuthRoute = state.matchedLocation.startsWith('/auth');
-      final isCityRoute = state.matchedLocation == '/city-selection';
+      final isUnknown = authState.status == AuthStatus.unknown;
+      final location = state.matchedLocation;
+      final isAuthRoute = location.startsWith('/auth');
+      final isCityRoute = location == '/city-selection';
 
-      // Still loading, don't redirect
-      if (isLoading) return null;
+      // Auth still resolving — don't redirect.
+      if (isUnknown) return null;
 
-      // Not authenticated and not on auth route -> redirect to OTP login
-      if (!isAuth && !isAuthRoute) return '/auth/connexion';
-
-      // Authenticated and on auth route -> redirect to home
-      if (isAuth && isAuthRoute) return '/';
-
-      // Authenticated but no city selected -> redirect to city selection
-      // (skip if already on city selection or still loading cities)
-      if (isAuth && !isCityRoute && !cityState.hasCity && !cityState.isLoading) {
+      // City-first: everyone (guest OR authenticated) picks a delivery town
+      // before browsing — products/search are town-scoped. (Guest browsing,
+      // 2026-06-22: this used to gate only authenticated users.)
+      if (!isCityRoute && !cityState.hasCity && !cityState.isLoading) {
         return '/city-selection';
+      }
+
+      // Guests browse freely; only protected routes require login. Save where
+      // they were headed so we can return them there after they authenticate.
+      if (!isAuth && !isAuthRoute && isProtectedRoute(location)) {
+        ref.read(returnToRouteProvider.notifier).state = state.uri.toString();
+        return '/auth/connexion';
+      }
+
+      // Just authenticated while on an auth route → send them to the saved
+      // return-to (the protected route / action they came from), else home.
+      if (isAuth && isAuthRoute) {
+        final returnTo = ref.read(returnToRouteProvider);
+        if (returnTo != null && returnTo.isNotEmpty) {
+          // Clear after this redirect resolves (avoids mutating during build).
+          Future.microtask(
+            () => ref.read(returnToRouteProvider.notifier).state = null,
+          );
+          return returnTo;
+        }
+        return '/';
       }
 
       return null;
