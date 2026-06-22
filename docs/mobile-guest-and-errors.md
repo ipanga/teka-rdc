@@ -46,14 +46,16 @@ so a raw `DioException [connection timeout]…` reaches the user. ~23 leak sites
   auth-only endpoints for guests. PR → develop.
 
 ## Phase 2 — Mobile error handling (branch `feat/mobile-error-handling`)
-- [ ] **P2.1 — Mapper upgrade (both apps, byte-identical per Rule 15).** `dio_error_messages.dart`:
-  no-internet / timeout / 5xx / unknown → brief's exact FR; business 4xx with envelope `error.message` →
-  return it; never return `.toString()`. Create the seller-mobile copy.
-- [ ] **P2.2 — Kill the leaks.** Replace every `error: e.toString()` / raw display (~23 sites) with the
-  mapper. Buyer: auth_provider (3), auth screens (otp_request/claim_*), checkout/cart/wishlist/orders/reviews
-  providers. Seller: auth_provider (2), the 4 auth screens (remove custom parsing), products/promotions/
-  earnings/orders/reviews/notifications providers. Delete the inline `_humanizeError` duplicate in
-  `otp_verify_screen.dart`.
+- [x] **P2.1 — Mapper upgrade (both apps, byte-identical per Rule 15).** `dio_error_messages.dart` rewritten:
+  no-internet / timeout / 5xx / unknown → the brief's exact FR; business 4xx → API envelope `error.message`
+  (prefer-API); never `.toString()`. Added `friendlyErrorMessage(Object)` for any caught error. Created the
+  seller-mobile copy. 6 unit tests (`test/network/dio_error_messages_test.dart`).
+- [x] **P2.2 — Kill the leaks.** Replaced all ~23 raw-error sites with the mapper. Buyer: auth_provider (3),
+  auth screens (otp_request / claim_request / claim_verify → `friendlyErrorMessage`), `otp_verify` (deleted
+  the inline `_humanizeError`), checkout/cart/orders/wishlist/reviews providers. Seller: auth_provider (2),
+  the 4 auth screens (removed the custom `e.response?.data…` parsing + dropped the now-unused `dio` import),
+  products/promotions/earnings/orders/reviews/notifications providers. analyze 0 errors/warnings both apps;
+  buyer 87+6 tests, seller 3 tests.
 - [ ] **P2.3 — Sentry context.** Helper to `captureException` UNEXPECTED errors only (5xx + non-Dio/unknown;
   skip network + business-4xx) with scope: endpoint+method+status, userId, active city, app version, platform.
   Reuse `sentry_scrub`. Both apps.

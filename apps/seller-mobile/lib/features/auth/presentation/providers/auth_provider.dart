@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../data/auth_repository.dart';
 import '../../../../core/storage/secure_storage.dart';
 
@@ -94,7 +95,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // sellerProfile.applicationStatus.
       await checkAuthStatus();
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: friendlyErrorMessage(e));
       rethrow;
     }
   }
@@ -119,7 +120,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // profile and routes to the application flow.
       await checkAuthStatus();
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: friendlyErrorMessage(e));
       rethrow;
     }
   }

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../data/models/product_model.dart';
 import '../../data/products_repository.dart';
 
@@ -79,7 +80,7 @@ class ProductsListNotifier extends StateNotifier<ProductsListState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: friendlyErrorMessage(e),
       );
     }
   }
@@ -106,7 +107,7 @@ class ProductsListNotifier extends StateNotifier<ProductsListState> {
     } catch (e) {
       state = state.copyWith(
         isLoadingMore: false,
-        error: e.toString(),
+        error: friendlyErrorMessage(e),
       );
     }
   }

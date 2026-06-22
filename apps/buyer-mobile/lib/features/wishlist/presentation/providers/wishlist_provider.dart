@@ -98,7 +98,7 @@ class WishlistNotifier extends StateNotifier<WishlistState> {
       if (!mounted) return;
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: friendlyErrorMessage(e),
       );
     }
   }

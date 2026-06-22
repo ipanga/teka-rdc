@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/auth_repository.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/storage/secure_storage.dart';
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
@@ -85,7 +86,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(isLoading: false);
       return data;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: friendlyErrorMessage(e));
       rethrow;
     }
   }
@@ -124,7 +125,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } on SellerAccountException {
       rethrow; // already handled state above; don't overwrite with a string error
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: friendlyErrorMessage(e));
       rethrow;
     }
   }
@@ -157,7 +158,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoading: false,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: friendlyErrorMessage(e));
       rethrow;
     }
   }
