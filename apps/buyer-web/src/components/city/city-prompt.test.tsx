@@ -7,7 +7,7 @@ const KOL = { id: 'c2', name: 'Kolwezi', province: 'Lualaba', isActive: true, so
 const INACTIVE = { id: 'c3', name: 'Goma', province: 'Nord-Kivu', isActive: false, sortOrder: 3 };
 
 const mocks = vi.hoisted(() => ({
-  setCity: vi.fn(),
+  selectTown: vi.fn(),
   state: {
     selectedCity: null as unknown,
     cities: [] as unknown[],
@@ -19,8 +19,12 @@ vi.mock('@/lib/city-store', () => ({
   useCityStore: () => ({
     selectedCity: mocks.state.selectedCity,
     cities: mocks.state.cities,
-    setCity: mocks.setCity,
   }),
+}));
+// CityPrompt selects a town via the shared useSelectTown hook (persist +
+// centralized routing). Mock it so the test stays decoupled from the router.
+vi.mock('@/lib/use-select-town', () => ({
+  useSelectTown: () => mocks.selectTown,
 }));
 
 import { CityPrompt } from './city-prompt';
@@ -39,10 +43,10 @@ describe('CityPrompt', () => {
     expect(screen.queryByRole('button', { name: 'Goma' })).not.toBeInTheDocument();
   });
 
-  it('clicking a city button calls setCity with that city', async () => {
+  it('clicking a city button selects that town', async () => {
     render(<CityPrompt />);
     await userEvent.click(screen.getByRole('button', { name: 'Kolwezi' }));
-    expect(mocks.setCity).toHaveBeenCalledWith(KOL);
+    expect(mocks.selectTown).toHaveBeenCalledWith(KOL);
   });
 
   it('renders nothing once a city is selected (non-blocking, no nag)', () => {
@@ -61,6 +65,6 @@ describe('CityPrompt', () => {
     const { container } = render(<CityPrompt />);
     await userEvent.click(screen.getByRole('button', { name: 'seeAll' }));
     expect(container).toBeEmptyDOMElement();
-    expect(mocks.setCity).not.toHaveBeenCalled();
+    expect(mocks.selectTown).not.toHaveBeenCalled();
   });
 });

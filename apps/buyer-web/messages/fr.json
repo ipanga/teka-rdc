@@ -421,7 +421,11 @@
   "City": {
     "selectCity": "Choisissez votre ville",
     "selectCityShort": "Choisir une ville",
+    "selectCityTitle": "Choisissez votre ville de livraison",
     "selectCityDescription": "Pour vous montrer les produits disponibles près de chez vous",
+    "searchCity": "Rechercher une ville…",
+    "noCityResults": "Aucune ville trouvée",
+    "close": "Fermer",
     "deliverTo": "Livrer à",
     "currentCity": "Ville actuelle",
     "changeCity": "Changer de ville",
