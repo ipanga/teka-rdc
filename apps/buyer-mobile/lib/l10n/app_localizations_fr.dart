@@ -161,6 +161,21 @@ class AppLocalizationsFr extends AppLocalizations {
   }
 
   @override
+  String cityHeroBadge(String city) {
+    return 'Livraison à $city';
+  }
+
+  @override
+  String cityHeroTitle(String city) {
+    return 'Achetez en ligne à $city';
+  }
+
+  @override
+  String cityHeroSubtitle(String city) {
+    return 'Découvrez les meilleurs produits disponibles à $city avec livraison locale rapide.';
+  }
+
+  @override
   String get productLoadMore => 'Charger plus';
 
   @override

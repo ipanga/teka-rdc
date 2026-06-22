@@ -69,6 +69,30 @@
       }
     }
   },
+  "cityHeroBadge": "Livraison à {city}",
+  "@cityHeroBadge": {
+    "placeholders": {
+      "city": {
+        "type": "String"
+      }
+    }
+  },
+  "cityHeroTitle": "Achetez en ligne à {city}",
+  "@cityHeroTitle": {
+    "placeholders": {
+      "city": {
+        "type": "String"
+      }
+    }
+  },
+  "cityHeroSubtitle": "Découvrez les meilleurs produits disponibles à {city} avec livraison locale rapide.",
+  "@cityHeroSubtitle": {
+    "placeholders": {
+      "city": {
+        "type": "String"
+      }
+    }
+  },
   "productLoadMore": "Charger plus",
   "productNoResults": "Aucun produit trouve",
   "searchPlaceholder": "Rechercher un produit...",

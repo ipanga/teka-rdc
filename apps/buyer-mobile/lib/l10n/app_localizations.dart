@@ -382,6 +382,24 @@ abstract class AppLocalizations {
   /// **'Plus que {count} en stock'**
   String productLowStock(int count);
 
+  /// No description provided for @cityHeroBadge.
+  ///
+  /// In fr, this message translates to:
+  /// **'Livraison à {city}'**
+  String cityHeroBadge(String city);
+
+  /// No description provided for @cityHeroTitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Achetez en ligne à {city}'**
+  String cityHeroTitle(String city);
+
+  /// No description provided for @cityHeroSubtitle.
+  ///
+  /// In fr, this message translates to:
+  /// **'Découvrez les meilleurs produits disponibles à {city} avec livraison locale rapide.'**
+  String cityHeroSubtitle(String city);
+
   /// No description provided for @productLoadMore.
   ///
   /// In fr, this message translates to:

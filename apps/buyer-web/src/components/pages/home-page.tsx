@@ -3,21 +3,20 @@
 import { useState, useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { ProductGrid } from '@/components/product/product-grid';
 import { RecentlyViewed } from '@/components/product/recently-viewed';
 import { BannerCarousel } from '@/components/home/banner-carousel';
+import { StoreHero } from '@/components/home/store-hero';
 import { FlashDealsSection } from '@/components/home/flash-deals-section';
-import { Container, SectionHeader, buttonVariants } from '@/components/ui';
+import { Container, SectionHeader } from '@/components/ui';
 import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
 import { CitySelectorModal } from '@/components/city/city-selector-modal';
 import { CityPrompt } from '@/components/city/city-prompt';
 import { CategoryIcon } from '@/components/category/category-icon';
 import { categoryHref } from '@/lib/urls';
-import { cityAccentClasses, heroImageForCity } from '@/lib/city-accent';
 import type { BrowseCategory, BrowseProduct } from '@/lib/types';
 
 export default function HomePage({ serverH1 }: { serverH1?: string }) {
@@ -78,11 +77,6 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
       .finally(() => setLoadingNewest(false));
   }, [selectedCity, cityInitialized]);
 
-  // Town accent + hero image for the selected town — driven by the city record
-  // (data-driven; copper / cobalt / brand-red default + per-town hero).
-  const heroAccent = cityAccentClasses(selectedCity);
-  const heroImage = heroImageForCity(selectedCity);
-
   return (
     <div className="min-h-screen flex flex-col bg-surface-muted">
       <Header />
@@ -94,100 +88,24 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
       <main className="flex-1">
         {/* Non-blocking city chooser (replaces the old forced modal). */}
         <CityPrompt />
-        {/* Banner Carousel — replaces static hero when banners are available */}
+        {/* Banner Carousel — replaces the hero when admin banners exist; else
+            the shared StoreHero (same component the city landing pages use). */}
         <BannerCarousel
           fallback={
-            <section className="relative overflow-hidden border-b border-border">
-              {/* City-specific hero image (copper Lubumbashi / cobalt Kolwezi
-                  shots; Lubumbashi as the default). LCP element → priority. */}
-              <div className="relative h-[320px] sm:h-[380px] md:h-[460px]">
-                <Image
-                  src={heroImage}
-                  alt=""
-                  fill
-                  priority
-                  sizes="100vw"
-                  className="object-cover"
-                />
-                {/* Legibility scrim — darkest on the left where the copy sits. */}
-                <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/55 to-black/15" />
-                <Container className="relative h-full flex flex-col justify-center">
-                  <div className="max-w-xl text-white">
-                    {selectedCity && (
-                      <span
-                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold mb-4 ${heroAccent.badge}`}
-                      >
-                        <span className={`h-1.5 w-1.5 rounded-full ${heroAccent.dot}`} />
-                        {t('deliveringTo', { city: selectedCity.name })}
-                      </span>
-                    )}
-                    <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-3 drop-shadow-sm">
-                      {serverH1 || t('title')}
-                    </h1>
-                    <p className="text-base md:text-lg text-white/90 mb-6 max-w-md">
-                      {t('subtitle', { city: selectedCity ? selectedCity.name : 'Congo' })}
-                    </p>
-                    <Link
-                      href="/categories"
-                      className={buttonVariants({ variant: 'default', size: 'lg' })}
-                    >
-                      {t('cta')}
-                    </Link>
-                  </div>
-                </Container>
-              </div>
-
-              {/* Trust signals — light band below the image (fast local
-                  delivery, COD, verified sellers) */}
-              <Container className="py-3 md:py-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {[
-                    {
-                      label: t('trustDelivery'),
-                      icon: (
-                        <path d="M3 7h11v8H3V7zm11 2h3l3 3v3h-2m-9 0H8m9 0a2 2 0 11-4 0 2 2 0 014 0zm-9 0a2 2 0 11-4 0 2 2 0 014 0z" />
-                      ),
-                    },
-                    {
-                      label: t('trustCod'),
-                      icon: (
-                        <>
-                          <rect x="2.5" y="6" width="19" height="12" rx="2" />
-                          <circle cx="12" cy="12" r="2.5" />
-                        </>
-                      ),
-                    },
-                    {
-                      label: t('trustSellers'),
-                      icon: <path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3zm-1 11l4-4-1.4-1.4L11 11.2 9.4 9.6 8 11l3 3z" />,
-                    },
-                  ].map((item) => (
-                    <div
-                      key={item.label}
-                      className="flex items-center gap-2.5 rounded-xl border border-border bg-surface px-4 py-3 shadow-xs"
-                    >
-                      <span className="flex items-center justify-center w-9 h-9 rounded-full bg-primary-subtle text-primary shrink-0">
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.7"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          className="w-5 h-5"
-                          aria-hidden
-                        >
-                          {item.icon}
-                        </svg>
-                      </span>
-                      <span className="text-sm font-medium text-foreground">
-                        {item.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </Container>
-            </section>
+            <StoreHero
+              title={serverH1 || t('title')}
+              subtitle={t('subtitle', {
+                city: selectedCity ? selectedCity.name : 'Congo',
+              })}
+              ctaHref="/categories"
+              ctaLabel={t('cta')}
+              city={selectedCity}
+              badgeLabel={
+                selectedCity
+                  ? t('deliveringTo', { city: selectedCity.name })
+                  : undefined
+              }
+            />
           }
         />
 
