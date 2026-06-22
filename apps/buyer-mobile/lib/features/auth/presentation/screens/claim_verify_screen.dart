@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../../core/network/dio_error_messages.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/network/dio_error_messages.dart';
+import '../../../../core/router/app_router.dart';
 import '../../../../core/utils/phone.dart';
 import '../providers/auth_provider.dart';
 
@@ -62,8 +64,12 @@ class _ClaimVerifyScreenState extends ConsumerState<ClaimVerifyScreen> {
             phone: _normalizedPhone!,
             code: code,
           );
-      // Success → the router redirect navigates to the saved return-to route or
-      // home (see app_router.dart). Don't navigate here (races the redirect).
+      if (!mounted) return;
+      // Navigate explicitly to the saved return-to or home (the router redirect
+      // doesn't reliably move off a pushed auth route).
+      final returnTo = ref.read(returnToRouteProvider);
+      ref.read(returnToRouteProvider.notifier).state = null;
+      context.go(returnTo ?? '/');
     } catch (e) {
       setState(() => _error = friendlyErrorMessage(e));
     }
