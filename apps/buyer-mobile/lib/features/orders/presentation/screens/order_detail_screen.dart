@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/order_model.dart';
 import '../../data/orders_repository.dart';
 import '../providers/orders_provider.dart';
@@ -18,20 +17,18 @@ class OrderDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).languageCode;
     final orderAsync = ref.watch(orderDetailProvider(orderId));
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.ordersTitle),
+        title: const Text("Mes commandes"),
       ),
       body: orderAsync.when(
         data: (order) => _OrderDetailBody(
           order: order,
-          l10n: l10n,
           locale: locale,
-          onCancel: () => _showCancelDialog(context, ref, l10n, order.id),
+          onCancel: () => _showCancelDialog(context, ref, order.id),
         ),
         loading: () => const Center(
           child: CircularProgressIndicator(strokeWidth: 2),
@@ -49,7 +46,7 @@ class OrderDetailScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  l10n.authGenericError,
+                  "Une erreur est survenue. Veuillez reessayer.",
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: TekaColors.mutedForeground),
                 ),
@@ -61,7 +58,7 @@ class OrderDetailScreen extends ConsumerWidget {
                   style: FilledButton.styleFrom(
                     backgroundColor: TekaColors.tekaRed,
                   ),
-                  child: Text(l10n.backToHome),
+                  child: const Text("Reessayer"),
                 ),
               ],
             ),
@@ -74,7 +71,6 @@ class OrderDetailScreen extends ConsumerWidget {
   void _showCancelDialog(
     BuildContext context,
     WidgetRef ref,
-    AppLocalizations l10n,
     String orderId,
   ) {
     final reasonController = TextEditingController();
@@ -82,18 +78,18 @@ class OrderDetailScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.orderCancel),
+        title: const Text("Annuler la commande"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(l10n.orderCancelConfirm),
+            const Text("Voulez-vous annuler cette commande ?"),
             const SizedBox(height: 12),
             TextField(
               controller: reasonController,
               maxLines: 2,
               decoration: InputDecoration(
-                labelText: l10n.orderCancelReason,
+                labelText: "Raison (optionnel)",
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -106,7 +102,7 @@ class OrderDetailScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(l10n.filterReset),
+            child: const Text("Reinitialiser"),
           ),
           FilledButton(
             onPressed: () async {
@@ -124,7 +120,7 @@ class OrderDetailScreen extends ConsumerWidget {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(l10n.orderCancelSuccess),
+                      content: const Text("Commande annulee"),
                       backgroundColor: TekaColors.success,
                     ),
                   );
@@ -133,7 +129,7 @@ class OrderDetailScreen extends ConsumerWidget {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(l10n.authGenericError),
+                      content: const Text("Une erreur est survenue. Veuillez reessayer."),
                       backgroundColor: TekaColors.destructive,
                     ),
                   );
@@ -143,7 +139,7 @@ class OrderDetailScreen extends ConsumerWidget {
             style: FilledButton.styleFrom(
               backgroundColor: TekaColors.destructive,
             ),
-            child: Text(l10n.orderCancel),
+            child: const Text("Annuler la commande"),
           ),
         ],
       ),
@@ -153,13 +149,11 @@ class OrderDetailScreen extends ConsumerWidget {
 
 class _OrderDetailBody extends StatelessWidget {
   final OrderModel order;
-  final AppLocalizations l10n;
   final String locale;
   final VoidCallback onCancel;
 
   const _OrderDetailBody({
     required this.order,
-    required this.l10n,
     required this.locale,
     required this.onCancel,
   });
@@ -184,7 +178,7 @@ class _OrderDetailBody extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      l10n.orderNumber(order.orderNumber),
+                      "Commande ${order.orderNumber}",
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: TekaColors.foreground,
@@ -216,7 +210,7 @@ class _OrderDetailBody extends StatelessWidget {
               ),
               const SizedBox(width: 6),
               Text(
-                '${l10n.orderPaymentStatus}: ',
+                'Statut du paiement: ',
                 style: const TextStyle(
                   color: TekaColors.mutedForeground,
                   fontSize: 13,
@@ -224,7 +218,6 @@ class _OrderDetailBody extends StatelessWidget {
               ),
               _PaymentStatusChip(
                 paymentStatus: order.paymentStatus,
-                l10n: l10n,
               ),
             ],
           ),
@@ -232,7 +225,7 @@ class _OrderDetailBody extends StatelessWidget {
 
           // Items
           Text(
-            l10n.orderItems(order.itemCount),
+            "${order.itemCount} article(s)",
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: TekaColors.foreground,
@@ -267,7 +260,7 @@ class _OrderDetailBody extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  '${l10n.orderSeller}: ',
+                  'Vendeur: ',
                   style: const TextStyle(
                     color: TekaColors.mutedForeground,
                     fontSize: 14,
@@ -301,12 +294,12 @@ class _OrderDetailBody extends StatelessWidget {
             child: Column(
               children: [
                 _PriceRow(
-                  label: l10n.orderSubtotal,
+                  label: "Sous-total",
                   value: formatCDF(order.subtotalCDF),
                 ),
                 const SizedBox(height: 8),
                 _PriceRow(
-                  label: l10n.orderDeliveryFee,
+                  label: "Frais de livraison",
                   value: formatCDF(order.deliveryFeeCDF),
                 ),
                 const SizedBox(height: 8),
@@ -316,7 +309,7 @@ class _OrderDetailBody extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      l10n.orderTotal,
+                      "Total",
                       style: const TextStyle(
                         color: TekaColors.foreground,
                         fontSize: 16,
@@ -354,7 +347,7 @@ class _OrderDetailBody extends StatelessWidget {
           // Delivery address
           if (order.deliveryAddress != null) ...[
             Text(
-              l10n.orderDeliveryAddress,
+              "Adresse de livraison",
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: TekaColors.foreground,
@@ -411,7 +404,7 @@ class _OrderDetailBody extends StatelessWidget {
           // Buyer note
           if (order.buyerNote != null && order.buyerNote!.isNotEmpty) ...[
             Text(
-              l10n.checkoutNote,
+              "Note pour le vendeur",
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: TekaColors.foreground,
@@ -439,7 +432,7 @@ class _OrderDetailBody extends StatelessWidget {
           // Status timeline
           if (order.statusLogs.isNotEmpty) ...[
             Text(
-              l10n.orderTimeline,
+              "Suivi",
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: TekaColors.foreground,
@@ -461,7 +454,7 @@ class _OrderDetailBody extends StatelessWidget {
                   side: const BorderSide(color: TekaColors.destructive),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
-                child: Text(l10n.orderCancel),
+                child: const Text("Annuler la commande"),
               ),
             ),
           ],
@@ -600,11 +593,9 @@ class _PriceRow extends StatelessWidget {
 
 class _PaymentStatusChip extends StatelessWidget {
   final String paymentStatus;
-  final AppLocalizations l10n;
 
   const _PaymentStatusChip({
     required this.paymentStatus,
-    required this.l10n,
   });
 
   @override
@@ -617,11 +608,11 @@ class _PaymentStatusChip extends StatelessWidget {
       case 'COMPLETED':
       case 'PAID':
         chipColor = TekaColors.success;
-        label = l10n.paymentStatusCompleted;
+        label = "Paye";
         break;
       case 'FAILED':
         chipColor = TekaColors.destructive;
-        label = l10n.paymentStatusFailed;
+        label = "Echoue";
         break;
       case 'REFUNDED':
         chipColor = const Color(0xFF2563EB);
@@ -631,7 +622,7 @@ class _PaymentStatusChip extends StatelessWidget {
       case 'PROCESSING':
       default:
         chipColor = TekaColors.warning;
-        label = l10n.paymentStatusPending;
+        label = "En attente";
         break;
     }
 

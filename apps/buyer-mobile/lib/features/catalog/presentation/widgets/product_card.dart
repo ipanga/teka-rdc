@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/auth/auth_guard.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../wishlist/presentation/widgets/wishlist_button.dart';
 import '../../data/models/product_model.dart';
@@ -22,7 +21,6 @@ class ProductCard extends ConsumerWidget {
   Future<void> _quickAdd(
     BuildContext context,
     WidgetRef ref,
-    AppLocalizations l10n,
   ) async {
     // The cart requires an account — gate guests to login, then return.
     if (!ensureAuthenticated(context, ref)) return;
@@ -31,7 +29,7 @@ class ProductCard extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(l10n.addedToCart),
+          content: Text("Ajouté au panier"),
           backgroundColor: TekaColors.success,
           duration: const Duration(seconds: 2),
         ),
@@ -40,7 +38,7 @@ class ProductCard extends ConsumerWidget {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(l10n.authGenericError),
+          content: Text("Une erreur est survenue. Veuillez reessayer."),
           backgroundColor: TekaColors.destructive,
           duration: const Duration(seconds: 2),
         ),
@@ -50,7 +48,6 @@ class ProductCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     final title = product.title;
     final price = formatCDF(product.priceCDF);
     final imageUrl = product.image?.thumbnailUrl ?? product.image?.url;
@@ -106,7 +103,7 @@ class ProductCard extends ConsumerWidget {
                       top: 8,
                       left: 8,
                       child: _Pill(
-                        label: l10n.productOutOfStock,
+                        label: "Rupture de stock",
                         background: TekaColors.foreground,
                         foreground: Colors.white,
                       ),
@@ -118,7 +115,6 @@ class ProductCard extends ConsumerWidget {
                       left: 8,
                       child: _ConditionBadge(
                         condition: product.condition,
-                        l10n: l10n,
                       ),
                     ),
                   // Low stock warning bottom-left (bottom-right is the quick-add)
@@ -127,7 +123,7 @@ class ProductCard extends ConsumerWidget {
                       bottom: 8,
                       left: 8,
                       child: _Pill(
-                        label: l10n.productLowStock(product.quantity),
+                        label: "Plus que ${product.quantity} en stock",
                         background: TekaColors.warning,
                         foreground: Colors.white,
                       ),
@@ -143,7 +139,7 @@ class ProductCard extends ConsumerWidget {
                           shape: BoxShape.circle,
                         ),
                         child: IconButton(
-                          onPressed: () => _quickAdd(context, ref, l10n),
+                          onPressed: () => _quickAdd(context, ref),
                           icon: const Icon(
                             Icons.add_shopping_cart_outlined,
                             color: Colors.white,
@@ -154,7 +150,7 @@ class ProductCard extends ConsumerWidget {
                             height: 34,
                           ),
                           padding: EdgeInsets.zero,
-                          tooltip: l10n.addToCart,
+                          tooltip: "Ajouter au panier",
                         ),
                       ),
                     ),
@@ -220,7 +216,7 @@ class ProductCard extends ConsumerWidget {
                   if (product.unitsSold > 0) ...[
                     const SizedBox(height: 2),
                     Text(
-                      l10n.productUnitsSold(product.unitsSold),
+                      "${product.unitsSold} ${(product.unitsSold) == 1 ? 'vendu' : 'vendus'}",
                       style: const TextStyle(
                         fontSize: 11,
                         color: TekaColors.mutedForeground,
@@ -239,16 +235,15 @@ class ProductCard extends ConsumerWidget {
 
 class _ConditionBadge extends StatelessWidget {
   final String condition;
-  final AppLocalizations l10n;
 
-  const _ConditionBadge({required this.condition, required this.l10n});
+  const _ConditionBadge({required this.condition});
 
   @override
   Widget build(BuildContext context) {
     final isNew =
         condition.toUpperCase() == 'NEW' || condition.toUpperCase() == 'NEUF';
     return _Pill(
-      label: isNew ? l10n.productConditionNew : l10n.productConditionUsed,
+      label: isNew ? "Neuf" : "Occasion",
       background: isNew ? TekaColors.successSubtle : TekaColors.warningSubtle,
       foreground: isNew ? TekaColors.success : TekaColors.warning,
     );

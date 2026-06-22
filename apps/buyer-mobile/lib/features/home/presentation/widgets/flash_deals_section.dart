@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../providers/flash_deal_provider.dart';
 import 'flash_deal_card.dart';
 
@@ -10,7 +9,6 @@ class FlashDealsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     final flashDealsAsync = ref.watch(flashDealsProvider);
 
     return flashDealsAsync.when(
@@ -33,7 +31,7 @@ class FlashDealsSection extends ConsumerWidget {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    l10n.flashDeals,
+                    "Ventes Flash",
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.bold,
                           color: TekaColors.foreground,

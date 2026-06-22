@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/review_model.dart';
 import 'star_rating.dart';
 
@@ -11,8 +10,6 @@ class ReviewStatsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -36,7 +33,7 @@ class ReviewStatsBar extends StatelessWidget {
               StarRating(rating: stats.avgRating, size: 16),
               const SizedBox(height: 4),
               Text(
-                '${stats.totalReviews} ${l10n.reviewsTitle.toLowerCase()}',
+                '${stats.totalReviews} ${"Avis".toLowerCase()}',
                 style: const TextStyle(
                   color: TekaColors.mutedForeground,
                   fontSize: 12,

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../providers/orders_provider.dart';
 import '../widgets/order_card.dart';
 
@@ -15,21 +14,20 @@ class OrdersScreen extends ConsumerStatefulWidget {
 class _OrdersScreenState extends ConsumerState<OrdersScreen> {
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final ordersState = ref.watch(ordersProvider);
 
     final statusFilters = <String?, String>{
-      null: l10n.ordersAll,
-      'PENDING': l10n.ordersPending,
-      'CONFIRMED': l10n.ordersConfirmed,
-      'SHIPPED': l10n.ordersShipped,
-      'DELIVERED': l10n.ordersDelivered,
-      'CANCELLED': l10n.ordersCancelled,
+      null: "Toutes",
+      'PENDING': "En attente",
+      'CONFIRMED': "Confirmees",
+      'SHIPPED': "Expediees",
+      'DELIVERED': "Livrees",
+      'CANCELLED': "Annulees",
     };
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.ordersTitle),
+        title: const Text("Mes commandes"),
       ),
       body: Column(
         children: [
@@ -107,14 +105,14 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                                 style: FilledButton.styleFrom(
                                   backgroundColor: TekaColors.tekaRed,
                                 ),
-                                child: Text(l10n.backToHome),
+                                child: const Text("Reessayer"),
                               ),
                             ],
                           ),
                         ),
                       )
                     : ordersState.orders.isEmpty
-                        ? _EmptyOrdersView(l10n: l10n)
+                        ? const _EmptyOrdersView()
                         : RefreshIndicator(
                             color: TekaColors.tekaRed,
                             onRefresh: () =>
@@ -144,7 +142,6 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                                     totalPages: ordersState.totalPages,
                                     hasNext: ordersState.hasNextPage,
                                     hasPrevious: ordersState.hasPreviousPage,
-                                    l10n: l10n,
                                     onPrevious: () => ref
                                         .read(ordersProvider.notifier)
                                         .loadOrders(
@@ -165,9 +162,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
 }
 
 class _EmptyOrdersView extends StatelessWidget {
-  final AppLocalizations l10n;
-
-  const _EmptyOrdersView({required this.l10n});
+  const _EmptyOrdersView();
 
   @override
   Widget build(BuildContext context) {
@@ -184,7 +179,7 @@ class _EmptyOrdersView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              l10n.ordersEmpty,
+              "Vous n'avez aucune commande",
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: TekaColors.mutedForeground,
                     fontWeight: FontWeight.w600,
@@ -203,7 +198,6 @@ class _PaginationBar extends StatelessWidget {
   final int totalPages;
   final bool hasNext;
   final bool hasPrevious;
-  final AppLocalizations l10n;
   final VoidCallback onPrevious;
   final VoidCallback onNext;
 
@@ -212,7 +206,6 @@ class _PaginationBar extends StatelessWidget {
     required this.totalPages,
     required this.hasNext,
     required this.hasPrevious,
-    required this.l10n,
     required this.onPrevious,
     required this.onNext,
   });
@@ -237,7 +230,7 @@ class _PaginationBar extends StatelessWidget {
           TextButton.icon(
             onPressed: hasPrevious ? onPrevious : null,
             icon: const Icon(Icons.chevron_left, size: 20),
-            label: Text(l10n.previous),
+            label: const Text("Precedent"),
             style: TextButton.styleFrom(
               foregroundColor: TekaColors.foreground,
               disabledForegroundColor: TekaColors.border,
@@ -252,7 +245,7 @@ class _PaginationBar extends StatelessWidget {
           ),
           TextButton.icon(
             onPressed: hasNext ? onNext : null,
-            icon: Text(l10n.next),
+            icon: const Text("Suivant"),
             label: const Icon(Icons.chevron_right, size: 20),
             style: TextButton.styleFrom(
               foregroundColor: TekaColors.foreground,

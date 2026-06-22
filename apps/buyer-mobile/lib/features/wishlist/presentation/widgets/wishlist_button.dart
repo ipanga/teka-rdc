@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/auth/auth_guard.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/wishlist_provider.dart';
 
@@ -24,7 +23,6 @@ class WishlistButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     // Guests don't watch the wishlist provider (auth-only endpoints) → the heart
     // shows empty and never fires /v1/wishlist; tapping it gates to login.
     final authed = ref.watch(
@@ -42,8 +40,8 @@ class WishlistButton extends ConsumerWidget {
             : (inactiveColor ?? TekaColors.mutedForeground),
       ),
       tooltip: isWishlisted
-          ? l10n.removeFromWishlist
-          : l10n.addedToWishlist,
+          ? "Retirer des favoris"
+          : "Ajoute aux favoris",
       onPressed: () async {
         // Favorites require an account — gate guests to login, then return.
         if (!ensureAuthenticated(context, ref)) return;
@@ -55,8 +53,8 @@ class WishlistButton extends ConsumerWidget {
               SnackBar(
                 content: Text(
                   isWishlisted
-                      ? l10n.removedFromWishlist
-                      : l10n.addedToWishlist,
+                      ? "Retire des favoris"
+                      : "Ajoute aux favoris",
                 ),
                 backgroundColor: TekaColors.success,
                 duration: const Duration(seconds: 2),
@@ -71,7 +69,7 @@ class WishlistButton extends ConsumerWidget {
             // reverts on its own.
             final message = e is DioException
                 ? extractDioErrorMessage(e)
-                : l10n.authGenericError;
+                : "Une erreur est survenue. Veuillez reessayer.";
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(message),

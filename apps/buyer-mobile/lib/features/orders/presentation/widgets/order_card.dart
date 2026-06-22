@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/order_model.dart';
 import 'order_status_badge.dart';
 
@@ -14,7 +13,6 @@ class OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final sellerName = order.seller?.sellerProfile?.businessName ??
         [order.seller?.firstName, order.seller?.lastName]
             .where((s) => s != null && s.isNotEmpty)
@@ -37,7 +35,7 @@ class OrderCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          l10n.orderNumber(order.orderNumber),
+                          "Commande ${order.orderNumber}",
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 14,
@@ -94,7 +92,7 @@ class OrderCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    l10n.orderItems(order.itemCount),
+                    "${order.itemCount} article(s)",
                     style: const TextStyle(
                       color: TekaColors.mutedForeground,
                       fontSize: 13,

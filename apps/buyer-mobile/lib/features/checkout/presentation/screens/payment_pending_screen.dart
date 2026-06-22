@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../../orders/data/orders_repository.dart';
 import '../../data/models/checkout_model.dart';
 
@@ -106,38 +105,36 @@ class _PaymentPendingScreenState extends ConsumerState<PaymentPendingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.paymentPendingTitle),
+        title: Text("Paiement en attente"),
         automaticallyImplyLeading: false,
       ),
       body: SafeArea(
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(32),
-            child: _buildContent(l10n),
+            child: _buildContent(),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildContent(AppLocalizations l10n) {
+  Widget _buildContent() {
     switch (_status) {
       case _PaymentPollStatus.polling:
-        return _buildPolling(l10n);
+        return _buildPolling();
       case _PaymentPollStatus.confirmed:
-        return _buildConfirmed(l10n);
+        return _buildConfirmed();
       case _PaymentPollStatus.failed:
-        return _buildFailed(l10n);
+        return _buildFailed();
       case _PaymentPollStatus.timeout:
-        return _buildTimeout(l10n);
+        return _buildTimeout();
     }
   }
 
-  Widget _buildPolling(AppLocalizations l10n) {
+  Widget _buildPolling() {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -151,7 +148,7 @@ class _PaymentPendingScreenState extends ConsumerState<PaymentPendingScreen> {
         ),
         const SizedBox(height: 24),
         Text(
-          l10n.paymentPendingTitle,
+          "Paiement en attente",
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: TekaColors.foreground,
@@ -176,7 +173,7 @@ class _PaymentPendingScreenState extends ConsumerState<PaymentPendingScreen> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  l10n.paymentPendingInstructions,
+                  "Vous allez recevoir une notification USSD sur votre telephone. Entrez votre code PIN pour confirmer.",
                   style: const TextStyle(
                     color: TekaColors.foreground,
                     fontSize: 13,
@@ -188,10 +185,10 @@ class _PaymentPendingScreenState extends ConsumerState<PaymentPendingScreen> {
           ),
         ),
         const SizedBox(height: 20),
-        _buildOrderSummary(l10n),
+        _buildOrderSummary(),
         const SizedBox(height: 16),
         Text(
-          l10n.paymentPendingChecking,
+          "Verification du paiement...",
           style: const TextStyle(
             color: TekaColors.mutedForeground,
             fontSize: 13,
@@ -201,7 +198,7 @@ class _PaymentPendingScreenState extends ConsumerState<PaymentPendingScreen> {
     );
   }
 
-  Widget _buildConfirmed(AppLocalizations l10n) {
+  Widget _buildConfirmed() {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -212,7 +209,7 @@ class _PaymentPendingScreenState extends ConsumerState<PaymentPendingScreen> {
         ),
         const SizedBox(height: 24),
         Text(
-          l10n.paymentConfirmed,
+          "Paiement confirme !",
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: TekaColors.success,
@@ -220,12 +217,12 @@ class _PaymentPendingScreenState extends ConsumerState<PaymentPendingScreen> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 20),
-        _buildOrderSummary(l10n),
+        _buildOrderSummary(),
       ],
     );
   }
 
-  Widget _buildFailed(AppLocalizations l10n) {
+  Widget _buildFailed() {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -236,7 +233,7 @@ class _PaymentPendingScreenState extends ConsumerState<PaymentPendingScreen> {
         ),
         const SizedBox(height: 24),
         Text(
-          l10n.paymentFailed,
+          "Le paiement a echoue",
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: TekaColors.destructive,
@@ -244,7 +241,7 @@ class _PaymentPendingScreenState extends ConsumerState<PaymentPendingScreen> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 20),
-        _buildOrderSummary(l10n),
+        _buildOrderSummary(),
         const SizedBox(height: 32),
         SizedBox(
           width: double.infinity,
@@ -258,7 +255,7 @@ class _PaymentPendingScreenState extends ConsumerState<PaymentPendingScreen> {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            child: Text(l10n.paymentRetry),
+            child: Text("Reessayer"),
           ),
         ),
         const SizedBox(height: 12),
@@ -275,14 +272,14 @@ class _PaymentPendingScreenState extends ConsumerState<PaymentPendingScreen> {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            child: Text(l10n.checkoutViewOrders),
+            child: Text("Voir mes commandes"),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildTimeout(AppLocalizations l10n) {
+  Widget _buildTimeout() {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -293,7 +290,7 @@ class _PaymentPendingScreenState extends ConsumerState<PaymentPendingScreen> {
         ),
         const SizedBox(height: 24),
         Text(
-          l10n.paymentTimeout,
+          "Le delai de paiement a expire",
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: TekaColors.foreground,
@@ -302,7 +299,7 @@ class _PaymentPendingScreenState extends ConsumerState<PaymentPendingScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          l10n.paymentTimeoutMessage,
+          "Vous pouvez reessayer depuis vos commandes.",
           style: const TextStyle(
             color: TekaColors.mutedForeground,
             fontSize: 14,
@@ -310,7 +307,7 @@ class _PaymentPendingScreenState extends ConsumerState<PaymentPendingScreen> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 20),
-        _buildOrderSummary(l10n),
+        _buildOrderSummary(),
         const SizedBox(height: 32),
         SizedBox(
           width: double.infinity,
@@ -324,14 +321,14 @@ class _PaymentPendingScreenState extends ConsumerState<PaymentPendingScreen> {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            child: Text(l10n.checkoutViewOrders),
+            child: Text("Voir mes commandes"),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildOrderSummary(AppLocalizations l10n) {
+  Widget _buildOrderSummary() {
     if (widget.orders.isEmpty) return const SizedBox.shrink();
 
     return Container(

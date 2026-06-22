@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/wishlist_model.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../reviews/presentation/widgets/star_rating.dart';
@@ -45,7 +44,6 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final locale = Localizations.localeOf(context).languageCode;
     final wishlistState = ref.watch(wishlistProvider);
 
@@ -59,7 +57,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.wishlistTitle),
+        title: Text("Mes favoris"),
       ),
       body: wishlistState.isLoading
           ? const Center(
@@ -92,14 +90,14 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
                           style: FilledButton.styleFrom(
                             backgroundColor: TekaColors.tekaRed,
                           ),
-                          child: Text(l10n.backToHome),
+                          child: Text("Reessayer"),
                         ),
                       ],
                     ),
                   ),
                 )
               : wishlistState.items.isEmpty
-                  ? _EmptyWishlistView(l10n: l10n)
+                  ? const _EmptyWishlistView()
                   : RefreshIndicator(
                       color: TekaColors.tekaRed,
                       onRefresh: () =>
@@ -120,11 +118,10 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
                           return _WishlistProductCard(
                             item: item,
                             locale: locale,
-                            l10n: l10n,
                             onRemove: () => _removeItem(
-                                context, ref, item.productId, l10n),
+                                context, ref, item.productId),
                             onAddToCart: () =>
-                                _addToCart(context, item.productId, l10n),
+                                _addToCart(context, item.productId),
                             onTap: () =>
                                 context.push('/products/${item.productId}'),
                           );
@@ -138,14 +135,13 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
     BuildContext context,
     WidgetRef ref,
     String productId,
-    AppLocalizations l10n,
   ) async {
     try {
       await ref.read(wishlistProvider.notifier).removeFromWishlist(productId);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.removedFromWishlist),
+            content: Text("Retire des favoris"),
             backgroundColor: TekaColors.success,
             duration: const Duration(seconds: 2),
           ),
@@ -155,7 +151,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.authGenericError),
+            content: Text("Une erreur est survenue. Veuillez reessayer."),
             backgroundColor: TekaColors.destructive,
           ),
         );
@@ -167,7 +163,6 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
   Future<void> _addToCart(
     BuildContext context,
     String productId,
-    AppLocalizations l10n,
   ) async {
     try {
       await ref.read(cartProvider.notifier).addItem(productId);
@@ -178,7 +173,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.addedToCart),
+            content: Text("Ajouté au panier"),
             backgroundColor: TekaColors.success,
             duration: const Duration(seconds: 2),
           ),
@@ -188,7 +183,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.authGenericError),
+            content: Text("Une erreur est survenue. Veuillez reessayer."),
             backgroundColor: TekaColors.destructive,
           ),
         );
@@ -198,9 +193,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
 }
 
 class _EmptyWishlistView extends StatelessWidget {
-  final AppLocalizations l10n;
-
-  const _EmptyWishlistView({required this.l10n});
+  const _EmptyWishlistView();
 
   @override
   Widget build(BuildContext context) {
@@ -217,7 +210,7 @@ class _EmptyWishlistView extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              l10n.wishlistEmpty,
+              "Aucun favori",
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: TekaColors.mutedForeground,
                     fontWeight: FontWeight.w600,
@@ -226,7 +219,7 @@ class _EmptyWishlistView extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              l10n.wishlistEmptyDesc,
+              "Ajoutez des produits a vos favoris pour les retrouver facilement",
               style: const TextStyle(
                 color: TekaColors.mutedForeground,
                 fontSize: 13,
@@ -241,7 +234,7 @@ class _EmptyWishlistView extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
-              child: Text(l10n.browseProducts),
+              child: Text("Decouvrir les produits"),
             ),
           ],
         ),
@@ -253,7 +246,6 @@ class _EmptyWishlistView extends StatelessWidget {
 class _WishlistProductCard extends StatelessWidget {
   final WishlistItemModel item;
   final String locale;
-  final AppLocalizations l10n;
   final VoidCallback onRemove;
   final VoidCallback onAddToCart;
   final VoidCallback onTap;
@@ -261,7 +253,6 @@ class _WishlistProductCard extends StatelessWidget {
   const _WishlistProductCard({
     required this.item,
     required this.locale,
-    required this.l10n,
     required this.onRemove,
     required this.onAddToCart,
     required this.onTap,
@@ -361,7 +352,7 @@ class _WishlistProductCard extends StatelessWidget {
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
-                            l10n.productOutOfStock,
+                            "Rupture de stock",
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 11,
@@ -450,7 +441,7 @@ class _WishlistProductCard extends StatelessWidget {
                           ),
                         ),
                         child: Text(
-                          isOutOfStock ? l10n.productOutOfStock : l10n.addToCart,
+                          isOutOfStock ? "Rupture de stock" : "Ajouter au panier",
                         ),
                       ),
                     ),
