@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/earnings_repository.dart';
 import '../../data/models/earning_model.dart';
@@ -105,7 +106,7 @@ class EarningsNotifier extends StateNotifier<EarningsState> {
       if (mounted) {
         state = state.copyWith(
           isLoading: false,
-          error: e.toString(),
+          error: friendlyErrorMessage(e),
         );
       }
     }
@@ -154,7 +155,7 @@ class EarningsNotifier extends StateNotifier<EarningsState> {
       if (mounted) {
         state = state.copyWith(
           isLoading: false,
-          error: e.toString(),
+          error: friendlyErrorMessage(e),
         );
       }
     }

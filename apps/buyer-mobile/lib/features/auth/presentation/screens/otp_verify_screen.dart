@@ -1,10 +1,10 @@
 import 'dart:async';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../providers/auth_provider.dart';
 
 class OtpVerifyScreen extends ConsumerStatefulWidget {
@@ -64,15 +64,17 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
             phone: widget.phone,
             code: code,
           );
-      if (!mounted) return;
-      context.go('/');
+      // On success the auth state flips to authenticated and the router
+      // redirect navigates to the saved return-to route (the protected action
+      // the guest came from) or home — see app_router.dart. Don't navigate here
+      // (that would race the redirect and ignore the return-to).
     } on SellerAccountException {
       if (!mounted) return;
       _codeController.clear();
       _showSellerAccountDialog();
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = _humanizeError(e, isVerify: true));
+      setState(() => _error = friendlyErrorMessage(e));
     }
   }
 
@@ -106,36 +108,8 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
       _startCooldown((data['cooldownSeconds'] as num?)?.toInt());
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = _humanizeError(e, isVerify: false));
+      setState(() => _error = friendlyErrorMessage(e));
     }
-  }
-
-  String _humanizeError(Object e, {required bool isVerify}) {
-    if (e is DioException) {
-      if (e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.receiveTimeout) {
-        return 'Connexion lente. Veuillez réessayer.';
-      }
-      if (e.type == DioExceptionType.connectionError) {
-        return 'Pas de connexion internet.';
-      }
-      final data = e.response?.data;
-      if (data is Map && data['error'] is Map) {
-        final msg = data['error']['message'];
-        if (msg is String && msg.isNotEmpty) return msg;
-      }
-      // Status-based fallback when the server gave no useful body.
-      final status = e.response?.statusCode;
-      if (status == 401 || status == 400) {
-        return isVerify
-            ? 'Code invalide ou expiré.'
-            : 'Impossible de renvoyer le code. Veuillez réessayer.';
-      }
-      if (status == 429) {
-        return 'Trop de tentatives. Veuillez patienter avant de réessayer.';
-      }
-    }
-    return 'Une erreur est survenue. Veuillez réessayer.';
   }
 
   @override

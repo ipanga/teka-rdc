@@ -74,7 +74,7 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: friendlyErrorMessage(e),
       );
     }
   }

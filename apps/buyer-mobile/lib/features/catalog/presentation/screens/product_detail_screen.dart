@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
+import '../../../../core/auth/auth_guard.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -446,6 +447,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     onPressed: product.isOutOfStock
                         ? null
                         : () async {
+                            // Cart requires an account — gate guests to login.
+                            if (!ensureAuthenticated(context, ref)) return;
                             try {
                               await ref
                                   .read(cartProvider.notifier)

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/city_repository.dart';
@@ -44,6 +45,14 @@ class CityNotifier extends StateNotifier<CityState> {
 
   static const _cityIdKey = 'teka_selected_city_id';
 
+  // Whether the user is signed in — drives whether we sync the town to the
+  // profile. Set by the provider's auth listener (Guest Browsing, 2026-06-22):
+  // guests select towns locally and must NOT call the auth-only preferred-city
+  // endpoint (which would 401 on every selection).
+  bool _isAuthenticated = false;
+  // ignore: avoid_setters_without_getters
+  set isAuthenticated(bool value) => _isAuthenticated = value;
+
   CityNotifier(this._repository, this._storage) : super(const CityState()) {
     _init();
   }
@@ -82,6 +91,11 @@ class CityNotifier extends StateNotifier<CityState> {
   Future<void> selectCity(CityModel city) async {
     state = state.copyWith(selectedCity: city);
     await _storage.write(key: _cityIdKey, value: city.id);
+    // Tag the active town on the Sentry scope so captured errors are
+    // location-aware (enterprise error handling, 2026-06-22).
+    Sentry.configureScope(
+      (scope) => scope.setTag('city', city.slug ?? city.id),
+    );
     // Persist to the profile so the town follows the buyer across devices.
     // Fire-and-forget: a sync failure must never block town selection (the
     // secure-storage write above already holds the choice locally).
@@ -112,6 +126,8 @@ class CityNotifier extends StateNotifier<CityState> {
   }
 
   void _syncPreferredCity(String? cityId) {
+    // Guests have no account to sync to — skip the auth-only endpoint entirely.
+    if (!_isAuthenticated) return;
     // ignore: avoid-ignoring-return-values — fire-and-forget profile sync
     _repository.setPreferredCity(cityId).catchError((_) {});
   }
@@ -133,6 +149,9 @@ final cityProvider = StateNotifierProvider<CityNotifier, CityState>((ref) {
   // choice — so the town follows the user across devices (and the post-login
   // city gate is skipped when a profile town exists).
   ref.listen<AuthState>(authProvider, (_, next) {
+    // Gate the profile-sync so guests never call the auth-only preferred-city
+    // endpoint.
+    notifier.isAuthenticated = next.status == AuthStatus.authenticated;
     if (next.status == AuthStatus.authenticated) {
       final preferredCityId = next.user?['preferredCityId'] as String?;
       if (preferredCityId != null) {

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../data/models/order_model.dart';
 import '../../data/orders_repository.dart';
 
@@ -80,7 +81,7 @@ class SellerOrdersNotifier extends StateNotifier<SellerOrdersState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: friendlyErrorMessage(e),
       );
     }
   }
@@ -107,7 +108,7 @@ class SellerOrdersNotifier extends StateNotifier<SellerOrdersState> {
     } catch (e) {
       state = state.copyWith(
         isLoadingMore: false,
-        error: e.toString(),
+        error: friendlyErrorMessage(e),
       );
     }
   }

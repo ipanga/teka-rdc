@@ -101,7 +101,7 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
       if (!mounted) return;
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: friendlyErrorMessage(e),
       );
     }
   }
@@ -130,7 +130,7 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
       if (!mounted) return;
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: friendlyErrorMessage(e),
       );
     }
   }
@@ -199,7 +199,7 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
       if (!mounted) return false;
       state = state.copyWith(
         isSubmitting: false,
-        error: e.toString(),
+        error: friendlyErrorMessage(e),
       );
       return false;
     }
@@ -238,7 +238,7 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
       if (!mounted) return false;
       state = state.copyWith(
         isSubmitting: false,
-        error: e.toString(),
+        error: friendlyErrorMessage(e),
       );
       return false;
     }

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../data/notification_model.dart';
 import '../../data/notifications_repository.dart';
 
@@ -50,7 +51,7 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
       );
     } catch (e) {
       if (!mounted) return;
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: friendlyErrorMessage(e));
     }
   }
 

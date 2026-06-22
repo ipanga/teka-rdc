@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../../core/utils/phone.dart';
 import '../providers/auth_provider.dart';
 
@@ -47,7 +47,7 @@ class _ClaimVerifyScreenState extends ConsumerState<ClaimVerifyScreen> {
         _step = _Step.code;
       });
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = friendlyErrorMessage(e));
     }
   }
 
@@ -62,10 +62,10 @@ class _ClaimVerifyScreenState extends ConsumerState<ClaimVerifyScreen> {
             phone: _normalizedPhone!,
             code: code,
           );
-      if (!mounted) return;
-      context.go('/');
+      // Success → the router redirect navigates to the saved return-to route or
+      // home (see app_router.dart). Don't navigate here (races the redirect).
     } catch (e) {
-      setState(() => _error = e.toString());
+      setState(() => _error = friendlyErrorMessage(e));
     }
   }
 

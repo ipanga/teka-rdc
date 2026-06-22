@@ -1,6 +1,6 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../providers/auth_provider.dart';
@@ -51,16 +51,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             _lastNameController.text.trim(),
           );
       if (mounted) context.go('/devenir-vendeur');
-    } on DioException catch (e) {
-      setState(() {
-        _errorMessage = e.response?.data?['error']?['message'] ??
-            e.response?.data?['message'] ??
-            'Inscription impossible.';
-      });
-    } catch (_) {
-      setState(() {
-        _errorMessage = 'Une erreur est survenue.';
-      });
+    } catch (e) {
+      setState(() => _errorMessage = friendlyErrorMessage(e));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

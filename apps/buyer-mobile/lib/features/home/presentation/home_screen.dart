@@ -40,13 +40,17 @@ class HomeScreen extends ConsumerWidget {
     final newest = ref.watch(newestProductsProvider);
 
     // Hydrate wishlist heart state for the visible products (batch /check —
-    // one request per list, no per-card N+1).
+    // one request per list, no per-card N+1). Only for authenticated users —
+    // the wishlist endpoints are auth-only, so guests skip them entirely
+    // (Guest Browsing, 2026-06-22).
     ref.listen(popularProductsProvider, (_, next) {
+      if (ref.read(authProvider).status != AuthStatus.authenticated) return;
       next.whenData((list) => ref
           .read(wishlistProvider.notifier)
           .loadWishlistIds(list.map((p) => p.id).toList()));
     });
     ref.listen(newestProductsProvider, (_, next) {
+      if (ref.read(authProvider).status != AuthStatus.authenticated) return;
       next.whenData((list) => ref
           .read(wishlistProvider.notifier)
           .loadWishlistIds(list.map((p) => p.id).toList()));
@@ -332,7 +336,14 @@ class _WishlistIconButton extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     // Authoritative active-filtered count (GET /v1/wishlist/count), kept in
     // sync optimistically on toggle. Mirrors buyer-web's header WishlistBadge.
-    final count = ref.watch(wishlistProvider.select((s) => s.count));
+    // Guests don't watch the wishlist provider (auth-only endpoint) → no 401;
+    // tapping the heart routes to login via the protected /wishlist route.
+    final authed = ref.watch(
+      authProvider.select((s) => s.status == AuthStatus.authenticated),
+    );
+    final count = authed
+        ? ref.watch(wishlistProvider.select((s) => s.count))
+        : 0;
 
     return IconButton(
       tooltip: l10n.wishlistTitle,
@@ -377,7 +388,12 @@ class _CartIconButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final cartCount = ref.watch(cartItemCountProvider);
+    // Guests don't watch the cart provider (auth-only) → no 401; tapping the
+    // cart routes to login via the protected /cart route.
+    final authed = ref.watch(
+      authProvider.select((s) => s.status == AuthStatus.authenticated),
+    );
+    final cartCount = authed ? ref.watch(cartItemCountProvider) : 0;
 
     return IconButton(
       icon: Stack(

@@ -115,7 +115,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     } catch (e) {
       state = state.copyWith(
         isLoadingAddresses: false,
-        error: e.toString(),
+        error: friendlyErrorMessage(e),
       );
     }
   }
@@ -169,7 +169,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       state = state.copyWith(error: extractDioErrorMessage(e));
       return false;
     } catch (e) {
-      state = state.copyWith(error: e.toString());
+      state = state.copyWith(error: friendlyErrorMessage(e));
       return false;
     }
   }
@@ -259,7 +259,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       state = state.copyWith(
         step: CheckoutStep.review,
         isProcessing: false,
-        error: e.toString(),
+        error: friendlyErrorMessage(e),
       );
       return false;
     }

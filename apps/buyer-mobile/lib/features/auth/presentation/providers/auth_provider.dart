@@ -1,6 +1,25 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import '../../data/auth_repository.dart';
+import '../../../../core/analytics/posthog_analytics.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/storage/secure_storage.dart';
+
+/// Attach (or clear) the signed-in user on the Sentry scope so captured errors
+/// carry who hit them — id + role ONLY (never phone/email/names), matching the
+/// PostHog identity policy. PII is also stripped by the global beforeSend.
+void _applySentryUser(Map<String, dynamic>? user) {
+  Sentry.configureScope((scope) {
+    scope.setUser(
+      user == null
+          ? null
+          : SentryUser(
+              id: user['id'] as String?,
+              data: {'role': user['role']?.toString() ?? 'BUYER'},
+            ),
+    );
+  });
+}
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
@@ -62,6 +81,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     final user = await _authRepository.getCurrentUser();
     if (user != null) {
+      _applySentryUser(user);
       state = state.copyWith(
         status: AuthStatus.authenticated,
         user: user,
@@ -82,10 +102,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(isLoading: true, error: null);
     try {
       final data = await _authRepository.requestBuyerOtp(phone);
+      const PosthogAnalytics().capture('auth_otp_requested');
       state = state.copyWith(isLoading: false);
       return data;
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      const PosthogAnalytics().capture(
+        'auth_otp_request_failed',
+        properties: {'error_category': errorCategory(e)},
+      );
+      state = state.copyWith(isLoading: false, error: friendlyErrorMessage(e));
       rethrow;
     }
   }
@@ -116,6 +141,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
         throw SellerAccountException();
       }
 
+      _applySentryUser(data['user'] as Map<String, dynamic>?);
+      const PosthogAnalytics().capture(
+        'auth_login_success',
+        properties: {'method': 'otp'},
+      );
       state = state.copyWith(
         status: AuthStatus.authenticated,
         user: data['user'],
@@ -124,7 +154,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } on SellerAccountException {
       rethrow; // already handled state above; don't overwrite with a string error
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      const PosthogAnalytics().capture(
+        'auth_login_failure',
+        properties: {'error_category': errorCategory(e)},
+      );
+      state = state.copyWith(isLoading: false, error: friendlyErrorMessage(e));
       rethrow;
     }
   }
@@ -157,13 +191,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isLoading: false,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: friendlyErrorMessage(e));
       rethrow;
     }
   }
 
   Future<void> logout() async {
     await _authRepository.logout();
+    _applySentryUser(null);
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 }
