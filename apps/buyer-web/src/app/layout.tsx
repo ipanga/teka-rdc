@@ -7,6 +7,7 @@ import { Clarity } from '@/components/analytics/clarity';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { PostHogPageview } from '@/components/providers/posthog-pageview';
 import { PostHogProvider } from '@/components/providers/posthog-provider';
+import { CitySelectorModal } from '@/components/city/city-selector-modal';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-inter' });
@@ -74,6 +75,10 @@ export default async function RootLayout({
           <NextIntlClientProvider messages={messages}>
             <AuthProvider>
               {children}
+              {/* Town selector — mounted globally so the header "Livrer à …"
+                  button opens it on EVERY page (not just the homepage). Renders
+                  null until opened → no SSR/SEO footprint. */}
+              <CitySelectorModal />
               <Suspense fallback={null}>
                 <PostHogPageview />
               </Suspense>

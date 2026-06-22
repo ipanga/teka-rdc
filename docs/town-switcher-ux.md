@@ -22,23 +22,19 @@ then sees `showSelector === true` and opens. → **Per-page mount bug. Fix = mou
 
 ## Plan
 
-### Web (buyer-web)
-- [ ] **W1 — Global modal mount.** Move `<CitySelectorModal />` from `home-page.tsx` into the root layout's
-  client tree (`app/layout.tsx`, inside `AuthProvider`, after `{children}`). Renders `null` until opened → no
-  SSR/SEO impact. Remove the homepage mount + import. Keep `CityPrompt` + `maybePromptFirstVisit` on the
-  homepage (first-visit is homepage-specific; the modal *component* is now global).
-- [ ] **W2 — Centralized town switch.** `lib/town-switch.ts` `resolveTownSwitchUrl(pathname, newSlug)`
-  (category-preserve, else `/{newSlug}`). `hooks/use-select-town.ts` `useSelectTown()` → `selectTown(city)` =
-  `setCity(city)` (persist cookie+localStorage+profile) + `closeSelector()` + `router.push(target)` (skip if
-  target === current pathname). Wire the modal + `CityPrompt` to `selectTown` (NOT raw `setCity`). The
-  city-landing/product/category pages keep calling `setCity` directly (URL → active city; must not navigate).
-- [ ] **W3 — Modal redesign.** Compact premium picker: clean header (pin + title + close X, no giant red
-  block) + **search field** (scales to 50+ towns) + province-grouped list + strong town-accent selected state
-  (check icon) + a11y (role=dialog/aria-modal, focus search on open, ESC, body-scroll lock, real buttons) +
-  mobile **bottom-sheet** (items-end on mobile, centered dialog on desktop). FR strings.
-- [ ] **W4 — Verify.** type-check + ESLint + 51 tests; modal renders nothing in SSR (curl a PDP/category →
-  no dialog markup); manual: open the selector from `/`, a PDP, a category, `/recherche` → opens everywhere;
-  switching town from a category preserves the category, from a PDP lands on the town home.
+### Web (buyer-web) — DONE
+- [x] **W1 — Global modal mount.** `<CitySelectorModal />` moved into `app/layout.tsx` (inside `AuthProvider`,
+  after `{children}`); removed the homepage mount + import. Renders `null` until opened → no SSR/SEO impact.
+  First-visit (`maybePromptFirstVisit`) + `CityPrompt` stay homepage-specific.
+- [x] **W2 — Centralized town switch.** `lib/town-switch.ts` `resolveTownSwitchUrl` (category-preserve, else
+  `/{newSlug}`; 3 unit tests) + `lib/use-select-town.ts` `useSelectTown()` → `selectTown` = `setCity` (persist)
+  + `closeSelector` + `router.push(target)` (skipped when target === current path). Modal + `CityPrompt` now
+  call `selectTown`. City-landing keeps raw `setCity` (URL → active town, no nav).
+- [x] **W3 — Modal redesign.** Compact searchable picker: clean header (pin + title + close X) + search field +
+  province-grouped list + town-accent selected state + check icon; a11y (role=dialog/aria-modal, focus search
+  on open, ESC, body-scroll lock, real `<button role=option>`); mobile bottom-sheet. New FR strings.
+- [x] **W4 — Verify.** type-check + ESLint + **54 tests** (51 + 3 new) green. **SSR confirmed:** `/`,
+  `/lubumbashi`, `/categories`, and a real PDP `/kolwezi/…` all 200 with **0** `role="dialog"` in raw HTML.
 
 ### Mobile (buyer-mobile)
 - [ ] **M1 — Searchable city screen.** Add a search `TextField` to `city_selection_screen.dart` filtering the

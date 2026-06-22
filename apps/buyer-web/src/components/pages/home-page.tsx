@@ -13,7 +13,6 @@ import { FlashDealsSection } from '@/components/home/flash-deals-section';
 import { Container, SectionHeader } from '@/components/ui';
 import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
-import { CitySelectorModal } from '@/components/city/city-selector-modal';
 import { CityPrompt } from '@/components/city/city-prompt';
 import { CategoryIcon } from '@/components/category/category-icon';
 import { categoryHref } from '@/lib/urls';
@@ -80,10 +79,6 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
   return (
     <div className="min-h-screen flex flex-col bg-surface-muted">
       <Header />
-      {/* Town selector overlay. Opened via the header selector, the inline
-          CityPrompt, OR the SEO-safe first-visit gate (maybePromptFirstVisit) —
-          always a client overlay over rendered content, never an SSR gate. */}
-      <CitySelectorModal />
 
       <main className="flex-1">
         {/* Non-blocking city chooser (replaces the old forced modal). */}

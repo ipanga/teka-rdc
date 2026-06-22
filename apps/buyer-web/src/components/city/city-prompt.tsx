@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useCityStore } from '@/lib/city-store';
+import { useSelectTown } from '@/lib/use-select-town';
 import { cityAccentClasses } from '@/lib/city-accent';
 
 /**
@@ -20,7 +21,8 @@ import { cityAccentClasses } from '@/lib/city-accent';
  */
 export function CityPrompt() {
   const t = useTranslations('City');
-  const { selectedCity, cities, setCity } = useCityStore();
+  const { selectedCity, cities } = useCityStore();
+  const selectTown = useSelectTown();
   const [dismissed, setDismissed] = useState(false);
 
   const activeCities = cities.filter((c) => c.isActive);
@@ -50,7 +52,7 @@ export function CityPrompt() {
             {activeCities.map((city) => (
               <button
                 key={city.id}
-                onClick={() => setCity(city)}
+                onClick={() => selectTown(city)}
                 className={`rounded-full bg-surface px-4 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${cityAccentClasses(city).chip}`}
               >
                 {city.name}
