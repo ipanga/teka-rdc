@@ -258,7 +258,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             tooltip: "Se deconnecter",
             onPressed: () async {
               await ref.read(authProvider.notifier).logout();
-              if (context.mounted) context.go('/auth/connexion');
+              // Land on the guest home (browsing stays open after logout);
+              // protected tabs re-prompt for login on demand.
+              if (context.mounted) context.go('/');
             },
           ),
         ],
@@ -414,7 +416,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               onRevokeAll: _revokeAllOtherSessions,
             ),
 
-            // Quick links
+            // Quick links — Orders lives under the account (it is not a
+            // bottom-nav tab). Favorites moved to its own tab.
             _Section(
               title: '',
               child: Column(
@@ -422,17 +425,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: const Icon(Icons.receipt_long_outlined),
-                    title: Text("Voir mes commandes"),
+                    title: const Text("Mes commandes"),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => context.push('/orders'),
                   ),
                   const Divider(height: 1),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.favorite_outline),
-                    title: Text("Voir mes favoris"),
+                    leading: const Icon(Icons.notifications_none_rounded),
+                    title: const Text("Notifications"),
                     trailing: const Icon(Icons.chevron_right),
-                    onTap: () => context.push('/wishlist'),
+                    onTap: () => context.push('/notifications'),
                   ),
                 ],
               ),

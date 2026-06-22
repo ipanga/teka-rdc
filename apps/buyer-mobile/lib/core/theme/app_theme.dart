@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'teka_colors.dart';
 
@@ -33,18 +34,51 @@ class AppTheme {
         bodyColor: TekaColors.foreground,
         displayColor: TekaColors.foreground,
       ),
+      // Clean white AppBar (2026-06-22 redesign) — red is reserved for CTAs,
+      // badges and accents, not a full-width header block. Dark status-bar
+      // icons since the bar is now light.
       appBarTheme: const AppBarTheme(
-        backgroundColor: TekaColors.tekaRed,
-        foregroundColor: Colors.white,
+        backgroundColor: TekaColors.surface,
+        foregroundColor: TekaColors.foreground,
         elevation: 0,
-        scrolledUnderElevation: 1,
-        centerTitle: true,
+        scrolledUnderElevation: 0.5,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: TekaColors.border,
+        centerTitle: false,
+        iconTheme: IconThemeData(color: TekaColors.foreground),
         titleTextStyle: TextStyle(
-          color: Colors.white,
+          color: TekaColors.foreground,
           fontSize: 18,
           fontWeight: FontWeight.w600,
           letterSpacing: -0.2,
         ),
+        systemOverlayStyle: SystemUiOverlayStyle(
+          statusBarColor: Colors.transparent,
+          statusBarIconBrightness: Brightness.dark,
+          statusBarBrightness: Brightness.light,
+        ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: TekaColors.surface,
+        indicatorColor: TekaColors.tekaRedSubtle,
+        surfaceTintColor: Colors.transparent,
+        elevation: 3,
+        height: 64,
+        labelTextStyle: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return TextStyle(
+            fontSize: 11.5,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+            color: selected ? TekaColors.tekaRed : TekaColors.mutedForeground,
+          );
+        }),
+        iconTheme: WidgetStateProperty.resolveWith((states) {
+          final selected = states.contains(WidgetState.selected);
+          return IconThemeData(
+            size: 24,
+            color: selected ? TekaColors.tekaRed : TekaColors.mutedForeground,
+          );
+        }),
       ),
       cardTheme: CardThemeData(
         color: TekaColors.surface,

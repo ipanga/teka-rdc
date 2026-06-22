@@ -17,13 +17,19 @@ PRs, each tested. Constraints: no global refactor; preserve APIs/business-logic/
   the `AppLocalizations` delegate (kept framework `GlobalMaterialLocalizations`=fr). CLAUDE.md Rule 1 updated.
   **analyze 0 errors (13 pre-existing info-level deprecations), 93 tests green.** *(seller-mobile l10n + web
   next-intl removal are separate later follow-ups — user 2026-06-22.)*
-- **Step 2 — Navigation + redesign on the clean base (NEXT).** `StatefulShellRoute.indexedStack` bottom nav
-  (Accueil · Catégories · Favoris · Panier · Compte); Search = prominent Home search bar (not a tab); Orders →
-  under Compte; simplified AppBar (brand + town pill + notification bell); fixes the Favorites back-button
-  inconsistency by making Favorites a top-level tab; colour/red rebalance; product-card + Home/hero polish;
-  shared empty/error/loading states. Audit complete (findings delivered to user 2026-06-22).
+- **Step 2 — Navigation + redesign.** ✅ CODE DONE on branch `feat/buyer-mobile-bottom-nav`, PENDING PR.
+  `StatefulShellRoute.indexedStack` bottom nav (Accueil · Categories · Favoris · Panier · Compte, cart badge);
+  Search = prominent Home search bar (not a tab); Orders → under Compte; simplified **white** AppBar (brand +
+  town pill + notification bell → new Notifications screen); new Categories tab grid; Favorites back-button
+  bug fixed by construction (top-level tab); guest→protected-tab→login gains a ✕ close (no dead-end); red
+  rebalanced to CTAs/accents (white AppBar + NavigationBarTheme). New: `main_shell.dart`,
+  `categories_screen.dart`, `notifications/.../notifications_screen.dart`. Tracker:
+  `docs/buyer-mobile-redesign.md`. **analyze 0 errors, 93 tests; device-verified on emulator (prod flavor,
+  Kolwezi) with screenshots.**
+- **Step 3 (deferred follow-up, NOT started):** deeper product-card polish + shared skeleton/empty/error
+  widgets + push error-mapping into shopping providers (raw `state.error!` in wishlist/cart/checkout/orders).
 
-**Next sub-task:** open the `chore/buyer-mobile-remove-l10n` PR, then start Step 2 nav shell.
+**Next sub-task:** open the `feat/buyer-mobile-bottom-nav` PR (with screenshots) for user review before merge.
 
 ---
 

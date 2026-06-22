@@ -10,6 +10,7 @@ import '../../features/auth/presentation/screens/claim_verify_screen.dart';
 import '../../features/city/presentation/providers/city_provider.dart';
 import '../../features/city/presentation/screens/city_selection_screen.dart';
 import '../../features/cart/presentation/screens/cart_screen.dart';
+import '../../features/catalog/presentation/screens/categories_screen.dart';
 import '../../features/catalog/presentation/screens/category_screen.dart';
 import '../../features/catalog/presentation/screens/product_detail_screen.dart';
 import '../../features/catalog/presentation/screens/search_screen.dart';
@@ -18,12 +19,14 @@ import '../../features/checkout/presentation/screens/checkout_screen.dart';
 import '../../features/checkout/presentation/screens/checkout_success_screen.dart';
 import '../../features/checkout/presentation/screens/payment_pending_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
+import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/orders/presentation/screens/order_detail_screen.dart';
 import '../../features/orders/presentation/screens/orders_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/content/presentation/screens/content_page_screen.dart';
 import '../../features/reviews/presentation/screens/product_reviews_screen.dart';
 import '../../features/wishlist/presentation/screens/wishlist_screen.dart';
+import 'main_shell.dart';
 
 /// The route a guest tried to reach (or the screen they acted on) before being
 /// sent to login. Consumed by the router redirect right after authentication so
@@ -45,17 +48,20 @@ const _protectedPrefixes = <String>[
 bool isProtectedRoute(String location) =>
     _protectedPrefixes.any((p) => location == p || location.startsWith('$p/'));
 
+/// Root navigator — hosts the full-screen routes that sit ABOVE the bottom-nav
+/// shell (auth, city selection, product detail, search, checkout, orders,
+/// notifications). The five tab destinations live inside the shell branches.
+final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+
 final appRouterProvider = Provider<GoRouter>((ref) {
   // Build GoRouter exactly once. Auth/city state changes trigger a
   // redirect re-evaluation via `refreshListenable` below — they must
   // NOT cause the entire GoRouter instance to be replaced, otherwise
   // every transient state change (e.g. `isLoading: true` → `false`
   // during an OTP request) resets navigation to `initialLocation`
-  // mid-flight and undoes any `context.push` in progress. The provider
-  // therefore uses `ref.read` for state captured here (none currently)
-  // and the redirect callback reads fresh state via `ref.read` each
-  // time it fires.
+  // mid-flight and undoes any `context.push` in progress.
   return GoRouter(
+    navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
     // Automatic $screen capture on every navigation. No-op when PostHog
     // isn't initialized (empty flavor key).
@@ -104,10 +110,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const HomeScreen(),
-      ),
+      // ── Full-screen routes (above the bottom-nav shell) ──────────────────
       GoRoute(
         path: '/city-selection',
         builder: (context, state) => const CitySelectionScreen(),
@@ -160,8 +163,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/cart',
-        builder: (context, state) => const CartScreen(),
+        path: '/products/:id/reviews',
+        builder: (context, state) {
+          final productId = state.pathParameters['id']!;
+          return ProductReviewsScreen(productId: productId);
+        },
       ),
       GoRoute(
         path: '/checkout',
@@ -195,21 +201,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
       GoRoute(
-        path: '/wishlist',
-        builder: (context, state) => const WishlistScreen(),
-      ),
-      GoRoute(
-        path: '/profile',
-        builder: (context, state) => const ProfileScreen(),
-      ),
-      // /messages and /messages/:id retired 2026-05-17 — direct buyer↔
-      // seller messaging removed in favour of "Contacter le support".
-      GoRoute(
-        path: '/products/:id/reviews',
-        builder: (context, state) {
-          final productId = state.pathParameters['id']!;
-          return ProductReviewsScreen(productId: productId);
-        },
+        path: '/notifications',
+        builder: (context, state) => const NotificationsScreen(),
       ),
       GoRoute(
         path: '/pages/:slug',
@@ -217,6 +210,58 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final slug = state.pathParameters['slug']!;
           return ContentPageScreen(slug: slug);
         },
+      ),
+      // /messages and /messages/:id retired 2026-05-17 — direct buyer↔
+      // seller messaging removed in favour of "Contacter le support".
+
+      // ── Bottom-nav shell: 5 tab destinations, one navigator each ─────────
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            MainShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            observers: [PosthogObserver()],
+            routes: [
+              GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
+            ],
+          ),
+          StatefulShellBranch(
+            observers: [PosthogObserver()],
+            routes: [
+              GoRoute(
+                path: '/categories',
+                builder: (context, state) => const CategoriesScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            observers: [PosthogObserver()],
+            routes: [
+              GoRoute(
+                path: '/wishlist',
+                builder: (context, state) => const WishlistScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            observers: [PosthogObserver()],
+            routes: [
+              GoRoute(
+                path: '/cart',
+                builder: (context, state) => const CartScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            observers: [PosthogObserver()],
+            routes: [
+              GoRoute(
+                path: '/profile',
+                builder: (context, state) => const ProfileScreen(),
+              ),
+            ],
+          ),
+        ],
       ),
     ],
   );
