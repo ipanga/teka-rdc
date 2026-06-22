@@ -47,7 +47,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // 1) City landing
   const city = await findCityBySlug(ville);
   if (city) {
-    const title = `Achetez en ligne à ${city.name} — Teka RDC`;
+    // Page title (the <title> tag) — the root layout's `%s | Teka RDC` template
+    // appends the brand, so do NOT add it here (that produced a doubled
+    // "… — Teka RDC | Teka RDC"). OG/Twitter don't use the template, so they get
+    // the explicitly branded variant.
+    const title = `Achetez en ligne à ${city.name}`;
+    const brandedTitle = `${title} | Teka RDC`;
     const description = `Découvrez les produits disponibles à ${city.name}, ${city.province} sur Teka RDC. Livraison rapide et paiement à la livraison.`;
     const canonical = `/${ville}`;
     return {
@@ -59,15 +64,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         'Teka RDC',
       ],
       openGraph: {
-        title: `${title}`,
+        title: brandedTitle,
         description,
         siteName: 'Teka RDC',
         locale: 'fr_CD',
         type: 'website',
         url: `https://teka.cd${canonical}`,
-        images: [{ url: 'https://teka.cd/og-default.png', width: 1200, height: 630, alt: title }],
+        images: [{ url: 'https://teka.cd/og-default.png', width: 1200, height: 630, alt: brandedTitle }],
       },
-      twitter: { card: 'summary_large_image', title, description },
+      twitter: { card: 'summary_large_image', title: brandedTitle, description },
       alternates: { canonical },
     };
   }
