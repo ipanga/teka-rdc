@@ -36,9 +36,11 @@ then sees `showSelector === true` and opens. → **Per-page mount bug. Fix = mou
 - [x] **W4 — Verify.** type-check + ESLint + **54 tests** (51 + 3 new) green. **SSR confirmed:** `/`,
   `/lubumbashi`, `/categories`, and a real PDP `/kolwezi/…` all 200 with **0** `role="dialog"` in raw HTML.
 
-### Mobile (buyer-mobile)
-- [ ] **M1 — Searchable city screen.** Add a search `TextField` to `city_selection_screen.dart` filtering the
-  province-grouped list by name; FR ARB string. `flutter analyze` + tests.
+### Mobile (buyer-mobile) — DONE
+- [x] **M1 — Searchable city screen.** `city_selection_screen.dart` → `ConsumerStatefulWidget` with a search
+  `TextField` filtering the province-grouped list by name/province + a no-results state; ARB
+  `citySearchPlaceholder` / `cityNoResults` (+ gen-l10n). Also fixed the screen's pre-existing `withOpacity`
+  deprecation. `flutter analyze` clean + 84 tests.
 
 ### Release
 - [ ] Real merge `develop → main` (NEVER squash); back-merge `main → develop`; verify prod (modal opens from a
