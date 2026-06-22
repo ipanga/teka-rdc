@@ -6,7 +6,8 @@ import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { ProductGrid } from '@/components/product/product-grid';
-import { Container, SectionHeader, buttonVariants } from '@/components/ui';
+import { StoreHero } from '@/components/home/store-hero';
+import { Container, SectionHeader } from '@/components/ui';
 import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
 import { categoryHref } from '@/lib/urls';
@@ -39,6 +40,7 @@ export default function CityLandingPage({
 }: CityLandingPageProps) {
   const tCat = useTranslations('Categories');
   const tProd = useTranslations('Products');
+  const tHero = useTranslations('Hero');
   const setCity = useCityStore((s) => s.setCity);
 
   const [categories, setCategories] = useState<BrowseCategory[]>([]);
@@ -92,22 +94,19 @@ export default function CityLandingPage({
       <Header />
 
       <main className="flex-1">
-        <section className="bg-gradient-to-br from-primary-700 via-primary to-primary-500 text-primary-foreground">
-          <Container className="py-10 md:py-16 text-center">
-            <h1 className="text-3xl md:text-5xl font-bold mb-3 tracking-tight">
-              {tProd('cityLandingTitle', { city: cityName })}
-            </h1>
-            <p className="text-lg opacity-90 mb-6 max-w-2xl mx-auto">
-              {tProd('cityLandingSubtitle', { city: cityName, province })}
-            </p>
-            <Link
-              href="/categories"
-              className={buttonVariants({ variant: 'secondary', size: 'lg' })}
-            >
-              {tCat('viewAll')}
-            </Link>
-          </Container>
-        </section>
+        {/* Same premium hero as the homepage (shared StoreHero), city-branded:
+            city image + accent + city-templated copy. Rendered DIRECTLY (not via
+            BannerCarousel) so the city <h1> stays in the SSR HTML and indexable
+            — the homepage wraps it in BannerCarousel, whose loading skeleton
+            would push the H1 to client-only render. */}
+        <StoreHero
+          title={tProd('cityLandingTitle', { city: cityName })}
+          subtitle={tProd('cityLandingSubtitle', { city: cityName })}
+          ctaHref="/categories"
+          ctaLabel={tHero('cta')}
+          city={{ name: cityName, slug: citySlug, accentColor, heroImageUrl }}
+          badgeLabel={tHero('deliveringTo', { city: cityName })}
+        />
 
         {/* Categories — city-scoped links */}
         <section className="bg-background">

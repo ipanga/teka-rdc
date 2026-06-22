@@ -6,8 +6,21 @@
 
 ## Active initiative
 
-**None.** Category image tiles shipped + verified on prod 2026-06-21 (see below). No in-flight build work —
-ask the user what to start next.
+**City landing hero parity** (started 2026-06-22). The `/{ville}` city landing pages rendered a flat
+red-gradient hero instead of the homepage's premium image hero. **Root cause:** two divergent hero
+implementations — the homepage hero lived inline in `home-page.tsx` (inside `BannerCarousel` fallback), the
+city page had its own simpler `<section>`. **Fix:** extracted a shared **`StoreHero`** component
+(`components/home/store-hero.tsx`) — single source of truth (town image + accent badge + H1 + subtitle + CTA +
+trust strip). Homepage uses it as the BannerCarousel fallback (unchanged look); city page renders it
+**directly** (so the city `<h1>` stays in SSR HTML — SEO-safe; BannerCarousel's loading skeleton would push it
+client-only). Copy is **template-driven** (`Products.cityLandingTitle/Subtitle` + `city.name`), image/accent
+from the data-driven `City.heroImageUrl`/`accentColor` → a new town auto-gets the premium hero with **zero
+code + zero per-city data** (decision: template, not new DB columns). **buyer-mobile:** new `CityHero` widget
+on the home (bundled `assets/hero/<slug>.jpg` for Lubumbashi/Kolwezi + accent-gradient fallback for other
+towns), same templated copy (`cityHero*` ARB strings). No API/DB/migration.
+- **Verified:** web type-check + ESLint + 51 tests; **SSR confirmed** — `/lubumbashi` + `/kolwezi` ship the
+  city H1 + subtitle + hero image in raw HTML; all pages 200. mobile analyze clean + 82 + 2 new tests.
+- **Status: code-complete on `feat/city-landing-hero`** — pending user review + PR/release.
 
 ---
 
