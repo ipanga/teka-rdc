@@ -6,8 +6,16 @@
 
 ## Active initiative
 
-**None.** Town switcher fix + town-selection UX shipped + verified on prod 2026-06-22 (see below). No in-flight
-build work — ask the user what to start next.
+**Mobile guest browsing + enterprise error handling** (started 2026-06-22). **Resume anchor + full checklist:
+`docs/mobile-guest-and-errors.md`** (read it first). Two parts: (1) let buyer-mobile users **browse without
+logging in** (login only on protected actions — checkout/orders/favorites/profile); (2) **centralized,
+friendly error handling** across buyer-mobile + seller-mobile (never show raw `DioException`/stack traces;
+technical detail → Sentry only). **Root cause P1:** one line in `app_router.dart` forces every guest to login
+(the browse APIs are already public). **Root cause P2:** auth providers/screens bypass the existing
+`dio_error_messages.dart` mapper and set `error: e.toString()` (~23 leak sites; seller-mobile has no mapper).
+**Decisions (user, 2026-06-22):** guest cart = gate-on-action (no local cart); error text = prefer API message
++ friendly generics. **No API/DB changes.** **Phasing:** P1 guest browsing (`feat/mobile-guest-browsing`) →
+P2 error handling (`feat/mobile-error-handling`). **In progress: P1.1.**
 
 ---
 
