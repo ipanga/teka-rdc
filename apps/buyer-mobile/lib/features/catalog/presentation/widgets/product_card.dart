@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/auth/auth_guard.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../l10n/app_localizations.dart';
@@ -23,6 +24,8 @@ class ProductCard extends ConsumerWidget {
     WidgetRef ref,
     AppLocalizations l10n,
   ) async {
+    // The cart requires an account — gate guests to login, then return.
+    if (!ensureAuthenticated(context, ref)) return;
     try {
       await ref.read(cartProvider.notifier).addItem(product.id);
       if (!context.mounted) return;

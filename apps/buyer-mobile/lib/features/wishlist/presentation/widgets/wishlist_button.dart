@@ -1,9 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/auth/auth_guard.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/wishlist_provider.dart';
 
 class WishlistButton extends ConsumerWidget {
@@ -23,8 +25,13 @@ class WishlistButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
-    final wishlistState = ref.watch(wishlistProvider);
-    final isWishlisted = wishlistState.wishlistedIds.contains(productId);
+    // Guests don't watch the wishlist provider (auth-only endpoints) → the heart
+    // shows empty and never fires /v1/wishlist; tapping it gates to login.
+    final authed = ref.watch(
+      authProvider.select((s) => s.status == AuthStatus.authenticated),
+    );
+    final isWishlisted =
+        authed && ref.watch(wishlistProvider).wishlistedIds.contains(productId);
 
     return IconButton(
       icon: Icon(
@@ -38,6 +45,8 @@ class WishlistButton extends ConsumerWidget {
           ? l10n.removeFromWishlist
           : l10n.addedToWishlist,
       onPressed: () async {
+        // Favorites require an account — gate guests to login, then return.
+        if (!ensureAuthenticated(context, ref)) return;
         try {
           await ref.read(wishlistProvider.notifier).toggleWishlist(productId);
           if (context.mounted) {
