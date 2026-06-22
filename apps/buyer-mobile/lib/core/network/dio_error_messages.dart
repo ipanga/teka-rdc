@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 /// Maps any error to a French, user-facing message — the SINGLE place error copy
 /// lives for the mobile apps (buyer + seller kept byte-identical, Rule 15).
@@ -50,9 +51,79 @@ String extractDioErrorMessage(DioException e) {
   return 'Une erreur inattendue est survenue.\n\nVeuillez réessayer.';
 }
 
-/// Maps ANY caught error (Dio or otherwise) to a friendly French message. Use at
-/// every `catch` feeding a user-facing error, instead of `e.toString()`.
-String friendlyErrorMessage(Object error) {
-  if (error is DioException) return extractDioErrorMessage(error);
+/// Maps ANY caught error (Dio or otherwise) to a friendly French message AND, as
+/// a side effect, reports UNEXPECTED errors to Sentry with context (endpoint,
+/// method, HTTP status, error type) — never the user-facing copy. Use at every
+/// `catch` feeding a user-facing error, instead of `e.toString()`.
+///
+/// "Unexpected" = 5xx, an unknown/parse error, or a non-Dio exception. EXPECTED
+/// errors are NOT reported (they're noise): network/timeout/offline and business
+/// 4xx (auth / OTP / validation). User identity + active city are attached
+/// globally via the Sentry scope (set at auth + town selection). PII (phones) is
+/// stripped by the global `beforeSend` scrubber.
+String friendlyErrorMessage(Object error, [StackTrace? stack]) {
+  if (error is DioException) {
+    final status = error.response?.statusCode;
+    final isNetwork = error.type == DioExceptionType.connectionTimeout ||
+        error.type == DioExceptionType.sendTimeout ||
+        error.type == DioExceptionType.receiveTimeout ||
+        error.type == DioExceptionType.connectionError;
+    final isBusiness4xx = status != null && status >= 400 && status < 500;
+    if (!isNetwork && !isBusiness4xx) {
+      _reportUnexpected(
+        error,
+        stack,
+        endpoint: '${error.requestOptions.method} ${error.requestOptions.path}',
+        status: status,
+        type: error.type.name,
+      );
+    }
+    return extractDioErrorMessage(error);
+  }
+  _reportUnexpected(error, stack, type: 'non_dio');
   return 'Une erreur inattendue est survenue.\n\nVeuillez réessayer.';
+}
+
+/// A short, non-PII category for analytics/telemetry (NOT for display):
+/// `timeout` | `no_internet` | `server` | `auth` | `rate_limit` | `validation`
+/// | `unknown`.
+String errorCategory(Object error) {
+  if (error is! DioException) return 'unknown';
+  switch (error.type) {
+    case DioExceptionType.connectionTimeout:
+    case DioExceptionType.sendTimeout:
+    case DioExceptionType.receiveTimeout:
+      return 'timeout';
+    case DioExceptionType.connectionError:
+      return 'no_internet';
+    default:
+      break;
+  }
+  final status = error.response?.statusCode;
+  if (status == null) return 'unknown';
+  if (status >= 500) return 'server';
+  if (status == 401 || status == 403) return 'auth';
+  if (status == 429) return 'rate_limit';
+  if (status >= 400) return 'validation';
+  return 'unknown';
+}
+
+void _reportUnexpected(
+  Object error,
+  StackTrace? stack, {
+  String? endpoint,
+  int? status,
+  String? type,
+}) {
+  // No-op when Sentry isn't initialised (dev/test) — safe to call anywhere.
+  Sentry.captureException(
+    error,
+    stackTrace: stack,
+    withScope: (scope) {
+      scope.level = SentryLevel.error;
+      if (endpoint != null) scope.setTag('endpoint', endpoint);
+      if (status != null) scope.setTag('http_status', '$status');
+      if (type != null) scope.setTag('error_type', type);
+    },
+  );
 }
