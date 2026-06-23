@@ -13,7 +13,11 @@ import '../providers/catalog_provider.dart';
 import '../widgets/product_card.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
-  const SearchScreen({super.key});
+  /// Optional pre-filled query — set when arriving from a deep link
+  /// (`https://teka.cd/recherche?q=...`).
+  final String? initialQuery;
+
+  const SearchScreen({super.key, this.initialQuery});
 
   @override
   ConsumerState<SearchScreen> createState() => _SearchScreenState();
@@ -25,6 +29,19 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   String _query = '';
   String? _lastSearchTracked; // de-dups the search_performed event per query
   List<SuggestedCategory> _categories = const []; // autocomplete category hits
+
+  @override
+  void initState() {
+    super.initState();
+    final q = widget.initialQuery?.trim() ?? '';
+    if (q.isNotEmpty) {
+      _controller.text = q;
+      // Drive the grid immediately (no debounce) for a deep-linked query.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _applyQuery(q);
+      });
+    }
+  }
 
   BrowseProductsParams get _params => BrowseProductsParams(
         search: _query.isNotEmpty ? _query : null,

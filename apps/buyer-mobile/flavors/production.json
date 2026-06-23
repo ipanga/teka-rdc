@@ -1,6 +1,7 @@
 {
   "FLAVOR": "production",
   "API_BASE_URL": "https://api.teka.cd/api",
+  "WEB_BASE_URL": "https://teka.cd",
   "SENTRY_DSN": "",
   "POSTHOG_API_KEY": ""
 }

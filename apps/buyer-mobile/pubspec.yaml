@@ -22,6 +22,14 @@ dependencies:
   cached_network_image: ^3.4.1
   image_picker: ^1.0.7
 
+  # --- Universal deep linking (2026-06-23) ----------------------------
+  # app_links surfaces incoming Android App Links / iOS Universal Links
+  # (cold-start getInitialLink + warm uriLinkStream). url_launcher opens
+  # the browser as a fallback for URLs the in-app DeepLinkParser can't map
+  # (so web-only pages + SEO are never hijacked). See lib/core/deep_link/.
+  app_links: ^6.3.2
+  url_launcher: ^6.3.0
+
   # --- Connectivity management (PR1, 2026-05-27) ---------------------
   # Interface-level network detection (wifi / mobile / none). Combined
   # in lib/core/connectivity/ with a reachability probe to api.teka.cd

@@ -1,6 +1,7 @@
 {
   "FLAVOR": "staging",
   "API_BASE_URL": "https://staging.api.teka.cd/api",
+  "WEB_BASE_URL": "https://staging.teka.cd",
   "SENTRY_DSN": "",
   "POSTHOG_API_KEY": ""
 }

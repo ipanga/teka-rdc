@@ -17,6 +17,12 @@ enum AppFlavor {
 class FlavorConfig {
   final AppFlavor flavor;
   final String apiBaseUrl;
+
+  /// Canonical web origin for this flavor (e.g. `https://teka.cd`). Used to
+  /// build shareable product links (the canonical URL the website + deep-link
+  /// association files recognise). No trailing slash.
+  final String webBaseUrl;
+
   final String? sentryDsn;
 
   /// PostHog project key (phc_…) for this flavor. Null/empty → PostHog is
@@ -27,6 +33,7 @@ class FlavorConfig {
   FlavorConfig._({
     required this.flavor,
     required this.apiBaseUrl,
+    required this.webBaseUrl,
     this.sentryDsn,
     this.posthogApiKey,
   });
@@ -55,6 +62,10 @@ class FlavorConfig {
       'API_BASE_URL',
       defaultValue: 'http://10.0.2.2:5050/api',
     );
+    const webBaseUrl = String.fromEnvironment(
+      'WEB_BASE_URL',
+      defaultValue: 'https://teka.cd',
+    );
     const sentryDsn = String.fromEnvironment('SENTRY_DSN');
     const posthogApiKey = String.fromEnvironment('POSTHOG_API_KEY');
 
@@ -66,6 +77,7 @@ class FlavorConfig {
     _instance = FlavorConfig._(
       flavor: flavor,
       apiBaseUrl: apiBaseUrl,
+      webBaseUrl: webBaseUrl,
       sentryDsn: sentryDsn.isEmpty ? null : sentryDsn,
       posthogApiKey: posthogApiKey.isEmpty ? null : posthogApiKey,
     );
