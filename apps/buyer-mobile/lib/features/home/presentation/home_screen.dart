@@ -34,6 +34,7 @@ class HomeScreen extends ConsumerWidget {
     final categories = ref.watch(categoriesProvider);
     final popular = ref.watch(popularProductsProvider);
     final newest = ref.watch(newestProductsProvider);
+    final promo = ref.watch(promoProductsProvider);
 
     // Hydrate wishlist heart state for the visible products (batch /check —
     // one request per list, no per-card N+1). Only for authenticated users —
@@ -106,6 +107,7 @@ class HomeScreen extends ConsumerWidget {
           ref.invalidate(categoriesProvider);
           ref.invalidate(popularProductsProvider);
           ref.invalidate(newestProductsProvider);
+          ref.invalidate(promoProductsProvider);
           // Wait for data to reload
           await Future.wait([
             ref.read(bannersProvider.future).catchError((_) => <BannerModel>[]),
@@ -113,6 +115,7 @@ class HomeScreen extends ConsumerWidget {
             ref.read(categoriesProvider.future).catchError((_) => <CategoryModel>[]),
             ref.read(popularProductsProvider.future).catchError((_) => <BrowseProductModel>[]),
             ref.read(newestProductsProvider.future).catchError((_) => <BrowseProductModel>[]),
+            ref.read(promoProductsProvider.future).catchError((_) => <BrowseProductModel>[]),
           ]);
         },
         child: ListView(
@@ -170,6 +173,38 @@ class HomeScreen extends ConsumerWidget {
             ),
 
             const SizedBox(height: 24),
+
+            // Promotions (horizontal scroll) — only shown when promos exist.
+            promo.maybeWhen(
+              data: (products) => products.isEmpty
+                  ? const SizedBox.shrink()
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _SectionHeader(
+                          title: "Promotions",
+                          onSeeAll: () => context.push('/promotions'),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 280,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: products.length,
+                            separatorBuilder: (_, __) =>
+                                const SizedBox(width: 12),
+                            itemBuilder: (context, index) => SizedBox(
+                              width: 160,
+                              child: ProductCard(product: products[index]),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+              orElse: () => const SizedBox.shrink(),
+            ),
 
             // Popular products (horizontal scroll)
             _SectionHeader(

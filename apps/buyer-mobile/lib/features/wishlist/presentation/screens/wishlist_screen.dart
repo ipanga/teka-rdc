@@ -191,7 +191,8 @@ class _WishlistProductCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final product = item.product;
     final title = product?.title ?? '';
-    final price = formatCDF(product?.priceCDF ?? '0');
+    final hasDiscount = product?.hasDiscount ?? false;
+    final price = formatCDF(product?.effectivePriceCDF ?? '0');
     final imageUrl = product?.image;
     final isOutOfStock = product?.isOutOfStock ?? false;
 
@@ -331,27 +332,35 @@ class _WishlistProductCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                     ],
-                    Text(
-                      price,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: TekaColors.tekaRed,
-                      ),
-                    ),
-                    if (product?.seller?.businessName != null &&
-                        product!.seller!.businessName!.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        product.seller!.businessName!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: TekaColors.mutedForeground,
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            price,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: TekaColors.tekaRed,
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
+                        if (hasDiscount) ...[
+                          const SizedBox(width: 6),
+                          Text(
+                            formatCDF(product!.priceCDF),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              color: TekaColors.mutedForeground,
+                              decoration: TextDecoration.lineThrough,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                     const SizedBox(height: 8),
                     // Add to cart — keeps the item in the wishlist. The button
                     // wins its own tap, so it doesn't trigger card navigation.

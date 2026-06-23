@@ -33,6 +33,10 @@ class BrowseProductModel {
   final String title;
   final String priceCDF;
   final String? priceUSD;
+  // Optional seller-set promotional price (centimes string). Effective price =
+  // discountPriceCDF when valid (< priceCDF), else priceCDF.
+  final String? discountPriceCDF;
+  final String? discountPriceUSD;
   final String condition;
   final int quantity;
   final ProductImageModel? image;
@@ -55,6 +59,8 @@ class BrowseProductModel {
     required this.title,
     required this.priceCDF,
     this.priceUSD,
+    this.discountPriceCDF,
+    this.discountPriceUSD,
     required this.condition,
     required this.quantity,
     this.image,
@@ -74,6 +80,8 @@ class BrowseProductModel {
       title: json['title']?.toString() ?? '',
       priceCDF: json['priceCDF']?.toString() ?? '0',
       priceUSD: json['priceUSD']?.toString(),
+      discountPriceCDF: json['discountPriceCDF']?.toString(),
+      discountPriceUSD: json['discountPriceUSD']?.toString(),
       condition: json['condition'] as String? ?? 'NEW',
       quantity: json['quantity'] as int? ?? 0,
       image: json['image'] != null
@@ -94,6 +102,24 @@ class BrowseProductModel {
 
   bool get isLowStock => quantity > 0 && quantity < 5;
   bool get isOutOfStock => quantity <= 0;
+
+  /// Whether a valid seller-set promotion is active (discount < regular price).
+  bool get hasDiscount {
+    final p = int.tryParse(priceCDF) ?? 0;
+    final d = int.tryParse(discountPriceCDF ?? '') ?? 0;
+    return p > 0 && d > 0 && d < p;
+  }
+
+  /// Effective (charged) centimes — the promo when valid, else the regular price.
+  String get effectivePriceCDF => hasDiscount ? discountPriceCDF! : priceCDF;
+
+  /// Discount percentage (0 when no promotion).
+  int get discountPct {
+    if (!hasDiscount) return 0;
+    final p = int.tryParse(priceCDF) ?? 0;
+    final d = int.tryParse(discountPriceCDF!) ?? 0;
+    return ((p - d) / p * 100).round();
+  }
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -160,6 +186,8 @@ class ProductDetailModel {
   final String? description;
   final String priceCDF;
   final String? priceUSD;
+  final String? discountPriceCDF;
+  final String? discountPriceUSD;
   final String condition;
   final int quantity;
   final List<ProductImageModel> images;
@@ -183,6 +211,8 @@ class ProductDetailModel {
     this.description,
     required this.priceCDF,
     this.priceUSD,
+    this.discountPriceCDF,
+    this.discountPriceUSD,
     required this.condition,
     required this.quantity,
     this.images = const [],
@@ -208,6 +238,8 @@ class ProductDetailModel {
       description: json['description']?.toString(),
       priceCDF: json['priceCDF']?.toString() ?? '0',
       priceUSD: json['priceUSD']?.toString(),
+      discountPriceCDF: json['discountPriceCDF']?.toString(),
+      discountPriceUSD: json['discountPriceUSD']?.toString(),
       condition: json['condition'] as String? ?? 'NEW',
       quantity: json['quantity'] as int? ?? 0,
       images: json['images'] != null
@@ -243,6 +275,27 @@ class ProductDetailModel {
 
   bool get isLowStock => quantity > 0 && quantity < 5;
   bool get isOutOfStock => quantity <= 0;
+
+  bool get hasDiscount {
+    final p = int.tryParse(priceCDF) ?? 0;
+    final d = int.tryParse(discountPriceCDF ?? '') ?? 0;
+    return p > 0 && d > 0 && d < p;
+  }
+
+  String get effectivePriceCDF => hasDiscount ? discountPriceCDF! : priceCDF;
+
+  int get discountPct {
+    if (!hasDiscount) return 0;
+    final p = int.tryParse(priceCDF) ?? 0;
+    final d = int.tryParse(discountPriceCDF!) ?? 0;
+    return ((p - d) / p * 100).round();
+  }
+
+  /// Savings in centimes (0 when no promotion).
+  int get savingsCentimes {
+    if (!hasDiscount) return 0;
+    return (int.tryParse(priceCDF) ?? 0) - (int.tryParse(discountPriceCDF!) ?? 0);
+  }
 }
 
 class ProductSpecification {

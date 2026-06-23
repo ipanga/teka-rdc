@@ -26,6 +26,9 @@ class BrowseProductsParams {
   final String? sortBy;
   final String? cityId;
 
+  /// Promotion facet: only products with an active seller-set discount.
+  final bool onPromotion;
+
   /// Pre-encoded JSON of the attribute facet filter (attributeId -> values).
   /// Kept as a String so this param stays value-equatable for the provider
   /// family key (a Map would break ==/hashCode).
@@ -41,6 +44,7 @@ class BrowseProductsParams {
     this.condition,
     this.sortBy,
     this.cityId,
+    this.onPromotion = false,
     this.attributesJson,
     this.brandIds,
   });
@@ -55,6 +59,7 @@ class BrowseProductsParams {
           condition == other.condition &&
           sortBy == other.sortBy &&
           cityId == other.cityId &&
+          onPromotion == other.onPromotion &&
           attributesJson == other.attributesJson &&
           brandIds == other.brandIds;
 
@@ -65,6 +70,7 @@ class BrowseProductsParams {
       condition.hashCode ^
       sortBy.hashCode ^
       cityId.hashCode ^
+      onPromotion.hashCode ^
       attributesJson.hashCode ^
       brandIds.hashCode;
 
@@ -74,6 +80,7 @@ class BrowseProductsParams {
     String? condition,
     String? sortBy,
     String? cityId,
+    bool? onPromotion,
     String? attributesJson,
     String? brandIds,
     bool clearCategoryId = false,
@@ -90,6 +97,7 @@ class BrowseProductsParams {
       condition: clearCondition ? null : (condition ?? this.condition),
       sortBy: clearSortBy ? null : (sortBy ?? this.sortBy),
       cityId: clearCityId ? null : (cityId ?? this.cityId),
+      onPromotion: onPromotion ?? this.onPromotion,
       attributesJson:
           clearAttributes ? null : (attributesJson ?? this.attributesJson),
       brandIds: clearBrandIds ? null : (brandIds ?? this.brandIds),
@@ -150,6 +158,7 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
         condition: _params.condition,
         sortBy: _params.sortBy,
         cityId: _params.cityId,
+        onPromotion: _params.onPromotion,
         attributesJson: _params.attributesJson,
         brandIds: _params.brandIds,
       );
@@ -182,6 +191,7 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
         condition: _params.condition,
         sortBy: _params.sortBy,
         cityId: _params.cityId,
+        onPromotion: _params.onPromotion,
         attributesJson: _params.attributesJson,
         brandIds: _params.brandIds,
         cursor: state.pagination?.nextCursor,
@@ -254,6 +264,18 @@ final newestProductsProvider = FutureProvider<List<BrowseProductModel>>((ref) as
   final result = await repository.browseProducts(
     sortBy: 'newest',
     limit: 20,
+    cityId: cityId,
+  );
+  return result.data;
+});
+
+/// Home "Promotions" strip — products with an active seller-set discount.
+final promoProductsProvider = FutureProvider<List<BrowseProductModel>>((ref) async {
+  final repository = ref.read(catalogRepositoryProvider);
+  final cityId = ref.watch(cityProvider).selectedCity?.id;
+  final result = await repository.browseProducts(
+    onPromotion: true,
+    limit: 10,
     cityId: cityId,
   );
   return result.data;

@@ -49,7 +49,8 @@ class ProductCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final title = product.title;
-    final price = formatCDF(product.priceCDF);
+    final hasDiscount = product.hasDiscount;
+    final price = formatCDF(product.effectivePriceCDF);
     final imageUrl = product.image?.thumbnailUrl ?? product.image?.url;
 
     return GestureDetector(
@@ -97,7 +98,9 @@ class ProductCard extends ConsumerWidget {
                         size: 32,
                       ),
                     ),
-                  // Out-of-stock solid badge top-left
+                  // Top-left: out-of-stock, else the discount badge. The
+                  // condition badge + seller name were removed from cards to
+                  // cut clutter — they stay on the PDP.
                   if (product.isOutOfStock)
                     Positioned(
                       top: 8,
@@ -108,13 +111,14 @@ class ProductCard extends ConsumerWidget {
                         foreground: Colors.white,
                       ),
                     )
-                  // Otherwise condition pill top-left
-                  else
+                  else if (hasDiscount)
                     Positioned(
                       top: 8,
                       left: 8,
-                      child: _ConditionBadge(
-                        condition: product.condition,
+                      child: _Pill(
+                        label: "-${product.discountPct}%",
+                        background: TekaColors.tekaRed,
+                        foreground: Colors.white,
                       ),
                     ),
                   // Low stock warning bottom-left (bottom-right is the quick-add)
@@ -191,28 +195,36 @@ class ProductCard extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    price,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      color: TekaColors.tekaRed,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                  if (product.seller.businessName != null &&
-                      product.seller.businessName!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      product.seller.businessName!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: TekaColors.mutedForeground,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          price,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: TekaColors.tekaRed,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+                      if (hasDiscount) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          formatCDF(product.priceCDF),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: TekaColors.mutedForeground,
+                            decoration: TextDecoration.lineThrough,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                   if (product.unitsSold > 0) ...[
                     const SizedBox(height: 2),
                     Text(
@@ -229,23 +241,6 @@ class ProductCard extends ConsumerWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _ConditionBadge extends StatelessWidget {
-  final String condition;
-
-  const _ConditionBadge({required this.condition});
-
-  @override
-  Widget build(BuildContext context) {
-    final isNew =
-        condition.toUpperCase() == 'NEW' || condition.toUpperCase() == 'NEUF';
-    return _Pill(
-      label: isNew ? "Neuf" : "Occasion",
-      background: isNew ? TekaColors.successSubtle : TekaColors.warningSubtle,
-      foreground: isNew ? TekaColors.success : TekaColors.warning,
     );
   }
 }

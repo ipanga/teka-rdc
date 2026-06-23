@@ -49,7 +49,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         const PosthogAnalytics().capture('product_viewed', properties: {
           'productId': product.id,
           if (product.category != null) 'categoryId': product.category!.id,
-          'price_cdf': int.tryParse(product.priceCDF) ?? 0,
+          'price_cdf': int.tryParse(product.effectivePriceCDF) ?? 0,
+          if (product.hasDiscount) 'discount_percent': product.discountPct,
           if (product.seller.id != null) 'sellerId': product.seller.id!,
         });
       });
@@ -66,7 +67,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         data: (product) {
           final title = product.title;
           final description = product.description ?? '';
-          final price = formatCDF(product.priceCDF);
+          final hasDiscount = product.hasDiscount;
+          final price = formatCDF(product.effectivePriceCDF);
           final priceUSD = product.priceUSD != null
               ? formatUSD(product.priceUSD!)
               : null;
@@ -143,17 +145,70 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                               ),
                               const SizedBox(height: 8),
 
-                              // Price
-                              Text(
-                                price,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .headlineSmall
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: TekaColors.tekaRed,
+                              // Price — effective price prominent; when on
+                              // promo, show the original struck through, a −X%
+                              // badge, and the savings.
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.baseline,
+                                textBaseline: TextBaseline.alphabetic,
+                                children: [
+                                  Text(
+                                    price,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineSmall
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: TekaColors.tekaRed,
+                                        ),
+                                  ),
+                                  if (hasDiscount) ...[
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      formatCDF(product.priceCDF),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleMedium
+                                          ?.copyWith(
+                                            color: TekaColors.mutedForeground,
+                                            decoration:
+                                                TextDecoration.lineThrough,
+                                          ),
                                     ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: TekaColors.tekaRed,
+                                        borderRadius: BorderRadius.circular(4),
+                                      ),
+                                      child: Text(
+                                        "-${product.discountPct}%",
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ],
                               ),
+                              if (hasDiscount)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    "Vous économisez ${formatCDF(product.savingsCentimes.toString())}",
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: TekaColors.success,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                  ),
+                                ),
                               if (priceUSD != null)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 2),

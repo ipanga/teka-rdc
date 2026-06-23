@@ -33,7 +33,7 @@ class CartModel {
       0,
       (sum, item) =>
           sum +
-          (int.tryParse(item.product.priceCDF) ?? 0) * item.quantity,
+          (int.tryParse(item.product.effectiveCDF) ?? 0) * item.quantity,
     );
     return total.toString();
   }
@@ -64,7 +64,7 @@ class CartItemModel {
   }
 
   String get subtotalCDF {
-    final unitPrice = int.tryParse(product.priceCDF) ?? 0;
+    final unitPrice = int.tryParse(product.effectiveCDF) ?? 0;
     return (unitPrice * quantity).toString();
   }
 }
@@ -73,6 +73,7 @@ class CartItemProduct {
   final String title;
   final String priceCDF;
   final String? priceUSD;
+  final String? discountPriceCDF;
   final int quantity; // stock quantity
   final String? thumbnailUrl;
   final String? sellerId;
@@ -82,6 +83,7 @@ class CartItemProduct {
     required this.title,
     required this.priceCDF,
     this.priceUSD,
+    this.discountPriceCDF,
     this.quantity = 0,
     this.thumbnailUrl,
     this.sellerId,
@@ -93,10 +95,20 @@ class CartItemProduct {
       title: json['title']?.toString() ?? '',
       priceCDF: json['priceCDF']?.toString() ?? '0',
       priceUSD: json['priceUSD']?.toString(),
+      discountPriceCDF: json['discountPriceCDF']?.toString(),
       quantity: json['quantity'] as int? ?? 0,
       thumbnailUrl: json['thumbnailUrl'] as String?,
       sellerId: json['sellerId'] as String?,
       sellerName: json['sellerName'] as String?,
     );
   }
+
+  bool get hasDiscount {
+    final p = int.tryParse(priceCDF) ?? 0;
+    final d = int.tryParse(discountPriceCDF ?? '') ?? 0;
+    return p > 0 && d > 0 && d < p;
+  }
+
+  /// Effective (charged) centimes — promo when valid, else the regular price.
+  String get effectiveCDF => hasDiscount ? discountPriceCDF! : priceCDF;
 }
