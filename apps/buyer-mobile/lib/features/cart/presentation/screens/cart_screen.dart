@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
+import '../../../../core/widgets/app_states.dart';
 import '../providers/cart_provider.dart';
 import '../widgets/cart_item_tile.dart';
 
@@ -30,7 +31,12 @@ class CartScreen extends ConsumerWidget {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : cartState.isEmpty
-              ? const _EmptyCartView()
+              ? AppEmptyState(
+                  icon: Icons.shopping_cart_outlined,
+                  title: 'Votre panier est vide',
+                  actionLabel: 'Decouvrir nos produits',
+                  onAction: () => context.go('/'),
+                )
               : RefreshIndicator(
                   color: TekaColors.tekaRed,
                   onRefresh: () =>
@@ -91,48 +97,6 @@ class CartScreen extends ConsumerWidget {
             child: const Text('Supprimer'),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _EmptyCartView extends StatelessWidget {
-  const _EmptyCartView();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.shopping_cart_outlined,
-              size: 80,
-              color: TekaColors.mutedForeground,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Votre panier est vide',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: TekaColors.mutedForeground,
-                    fontWeight: FontWeight.w600,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: () => context.go('/'),
-              style: FilledButton.styleFrom(
-                backgroundColor: TekaColors.tekaRed,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-              ),
-              child: const Text('Decouvrir nos produits'),
-            ),
-          ],
-        ),
       ),
     );
   }

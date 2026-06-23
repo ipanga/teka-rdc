@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
+import '../../../../core/widgets/app_states.dart';
+import '../../../../core/widgets/product_skeletons.dart';
 import '../../data/models/wishlist_model.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../reviews/presentation/widgets/star_rating.dart';
@@ -60,44 +62,22 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
         title: Text("Mes favoris"),
       ),
       body: wishlistState.isLoading
-          ? const Center(
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
+          ? const ProductGridSkeleton(count: 6)
           : wishlistState.error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          size: 48,
-                          color: TekaColors.mutedForeground,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          wishlistState.error!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: TekaColors.mutedForeground,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        FilledButton(
-                          onPressed: () =>
-                              ref.read(wishlistProvider.notifier).refresh(),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: TekaColors.tekaRed,
-                          ),
-                          child: Text("Reessayer"),
-                        ),
-                      ],
-                    ),
-                  ),
+              ? AppErrorState(
+                  message: wishlistState.error,
+                  onRetry: () =>
+                      ref.read(wishlistProvider.notifier).refresh(),
                 )
               : wishlistState.items.isEmpty
-                  ? const _EmptyWishlistView()
+                  ? AppEmptyState(
+                      icon: Icons.favorite_border,
+                      title: "Aucun favori",
+                      message:
+                          "Ajoutez des produits a vos favoris pour les retrouver facilement",
+                      actionLabel: "Decouvrir les produits",
+                      onAction: () => context.go('/'),
+                    )
                   : RefreshIndicator(
                       color: TekaColors.tekaRed,
                       onRefresh: () =>
@@ -189,57 +169,6 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
         );
       }
     }
-  }
-}
-
-class _EmptyWishlistView extends StatelessWidget {
-  const _EmptyWishlistView();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.favorite_border,
-              size: 80,
-              color: TekaColors.mutedForeground,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              "Aucun favori",
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: TekaColors.mutedForeground,
-                    fontWeight: FontWeight.w600,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Ajoutez des produits a vos favoris pour les retrouver facilement",
-              style: const TextStyle(
-                color: TekaColors.mutedForeground,
-                fontSize: 13,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: () => context.go('/'),
-              style: FilledButton.styleFrom(
-                backgroundColor: TekaColors.tekaRed,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-              child: Text("Decouvrir les produits"),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 
