@@ -1,16 +1,12 @@
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 
 export default function AdminHomePage() {
-  const t = useTranslations('HomePage');
-  const tc = useTranslations('Common');
-
   return (
     <main className="min-h-screen flex flex-col items-center justify-center gap-6 p-8">
       <div className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
         Administration
       </div>
-      <h1 className="sr-only">{tc('appName')}</h1>
+      <h1 className="sr-only">Teka RDC</h1>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src="/logo.svg"
@@ -19,12 +15,12 @@ export default function AdminHomePage() {
         width={280}
         height={56}
       />
-      <p className="text-lg text-muted-foreground">{t('subtitle')}</p>
+      <p className="text-lg text-muted-foreground">Votre marketplace en ligne en RD Congo</p>
       <Link
         href="/login"
         className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition"
       >
-        {tc('login')}
+        Se connecter
       </Link>
     </main>
   );

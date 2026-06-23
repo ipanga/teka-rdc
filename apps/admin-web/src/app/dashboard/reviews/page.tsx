@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 
 interface ReviewBuyer {
@@ -42,9 +41,9 @@ interface PaginatedResponse {
 const STATUS_TABS = ['', 'ACTIVE', 'HIDDEN'];
 
 const STATUS_TAB_KEYS: Record<string, string> = {
-  '': 'allReviews',
-  ACTIVE: 'activeReviews',
-  HIDDEN: 'hiddenReviews',
+  '': 'Tous',
+  ACTIVE: 'Actifs',
+  HIDDEN: 'Masqués',
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -70,9 +69,6 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 export default function ReviewsPage() {
-  const t = useTranslations('Reviews');
-  const tCommon = useTranslations('Common');
-
   const [reviews, setReviews] = useState<Review[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -118,7 +114,7 @@ export default function ReviewsPage() {
     setActionLoadingId(reviewId);
     try {
       await apiFetch(`/v1/admin/reviews/${reviewId}/hide`, { method: 'POST' });
-      showFeedbackMessage('success', t('reviewHidden'));
+      showFeedbackMessage('success', "Avis masqué");
       fetchReviews();
     } catch {
       showFeedbackMessage('error', 'Erreur');
@@ -131,7 +127,7 @@ export default function ReviewsPage() {
     setActionLoadingId(reviewId);
     try {
       await apiFetch(`/v1/admin/reviews/${reviewId}/unhide`, { method: 'POST' });
-      showFeedbackMessage('success', t('reviewUnhidden'));
+      showFeedbackMessage('success', "Avis affiché");
       fetchReviews();
     } catch {
       showFeedbackMessage('error', 'Erreur');
@@ -146,7 +142,7 @@ export default function ReviewsPage() {
     try {
       await apiFetch(`/v1/admin/reviews/${deletingId}`, { method: 'DELETE' });
       setDeletingId(null);
-      showFeedbackMessage('success', t('reviewDeleted'));
+      showFeedbackMessage('success', "Avis supprimé");
       fetchReviews();
     } catch {
       showFeedbackMessage('error', 'Erreur');
@@ -177,7 +173,7 @@ export default function ReviewsPage() {
       )}
 
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+        <h1 className="text-2xl font-bold text-foreground">Modération des avis</h1>
       </div>
 
       {/* Status filter tabs */}
@@ -195,7 +191,7 @@ export default function ReviewsPage() {
                 : 'bg-background text-foreground border-border hover:bg-muted'
             }`}
           >
-            {t(STATUS_TAB_KEYS[status])}
+            {STATUS_TAB_KEYS[status]}
           </button>
         ))}
       </div>
@@ -206,25 +202,25 @@ export default function ReviewsPage() {
           <thead>
             <tr className="border-b border-border bg-muted">
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('date')}
+                Date
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('product')}
+                Produit
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('buyer')}
+                Acheteur
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('rating')}
+                Note
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('text')}
+                Commentaire
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('status')}
+                Statut
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('actions')}
+                Actions
               </th>
             </tr>
           </thead>
@@ -232,13 +228,13 @@ export default function ReviewsPage() {
             {isLoading ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                  {tCommon('loading')}
+                  Chargement...
                 </td>
               </tr>
             ) : reviews.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                  {t('noReviews')}
+                  Aucun avis trouvé
                 </td>
               </tr>
             ) : (
@@ -267,7 +263,7 @@ export default function ReviewsPage() {
                         STATUS_STYLES[review.status] || 'bg-secondary text-secondary-foreground'
                       }`}
                     >
-                      {review.status === 'ACTIVE' ? t('active') : t('hidden')}
+                      {review.status === 'ACTIVE' ? 'Actif' : 'Masqué'}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -278,7 +274,7 @@ export default function ReviewsPage() {
                           disabled={actionLoadingId === review.id}
                           className="px-2.5 py-1 text-xs font-medium bg-warning/10 text-warning rounded-lg hover:bg-warning/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {actionLoadingId === review.id ? tCommon('loading') : t('hide')}
+                          {actionLoadingId === review.id ? "Chargement..." : "Masquer"}
                         </button>
                       ) : (
                         <button
@@ -286,7 +282,7 @@ export default function ReviewsPage() {
                           disabled={actionLoadingId === review.id}
                           className="px-2.5 py-1 text-xs font-medium bg-success/10 text-success rounded-lg hover:bg-success/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {actionLoadingId === review.id ? tCommon('loading') : t('unhide')}
+                          {actionLoadingId === review.id ? "Chargement..." : "Afficher"}
                         </button>
                       )}
                       <button
@@ -294,7 +290,7 @@ export default function ReviewsPage() {
                         disabled={actionLoadingId === review.id}
                         className="px-2.5 py-1 text-xs font-medium bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {t('delete')}
+                        Supprimer
                       </button>
                     </div>
                   </td>
@@ -313,7 +309,7 @@ export default function ReviewsPage() {
             disabled={page <= 1}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {tCommon('previous')}
+            Précédent
           </button>
           <span className="text-sm text-muted-foreground">
             {page} / {totalPages}
@@ -323,7 +319,7 @@ export default function ReviewsPage() {
             disabled={page >= totalPages}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {tCommon('next')}
+            Suivant
           </button>
         </div>
       )}
@@ -334,21 +330,21 @@ export default function ReviewsPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setDeletingId(null)} />
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-sm mx-4">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-2">{t('delete')}</h3>
-              <p className="text-sm text-muted-foreground mb-4">{t('confirmDelete')}</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Supprimer</h3>
+              <p className="text-sm text-muted-foreground mb-4">Êtes-vous sûr de vouloir supprimer cet avis ?</p>
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setDeletingId(null)}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  Annuler
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={isDeleting}
                   className="px-4 py-2 text-sm font-medium text-white bg-destructive rounded-lg hover:bg-destructive/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isDeleting ? tCommon('loading') : tCommon('confirm')}
+                  {isDeleting ? "Chargement..." : "Confirmer"}
                 </button>
               </div>
             </div>

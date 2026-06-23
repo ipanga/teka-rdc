@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 import { CategoryTree, type Category } from '@/components/categories/category-tree';
 import { CategoryFormModal, type CategoryFormData } from '@/components/categories/category-form-modal';
@@ -10,8 +9,6 @@ import { AttributeManager, type CategoryAttribute } from '@/components/categorie
 type CategoryDetailData = Category & { attributes: CategoryAttribute[] };
 
 export default function CategoriesPage() {
-  const t = useTranslations('Categories');
-
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -78,11 +75,11 @@ export default function CategoriesPage() {
   };
 
   const handleDelete = async (category: Category) => {
-    if (!confirm(t('confirmDelete'))) return;
+    if (!confirm("Voulez-vous vraiment supprimer cette catégorie ? Cette action est irréversible.")) return;
 
     try {
       await apiFetch(`/v1/admin/categories/${category.id}`, { method: 'DELETE' });
-      showFeedback('success', t('deleted'));
+      showFeedback('success', "Catégorie supprimée avec succès");
       if (selectedCategory?.id === category.id) {
         setSelectedCategory(null);
         setAttributes([]);
@@ -105,7 +102,7 @@ export default function CategoriesPage() {
         body: JSON.stringify(data),
       });
     }
-    showFeedback('success', t('saved'));
+    showFeedback('success', "Catégorie enregistrée avec succès");
     fetchCategories();
   };
 
@@ -142,12 +139,12 @@ export default function CategoriesPage() {
       )}
 
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+        <h1 className="text-2xl font-bold text-foreground">Gestion des catégories</h1>
         <button
           onClick={handleNewCategory}
           className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors"
         >
-          + {t('newCategory')}
+          + Nouvelle catégorie
         </button>
       </div>
 
@@ -155,11 +152,11 @@ export default function CategoriesPage() {
         {/* Left: Category Tree */}
         <div className="bg-white rounded-xl border border-border p-4">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-            {t('title')}
+            Gestion des catégories
           </h2>
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
-              <p className="text-sm text-muted-foreground">{t('noCategories')}...</p>
+              <p className="text-sm text-muted-foreground">Aucune catégorie trouvée...</p>
             </div>
           ) : (
             <CategoryTree
@@ -189,7 +186,7 @@ export default function CategoriesPage() {
             )
           ) : (
             <div className="flex items-center justify-center py-16">
-              <p className="text-sm text-muted-foreground">{t('selectCategory')}</p>
+              <p className="text-sm text-muted-foreground">Sélectionnez une catégorie pour voir ses attributs</p>
             </div>
           )}
         </div>

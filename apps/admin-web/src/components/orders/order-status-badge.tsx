@@ -1,7 +1,5 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
-
 interface OrderStatusBadgeProps {
   status: string;
 }
@@ -16,22 +14,19 @@ const STATUS_STYLES: Record<string, string> = {
   RETURNED: 'bg-destructive/10 text-destructive',
 };
 
-const STATUS_KEYS: Record<string, string> = {
-  PENDING: 'pending',
-  CONFIRMED: 'confirmed',
-  PROCESSING: 'processing',
-  SHIPPED: 'shipped',
-  DELIVERED: 'delivered',
-  CANCELLED: 'cancelled',
-  RETURNED: 'returned',
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: 'En attente',
+  CONFIRMED: 'Confirmées',
+  PROCESSING: 'En préparation',
+  SHIPPED: 'Expédiées',
+  DELIVERED: 'Livrées',
+  CANCELLED: 'Annulées',
+  RETURNED: 'Retournées',
 };
 
 export function OrderStatusBadge({ status }: OrderStatusBadgeProps) {
-  const t = useTranslations('Orders');
-
   const style = STATUS_STYLES[status] || 'bg-secondary text-secondary-foreground';
-  const key = STATUS_KEYS[status];
-  const label = key ? t(key) : status;
+  const label = STATUS_LABELS[status] || status;
 
   return (
     <span

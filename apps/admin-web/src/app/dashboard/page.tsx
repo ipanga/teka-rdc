@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import { apiFetch } from '@/lib/api-client';
@@ -62,8 +61,6 @@ function formatNumber(val: number): string {
 }
 
 export default function AdminDashboardPage() {
-  const t = useTranslations('Dashboard');
-  const tCommon = useTranslations('Common');
   const user = useAuthStore((s) => s.user);
 
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -114,9 +111,9 @@ export default function AdminDashboardPage() {
 
   const periodKey = (p: Period) => {
     switch (p) {
-      case '7d': return t('period7d');
-      case '30d': return t('period30d');
-      case '90d': return t('period90d');
+      case '7d': return "7 jours";
+      case '30d': return "30 jours";
+      case '90d': return "90 jours";
     }
   };
 
@@ -129,9 +126,9 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold text-foreground mb-2">{t('title')}</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-2">Tableau de bord</h1>
       <p className="text-muted-foreground mb-8">
-        {t('welcome')}, {user?.firstName}
+        Bienvenue, {user?.firstName}
       </p>
 
       {/* Pending seller applications alert — only shown when there are any. */}
@@ -146,15 +143,15 @@ export default function AdminDashboardPage() {
             </span>
             <div>
               <p className="text-sm font-medium text-foreground">
-                {t('pendingSellerApplicationsTitle')}
+                Demandes vendeurs en attente
               </p>
               <p className="text-xs text-muted-foreground">
-                {t('pendingSellerApplicationsSubtitle')}
+                De nouvelles demandes attendent votre approbation.
               </p>
             </div>
           </div>
           <span className="text-sm font-medium text-primary whitespace-nowrap">
-            {t('pendingSellerApplicationsCta')} &rarr;
+            Examiner les demandes &rarr;
           </span>
         </Link>
       )}
@@ -171,15 +168,15 @@ export default function AdminDashboardPage() {
             </span>
             <div>
               <p className="text-sm font-medium text-foreground">
-                {t('pendingProductsTitle')}
+                Produits en attente de validation
               </p>
               <p className="text-xs text-muted-foreground">
-                {t('pendingProductsSubtitle')}
+                De nouveaux produits attendent votre validation.
               </p>
             </div>
           </div>
           <span className="text-sm font-medium text-primary whitespace-nowrap">
-            {t('pendingProductsCta')} &rarr;
+            Examiner les produits &rarr;
           </span>
         </Link>
       )}
@@ -187,7 +184,7 @@ export default function AdminDashboardPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white rounded-xl border border-border p-6">
-          <h3 className="text-sm font-medium text-muted-foreground">{t('totalUsers')}</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">Utilisateurs</h3>
           {isLoading ? (
             <div className="h-9 mt-2 bg-muted rounded animate-pulse" />
           ) : (
@@ -197,7 +194,7 @@ export default function AdminDashboardPage() {
           )}
         </div>
         <div className="bg-white rounded-xl border border-border p-6">
-          <h3 className="text-sm font-medium text-muted-foreground">{t('totalSellers')}</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">Vendeurs</h3>
           {isLoading ? (
             <div className="h-9 mt-2 bg-muted rounded animate-pulse" />
           ) : (
@@ -207,7 +204,7 @@ export default function AdminDashboardPage() {
           )}
         </div>
         <div className="bg-white rounded-xl border border-border p-6">
-          <h3 className="text-sm font-medium text-muted-foreground">{t('totalOrders')}</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">Commandes</h3>
           {isLoading ? (
             <div className="h-9 mt-2 bg-muted rounded animate-pulse" />
           ) : (
@@ -217,7 +214,7 @@ export default function AdminDashboardPage() {
           )}
         </div>
         <div className="bg-white rounded-xl border border-border p-6">
-          <h3 className="text-sm font-medium text-muted-foreground">{t('totalRevenue')}</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">Chiffre d&apos;affaires</h3>
           {isLoading ? (
             <div className="h-9 mt-2 bg-muted rounded animate-pulse" />
           ) : (
@@ -231,7 +228,7 @@ export default function AdminDashboardPage() {
       {/* Trends Section */}
       <div className="mt-10">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-foreground">{t('trends')}</h2>
+          <h2 className="text-lg font-semibold text-foreground">Tendances</h2>
           <div className="flex gap-2">
             {PERIOD_OPTIONS.map((p) => (
               <button
@@ -260,7 +257,7 @@ export default function AdminDashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Revenue Chart - Area */}
             <div className="bg-white rounded-xl border border-border p-6">
-              <h3 className="text-sm font-medium text-muted-foreground mb-4">{t('revenue')}</h3>
+              <h3 className="text-sm font-medium text-muted-foreground mb-4">Revenus</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <AreaChart data={trends.revenueDaily}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -277,7 +274,7 @@ export default function AdminDashboardPage() {
                     width={90}
                   />
                   <Tooltip
-                    formatter={(value) => [formatCDFValue(Number(value ?? 0)), t('revenue')]}
+                    formatter={(value) => [formatCDFValue(Number(value ?? 0)), "Revenus"]}
                     labelFormatter={formatDateLabel}
                   />
                   <Area
@@ -294,7 +291,7 @@ export default function AdminDashboardPage() {
 
             {/* Orders Chart - Bar */}
             <div className="bg-white rounded-xl border border-border p-6">
-              <h3 className="text-sm font-medium text-muted-foreground mb-4">{t('orders')}</h3>
+              <h3 className="text-sm font-medium text-muted-foreground mb-4">Commandes</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={trends.ordersDaily}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -306,7 +303,7 @@ export default function AdminDashboardPage() {
                   />
                   <YAxis tick={{ fontSize: 11 }} stroke="#999" />
                   <Tooltip
-                    formatter={(value) => [formatNumber(Number(value ?? 0)), t('orders')]}
+                    formatter={(value) => [formatNumber(Number(value ?? 0)), "Commandes"]}
                     labelFormatter={formatDateLabel}
                   />
                   <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} />
@@ -316,7 +313,7 @@ export default function AdminDashboardPage() {
 
             {/* New Users Chart - Line */}
             <div className="bg-white rounded-xl border border-border p-6">
-              <h3 className="text-sm font-medium text-muted-foreground mb-4">{t('users')}</h3>
+              <h3 className="text-sm font-medium text-muted-foreground mb-4">Nouveaux utilisateurs</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={trends.usersDaily}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -328,7 +325,7 @@ export default function AdminDashboardPage() {
                   />
                   <YAxis tick={{ fontSize: 11 }} stroke="#999" />
                   <Tooltip
-                    formatter={(value) => [formatNumber(Number(value ?? 0)), t('users')]}
+                    formatter={(value) => [formatNumber(Number(value ?? 0)), "Nouveaux utilisateurs"]}
                     labelFormatter={formatDateLabel}
                   />
                   <Line
@@ -345,7 +342,7 @@ export default function AdminDashboardPage() {
 
             {/* GMV Chart - Area */}
             <div className="bg-white rounded-xl border border-border p-6">
-              <h3 className="text-sm font-medium text-muted-foreground mb-4">{t('gmv')}</h3>
+              <h3 className="text-sm font-medium text-muted-foreground mb-4">Volume brut (GMV)</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <AreaChart data={trends.gmvDaily}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -362,7 +359,7 @@ export default function AdminDashboardPage() {
                     width={90}
                   />
                   <Tooltip
-                    formatter={(value) => [formatCDFValue(Number(value ?? 0)), t('gmv')]}
+                    formatter={(value) => [formatCDFValue(Number(value ?? 0)), "Volume brut (GMV)"]}
                     labelFormatter={formatDateLabel}
                   />
                   <Area
@@ -378,7 +375,7 @@ export default function AdminDashboardPage() {
             </div>
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">{tCommon('loading')}</p>
+          <p className="text-sm text-muted-foreground">Chargement...</p>
         )}
       </div>
     </div>

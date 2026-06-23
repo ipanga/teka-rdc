@@ -1,8 +1,53 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
+
+const map: Record<string, string> = {
+  "Common.actions": "Actions",
+  "Common.loading": "Chargement...",
+  "Common.previous": "Précédent",
+  "Common.next": "Suivant",
+  "Common.cancel": "Annuler",
+  "Common.save": "Enregistrer",
+  "Common.confirm": "Confirmer",
+  "Promotions.title": "Gestion des promotions",
+  "Promotions.create": "Nouvelle promotion",
+  "Promotions.created": "Promotion créée avec succès",
+  "Promotions.approved": "Promotion approuvée",
+  "Promotions.rejected": "Promotion rejetée",
+  "Promotions.error": "Une erreur est survenue",
+  "Promotions.noPromotions": "Aucune promotion trouvée",
+  "Promotions.all": "Toutes",
+  "Promotions.promotionType": "Promotion",
+  "Promotions.flashDeal": "Vente flash",
+  "Promotions.pendingApproval": "En attente d'approbation",
+  "Promotions.type": "Type",
+  "Promotions.titleLabel": "Titre",
+  "Promotions.discount": "Réduction",
+  "Promotions.discountPercent": "Réduction (%)",
+  "Promotions.discountAmountCDF": "Réduction (CDF)",
+  "Promotions.target": "Cible",
+  "Promotions.targetType": "Type de cible",
+  "Promotions.targetId": "ID de la cible",
+  "Promotions.targetProduct": "Produit",
+  "Promotions.targetCategory": "Catégorie",
+  "Promotions.targetSeller": "Vendeur",
+  "Promotions.startDate": "Date de début",
+  "Promotions.endDate": "Date de fin",
+  "Promotions.dates": "Période",
+  "Promotions.status": "Statut",
+  "Promotions.statusDraft": "Brouillon",
+  "Promotions.statusActive": "Active",
+  "Promotions.statusPending": "En attente",
+  "Promotions.statusApproved": "Approuvée",
+  "Promotions.statusRejected": "Rejetée",
+  "Promotions.statusExpired": "Expirée",
+  "Promotions.approve": "Approuver",
+  "Promotions.reject": "Rejeter",
+  "Promotions.rejectionReasonPlaceholder": "Décrivez le motif du rejet...",
+  "Promotions.description": "Description",
+};
 
 interface Promotion {
   id: string;
@@ -57,10 +102,10 @@ const EMPTY_FORM: PromotionForm = {
 
 const STATUS_TABS = ['', 'PROMOTION', 'FLASH_DEAL', 'PENDING_APPROVAL'];
 const STATUS_TAB_KEYS: Record<string, string> = {
-  '': 'all',
-  'PROMOTION': 'promotionType',
-  'FLASH_DEAL': 'flashDeal',
-  'PENDING_APPROVAL': 'pendingApproval',
+  '': 'Toutes',
+  'PROMOTION': 'Promotion',
+  'FLASH_DEAL': 'Vente flash',
+  'PENDING_APPROVAL': "En attente d'approbation",
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -78,9 +123,6 @@ const TYPE_STYLES: Record<string, string> = {
 };
 
 export default function PromotionsPage() {
-  const t = useTranslations('Promotions');
-  const tCommon = useTranslations('Common');
-
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -160,10 +202,10 @@ export default function PromotionsPage() {
 
       setShowModal(false);
       setForm(EMPTY_FORM);
-      showFeedback('success', t('created'));
+      showFeedback('success', map["Promotions.created"]);
       fetchPromotions();
     } catch {
-      showFeedback('error', t('error'));
+      showFeedback('error', map["Promotions.error"]);
     } finally {
       setIsSaving(false);
     }
@@ -172,10 +214,10 @@ export default function PromotionsPage() {
   const handleApprove = async (id: string) => {
     try {
       await apiFetch(`/v1/admin/promotions/${id}/approve`, { method: 'POST' });
-      showFeedback('success', t('approved'));
+      showFeedback('success', map["Promotions.approved"]);
       fetchPromotions();
     } catch {
-      showFeedback('error', t('error'));
+      showFeedback('error', map["Promotions.error"]);
     }
   };
 
@@ -189,10 +231,10 @@ export default function PromotionsPage() {
       });
       setRejectingId(null);
       setRejectionReason('');
-      showFeedback('success', t('rejected'));
+      showFeedback('success', map["Promotions.rejected"]);
       fetchPromotions();
     } catch {
-      showFeedback('error', t('error'));
+      showFeedback('error', map["Promotions.error"]);
     } finally {
       setIsRejecting(false);
     }
@@ -212,12 +254,12 @@ export default function PromotionsPage() {
 
   const statusLabel = (status: string) => {
     switch (status) {
-      case 'DRAFT': return t('statusDraft');
-      case 'ACTIVE': return t('statusActive');
-      case 'PENDING_APPROVAL': return t('statusPending');
-      case 'APPROVED': return t('statusApproved');
-      case 'REJECTED': return t('statusRejected');
-      case 'EXPIRED': return t('statusExpired');
+      case 'DRAFT': return map["Promotions.statusDraft"];
+      case 'ACTIVE': return map["Promotions.statusActive"];
+      case 'PENDING_APPROVAL': return map["Promotions.statusPending"];
+      case 'APPROVED': return map["Promotions.statusApproved"];
+      case 'REJECTED': return map["Promotions.statusRejected"];
+      case 'EXPIRED': return map["Promotions.statusExpired"];
       default: return status;
     }
   };
@@ -237,12 +279,12 @@ export default function PromotionsPage() {
       )}
 
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+        <h1 className="text-2xl font-bold text-foreground">{map["Promotions.title"]}</h1>
         <button
           onClick={() => { setForm(EMPTY_FORM); setShowModal(true); }}
           className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
         >
-          {t('create')}
+          {map["Promotions.create"]}
         </button>
       </div>
 
@@ -258,7 +300,7 @@ export default function PromotionsPage() {
                 : 'bg-background text-foreground border-border hover:bg-muted'
             }`}
           >
-            {t(STATUS_TAB_KEYS[tab])}
+            {STATUS_TAB_KEYS[tab]}
           </button>
         ))}
       </div>
@@ -268,26 +310,26 @@ export default function PromotionsPage() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted">
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('type')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('titleLabel')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('discount')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('target')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('dates')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('status')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{tCommon('actions')}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{map["Promotions.type"]}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{map["Promotions.titleLabel"]}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{map["Promotions.discount"]}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{map["Promotions.target"]}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{map["Promotions.dates"]}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{map["Promotions.status"]}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{map["Common.actions"]}</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                  {tCommon('loading')}
+                  {map["Common.loading"]}
                 </td>
               </tr>
             ) : promotions.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                  {t('noPromotions')}
+                  {map["Promotions.noPromotions"]}
                 </td>
               </tr>
             ) : (
@@ -295,7 +337,7 @@ export default function PromotionsPage() {
                 <tr key={promo.id} className="border-b border-border last:border-0 hover:bg-muted/50">
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${TYPE_STYLES[promo.type] || 'bg-gray-100 text-gray-700'}`}>
-                      {promo.type === 'FLASH_DEAL' ? t('flashDeal') : t('promotionType')}
+                      {promo.type === 'FLASH_DEAL' ? map["Promotions.flashDeal"] : map["Promotions.promotionType"]}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm font-medium text-foreground max-w-[200px] truncate">
@@ -325,13 +367,13 @@ export default function PromotionsPage() {
                             onClick={() => handleApprove(promo.id)}
                             className="px-2.5 py-1 text-xs font-medium bg-success/10 text-success rounded-lg hover:bg-success/20 transition-colors"
                           >
-                            {t('approve')}
+                            {map["Promotions.approve"]}
                           </button>
                           <button
                             onClick={() => setRejectingId(promo.id)}
                             className="px-2.5 py-1 text-xs font-medium bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors"
                           >
-                            {t('reject')}
+                            {map["Promotions.reject"]}
                           </button>
                         </>
                       )}
@@ -352,7 +394,7 @@ export default function PromotionsPage() {
             disabled={page <= 1}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {tCommon('previous')}
+            {map["Common.previous"]}
           </button>
           <span className="text-sm text-muted-foreground">
             {page} / {totalPages}
@@ -362,7 +404,7 @@ export default function PromotionsPage() {
             disabled={page >= totalPages}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {tCommon('next')}
+            {map["Common.next"]}
           </button>
         </div>
       )}
@@ -373,23 +415,23 @@ export default function PromotionsPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowModal(false)} />
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">{t('create')}</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-4">{map["Promotions.create"]}</h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">{t('type')}</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">{map["Promotions.type"]}</label>
                   <select
                     value={form.type}
                     onChange={(e) => setForm({ ...form, type: e.target.value })}
                     className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                   >
-                    <option value="PROMOTION">{t('promotionType')}</option>
-                    <option value="FLASH_DEAL">{t('flashDeal')}</option>
+                    <option value="PROMOTION">{map["Promotions.promotionType"]}</option>
+                    <option value="FLASH_DEAL">{map["Promotions.flashDeal"]}</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">{t('titleLabel')}</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">{map["Promotions.titleLabel"]}</label>
                   <input
                     type="text"
                     value={form.title}
@@ -399,7 +441,7 @@ export default function PromotionsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">{t('description')}</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">{map["Promotions.description"]}</label>
                   <textarea
                     value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -410,7 +452,7 @@ export default function PromotionsPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('discountPercent')}</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">{map["Promotions.discountPercent"]}</label>
                     <input
                       type="number"
                       value={form.discountPercent}
@@ -420,7 +462,7 @@ export default function PromotionsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('discountAmountCDF')}</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">{map["Promotions.discountAmountCDF"]}</label>
                     <input
                       type="number"
                       value={form.discountAmountCDF}
@@ -433,20 +475,20 @@ export default function PromotionsPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('targetType')}</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">{map["Promotions.targetType"]}</label>
                     <select
                       value={form.targetType}
                       onChange={(e) => setForm({ ...form, targetType: e.target.value })}
                       className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                     >
                       <option value="">-</option>
-                      <option value="product">{t('targetProduct')}</option>
-                      <option value="category">{t('targetCategory')}</option>
-                      <option value="seller">{t('targetSeller')}</option>
+                      <option value="product">{map["Promotions.targetProduct"]}</option>
+                      <option value="category">{map["Promotions.targetCategory"]}</option>
+                      <option value="seller">{map["Promotions.targetSeller"]}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('targetId')}</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">{map["Promotions.targetId"]}</label>
                     <input
                       type="text"
                       value={form.targetId}
@@ -459,7 +501,7 @@ export default function PromotionsPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('startDate')}</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">{map["Promotions.startDate"]}</label>
                     <input
                       type="date"
                       value={form.startDate}
@@ -468,7 +510,7 @@ export default function PromotionsPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('endDate')}</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">{map["Promotions.endDate"]}</label>
                     <input
                       type="date"
                       value={form.endDate}
@@ -484,14 +526,14 @@ export default function PromotionsPage() {
                   onClick={() => setShowModal(false)}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  {map["Common.cancel"]}
                 </button>
                 <button
                   onClick={handleCreate}
                   disabled={isSaving || !form.title}
                   className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSaving ? tCommon('loading') : tCommon('save')}
+                  {isSaving ? map["Common.loading"] : map["Common.save"]}
                 </button>
               </div>
             </div>
@@ -505,11 +547,11 @@ export default function PromotionsPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setRejectingId(null)} />
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-sm mx-4">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-2">{t('reject')}</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">{map["Promotions.reject"]}</h3>
               <textarea
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder={t('rejectionReasonPlaceholder')}
+                placeholder={map["Promotions.rejectionReasonPlaceholder"]}
                 className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 mb-4"
                 rows={3}
               />
@@ -518,14 +560,14 @@ export default function PromotionsPage() {
                   onClick={() => { setRejectingId(null); setRejectionReason(''); }}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  {map["Common.cancel"]}
                 </button>
                 <button
                   onClick={handleReject}
                   disabled={isRejecting || !rejectionReason.trim()}
                   className="px-4 py-2 text-sm font-medium text-white bg-destructive rounded-lg hover:bg-destructive/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isRejecting ? tCommon('loading') : tCommon('confirm')}
+                  {isRejecting ? map["Common.loading"] : map["Common.confirm"]}
                 </button>
               </div>
             </div>

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 
 interface Setting {
@@ -15,9 +14,6 @@ interface Setting {
 }
 
 export default function SettingsPage() {
-  const t = useTranslations('Settings');
-  const tCommon = useTranslations('Common');
-
   const [settings, setSettings] = useState<Setting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
@@ -61,10 +57,10 @@ export default function SettingsPage() {
         method: 'PUT',
         body: JSON.stringify({ value: newValue }),
       });
-      showFeedback('success', t('saved'));
+      showFeedback('success', "Paramètre enregistré avec succès");
       fetchSettings();
     } catch {
-      showFeedback('error', t('error'));
+      showFeedback('error', "Une erreur est survenue");
     } finally {
       setSavingKey(null);
     }
@@ -79,10 +75,10 @@ export default function SettingsPage() {
         method: 'PUT',
         body: JSON.stringify({ value: newValue }),
       });
-      showFeedback('success', t('saved'));
+      showFeedback('success', "Paramètre enregistré avec succès");
       fetchSettings();
     } catch {
-      showFeedback('error', t('error'));
+      showFeedback('error', "Une erreur est survenue");
     } finally {
       setSavingKey(null);
     }
@@ -118,7 +114,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <h1 className="text-2xl font-bold text-foreground mb-6">{t('title')}</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-6">Paramètres de la plateforme</h1>
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -131,7 +127,7 @@ export default function SettingsPage() {
         </div>
       ) : settings.length === 0 ? (
         <div className="bg-white rounded-xl border border-border p-8 text-center text-muted-foreground">
-          {t('noSettings')}
+          Aucun paramètre trouvé
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -183,7 +179,7 @@ export default function SettingsPage() {
                       />
                     </button>
                     <span className="ml-2 text-sm text-muted-foreground">
-                      {isChecked ? t('enabled') : t('disabled')}
+                      {isChecked ? "Activé" : "Désactivé"}
                     </span>
                   </div>
                 ) : (
@@ -201,7 +197,7 @@ export default function SettingsPage() {
                       disabled={savingKey === setting.key || editValues[setting.key] === setting.value}
                       className="px-3 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {savingKey === setting.key ? tCommon('loading') : tCommon('save')}
+                      {savingKey === setting.key ? "Chargement..." : "Enregistrer"}
                     </button>
                   </div>
                 )}

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
@@ -17,7 +16,6 @@ interface NavItem {
 }
 
 export function Sidebar() {
-  const t = useTranslations('Sidebar');
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
@@ -48,37 +46,37 @@ export function Sidebar() {
   }, [pathname]);
 
   const navItems: NavItem[] = [
-    { href: '/dashboard', label: t('dashboard'), icon: '\u2302' },
-    { href: '/dashboard/buyers', label: t('buyers'), icon: '\u2637' },
+    { href: '/dashboard', label: "Tableau de bord", icon: '\u2302' },
+    { href: '/dashboard/buyers', label: "Acheteurs", icon: '\u2637' },
     {
       href: '/dashboard/sellers',
-      label: t('sellers'),
+      label: "Vendeurs",
       icon: '\u2606',
       badge: pendingSellers,
     },
-    { href: '/dashboard/admins', label: t('admins'), icon: '\u272a' },
-    { href: '/dashboard/categories', label: t('categories'), icon: '\u2630' },
-    { href: '/dashboard/brands', label: t('brands'), icon: '\ud83c\udff7' },
+    { href: '/dashboard/admins', label: "Administrateurs", icon: '\u272a' },
+    { href: '/dashboard/categories', label: "Cat\u00E9gories", icon: '\u2630' },
+    { href: '/dashboard/brands', label: "Marques", icon: '\uD83C\uDFF7' },
     {
       href: '/dashboard/products',
-      label: t('products'),
+      label: "Produits",
       icon: '\u2610',
       badge: pendingProducts,
     },
-    { href: '/dashboard/catalog-coverage', label: t('catalogCoverage'), icon: '\u25f7' },
-    { href: '/dashboard/orders', label: t('orders'), icon: '\uD83D\uDCE6' },
-    { href: '/dashboard/cities', label: t('cities'), icon: '\uD83C\uDFD9' },
-    { href: '/dashboard/delivery-zones', label: t('deliveryZones'), icon: '\uD83D\uDE9A' },
-    { href: '/dashboard/transactions', label: t('transactions'), icon: '\uD83D\uDCC4' },
-    { href: '/dashboard/payouts', label: t('payouts'), icon: '\uD83D\uDCB5' },
-    { href: '/dashboard/commission', label: t('commission'), icon: '\u2699' },
-    { href: '/dashboard/reviews', label: t('reviews'), icon: '\u2605' },
-    { href: '/dashboard/banners', label: t('banners'), icon: '\uD83D\uDDBC' },
-    { href: '/dashboard/promotions', label: t('promotions'), icon: '\uD83C\uDFF7' },
-    { href: '/dashboard/content', label: t('content'), icon: '\uD83D\uDCDD' },
-    { href: '/dashboard/broadcasts', label: t('broadcasts'), icon: '\uD83D\uDCE2' },
-    { href: '/dashboard/reports', label: t('reports'), icon: '\uD83D\uDCCA' },
-    { href: '/dashboard/settings', label: t('settings'), icon: '\u2699\uFE0F' },
+    { href: '/dashboard/catalog-coverage', label: "Couverture catalogue", icon: '\u25f7' },
+    { href: '/dashboard/orders', label: "Commandes", icon: '\uD83D\uDCE6' },
+    { href: '/dashboard/cities', label: "Villes", icon: '\uD83C\uDFD9' },
+    { href: '/dashboard/delivery-zones', label: "Zones de livraison", icon: '\uD83D\uDE9A' },
+    { href: '/dashboard/transactions', label: "Transactions", icon: '\uD83D\uDCC4' },
+    { href: '/dashboard/payouts', label: "Virements", icon: '\uD83D\uDCB5' },
+    { href: '/dashboard/commission', label: "Commissions", icon: '\u2699' },
+    { href: '/dashboard/reviews', label: "Avis", icon: '\u2605' },
+    { href: '/dashboard/banners', label: "Banni\u00E8res", icon: '\uD83D\uDDBC' },
+    { href: '/dashboard/promotions', label: "Promotions", icon: '\uD83C\uDFF7' },
+    { href: '/dashboard/content', label: "Contenu", icon: '\uD83D\uDCDD' },
+    { href: '/dashboard/broadcasts', label: "Diffusions", icon: '\uD83D\uDCE2' },
+    { href: '/dashboard/reports', label: "Rapports", icon: '\uD83D\uDCCA' },
+    { href: '/dashboard/settings', label: "Param\u00E8tres", icon: '\u2699\uFE0F' },
   ];
 
   const handleLogout = async () => {
@@ -107,7 +105,7 @@ export function Sidebar() {
           />
           <NotificationBell />
         </div>
-        <p className="text-sm text-white/60 mt-2">{t('adminPanel')}</p>
+        <p className="text-sm text-white/60 mt-2">Panneau d&apos;administration</p>
       </div>
 
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
@@ -160,7 +158,7 @@ export function Sidebar() {
           onClick={handleLogout}
           className="w-full text-left px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
         >
-          {t('logout')}
+          Se déconnecter
         </button>
       </div>
     </aside>

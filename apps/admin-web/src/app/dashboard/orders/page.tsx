@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
 import { OrderStatusBadge } from '@/components/orders/order-status-badge';
@@ -53,19 +52,16 @@ const STATUS_FILTERS = [
 ];
 
 const STATUS_LABEL_KEYS: Record<string, string> = {
-  '': 'all',
-  PENDING: 'pending',
-  CONFIRMED: 'confirmed',
-  PROCESSING: 'processing',
-  SHIPPED: 'shipped',
-  DELIVERED: 'delivered',
-  CANCELLED: 'cancelled',
+  '': 'Toutes',
+  PENDING: 'En attente',
+  CONFIRMED: 'Confirmées',
+  PROCESSING: 'En préparation',
+  SHIPPED: 'Expédiées',
+  DELIVERED: 'Livrées',
+  CANCELLED: 'Annulées',
 };
 
 export default function OrdersPage() {
-  const t = useTranslations('Orders');
-  const tCommon = useTranslations('Common');
-
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -115,7 +111,7 @@ export default function OrdersPage() {
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+        <h1 className="text-2xl font-bold text-foreground">Gestion des commandes</h1>
       </div>
 
       {/* Status filter tabs */}
@@ -133,7 +129,7 @@ export default function OrdersPage() {
                 : 'bg-background text-foreground border-border hover:bg-muted'
             }`}
           >
-            {t(STATUS_LABEL_KEYS[status])}
+            {STATUS_LABEL_KEYS[status]}
           </button>
         ))}
       </div>
@@ -145,11 +141,11 @@ export default function OrdersPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('searchPlaceholder')}
+            placeholder="Rechercher par n° de commande..."
             className="flex-1 min-w-[200px] max-w-sm px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
           <div className="flex items-center gap-2">
-            <label className="text-sm text-muted-foreground whitespace-nowrap">{t('dateFrom')}</label>
+            <label className="text-sm text-muted-foreground whitespace-nowrap">Date début</label>
             <input
               type="date"
               value={dateFrom}
@@ -161,7 +157,7 @@ export default function OrdersPage() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-sm text-muted-foreground whitespace-nowrap">{t('dateTo')}</label>
+            <label className="text-sm text-muted-foreground whitespace-nowrap">Date fin</label>
             <input
               type="date"
               value={dateTo}
@@ -176,7 +172,7 @@ export default function OrdersPage() {
             type="submit"
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
           >
-            {t('search')}
+            Rechercher
           </button>
         </div>
       </form>
@@ -187,34 +183,34 @@ export default function OrdersPage() {
           <thead>
             <tr className="border-b border-border bg-muted">
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('orderNumber')}
+                N° commande
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('date')}
+                Date
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('buyer')}
+                Acheteur
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('seller')}
+                Vendeur
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('items')}
+                Articles
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('total')}
+                Total
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('paymentMethod')}
+                Mode de paiement
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('paymentStatus')}
+                Statut paiement
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('status')}
+                Statut
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('actions')}
+                Actions
               </th>
             </tr>
           </thead>
@@ -222,13 +218,13 @@ export default function OrdersPage() {
             {isLoading ? (
               <tr>
                 <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
-                  {t('loading')}
+                  Chargement...
                 </td>
               </tr>
             ) : orders.length === 0 ? (
               <tr>
                 <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
-                  {t('noOrders')}
+                  Aucune commande
                 </td>
               </tr>
             ) : (
@@ -268,7 +264,7 @@ export default function OrdersPage() {
                       href={`/dashboard/orders/${order.id}`}
                       className="px-2.5 py-1 text-xs font-medium bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
                     >
-                      {t('view')}
+                      Voir
                     </Link>
                   </td>
                 </tr>
@@ -286,7 +282,7 @@ export default function OrdersPage() {
             disabled={page <= 1}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {t('previous')}
+            Précédent
           </button>
           <span className="text-sm text-muted-foreground">
             {page} / {totalPages}
@@ -296,7 +292,7 @@ export default function OrdersPage() {
             disabled={page >= totalPages}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {t('next')}
+            Suivant
           </button>
         </div>
       )}

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
 import type { Category } from './category-tree';
 
 interface CategoryFormModalProps {
@@ -28,9 +27,6 @@ export function CategoryFormModal({
   onClose,
   onSave,
 }: CategoryFormModalProps) {
-  const t = useTranslations('Categories');
-  const tCommon = useTranslations('Common');
-
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [parentId, setParentId] = useState('');
@@ -86,7 +82,7 @@ export function CategoryFormModal({
       <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-border">
           <h2 className="text-lg font-semibold text-foreground">
-            {category ? t('editCategory') : t('newCategory')}
+            {category ? "Modifier la catégorie" : "Nouvelle catégorie"}
           </h2>
           <button
             onClick={onClose}
@@ -101,7 +97,7 @@ export function CategoryFormModal({
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">
-              {t('name')} <span className="text-destructive">*</span>
+              Nom <span className="text-destructive">*</span>
             </label>
             <input
               type="text"
@@ -115,7 +111,7 @@ export function CategoryFormModal({
 
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">
-              {t('description')}
+              Description
             </label>
             <textarea
               value={description}
@@ -127,14 +123,14 @@ export function CategoryFormModal({
 
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">
-              {t('parentCategory')}
+              Catégorie parente
             </label>
             <select
               value={parentId}
               onChange={(e) => setParentId(e.target.value)}
               className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             >
-              <option value="">{t('noParent')}</option>
+              <option value="">Aucune (catégorie racine)</option>
               {parentOptions
                 .filter((opt) => opt.id !== category?.id)
                 .map((opt) => (
@@ -148,7 +144,7 @@ export function CategoryFormModal({
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">
-                {t('emoji')}
+                Emoji
               </label>
               <input
                 type="text"
@@ -162,7 +158,7 @@ export function CategoryFormModal({
 
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">
-                {t('sortOrder')}
+                Ordre d&apos;affichage
               </label>
               <input
                 type="number"
@@ -183,7 +179,7 @@ export function CategoryFormModal({
               className="w-4 h-4 rounded border-input text-primary focus:ring-ring"
             />
             <label htmlFor="isActive" className="text-sm font-medium text-foreground">
-              {t('isActive')}
+              Active
             </label>
           </div>
 
@@ -193,14 +189,14 @@ export function CategoryFormModal({
               onClick={onClose}
               className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
             >
-              {tCommon('cancel')}
+              Annuler
             </button>
             <button
               type="submit"
               disabled={isSaving || !name.trim()}
               className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSaving ? tCommon('loading') : tCommon('save')}
+              {isSaving ? "Chargement..." : "Enregistrer"}
             </button>
           </div>
         </form>
