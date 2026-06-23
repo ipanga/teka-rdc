@@ -1,0 +1,22 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["YK6Z393A4D.com.tootiye.teka"],
+        "components": [
+          { "/": "/connexion", "exclude": true, "comment": "auth — keep in browser" },
+          { "/": "/reclamer-compte*", "exclude": true, "comment": "account claim" },
+          { "/": "/paiement*", "exclude": true, "comment": "checkout" },
+          { "/": "/panier", "exclude": true, "comment": "cart" },
+          { "/": "/profil", "exclude": true, "comment": "account" },
+          { "/": "/commandes*", "exclude": true, "comment": "orders" },
+          { "/": "/favoris", "exclude": true, "comment": "wishlist" },
+          { "/": "/api/*", "exclude": true },
+          { "/": "/ingest/*", "exclude": true },
+          { "/": "/_next/*", "exclude": true },
+          { "/": "/*", "comment": "everything else (product, category, search, promotions, home) opens the app" }
+        ]
+      }
+    ]
+  }
+}

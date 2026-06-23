@@ -56,6 +56,30 @@ const nextConfig: NextConfig = {
     ];
   },
 
+  // Serve the deep-link association files as application/json with a modest
+  // cache. Both live in public/.well-known/; assetlinks.json already gets the
+  // right type from its extension, but the extensionless apple-app-site-
+  // association needs it set explicitly (Apple is lenient, but be correct).
+  // Additive only — does not touch routing, redirects, or SEO.
+  async headers() {
+    return [
+      {
+        source: '/.well-known/assetlinks.json',
+        headers: [
+          { key: 'Content-Type', value: 'application/json' },
+          { key: 'Cache-Control', value: 'public, max-age=3600' },
+        ],
+      },
+      {
+        source: '/.well-known/apple-app-site-association',
+        headers: [
+          { key: 'Content-Type', value: 'application/json' },
+          { key: 'Cache-Control', value: 'public, max-age=3600' },
+        ],
+      },
+    ];
+  },
+
   // 301 redirects for SEO continuity:
   //   - /pages/<canonical>   → /<fr-slug>  (legacy /pages/ prefix)
   //   - /<canonical-en>      → /<fr-slug>  (someone typed the English slug)
