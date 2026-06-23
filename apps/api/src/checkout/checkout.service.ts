@@ -156,6 +156,8 @@ export class CheckoutService {
                 id: true,
                 priceCDF: true,
                 priceUSD: true,
+                discountPriceCDF: true,
+                discountPriceUSD: true,
                 title: true,
                 images: {
                   select: { thumbnailUrl: true },
@@ -165,14 +167,23 @@ export class CheckoutService {
               },
             });
 
-            const itemTotalCDF = product.priceCDF * BigInt(item.quantity);
-            const itemTotalUSD = product.priceUSD
-              ? product.priceUSD * BigInt(item.quantity)
+            // Charge the effective (discounted) price; snapshot the original
+            // list price only when a discount applied (else null = no discount).
+            const unitPriceCDF = product.discountPriceCDF ?? product.priceCDF;
+            const unitPriceUSD = product.discountPriceUSD ?? product.priceUSD;
+            const listUnitPriceCDF =
+              product.discountPriceCDF !== null ? product.priceCDF : null;
+            const listUnitPriceUSD =
+              product.discountPriceUSD !== null ? product.priceUSD : null;
+
+            const itemTotalCDF = unitPriceCDF * BigInt(item.quantity);
+            const itemTotalUSD = unitPriceUSD
+              ? unitPriceUSD * BigInt(item.quantity)
               : null;
 
             subtotalCDF += itemTotalCDF;
-            if (product.priceUSD && subtotalUSD !== null) {
-              subtotalUSD += product.priceUSD * BigInt(item.quantity);
+            if (unitPriceUSD && subtotalUSD !== null) {
+              subtotalUSD += unitPriceUSD * BigInt(item.quantity);
             } else {
               hasAllUSD = false;
               subtotalUSD = null;
@@ -181,8 +192,10 @@ export class CheckoutService {
             orderItemsData.push({
               productId: product.id,
               quantity: item.quantity,
-              unitPriceCDF: product.priceCDF,
-              unitPriceUSD: product.priceUSD,
+              unitPriceCDF,
+              unitPriceUSD,
+              listUnitPriceCDF,
+              listUnitPriceUSD,
               totalCDF: itemTotalCDF,
               totalUSD: itemTotalUSD,
               productTitle: product.title,

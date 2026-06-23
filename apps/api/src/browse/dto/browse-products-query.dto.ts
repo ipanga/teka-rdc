@@ -41,6 +41,15 @@ export class BrowseProductsQueryDto {
   @IsEnum(['NEW', 'USED'])
   condition?: 'NEW' | 'USED';
 
+  /**
+   * Promotion facet: when `true`, return only products with an active
+   * seller-set discount (`discountPriceCDF` not null). Accepts the string
+   * "true" from the query string.
+   */
+  @IsOptional()
+  @IsString()
+  onPromotion?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(200)

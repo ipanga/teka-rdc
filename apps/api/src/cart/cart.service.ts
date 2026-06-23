@@ -17,6 +17,8 @@ const CART_ITEM_INCLUDE = {
           title: true,
           priceCDF: true,
           priceUSD: true,
+          discountPriceCDF: true,
+          discountPriceUSD: true,
           quantity: true,
           condition: true,
           status: true,
@@ -337,7 +339,10 @@ export class CartService {
       const group = sellerMap.get(sellerId)!;
       group.items.push(item);
 
-      const itemTotal = item.product.priceCDF * BigInt(item.quantity);
+      // Charge the effective (discounted) price when a promo is set.
+      const effectiveCDF =
+        item.product.discountPriceCDF ?? item.product.priceCDF;
+      const itemTotal = effectiveCDF * BigInt(item.quantity);
       group.subtotalCDF += itemTotal;
       totalCDF += itemTotal;
       totalItems += item.quantity;
@@ -425,6 +430,8 @@ export class CartService {
         title: string;
         priceCDF: bigint;
         priceUSD: bigint | null;
+        discountPriceCDF: bigint | null;
+        discountPriceUSD: bigint | null;
         quantity: number;
         condition: string;
         sellerId: string;
@@ -440,7 +447,9 @@ export class CartService {
 
     const items = cart.items.map((item) => {
       totalItems += item.quantity;
-      totalCDF += item.product.priceCDF * BigInt(item.quantity);
+      const effectiveCDF =
+        item.product.discountPriceCDF ?? item.product.priceCDF;
+      totalCDF += effectiveCDF * BigInt(item.quantity);
 
       const firstImage = item.product.images[0] ?? null;
       const businessName =
@@ -456,6 +465,8 @@ export class CartService {
           title: item.product.title,
           priceCDF: item.product.priceCDF,
           priceUSD: item.product.priceUSD,
+          discountPriceCDF: item.product.discountPriceCDF,
+          discountPriceUSD: item.product.discountPriceUSD,
           quantity: item.product.quantity,
           condition: item.product.condition,
           sellerId: item.product.sellerId,

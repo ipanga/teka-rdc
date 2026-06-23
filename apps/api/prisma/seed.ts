@@ -3542,6 +3542,21 @@ async function seedSampleProducts(sellerId: string): Promise<void> {
         const priceUSD = tpl.priceUSD ? BigInt(tpl.priceUSD * 100) : null;
         const brandId = tpl.brandN ? strictBrandId(tpl.brandN) : null;
 
+        // Demo promotions: deterministically put ~1 in 4 demo products on sale
+        // (15/20/25/30% off, stable per product id) so the storefront exercises
+        // the new discount UI. The integer division keeps the promo strictly
+        // below the regular price, satisfying the discount<price invariant.
+        const promoSeed = parseInt(productId.slice(-2), 16) || 0;
+        const onPromo = promoSeed % 4 === 0;
+        const promoPct = [15, 20, 25, 30][(promoSeed >> 2) % 4];
+        const discountPriceCDF = onPromo
+          ? (priceCDF * BigInt(100 - promoPct)) / 100n
+          : null;
+        const discountPriceUSD =
+          onPromo && priceUSD
+            ? (priceUSD * BigInt(100 - promoPct)) / 100n
+            : null;
+
         await prisma.product.upsert({
           where: { id: productId },
           // Full reconcile on update: the strict-taxonomy remap reuses the same
@@ -3559,6 +3574,8 @@ async function seedSampleProducts(sellerId: string): Promise<void> {
             sellerId,
             priceCDF,
             priceUSD,
+            discountPriceCDF,
+            discountPriceUSD,
             status: ProductStatus.ACTIVE,
             isDemo: true,
           },
@@ -3574,6 +3591,8 @@ async function seedSampleProducts(sellerId: string): Promise<void> {
             cityId: city.id,
             priceCDF,
             priceUSD,
+            discountPriceCDF,
+            discountPriceUSD,
             quantity: 25,
             condition: ProductCondition.NEW,
             status: ProductStatus.ACTIVE,

@@ -59,6 +59,17 @@ export class CreateProductDto {
   @IsString()
   priceUSD?: string;
 
+  // Optional seller-set promotional price (centimes, BigInt as string). Must be
+  // > 0 and strictly < priceCDF — enforced in the service (cross-field). Send
+  // null to clear the discount. The % is derived on display, never sent.
+  @IsOptional()
+  @Matches(/^\d+$/, { message: 'Prix promotionnel CDF invalide' })
+  discountPriceCDF?: string | null;
+
+  @IsOptional()
+  @Matches(/^\d+$/, { message: 'Prix promotionnel USD invalide' })
+  discountPriceUSD?: string | null;
+
   @IsInt()
   @Min(0, { message: 'La quantité ne peut pas être négative' })
   @Type(() => Number)
