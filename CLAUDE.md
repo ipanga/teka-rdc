@@ -227,6 +227,15 @@ threshold real ACTIVE products. **Leave it `false` until real merchants populate
 on a demo-only store is a no-op that prematurely arms auto-hide. Edit via admin → catalog-coverage (or the
 settings page). Full model: `docs/architecture.md` → "Demo-catalog retirement (P3c)".
 
+**Per-product discounts (2026-06-23).** Sellers set an optional **`Product.discountPriceCDF`/`discountPriceUSD`**
+(always-on, no admin approval) — separate from the admin `Promotion`/flash-deal model (untouched). Effective
+price = `discountPriceCDF ?? priceCDF`; the % is derived on display, never stored; validation enforces
+`0 < discount < price`. Cart/checkout charge the effective price; `OrderItem.listUnitPriceCDF` snapshots the
+original. On ACTIVE products sellers may edit only price/discount/stock (no re-review). Discovery: `/promotions`
+page + home section + `onPromotion=true` browse filter; cards show `−X%` + strikethrough and **no longer show
+the condition badge or seller name** (those stay on the PDP). Full model: `docs/architecture.md` →
+"Per-product discounts".
+
 ---
 
 ## 5. DATABASE DESIGN PRINCIPLES

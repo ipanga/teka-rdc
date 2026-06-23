@@ -61,7 +61,17 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
         track('product_viewed', {
           productId: res.data.id,
           categoryId: res.data.categoryId,
-          price_cdf: Number(res.data.priceCDF),
+          // Effective (charged) price + discount enrichment on the existing
+          // event (no new event — keeps analytics noise-free).
+          price_cdf: Number(res.data.discountPriceCDF ?? res.data.priceCDF),
+          ...(discountPercent(res.data.priceCDF, res.data.discountPriceCDF) > 0
+            ? {
+                discount_percent: discountPercent(
+                  res.data.priceCDF,
+                  res.data.discountPriceCDF,
+                ),
+              }
+            : {}),
           sellerId: res.data.seller?.id,
         });
       })

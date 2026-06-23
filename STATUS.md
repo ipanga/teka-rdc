@@ -17,11 +17,15 @@ buyer-web (SEO-safe) + seller-web + buyer-mobile + seller-mobile. **Detailed tra
   `/promotions` route + home section + `onPromotion` filter.
 - **Phased PRs (resumable):** A backend → B buyer-web → C seller-web → D buyer-mobile → E seller-mobile → F
   analytics/docs.
-- **Phase A — backend: ✅ CODE DONE** on branch `feat/discount-system-api`. Schema + idempotent migration
-  `2026-06-23_product_discount_price.sql` (applied to dev) + DTO validation + `validateDiscount` + relaxed
-  edit-after-publish + cart/checkout/order effective-price snapshot + browse `onPromotion` (Prisma + FTS) +
-  demo-discount seed. **142 unit + 116 e2e green; tsc clean.** PR pending.
-- **Next:** open Phase A PR → develop, then Phase B (buyer-web).
+- **✅ ALL PHASES MERGED to develop** (A #431 backend · B #432 buyer-web · C #433 seller-web · D #434
+  buyer-mobile · E #435 seller-mobile · F docs/analytics). Verified each phase: api 142 unit + 116 e2e;
+  web tsc + `next build` ×3; flutter analyze 0 errors + buyer 93 / seller 3 tests; dev data path confirmed
+  (45/165 ACTIVE on-promo, invariant `0<discount<price` holds). Tracker: `tasks/discount-system-progress.md`.
+- **Remaining before prod:** release `develop→main`; **apply the prod migration**
+  `apps/api/prisma/migrations/manual/2026-06-23_product_discount_price.sql` via the Apply-prod-migration Action
+  at release (all-nullable, no backfill). Deferred: seller-mobile edit-after-publish for ACTIVE (seller-web
+  covers it). Mobile reaches devices on the next Play Store AAB. Optional: prod re-seed for demo discounts;
+  before/after screenshots (needs running apps).
 
 ### Recently completed — 2026-06-23 (Localization removal sweep — SHIPPED to prod, release #430)
 French-only platform: next-intl removed from all 3 web apps (#428 admin + #429 seller/buyer), gen-l10n removed
