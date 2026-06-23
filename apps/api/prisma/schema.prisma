@@ -480,6 +480,13 @@ model Product {
   cityId          String?          @db.Uuid
   priceCDF        BigInt // centimes (1 CDF = 100 centimes)
   priceUSD        BigInt? // cents (1 USD = 100 cents)
+  // Optional seller-set promotional price (always-on until cleared, no admin
+  // approval). When set it must be > 0 and strictly < the regular price.
+  // Effective/charged price = discountPriceCDF ?? priceCDF. The discount
+  // percentage is NEVER stored — derived on display. Distinct from the admin
+  // Promotion/flash-deal model, which is a separate marketing entity.
+  discountPriceCDF BigInt? // centimes; null = no promotion
+  discountPriceUSD BigInt? // cents; optional USD promo price
   quantity        Int              @default(0)
   condition       ProductCondition @default(NEW)
   status          ProductStatus    @default(DRAFT)
@@ -531,6 +538,7 @@ model Product {
   @@index([cityId, status, createdAt])
   @@index([status, priceCDF])
   @@index([status, avgRating])
+  @@index([discountPriceCDF])
   @@map("products")
 }
 
@@ -723,8 +731,12 @@ model OrderItem {
   orderId      String   @db.Uuid
   productId    String   @db.Uuid
   quantity     Int
-  unitPriceCDF BigInt
+  unitPriceCDF BigInt // FINAL charged unit price (discounted when on promo)
   unitPriceUSD BigInt?
+  // Original (pre-discount) unit price snapshot. Null = no discount at purchase
+  // (so unitPriceCDF == the list price). Lets reporting compute savings.
+  listUnitPriceCDF BigInt?
+  listUnitPriceUSD BigInt?
   totalCDF     BigInt
   totalUSD     BigInt?
   productTitle String // snapshot of Product.title at order time

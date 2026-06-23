@@ -60,6 +60,44 @@ export class ProductsService {
   }
 
   /**
+   * Enforces the discount rules: a promotional price (when set) must be > 0 and
+   * strictly less than the corresponding regular price; a USD promo requires a
+   * USD price. Throws 400 otherwise. The percentage is never stored/validated —
+   * it is derived on display as round((price − discount) / price × 100).
+   */
+  private validateDiscount(
+    priceCDF: bigint,
+    priceUSD: bigint | null,
+    discountPriceCDF: bigint | null,
+    discountPriceUSD: bigint | null,
+  ): void {
+    if (discountPriceCDF !== null) {
+      if (discountPriceCDF <= 0n) {
+        throw new BadRequestException(
+          'Le prix promotionnel doit être supérieur à 0.',
+        );
+      }
+      if (discountPriceCDF >= priceCDF) {
+        throw new BadRequestException(
+          'Le prix promotionnel doit être inférieur au prix normal.',
+        );
+      }
+    }
+    if (discountPriceUSD !== null) {
+      if (priceUSD === null) {
+        throw new BadRequestException(
+          'Un prix USD est requis pour définir une promotion en USD.',
+        );
+      }
+      if (discountPriceUSD <= 0n || discountPriceUSD >= priceUSD) {
+        throw new BadRequestException(
+          'Le prix promotionnel USD doit être supérieur à 0 et inférieur au prix normal.',
+        );
+      }
+    }
+  }
+
+  /**
    * Creates a new product in DRAFT status.
    */
   async create(sellerId: string, dto: CreateProductDto) {
@@ -96,6 +134,20 @@ export class ProductsService {
     const priceCDF = BigInt(dto.priceCDF);
     const priceUSD = dto.priceUSD ? BigInt(dto.priceUSD) : undefined;
 
+    // Optional promotional price (null = no promo). Validated < price below.
+    const discountPriceCDF = dto.discountPriceCDF
+      ? BigInt(dto.discountPriceCDF)
+      : null;
+    const discountPriceUSD = dto.discountPriceUSD
+      ? BigInt(dto.discountPriceUSD)
+      : null;
+    this.validateDiscount(
+      priceCDF,
+      priceUSD ?? null,
+      discountPriceCDF,
+      discountPriceUSD,
+    );
+
     // Derive cityId: explicit > seller profile > null
     const cityId = dto.cityId ?? sellerProfile.cityId ?? undefined;
 
@@ -118,6 +170,8 @@ export class ProductsService {
         cityId,
         priceCDF,
         priceUSD,
+        discountPriceCDF,
+        discountPriceUSD,
         quantity: dto.quantity,
         condition: dto.condition as ProductCondition,
         status: ProductStatus.DRAFT,
@@ -216,8 +270,20 @@ export class ProductsService {
     return product;
   }
 
+  // On a PUBLISHED product (status not DRAFT/REJECTED) sellers may adjust only
+  // these fields — price, promo price and stock — with no re-review. Editing
+  // content fields still requires the draft→review flow.
+  private static readonly LIVE_EDITABLE_FIELDS = new Set([
+    'priceCDF',
+    'priceUSD',
+    'discountPriceCDF',
+    'discountPriceUSD',
+    'quantity',
+  ]);
+
   /**
-   * Updates a product. Only DRAFT or REJECTED products can be edited.
+   * Updates a product. DRAFT/REJECTED products are fully editable; published
+   * products allow only price / promotional price / stock edits (no re-review).
    */
   async update(sellerId: string, productId: string, dto: UpdateProductDto) {
     const product = await this.prisma.product.findUnique({
@@ -228,13 +294,23 @@ export class ProductsService {
       throw new NotFoundException('Produit non trouvé');
     }
 
-    if (
-      product.status !== ProductStatus.DRAFT &&
-      product.status !== ProductStatus.REJECTED
-    ) {
-      throw new BadRequestException(
-        'Seuls les produits en brouillon ou rejetés peuvent être modifiés',
+    const isDraftOrRejected =
+      product.status === ProductStatus.DRAFT ||
+      product.status === ProductStatus.REJECTED;
+
+    if (!isDraftOrRejected) {
+      // Reject any non-pricing/stock field on a live product.
+      const submitted = Object.entries(dto)
+        .filter(([, v]) => v !== undefined)
+        .map(([k]) => k);
+      const disallowed = submitted.filter(
+        (k) => !ProductsService.LIVE_EDITABLE_FIELDS.has(k),
       );
+      if (disallowed.length > 0) {
+        throw new BadRequestException(
+          'Sur un produit publié, seuls le prix, le prix promotionnel et le stock peuvent être modifiés.',
+        );
+      }
     }
 
     // Validate category if changing
@@ -262,6 +338,29 @@ export class ProductsService {
       dto.priceCDF !== undefined ? BigInt(dto.priceCDF) : undefined;
     const priceUSD =
       dto.priceUSD !== undefined ? BigInt(dto.priceUSD) : undefined;
+
+    // Resolve the discount fields: an explicit key (incl. null to clear) wins,
+    // otherwise keep the stored value. Then validate the resulting discount
+    // against the resulting price — this also catches a price change that would
+    // drop the regular price at/below an unchanged discount.
+    const discountPriceCDF =
+      dto.discountPriceCDF !== undefined
+        ? dto.discountPriceCDF
+          ? BigInt(dto.discountPriceCDF)
+          : null
+        : product.discountPriceCDF;
+    const discountPriceUSD =
+      dto.discountPriceUSD !== undefined
+        ? dto.discountPriceUSD
+          ? BigInt(dto.discountPriceUSD)
+          : null
+        : product.discountPriceUSD;
+    this.validateDiscount(
+      priceCDF ?? product.priceCDF,
+      priceUSD ?? product.priceUSD,
+      discountPriceCDF,
+      discountPriceUSD,
+    );
 
     // Handle specifications update: delete old ones and create new ones
     const specOps =
@@ -293,6 +392,9 @@ export class ProductsService {
           ...(dto.brandId !== undefined && { brandId: dto.brandId || null }),
           ...(priceCDF !== undefined && { priceCDF }),
           ...(priceUSD !== undefined && { priceUSD }),
+          // null clears the promo; a value sets it; undefined leaves it.
+          ...(dto.discountPriceCDF !== undefined && { discountPriceCDF }),
+          ...(dto.discountPriceUSD !== undefined && { discountPriceUSD }),
           ...(dto.quantity !== undefined && { quantity: dto.quantity }),
           ...(dto.condition !== undefined && {
             condition: dto.condition as ProductCondition,
