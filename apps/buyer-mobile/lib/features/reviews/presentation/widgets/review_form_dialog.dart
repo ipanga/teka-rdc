@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../providers/reviews_provider.dart';
 import 'star_rating.dart';
 
@@ -31,7 +30,6 @@ class _ReviewFormDialogState extends ConsumerState<ReviewFormDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final reviewsState = ref.watch(reviewsProvider(widget.productId));
     final isSubmitting = reviewsState.isSubmitting;
 
@@ -61,7 +59,7 @@ class _ReviewFormDialogState extends ConsumerState<ReviewFormDialog> {
 
           // Title
           Text(
-            l10n.writeReview,
+            "Ecrire un avis",
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.bold,
                   color: TekaColors.foreground,
@@ -71,7 +69,7 @@ class _ReviewFormDialogState extends ConsumerState<ReviewFormDialog> {
 
           // Rating label
           Text(
-            l10n.yourRating,
+            "Votre note",
             style: const TextStyle(
               color: TekaColors.foreground,
               fontSize: 14,
@@ -100,7 +98,7 @@ class _ReviewFormDialogState extends ConsumerState<ReviewFormDialog> {
             maxLines: 4,
             maxLength: 500,
             decoration: InputDecoration(
-              hintText: l10n.reviewPlaceholder,
+              hintText: "Partagez votre experience avec ce produit...",
               hintStyle: const TextStyle(
                 color: TekaColors.mutedForeground,
                 fontSize: 14,
@@ -161,7 +159,7 @@ class _ReviewFormDialogState extends ConsumerState<ReviewFormDialog> {
                         color: Colors.white,
                       ),
                     )
-                  : Text(l10n.submitReview),
+                  : Text("Soumettre l'avis"),
             ),
           ),
         ],

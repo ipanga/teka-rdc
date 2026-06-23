@@ -5,7 +5,6 @@ import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/auth/auth_guard.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../reviews/presentation/providers/reviews_provider.dart';
 import '../../../reviews/presentation/widgets/review_stats_bar.dart';
@@ -35,7 +34,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final productId = widget.productId;
-    final l10n = AppLocalizations.of(context)!;
     final productAsync = ref.watch(productDetailProvider(productId));
 
     // Fire product_viewed once on first successful load (buyer-owned UI event,
@@ -59,7 +57,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.productDetail),
+        title: Text("Details du produit"),
         actions: [
           WishlistButton(productId: productId),
         ],
@@ -173,7 +171,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                 Padding(
                                   padding: const EdgeInsets.only(top: 4),
                                   child: Text(
-                                    l10n.productUnitsSold(product.unitsSold),
+                                    "${product.unitsSold} ${(product.unitsSold) == 1 ? 'vendu' : 'vendus'}",
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodySmall
@@ -200,8 +198,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                     ),
                                     child: Text(
                                       isNew
-                                          ? l10n.productConditionNew
-                                          : l10n.productConditionUsed,
+                                          ? "Neuf"
+                                          : "Occasion",
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 12,
@@ -212,7 +210,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                   const SizedBox(width: 12),
                                   if (product.isOutOfStock)
                                     Text(
-                                      l10n.productOutOfStock,
+                                      "Rupture de stock",
                                       style: const TextStyle(
                                         color: TekaColors.destructive,
                                         fontSize: 13,
@@ -221,7 +219,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                     )
                                   else if (product.isLowStock)
                                     Text(
-                                      l10n.productLowStock(product.quantity),
+                                      "Plus que ${product.quantity} en stock",
                                       style: const TextStyle(
                                         color: TekaColors.warning,
                                         fontSize: 13,
@@ -230,7 +228,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                     )
                                   else
                                     Text(
-                                      '${product.quantity} ${l10n.productDetail.toLowerCase()}',
+                                      '${product.quantity} ${"Details du produit".toLowerCase()}',
                                       style: const TextStyle(
                                         color: TekaColors.success,
                                         fontSize: 13,
@@ -255,7 +253,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                     ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      '${l10n.productSeller}: ',
+                                      '${"Vendeur"}: ',
                                       style: const TextStyle(
                                         color: TekaColors.mutedForeground,
                                         fontSize: 14,
@@ -298,7 +296,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
-                                          l10n.contactSupport,
+                                          "Pour toute question, contactez le support Teka RDC.",
                                           style: const TextStyle(
                                             color: TekaColors.foreground,
                                             fontSize: 13,
@@ -316,7 +314,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                               // Description
                               if (description.isNotEmpty) ...[
                                 Text(
-                                  l10n.productDetail,
+                                  "Details du produit",
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleSmall
@@ -341,7 +339,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                               // Specifications
                               if (product.specifications.isNotEmpty) ...[
                                 Text(
-                                  l10n.specifications,
+                                  "Caracteristiques",
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleSmall
@@ -456,7 +454,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text(l10n.addToCart),
+                                    content: Text("Ajouter au panier"),
                                     backgroundColor: TekaColors.success,
                                     duration: const Duration(seconds: 2),
                                   ),
@@ -466,7 +464,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text(l10n.authGenericError),
+                                    content: Text("Une erreur est survenue. Veuillez reessayer."),
                                     backgroundColor: TekaColors.destructive,
                                     duration: const Duration(seconds: 2),
                                   ),
@@ -475,7 +473,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                             }
                           },
                     icon: const Icon(Icons.shopping_cart_outlined),
-                    label: Text(l10n.addToCart),
+                    label: Text("Ajouter au panier"),
                     style: FilledButton.styleFrom(
                       backgroundColor: TekaColors.tekaRed,
                       disabledBackgroundColor: TekaColors.muted,
@@ -507,7 +505,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  l10n.authGenericError,
+                  "Une erreur est survenue. Veuillez reessayer.",
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: TekaColors.mutedForeground),
                 ),
@@ -519,7 +517,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   style: FilledButton.styleFrom(
                     backgroundColor: TekaColors.tekaRed,
                   ),
-                  child: Text(l10n.backToHome),
+                  child: Text("Reessayer"),
                 ),
               ],
             ),
@@ -538,7 +536,6 @@ class _ReviewsSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     final reviewsState = ref.watch(reviewsProvider(productId));
 
     // Show loading only briefly
@@ -569,7 +566,7 @@ class _ReviewsSection extends ConsumerWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              '${l10n.reviewsTitle} (${stats.totalReviews})',
+              '${"Avis"} (${stats.totalReviews})',
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: TekaColors.foreground,
@@ -580,7 +577,7 @@ class _ReviewsSection extends ConsumerWidget {
                 onPressed: () =>
                     context.push('/products/$productId/reviews'),
                 child: Text(
-                  l10n.seeAllReviews,
+                  "Voir tous les avis",
                   style: const TextStyle(
                     color: TekaColors.tekaRed,
                     fontSize: 13,
@@ -611,7 +608,7 @@ class _ReviewsSection extends ConsumerWidget {
                 onPressed: () =>
                     context.push('/products/$productId/reviews'),
                 child: Text(
-                  l10n.seeAllReviews,
+                  "Voir tous les avis",
                   style: const TextStyle(color: TekaColors.tekaRed),
                 ),
               ),
@@ -620,7 +617,7 @@ class _ReviewsSection extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
             child: Text(
-              l10n.noReviews,
+              "Aucun avis pour le moment",
               style: const TextStyle(
                 color: TekaColors.mutedForeground,
                 fontSize: 13,
@@ -665,14 +662,13 @@ class _RelatedSectionState extends ConsumerState<_RelatedSection> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final items = _items;
     if (items == null || items.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          l10n.relatedTitle,
+          "Produits similaires",
           style: Theme.of(context)
               .textTheme
               .titleMedium

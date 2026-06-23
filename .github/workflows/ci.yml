@@ -112,9 +112,12 @@ jobs:
         working-directory: apps/${{ matrix.app }}
         run: flutter pub get
 
-      - name: Generate l10n
+      # buyer-mobile dropped the gen-l10n layer (2026-06-22, French literals).
+      # Only run for apps that still have an l10n.yaml (seller-mobile for now).
+      - name: Generate l10n (if configured)
         working-directory: apps/${{ matrix.app }}
-        run: flutter gen-l10n
+        run: |
+          if [ -f l10n.yaml ]; then flutter gen-l10n; else echo "no l10n.yaml — skipping gen-l10n"; fi
 
       # --no-fatal-infos keeps existing deprecation notices (withOpacity,
       # groupValue, encryptedSharedPreferences) from breaking the build.

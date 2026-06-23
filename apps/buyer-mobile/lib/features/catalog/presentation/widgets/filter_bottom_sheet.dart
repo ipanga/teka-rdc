@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/catalog_repository.dart';
 
 class FilterOptions {
@@ -157,8 +156,6 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -189,7 +186,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
 
             // Title
             Text(
-              l10n.filterSort,
+              "Trier et filtrer",
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -204,7 +201,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                   children: [
                     // Condition filter
                     Text(
-                      l10n.filterPrice,
+                      "Etat",
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
@@ -213,28 +210,28 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                     Wrap(
                       spacing: 8,
                       children: [
-                        _buildConditionChip(null, l10n.filterAll),
-                        _buildConditionChip('NEW', l10n.filterNew),
-                        _buildConditionChip('USED', l10n.filterUsed),
+                        _buildConditionChip(null, "Tous"),
+                        _buildConditionChip('NEW', "Neuf"),
+                        _buildConditionChip('USED', "Occasion"),
                       ],
                     ),
                     const SizedBox(height: 20),
 
                     // Sort options
                     Text(
-                      l10n.filterSort,
+                      "Trier et filtrer",
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
                     ),
                     const SizedBox(height: 8),
-                    _buildSortOption('newest', l10n.filterSortNewest),
-                    _buildSortOption('price_asc', l10n.filterSortPriceLow),
-                    _buildSortOption('price_desc', l10n.filterSortPriceHigh),
-                    _buildSortOption('popular', l10n.filterSortPopular),
+                    _buildSortOption('newest', "Plus recents"),
+                    _buildSortOption('price_asc', "Prix croissant"),
+                    _buildSortOption('price_desc', "Prix decroissant"),
+                    _buildSortOption('popular', "Popularite"),
 
                     // Brand facet
-                    ..._buildBrandFacet(l10n),
+                    ..._buildBrandFacet(),
 
                     // Attribute facets
                     ..._buildAttributeFacets(),
@@ -261,7 +258,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: TekaColors.border),
                     ),
-                    child: Text(l10n.filterReset),
+                    child: Text("Reinitialiser"),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -278,7 +275,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                     style: FilledButton.styleFrom(
                       backgroundColor: TekaColors.tekaRed,
                     ),
-                    child: Text(l10n.filterApply),
+                    child: Text("Appliquer"),
                   ),
                 ),
               ],
@@ -290,7 +287,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
     );
   }
 
-  List<Widget> _buildBrandFacet(AppLocalizations l10n) {
+  List<Widget> _buildBrandFacet() {
     if (_brands.isEmpty) return const [];
     return [
       Padding(
@@ -299,7 +296,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              l10n.brand,
+              "Marque",
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),

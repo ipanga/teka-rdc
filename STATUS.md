@@ -6,8 +6,30 @@
 
 ## Active initiative
 
-**None.** Mobile guest browsing + enterprise error handling shipped 2026-06-22 (see below). No in-flight build
-work — ask the user what to start next.
+**Buyer-mobile UX/UI redesign + navigation overhaul** (started 2026-06-22). Branch work off `develop`, phased
+PRs, each tested. Constraints: no global refactor; preserve APIs/business-logic/analytics/auth/town-architecture.
+
+**Sequencing (user decisions 2026-06-22):**
+- **Step 1 — Remove the buyer-mobile localization machinery (l10n) FIRST → clean base.** ✅ CODE DONE on
+  branch `chore/buyer-mobile-remove-l10n`, PENDING PR. Replaced all ~272 `AppLocalizations`/`l10n.*` calls
+  across 27 files with plain French literals; deleted `lib/l10n/` (`app_fr.arb` + generated
+  `app_localizations*.dart`), `lib/core/locale/locale_provider.dart`, `l10n.yaml`; dropped `generate: true` +
+  the `AppLocalizations` delegate (kept framework `GlobalMaterialLocalizations`=fr). CLAUDE.md Rule 1 updated.
+  **analyze 0 errors (13 pre-existing info-level deprecations), 93 tests green.** *(seller-mobile l10n + web
+  next-intl removal are separate later follow-ups — user 2026-06-22.)*
+- **Step 2 — Navigation + redesign.** ✅ CODE DONE on branch `feat/buyer-mobile-bottom-nav`, PENDING PR.
+  `StatefulShellRoute.indexedStack` bottom nav (Accueil · Categories · Favoris · Panier · Compte, cart badge);
+  Search = prominent Home search bar (not a tab); Orders → under Compte; simplified **white** AppBar (brand +
+  town pill + notification bell → new Notifications screen); new Categories tab grid; Favorites back-button
+  bug fixed by construction (top-level tab); guest→protected-tab→login gains a ✕ close (no dead-end); red
+  rebalanced to CTAs/accents (white AppBar + NavigationBarTheme). New: `main_shell.dart`,
+  `categories_screen.dart`, `notifications/.../notifications_screen.dart`. Tracker:
+  `docs/buyer-mobile-redesign.md`. **analyze 0 errors, 93 tests; device-verified on emulator (prod flavor,
+  Kolwezi) with screenshots.**
+- **Step 3 (deferred follow-up, NOT started):** deeper product-card polish + shared skeleton/empty/error
+  widgets + push error-mapping into shopping providers (raw `state.error!` in wishlist/cart/checkout/orders).
+
+**Next sub-task:** open the `feat/buyer-mobile-bottom-nav` PR (with screenshots) for user review before merge.
 
 ---
 

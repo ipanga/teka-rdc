@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../data/models/city_model.dart';
 import '../providers/city_provider.dart';
@@ -20,7 +19,6 @@ class _CitySelectionScreenState extends ConsumerState<CitySelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final cityState = ref.watch(cityProvider);
     final locale = Localizations.localeOf(context).languageCode;
 
@@ -48,7 +46,7 @@ class _CitySelectionScreenState extends ConsumerState<CitySelectionScreen> {
               const SizedBox(height: 20),
               // Title
               Text(
-                l10n.selectCity,
+                "Choisissez votre ville",
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: TekaColors.foreground,
@@ -58,7 +56,7 @@ class _CitySelectionScreenState extends ConsumerState<CitySelectionScreen> {
               const SizedBox(height: 8),
               // Description
               Text(
-                l10n.selectCityDescription,
+                "Pour voir les produits disponibles",
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: TekaColors.mutedForeground,
                     ),
@@ -69,7 +67,7 @@ class _CitySelectionScreenState extends ConsumerState<CitySelectionScreen> {
               TextField(
                 onChanged: (v) => setState(() => _query = v),
                 decoration: InputDecoration(
-                  hintText: l10n.citySearchPlaceholder,
+                  hintText: "Rechercher une ville…",
                   prefixIcon: const Icon(Icons.search, size: 20),
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(vertical: 12),
@@ -164,7 +162,7 @@ class _CitySelectionScreenState extends ConsumerState<CitySelectionScreen> {
     if (filtered.isEmpty) {
       return Center(
         child: Text(
-          AppLocalizations.of(context)!.cityNoResults,
+          "Aucune ville trouvée",
           style: TextStyle(color: TekaColors.mutedForeground),
         ),
       );
