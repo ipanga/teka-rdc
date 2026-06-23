@@ -69,17 +69,23 @@ android {
             dimension = "env"
             applicationIdSuffix = ".dev"
             resValue("string", "app_name", "Teka Dev")
+            // App Links host (manifest ${appLinkHost}). dev/staging point at
+            // non-prod hosts so they never claim teka.cd links on a device that
+            // also has the prod app; only prod's host serves assetlinks.json.
+            manifestPlaceholders["appLinkHost"] = "dev.teka.cd"
         }
         create("staging") {
             dimension = "env"
             applicationIdSuffix = ".staging"
             resValue("string", "app_name", "Teka Staging")
+            manifestPlaceholders["appLinkHost"] = "staging.teka.cd"
         }
         create("production") {
             dimension = "env"
             // No applicationIdSuffix — production keeps com.tootiye.teka
             // to match the existing Play Store listing.
             resValue("string", "app_name", "Teka")
+            manifestPlaceholders["appLinkHost"] = "teka.cd"
         }
     }
 
