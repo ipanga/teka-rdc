@@ -8,10 +8,11 @@ import { SellerNotificationService } from './seller-notification.service';
 import { AdminNotificationService } from './admin-notification.service';
 import { UserNotificationService } from './user-notification.service';
 import { SellerNotificationsController } from './seller-notifications.controller';
+import { NotificationsController } from './notifications.controller';
 
 @Module({
   imports: [PrismaModule, UsersModule, PushModule, EmailModule],
-  controllers: [SellerNotificationsController],
+  controllers: [SellerNotificationsController, NotificationsController],
   providers: [
     OrderNotificationService,
     SellerNotificationService,

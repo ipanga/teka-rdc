@@ -12,6 +12,8 @@ import { PostHogService } from '../analytics/posthog.service';
 import {
   NotificationBroadcastStatus,
   Prisma,
+  ProductStatus,
+  UserNotificationType,
   UserRole,
   UserStatus,
 } from '@prisma/client';
@@ -112,6 +114,41 @@ export class BroadcastsService {
    * Admin: create a broadcast with status=DRAFT.
    */
   async create(dto: CreateBroadcastDto, userId: string) {
+    // Optional linked product → must exist + be ACTIVE.
+    if (dto.productId) {
+      const product = await this.prisma.product.findFirst({
+        where: {
+          id: dto.productId,
+          status: ProductStatus.ACTIVE,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      if (!product) {
+        throw new BadRequestException('Produit lié introuvable ou inactif');
+      }
+    }
+
+    // "Specific buyers" mode → every id must be an ACTIVE buyer.
+    let recipientIds: string[] | undefined;
+    if (dto.recipientIds && dto.recipientIds.length > 0) {
+      const ids = Array.from(new Set(dto.recipientIds));
+      const validCount = await this.prisma.user.count({
+        where: {
+          id: { in: ids },
+          role: UserRole.BUYER,
+          status: UserStatus.ACTIVE,
+          deletedAt: null,
+        },
+      });
+      if (validCount !== ids.length) {
+        throw new BadRequestException(
+          'Certains destinataires sont invalides ou inactifs',
+        );
+      }
+      recipientIds = ids;
+    }
+
     const broadcast = await this.prisma.notificationBroadcast.create({
       data: {
         title: dto.title,
@@ -119,6 +156,10 @@ export class BroadcastsService {
         segment: dto.segment,
         status: NotificationBroadcastStatus.DRAFT,
         createdById: userId,
+        productId: dto.productId ?? null,
+        recipientIds: recipientIds
+          ? (recipientIds as Prisma.InputJsonValue)
+          : Prisma.JsonNull,
         channels: dto.channels
           ? (this.normalizeChannelsInput(dto.channels) as Prisma.InputJsonValue)
           : Prisma.JsonNull,
@@ -158,23 +199,26 @@ export class BroadcastsService {
       );
     }
 
-    // Determine role filter based on segment
-    const roleFilter = this.getSegmentRoleFilter(broadcast.segment);
+    // Resolve the audience: explicit recipient ids ("specific buyers") win;
+    // otherwise the segment role filter. Always restricted to ACTIVE, live
+    // users. Per-channel + per-user opt-out filtering happens at fan-out time.
+    const explicitIds = Array.isArray(broadcast.recipientIds)
+      ? (broadcast.recipientIds as string[])
+      : null;
+    const audienceWhere: Prisma.UserWhereInput = explicitIds
+      ? { id: { in: explicitIds }, deletedAt: null, status: UserStatus.ACTIVE }
+      : {
+          ...this.getSegmentRoleFilter(broadcast.segment),
+          deletedAt: null,
+          status: UserStatus.ACTIVE,
+        };
 
-    // Count recipients (all active users in segment — per-channel + per-user
-    // opt-out filtering happens at fan-out time)
     const recipientCount = await this.prisma.user.count({
-      where: {
-        ...roleFilter,
-        deletedAt: null,
-        status: UserStatus.ACTIVE,
-      },
+      where: audienceWhere,
     });
 
     if (recipientCount === 0) {
-      throw new BadRequestException(
-        'Aucun destinataire trouvé pour ce segment',
-      );
+      throw new BadRequestException('Aucun destinataire trouvé');
     }
 
     // Update to SENDING with recipient count
@@ -199,6 +243,8 @@ export class BroadcastsService {
       segment: broadcast.segment,
       recipient_count: recipientCount,
       channels,
+      targeted: explicitIds !== null,
+      has_product: broadcast.productId !== null,
     });
 
     // Fan out asynchronously (don't block the response)
@@ -207,8 +253,9 @@ export class BroadcastsService {
         id,
         broadcast.title,
         broadcast.message,
-        roleFilter,
+        audienceWhere,
         channels,
+        broadcast.productId,
       ).catch((err) => {
         this.logger.error(
           `Error processing broadcast ${id}`,
@@ -317,11 +364,23 @@ export class BroadcastsService {
     broadcastId: string,
     title: string,
     message: string,
-    roleFilter: { role?: UserRole },
+    audienceWhere: Prisma.UserWhereInput,
     channels: BroadcastChannels,
+    productId: string | null,
   ) {
     let sentCount = 0;
     let failedCount = 0;
+
+    // Product-linked broadcasts deep-link to the PDP; generic ones open the
+    // Notification Center. Used for both the in-app feed row and the push data.
+    const pushData: Record<string, string> = productId
+      ? {
+          broadcastId,
+          kind: 'broadcast',
+          screen: 'product-details',
+          productId,
+        }
+      : { broadcastId, kind: 'broadcast', screen: 'notifications' };
 
     try {
       const batchSize = 100;
@@ -330,11 +389,7 @@ export class BroadcastsService {
 
       while (hasMore) {
         const users = await this.prisma.user.findMany({
-          where: {
-            ...roleFilter,
-            deletedAt: null,
-            status: UserStatus.ACTIVE,
-          },
+          where: audienceWhere,
           select: { id: true, email: true },
           skip,
           take: batchSize,
@@ -343,6 +398,30 @@ export class BroadcastsService {
         if (users.length === 0) {
           hasMore = false;
           break;
+        }
+
+        // Fan-out on write: persist the in-app feed for EVERY recipient. The
+        // Notification Center is the durable record; push/email opt-outs only
+        // affect delivery, never the feed. Batched for efficiency.
+        try {
+          await this.prisma.userNotification.createMany({
+            data: users.map((u) => ({
+              userId: u.id,
+              type: productId
+                ? UserNotificationType.PRODUCT_PROMO
+                : UserNotificationType.BROADCAST,
+              title,
+              body: message,
+              entityType: productId ? 'product' : 'broadcast',
+              entityId: productId ?? broadcastId,
+            })),
+          });
+        } catch (err) {
+          this.logger.warn(
+            `Feed persistence failed for a batch on broadcast ${broadcastId}: ${
+              err instanceof Error ? err.message : err
+            }`,
+          );
         }
 
         for (const user of users) {
@@ -359,7 +438,7 @@ export class BroadcastsService {
               const result = await this.pushService.sendToUser(user.id, {
                 title,
                 body: message,
-                data: { broadcastId, kind: 'broadcast' },
+                data: pushData,
               });
               if (result.succeeded > 0) anySucceeded = true;
             } catch (err) {

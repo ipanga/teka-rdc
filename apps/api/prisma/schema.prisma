@@ -1080,6 +1080,13 @@ model NotificationBroadcast {
   // removal transition (will be ripped in PR C2).
   channels       Json?
   status         NotificationBroadcastStatus @default(DRAFT)
+  // Optional linked product (plain-text id like other entity ids — seeded ids
+  // are non-RFC4122). When set, the broadcast is a product promo and deep-links
+  // to the PDP.
+  productId      String?
+  // Explicit recipient user ids for a "specific buyers" send (audit + replay).
+  // NULL ⇒ the `segment` role filter selects the audience.
+  recipientIds   Json?
   recipientCount Int                         @default(0)
   sentCount      Int                         @default(0)
   failedCount    Int                         @default(0)
@@ -1155,6 +1162,11 @@ model AdminNotification {
 enum UserNotificationType {
   PRODUCT_APPROVED
   PRODUCT_REJECTED
+  // Admin broadcast (generic message) and a product-linked promo broadcast
+  // (deep-links to the PDP). The generic shape (type + entityType/entityId)
+  // also supports future ORDER/DELIVERY/WISHLIST/BACK_IN_STOCK without redesign.
+  BROADCAST
+  PRODUCT_PROMO
 }
 
 model UserNotification {
