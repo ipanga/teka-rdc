@@ -16,12 +16,14 @@ website; **zero SEO/URL changes** (additive only). Buyer-mobile only (seller def
   mismatch URLs fall back to the browser (SEO-safe); auth/city guards prevent protected-route bypass.
 - **Phased PRs:** 2 web association files → 3 Flutter parser+`app_links` → 4 Android App Links → 5 iOS Universal
   Links → 6 notification+share unify → 7 analytics+security+docs+tests.
-- **Phases 2–6 ✅ MERGED to develop:** 2 web association files (#446) · 3 Flutter `DeepLinkParser`+`app_links`
-  (#447) · 4 Android App Links manifest+`autoVerify` (#448) · 5 iOS Universal Links entitlement (local
-  untracked `ios/`, build-verified) · 6 notification `url` unify + product Share (`share_plus`). Verified:
-  buyer-web build + live `.well-known` serving; 115 mobile tests; dev APK + iOS Runner.app build. **Remaining:
-  Phase 7** (analytics + security + docs + cross-platform test matrix). `assetlinks.json` still holds the
-  **placeholder Play-signing SHA-256 — operator TODO**.
+- **✅ ALL PHASES MERGED to develop** (2 web #446 · 3 Flutter core #447 · 4 Android #448 · 5 iOS + 6 notif/share
+  #449 · 7 analytics/docs). Verified: buyer-web build + live `.well-known` serving (200 + `application/json`);
+  116 mobile tests (22 deep-link unit); dev APK + iOS Runner.app build; aapt-confirmed manifest. Model:
+  `docs/deep-linking.md`.
+- **Remaining before live (operator):** (1) put the real **Play App Signing SHA-256** in
+  `apps/buyer-web/public/.well-known/assetlinks.json` (placeholder now); (2) enable iOS **Associated Domains**
+  on the `com.tootiye.teka` App ID + profile, signed-device test; (3) release `develop→main`. Mobile reaches
+  devices on the next Play Store AAB.
 - **Operator inputs:** Android **Play App Signing cert SHA-256** (Play Console → App integrity) → assetlinks.json;
   iOS enable **Associated Domains** on the App ID + profile at sign time.
 

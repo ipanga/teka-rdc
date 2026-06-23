@@ -178,7 +178,8 @@ history) · `url-and-seo-strategy.md` (city-first URLs/slugs/redirects) · `anal
 `clarity.md` (Microsoft Clarity) · `api-reference.md` · `deployment.md` (§5b admin seeding) ·
 `mobile-connectivity.md` (Rule 15) · `mobile-flavors.md` · `mobile-release.md` (Android signing + Play
 Store) · `payouts.md` (seller payouts + settlement) · `push-notifications.md` (FCM) ·
-`session-management.md` (per-surface cookies + token rotation) · `sentry.md`.
+`session-management.md` (per-surface cookies + token rotation) · `sentry.md` ·
+`deep-linking.md` (App Links / Universal Links + DeepLinkParser).
 
 ---
 
@@ -245,6 +246,14 @@ page (client islands, `noindex`, 60s poll) and the buyer-mobile Notification Cen
 (FCM tap deep-links via `NotificationRouter`). Admin uses the **Centre de notifications** (the extended
 broadcasts page). The seller `/v1/seller/notifications` alias is untouched. Full model: `docs/architecture.md`
 → "Notifications & broadcasts".
+
+**Universal deep linking (2026-06-23, buyer-mobile).** A `https://teka.cd/...` link opens buyer-mobile on the
+right screen when installed (**Android App Links** + **iOS Universal Links**), else the website — **additive, no
+web URL/SEO change**. Single source of truth: `apps/buyer-mobile/lib/core/deep_link/deep_link_parser.dart`
+(mirrors buyer-web `lib/urls.ts`; host-allowlisted; private/unknown paths → browser fallback). Association files
+at `apps/buyer-web/public/.well-known/{assetlinks.json,apple-app-site-association}`. `NotificationRouter` also
+resolves a `url` payload via the parser; product Share emits the canonical URL. **When adding a deep-linkable
+route, update both `urls.ts` and `DeepLinkParser` + a test.** Full model: `docs/deep-linking.md`.
 
 ---
 
