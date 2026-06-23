@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { categoryHref, productIdentifierFromParam } from '@/lib/urls';
@@ -28,13 +27,10 @@ import type { ProductDetail } from '@/lib/types';
  *   the component also works if rendered without the prop.
  */
 export default function ProductDetailPage({ identifier }: { identifier?: string } = {}) {
-  const t = useTranslations('Products');
-  const tCat = useTranslations('Categories');
   // 'Messaging' translation namespace stays in messages/fr.json (with a
   // deprecation comment there); only the in-app references were removed
   // when direct buyer↔seller messaging was retired on 2026-05-17. Buyers
   // now reach Teka RDC support via /contact instead.
-  const tSupport = useTranslations('Support');
   const params = useParams<{ ville?: string; product?: string }>();
   // Prefer the server-extracted identifier; otherwise derive it from the
   // `[product]` route segment (`iphone-15-pro-max-a1b2c3` -> `a1b2c3`).
@@ -117,9 +113,9 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                 d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <p className="text-muted-foreground mb-4">{t('noProducts')}</p>
+            <p className="text-muted-foreground mb-4">{"Aucun produit trouvé."}</p>
             <Link href="/" className={buttonVariants({ variant: 'default', size: 'md' })}>
-              {tCat('title')}
+              {"Catégories"}
             </Link>
           </div>
         </main>
@@ -143,7 +139,7 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-5 overflow-x-auto">
             <Link href="/" className="hover:text-primary transition-colors shrink-0">
-              {tCat('title')}
+              {"Catégories"}
             </Link>
             {product.category?.breadcrumb?.map((crumb) => (
               <span key={crumb.id} className="flex items-center gap-2 shrink-0">
@@ -191,7 +187,7 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                   {/* Out-of-stock overlay badge */}
                   {isOutOfStock && (
                     <Badge variant="solid" size="md" className="absolute top-3 left-3 shadow-sm">
-                      {t('outOfStock')}
+                      {"Rupture de stock"}
                     </Badge>
                   )}
                 </div>
@@ -233,7 +229,7 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                 size="md"
                 className="mb-3"
               >
-                {t(`condition_${product.condition}`)}
+                {product.condition === 'NEW' ? 'Neuf' : 'Occasion'}
               </Badge>
 
               {/* Title + Wishlist */}
@@ -256,7 +252,7 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                 )}
                 {product.unitsSold != null && product.unitsSold > 0 && (
                   <p className="text-sm text-muted-foreground mt-1">
-                    {t('unitsSold', { count: product.unitsSold })}
+                    {product.unitsSold <= 1 ? `${product.unitsSold} vendu` : `${product.unitsSold} vendus`}
                   </p>
                 )}
               </div>
@@ -268,7 +264,7 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
-                    {t('outOfStock')}
+                    {"Rupture de stock"}
                   </span>
                 ) : product.quantity <= 5 ? (
                   // Scarcity cue (Phase D): low stock — nudge urgency.
@@ -276,14 +272,14 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.48 0L3.16 16.25A2 2 0 005 19z" />
                     </svg>
-                    {t('lowStock', { count: product.quantity })}
+                    {`Plus que ${product.quantity} en stock`}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-sm text-success font-medium">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    {t('inStock')} &middot; {t('available', { count: product.quantity })}
+                    {"En stock"} &middot; {`${product.quantity} disponible(s)`}
                   </span>
                 )}
               </div>
@@ -292,7 +288,7 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
               {!isOutOfStock && (
                 <div className="hidden md:block py-5 border-t border-border">
                   <div className="flex items-center gap-3 mb-4">
-                    <span className="text-sm text-muted-foreground">{t('quantity')}:</span>
+                    <span className="text-sm text-muted-foreground">{"Quantité"}:</span>
                     <QuantityStepper
                       value={quantity}
                       min={1}
@@ -328,7 +324,7 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                         />
                       </svg>
                     )}
-                    {t('addToCart')}
+                    {"Ajouter au panier"}
                   </Button>
 
                   {cartFeedback && (
@@ -336,7 +332,7 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                       <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
-                      {t('addedToCart')}
+                      {"Produit ajouté au panier"}
                     </div>
                   )}
                 </div>
@@ -344,7 +340,7 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
 
               {/* Seller card */}
               <Card padding="sm" className="mt-4">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">{t('seller')}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">{"Vendeur"}</p>
                 <p className="text-sm font-semibold text-foreground mt-0.5">
                   {product.seller.businessName}
                 </p>
@@ -364,14 +360,14 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                       d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
                     />
                   </svg>
-                  {tSupport('contactSupport')}
+                  {"Contacter le support Teka RDC"}
                 </Link>
               </Card>
 
               {/* Category link */}
               {product.category && (
                 <div className="mt-3">
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">{t('category')}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">{"Catégorie"}</p>
                   <Link
                     href={
                       product.category.slug
@@ -391,7 +387,7 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
           {description && (
             <Card padding="md" className="mt-6">
               <h2 className="text-base font-semibold text-foreground mb-3 tracking-tight">
-                {t('description')}
+                {"Description"}
               </h2>
               <div className="text-sm text-foreground/80 whitespace-pre-line leading-relaxed">
                 {description}
@@ -403,7 +399,7 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
           {product.specifications && product.specifications.length > 0 && (
             <Card padding="md" className="mt-4">
               <h2 className="text-base font-semibold text-foreground mb-4 tracking-tight">
-                {t('specifications')}
+                {"Caractéristiques"}
               </h2>
               <dl className="grid grid-cols-1 sm:grid-cols-[200px_1fr] gap-x-4">
                 {product.specifications.map((spec, i) => (
@@ -478,12 +474,12 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
               size="lg"
               className="flex-1"
             >
-              {t('addToCart')}
+              {"Ajouter au panier"}
             </Button>
           </div>
           {cartFeedback && (
             <div className="px-3 pb-3 -mt-1 text-xs text-success font-medium text-center">
-              ✓ {t('addedToCart')}
+              ✓ {"Produit ajouté au panier"}
             </div>
           )}
         </div>

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch, ApiError } from '@/lib/api-client';
 
 interface SellerProfileShape {
@@ -41,7 +40,6 @@ interface SessionDto {
 
 
 export default function SellerProfilePage() {
-  const t = useTranslations('Profile');
 
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<MeResponse | null>(null);
@@ -132,7 +130,7 @@ export default function SellerProfilePage() {
       setSessions(res.data);
     } catch {
       setSessions([]);
-      showFeedback('error', t('sessionsLoadError'));
+      showFeedback('error', "Impossible de charger la liste des appareils");
     } finally {
       setSessionsLoading(false);
     }
@@ -151,9 +149,9 @@ export default function SellerProfilePage() {
     try {
       await apiFetch(`/v1/users/sessions/${id}`, { method: 'DELETE' });
       setSessions((prev) => prev?.filter((s) => s.id !== id) ?? null);
-      showFeedback('success', t('sessionRevoked'));
+      showFeedback('success', "Appareil déconnecté");
     } catch {
-      showFeedback('error', t('sessionRevokeError'));
+      showFeedback('error', "Impossible de déconnecter cet appareil");
     } finally {
       setSessionAction(null);
     }
@@ -164,9 +162,9 @@ export default function SellerProfilePage() {
     try {
       const res = await apiFetch<{ revoked: number }>('/v1/users/sessions', { method: 'DELETE' });
       setSessions((prev) => prev?.filter((s) => s.current) ?? null);
-      showFeedback('success', t('sessionRevokedAll', { count: res.data.revoked }));
+      showFeedback('success', res.data.revoked === 0 ? 'Aucun autre appareil' : res.data.revoked === 1 ? '1 appareil déconnecté' : `${res.data.revoked} appareils déconnectés`);
     } catch {
-      showFeedback('error', t('sessionRevokeError'));
+      showFeedback('error', "Impossible de déconnecter cet appareil");
     } finally {
       setSessionAction(null);
     }
@@ -182,11 +180,11 @@ export default function SellerProfilePage() {
         method: 'PATCH',
         body: JSON.stringify({ [key]: value }),
       });
-      showFeedback('success', t('notifSaved'));
+      showFeedback('success', "Préférences enregistrées");
     } catch {
       if (key === 'smsOrderUpdates') setSmsOrderUpdates(!value);
       else setSmsBroadcasts(!value);
-      showFeedback('error', t('notifError'));
+      showFeedback('error', "Erreur lors de la mise à jour");
     } finally {
       setNotifSaving(false);
     }
@@ -215,9 +213,9 @@ export default function SellerProfilePage() {
         body: fd,
       });
       setUser((u) => (u ? { ...u, avatar: json.data.avatar } : u));
-      showFeedback('success', t('saveSuccess'));
+      showFeedback('success', "Profil mis à jour");
     } catch {
-      showFeedback('error', t('uploadError'));
+      showFeedback('error', "Erreur lors de l'envoi de la photo");
     } finally {
       setUploading(false);
     }
@@ -239,10 +237,10 @@ export default function SellerProfilePage() {
         method: 'PATCH',
         body: JSON.stringify(body),
       });
-      showFeedback('success', t('saveSuccess'));
+      showFeedback('success', "Profil mis à jour");
       loadMe();
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : t('saveError');
+      const msg = err instanceof ApiError ? err.message : "Erreur lors de l'enregistrement";
       showFeedback('error', msg);
     } finally {
       setSavingPersonal(false);
@@ -252,7 +250,7 @@ export default function SellerProfilePage() {
   const changePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      showFeedback('error', t('passwordMismatch'));
+      showFeedback('error', "Les deux mots de passe ne correspondent pas");
       return;
     }
     setChangingPassword(true);
@@ -264,9 +262,9 @@ export default function SellerProfilePage() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-      showFeedback('success', t('passwordChangeSuccess'));
+      showFeedback('success', "Mot de passe modifié avec succès. Les autres appareils ont été déconnectés.");
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : t('passwordChangeError');
+      const msg = err instanceof ApiError ? err.message : "Erreur lors de la modification du mot de passe";
       showFeedback('error', msg);
     } finally {
       setChangingPassword(false);
@@ -292,10 +290,10 @@ export default function SellerProfilePage() {
         method: 'PATCH',
         body: JSON.stringify(body),
       });
-      showFeedback('success', t('saveSuccess'));
+      showFeedback('success', "Profil mis à jour");
       loadMe();
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : t('saveError');
+      const msg = err instanceof ApiError ? err.message : "Erreur lors de l'enregistrement";
       showFeedback('error', msg);
     } finally {
       setSavingBusiness(false);
@@ -318,8 +316,8 @@ export default function SellerProfilePage() {
   return (
     <div className="p-8 max-w-3xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{t('subtitle')}</p>
+        <h1 className="text-2xl font-bold text-foreground">{"Mon profil"}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{"Gérez vos informations personnelles et celles de votre boutique"}</p>
       </div>
 
       {feedback && (
@@ -332,7 +330,7 @@ export default function SellerProfilePage() {
 
       {/* Avatar */}
       <section className="mb-6 bg-white rounded-xl border border-border p-6">
-        <h2 className="text-base font-semibold text-foreground mb-4">{t('sectionAvatar')}</h2>
+        <h2 className="text-base font-semibold text-foreground mb-4">{"Photo de profil"}</h2>
         <div className="flex items-center gap-5">
           {user?.avatar ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -359,7 +357,7 @@ export default function SellerProfilePage() {
               disabled={uploading}
               className="px-4 py-2 text-sm font-medium rounded-lg border border-border bg-background hover:bg-muted transition-colors disabled:opacity-50"
             >
-              {uploading ? t('uploading') : t('uploadAvatar')}
+              {uploading ? "Envoi en cours..." : "Changer la photo"}
             </button>
           </div>
         </div>
@@ -367,11 +365,11 @@ export default function SellerProfilePage() {
 
       {/* Personal */}
       <section className="mb-6 bg-white rounded-xl border border-border p-6">
-        <h2 className="text-base font-semibold text-foreground mb-4">{t('sectionPersonal')}</h2>
+        <h2 className="text-base font-semibold text-foreground mb-4">{"Informations personnelles"}</h2>
         <form onSubmit={savePersonal} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">{t('firstName')}</label>
+              <label className="block text-sm font-medium text-foreground mb-1">{"Prénom"}</label>
               <input
                 type="text"
                 value={firstName}
@@ -380,7 +378,7 @@ export default function SellerProfilePage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">{t('lastName')}</label>
+              <label className="block text-sm font-medium text-foreground mb-1">{"Nom"}</label>
               <input
                 type="text"
                 value={lastName}
@@ -390,43 +388,43 @@ export default function SellerProfilePage() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">{t('email')}</label>
+            <label className="block text-sm font-medium text-foreground mb-1">{"Email"}</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
-            <p className="text-xs text-muted-foreground mt-1">{t('emailHint')}</p>
+            <p className="text-xs text-muted-foreground mt-1">{"Modifier votre email vous demandera de le re-vérifier."}</p>
           </div>
           <button
             type="submit"
             disabled={savingPersonal}
             className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
-            {savingPersonal ? t('saving') : t('save')}
+            {savingPersonal ? "Enregistrement..." : "Enregistrer"}
           </button>
         </form>
       </section>
 
       {/* Business */}
       <section className="bg-white rounded-xl border border-border p-6">
-        <h2 className="text-base font-semibold text-foreground mb-4">{t('sectionBusiness')}</h2>
+        <h2 className="text-base font-semibold text-foreground mb-4">{"Informations de la boutique"}</h2>
 
         {appStatus === 'PENDING' && (
           <div className="mb-4 px-4 py-3 rounded-lg bg-warning/10 text-warning text-sm">
-            {t('applicationPending')}
+            {"Votre demande d'inscription est en cours de révision. Vous pourrez modifier les informations de la boutique une fois la demande approuvée."}
           </div>
         )}
         {appStatus === 'REJECTED' && (
           <div className="mb-4 px-4 py-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-            {t('applicationRejected')}
+            {"Votre demande a été rejetée. Contactez le support pour en savoir plus."}
           </div>
         )}
 
         <form onSubmit={saveBusiness} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">{t('businessName')}</label>
+            <label className="block text-sm font-medium text-foreground mb-1">{"Nom de la boutique"}</label>
             <input
               type="text"
               value={businessName}
@@ -437,7 +435,7 @@ export default function SellerProfilePage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">{t('phone')}</label>
+              <label className="block text-sm font-medium text-foreground mb-1">{"Téléphone (livraison)"}</label>
               <input
                 type="tel"
                 value={businessPhone}
@@ -445,17 +443,17 @@ export default function SellerProfilePage() {
                 disabled={!businessEditable}
                 className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
               />
-              <p className="text-xs text-muted-foreground mt-1">{t('phoneHint')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{"Utilisé pour la communication avec les livreurs."}</p>
             </div>
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">{t('city')}</label>
+              <label className="block text-sm font-medium text-foreground mb-1">{"Ville"}</label>
               <select
                 value={cityId}
                 onChange={(e) => setCityId(e.target.value)}
                 disabled={!businessEditable}
                 className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <option value="">{t('cityPlaceholder')}</option>
+                <option value="">{"Sélectionnez votre ville"}</option>
                 {cities.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name} — {c.province}
@@ -465,25 +463,25 @@ export default function SellerProfilePage() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">{t('location')}</label>
+            <label className="block text-sm font-medium text-foreground mb-1">{"Adresse / quartier"}</label>
             <input
               type="text"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
               disabled={!businessEditable}
-              placeholder={t('locationPlaceholder')}
+              placeholder={"Ex. : Avenue Lumumba, quartier Golf"}
               className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
             />
-            <p className="text-xs text-muted-foreground mt-1">{t('locationHint')}</p>
+            <p className="text-xs text-muted-foreground mt-1">{"Détail de l'adresse (rue, quartier) en complément de la ville."}</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">{t('description')}</label>
+            <label className="block text-sm font-medium text-foreground mb-1">{"Description"}</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               disabled={!businessEditable}
               rows={4}
-              placeholder={t('descriptionPlaceholder')}
+              placeholder={"Décrivez votre boutique en quelques phrases…"}
               className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60 disabled:cursor-not-allowed resize-none"
             />
           </div>
@@ -492,18 +490,18 @@ export default function SellerProfilePage() {
             disabled={!businessEditable || savingBusiness}
             className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {savingBusiness ? t('saving') : t('save')}
+            {savingBusiness ? "Enregistrement..." : "Enregistrer"}
           </button>
         </form>
       </section>
 
       {/* Password change */}
       <section className="mt-6 bg-white rounded-xl border border-border p-6">
-        <h2 className="text-base font-semibold text-foreground mb-2">{t('sectionPassword')}</h2>
-        <p className="text-sm text-muted-foreground mb-4">{t('passwordHint')}</p>
+        <h2 className="text-base font-semibold text-foreground mb-2">{"Mot de passe"}</h2>
+        <p className="text-sm text-muted-foreground mb-4">{"Modifier votre mot de passe vous déconnectera de tous vos autres appareils."}</p>
         <form onSubmit={changePassword} className="space-y-4 max-w-md">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">{t('currentPassword')}</label>
+            <label className="block text-sm font-medium text-foreground mb-1">{"Mot de passe actuel"}</label>
             <input
               type="password"
               autoComplete="current-password"
@@ -514,7 +512,7 @@ export default function SellerProfilePage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">{t('newPassword')}</label>
+            <label className="block text-sm font-medium text-foreground mb-1">{"Nouveau mot de passe"}</label>
             <input
               type="password"
               autoComplete="new-password"
@@ -524,10 +522,10 @@ export default function SellerProfilePage() {
               minLength={8}
               className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
-            <p className="text-xs text-muted-foreground mt-1">{t('passwordRules')}</p>
+            <p className="text-xs text-muted-foreground mt-1">{"Au moins 8 caractères, avec lettres et chiffres."}</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">{t('confirmPassword')}</label>
+            <label className="block text-sm font-medium text-foreground mb-1">{"Confirmer le nouveau mot de passe"}</label>
             <input
               type="password"
               autoComplete="new-password"
@@ -548,26 +546,26 @@ export default function SellerProfilePage() {
             }
             className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {changingPassword ? t('saving') : t('changePassword')}
+            {changingPassword ? "Enregistrement..." : "Modifier le mot de passe"}
           </button>
         </form>
       </section>
 
       {/* Notifications */}
       <section className="mt-6 bg-white rounded-xl border border-border p-6">
-        <h2 className="text-base font-semibold text-foreground mb-2">{t('sectionNotifications')}</h2>
-        <p className="text-sm text-muted-foreground mb-4">{t('notificationsHint')}</p>
+        <h2 className="text-base font-semibold text-foreground mb-2">{"Notifications"}</h2>
+        <p className="text-sm text-muted-foreground mb-4">{"Choisissez les SMS que vous voulez recevoir. Les codes de vérification et emails de sécurité sont toujours envoyés."}</p>
         <div className="space-y-3">
           <NotifToggle
-            label={t('notifOrderUpdates')}
-            description={t('notifOrderUpdatesDesc')}
+            label={"Mises à jour de commande"}
+            description={"Confirmation, expédition, livraison, annulation"}
             checked={smsOrderUpdates}
             disabled={notifSaving}
             onChange={(v) => updateNotifPref('smsOrderUpdates', v)}
           />
           <NotifToggle
-            label={t('notifBroadcasts')}
-            description={t('notifBroadcastsDesc')}
+            label={"Annonces et promotions"}
+            description={"Messages marketing envoyés par l'équipe Teka"}
             checked={smsBroadcasts}
             disabled={notifSaving}
             onChange={(v) => updateNotifPref('smsBroadcasts', v)}
@@ -579,8 +577,8 @@ export default function SellerProfilePage() {
       <section className="mt-6 bg-white rounded-xl border border-border p-6">
         <div className="flex items-start justify-between gap-4 mb-2">
           <div>
-            <h2 className="text-base font-semibold text-foreground">{t('sectionSessions')}</h2>
-            <p className="text-sm text-muted-foreground mt-1">{t('sessionsHint')}</p>
+            <h2 className="text-base font-semibold text-foreground">{"Appareils connectés"}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{"Liste des appareils actuellement connectés à votre compte. Révoquez ceux que vous ne reconnaissez pas."}</p>
           </div>
           {sessions && sessions.some((s) => !s.current) && (
             <button
@@ -589,7 +587,7 @@ export default function SellerProfilePage() {
               disabled={sessionAction !== null}
               className="shrink-0 text-xs font-medium text-destructive hover:underline disabled:opacity-50"
             >
-              {sessionAction === 'all' ? t('sessionRevoking') : t('sessionRevokeAll')}
+              {sessionAction === 'all' ? "Déconnexion..." : "Déconnecter les autres appareils"}
             </button>
           )}
         </div>
@@ -604,20 +602,18 @@ export default function SellerProfilePage() {
               <li key={s.id} className="flex items-center justify-between gap-3 py-3">
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium text-foreground flex items-center gap-2">
-                    {s.ipAddress ? t('sessionIp', { ip: s.ipAddress }) : t('sessionIpUnknown')}
+                    {s.ipAddress ? `IP ${s.ipAddress}` : "IP inconnue"}
                     {s.current && (
                       <span className="inline-block px-2 py-0.5 text-[10px] font-medium rounded-full bg-primary/10 text-primary">
-                        {t('sessionCurrent')}
+                        {"Cet appareil"}
                       </span>
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    {t('sessionConnectedOn', {
-                      date: new Date(s.createdAt).toLocaleString('fr-FR', {
-                        dateStyle: 'short',
-                        timeStyle: 'short',
-                      }),
-                    })}
+                    {`Connecté le ${new Date(s.createdAt).toLocaleString('fr-FR', {
+                      dateStyle: 'short',
+                      timeStyle: 'short',
+                    })}`}
                   </div>
                 </div>
                 {!s.current && (
@@ -627,14 +623,14 @@ export default function SellerProfilePage() {
                     disabled={sessionAction !== null}
                     className="shrink-0 text-xs font-medium text-destructive hover:underline disabled:opacity-50"
                   >
-                    {sessionAction === s.id ? t('sessionRevoking') : t('sessionRevoke')}
+                    {sessionAction === s.id ? "Déconnexion..." : "Déconnecter"}
                   </button>
                 )}
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground mt-3">{t('sessionsEmpty')}</p>
+          <p className="text-sm text-muted-foreground mt-3">{"Aucun autre appareil connecté"}</p>
         )}
       </section>
     </div>

@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 import { Sidebar } from '@/components/layout/sidebar';
 
@@ -16,7 +15,6 @@ export default function DashboardLayout({
   const isLoading = useAuthStore((s) => s.isLoading);
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
-  const t = useTranslations('Dashboard');
 
   // 'checking' until the seller's application status is known; 'approved'
   // unlocks the dashboard. Anything else redirects to the application flow.
@@ -72,7 +70,7 @@ export default function DashboardLayout({
   if (isLoading || !user || user.role !== 'SELLER' || appGate !== 'approved') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse text-muted-foreground">{t('loading')}</div>
+        <div className="animate-pulse text-muted-foreground">{"Chargement..."}</div>
       </div>
     );
   }

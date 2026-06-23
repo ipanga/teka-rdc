@@ -1,14 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { useAuthStore, type User } from '@/lib/auth-store';
 
 export default function SellerLoginPage() {
-  const t = useTranslations('Auth');
   const router = useRouter();
   const setUser = useAuthStore((s) => s.setUser);
 
@@ -59,8 +57,8 @@ export default function SellerLoginPage() {
       <div className="w-full max-w-md">
         <div className="bg-white rounded-xl shadow-lg border border-border p-8">
           <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold text-foreground">{t('loginTitle')}</h1>
-            <p className="text-muted-foreground mt-2">{t('sellerPortal')}</p>
+            <h1 className="text-2xl font-bold text-foreground">Connexion Vendeur</h1>
+            <p className="text-muted-foreground mt-2">Espace Vendeur - Teka RDC</p>
           </div>
 
           {error && (
@@ -71,22 +69,22 @@ export default function SellerLoginPage() {
 
           {roleError && (
             <div className="mb-4 p-4 rounded-lg bg-warning/10 border border-warning/20 text-foreground text-sm">
-              <p className="font-medium">{t('notSellerAccount')}</p>
-              <p className="mt-1 text-muted-foreground text-xs">{t('notSellerHint')}</p>
+              <p className="font-medium">Votre compte n&apos;est pas un compte vendeur.</p>
+              <p className="mt-1 text-muted-foreground text-xs">Veuillez vous connecter avec un compte vendeur ou demander l&apos;accès vendeur depuis l&apos;application.</p>
             </div>
           )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1">
-                {t('emailLabel')}
+                Email
               </label>
               <input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder={t('emailPlaceholder')}
+                placeholder="vous@exemple.com"
                 autoComplete="email"
                 className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 required
@@ -94,7 +92,7 @@ export default function SellerLoginPage() {
             </div>
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1">
-                {t('passwordLabel')}
+                Mot de passe
               </label>
               <input
                 id="password"
@@ -112,19 +110,19 @@ export default function SellerLoginPage() {
               disabled={isLoading || !email || !password}
               className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {isLoading ? '...' : t('login')}
+              {isLoading ? '...' : 'Se connecter'}
             </button>
 
             <div className="flex items-center justify-between text-sm">
               <Link href="/forgot-password" className="text-primary hover:underline">
-                {t('forgotPassword')}
+                Mot de passe oublié ?
               </Link>
             </div>
 
             <p className="text-center text-sm text-muted-foreground">
-              {t('noAccount')}{' '}
+              Pas encore vendeur ?{' '}
               <Link href="/inscription" className="text-primary hover:underline">
-                {t('createAccount')}
+                Créer un compte
               </Link>
             </p>
           </form>

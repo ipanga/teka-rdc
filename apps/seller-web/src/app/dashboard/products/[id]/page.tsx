@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
@@ -45,7 +44,6 @@ interface Product {
 }
 
 export default function ProductDetailPage() {
-  const t = useTranslations('Products');
   const params = useParams();
   const productId = params.id as string;
 
@@ -104,12 +102,12 @@ export default function ProductDetailPage() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError(t('errorLoadingProduct'));
+        setError("Erreur lors du chargement du produit");
       }
     } finally {
       setIsLoading(false);
     }
-  }, [productId, t]);
+  }, [productId]);
 
   useEffect(() => {
     loadProduct();
@@ -138,16 +136,16 @@ export default function ProductDetailPage() {
 
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
-    if (!title.trim()) errors.title = t('requiredField');
-    if (!categoryId) errors.categoryId = t('requiredField');
+    if (!title.trim()) errors.title = "Ce champ est requis";
+    if (!categoryId) errors.categoryId = "Ce champ est requis";
     if (!priceCDF || isNaN(Number(priceCDF)) || Number(priceCDF) <= 0) {
-      errors.priceCDF = t('invalidPrice');
+      errors.priceCDF = "Veuillez entrer un prix valide";
     }
     if (priceUSD && (isNaN(Number(priceUSD)) || Number(priceUSD) < 0)) {
-      errors.priceUSD = t('invalidPrice');
+      errors.priceUSD = "Veuillez entrer un prix valide";
     }
     if (!quantity || isNaN(Number(quantity)) || Number(quantity) < 0) {
-      errors.quantity = t('requiredField');
+      errors.quantity = "Ce champ est requis";
     }
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
@@ -184,7 +182,7 @@ export default function ProductDetailPage() {
         body: JSON.stringify(body),
       });
 
-      setSuccessMessage(t('productUpdated'));
+      setSuccessMessage("Produit mis à jour avec succès");
       loadProduct();
     } catch (err) {
       if (err instanceof ApiError) {
@@ -211,7 +209,7 @@ export default function ProductDetailPage() {
 
     try {
       await apiFetch(`/v1/sellers/products/${productId}/submit`, { method: 'PATCH' });
-      setSuccessMessage(t('productSubmitted'));
+      setSuccessMessage("Produit soumis pour validation");
       loadProduct();
     } catch (err) {
       if (err instanceof ApiError) {
@@ -256,10 +254,10 @@ export default function ProductDetailPage() {
           href="/dashboard/products"
           className="text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          &larr; {t('backToProducts')}
+          &larr; Retour aux produits
         </Link>
         <div className="mt-4 bg-destructive/10 text-destructive p-4 rounded-lg text-sm">
-          {error || t('errorLoadingProduct')}
+          {error || "Erreur lors du chargement du produit"}
         </div>
       </div>
     );
@@ -272,11 +270,11 @@ export default function ProductDetailPage() {
           href="/dashboard/products"
           className="text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          &larr; {t('backToProducts')}
+          &larr; Retour aux produits
         </Link>
         <div className="flex items-center gap-3 mt-2">
           <h1 className="text-2xl font-bold text-foreground">
-            {isEditable ? t('editProduct') : t('productDetail')}
+            {isEditable ? 'Modifier le produit' : 'Détail du produit'}
           </h1>
           <ProductStatusBadge status={product.status} />
         </div>
@@ -285,7 +283,7 @@ export default function ProductDetailPage() {
       {/* Rejection Reason */}
       {product.status === 'REJECTED' && product.rejectionReason && (
         <div className="mb-4 p-4 rounded-lg bg-destructive/10 border border-destructive/20">
-          <p className="text-sm font-medium text-destructive">{t('rejectionReason')}</p>
+          <p className="text-sm font-medium text-destructive">Raison du rejet</p>
           <p className="text-sm text-foreground mt-1">{product.rejectionReason}</p>
         </div>
       )}
@@ -293,7 +291,7 @@ export default function ProductDetailPage() {
       {/* Read-only notice */}
       {!isEditable && (
         <div className="mb-4 p-3 rounded-lg bg-muted text-muted-foreground text-sm">
-          {t('readOnly')}
+          Ce produit ne peut pas être modifié dans son statut actuel.
         </div>
       )}
 
@@ -324,12 +322,12 @@ export default function ProductDetailPage() {
         <form onSubmit={handleSave} className="space-y-6">
           {/* Product Info Section */}
           <div className="bg-white rounded-xl border border-border p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">{t('productInfo')}</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-4">Informations du produit</h2>
             <div className="space-y-4">
               {/* Category */}
               <div>
                 <label htmlFor="categoryId" className="block text-sm font-medium text-foreground mb-1">
-                  {t('category')} *
+                  Catégorie *
                 </label>
                 {isEditable ? (
                   <CategoryCombobox
@@ -357,7 +355,7 @@ export default function ProductDetailPage() {
               {/* Title */}
               <div>
                 <label htmlFor="title" className="block text-sm font-medium text-foreground mb-1">
-                  {t('title')} *
+                  Nom *
                 </label>
                 {isEditable ? (
                   <input
@@ -380,7 +378,7 @@ export default function ProductDetailPage() {
               {/* Description */}
               <div>
                 <label htmlFor="description" className="block text-sm font-medium text-foreground mb-1">
-                  {t('description')}
+                  Description
                 </label>
                 {isEditable ? (
                   <textarea
@@ -400,7 +398,7 @@ export default function ProductDetailPage() {
               {/* Condition */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  {t('condition')}
+                  Condition
                 </label>
                 {isEditable ? (
                   <div className="flex gap-4">
@@ -413,7 +411,7 @@ export default function ProductDetailPage() {
                         onChange={() => setCondition('NEW')}
                         className="accent-primary"
                       />
-                      <span className="text-sm text-foreground">{t('conditionNew')}</span>
+                      <span className="text-sm text-foreground">Neuf</span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -424,12 +422,12 @@ export default function ProductDetailPage() {
                         onChange={() => setCondition('USED')}
                         className="accent-primary"
                       />
-                      <span className="text-sm text-foreground">{t('conditionUsed')}</span>
+                      <span className="text-sm text-foreground">Occasion</span>
                     </label>
                   </div>
                 ) : (
                   <p className="px-3 py-2 bg-muted rounded-lg text-foreground text-sm">
-                    {condition === 'NEW' ? t('conditionNew') : t('conditionUsed')}
+                    {condition === 'NEW' ? 'Neuf' : 'Occasion'}
                   </p>
                 )}
               </div>
@@ -450,12 +448,12 @@ export default function ProductDetailPage() {
 
           {/* Pricing Section */}
           <div className="bg-white rounded-xl border border-border p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4">{t('pricing')}</h2>
+            <h2 className="text-lg font-semibold text-foreground mb-4">Tarification</h2>
             <div className="space-y-4">
               {/* Price CDF */}
               <div>
                 <label htmlFor="priceCDF" className="block text-sm font-medium text-foreground mb-1">
-                  {t('priceCDF')} *
+                  Prix en CDF *
                 </label>
                 {isEditable ? (
                   <div className="relative">
@@ -485,7 +483,7 @@ export default function ProductDetailPage() {
               {/* Price USD */}
               <div>
                 <label htmlFor="priceUSD" className="block text-sm font-medium text-foreground mb-1">
-                  {t('priceUSD')}
+                  Prix en USD (optionnel)
                 </label>
                 {isEditable ? (
                   <div className="relative">
@@ -515,7 +513,7 @@ export default function ProductDetailPage() {
               {/* Quantity */}
               <div>
                 <label htmlFor="quantity" className="block text-sm font-medium text-foreground mb-1">
-                  {t('quantity')} *
+                  Quantité *
                 </label>
                 {isEditable ? (
                   <input
@@ -547,7 +545,7 @@ export default function ProductDetailPage() {
                 disabled={isSaving}
                 className="px-6 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {isSaving ? t('saving') : t('save')}
+                {isSaving ? 'Enregistrement...' : 'Enregistrer'}
               </button>
             )}
             {canSubmit && (
@@ -557,14 +555,14 @@ export default function ProductDetailPage() {
                 disabled={isSubmitting}
                 className="px-6 py-2.5 bg-success text-white rounded-lg font-medium text-sm hover:bg-success/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {isSubmitting ? '...' : t('submitForReview')}
+                {isSubmitting ? '...' : 'Soumettre pour validation'}
               </button>
             )}
             <Link
               href="/dashboard/products"
               className="px-6 py-2.5 border border-border rounded-lg font-medium text-sm text-foreground hover:bg-muted transition-colors"
             >
-              {t('backToProducts')}
+              Retour aux produits
             </Link>
           </div>
         </form>

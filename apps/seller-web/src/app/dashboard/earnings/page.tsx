@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import type {
@@ -28,9 +27,15 @@ const PAYOUT_METHOD_LABELS: Record<string, string> = {
   ORANGE_MONEY: 'Orange Money',
 };
 
+const PAYOUT_STATUS_LABELS: Record<string, string> = {
+  REQUESTED: 'En attente',
+  APPROVED: 'Approuvé',
+  PROCESSING: 'En traitement',
+  COMPLETED: 'Complété',
+  REJECTED: 'Rejeté',
+};
+
 export default function EarningsPage() {
-  const t = useTranslations('Earnings');
-  const tOrders = useTranslations('Orders');
 
   // Wallet state
   const [wallet, setWallet] = useState<SellerWallet | null>(null);
@@ -196,11 +201,11 @@ export default function EarningsPage() {
   const submitPayoutRequest = async () => {
     setRequestError('');
     if (!PAYOUT_METHODS.includes(requestMethod as never)) {
-      setRequestError(t('selectOperator'));
+      setRequestError("Opérateur Mobile Money");
       return;
     }
     if (!/^\+243[0-9]{9}$/.test(requestPhone)) {
-      setRequestError(t('payoutPhonePlaceholder'));
+      setRequestError("+243...");
       return;
     }
     setSubmitting(true);
@@ -221,14 +226,14 @@ export default function EarningsPage() {
         }),
       });
       setShowRequestModal(false);
-      setSuccessMessage(t('payoutRequested'));
+      setSuccessMessage("Demande de virement envoyée avec succès");
       await Promise.all([loadWallet(), loadPayouts()]);
       setActiveTab('payouts');
     } catch (err) {
       if (err instanceof ApiError) {
         setRequestError(err.message);
       } else {
-        setRequestError(t('payoutRequested'));
+        setRequestError("Demande de virement envoyée avec succès");
       }
     } finally {
       setSubmitting(false);
@@ -257,7 +262,7 @@ export default function EarningsPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+        <h1 className="text-2xl font-bold text-foreground">Revenus</h1>
       </div>
 
       {/* Success message */}
@@ -277,7 +282,7 @@ export default function EarningsPage() {
       {/* Wallet cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <div className="bg-white rounded-xl border border-border p-5">
-          <h3 className="text-sm font-medium text-muted-foreground">{t('walletBalance')}</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">Solde disponible</h3>
           <p className="text-3xl font-bold mt-2 text-foreground">
             {walletLoading ? (
               <span className="inline-block w-24 h-8 bg-muted rounded animate-pulse" />
@@ -287,7 +292,7 @@ export default function EarningsPage() {
           </p>
         </div>
         <div className="bg-white rounded-xl border border-border p-5">
-          <h3 className="text-sm font-medium text-muted-foreground">{t('totalEarned')}</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">Revenus totaux</h3>
           <p className="text-3xl font-bold mt-2 text-success">
             {walletLoading ? (
               <span className="inline-block w-24 h-8 bg-muted rounded animate-pulse" />
@@ -297,7 +302,7 @@ export default function EarningsPage() {
           </p>
         </div>
         <div className="bg-white rounded-xl border border-border p-5">
-          <h3 className="text-sm font-medium text-muted-foreground">{t('totalCommission')}</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">Commission prélevée</h3>
           <p className="text-3xl font-bold mt-2 text-muted-foreground">
             {walletLoading ? (
               <span className="inline-block w-24 h-8 bg-muted rounded animate-pulse" />
@@ -315,16 +320,16 @@ export default function EarningsPage() {
           disabled={!canRequestPayout}
           className="inline-flex items-center justify-center px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {t('requestPayout')}
+          Demander un virement
         </button>
         {!walletLoading && balanceCDF < MIN_PAYOUT_CDF && (
           <span className="text-sm text-muted-foreground">
-            {t('minimumBalance')}
+            Le solde minimum pour un virement est de 5 000 CDF
           </span>
         )}
         {hasPendingPayout && (
           <span className="text-sm text-muted-foreground">
-            {t('pendingPayoutNotice')}
+            Vous avez déjà une demande de virement en cours. Vous pourrez en faire une nouvelle une fois celle-ci traitée.
           </span>
         )}
       </div>
@@ -342,7 +347,7 @@ export default function EarningsPage() {
               : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
           }`}
         >
-          {t('tabs.earnings')}
+          Gains
         </button>
         <button
           onClick={() => {
@@ -355,7 +360,7 @@ export default function EarningsPage() {
               : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
           }`}
         >
-          {t('tabs.payouts')}
+          Virements
         </button>
       </div>
 
@@ -377,7 +382,7 @@ export default function EarningsPage() {
             </div>
           ) : earnings.length === 0 ? (
             <div className="bg-white rounded-xl border border-border p-12 text-center">
-              <p className="text-muted-foreground">{t('table.noEarnings')}</p>
+              <p className="text-muted-foreground">Aucun revenu pour le moment</p>
             </div>
           ) : (
             <>
@@ -386,12 +391,12 @@ export default function EarningsPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border bg-muted/50">
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('table.date')}</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('table.order')}</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('table.grossAmount')}</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('table.commission')}</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('table.netAmount')}</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('table.status')}</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Commande</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Montant brut</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Commission</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Montant net</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Statut</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -430,7 +435,7 @@ export default function EarningsPage() {
                                   : 'bg-blue-100 text-blue-700'
                               }`}
                             >
-                              {earning.isPaid ? t('table.paid') : t('table.available')}
+                              {earning.isPaid ? 'Payé' : 'Disponible'}
                             </span>
                           </td>
                         </tr>
@@ -448,17 +453,17 @@ export default function EarningsPage() {
                     disabled={earningsPage <= 1}
                     className="px-3 py-1.5 text-sm font-medium rounded border border-border text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    {tOrders('previousPage')}
+                    Précédent
                   </button>
                   <span className="text-sm text-muted-foreground">
-                    {tOrders('pageOf', { page: earningsPage, total: earningsTotalPages })}
+                    {`Page ${earningsPage} sur ${earningsTotalPages}`}
                   </span>
                   <button
                     onClick={() => setEarningsPage((p) => Math.min(earningsTotalPages, p + 1))}
                     disabled={earningsPage >= earningsTotalPages}
                     className="px-3 py-1.5 text-sm font-medium rounded border border-border text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    {tOrders('nextPage')}
+                    Suivant
                   </button>
                 </div>
               )}
@@ -485,7 +490,7 @@ export default function EarningsPage() {
             </div>
           ) : payouts.length === 0 ? (
             <div className="bg-white rounded-xl border border-border p-12 text-center">
-              <p className="text-muted-foreground">{t('table.noPayouts')}</p>
+              <p className="text-muted-foreground">Aucun virement pour le moment</p>
             </div>
           ) : (
             <>
@@ -494,11 +499,11 @@ export default function EarningsPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border bg-muted/50">
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('table.date')}</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('table.amount')}</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('table.method')}</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('table.status')}</th>
-                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('table.details')}</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Montant</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Méthode</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Statut</th>
+                        <th className="text-left px-4 py-3 font-medium text-muted-foreground">Détails</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -520,13 +525,13 @@ export default function EarningsPage() {
                             <span
                               className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPayoutStatusStyle(payout.status)}`}
                             >
-                              {t(`payoutStatus.${payout.status}`)}
+                              {PAYOUT_STATUS_LABELS[payout.status] ?? payout.status}
                             </span>
                           </td>
                           <td className="px-4 py-3 text-sm text-muted-foreground">
                             {payout.status === 'COMPLETED' &&
                             payout.externalReference
-                              ? `${t('referenceLabel')} : ${payout.externalReference}`
+                              ? `Référence : ${payout.externalReference}`
                               : payout.rejectionReason || '---'}
                           </td>
                         </tr>
@@ -544,17 +549,17 @@ export default function EarningsPage() {
                     disabled={payoutsPage <= 1}
                     className="px-3 py-1.5 text-sm font-medium rounded border border-border text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    {tOrders('previousPage')}
+                    Précédent
                   </button>
                   <span className="text-sm text-muted-foreground">
-                    {tOrders('pageOf', { page: payoutsPage, total: payoutsTotalPages })}
+                    {`Page ${payoutsPage} sur ${payoutsTotalPages}`}
                   </span>
                   <button
                     onClick={() => setPayoutsPage((p) => Math.min(payoutsTotalPages, p + 1))}
                     disabled={payoutsPage >= payoutsTotalPages}
                     className="px-3 py-1.5 text-sm font-medium rounded border border-border text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
-                    {tOrders('nextPage')}
+                    Suivant
                   </button>
                 </div>
               )}
@@ -568,10 +573,10 @@ export default function EarningsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md bg-white rounded-xl border border-border shadow-xl p-6">
             <h2 className="text-lg font-bold text-foreground mb-1">
-              {t('payoutForm')}
+              Demande de virement
             </h2>
             <p className="text-sm text-muted-foreground mb-4">
-              {t('currentBalance')} : {formatPrice(wallet?.balanceCDF ?? '0')}
+              Solde actuel : {formatPrice(wallet?.balanceCDF ?? '0')}
             </p>
 
             {requestError && (
@@ -583,7 +588,7 @@ export default function EarningsPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  {t('selectOperator')}
+                  Opérateur Mobile Money
                 </label>
                 <select
                   value={requestMethod}
@@ -600,18 +605,18 @@ export default function EarningsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  {t('payoutPhone')}
+                  Numéro de réception
                 </label>
                 <input
                   type="tel"
                   value={requestPhone}
                   onChange={(e) => setRequestPhone(e.target.value)}
-                  placeholder={t('payoutPhonePlaceholder')}
+                  placeholder="+243..."
                   className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                {t('saveDestinationHint')}
+                Cet opérateur et ce numéro seront enregistrés pour vos prochaines demandes.
               </p>
             </div>
 
@@ -621,14 +626,14 @@ export default function EarningsPage() {
                 disabled={submitting}
                 className="flex-1 py-2 px-4 border border-border text-foreground rounded-lg text-sm font-medium hover:bg-muted disabled:opacity-50 transition-colors"
               >
-                {t('cancel')}
+                Annuler
               </button>
               <button
                 onClick={submitPayoutRequest}
                 disabled={submitting}
                 className="flex-1 py-2 px-4 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
-                {submitting ? t('submitting') : t('submit')}
+                {submitting ? 'Envoi en cours...' : 'Envoyer la demande'}
               </button>
             </div>
           </div>

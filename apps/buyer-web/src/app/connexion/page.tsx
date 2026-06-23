@@ -1,7 +1,6 @@
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { normalizeDrcPhone } from '@teka/shared';
@@ -16,7 +15,6 @@ const SELLER_WEB_URL =
   process.env.NEXT_PUBLIC_SELLER_WEB_URL || 'http://localhost:5100';
 
 function ConnexionInner() {
-  const t = useTranslations('Auth');
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = safeRedirect(searchParams.get('redirect'));
@@ -76,7 +74,7 @@ function ConnexionInner() {
     setInfo('');
     const normalized = normalizeDrcPhone(rawPhone);
     if (!normalized) {
-      setError(t('otpPhoneInvalid'));
+      setError("Numéro invalide. Entrez 9 chiffres (ou 10 avec le 0 initial).");
       return;
     }
     setNormalizedPhone(normalized);
@@ -119,7 +117,7 @@ function ConnexionInner() {
       setUser(user);
 
       if (user.role === 'SELLER') {
-        setInfo(t('sellerLoginNotice'));
+        setInfo("Ce numéro est associé à un compte vendeur. Redirection vers l'espace vendeur…");
         window.location.href = SELLER_WEB_URL;
         return;
       }
@@ -173,10 +171,10 @@ function ConnexionInner() {
             <>
               <div className="text-center mb-6">
                 <h1 className="text-2xl font-bold text-foreground tracking-tight">
-                  {t('otpPhoneTitle')}
+                  {"Connexion ou inscription"}
                 </h1>
                 <p className="text-muted-foreground mt-2 text-sm">
-                  {t('otpPhoneIntro')}
+                  {"Entrez votre numéro WhatsApp. Vous recevrez un code à 6 chiffres."}
                 </p>
               </div>
 
@@ -188,7 +186,7 @@ function ConnexionInner() {
 
               <form onSubmit={handlePhoneSubmit} className="space-y-4">
                 <div>
-                  <Label htmlFor="phone">{t('otpPhoneLabel')}</Label>
+                  <Label htmlFor="phone">{"Numéro WhatsApp"}</Label>
                   <div className="flex items-stretch rounded-lg border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:border-transparent">
                     <span className="px-3 flex items-center text-muted-foreground text-sm border-r border-input bg-surface-muted/60 rounded-l-lg font-medium">
                       +243
@@ -202,7 +200,7 @@ function ConnexionInner() {
                       onChange={(e) =>
                         setRawPhone(e.target.value.replace(/\D/g, ''))
                       }
-                      placeholder={t('otpPhonePlaceholder')}
+                      placeholder={"9 chiffres (ex. 990 000 001)"}
                       autoComplete="tel"
                       className="flex-1 px-3 py-2 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none rounded-r-lg text-sm"
                       required
@@ -212,21 +210,21 @@ function ConnexionInner() {
 
                 <details className="text-sm text-muted-foreground group">
                   <summary className="cursor-pointer select-none hover:text-foreground transition-colors">
-                    {t('otpFirstTime')}
+                    {"Première connexion ? Indiquez votre nom (facultatif)"}
                   </summary>
                   <div className="mt-3 grid grid-cols-2 gap-3">
                     <Input
                       type="text"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
-                      placeholder={t('otpFirstName')}
+                      placeholder={"Prénom"}
                       autoComplete="given-name"
                     />
                     <Input
                       type="text"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
-                      placeholder={t('otpLastName')}
+                      placeholder={"Nom"}
                       autoComplete="family-name"
                     />
                   </div>
@@ -238,7 +236,7 @@ function ConnexionInner() {
                   size="lg"
                   className="w-full"
                 >
-                  {isLoading ? '...' : t('otpSendCode')}
+                  {isLoading ? '...' : "Recevoir mon code"}
                 </Button>
               </form>
 
@@ -247,7 +245,7 @@ function ConnexionInner() {
                   href="/reclamer-compte"
                   className="text-primary hover:text-primary-hover hover:underline underline-offset-4 font-medium"
                 >
-                  {t('claimTitle')}
+                  {"Réclamer mon ancien compte"}
                 </Link>
               </div>
             </>
@@ -255,10 +253,10 @@ function ConnexionInner() {
             <>
               <div className="text-center mb-6">
                 <h1 className="text-2xl font-bold text-foreground tracking-tight">
-                  {t('otpCodeTitle')}
+                  {"Code reçu sur WhatsApp"}
                 </h1>
                 <p className="text-muted-foreground mt-2 text-sm">
-                  {t('otpCodeIntro', { phone: normalizedPhone })}
+                  {`Saisissez le code envoyé au ${normalizedPhone}`}
                 </p>
               </div>
 
@@ -275,7 +273,7 @@ function ConnexionInner() {
 
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="code">{t('otpCodeLabel')}</Label>
+                  <Label htmlFor="code">{"Code à 6 chiffres"}</Label>
                   <input
                     ref={codeRef}
                     id="code"
@@ -305,7 +303,7 @@ function ConnexionInner() {
                     onClick={() => setStep('phone')}
                     className="text-muted-foreground hover:text-foreground hover:underline underline-offset-4 transition-colors"
                   >
-                    ← {t('otpPhoneLabel')}
+                    ← {"Numéro WhatsApp"}
                   </button>
                   <button
                     type="button"
@@ -314,8 +312,8 @@ function ConnexionInner() {
                     className="text-primary hover:text-primary-hover hover:underline underline-offset-4 font-medium disabled:text-muted-foreground disabled:no-underline disabled:cursor-not-allowed transition-colors"
                   >
                     {cooldownLeft > 0
-                      ? t('otpResendIn', { seconds: cooldownLeft })
-                      : t('otpResend')}
+                      ? `Renvoyer dans ${cooldownLeft}s`
+                      : "Renvoyer le code"}
                   </button>
                 </div>
 

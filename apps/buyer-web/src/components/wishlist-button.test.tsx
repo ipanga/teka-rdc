@@ -15,7 +15,6 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mocks.push }),
   usePathname: () => '/produit-x',
 }));
-vi.mock('next-intl', () => ({ useTranslations: () => (k: string) => k }));
 vi.mock('@/components/ui', () => ({
   cn: (...a: Array<string | false | null | undefined>) => a.filter(Boolean).join(' '),
 }));

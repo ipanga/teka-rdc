@@ -2,7 +2,6 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useTranslations } from 'next-intl';
 import { Container, buttonVariants } from '@/components/ui';
 import { cityAccentClasses, heroImageForCity } from '@/lib/city-accent';
 
@@ -42,7 +41,6 @@ export function StoreHero({
   city,
   badgeLabel,
 }: StoreHeroProps) {
-  const t = useTranslations('Hero');
   const accent = cityAccentClasses(city);
   const heroImage = heroImageForCity(city);
 
@@ -92,13 +90,13 @@ export function StoreHero({
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {[
             {
-              label: t('trustDelivery'),
+              label: "Livraison locale rapide",
               icon: (
                 <path d="M3 7h11v8H3V7zm11 2h3l3 3v3h-2m-9 0H8m9 0a2 2 0 11-4 0 2 2 0 014 0zm-9 0a2 2 0 11-4 0 2 2 0 014 0z" />
               ),
             },
             {
-              label: t('trustCod'),
+              label: "Paiement à la livraison",
               icon: (
                 <>
                   <rect x="2.5" y="6" width="19" height="12" rx="2" />
@@ -107,7 +105,7 @@ export function StoreHero({
               ),
             },
             {
-              label: t('trustSellers'),
+              label: "Vendeurs vérifiés",
               icon: (
                 <path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3zm-1 11l4-4-1.4-1.4L11 11.2 9.4 9.6 8 11l3 3z" />
               ),

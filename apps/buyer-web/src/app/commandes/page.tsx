@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -13,13 +12,13 @@ import type { Order, OrderStatus, PaginatedOrders } from '@/lib/types';
 
 type FilterStatus = 'ALL' | OrderStatus;
 
-const STATUS_TABS: { key: FilterStatus; labelKey: string }[] = [
-  { key: 'ALL', labelKey: 'all' },
-  { key: 'PENDING', labelKey: 'pending' },
-  { key: 'CONFIRMED', labelKey: 'confirmed' },
-  { key: 'SHIPPED', labelKey: 'shipped' },
-  { key: 'DELIVERED', labelKey: 'delivered' },
-  { key: 'CANCELLED', labelKey: 'cancelled' },
+const STATUS_TABS: { key: FilterStatus; label: string }[] = [
+  { key: 'ALL', label: 'Toutes' },
+  { key: 'PENDING', label: 'En attente' },
+  { key: 'CONFIRMED', label: 'Confirmées' },
+  { key: 'SHIPPED', label: 'Expédiées' },
+  { key: 'DELIVERED', label: 'Livrées' },
+  { key: 'CANCELLED', label: 'Annulées' },
 ];
 
 function formatDate(dateStr: string): string {
@@ -32,7 +31,6 @@ function formatDate(dateStr: string): string {
 }
 
 export default function OrdersPage() {
-  const t = useTranslations('Orders');
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<FilterStatus>('ALL');
@@ -78,7 +76,7 @@ export default function OrdersPage() {
       <main className="flex-1">
         <Container className="py-6 md:py-10 max-w-4xl">
           <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight mb-6">
-            {t('title')}
+            {"Mes commandes"}
           </h1>
 
           {/* Status filter tabs */}
@@ -94,7 +92,7 @@ export default function OrdersPage() {
                     : 'bg-surface text-muted-foreground hover:text-foreground hover:bg-surface-hover border border-border',
                 )}
               >
-                {t(tab.labelKey)}
+                {tab.label}
               </button>
             ))}
           </div>
@@ -131,12 +129,12 @@ export default function OrdersPage() {
                   />
                 </svg>
               </div>
-              <p className="text-muted-foreground mb-5">{t('noOrders')}</p>
+              <p className="text-muted-foreground mb-5">{"Vous n'avez aucune commande"}</p>
               <Link
                 href="/categories"
                 className={buttonVariants({ variant: 'default', size: 'lg' })}
               >
-                {t('browseProducts')}
+                {"Découvrir nos produits"}
               </Link>
             </Card>
           ) : (
@@ -155,7 +153,7 @@ export default function OrdersPage() {
                       <div className="flex items-center justify-between mb-3 gap-3">
                         <div className="min-w-0">
                           <span className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-                            {t('orderNumber')} #{order.orderNumber}
+                            {"Commande"} #{order.orderNumber}
                           </span>
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {formatDate(order.createdAt)}
@@ -167,14 +165,14 @@ export default function OrdersPage() {
                       {/* Seller + item count */}
                       <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3 flex-wrap">
                         <span className="truncate">
-                          {t('seller')}: <span className="text-foreground font-medium">{sellerName}</span>
+                          {"Vendeur"}: <span className="text-foreground font-medium">{sellerName}</span>
                         </span>
-                        <span>{t('itemCount', { count: itemCount })}</span>
+                        <span>{itemCount === 0 ? '0 article' : itemCount === 1 ? '1 article' : `${itemCount} articles`}</span>
                       </div>
 
                       {/* Total */}
                       <div className="flex items-center justify-between border-t border-border pt-3">
-                        <span className="text-sm text-muted-foreground">{t('total')}</span>
+                        <span className="text-sm text-muted-foreground">{"Total"}</span>
                         <span className="text-base font-bold text-primary">
                           {formatCDF(order.totalCDF)}
                         </span>

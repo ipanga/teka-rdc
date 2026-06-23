@@ -9,10 +9,7 @@ interface ReviewBuyer {
 }
 
 interface ReviewProduct {
-  title: {
-    fr: string;
-    en: string;
-  };
+  title: string;
 }
 
 interface Review {
@@ -244,7 +241,7 @@ export default function ReviewsPage() {
                     {new Date(review.createdAt).toLocaleDateString('fr-CD')}
                   </td>
                   <td className="px-4 py-3 text-sm font-medium text-foreground max-w-[200px] truncate">
-                    {review.product?.title?.fr || '-'}
+                    {review.product?.title || '-'}
                   </td>
                   <td className="px-4 py-3 text-sm text-foreground whitespace-nowrap">
                     {review.buyer

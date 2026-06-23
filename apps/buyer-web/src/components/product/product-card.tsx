@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { WishlistButton } from '@/components/wishlist-button';
 import { useCartStore } from '@/lib/cart-store';
@@ -15,7 +14,6 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
-  const t = useTranslations('Products');
   const addItem = useCartStore((s) => s.addItem);
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
@@ -79,12 +77,12 @@ export function ProductCard({ product }: ProductCardProps) {
           <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
             {outOfStock && (
               <span className="rounded-md bg-foreground px-2 py-0.5 text-[11px] font-semibold text-white shadow-md">
-                {t('outOfStock')}
+                {"Rupture de stock"}
               </span>
             )}
             {lowStock && (
               <span className="rounded-md bg-warning px-2 py-0.5 text-[11px] font-semibold text-foreground shadow-md">
-                {t('lowStock', { count: product.quantity })}
+                {`Plus que ${product.quantity} en stock`}
               </span>
             )}
             {/* Only badge second-hand items — "Neuf" is the default, so
@@ -92,7 +90,7 @@ export function ProductCard({ product }: ProductCardProps) {
                 text reads cleanly over photos. */}
             {product.condition === 'USED' && (
               <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-foreground shadow-md ring-1 ring-black/5">
-                {t('condition_USED')}
+                {"Occasion"}
               </span>
             )}
           </div>
@@ -120,7 +118,7 @@ export function ProductCard({ product }: ProductCardProps) {
           </p>
           {product.unitsSold != null && product.unitsSold > 0 && (
             <p className="text-[11px] text-muted-foreground">
-              {t('unitsSold', { count: product.unitsSold })}
+              {product.unitsSold <= 1 ? `${product.unitsSold} vendu` : `${product.unitsSold} vendus`}
             </p>
           )}
         </div>
@@ -141,7 +139,7 @@ export function ProductCard({ product }: ProductCardProps) {
             type="button"
             onClick={handleQuickAdd}
             disabled={adding}
-            aria-label={t('addToCart')}
+            aria-label={"Ajouter au panier"}
             className={`w-full inline-flex items-center justify-center gap-1.5 rounded-lg py-2.5 text-xs font-semibold transition-colors disabled:opacity-60 ${
               added
                 ? 'bg-success-subtle text-success'
@@ -153,7 +151,7 @@ export function ProductCard({ product }: ProductCardProps) {
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                 </svg>
-                {t('addedToCart')}
+                {"Produit ajouté au panier"}
               </>
             ) : adding ? (
               <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -162,7 +160,7 @@ export function ProductCard({ product }: ProductCardProps) {
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                 </svg>
-                {t('addToCart')}
+                {"Ajouter au panier"}
               </>
             )}
           </button>

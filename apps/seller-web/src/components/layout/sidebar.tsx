@@ -1,6 +1,5 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
@@ -14,7 +13,6 @@ interface NavItem {
 }
 
 export function Sidebar() {
-  const t = useTranslations('Sidebar');
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
@@ -25,13 +23,13 @@ export function Sidebar() {
   // Buyer questions now reach Teka RDC support instead of the seller.
 
   const navItems: NavItem[] = [
-    { href: '/dashboard', label: t('dashboard'), icon: '\u2302' },
-    { href: '/dashboard/products', label: t('myProducts'), icon: '\u2630' },
-    { href: '/dashboard/orders', label: t('orders'), icon: '\uD83D\uDCE6' },
-    { href: '/dashboard/earnings', label: t('earnings'), icon: '\uD83D\uDCB0' },
-    { href: '/dashboard/reviews', label: t('reviews'), icon: '\u2605' },
-    { href: '/dashboard/promotions', label: t('promotions'), icon: '\uD83C\uDFF7' },
-    { href: '/dashboard/profile', label: t('profile'), icon: '\uD83D\uDC64' },
+    { href: '/dashboard', label: 'Tableau de bord', icon: '\u2302' },
+    { href: '/dashboard/products', label: 'Mes Produits', icon: '\u2630' },
+    { href: '/dashboard/orders', label: 'Commandes', icon: '\uD83D\uDCE6' },
+    { href: '/dashboard/earnings', label: 'Revenus', icon: '\uD83D\uDCB0' },
+    { href: '/dashboard/reviews', label: 'Avis', icon: '\u2605' },
+    { href: '/dashboard/promotions', label: 'Promotions', icon: '\uD83C\uDFF7' },
+    { href: '/dashboard/profile', label: 'Mon profil', icon: '\uD83D\uDC64' },
   ];
 
   const handleLogout = async () => {
@@ -60,7 +58,7 @@ export function Sidebar() {
           />
           <NotificationBell />
         </div>
-        <p className="text-sm text-white/60 mt-2">{t('sellerPortal')}</p>
+        <p className="text-sm text-white/60 mt-2">Espace Vendeur</p>
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
@@ -101,7 +99,7 @@ export function Sidebar() {
           onClick={handleLogout}
           className="w-full text-left px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
         >
-          {t('logout')}
+          Se déconnecter
         </button>
       </div>
     </aside>

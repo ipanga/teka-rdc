@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { normalizeDrcPhone } from '@teka/shared';
 import { apiFetch, ApiError } from '@/lib/api-client';
@@ -44,7 +43,6 @@ interface ApplicationState {
  *   - APPROVED                   → redirect to the dashboard
  */
 export default function DevenirVendeurPage() {
-  const t = useTranslations('SellerApplication');
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const isLoadingUser = useAuthStore((s) => s.isLoading);
@@ -93,7 +91,7 @@ export default function DevenirVendeurPage() {
       );
       setIdDocumentCloudinaryId(json.data.cloudinaryId);
     } catch (err) {
-      setDocError(err instanceof ApiError ? err.message : t('documentUploadError'));
+      setDocError(err instanceof ApiError ? err.message : "Échec du téléchargement du document. Réessayez.");
     } finally {
       setUploadingDoc(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -160,7 +158,7 @@ export default function DevenirVendeurPage() {
         }
         setStatus(app);
       } catch {
-        if (!cancelled) setError(t('loadError'));
+        if (!cancelled) setError("Impossible de charger votre demande. Réessayez.");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -169,7 +167,7 @@ export default function DevenirVendeurPage() {
     return () => {
       cancelled = true;
     };
-  }, [isLoadingUser, user, router, t]);
+  }, [isLoadingUser, user, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,17 +175,17 @@ export default function DevenirVendeurPage() {
 
     const normalizedPhone = normalizeDrcPhone(phone);
     if (!normalizedPhone) {
-      setError(t('invalidPhone'));
+      setError("Numéro de téléphone invalide. Entrez un numéro congolais valide.");
       return;
     }
 
     if (!cityId || !communeId) {
-      setError(t('cityCommuneRequired'));
+      setError("Veuillez sélectionner une ville et une commune.");
       return;
     }
 
     if (!idDocumentCloudinaryId) {
-      setError(t('documentRequired'));
+      setError("Veuillez téléverser votre pièce d’identité.");
       return;
     }
 
@@ -211,7 +209,7 @@ export default function DevenirVendeurPage() {
       // Reflect the new PENDING state without a full reload.
       setStatus({ hasApplication: true, applicationStatus: 'PENDING' });
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('submitError'));
+      setError(err instanceof ApiError ? err.message : "Impossible de soumettre votre demande. Réessayez.");
     } finally {
       setSubmitting(false);
     }
@@ -220,7 +218,7 @@ export default function DevenirVendeurPage() {
   if (isLoadingUser || loading || !user) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse text-muted-foreground">{t('loading')}</div>
+        <div className="animate-pulse text-muted-foreground">{"Chargement..."}</div>
       </div>
     );
   }
@@ -231,9 +229,9 @@ export default function DevenirVendeurPage() {
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="w-full max-w-md bg-white rounded-xl shadow-lg border border-border p-8 text-center">
           <h1 className="text-xl font-bold text-foreground">
-            {t('pendingTitle')}
+            {"Demande en cours d’examen"}
           </h1>
-          <p className="mt-3 text-muted-foreground text-sm">{t('pendingBody')}</p>
+          <p className="mt-3 text-muted-foreground text-sm">{"Votre demande de compte vendeur a été reçue. Notre équipe l’examine et vous serez notifié dès qu’une décision est prise."}</p>
         </div>
       </div>
     );
@@ -246,18 +244,18 @@ export default function DevenirVendeurPage() {
       <div className="w-full max-w-lg">
         <div className="bg-white rounded-xl shadow-lg border border-border p-8">
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
-            <p className="text-muted-foreground mt-2">{t('subtitle')}</p>
+            <h1 className="text-2xl font-bold text-foreground">{"Devenir vendeur"}</h1>
+            <p className="text-muted-foreground mt-2">{"Renseignez les informations de votre activité pour soumettre votre demande."}</p>
           </div>
 
           {isRejected && (
             <div className="mb-4 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-sm">
-              <p className="font-medium text-destructive">{t('rejectedTitle')}</p>
+              <p className="font-medium text-destructive">{"Demande refusée"}</p>
               {status?.rejectionReason && (
                 <p className="mt-1 text-foreground">{status.rejectionReason}</p>
               )}
               <p className="mt-1 text-muted-foreground text-xs">
-                {t('rejectedHint')}
+                {"Corrigez les informations ci-dessous et soumettez à nouveau votre demande."}
               </p>
             </div>
           )}
@@ -274,7 +272,7 @@ export default function DevenirVendeurPage() {
                 htmlFor="businessName"
                 className="block text-sm font-medium text-foreground mb-1"
               >
-                {t('businessNameLabel')}
+                {"Nom de l’entreprise / boutique"}
               </label>
               <input
                 id="businessName"
@@ -292,7 +290,7 @@ export default function DevenirVendeurPage() {
                 htmlFor="businessType"
                 className="block text-sm font-medium text-foreground mb-1"
               >
-                {t('businessTypeLabel')}
+                {"Type d’activité"}
               </label>
               <select
                 id="businessType"
@@ -300,8 +298,8 @@ export default function DevenirVendeurPage() {
                 onChange={(e) => setBusinessType(e.target.value)}
                 className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               >
-                <option value="individual">{t('typeIndividual')}</option>
-                <option value="company">{t('typeCompany')}</option>
+                <option value="individual">{"Particulier"}</option>
+                <option value="company">{"Entreprise"}</option>
               </select>
             </div>
 
@@ -311,7 +309,7 @@ export default function DevenirVendeurPage() {
                   htmlFor="idType"
                   className="block text-sm font-medium text-foreground mb-1"
                 >
-                  {t('idTypeLabel')}
+                  {"Type de pièce"}
                 </label>
                 <select
                   id="idType"
@@ -319,9 +317,9 @@ export default function DevenirVendeurPage() {
                   onChange={(e) => setIdType(e.target.value)}
                   className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  <option value="national_id">{t('idNationalId')}</option>
-                  <option value="passport">{t('idPassport')}</option>
-                  <option value="rccm">{t('idRccm')}</option>
+                  <option value="national_id">{"Carte d’identité nationale"}</option>
+                  <option value="passport">{"Passeport"}</option>
+                  <option value="rccm">{"RCCM"}</option>
                 </select>
               </div>
               <div>
@@ -329,7 +327,7 @@ export default function DevenirVendeurPage() {
                   htmlFor="idNumber"
                   className="block text-sm font-medium text-foreground mb-1"
                 >
-                  {t('idNumberLabel')}
+                  {"Numéro de pièce"}
                 </label>
                 <input
                   id="idNumber"
@@ -345,10 +343,10 @@ export default function DevenirVendeurPage() {
             {/* KYC document upload */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-1">
-                {t('documentLabel')}
+                {"Pièce d’identité (CNI / passeport / RCCM)"}
               </label>
               <p className="text-xs text-muted-foreground mb-2">
-                {t('documentHint')}
+                {"Photo lisible de votre pièce. JPEG, PNG ou WebP, 5 Mo max."}
               </p>
               <input
                 ref={fileInputRef}
@@ -360,12 +358,12 @@ export default function DevenirVendeurPage() {
               />
               {uploadingDoc && (
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {t('documentUploading')}
+                  {"Téléchargement du document..."}
                 </p>
               )}
               {!uploadingDoc && idDocumentCloudinaryId && (
                 <p className="mt-2 text-sm text-green-700">
-                  {t('documentUploaded')}
+                  {"Document téléchargé ✓"}
                 </p>
               )}
               {docError && (
@@ -378,14 +376,14 @@ export default function DevenirVendeurPage() {
                 htmlFor="phone"
                 className="block text-sm font-medium text-foreground mb-1"
               >
-                {t('phoneLabel')}
+                {"Numéro de téléphone"}
               </label>
               <input
                 id="phone"
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder={t('phonePlaceholder')}
+                placeholder={"Ex : 0812345678"}
                 className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 required
               />
@@ -396,7 +394,7 @@ export default function DevenirVendeurPage() {
                 htmlFor="cityId"
                 className="block text-sm font-medium text-foreground mb-1"
               >
-                {t('cityLabel')}
+                {"Ville"}
               </label>
               <select
                 id="cityId"
@@ -409,7 +407,7 @@ export default function DevenirVendeurPage() {
                 className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 required
               >
-                <option value="">{t('cityPlaceholder')}</option>
+                <option value="">{"Sélectionnez une ville"}</option>
                 {cities.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name} ({c.province})
@@ -423,7 +421,7 @@ export default function DevenirVendeurPage() {
                 htmlFor="communeId"
                 className="block text-sm font-medium text-foreground mb-1"
               >
-                {t('communeLabel')}
+                {"Commune"}
               </label>
               <select
                 id="communeId"
@@ -434,7 +432,7 @@ export default function DevenirVendeurPage() {
                 required
               >
                 <option value="">
-                  {cityId ? t('communePlaceholder') : t('communeSelectCity')}
+                  {cityId ? "Sélectionnez une commune" : "Sélectionnez d’abord une ville"}
                 </option>
                 {communes.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -449,14 +447,14 @@ export default function DevenirVendeurPage() {
                 htmlFor="location"
                 className="block text-sm font-medium text-foreground mb-1"
               >
-                {t('locationLabel')}
+                {"Adresse / quartier"}
               </label>
               <input
                 id="location"
                 type="text"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder={t('locationPlaceholder')}
+                placeholder={"Ex : Lubumbashi, Katuba"}
                 className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 required
               />
@@ -467,7 +465,7 @@ export default function DevenirVendeurPage() {
                 htmlFor="description"
                 className="block text-sm font-medium text-foreground mb-1"
               >
-                {t('descriptionLabel')}
+                {"Description de votre activité (facultatif)"}
               </label>
               <textarea
                 id="description"
@@ -483,7 +481,7 @@ export default function DevenirVendeurPage() {
               disabled={submitting || uploadingDoc}
               className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {submitting ? '...' : t('submit')}
+              {submitting ? '...' : "Soumettre ma demande"}
             </button>
           </form>
         </div>

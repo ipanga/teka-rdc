@@ -1,7 +1,6 @@
 'use client';
 
 import { Suspense, useEffect, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { normalizeDrcPhone } from '@teka/shared';
@@ -12,7 +11,6 @@ import { Button, Card, Label, cn } from '@/components/ui';
 type Step = 'phone' | 'code';
 
 function ConfirmerInner() {
-  const t = useTranslations('Auth');
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';
@@ -42,7 +40,7 @@ function ConfirmerInner() {
           </div>
           <Card padding="lg" variant="elevated" className="text-center">
             <div className="p-3 rounded-lg bg-destructive-subtle border border-destructive/30 text-destructive text-sm">
-              {t('invalidOrExpiredLink')}
+              {"Ce lien est invalide ou a expiré. Recommencez depuis /reclamer-compte."}
             </div>
           </Card>
         </div>
@@ -55,7 +53,7 @@ function ConfirmerInner() {
     setError('');
     const normalized = normalizeDrcPhone(rawPhone);
     if (!normalized) {
-      setError(t('otpPhoneInvalid'));
+      setError("Numéro invalide. Entrez 9 chiffres (ou 10 avec le 0 initial).");
       return;
     }
     setNormalizedPhone(normalized);
@@ -90,7 +88,7 @@ function ConfirmerInner() {
       router.push('/');
     } catch (err) {
       if (err instanceof ApiError) {
-        if (err.status === 409) setError(t('claimPhoneAlreadyUsed'));
+        if (err.status === 409) setError("Ce numéro est déjà associé à un autre compte. Utilisez la connexion par WhatsApp pour vous y connecter.");
         else setError(err.message);
       } else setError('Une erreur est survenue');
     } finally {
@@ -111,10 +109,10 @@ function ConfirmerInner() {
         <Card padding="lg" variant="elevated">
           <div className="text-center mb-6">
             <h1 className="text-2xl font-bold text-foreground tracking-tight">
-              {t('claimConfirmTitle')}
+              {"Ajouter votre WhatsApp"}
             </h1>
             <p className="text-muted-foreground mt-2 text-sm">
-              {t('claimConfirmIntro')}
+              {"Entrez le numéro WhatsApp à associer à votre compte."}
             </p>
           </div>
 
@@ -127,7 +125,7 @@ function ConfirmerInner() {
           {step === 'phone' ? (
             <form onSubmit={handlePhoneSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="phone">{t('otpPhoneLabel')}</Label>
+                <Label htmlFor="phone">{"Numéro WhatsApp"}</Label>
                 <div className="flex items-stretch rounded-lg border border-input bg-background focus-within:ring-2 focus-within:ring-ring focus-within:border-transparent">
                   <span className="px-3 flex items-center text-muted-foreground text-sm border-r border-input bg-surface-muted/60 rounded-l-lg font-medium">
                     +243
@@ -141,7 +139,7 @@ function ConfirmerInner() {
                     onChange={(e) =>
                       setRawPhone(e.target.value.replace(/\D/g, ''))
                     }
-                    placeholder={t('otpPhonePlaceholder')}
+                    placeholder={"9 chiffres (ex. 990 000 001)"}
                     autoComplete="tel"
                     className="flex-1 px-3 py-2 bg-background text-foreground placeholder:text-muted-foreground focus:outline-none rounded-r-lg text-sm"
                     required
@@ -154,13 +152,13 @@ function ConfirmerInner() {
                 size="lg"
                 className="w-full"
               >
-                {isLoading ? '...' : t('otpSendCode')}
+                {isLoading ? '...' : "Recevoir mon code"}
               </Button>
             </form>
           ) : (
             <div className="space-y-4">
               <div>
-                <Label htmlFor="code">{t('otpCodeLabel')}</Label>
+                <Label htmlFor="code">{"Code à 6 chiffres"}</Label>
                 <input
                   ref={codeRef}
                   id="code"
@@ -186,7 +184,7 @@ function ConfirmerInner() {
                 onClick={() => setStep('phone')}
                 className="block w-full text-sm text-center text-muted-foreground hover:text-foreground hover:underline underline-offset-4 transition-colors"
               >
-                ← {t('otpPhoneLabel')}
+                ← {"Numéro WhatsApp"}
               </button>
             </div>
           )}

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 import { ProductGrid } from '@/components/product/product-grid';
 import type { BrowseProduct } from '@/lib/types';
@@ -12,7 +11,6 @@ import type { BrowseProduct } from '@/lib/types';
  * Renders nothing while loading or when there are no related products.
  */
 export function RelatedProducts({ productId }: { productId: string }) {
-  const t = useTranslations('Products');
   const [items, setItems] = useState<BrowseProduct[] | null>(null);
 
   useEffect(() => {
@@ -36,7 +34,7 @@ export function RelatedProducts({ productId }: { productId: string }) {
   return (
     <section className="mt-12">
       <h2 className="text-xl font-bold text-foreground mb-4">
-        {t('relatedTitle')}
+        {"Produits similaires"}
       </h2>
       <ProductGrid products={items} />
     </section>

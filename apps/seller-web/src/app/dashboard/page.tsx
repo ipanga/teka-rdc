@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
 import type { SellerWallet, SellerProduct } from '@/lib/types';
@@ -27,9 +26,6 @@ interface ProductsResponse {
 }
 
 export default function SellerDashboardPage() {
-  const t = useTranslations('Dashboard');
-  const tEarnings = useTranslations('Earnings');
-  const tReviews = useTranslations('Reviews');
   const [stats, setStats] = useState<ProductStats>({ total: 0, active: 0, pending: 0, draft: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [wallet, setWallet] = useState<SellerWallet | null>(null);
@@ -132,15 +128,15 @@ export default function SellerDashboardPage() {
   };
 
   const statCards = [
-    { label: t('totalProducts'), value: stats.total, color: 'text-foreground' },
-    { label: t('activeProducts'), value: stats.active, color: 'text-success' },
-    { label: t('pendingReview'), value: stats.pending, color: 'text-warning' },
-    { label: t('drafts'), value: stats.draft, color: 'text-muted-foreground' },
+    { label: "Total produits", value: stats.total, color: 'text-foreground' },
+    { label: "Produits actifs", value: stats.active, color: 'text-success' },
+    { label: "En attente de validation", value: stats.pending, color: 'text-warning' },
+    { label: "Brouillons", value: stats.draft, color: 'text-muted-foreground' },
   ];
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-foreground mb-6">{t('welcome')}</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-6">Bienvenue sur votre tableau de bord</h1>
 
       {/* Wallet balance card */}
       <div className="mb-6">
@@ -148,7 +144,7 @@ export default function SellerDashboardPage() {
           href="/dashboard/earnings"
           className="block bg-white rounded-xl border border-border p-5 hover:shadow-sm transition-shadow"
         >
-          <h3 className="text-sm font-medium text-muted-foreground">{tEarnings('walletBalance')}</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">Solde disponible</h3>
           <p className="text-3xl font-bold mt-2 text-primary">
             {walletLoading ? (
               <span className="inline-block w-24 h-8 bg-muted rounded animate-pulse" />
@@ -156,7 +152,7 @@ export default function SellerDashboardPage() {
               formatPrice(wallet?.balanceCDF ?? '0')
             )}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">{tEarnings('title')}</p>
+          <p className="text-xs text-muted-foreground mt-1">Revenus</p>
         </Link>
       </div>
 
@@ -181,7 +177,7 @@ export default function SellerDashboardPage() {
           href="/dashboard/reviews"
           className="block bg-white rounded-xl border border-border p-5 hover:shadow-sm transition-shadow"
         >
-          <h3 className="text-sm font-medium text-muted-foreground">{tReviews('averageRating')}</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">Note moyenne</h3>
           <div className="flex items-center gap-3 mt-2">
             {reviewStatsLoading ? (
               <span className="inline-block w-16 h-8 bg-muted rounded animate-pulse" />
@@ -198,32 +194,32 @@ export default function SellerDashboardPage() {
             {reviewStatsLoading ? (
               <span className="inline-block w-20 h-3 bg-muted rounded animate-pulse" />
             ) : (
-              `${reviewStats.totalReviews} ${tReviews('totalReviews').toLowerCase()}`
+              `${reviewStats.totalReviews} ${"Total des avis".toLowerCase()}`
             )}
           </p>
         </Link>
       </div>
 
       <div className="bg-white rounded-xl border border-border p-6">
-        <h2 className="text-lg font-semibold text-foreground mb-4">{t('quickActions')}</h2>
+        <h2 className="text-lg font-semibold text-foreground mb-4">Actions rapides</h2>
         <div className="flex flex-wrap gap-3">
           <Link
             href="/dashboard/products/new"
             className="inline-flex items-center px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors"
           >
-            + {t('newProduct')}
+            + Nouveau produit
           </Link>
           <Link
             href="/dashboard/products"
             className="inline-flex items-center px-4 py-2.5 bg-secondary text-secondary-foreground rounded-lg font-medium text-sm hover:bg-secondary/80 transition-colors"
           >
-            {t('viewAllProducts')}
+            Voir tous les produits
           </Link>
           <Link
             href="/dashboard/earnings"
             className="inline-flex items-center px-4 py-2.5 bg-secondary text-secondary-foreground rounded-lg font-medium text-sm hover:bg-secondary/80 transition-colors"
           >
-            {tEarnings('title')}
+            Revenus
           </Link>
         </div>
       </div>

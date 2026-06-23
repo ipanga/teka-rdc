@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { useWishlistStore, setPendingWishlistAdd } from '@/lib/wishlist-store';
@@ -22,7 +21,6 @@ export function WishlistButton({
   size = 'md',
   overlay = false,
 }: WishlistButtonProps) {
-  const t = useTranslations('Wishlist');
   const router = useRouter();
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
@@ -57,9 +55,9 @@ export function WishlistButton({
     setIsLoading(true);
     try {
       await toggle(productId);
-      setFeedback(adding ? t('addedToWishlist') : t('removedFromWishlist'));
+      setFeedback(adding ? "Ajouté à la liste de souhaits" : "Retiré de la liste de souhaits");
     } catch {
-      setFeedback(t('error'));
+      setFeedback("Une erreur est survenue. Veuillez réessayer.");
     } finally {
       setIsLoading(false);
       setTimeout(() => setFeedback(null), 2500);
@@ -81,7 +79,7 @@ export function WishlistButton({
             ? 'bg-surface/85 backdrop-blur-sm shadow-sm hover:bg-surface'
             : 'hover:bg-muted',
         )}
-        aria-label={isWishlisted ? t('remove') : t('addedToWishlist')}
+        aria-label={isWishlisted ? "Retirer" : "Ajouté à la liste de souhaits"}
         aria-pressed={isWishlisted}
       >
         {isWishlisted ? (

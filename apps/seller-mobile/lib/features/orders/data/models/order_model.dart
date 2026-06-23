@@ -110,12 +110,7 @@ class OrderAddressModel {
     String? townName;
     final townRaw = json['town'];
     if (townRaw is Map<String, dynamic>) {
-      final name = townRaw['name'];
-      if (name is Map) {
-        townName = (name['fr'] ?? name.values.firstOrNull)?.toString();
-      } else if (name is String) {
-        townName = name;
-      }
+      townName = townRaw['name']?.toString();
     } else if (townRaw is String) {
       townName = townRaw;
     }
@@ -123,13 +118,7 @@ class OrderAddressModel {
     String? neighborhoodName;
     final neighborhoodRaw = json['neighborhood'];
     if (neighborhoodRaw is Map<String, dynamic>) {
-      final name = neighborhoodRaw['name'];
-      if (name is Map) {
-        neighborhoodName =
-            (name['fr'] ?? name.values.firstOrNull)?.toString();
-      } else if (name is String) {
-        neighborhoodName = name;
-      }
+      neighborhoodName = neighborhoodRaw['name']?.toString();
     } else if (neighborhoodRaw is String) {
       neighborhoodName = neighborhoodRaw;
     }

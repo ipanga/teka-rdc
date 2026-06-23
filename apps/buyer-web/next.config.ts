@@ -1,7 +1,6 @@
 import path from 'node:path';
 import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
-import createNextIntlPlugin from 'next-intl/plugin';
 
 // URL → URL redirects for the static-page slug refactor. Kept in sync with
 // apps/buyer-web/src/lib/static-pages.ts (PAGE_DEFINITIONS). Inlined here
@@ -135,12 +134,9 @@ const nextConfig: NextConfig = {
   },
 };
 
-const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
-
-// Wrap with both plugins. withSentryConfig is the outer wrap so it can
-// inject the build-time source-map upload step (gated by SENTRY_AUTH_TOKEN,
-// no-op without it — wired in PR 4).
-export default withSentryConfig(withNextIntl(nextConfig), {
+// withSentryConfig injects the build-time source-map upload step (gated by
+// SENTRY_AUTH_TOKEN, no-op without it — wired in PR 4).
+export default withSentryConfig(nextConfig, {
   org: 'teka-rdc',
   project: 'teka-buyer-web',
   // Quiet build output unless we're on CI. Source-map upload + release

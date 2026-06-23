@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 
 interface Brand {
@@ -25,7 +24,6 @@ export default function BrandSelect({
   value,
   onChange,
 }: BrandSelectProps) {
-  const t = useTranslations('Products');
   const [brands, setBrands] = useState<Brand[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -62,7 +60,7 @@ export default function BrandSelect({
         htmlFor="brandId"
         className="block text-sm font-medium text-foreground mb-1"
       >
-        {t('brand')}
+        Marque
       </label>
       <select
         id="brandId"
@@ -70,7 +68,7 @@ export default function BrandSelect({
         onChange={(e) => onChange(e.target.value)}
         className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
       >
-        <option value="">{t('noBrand')}</option>
+        <option value="">Sans marque</option>
         {brands.map((b) => (
           <option key={b.id} value={b.id}>
             {b.name}

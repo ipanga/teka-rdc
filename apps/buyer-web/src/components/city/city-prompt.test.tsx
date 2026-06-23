@@ -14,7 +14,6 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('next-intl', () => ({ useTranslations: () => (k: string) => k }));
 vi.mock('@/lib/city-store', () => ({
   useCityStore: () => ({
     selectedCity: mocks.state.selectedCity,
@@ -63,7 +62,7 @@ describe('CityPrompt', () => {
 
   it('dismissing ("seeAll") hides the prompt (browse all cities)', async () => {
     const { container } = render(<CityPrompt />);
-    await userEvent.click(screen.getByRole('button', { name: 'seeAll' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Voir toutes les villes' }));
     expect(container).toBeEmptyDOMElement();
     expect(mocks.selectTown).not.toHaveBeenCalled();
   });

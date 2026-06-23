@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Badge, Container, SectionHeader } from '@/components/ui';
 import { WishlistButton } from '@/components/wishlist-button';
@@ -50,7 +49,6 @@ function formatCountdown(remainingMs: number): string {
 }
 
 function CountdownTimer({ endsAt }: { endsAt: string }) {
-  const t = useTranslations('FlashDeals');
   const [remaining, setRemaining] = useState<string>('');
 
   useEffect(() => {
@@ -71,13 +69,12 @@ function CountdownTimer({ endsAt }: { endsAt: string }) {
       <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
       </svg>
-      <span>{t('endsIn')} {remaining}</span>
+      <span>{"Se termine dans"} {remaining}</span>
     </div>
   );
 }
 
 export function FlashDealsSection() {
-  const t = useTranslations('FlashDeals');
 
   const [deals, setDeals] = useState<FlashDeal[]>([]);
   const [loading, setLoading] = useState(true);
@@ -152,14 +149,14 @@ export function FlashDealsSection() {
               </svg>
             </span>
             <h2 className="text-xl md:text-2xl font-bold tracking-tight text-foreground truncate">
-              {t('title')}
+              {"Ventes Flash"}
             </h2>
           </div>
           <Link
             href="/products"
             className="text-sm font-medium text-primary hover:text-primary-hover hover:underline underline-offset-4 whitespace-nowrap"
           >
-            {t('seeAll')} <span aria-hidden>→</span>
+            {"Voir tout"} <span aria-hidden>→</span>
           </Link>
         </div>
 

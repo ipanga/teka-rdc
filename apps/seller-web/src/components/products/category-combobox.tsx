@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useRef, useState, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
 
 export interface ComboCategory {
   id: string;
@@ -67,7 +66,6 @@ export default function CategoryCombobox({
   hasError,
   disabled,
 }: Props) {
-  const t = useTranslations('Products');
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIdx, setActiveIdx] = useState(0);
@@ -164,7 +162,7 @@ export default function CategoryCombobox({
             ? selected.parentLabel
               ? `${selected.parentLabel} › ${selected.label}`
               : selected.label
-            : t('selectCategory')}
+            : 'Sélectionner une catégorie'}
         </span>
         <span className="text-muted-foreground ml-2" aria-hidden>
           ▾
@@ -180,7 +178,7 @@ export default function CategoryCombobox({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder={t('searchCategory')}
+              placeholder="Rechercher une catégorie..."
               className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
@@ -191,7 +189,7 @@ export default function CategoryCombobox({
           >
             {results.length === 0 ? (
               <li className="px-3 py-3 text-sm text-muted-foreground text-center">
-                {t('noCategoryFound')}
+                Aucune catégorie trouvée
               </li>
             ) : (
               results.map((n, i) => (

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
@@ -26,7 +25,6 @@ function formatDate(dateStr: string): string {
 }
 
 export default function OrderDetailPage() {
-  const t = useTranslations('Orders');
   const params = useParams<{ id: string }>();
   const orderId = params.id;
 
@@ -107,9 +105,9 @@ export default function OrderDetailPage() {
                 d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <p className="text-muted-foreground mb-4">{t('noOrders')}</p>
+            <p className="text-muted-foreground mb-4">{"Vous n'avez aucune commande"}</p>
             <Link href="/commandes" className="text-primary hover:underline font-medium">
-              {t('back')}
+              {"Retour"}
             </Link>
           </div>
         </main>
@@ -137,7 +135,7 @@ export default function OrderDetailPage() {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            {t('back')}
+            {"Retour"}
           </Link>
 
           {/* Order header */}
@@ -145,7 +143,7 @@ export default function OrderDetailPage() {
             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-3">
               <div>
                 <h1 className="text-xl md:text-2xl font-bold text-foreground tracking-tight">
-                  {t('orderNumber')} #{order.orderNumber}
+                  {"Commande"} #{order.orderNumber}
                 </h1>
                 <p className="text-sm text-muted-foreground mt-0.5">
                   {formatDate(order.createdAt)}
@@ -155,17 +153,17 @@ export default function OrderDetailPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-muted-foreground">
               <p>
-                {t('seller')}: <span className="text-foreground font-medium">{sellerName}</span>
+                {"Vendeur"}: <span className="text-foreground font-medium">{sellerName}</span>
               </p>
               <p>
-                {t('paymentMethod')}:{' '}
+                {"Mode de paiement"}:{' '}
                 <span className="text-foreground font-medium">
-                  {order.paymentMethod === 'COD' ? t('cod') : t('mobileMoney')}
+                  {order.paymentMethod === 'COD' ? "Paiement à la livraison" : "Mobile Money"}
                 </span>
               </p>
               {order.paymentStatus && (
                 <div className="flex items-center gap-2 sm:col-span-2">
-                  <span>{t('paymentStatus')}:</span>
+                  <span>{"Statut du paiement"}:</span>
                   <OrderPaymentStatusBadge status={order.paymentStatus} />
                 </div>
               )}
@@ -189,7 +187,7 @@ export default function OrderDetailPage() {
                     d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
                   />
                 </svg>
-                <span>{t('paymentWarning')}</span>
+                <span>{"Le paiement Mobile Money n'a pas encore été confirmé. Veuillez compléter le paiement ou contacter le support."}</span>
               </div>
             )}
 
@@ -199,14 +197,14 @@ export default function OrderDetailPage() {
               <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
-              {t('cancelSuccess')}
+              {"Commande annulée avec succès"}
             </div>
           )}
 
           {/* Order items */}
           <Card padding="md" className="mb-4">
             <h2 className="text-base font-semibold text-foreground mb-4 tracking-tight">
-              {t('items')} ({t('itemCount', { count: order.items.length })})
+              {"Articles"} ({order.items.length === 0 ? '0 article' : order.items.length === 1 ? '1 article' : `${order.items.length} articles`})
             </h2>
 
             <div className="divide-y divide-border">
@@ -260,19 +258,19 @@ export default function OrderDetailPage() {
           <Card padding="md" className="mb-4">
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{t('subtotal')}</span>
+                <span className="text-muted-foreground">{"Sous-total"}</span>
                 <span className="text-foreground">{formatCDF(order.subtotalCDF)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{t('deliveryFee')}</span>
+                <span className="text-muted-foreground">{"Frais de livraison"}</span>
                 <span className="text-foreground">
                   {BigInt(order.deliveryFeeCDF) > BigInt(0)
                     ? formatCDF(order.deliveryFeeCDF)
-                    : t('free')}
+                    : "Gratuit"}
                 </span>
               </div>
               <div className="flex justify-between items-baseline border-t border-border pt-3 mt-2">
-                <span className="text-base font-semibold text-foreground">{t('total')}</span>
+                <span className="text-base font-semibold text-foreground">{"Total"}</span>
                 <span className="text-2xl font-bold text-primary tracking-tight">
                   {formatCDF(order.totalCDF)}
                 </span>
@@ -284,7 +282,7 @@ export default function OrderDetailPage() {
           {order.deliveryAddress && (
             <Card padding="md" className="mb-4">
               <h2 className="text-base font-semibold text-foreground mb-3 tracking-tight">
-                {t('deliveryAddress')}
+                {"Adresse de livraison"}
               </h2>
               <div className="text-sm text-muted-foreground space-y-0.5">
                 <p className="font-medium text-foreground">{order.deliveryAddress.recipientName}</p>
@@ -319,7 +317,7 @@ export default function OrderDetailPage() {
           {canCancel && !cancelSuccess && (
             <div className="mb-4">
               <Button variant="danger" size="md" onClick={() => setShowCancelDialog(true)}>
-                {t('cancelOrder')}
+                {"Annuler la commande"}
               </Button>
             </div>
           )}
@@ -329,14 +327,14 @@ export default function OrderDetailPage() {
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
               <Card padding="md" variant="elevated" className="w-full max-w-md shadow-xl">
                 <h3 className="text-base font-semibold text-foreground mb-2 tracking-tight">
-                  {t('cancelOrder')}
+                  {"Annuler la commande"}
                 </h3>
-                <p className="text-sm text-muted-foreground mb-4">{t('cancelConfirm')}</p>
+                <p className="text-sm text-muted-foreground mb-4">{"Êtes-vous sûr de vouloir annuler cette commande ?"}</p>
 
                 <textarea
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
-                  placeholder={t('cancelReason')}
+                  placeholder={"Raison de l'annulation (optionnel)"}
                   rows={3}
                   maxLength={500}
                   className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none mb-4"
@@ -351,7 +349,7 @@ export default function OrderDetailPage() {
                       setCancelReason('');
                     }}
                   >
-                    {t('back')}
+                    {"Retour"}
                   </Button>
                   <Button
                     variant="danger"
@@ -376,10 +374,10 @@ export default function OrderDetailPage() {
                             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
                           />
                         </svg>
-                        {t('cancelling')}
+                        {"Annulation..."}
                       </>
                     ) : (
-                      t('cancel')
+                      "Annuler"
                     )}
                   </Button>
                 </div>
@@ -395,7 +393,6 @@ export default function OrderDetailPage() {
 }
 
 function OrderPaymentStatusBadge({ status }: { status: PaymentStatus }) {
-  const t = useTranslations('Orders');
 
   const variants: Record<PaymentStatus, 'warning' | 'info' | 'success' | 'danger' | 'default'> = {
     PENDING: 'warning',
@@ -406,16 +403,16 @@ function OrderPaymentStatusBadge({ status }: { status: PaymentStatus }) {
   };
 
   const labelKeys: Record<PaymentStatus, string> = {
-    PENDING: 'paymentPending',
-    PROCESSING: 'paymentProcessing',
-    COMPLETED: 'paymentCompleted',
-    FAILED: 'paymentFailed',
-    REFUNDED: 'paymentRefunded',
+    PENDING: 'Paiement en attente',
+    PROCESSING: 'Paiement en cours',
+    COMPLETED: 'Payé',
+    FAILED: 'Paiement échoué',
+    REFUNDED: 'Remboursé',
   };
 
   return (
     <Badge variant={variants[status] || 'default'} size="sm">
-      {t(labelKeys[status] || 'paymentPending')}
+      {labelKeys[status] || 'Paiement en attente'}
     </Badge>
   );
 }

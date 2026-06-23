@@ -6,22 +6,33 @@
 
 ## Active initiative
 
-**Localization removal sweep** (started 2026-06-23) — finish removing the localization machinery platform-wide
-(French-only). Buyer-mobile already done (shipped #424/#426).
-- **seller-mobile l10n removal** — ✅ MERGED to `develop` (#427). Mirror of buyer-mobile: ~369 `l10n.*` across
-  25 feature files → French literals; deleted `lib/l10n/` + `locale_provider.dart` + `l10n.yaml`; dropped
-  `generate: true` + the delegate. analyze 0 errors, 3 tests.
-- **web next-intl removal — app-by-app** (LARGE: ~1,550 `t()` sites / ~103 files; SSR/SEO-sensitive). Inline
-  `messages/fr.json` as French literals; remove next-intl (`useTranslations`, `NextIntlClientProvider`,
-  `i18n/request.ts`, the `createNextIntlPlugin` wrapper, the dep). Order: admin-web (no SEO) → seller-web →
-  buyer-web (most SEO-critical).
-  - **admin-web** — ✅ CODE DONE on branch `chore/web-remove-next-intl-admin`, PENDING PR. All 34 client
-    components/pages converted (730 `t()` calls; ICU plurals → ternaries; dynamic `t(MAP[x])` → French-valued
-    maps); removed the provider from `layout.tsx`, the plugin from `next.config.ts`, deleted `src/i18n/` +
-    `messages/fr.json`, dropped the dep (lockfile updated). **tsc clean; `next build` succeeds (30/30 static
-    pages).** admin-web is all-client (no `getTranslations`/SSR-translated metadata) → lowest risk.
-  - **seller-web** — NEXT (not started). **buyer-web** — LAST, extra care (SEO/SSR; check for server-side
-    `getTranslations`/metadata before converting).
+**Localization removal sweep** (started 2026-06-23) — remove the localization machinery platform-wide
+(French-only). **UI layer COMPLETE across all 6 apps.**
+- **Flutter** — buyer-mobile (#424/#426) + seller-mobile (#427) gen-l10n removed (shipped). Dead locale
+  constants `AppConstants.defaultLocale`/`supportedLocales` (the latter listed `'en'`) also removed from both.
+- **Web next-intl removal — DONE for all three apps:**
+  - **admin-web** — ✅ MERGED (#428, on `main`). 34 components, 730 `t()` calls.
+  - **seller-web** — ✅ CODE DONE (this working tree). ~360 `t()` calls inlined; ICU plurals → ternaries;
+    dynamic `t(MAP[x])` → French-valued maps; removed provider/plugin/`src/i18n/`/`messages/fr.json`/dep.
+    **tsc clean; `next build` 19/19 pages.**
+  - **buyer-web** — ✅ CODE DONE (this working tree). 348 simple + 25 interp/plural + 6 dynamic-key sites
+    converted; the 1 server-side `getTranslations('Common')` + the `getMessages` provider removed (metadata was
+    already static French → no SSR-translation risk); 3 vitest `next-intl` mocks dropped + 2 key-based test
+    queries updated to French. **tsc clean; 54 tests pass; `next build` 27/27 pages (SSG `/[ville]` intact).**
+- **`{fr, en}` data-shape removal — ✅ DONE (this working tree).** Phase 0 (read-only) found prod **100% clean**
+  (0 JSON rows everywhere); only **dev** held legacy `{fr,en}` JSON-strings in `product_attributes.name` (88,
+  all on inactive categories) + `order_items."productTitle"` (11 pre-jsonb-migration order snapshots). Cleaned
+  dev via guarded idempotent UPDATEs (88+11 → 0); recorded as
+  `prisma/migrations/manual/2026-06-23_translatable_jsonstring_to_fr.sql` (**no-op on prod — apply optional**).
+  Deleted all parsers (`attrLabel`/`getLocalizedName`/`_frAttributeLabel` + mobile order-address Map branches),
+  fixed the now-stale admin `{fr,en}` type annotations to `string` (commission/orders/reviews — these were also
+  latent bugs: plain-string names rendered as a single letter / blank), removed dead
+  `packages/shared/src/constants/locales.ts` (`SUPPORTED_LOCALES` listed `'en'`), and fixed the stale
+  `browse.e2e-spec.ts` mock. Verified: tsc ×3 clean, buyer-web 54 + api browse 29 tests, flutter analyze clean
+  on edited files, admin-web + buyer-web `next build` green. **No prod migration required** (prod already clean).
+
+**Branch note:** all of the above is on `chore/web-remove-next-intl-seller` (scope grew beyond seller-web).
+Uncommitted. Decide branch/PR split before committing.
 
 **Operator step (not code):** run "Release mobile AAB" + upload to Play Store so the buyer-mobile redesign
 (Steps 1–3) reaches real devices — `docs/mobile-release.md`.

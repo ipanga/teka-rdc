@@ -1,6 +1,5 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
 import type { OrderStatusLog } from '@/lib/types';
 import { OrderStatusBadge } from './order-status-badge';
 
@@ -20,7 +19,6 @@ function formatDate(dateStr: string): string {
 }
 
 export function OrderTimeline({ logs }: OrderTimelineProps) {
-  const t = useTranslations('Orders');
   if (!logs || logs.length === 0) return null;
 
   // Sort logs chronologically (oldest first)
@@ -30,7 +28,7 @@ export function OrderTimeline({ logs }: OrderTimelineProps) {
 
   return (
     <div>
-      <h3 className="text-sm font-semibold text-foreground mb-4">{t('timeline')}</h3>
+      <h3 className="text-sm font-semibold text-foreground mb-4">{"Suivi de commande"}</h3>
       <div className="relative">
         {sortedLogs.map((log, index) => {
           const isLast = index === sortedLogs.length - 1;

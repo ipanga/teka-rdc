@@ -1,13 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 
 export default function CheckoutSuccessPage() {
-  const t = useTranslations('CheckoutSuccess');
   const [orderNumbers, setOrderNumbers] = useState<string[]>([]);
 
   useEffect(() => {
@@ -51,17 +49,17 @@ export default function CheckoutSuccessPage() {
 
           {/* Heading */}
           <h1 className="text-2xl font-bold text-foreground mb-2">
-            {t('title')}
+            {"Commande confirmée !"}
           </h1>
           <p className="text-muted-foreground mb-6">
-            {t('message')}
+            {"Votre commande a été passée avec succès."}
           </p>
 
           {/* Order numbers */}
           {orderNumbers.length > 0 && (
             <div className="bg-muted/50 border border-border rounded-lg p-4 mb-8">
               <p className="text-sm font-medium text-muted-foreground mb-2">
-                {t('orderNumbers')}
+                {"Numéro(s) de commande"}
               </p>
               <div className="space-y-1">
                 {orderNumbers.map((num) => (
@@ -79,13 +77,13 @@ export default function CheckoutSuccessPage() {
               href="/commandes"
               className="px-6 py-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
             >
-              {t('viewOrders')}
+              {"Voir mes commandes"}
             </Link>
             <Link
               href="/"
               className="px-6 py-3 border border-border text-foreground rounded-lg text-sm font-medium hover:bg-muted transition-colors"
             >
-              {t('continueShopping')}
+              {"Continuer mes achats"}
             </Link>
           </div>
         </div>

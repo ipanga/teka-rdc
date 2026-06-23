@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
@@ -38,8 +37,6 @@ interface CategoryPageProps {
 }
 
 export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps = {}) {
-  const t = useTranslations('Products');
-  const tCat = useTranslations('Categories');
   const params = useParams<{ id?: string; slug?: string }>();
   const categoryId = categoryUuid ?? params.id ?? '';
 
@@ -272,7 +269,7 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
           {/* Breadcrumb */}
           <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-5 overflow-x-auto">
             <Link href="/" className="hover:text-primary transition-colors shrink-0">
-              {tCat('title')}
+              {"Catégories"}
             </Link>
             <span>/</span>
             {category && (
@@ -283,10 +280,10 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
           {/* Title + mobile filter toggle */}
           <div className="flex items-center justify-between gap-3 mb-6">
             <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
-              {categoryName || tCat('title')}
+              {categoryName || "Catégories"}
               {pagination && (
                 <span className="text-base font-normal text-muted-foreground ml-2">
-                  ({t('results', { count: pagination.total })})
+                  ({`${pagination.total} résultat(s)`})
                 </span>
               )}
             </h1>
@@ -304,7 +301,7 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
                   d="M3 6h18M6 12h12M9 18h6"
                 />
               </svg>
-              {t('filters')}
+              {"Filtres"}
             </Button>
           </div>
 
@@ -342,7 +339,7 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
                 >
                   <div className="flex items-center justify-between p-4 border-b border-border">
                     <h3 className="text-lg font-bold text-foreground tracking-tight">
-                      {t('filters')}
+                      {"Filtres"}
                     </h3>
                     <button
                       onClick={() => setShowMobileFilters(false)}
@@ -395,7 +392,7 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
                     onClick={handleLoadMore}
                     disabled={isLoadingMore}
                   >
-                    {isLoadingMore ? t('loading') : t('loadMore')}
+                    {isLoadingMore ? "Chargement..." : "Charger plus"}
                   </Button>
                 </div>
               )}

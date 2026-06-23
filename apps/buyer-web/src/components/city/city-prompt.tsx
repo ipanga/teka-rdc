@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { useCityStore } from '@/lib/city-store';
 import { useSelectTown } from '@/lib/use-select-town';
 import { cityAccentClasses } from '@/lib/city-accent';
@@ -20,7 +19,6 @@ import { cityAccentClasses } from '@/lib/city-accent';
  * `/{ville}` links once the city-landing routes exist.
  */
 export function CityPrompt() {
-  const t = useTranslations('City');
   const { selectedCity, cities } = useCityStore();
   const selectTown = useSelectTown();
   const [dismissed, setDismissed] = useState(false);
@@ -41,10 +39,10 @@ export function CityPrompt() {
             </span>
             <div>
               <p className="text-sm font-semibold text-foreground">
-                {t('selectCity')}
+                {"Choisissez votre ville"}
               </p>
               <p className="text-xs text-muted-foreground">
-                {t('selectCityDescription')}
+                {"Pour vous montrer les produits disponibles près de chez vous"}
               </p>
             </div>
           </div>
@@ -62,7 +60,7 @@ export function CityPrompt() {
               onClick={() => setDismissed(true)}
               className="px-3 py-1.5 text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
             >
-              {t('seeAll')}
+              {"Voir toutes les villes"}
             </button>
           </div>
         </div>

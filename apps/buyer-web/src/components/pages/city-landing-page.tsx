@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -38,9 +37,6 @@ export default function CityLandingPage({
   accentColor = null,
   heroImageUrl = null,
 }: CityLandingPageProps) {
-  const tCat = useTranslations('Categories');
-  const tProd = useTranslations('Products');
-  const tHero = useTranslations('Hero');
   const setCity = useCityStore((s) => s.setCity);
 
   const [categories, setCategories] = useState<BrowseCategory[]>([]);
@@ -100,18 +96,18 @@ export default function CityLandingPage({
             — the homepage wraps it in BannerCarousel, whose loading skeleton
             would push the H1 to client-only render. */}
         <StoreHero
-          title={tProd('cityLandingTitle', { city: cityName })}
-          subtitle={tProd('cityLandingSubtitle', { city: cityName })}
+          title={`Achetez en ligne à ${cityName}`}
+          subtitle={`Découvrez les meilleurs produits disponibles à ${cityName} avec livraison locale rapide.`}
           ctaHref="/categories"
-          ctaLabel={tHero('cta')}
+          ctaLabel={"Découvrir les produits"}
           city={{ name: cityName, slug: citySlug, accentColor, heroImageUrl }}
-          badgeLabel={tHero('deliveringTo', { city: cityName })}
+          badgeLabel={`Livraison à ${cityName}`}
         />
 
         {/* Categories — city-scoped links */}
         <section className="bg-background">
           <Container className="py-10 md:py-14">
-            <SectionHeader title={tCat('title')} />
+            <SectionHeader title={"Catégories"} />
             {loadingCats ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 md:gap-4">
                 {Array.from({ length: 6 }).map((_, i) => (
@@ -142,14 +138,14 @@ export default function CityLandingPage({
 
         <section className="bg-surface-muted">
           <Container className="py-10 md:py-14">
-            <SectionHeader title={tProd('popularProducts')} />
+            <SectionHeader title={"Produits populaires"} />
             <ProductGrid products={popular} isLoading={loadingPopular} />
           </Container>
         </section>
 
         <section className="bg-background">
           <Container className="py-10 md:py-14">
-            <SectionHeader title={tProd('newestProducts')} />
+            <SectionHeader title={"Nouveautés"} />
             <ProductGrid products={newest} isLoading={loadingNewest} />
           </Container>
         </section>

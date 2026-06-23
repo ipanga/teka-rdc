@@ -9,7 +9,7 @@ import { OrderStatusBadge } from '@/components/orders/order-status-badge';
 interface OrderItem {
   id: string;
   productId: string;
-  title: { fr: string; en?: string };
+  title: string;
   quantity: number;
   unitPriceCDF: string;
   unitPriceUSD?: string | null;
@@ -279,7 +279,7 @@ export default function OrderDetailPage() {
                   {item.coverImageUrl ? (
                     <img
                       src={getOptimizedUrl(item.coverImageUrl)}
-                      alt={item.title.fr}
+                      alt={item.title}
                       className="w-12 h-12 rounded-lg object-cover bg-muted shrink-0"
                       loading="lazy"
                     />
@@ -292,7 +292,7 @@ export default function OrderDetailPage() {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">
-                      {item.title.fr}
+                      {item.title}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Quantité: {item.quantity} &times; {formatCDF(item.unitPriceCDF)}

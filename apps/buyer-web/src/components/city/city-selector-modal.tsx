@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { useCityStore, type City } from '@/lib/city-store';
 import { useSelectTown } from '@/lib/use-select-town';
 import { cityAccentClasses } from '@/lib/city-accent';
@@ -25,7 +24,6 @@ function PinIcon({ className }: { className?: string }) {
  * Selecting a town goes through `useSelectTown` (persist + centralized routing).
  */
 export function CitySelectorModal() {
-  const t = useTranslations('City');
   const { selectedCity, cities, isLoading, showSelector, fetchCities, closeSelector } =
     useCityStore();
   const selectTown = useSelectTown();
@@ -100,17 +98,17 @@ export function CitySelectorModal() {
                 id="city-modal-title"
                 className="truncate text-base font-bold text-foreground"
               >
-                {t('selectCityTitle')}
+                {"Choisissez votre ville de livraison"}
               </h2>
               <p className="truncate text-xs text-muted-foreground">
-                {t('selectCityDescription')}
+                {"Pour vous montrer les produits disponibles près de chez vous"}
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={closeSelector}
-            aria-label={t('close')}
+            aria-label={"Fermer"}
             className="-mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -136,8 +134,8 @@ export function CitySelectorModal() {
               type="search"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={t('searchCity')}
-              aria-label={t('searchCity')}
+              placeholder={"Rechercher une ville…"}
+              aria-label={"Rechercher une ville…"}
               className="w-full rounded-lg border border-input bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
@@ -151,7 +149,7 @@ export function CitySelectorModal() {
             </div>
           ) : grouped.length === 0 ? (
             <p className="px-3 py-10 text-center text-sm text-muted-foreground">
-              {t('noCityResults')}
+              {"Aucune ville trouvée"}
             </p>
           ) : (
             grouped.map(([province, list]) => (

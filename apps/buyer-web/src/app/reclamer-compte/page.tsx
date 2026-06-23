@@ -1,13 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { Button, Card, Input, Label, buttonVariants } from '@/components/ui';
 
 export default function ReclamerComptePage() {
-  const t = useTranslations('Auth');
   const [email, setEmail] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -44,9 +42,9 @@ export default function ReclamerComptePage() {
         <Card padding="lg" variant="elevated">
           <div className="text-center mb-6">
             <h1 className="text-2xl font-bold text-foreground tracking-tight">
-              {t('claimTitle')}
+              {"Réclamer mon ancien compte"}
             </h1>
-            <p className="text-muted-foreground mt-2 text-sm">{t('claimIntro')}</p>
+            <p className="text-muted-foreground mt-2 text-sm">{"Si vous aviez un compte avec email seulement, entrez-le ici. Nous vous enverrons un lien pour ajouter votre WhatsApp."}</p>
           </div>
 
           {submitted ? (
@@ -62,14 +60,14 @@ export default function ReclamerComptePage() {
                   >
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
-                  <span className="text-foreground">{t('claimSent')}</span>
+                  <span className="text-foreground">{"Si un compte correspond, un email vous a été envoyé."}</span>
                 </div>
               </div>
               <Link
                 href="/connexion"
                 className={buttonVariants({ variant: 'default', size: 'lg', className: 'w-full' })}
               >
-                ← {t('otpPhoneTitle')}
+                ← {"Connexion ou inscription"}
               </Link>
             </div>
           ) : (
@@ -81,7 +79,7 @@ export default function ReclamerComptePage() {
               )}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label htmlFor="email">{t('claimEmailLabel')}</Label>
+                  <Label htmlFor="email">{"Adresse email"}</Label>
                   <Input
                     id="email"
                     type="email"
@@ -97,7 +95,7 @@ export default function ReclamerComptePage() {
                   size="lg"
                   className="w-full"
                 >
-                  {isLoading ? '...' : t('claimSubmit')}
+                  {isLoading ? '...' : "Envoyer le lien"}
                 </Button>
               </form>
             </>
