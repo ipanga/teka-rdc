@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -12,7 +11,6 @@ import { CategoryIcon } from '@/components/category/category-icon';
 import type { BrowseCategory } from '@/lib/types';
 
 export default function CategoriesPage() {
-  const t = useTranslations('Categories');
   const selectedCity = useCityStore((s) => s.selectedCity);
   const [categories, setCategories] = useState<BrowseCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -30,7 +28,7 @@ export default function CategoriesPage() {
 
       <main className="flex-1 max-w-7xl mx-auto px-4 py-8 w-full">
         <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-8">
-          {t('allCategories')}
+          {"Toutes les catégories"}
         </h1>
 
         {isLoading ? (
@@ -58,7 +56,7 @@ export default function CategoriesPage() {
                 d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
               />
             </svg>
-            <p className="text-muted-foreground">{t('noCategories')}</p>
+            <p className="text-muted-foreground">{"Aucune catégorie disponible pour le moment."}</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -75,7 +73,7 @@ export default function CategoriesPage() {
                   {(cat.name ?? '')}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {t('productCount', { count: cat.productCount })}
+                  {`${cat.productCount} produits`}
                 </p>
 
                 {cat.subcategories && cat.subcategories.length > 0 && (

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
@@ -17,7 +16,6 @@ interface Category {
 }
 
 export default function NewProductPage() {
-  const t = useTranslations('Products');
   const router = useRouter();
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -54,26 +52,26 @@ export default function NewProductPage() {
         }
         setCategories(cats);
       } catch {
-        setError(t('errorLoadingCategories'));
+        setError("Erreur lors du chargement des catégories");
       } finally {
         setIsLoadingCategories(false);
       }
     }
     loadCategories();
-  }, [t]);
+  }, []);
 
   const validate = (): boolean => {
     const errors: Record<string, string> = {};
-    if (!title.trim()) errors.title = t('requiredField');
-    if (!categoryId) errors.categoryId = t('requiredField');
+    if (!title.trim()) errors.title = "Ce champ est requis";
+    if (!categoryId) errors.categoryId = "Ce champ est requis";
     if (!priceCDF || isNaN(Number(priceCDF)) || Number(priceCDF) <= 0) {
-      errors.priceCDF = t('invalidPrice');
+      errors.priceCDF = "Veuillez entrer un prix valide";
     }
     if (priceUSD && (isNaN(Number(priceUSD)) || Number(priceUSD) < 0)) {
-      errors.priceUSD = t('invalidPrice');
+      errors.priceUSD = "Veuillez entrer un prix valide";
     }
     if (!quantity || isNaN(Number(quantity)) || Number(quantity) < 0) {
-      errors.quantity = t('requiredField');
+      errors.quantity = "Ce champ est requis";
     }
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
@@ -140,9 +138,9 @@ export default function NewProductPage() {
           href="/dashboard/products"
           className="text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
-          &larr; {t('backToProducts')}
+          &larr; Retour aux produits
         </Link>
-        <h1 className="text-2xl font-bold text-foreground mt-2">{t('createProduct')}</h1>
+        <h1 className="text-2xl font-bold text-foreground mt-2">Créer un produit</h1>
       </div>
 
       {error && (
@@ -154,12 +152,12 @@ export default function NewProductPage() {
       <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
         {/* Product Info Section */}
         <div className="bg-white rounded-xl border border-border p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">{t('productInfo')}</h2>
+          <h2 className="text-lg font-semibold text-foreground mb-4">Informations du produit</h2>
           <div className="space-y-4">
             {/* Category */}
             <div>
               <label htmlFor="categoryId" className="block text-sm font-medium text-foreground mb-1">
-                {t('category')} *
+                Catégorie *
               </label>
               {isLoadingCategories ? (
                 <div className="h-10 bg-muted rounded-lg animate-pulse" />
@@ -184,7 +182,7 @@ export default function NewProductPage() {
             {/* Title */}
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-foreground mb-1">
-                {t('title')} *
+                Nom *
               </label>
               <input
                 id="title"
@@ -204,7 +202,7 @@ export default function NewProductPage() {
             {/* Description FR */}
             <div>
               <label htmlFor="description" className="block text-sm font-medium text-foreground mb-1">
-                {t('description')}
+                Description
               </label>
                             <textarea
                 id="description"
@@ -219,7 +217,7 @@ export default function NewProductPage() {
             {/* Condition */}
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                {t('condition')}
+                Condition
               </label>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -231,7 +229,7 @@ export default function NewProductPage() {
                     onChange={() => setCondition('NEW')}
                     className="accent-primary"
                   />
-                  <span className="text-sm text-foreground">{t('conditionNew')}</span>
+                  <span className="text-sm text-foreground">Neuf</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -242,7 +240,7 @@ export default function NewProductPage() {
                     onChange={() => setCondition('USED')}
                     className="accent-primary"
                   />
-                  <span className="text-sm text-foreground">{t('conditionUsed')}</span>
+                  <span className="text-sm text-foreground">Occasion</span>
                 </label>
               </div>
             </div>
@@ -262,12 +260,12 @@ export default function NewProductPage() {
 
         {/* Pricing Section */}
         <div className="bg-white rounded-xl border border-border p-6">
-          <h2 className="text-lg font-semibold text-foreground mb-4">{t('pricing')}</h2>
+          <h2 className="text-lg font-semibold text-foreground mb-4">Tarification</h2>
           <div className="space-y-4">
             {/* Price CDF */}
             <div>
               <label htmlFor="priceCDF" className="block text-sm font-medium text-foreground mb-1">
-                {t('priceCDF')} *
+                Prix en CDF *
               </label>
               <div className="relative">
                 <input
@@ -292,7 +290,7 @@ export default function NewProductPage() {
             {/* Price USD */}
             <div>
               <label htmlFor="priceUSD" className="block text-sm font-medium text-foreground mb-1">
-                {t('priceUSD')}
+                Prix en USD (optionnel)
               </label>
               <div className="relative">
                 <input
@@ -317,7 +315,7 @@ export default function NewProductPage() {
             {/* Quantity */}
             <div>
               <label htmlFor="quantity" className="block text-sm font-medium text-foreground mb-1">
-                {t('quantity')} *
+                Quantité *
               </label>
               <input
                 id="quantity"
@@ -340,7 +338,7 @@ export default function NewProductPage() {
 
         {/* Note about images */}
         <div className="bg-muted/50 rounded-xl border border-border p-4 text-sm text-muted-foreground">
-          {t('noImages')}
+          Aucune image. Ajoutez des images après la création du produit.
         </div>
 
         {/* Submit */}
@@ -350,13 +348,13 @@ export default function NewProductPage() {
             disabled={isSubmitting}
             className="px-6 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {isSubmitting ? t('creating') : t('create')}
+            {isSubmitting ? 'Création...' : 'Créer'}
           </button>
           <Link
             href="/dashboard/products"
             className="px-6 py-2.5 border border-border rounded-lg font-medium text-sm text-foreground hover:bg-muted transition-colors"
           >
-            {t('backToProducts')}
+            Retour aux produits
           </Link>
         </div>
       </form>

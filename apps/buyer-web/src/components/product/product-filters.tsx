@@ -1,6 +1,5 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
 
 export type SortOption = 'newest' | 'price_asc' | 'price_desc' | 'popularity';
 export type ConditionFilter = '' | 'NEW' | 'USED';
@@ -84,58 +83,57 @@ export function ProductFilters({
   onApply,
   onClear,
 }: ProductFiltersProps) {
-  const t = useTranslations('Products');
 
   return (
     <div className="space-y-5">
       <h3 className="text-sm font-semibold text-foreground uppercase tracking-wide">
-        {t('filters')}
+        {"Filtres"}
       </h3>
 
       {/* Sort */}
       <div>
         <label className="block text-sm font-medium text-foreground mb-1.5">
-          {t('sortBy')}
+          {"Trier par"}
         </label>
         <select
           value={sortBy}
           onChange={(e) => onSortChange(e.target.value as SortOption)}
           className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         >
-          <option value="newest">{t('sort_newest')}</option>
-          <option value="popularity">{t('sort_popularity')}</option>
-          <option value="price_asc">{t('sort_price_asc')}</option>
-          <option value="price_desc">{t('sort_price_desc')}</option>
+          <option value="newest">{"Plus récents"}</option>
+          <option value="popularity">{"Popularité"}</option>
+          <option value="price_asc">{"Prix croissant"}</option>
+          <option value="price_desc">{"Prix décroissant"}</option>
         </select>
       </div>
 
       {/* Condition */}
       <div>
         <label className="block text-sm font-medium text-foreground mb-1.5">
-          {t('condition')}
+          {"État"}
         </label>
         <select
           value={condition}
           onChange={(e) => onConditionChange(e.target.value as ConditionFilter)}
           className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
         >
-          <option value="">{t('allConditions')}</option>
-          <option value="NEW">{t('condition_NEW')}</option>
-          <option value="USED">{t('condition_USED')}</option>
+          <option value="">{"Tous les états"}</option>
+          <option value="NEW">{"Neuf"}</option>
+          <option value="USED">{"Occasion"}</option>
         </select>
       </div>
 
       {/* Price range */}
       <div>
         <label className="block text-sm font-medium text-foreground mb-1.5">
-          {t('priceRange')} (CDF)
+          {"Fourchette de prix"} (CDF)
         </label>
         <div className="flex gap-2">
           <input
             type="number"
             value={minPrice}
             onChange={(e) => onMinPriceChange(e.target.value)}
-            placeholder={t('minPrice')}
+            placeholder={"Prix min"}
             min="0"
             className="flex-1 px-3 py-2 border border-input rounded-lg bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
@@ -143,7 +141,7 @@ export function ProductFilters({
             type="number"
             value={maxPrice}
             onChange={(e) => onMaxPriceChange(e.target.value)}
-            placeholder={t('maxPrice')}
+            placeholder={"Prix max"}
             min="0"
             className="flex-1 px-3 py-2 border border-input rounded-lg bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
@@ -154,7 +152,7 @@ export function ProductFilters({
       {brands && brands.length > 0 && onBrandToggle && (
         <div>
           <label className="block text-sm font-medium text-foreground mb-1.5">
-            {t('brand')}
+            {"Marque"}
           </label>
           <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
             {brands.map((b) => (
@@ -232,13 +230,13 @@ export function ProductFilters({
           onClick={onApply}
           className="flex-1 py-2 px-4 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
         >
-          {t('applyFilters')}
+          {"Appliquer"}
         </button>
         <button
           onClick={onClear}
           className="flex-1 py-2 px-4 border border-border text-foreground rounded-lg text-sm font-medium hover:bg-muted transition-colors"
         >
-          {t('clearFilters')}
+          {"Réinitialiser"}
         </button>
       </div>
     </div>

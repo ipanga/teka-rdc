@@ -152,8 +152,7 @@ export const useCityStore = create<CityState>((set, get) => {
           // Guard against stale data from before the May 2026 monolingual
           // refactor — back then `city.name` was a `{en, fr}` Map, which still
           // lives in some users' localStorage and would crash the home page's
-          // next-intl interpolation (`t('subtitle', { city: city.name })`)
-          // with a React #31 + INVALID_MESSAGE error. Discard anything that
+          // city-name interpolation with a React #31 error. Discard anything that
           // doesn't match the current plain-string shape.
           const isCurrentShape =
             typeof parsed === 'object' &&

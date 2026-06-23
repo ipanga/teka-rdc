@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch, ApiError } from '@/lib/api-client';
 
 /**
@@ -12,7 +11,6 @@ import { apiFetch, ApiError } from '@/lib/api-client';
  * Client-only island so the rest of the Contact page stays SSR/SEO-friendly.
  */
 export function ContactForm() {
-  const t = useTranslations('Contact');
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,9 +41,9 @@ export function ContactForm() {
       form.reset();
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(err.message || t('genericError'));
+        setError(err.message || "Impossible d'envoyer le message. Veuillez réessayer.");
       } else {
-        setError(t('genericError'));
+        setError("Impossible d'envoyer le message. Veuillez réessayer.");
       }
     } finally {
       setLoading(false);
@@ -59,9 +57,9 @@ export function ContactForm() {
         className="rounded-xl border border-success/30 bg-success/5 p-6 text-center"
       >
         <h2 className="text-lg font-semibold text-foreground mb-1">
-          {t('thanksTitle')}
+          {"Message bien reçu"}
         </h2>
-        <p className="text-sm text-muted-foreground">{t('thanksBody')}</p>
+        <p className="text-sm text-muted-foreground">{"Nous vous répondrons par email dans les meilleurs délais."}</p>
       </div>
     );
   }
@@ -69,9 +67,9 @@ export function ContactForm() {
   return (
     <div className="rounded-xl border border-border bg-white p-6 shadow-sm">
       <h2 className="text-lg font-semibold text-foreground mb-1">
-        {t('formTitle')}
+        {"Envoyer un message"}
       </h2>
-      <p className="text-sm text-muted-foreground mb-4">{t('formSubtitle')}</p>
+      <p className="text-sm text-muted-foreground mb-4">{"Notre équipe vous répond sous 24 heures ouvrables."}</p>
 
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         {/* Honeypot — visually hidden. Real users never fill this. */}
@@ -86,7 +84,7 @@ export function ContactForm() {
           }}
         >
           <label>
-            {t('websiteLabel')}
+            {"Site web (ne pas remplir)"}
             <input
               type="text"
               name="website"
@@ -103,7 +101,7 @@ export function ContactForm() {
               htmlFor="contact-name"
               className="block text-sm font-medium text-foreground mb-1"
             >
-              {t('nameLabel')}
+              {"Votre nom"}
             </label>
             <input
               id="contact-name"
@@ -120,7 +118,7 @@ export function ContactForm() {
               htmlFor="contact-email"
               className="block text-sm font-medium text-foreground mb-1"
             >
-              {t('emailLabel')}
+              {"Adresse email"}
             </label>
             <input
               id="contact-email"
@@ -139,9 +137,9 @@ export function ContactForm() {
               htmlFor="contact-phone"
               className="block text-sm font-medium text-foreground mb-1"
             >
-              {t('phoneLabel')}{' '}
+              {"Téléphone"}{' '}
               <span className="text-muted-foreground font-normal">
-                ({t('optional')})
+                ({"facultatif"})
               </span>
             </label>
             <input
@@ -158,7 +156,7 @@ export function ContactForm() {
               htmlFor="contact-subject"
               className="block text-sm font-medium text-foreground mb-1"
             >
-              {t('subjectLabel')}
+              {"Sujet"}
             </label>
             <input
               id="contact-subject"
@@ -176,7 +174,7 @@ export function ContactForm() {
             htmlFor="contact-message"
             className="block text-sm font-medium text-foreground mb-1"
           >
-            {t('messageLabel')}
+            {"Message"}
           </label>
           <textarea
             id="contact-message"
@@ -188,7 +186,7 @@ export function ContactForm() {
             className="w-full px-3 py-2 border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring resize-y"
           />
           <p className="mt-1 text-xs text-muted-foreground">
-            {t('messageHint')}
+            {"Entre 10 et 2000 caractères. Incluez votre numéro de commande si pertinent."}
           </p>
         </div>
 
@@ -203,7 +201,7 @@ export function ContactForm() {
           disabled={loading}
           className="w-full sm:w-auto inline-flex justify-center items-center px-6 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
         >
-          {loading ? t('sending') : t('send')}
+          {loading ? "Envoi en cours…" : "Envoyer le message"}
         </button>
       </form>
     </div>

@@ -1,6 +1,4 @@
 import type { Metadata, Viewport } from 'next';
-import { NextIntlClientProvider } from 'next-intl';
-import { getMessages } from 'next-intl/server';
 import { Inter } from 'next/font/google';
 import { Suspense } from 'react';
 import { Clarity } from '@/components/analytics/clarity';
@@ -66,24 +64,20 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const messages = await getMessages();
-
   return (
     <html lang="fr" className={inter.variable}>
       <body className="font-sans antialiased">
         <PostHogProvider>
-          <NextIntlClientProvider messages={messages}>
-            <AuthProvider>
-              {children}
-              {/* Town selector — mounted globally so the header "Livrer à …"
-                  button opens it on EVERY page (not just the homepage). Renders
-                  null until opened → no SSR/SEO footprint. */}
-              <CitySelectorModal />
-              <Suspense fallback={null}>
-                <PostHogPageview />
-              </Suspense>
-            </AuthProvider>
-          </NextIntlClientProvider>
+          <AuthProvider>
+            {children}
+            {/* Town selector — mounted globally so the header "Livrer à …"
+                button opens it on EVERY page (not just the homepage). Renders
+                null until opened → no SSR/SEO footprint. */}
+            <CitySelectorModal />
+            <Suspense fallback={null}>
+              <PostHogPageview />
+            </Suspense>
+          </AuthProvider>
         </PostHogProvider>
         <Clarity />
         <script

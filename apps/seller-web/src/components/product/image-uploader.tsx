@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { useTranslations } from 'next-intl';
 import { compressImageForUpload } from '@/lib/image-compress';
 import { apiFetch, ApiError } from '@/lib/api-client';
 
@@ -19,7 +18,6 @@ interface ImageUploaderProps {
 }
 
 export function ImageUploader({ productId, images, onImagesChange, readOnly }: ImageUploaderProps) {
-  const t = useTranslations('Products');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -89,9 +87,9 @@ export function ImageUploader({ productId, images, onImagesChange, readOnly }: I
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-foreground">{t('images')}</h3>
+        <h3 className="text-sm font-medium text-foreground">Images</h3>
         <span className="text-xs text-muted-foreground">
-          {t('maxImages', { count: images.length })}
+          {`${images.length}/8 images`}
         </span>
       </div>
 
@@ -115,7 +113,7 @@ export function ImageUploader({ productId, images, onImagesChange, readOnly }: I
                 onClick={() => handleDelete(img.id)}
                 disabled={deletingId === img.id}
                 className="absolute top-1.5 right-1.5 w-6 h-6 bg-destructive text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
-                title={t('deleteImage')}
+                title="Supprimer l'image"
               >
                 {deletingId === img.id ? '...' : '\u00d7'}
               </button>
@@ -131,11 +129,11 @@ export function ImageUploader({ productId, images, onImagesChange, readOnly }: I
             className="aspect-square rounded-lg border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center gap-1 text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
           >
             {isUploading ? (
-              <span className="text-xs">{t('uploadingImage')}</span>
+              <span className="text-xs">Envoi en cours...</span>
             ) : (
               <>
                 <span className="text-2xl">+</span>
-                <span className="text-xs">{t('uploadImage')}</span>
+                <span className="text-xs">Ajouter une image</span>
               </>
             )}
           </button>

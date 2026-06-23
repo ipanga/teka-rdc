@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import Image from 'next/image';
-import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
@@ -16,7 +15,6 @@ interface BannerCarouselProps {
 }
 
 export function BannerCarousel({ fallback }: BannerCarouselProps) {
-  const t = useTranslations('Banners');
   const router = useRouter();
   const selectedCity = useCityStore((s) => s.selectedCity);
 
@@ -212,7 +210,7 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
                 )}
                 {hasLink && (
                   <span className="inline-flex items-center gap-2 text-sm md:text-base font-semibold bg-primary hover:bg-primary-hover text-primary-foreground px-4 py-2 md:px-6 md:py-2.5 rounded-lg shadow-md transition-colors">
-                    {t('shopNow')} <span aria-hidden>→</span>
+                    {"Acheter maintenant"} <span aria-hidden>→</span>
                   </span>
                 )}
               </div>

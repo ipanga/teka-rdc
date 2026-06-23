@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -19,9 +18,6 @@ import { categoryHref } from '@/lib/urls';
 import type { BrowseCategory, BrowseProduct } from '@/lib/types';
 
 export default function HomePage({ serverH1 }: { serverH1?: string }) {
-  const t = useTranslations('Hero');
-  const tCat = useTranslations('Categories');
-  const tProd = useTranslations('Products');
   const [categories, setCategories] = useState<BrowseCategory[]>([]);
   const [popularProducts, setPopularProducts] = useState<BrowseProduct[]>([]);
   const [newestProducts, setNewestProducts] = useState<BrowseProduct[]>([]);
@@ -88,16 +84,14 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
         <BannerCarousel
           fallback={
             <StoreHero
-              title={serverH1 || t('title')}
-              subtitle={t('subtitle', {
-                city: selectedCity ? selectedCity.name : 'Congo',
-              })}
+              title={serverH1 || "Bienvenue sur Teka"}
+              subtitle={`Le marché en ligne de ${selectedCity ? selectedCity.name : 'Congo'}`}
               ctaHref="/categories"
-              ctaLabel={t('cta')}
+              ctaLabel={"Découvrir les produits"}
               city={selectedCity}
               badgeLabel={
                 selectedCity
-                  ? t('deliveringTo', { city: selectedCity.name })
+                  ? `Livraison à ${selectedCity.name}`
                   : undefined
               }
             />
@@ -111,9 +105,9 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
         <section className="bg-background">
           <Container className="py-10 md:py-14">
             <SectionHeader
-              title={tCat('title')}
+              title={"Catégories"}
               viewAllHref="/categories"
-              viewAllLabel={tCat('viewAll')}
+              viewAllLabel={"Voir toutes les catégories"}
             />
 
             {loadingCategories ? (
@@ -128,7 +122,7 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
               </div>
             ) : categories.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">
-                {tCat('noCategories')}
+                {"Aucune catégorie disponible pour le moment."}
               </p>
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-7 gap-4 md:gap-5">
@@ -161,7 +155,7 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
         {/* Popular Products Section */}
         <section className="bg-background">
           <Container className="py-10 md:py-14">
-            <SectionHeader title={tProd('popularProducts')} />
+            <SectionHeader title={"Produits populaires"} />
             <ProductGrid products={popularProducts} isLoading={loadingPopular} />
           </Container>
         </section>
@@ -169,7 +163,7 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
         {/* Newest Products Section */}
         <section className="bg-background">
           <Container className="py-10 md:py-14">
-            <SectionHeader title={tProd('newestProducts')} />
+            <SectionHeader title={"Nouveautés"} />
             <ProductGrid products={newestProducts} isLoading={loadingNewest} />
           </Container>
         </section>

@@ -1,6 +1,5 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -38,7 +37,6 @@ export async function ContentPageView({
   body,
   backHref = '/',
 }: ContentPageViewProps) {
-  const tCommon = await getTranslations('Common');
 
   // Pull the first ~160 chars of plain text from the markdown body as a
   // description for the WebPage JSON-LD. Strip leading markdown syntax.
@@ -85,7 +83,7 @@ export async function ContentPageView({
           className="flex items-center gap-2 text-sm text-muted-foreground mb-6"
         >
           <Link href={backHref} className="hover:text-primary transition-colors">
-            {tCommon('home')}
+            {"Accueil"}
           </Link>
           <span aria-hidden>/</span>
           <span className="text-foreground">{title}</span>
@@ -97,9 +95,8 @@ export async function ContentPageView({
             remarkPlugins={[remarkGfm]}
             components={{
               // Route internal links through rewriteContentLink so legacy
-              // /pages/<en-slug> markdown still resolves to the right
-              // localized URL after the slug refactor. next-intl's <Link>
-              // adds the locale prefix on render.
+              // /pages/<en-slug> markdown still resolves to the right URL
+              // after the slug refactor.
               a: ({ href = '', children, ...props }) => {
                 if (href.startsWith('/') && !href.startsWith('//')) {
                   const rewritten = rewriteContentLink(href);

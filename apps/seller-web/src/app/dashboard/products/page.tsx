@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { ProductStatusBadge } from '@/components/product/product-status-badge';
@@ -39,7 +38,6 @@ type StatusFilter = '' | 'DRAFT' | 'PENDING_REVIEW' | 'ACTIVE' | 'REJECTED' | 'A
 const LIMIT = 20;
 
 export default function ProductsListPage() {
-  const t = useTranslations('Products');
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -67,12 +65,12 @@ export default function ProductsListPage() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError(t('errorLoadingProducts'));
+        setError("Erreur lors du chargement des produits");
       }
     } finally {
       setIsLoading(false);
     }
-  }, [page, statusFilter, t]);
+  }, [page, statusFilter]);
 
   useEffect(() => {
     loadProducts();
@@ -84,7 +82,7 @@ export default function ProductsListPage() {
   };
 
   const handleArchive = async (productId: string) => {
-    if (!confirm(t('confirmArchive'))) return;
+    if (!confirm("Êtes-vous sûr de vouloir archiver ce produit ?")) return;
     setArchivingId(productId);
     try {
       await apiFetch(`/v1/sellers/products/${productId}`, { method: 'DELETE' });
@@ -138,23 +136,23 @@ export default function ProductsListPage() {
   };
 
   const filters: { key: StatusFilter; label: string }[] = [
-    { key: '', label: t('filterAll') },
-    { key: 'DRAFT', label: t('filterDraft') },
-    { key: 'PENDING_REVIEW', label: t('filterPending') },
-    { key: 'ACTIVE', label: t('filterActive') },
-    { key: 'REJECTED', label: t('filterRejected') },
-    { key: 'ARCHIVED', label: t('filterArchived') },
+    { key: '', label: "Tous" },
+    { key: 'DRAFT', label: "Brouillons" },
+    { key: 'PENDING_REVIEW', label: "En attente" },
+    { key: 'ACTIVE', label: "Actifs" },
+    { key: 'REJECTED', label: "Rejetés" },
+    { key: 'ARCHIVED', label: "Archivés" },
   ];
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+        <h1 className="text-2xl font-bold text-foreground">Mes Produits</h1>
         <Link
           href="/dashboard/products/new"
           className="inline-flex items-center px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors"
         >
-          + {t('newProduct')}
+          + Nouveau produit
         </Link>
       </div>
 
@@ -197,13 +195,13 @@ export default function ProductsListPage() {
         </div>
       ) : products.length === 0 ? (
         <div className="bg-white rounded-xl border border-border p-12 text-center">
-          <p className="text-muted-foreground mb-2">{t('noProducts')}</p>
-          <p className="text-sm text-muted-foreground mb-6">{t('noProductsHint')}</p>
+          <p className="text-muted-foreground mb-2">Aucun produit trouvé</p>
+          <p className="text-sm text-muted-foreground mb-6">Commencez par créer votre premier produit.</p>
           <Link
             href="/dashboard/products/new"
             className="inline-flex items-center px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors"
           >
-            + {t('newProduct')}
+            + Nouveau produit
           </Link>
         </div>
       ) : (
@@ -215,11 +213,11 @@ export default function ProductsListPage() {
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground w-16" />
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('name')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('price')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('status')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('date')}</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('actions')}</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Nom</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Prix</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Statut</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -263,7 +261,7 @@ export default function ProductsListPage() {
                               href={`/dashboard/products/${product.id}`}
                               className="px-2.5 py-1 text-xs font-medium rounded border border-border text-foreground hover:bg-muted transition-colors"
                             >
-                              {isEditable ? t('edit') : t('view')}
+                              {isEditable ? 'Modifier' : 'Voir'}
                             </Link>
                             {isSubmittable && (
                               <button
@@ -271,7 +269,7 @@ export default function ProductsListPage() {
                                 disabled={submittingId === product.id}
                                 className="px-2.5 py-1 text-xs font-medium rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
                               >
-                                {submittingId === product.id ? '...' : t('submit')}
+                                {submittingId === product.id ? '...' : 'Soumettre'}
                               </button>
                             )}
                             {isArchivable && (
@@ -280,7 +278,7 @@ export default function ProductsListPage() {
                                 disabled={archivingId === product.id}
                                 className="px-2.5 py-1 text-xs font-medium rounded border border-destructive/30 text-destructive hover:bg-destructive/10 disabled:opacity-50 transition-colors"
                               >
-                                {archivingId === product.id ? '...' : t('archive')}
+                                {archivingId === product.id ? '...' : 'Archiver'}
                               </button>
                             )}
                           </div>
@@ -301,17 +299,17 @@ export default function ProductsListPage() {
                 disabled={page <= 1}
                 className="px-3 py-1.5 text-sm font-medium rounded border border-border text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {t('previousPage')}
+                Précédent
               </button>
               <span className="text-sm text-muted-foreground">
-                {t('pageOf', { page, total: totalPages })}
+                {`Page ${page} sur ${totalPages}`}
               </span>
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
                 className="px-3 py-1.5 text-sm font-medium rounded border border-border text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {t('nextPage')}
+                Suivant
               </button>
             </div>
           )}

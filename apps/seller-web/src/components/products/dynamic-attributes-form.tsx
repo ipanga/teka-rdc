@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 
 interface ProductAttribute {
@@ -25,7 +24,6 @@ export default function DynamicAttributesForm({
   onChange,
   initialValues,
 }: DynamicAttributesFormProps) {
-  const t = useTranslations('Products');
   const [attributes, setAttributes] = useState<ProductAttribute[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [values, setValues] = useState<Record<string, string>>({});
@@ -150,15 +148,15 @@ export default function DynamicAttributesForm({
   if (attributes.length === 0) {
     return (
       <div className="bg-white rounded-xl border border-border p-6">
-        <h2 className="text-lg font-semibold text-foreground mb-2">{t('productAttributes')}</h2>
-        <p className="text-sm text-muted-foreground">{t('noAttributes')}</p>
+        <h2 className="text-lg font-semibold text-foreground mb-2">Caractéristiques du produit</h2>
+        <p className="text-sm text-muted-foreground">Aucune caractéristique pour cette catégorie</p>
       </div>
     );
   }
 
   return (
     <div className="bg-white rounded-xl border border-border p-6">
-      <h2 className="text-lg font-semibold text-foreground mb-4">{t('productAttributes')}</h2>
+      <h2 className="text-lg font-semibold text-foreground mb-4">Caractéristiques du produit</h2>
       <div className="space-y-4">
         {attributes.map((attr) => {
           const label = getLocalizedName(attr.name);
@@ -177,7 +175,7 @@ export default function DynamicAttributesForm({
                     onChange={(e) => handleChange(attr.id, e.target.value)}
                     className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   >
-                    <option value="">{t('selectOption')}</option>
+                    <option value="">Sélectionnez...</option>
                     {attr.options.map((opt) => (
                       <option key={opt} value={opt}>
                         {opt}

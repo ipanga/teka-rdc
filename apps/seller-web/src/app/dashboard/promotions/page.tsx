@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import type { Promotion, PromotionType, SellerProduct } from '@/lib/types';
 
@@ -30,7 +29,6 @@ type DiscountMode = 'percent' | 'fixed';
 const LIMIT = 20;
 
 export default function PromotionsPage() {
-  const t = useTranslations('Promotions');
   // Promotions list state
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,26 +104,26 @@ export default function PromotionsPage() {
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'PENDING_APPROVAL':
-        return t('pendingApproval');
+        return "En attente d'approbation";
       case 'DRAFT':
-        return t('pendingApproval');
+        return "En attente d'approbation";
       case 'APPROVED':
-        return t('approved');
+        return "Approuvée";
       case 'ACTIVE':
-        return t('active');
+        return "Active";
       case 'REJECTED':
-        return t('rejected');
+        return "Refusée";
       case 'EXPIRED':
-        return t('expired');
+        return "Expirée";
       case 'CANCELLED':
-        return t('cancelled');
+        return "Annulée";
       default:
         return status;
     }
   };
 
   const getTypeLabel = (type: PromotionType) => {
-    return type === 'FLASH_DEAL' ? t('flashDeal') : t('promotion');
+    return type === 'FLASH_DEAL' ? "Vente Flash" : "Promotion";
   };
 
   const getTypeStyle = (type: PromotionType) => {
@@ -210,23 +208,23 @@ export default function PromotionsPage() {
 
     // Validate
     if (!formTitle.trim()) {
-      setFormError(t('title') + ' - ' + t('requiredField'));
+      setFormError("Mes promotions" + ' - ' + "Ce champ est requis");
       return;
     }
     if (!formProductId) {
-      setFormError(t('selectProduct') + ' - ' + t('requiredField'));
+      setFormError("Sélectionner un produit" + ' - ' + "Ce champ est requis");
       return;
     }
     if (!formDiscountValue || Number(formDiscountValue) <= 0) {
-      setFormError(t('discount') + ' - ' + t('requiredField'));
+      setFormError("Réduction" + ' - ' + "Ce champ est requis");
       return;
     }
     if (!formStartsAt) {
-      setFormError(t('startDate') + ' - ' + t('requiredField'));
+      setFormError("Date de début" + ' - ' + "Ce champ est requis");
       return;
     }
     if (!formEndsAt) {
-      setFormError(t('endDate') + ' - ' + t('requiredField'));
+      setFormError("Date de fin" + ' - ' + "Ce champ est requis");
       return;
     }
 
@@ -259,7 +257,7 @@ export default function PromotionsPage() {
         body: JSON.stringify(body),
       });
 
-      setSuccessMessage(t('success'));
+      setSuccessMessage("Promotion créée avec succès");
       setShowCreateForm(false);
       setPage(1);
       loadPromotions();
@@ -282,12 +280,12 @@ export default function PromotionsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+        <h1 className="text-2xl font-bold text-foreground">Mes promotions</h1>
         <button
           onClick={openCreateForm}
           className="inline-flex items-center px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors"
         >
-          {t('createPromotion')}
+          Créer une promotion
         </button>
       </div>
 
@@ -309,20 +307,20 @@ export default function PromotionsPage() {
       {confirmCancelId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-sm mx-4">
-            <p className="text-sm text-foreground mb-4">{t('confirmCancel')}</p>
+            <p className="text-sm text-foreground mb-4">Êtes-vous sûr de vouloir annuler cette promotion ?</p>
             <div className="flex items-center justify-end gap-3">
               <button
                 onClick={() => setConfirmCancelId(null)}
                 className="px-4 py-2 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted transition-colors"
               >
-                {t('cancel')}
+                Annuler
               </button>
               <button
                 onClick={() => handleCancel(confirmCancelId)}
                 disabled={cancellingId === confirmCancelId}
                 className="px-4 py-2 text-sm font-medium rounded-lg bg-destructive text-white hover:bg-destructive/90 disabled:opacity-50 transition-colors"
               >
-                {cancellingId === confirmCancelId ? '...' : t('cancel')}
+                {cancellingId === confirmCancelId ? '...' : 'Annuler'}
               </button>
             </div>
           </div>
@@ -334,7 +332,7 @@ export default function PromotionsPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 overflow-y-auto py-8">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-lg mx-4 my-auto">
             <h3 className="text-lg font-semibold text-foreground mb-4">
-              {t('createPromotion')}
+              Créer une promotion
             </h3>
 
             {formError && (
@@ -347,7 +345,7 @@ export default function PromotionsPage() {
               {/* Product selector */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  {t('selectProduct')} *
+                  Sélectionner un produit *
                 </label>
                 <select
                   value={formProductId}
@@ -355,7 +353,7 @@ export default function PromotionsPage() {
                   disabled={productsLoading}
                   className="w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary disabled:opacity-50"
                 >
-                  <option value="">{t('selectProduct')}</option>
+                  <option value="">Sélectionner un produit</option>
                   {products.map((product) => (
                     <option key={product.id} value={product.id}>
                       {getTitle(product.title)}
@@ -367,7 +365,7 @@ export default function PromotionsPage() {
               {/* Type */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  {t('type')} *
+                  Type *
                 </label>
                 <div className="flex gap-4">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -379,7 +377,7 @@ export default function PromotionsPage() {
                       onChange={() => setFormType('PROMOTION')}
                       className="accent-primary"
                     />
-                    <span className="text-sm text-foreground">{t('promotion')}</span>
+                    <span className="text-sm text-foreground">Promotion</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -390,7 +388,7 @@ export default function PromotionsPage() {
                       onChange={() => setFormType('FLASH_DEAL')}
                       className="accent-primary"
                     />
-                    <span className="text-sm text-foreground">{t('flashDeal')}</span>
+                    <span className="text-sm text-foreground">Vente Flash</span>
                   </label>
                 </div>
               </div>
@@ -398,7 +396,7 @@ export default function PromotionsPage() {
               {/* Title */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  {t('title')} *
+                  Mes promotions *
                 </label>
                 <input
                   type="text"
@@ -411,7 +409,7 @@ export default function PromotionsPage() {
               {/* Description */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  {t('description')}
+                  Description
                 </label>
                 <textarea
                   value={formDesc}
@@ -424,7 +422,7 @@ export default function PromotionsPage() {
               {/* Discount mode */}
               <div>
                 <label className="block text-sm font-medium text-foreground mb-2">
-                  {t('discount')} *
+                  Réduction *
                 </label>
                 <div className="flex gap-4 mb-2">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -439,7 +437,7 @@ export default function PromotionsPage() {
                       }}
                       className="accent-primary"
                     />
-                    <span className="text-sm text-foreground">{t('discountPercent')}</span>
+                    <span className="text-sm text-foreground">Pourcentage</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
@@ -453,7 +451,7 @@ export default function PromotionsPage() {
                       }}
                       className="accent-primary"
                     />
-                    <span className="text-sm text-foreground">{t('discountAmount')}</span>
+                    <span className="text-sm text-foreground">Montant fixe (CDF)</span>
                   </label>
                 </div>
                 <input
@@ -477,7 +475,7 @@ export default function PromotionsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
-                    {t('startDate')} *
+                    Date de début *
                   </label>
                   <input
                     type="datetime-local"
@@ -488,7 +486,7 @@ export default function PromotionsPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
-                    {t('endDate')} *
+                    Date de fin *
                   </label>
                   <input
                     type="datetime-local"
@@ -505,14 +503,14 @@ export default function PromotionsPage() {
                 onClick={() => setShowCreateForm(false)}
                 className="px-4 py-2 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted transition-colors"
               >
-                {t('cancel')}
+                Annuler
               </button>
               <button
                 onClick={handleCreateSubmit}
                 disabled={formSubmitting}
                 className="px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
-                {formSubmitting ? '...' : t('submit')}
+                {formSubmitting ? '...' : 'Soumettre pour approbation'}
               </button>
             </div>
           </div>
@@ -537,8 +535,8 @@ export default function PromotionsPage() {
       ) : promotions.length === 0 ? (
         <div className="bg-white rounded-xl border border-border p-12 text-center">
           <div className="text-4xl text-muted-foreground/40 mb-3">{'\uD83C\uDFF7'}</div>
-          <p className="text-muted-foreground font-medium">{t('noPromotions')}</p>
-          <p className="text-sm text-muted-foreground mt-1">{t('createFirst')}</p>
+          <p className="text-muted-foreground font-medium">Aucune promotion</p>
+          <p className="text-sm text-muted-foreground mt-1">Créez votre première promotion pour augmenter vos ventes</p>
         </div>
       ) : (
         <>
@@ -549,22 +547,22 @@ export default function PromotionsPage() {
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                      {t('title')}
+                      Mes promotions
                     </th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                      {t('type')}
+                      Type
                     </th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                      {t('discount')}
+                      Réduction
                     </th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                      {t('selectProduct')}
+                      Sélectionner un produit
                     </th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                      {t('startDate')} / {t('endDate')}
+                      Date de début / Date de fin
                     </th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                      {t('status')}
+                      Statut
                     </th>
                     <th className="text-right px-4 py-3 font-medium text-muted-foreground" />
                   </tr>
@@ -607,7 +605,7 @@ export default function PromotionsPage() {
                         </span>
                         {promo.status === 'REJECTED' && promo.rejectionReason && (
                           <p className="text-xs text-destructive mt-1">
-                            {t('rejectionReason')}: {promo.rejectionReason}
+                            Raison du refus: {promo.rejectionReason}
                           </p>
                         )}
                       </td>
@@ -618,7 +616,7 @@ export default function PromotionsPage() {
                             disabled={cancellingId === promo.id}
                             className="text-xs text-destructive hover:underline disabled:opacity-50"
                           >
-                            {t('cancel')}
+                            Annuler
                           </button>
                         )}
                       </td>
@@ -674,7 +672,7 @@ export default function PromotionsPage() {
 
                 {promo.status === 'REJECTED' && promo.rejectionReason && (
                   <p className="text-xs text-destructive mt-2">
-                    {t('rejectionReason')}: {promo.rejectionReason}
+                    Raison du refus: {promo.rejectionReason}
                   </p>
                 )}
 
@@ -685,7 +683,7 @@ export default function PromotionsPage() {
                       disabled={cancellingId === promo.id}
                       className="text-xs text-destructive hover:underline disabled:opacity-50"
                     >
-                      {t('cancel')}
+                      Annuler
                     </button>
                   </div>
                 )}
@@ -701,17 +699,17 @@ export default function PromotionsPage() {
                 disabled={page <= 1}
                 className="px-3 py-1.5 text-sm font-medium rounded border border-border text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {t('previousPage')}
+                Précédent
               </button>
               <span className="text-sm text-muted-foreground">
-                {t('pageOf', { page, total: totalPages })}
+                {`Page ${page} sur ${totalPages}`}
               </span>
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
                 className="px-3 py-1.5 text-sm font-medium rounded border border-border text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {t('nextPage')}
+                Suivant
               </button>
             </div>
           )}

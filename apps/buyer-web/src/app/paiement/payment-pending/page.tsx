@@ -1,7 +1,6 @@
 'use client';
 
 import { Suspense, useState, useEffect, useCallback, useRef } from 'react';
-import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -25,7 +24,6 @@ export default function PaymentPendingPage() {
 }
 
 function PaymentPendingPageInner() {
-  const t = useTranslations('PaymentPending');
   const router = useRouter();
   const searchParams = useSearchParams();
   const checkoutGroupId = searchParams.get('group');
@@ -205,10 +203,10 @@ function PaymentPendingPageInner() {
               </div>
 
               <h1 className="text-2xl font-bold text-foreground mb-2">
-                {t('title')}
+                {"Paiement en attente"}
               </h1>
               <p className="text-muted-foreground mb-6">
-                {t('subtitle')}
+                {"Votre commande a été créée"}
               </p>
 
               {/* Instruction card */}
@@ -227,7 +225,7 @@ function PaymentPendingPageInner() {
                       d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"
                     />
                   </svg>
-                  <p className="text-sm text-amber-800">{t('instructions')}</p>
+                  <p className="text-sm text-amber-800">{"Vous allez recevoir une notification USSD sur votre téléphone. Entrez votre code PIN Mobile Money pour confirmer le paiement."}</p>
                 </div>
               </div>
 
@@ -240,7 +238,7 @@ function PaymentPendingPageInner() {
                       className="flex justify-between items-center py-2 border-b border-border last:border-0"
                     >
                       <span className="text-sm text-muted-foreground">
-                        {t('orderNumber')} #{order.orderNumber}
+                        {"Commande"} #{order.orderNumber}
                       </span>
                       <span className="text-sm font-medium text-foreground">
                         {formatCDF(order.totalCDF)}
@@ -250,7 +248,7 @@ function PaymentPendingPageInner() {
                   {orders.length > 1 && (
                     <div className="flex justify-between items-center pt-3 mt-1 border-t border-border">
                       <span className="text-sm font-semibold text-foreground">
-                        {t('total')}
+                        {"Total"}
                       </span>
                       <span className="text-sm font-bold text-primary">
                         {formatCDF(totalCDF.toString())}
@@ -262,7 +260,7 @@ function PaymentPendingPageInner() {
 
               {/* Checking status indicator */}
               <p className="text-sm text-muted-foreground animate-pulse">
-                {t('checkingStatus')}
+                {"Vérification du paiement..."}
               </p>
             </>
           )}
@@ -287,10 +285,10 @@ function PaymentPendingPageInner() {
               </div>
 
               <h1 className="text-2xl font-bold text-success mb-2">
-                {t('paymentConfirmed')}
+                {"Paiement confirmé !"}
               </h1>
               <p className="text-muted-foreground">
-                {t('redirecting')}
+                {"Redirection..."}
               </p>
             </>
           )}
@@ -315,7 +313,7 @@ function PaymentPendingPageInner() {
               </div>
 
               <h1 className="text-2xl font-bold text-destructive mb-2">
-                {t('paymentFailed')}
+                {"Le paiement a échoué"}
               </h1>
 
               {/* Order details */}
@@ -327,7 +325,7 @@ function PaymentPendingPageInner() {
                       className="flex justify-between items-center py-2 border-b border-border last:border-0"
                     >
                       <span className="text-sm text-muted-foreground">
-                        {t('orderNumber')} #{order.orderNumber}
+                        {"Commande"} #{order.orderNumber}
                       </span>
                       <PaymentStatusBadge status={order.paymentStatus} />
                     </div>
@@ -340,13 +338,13 @@ function PaymentPendingPageInner() {
                   onClick={handleRetry}
                   className="px-6 py-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
                 >
-                  {t('retry')}
+                  {"Réessayer le paiement"}
                 </button>
                 <Link
                   href="/commandes"
                   className="px-6 py-3 border border-border text-foreground rounded-lg text-sm font-medium hover:bg-muted transition-colors"
                 >
-                  {t('cancel')}
+                  {"Annuler"}
                 </Link>
               </div>
             </>
@@ -372,10 +370,10 @@ function PaymentPendingPageInner() {
               </div>
 
               <h1 className="text-2xl font-bold text-foreground mb-2">
-                {t('timeout')}
+                {"Le délai de paiement a expiré"}
               </h1>
               <p className="text-muted-foreground mb-6">
-                {t('timeoutMessage')}
+                {"Vous pouvez réessayer depuis votre historique de commandes."}
               </p>
 
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -383,13 +381,13 @@ function PaymentPendingPageInner() {
                   onClick={handleRetry}
                   className="px-6 py-3 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
                 >
-                  {t('retry')}
+                  {"Réessayer le paiement"}
                 </button>
                 <Link
                   href="/commandes"
                   className="px-6 py-3 border border-border text-foreground rounded-lg text-sm font-medium hover:bg-muted transition-colors"
                 >
-                  {t('cancel')}
+                  {"Annuler"}
                 </Link>
               </div>
             </>

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { OrderStatusBadge } from '@/components/orders/order-status-badge';
@@ -61,7 +60,6 @@ type StatusFilter =
 const LIMIT = 20;
 
 export default function OrdersListPage() {
-  const t = useTranslations('Orders');
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -90,12 +88,12 @@ export default function OrdersListPage() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError(t('errorLoading'));
+        setError("Erreur lors du chargement des commandes");
       }
     } finally {
       setIsLoading(false);
     }
-  }, [page, statusFilter, t]);
+  }, [page, statusFilter]);
 
   useEffect(() => {
     loadOrders();
@@ -124,7 +122,7 @@ export default function OrdersListPage() {
   };
 
   const handleConfirm = (orderId: string) => {
-    if (!confirm(t('confirmAction'))) return;
+    if (!confirm("Voulez-vous confirmer cette commande ?")) return;
     handleAction(orderId, 'confirm');
   };
 
@@ -172,9 +170,9 @@ export default function OrdersListPage() {
   const getPaymentMethodLabel = (method?: string) => {
     switch (method) {
       case 'MOBILE_MONEY':
-        return t('mobileMoney');
+        return "Mobile Money";
       case 'CASH_ON_DELIVERY':
-        return t('cod');
+        return "Paiement à la livraison";
       default:
         return method || '---';
     }
@@ -183,23 +181,23 @@ export default function OrdersListPage() {
   const getPaymentStatusBadge = (status?: string) => {
     switch (status) {
       case 'COMPLETED':
-        return { label: t('paymentCompleted'), style: 'bg-success/15 text-success' };
+        return { label: "Payé", style: 'bg-success/15 text-success' };
       case 'FAILED':
-        return { label: t('paymentFailed'), style: 'bg-destructive/15 text-destructive' };
+        return { label: "Échoué", style: 'bg-destructive/15 text-destructive' };
       case 'PENDING':
       default:
-        return { label: t('paymentPending'), style: 'bg-warning/15 text-warning' };
+        return { label: "En attente", style: 'bg-warning/15 text-warning' };
     }
   };
 
   const filters: { key: StatusFilter; label: string }[] = [
-    { key: '', label: t('all') },
-    { key: 'PENDING', label: t('pending') },
-    { key: 'CONFIRMED', label: t('confirmed') },
-    { key: 'PROCESSING', label: t('processing') },
-    { key: 'SHIPPED', label: t('shipped') },
-    { key: 'DELIVERED', label: t('delivered') },
-    { key: 'CANCELLED', label: t('cancelled') },
+    { key: '', label: "Toutes" },
+    { key: 'PENDING', label: "En attente" },
+    { key: 'CONFIRMED', label: "Confirmées" },
+    { key: 'PROCESSING', label: "En préparation" },
+    { key: 'SHIPPED', label: "Expédiées" },
+    { key: 'DELIVERED', label: "Livrées" },
+    { key: 'CANCELLED', label: "Annulées" },
   ];
 
   const renderActions = (order: Order) => {
@@ -215,7 +213,7 @@ export default function OrdersListPage() {
               disabled={isLoading}
               className={`${btnBase} bg-primary text-primary-foreground hover:bg-primary/90`}
             >
-              {isLoading ? '...' : t('confirm')}
+              {isLoading ? '...' : 'Confirmer'}
             </button>
             <button
               onClick={() => {
@@ -225,7 +223,7 @@ export default function OrdersListPage() {
               disabled={isLoading}
               className={`${btnBase} border border-destructive/30 text-destructive hover:bg-destructive/10`}
             >
-              {t('reject')}
+              Rejeter
             </button>
           </>
         );
@@ -236,7 +234,7 @@ export default function OrdersListPage() {
             disabled={isLoading}
             className={`${btnBase} bg-primary text-primary-foreground hover:bg-primary/90`}
           >
-            {isLoading ? '...' : t('process')}
+            {isLoading ? '...' : 'Préparer'}
           </button>
         );
       case 'PROCESSING':
@@ -246,7 +244,7 @@ export default function OrdersListPage() {
             disabled={isLoading}
             className={`${btnBase} bg-primary text-primary-foreground hover:bg-primary/90`}
           >
-            {isLoading ? '...' : t('ship')}
+            {isLoading ? '...' : 'Expédier'}
           </button>
         );
       case 'SHIPPED':
@@ -257,14 +255,14 @@ export default function OrdersListPage() {
               disabled={isLoading}
               className={`${btnBase} bg-primary text-primary-foreground hover:bg-primary/90`}
             >
-              {isLoading ? '...' : t('outForDelivery')}
+              {isLoading ? '...' : 'En livraison'}
             </button>
             <button
               onClick={() => handleDeliver(order.id)}
               disabled={isLoading}
               className={`${btnBase} border border-border text-foreground hover:bg-muted`}
             >
-              {isLoading ? '...' : t('deliver')}
+              {isLoading ? '...' : 'Livrer'}
             </button>
           </>
         );
@@ -275,7 +273,7 @@ export default function OrdersListPage() {
             disabled={isLoading}
             className={`${btnBase} bg-success text-white hover:bg-success/90`}
           >
-            {isLoading ? '...' : t('deliver')}
+            {isLoading ? '...' : 'Livrer'}
           </button>
         );
       default:
@@ -286,7 +284,7 @@ export default function OrdersListPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+        <h1 className="text-2xl font-bold text-foreground">Commandes</h1>
       </div>
 
       {/* Status filter tabs */}
@@ -316,14 +314,14 @@ export default function OrdersListPage() {
       {rejectingOrderId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-foreground mb-4">{t('reject')}</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-4">Rejeter</h3>
             <label className="block text-sm font-medium text-foreground mb-1">
-              {t('rejectReason')}
+              Raison du rejet
             </label>
             <textarea
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              placeholder={t('rejectPlaceholder')}
+              placeholder="Expliquez la raison du rejet..."
               rows={4}
               className="w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
             />
@@ -335,14 +333,14 @@ export default function OrdersListPage() {
                 }}
                 className="px-4 py-2 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted transition-colors"
               >
-                {t('cancel')}
+                Annuler
               </button>
               <button
                 onClick={handleRejectSubmit}
                 disabled={!rejectReason.trim() || actionLoadingId === rejectingOrderId}
                 className="px-4 py-2 text-sm font-medium rounded-lg bg-destructive text-white hover:bg-destructive/90 disabled:opacity-50 transition-colors"
               >
-                {actionLoadingId === rejectingOrderId ? '...' : t('reject')}
+                {actionLoadingId === rejectingOrderId ? '...' : 'Rejeter'}
               </button>
             </div>
           </div>
@@ -364,7 +362,7 @@ export default function OrdersListPage() {
         </div>
       ) : orders.length === 0 ? (
         <div className="bg-white rounded-xl border border-border p-12 text-center">
-          <p className="text-muted-foreground">{t('noOrders')}</p>
+          <p className="text-muted-foreground">Aucune commande</p>
         </div>
       ) : (
         <>
@@ -374,15 +372,15 @@ export default function OrdersListPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('orderNumber')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('date')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('buyer')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('items')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('total')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('paymentMethod')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('paymentStatus')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('status')}</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('actions')}</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">N° commande</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Acheteur</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Articles</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Total</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Mode de paiement</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Statut du paiement</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Statut</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -444,17 +442,17 @@ export default function OrdersListPage() {
                 disabled={page <= 1}
                 className="px-3 py-1.5 text-sm font-medium rounded border border-border text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {t('previousPage')}
+                Précédent
               </button>
               <span className="text-sm text-muted-foreground">
-                {t('pageOf', { page, total: totalPages })}
+                {`Page ${page} sur ${totalPages}`}
               </span>
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
                 className="px-3 py-1.5 text-sm font-medium rounded border border-border text-foreground hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {t('nextPage')}
+                Suivant
               </button>
             </div>
           )}

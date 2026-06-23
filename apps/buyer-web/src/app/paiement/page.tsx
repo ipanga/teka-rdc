@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -27,8 +26,6 @@ type CheckoutStep = 'address' | 'payment' | 'review';
 const STEP_ORDER: CheckoutStep[] = ['address', 'payment', 'review'];
 
 export default function CheckoutPage() {
-  const t = useTranslations('Checkout');
-  const tCart = useTranslations('Cart');
   const router = useRouter();
   const cartItems = useCartStore((s) => s.items);
   const fetchCart = useCartStore((s) => s.fetchCart);
@@ -179,7 +176,7 @@ export default function CheckoutPage() {
         phone: '',
       });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t('addressError');
+      const message = err instanceof Error ? err.message : "Erreur lors de l'enregistrement";
       setError(message);
     } finally {
       setIsSavingAddress(false);
@@ -316,9 +313,9 @@ export default function CheckoutPage() {
         <Header />
         <main className="flex-1 flex items-center justify-center px-4">
           <div className="text-center">
-            <p className="text-muted-foreground mb-4">{tCart('empty')}</p>
+            <p className="text-muted-foreground mb-4">{"Votre panier est vide"}</p>
             <Link href="/categories" className={buttonVariants({ variant: 'default', size: 'md' })}>
-              {tCart('emptyAction')}
+              {"Découvrir nos produits"}
             </Link>
           </div>
         </main>
@@ -334,7 +331,7 @@ export default function CheckoutPage() {
       <main className="flex-1">
         <Container className="py-6 md:py-10 max-w-4xl">
           <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight mb-6">
-            {t('title')}
+            {"Passer la commande"}
           </h1>
 
           {/* Step indicators */}
@@ -342,9 +339,9 @@ export default function CheckoutPage() {
             <div className="flex items-center gap-2">
               {STEP_ORDER.map((s, i) => {
                 const stepLabels: Record<CheckoutStep, string> = {
-                  address: t('selectAddress'),
-                  payment: t('paymentMethod'),
-                  review: t('orderSummary'),
+                  address: "Adresse de livraison",
+                  payment: "Mode de paiement",
+                  review: "Récapitulatif",
                 };
                 const isActive = s === step;
                 const stepIndex = STEP_ORDER.indexOf(step);
@@ -411,7 +408,7 @@ export default function CheckoutPage() {
           {step === 'address' && (
             <div className="space-y-4">
               <h2 className="text-base font-semibold text-foreground tracking-tight">
-                {t('selectAddress')}
+                {"Adresse de livraison"}
               </h2>
 
               {isLoadingAddresses ? (
@@ -423,13 +420,13 @@ export default function CheckoutPage() {
                 <>
                   {addresses.length === 0 && !showNewAddressForm ? (
                     <Card padding="lg" className="text-center">
-                      <p className="text-muted-foreground mb-3">{t('noAddresses')}</p>
+                      <p className="text-muted-foreground mb-3">{"Aucune adresse enregistrée"}</p>
                       <Button
                         variant="default"
                         size="md"
                         onClick={() => setShowNewAddressForm(true)}
                       >
-                        + {t('addAddress')}
+                        + {"Ajouter une adresse"}
                       </Button>
                     </Card>
                   ) : (
@@ -481,7 +478,7 @@ export default function CheckoutPage() {
                           onClick={() => setShowNewAddressForm(true)}
                           className="w-full py-3.5 border-2 border-dashed border-primary/40 rounded-xl text-sm font-semibold text-primary hover:bg-primary-subtle hover:border-primary transition-colors"
                         >
-                          + {t('addAddress')}
+                          + {"Ajouter une adresse"}
                         </button>
                       )}
                     </div>
@@ -491,16 +488,16 @@ export default function CheckoutPage() {
                   {showNewAddressForm && (
                     <Card padding="md" className="mt-4 border-primary/30 bg-primary-subtle/40">
                       <h3 className="text-sm font-semibold text-foreground mb-4 tracking-tight">
-                        {t('newAddress')}
+                        {"Nouvelle adresse"}
                       </h3>
                       <div className="space-y-4">
                         {/* City */}
                         <div>
                           <Label htmlFor="ck-city">
-                            {t('cityLabel')} <span className="text-destructive">*</span>
+                            {"Ville"} <span className="text-destructive">*</span>
                           </Label>
                           {isLoadingCities ? (
-                            <p className="text-sm text-muted-foreground py-2">{t('loadingCities')}</p>
+                            <p className="text-sm text-muted-foreground py-2">{"Chargement des villes..."}</p>
                           ) : (
                             <select
                               id="ck-city"
@@ -508,7 +505,7 @@ export default function CheckoutPage() {
                               onChange={(e) => handleCityChange(e.target.value)}
                               className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             >
-                              <option value="">{t('cityPlaceholder')}</option>
+                              <option value="">{"Sélectionnez une ville"}</option>
                               {cities.map((city) => (
                                 <option key={city.id} value={city.id}>
                                   {city.name} ({city.province})
@@ -522,11 +519,11 @@ export default function CheckoutPage() {
                         {newAddr.cityId && (
                           <div>
                             <Label htmlFor="ck-commune">
-                              {t('communeLabel')} <span className="text-destructive">*</span>
+                              {"Commune"} <span className="text-destructive">*</span>
                             </Label>
                             {isLoadingCommunes ? (
                               <p className="text-sm text-muted-foreground py-2">
-                                {t('loadingCommunes')}
+                                {"Chargement des communes..."}
                               </p>
                             ) : (
                               <select
@@ -535,7 +532,7 @@ export default function CheckoutPage() {
                                 onChange={(e) => handleCommuneChange(e.target.value)}
                                 className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                               >
-                                <option value="">{t('communePlaceholder')}</option>
+                                <option value="">{"Sélectionnez une commune"}</option>
                                 {communes.map((commune) => (
                                   <option key={commune.id} value={commune.id}>
                                     {commune.name}
@@ -547,43 +544,43 @@ export default function CheckoutPage() {
                         )}
 
                         <div>
-                          <Label htmlFor="ck-avenue">{t('avenueLabel')}</Label>
+                          <Label htmlFor="ck-avenue">{"Avenue / Rue"}</Label>
                           <Input
                             id="ck-avenue"
                             value={newAddr.avenue}
                             onChange={(e) =>
                               setNewAddr((prev) => ({ ...prev, avenue: e.target.value }))
                             }
-                            placeholder={t('avenuePlaceholder')}
+                            placeholder={"Ex: Av. Lumumba n°24"}
                           />
                         </div>
 
                         <div>
-                          <Label htmlFor="ck-details">{t('referenceLabel')}</Label>
+                          <Label htmlFor="ck-details">{"Point de repère"}</Label>
                           <Input
                             id="ck-details"
                             value={newAddr.details}
                             onChange={(e) =>
                               setNewAddr((prev) => ({ ...prev, details: e.target.value }))
                             }
-                            placeholder={t('referencePlaceholder')}
+                            placeholder={"Ex: En face de la pharmacie"}
                           />
                         </div>
 
                         <div>
-                          <Label htmlFor="ck-recipient">{t('recipientNameLabel')}</Label>
+                          <Label htmlFor="ck-recipient">{"Nom du destinataire"}</Label>
                           <Input
                             id="ck-recipient"
                             value={newAddr.recipientName}
                             onChange={(e) =>
                               setNewAddr((prev) => ({ ...prev, recipientName: e.target.value }))
                             }
-                            placeholder={t('recipientNamePlaceholder')}
+                            placeholder={"Nom complet"}
                           />
                         </div>
 
                         <div>
-                          <Label htmlFor="ck-recipient-phone">{t('recipientPhoneLabel')}</Label>
+                          <Label htmlFor="ck-recipient-phone">{"Téléphone du destinataire"}</Label>
                           <Input
                             id="ck-recipient-phone"
                             type="tel"
@@ -591,7 +588,7 @@ export default function CheckoutPage() {
                             onChange={(e) =>
                               setNewAddr((prev) => ({ ...prev, phone: e.target.value }))
                             }
-                            placeholder={t('recipientPhonePlaceholder')}
+                            placeholder={"+243..."}
                           />
                         </div>
 
@@ -602,7 +599,7 @@ export default function CheckoutPage() {
                             className="flex-1"
                             onClick={() => setShowNewAddressForm(false)}
                           >
-                            {t('cancelNewAddress')}
+                            {"Annuler"}
                           </Button>
                           <Button
                             variant="default"
@@ -611,7 +608,7 @@ export default function CheckoutPage() {
                             onClick={handleSaveNewAddress}
                             disabled={!newAddr.cityId || !newAddr.communeId || isSavingAddress}
                           >
-                            {isSavingAddress ? t('savingAddress') : t('saveAddress')}
+                            {isSavingAddress ? "Enregistrement..." : "Enregistrer l'adresse"}
                           </Button>
                         </div>
                       </div>
@@ -627,7 +624,7 @@ export default function CheckoutPage() {
                   onClick={() => goToStep('payment')}
                   disabled={!canProceedToPayment}
                 >
-                  {t('paymentMethod')}
+                  {"Mode de paiement"}
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
@@ -640,7 +637,7 @@ export default function CheckoutPage() {
           {step === 'payment' && (
             <div className="space-y-4">
               <h2 className="text-base font-semibold text-foreground tracking-tight">
-                {t('paymentMethod')}
+                {"Mode de paiement"}
               </h2>
 
               <div className="space-y-3">
@@ -660,12 +657,12 @@ export default function CheckoutPage() {
                       />
                     </svg>
                   }
-                  title={t('cod')}
+                  title={"Paiement à la livraison"}
                 />
               </div>
 
               <div className="mt-4">
-                <Label htmlFor="ck-note">{t('buyerNote')}</Label>
+                <Label htmlFor="ck-note">{"Note pour le vendeur (optionnel)"}</Label>
                 <textarea
                   id="ck-note"
                   value={buyerNote}
@@ -681,7 +678,7 @@ export default function CheckoutPage() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
-                  {t('selectAddress')}
+                  {"Adresse de livraison"}
                 </Button>
                 <Button
                   variant="default"
@@ -689,7 +686,7 @@ export default function CheckoutPage() {
                   onClick={() => goToStep('review')}
                   disabled={!canProceedToReview}
                 >
-                  {t('orderSummary')}
+                  {"Récapitulatif"}
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                   </svg>
@@ -705,7 +702,7 @@ export default function CheckoutPage() {
               <Card padding="md">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-semibold text-foreground tracking-tight">
-                    {t('selectAddress')}
+                    {"Adresse de livraison"}
                   </h3>
                   <button
                     type="button"
@@ -731,7 +728,7 @@ export default function CheckoutPage() {
               <Card padding="md">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-semibold text-foreground tracking-tight">
-                    {t('paymentMethod')}
+                    {"Mode de paiement"}
                   </h3>
                   <button
                     type="button"
@@ -741,10 +738,10 @@ export default function CheckoutPage() {
                     Modifier
                   </button>
                 </div>
-                <p className="text-sm text-muted-foreground">{t('cod')}</p>
+                <p className="text-sm text-muted-foreground">{"Paiement à la livraison"}</p>
                 {buyerNote && (
                   <p className="text-xs text-muted-foreground mt-2 italic">
-                    {t('buyerNote')}: {buyerNote}
+                    {"Note pour le vendeur (optionnel)"}: {buyerNote}
                   </p>
                 )}
               </Card>
@@ -752,7 +749,7 @@ export default function CheckoutPage() {
               {/* Items by seller */}
               <div className="space-y-3">
                 <h3 className="text-sm font-semibold text-foreground tracking-tight">
-                  {t('orderSummary')}
+                  {"Récapitulatif"}
                 </h3>
                 {Object.entries(itemsBySeller).map(([sellerId, group]) => {
                   const sellerFee = deliveryFees[sellerId] || '0';
@@ -760,7 +757,7 @@ export default function CheckoutPage() {
                   return (
                     <Card key={sellerId} padding="md">
                       <p className="text-sm font-semibold text-foreground mb-3">
-                        {tCart('seller')}: <span className="font-normal">{group.sellerName}</span>
+                        {"Vendeur"}: <span className="font-normal">{group.sellerName}</span>
                       </p>
 
                       {group.items.map((item) => {
@@ -817,13 +814,13 @@ export default function CheckoutPage() {
 
                       <div className="mt-3 pt-3 space-y-1 border-t border-border">
                         <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">{t('subtotal')}</span>
+                          <span className="text-muted-foreground">{"Sous-total"}</span>
                           <span className="text-foreground">
                             {formatCDF((sellerSubtotals[sellerId] || BigInt(0)).toString())}
                           </span>
                         </div>
                         <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">{t('deliveryFee')}</span>
+                          <span className="text-muted-foreground">{"Frais de livraison"}</span>
                           <span className="text-foreground">
                             {BigInt(sellerFee) > BigInt(0) ? formatCDF(sellerFee) : 'Gratuit'}
                           </span>
@@ -838,11 +835,11 @@ export default function CheckoutPage() {
               <Card padding="md">
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{t('subtotal')}</span>
+                    <span className="text-muted-foreground">{"Sous-total"}</span>
                     <span className="text-foreground">{formatCDF(subtotalCDF.toString())}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">{t('deliveryFee')}</span>
+                    <span className="text-muted-foreground">{"Frais de livraison"}</span>
                     <span className="text-foreground">
                       {totalDeliveryFeeCDF > BigInt(0)
                         ? formatCDF(totalDeliveryFeeCDF.toString())
@@ -850,7 +847,7 @@ export default function CheckoutPage() {
                     </span>
                   </div>
                   <div className="flex justify-between items-baseline border-t border-border pt-3 mt-2">
-                    <span className="text-base font-semibold text-foreground">{t('total')}</span>
+                    <span className="text-base font-semibold text-foreground">{"Total"}</span>
                     <span className="text-2xl font-bold text-primary tracking-tight">
                       {formatCDF(grandTotalCDF.toString())}
                     </span>
@@ -864,7 +861,7 @@ export default function CheckoutPage() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
-                  {t('paymentMethod')}
+                  {"Mode de paiement"}
                 </Button>
                 <Button
                   variant="default"
@@ -879,10 +876,10 @@ export default function CheckoutPage() {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
-                      {t('processing')}
+                      {"Traitement en cours..."}
                     </>
                   ) : (
-                    t('placeOrder')
+                    "Confirmer la commande"
                   )}
                 </Button>
               </div>

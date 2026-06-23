@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef, Suspense } from 'react';
-import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -18,8 +17,6 @@ import { Button, Card, Container } from '@/components/ui';
 import type { BrowseProduct, CursorPagination } from '@/lib/types';
 
 function SearchContent() {
-  const t = useTranslations('Search');
-  const tProd = useTranslations('Products');
   const searchParams = useSearchParams();
   const query = searchParams.get('q') || '';
 
@@ -144,17 +141,17 @@ function SearchContent() {
         <div className="flex items-start justify-between gap-3 mb-6">
           <div className="min-w-0">
             <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
-              {t('title')}
+              {"Recherche"}
             </h1>
             {query && pagination && !isLoading && (
               <p className="text-sm text-muted-foreground mt-1">
                 {pagination.total > 0
-                  ? t('results', { count: pagination.total, query })
-                  : t('noResults', { query })}
+                  ? `${pagination.total} résultat(s) pour "${query}"`
+                  : `Aucun résultat pour "${query}".`}
               </p>
             )}
             {query && isLoading && (
-              <p className="text-sm text-muted-foreground mt-1">{t('searching')}</p>
+              <p className="text-sm text-muted-foreground mt-1">{"Recherche en cours..."}</p>
             )}
           </div>
           <Button
@@ -171,7 +168,7 @@ function SearchContent() {
                 d="M3 6h18M6 12h12M9 18h6"
               />
             </svg>
-            {tProd('filters')}
+            {"Filtres"}
           </Button>
         </div>
 
@@ -203,7 +200,7 @@ function SearchContent() {
               >
                 <div className="flex items-center justify-between p-4 border-b border-border">
                   <h3 className="text-lg font-bold text-foreground tracking-tight">
-                    {tProd('filters')}
+                    {"Filtres"}
                   </h3>
                   <button
                     onClick={() => setShowMobileFilters(false)}
@@ -250,7 +247,7 @@ function SearchContent() {
                   onClick={handleLoadMore}
                   disabled={isLoadingMore}
                 >
-                  {isLoadingMore ? tProd('loading') : tProd('loadMore')}
+                  {isLoadingMore ? "Chargement..." : "Charger plus"}
                 </Button>
               </div>
             )}

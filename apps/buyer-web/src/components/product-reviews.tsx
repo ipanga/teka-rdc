@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 import { useAuthStore } from '@/lib/auth-store';
 import type { Review, ReviewStats, PaginatedReviews } from '@/lib/types';
@@ -79,7 +78,6 @@ function RatingDistribution({
   distribution: ReviewStats['distribution'];
   total: number;
 }) {
-  const t = useTranslations('Reviews');
 
   return (
     <div className="space-y-1.5">
@@ -121,7 +119,6 @@ function ReviewModal({
   onClose: () => void;
   onSubmitted: () => void;
 }) {
-  const t = useTranslations('Reviews');
   const [rating, setRating] = useState(0);
   const [text, setText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -163,7 +160,7 @@ function ReviewModal({
       <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6 z-10">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-foreground">
-            {t('writeReview')}
+            {"Donner votre avis"}
           </h3>
           <button
             onClick={onClose}
@@ -178,7 +175,7 @@ function ReviewModal({
         {/* Star selector */}
         <div className="mb-4">
           <label className="block text-sm font-medium text-foreground mb-2">
-            {t('yourRating')}
+            {"Votre note"}
           </label>
           <StarSelector value={rating} onChange={setRating} />
         </div>
@@ -188,7 +185,7 @@ function ReviewModal({
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={t('reviewPlaceholder')}
+            placeholder={"Partagez votre expérience avec ce produit..."}
             rows={4}
             className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm resize-none"
           />
@@ -211,7 +208,7 @@ function ReviewModal({
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
           ) : (
-            t('submit')
+            "Soumettre"
           )}
         </button>
       </div>
@@ -228,7 +225,6 @@ interface ProductReviewsProps {
 }
 
 export function ProductReviews({ productId }: ProductReviewsProps) {
-  const t = useTranslations('Reviews');
   const user = useAuthStore((s) => s.user);
 
   const [stats, setStats] = useState<ReviewStats | null>(null);
@@ -316,7 +312,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
 
   async function handleReviewSubmitted() {
     setShowModal(false);
-    setFeedback(t('reviewSubmitted'));
+    setFeedback("Avis soumis avec succès");
     setTimeout(() => setFeedback(''), 3000);
     // Refresh data
     await Promise.all([fetchStats(), fetchReviews(1), fetchMyReview(), checkCanReview()]);
@@ -326,7 +322,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
   async function handleDeleteReview(reviewId: string) {
     try {
       await apiFetch(`/v1/reviews/${reviewId}`, { method: 'DELETE' });
-      setFeedback(t('reviewDeleted'));
+      setFeedback("Avis supprimé");
       setTimeout(() => setFeedback(''), 3000);
       setConfirmDeleteId(null);
       // Refresh data
@@ -377,7 +373,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
   return (
     <div className="py-6 border-t border-border">
       <h2 className="text-lg font-semibold text-foreground mb-4">
-        {t('title')}
+        {"Avis clients"}
       </h2>
 
       {/* Feedback banner */}
@@ -400,7 +396,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
             </span>
             <StarRating rating={Math.round(stats.avgRating)} size="md" />
             <span className="text-sm text-muted-foreground mt-1">
-              {stats.totalReviews} {stats.totalReviews === 1 ? t('star') : t('stars')}
+              {stats.totalReviews} {stats.totalReviews === 1 ? "étoile" : "étoiles"}
             </span>
           </div>
 
@@ -410,25 +406,25 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
           </div>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground mb-4">{t('noReviews')}</p>
+        <p className="text-sm text-muted-foreground mb-4">{"Aucun avis pour ce produit"}</p>
       )}
 
       {/* Write review button or status */}
       {user && (
         <div className="mb-6">
           {myReview ? (
-            <p className="text-sm text-muted-foreground">{t('alreadyReviewed')}</p>
+            <p className="text-sm text-muted-foreground">{"Vous avez déjà donné votre avis"}</p>
           ) : canReview ? (
             <button
               onClick={() => setShowModal(true)}
               className="px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
             >
-              {t('writeReview')}
+              {"Donner votre avis"}
             </button>
           ) : canReviewReason === 'already_reviewed' ? (
-            <p className="text-sm text-muted-foreground">{t('alreadyReviewed')}</p>
+            <p className="text-sm text-muted-foreground">{"Vous avez déjà donné votre avis"}</p>
           ) : (
-            <p className="text-sm text-muted-foreground">{t('mustDelivered')}</p>
+            <p className="text-sm text-muted-foreground">{"Vous pourrez donner votre avis après livraison"}</p>
           )}
         </div>
       )}
@@ -443,7 +439,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
                   {getReviewerName(myReview)}
                 </span>
                 <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
-                  {t('verifiedBuyer')}
+                  {"Acheteur vérifié"}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -460,7 +456,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
                     onClick={() => handleDeleteReview(myReview.id)}
                     className="text-xs px-3 py-1.5 bg-destructive text-white rounded-lg hover:bg-destructive/90 transition-colors"
                   >
-                    {t('deleteReview')}
+                    {"Supprimer mon avis"}
                   </button>
                   <button
                     onClick={() => setConfirmDeleteId(null)}
@@ -474,7 +470,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
                   onClick={() => setConfirmDeleteId(myReview.id)}
                   className="text-xs text-destructive hover:underline"
                 >
-                  {t('deleteReview')}
+                  {"Supprimer mon avis"}
                 </button>
               )}
             </div>
@@ -500,7 +496,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
                     {getReviewerName(review)}
                   </span>
                   <span className="text-xs px-2 py-0.5 bg-muted text-muted-foreground rounded-full">
-                    {t('verifiedBuyer')}
+                    {"Acheteur vérifié"}
                   </span>
                 </div>
                 <div className="flex items-center gap-2 mb-2">

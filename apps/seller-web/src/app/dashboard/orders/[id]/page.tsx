@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
@@ -64,7 +63,6 @@ interface OrderDetail {
 }
 
 export default function OrderDetailPage() {
-  const t = useTranslations('Orders');
   const params = useParams();
   const orderId = params.id as string;
 
@@ -85,12 +83,12 @@ export default function OrderDetailPage() {
       if (err instanceof ApiError) {
         setError(err.message);
       } else {
-        setError(t('errorLoading'));
+        setError("Erreur lors du chargement des commandes");
       }
     } finally {
       setIsLoading(false);
     }
-  }, [orderId, t]);
+  }, [orderId]);
 
   useEffect(() => {
     loadOrder();
@@ -114,7 +112,7 @@ export default function OrderDetailPage() {
   };
 
   const handleConfirm = () => {
-    if (!confirm(t('confirmAction'))) return;
+    if (!confirm("Voulez-vous confirmer cette commande ?")) return;
     handleAction('confirm');
   };
 
@@ -182,7 +180,7 @@ export default function OrderDetailPage() {
               disabled={actionLoading}
               className={`${btnBase} bg-primary text-primary-foreground hover:bg-primary/90`}
             >
-              {actionLoading ? '...' : t('confirm')}
+              {actionLoading ? '...' : 'Confirmer'}
             </button>
             <button
               onClick={() => {
@@ -192,7 +190,7 @@ export default function OrderDetailPage() {
               disabled={actionLoading}
               className={`${btnBase} border border-destructive/30 text-destructive hover:bg-destructive/10`}
             >
-              {t('reject')}
+              Rejeter
             </button>
           </div>
         );
@@ -203,7 +201,7 @@ export default function OrderDetailPage() {
             disabled={actionLoading}
             className={`${btnBase} bg-primary text-primary-foreground hover:bg-primary/90`}
           >
-            {actionLoading ? '...' : t('process')}
+            {actionLoading ? '...' : 'Préparer'}
           </button>
         );
       case 'PROCESSING':
@@ -213,7 +211,7 @@ export default function OrderDetailPage() {
             disabled={actionLoading}
             className={`${btnBase} bg-primary text-primary-foreground hover:bg-primary/90`}
           >
-            {actionLoading ? '...' : t('ship')}
+            {actionLoading ? '...' : 'Expédier'}
           </button>
         );
       case 'SHIPPED':
@@ -224,14 +222,14 @@ export default function OrderDetailPage() {
               disabled={actionLoading}
               className={`${btnBase} bg-primary text-primary-foreground hover:bg-primary/90`}
             >
-              {actionLoading ? '...' : t('outForDelivery')}
+              {actionLoading ? '...' : 'En livraison'}
             </button>
             <button
               onClick={handleDeliver}
               disabled={actionLoading}
               className={`${btnBase} border border-border text-foreground hover:bg-muted`}
             >
-              {actionLoading ? '...' : t('deliver')}
+              {actionLoading ? '...' : 'Livrer'}
             </button>
           </div>
         );
@@ -242,7 +240,7 @@ export default function OrderDetailPage() {
             disabled={actionLoading}
             className={`${btnBase} bg-success text-white hover:bg-success/90`}
           >
-            {actionLoading ? '...' : t('deliver')}
+            {actionLoading ? '...' : 'Livrer'}
           </button>
         );
       default:
@@ -270,7 +268,7 @@ export default function OrderDetailPage() {
           href="/dashboard/orders"
           className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
         >
-          &larr; {t('backToOrders')}
+          &larr; Retour aux commandes
         </Link>
         <div className="p-4 rounded-lg bg-destructive/10 text-destructive text-sm">{error}</div>
       </div>
@@ -286,7 +284,7 @@ export default function OrderDetailPage() {
         href="/dashboard/orders"
         className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
       >
-        &larr; {t('backToOrders')}
+        &larr; Retour aux commandes
       </Link>
 
       {error && (
@@ -299,7 +297,7 @@ export default function OrderDetailPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            {t('orderNumber')} {order.orderNumber}
+            N° commande {order.orderNumber}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {formatDateTime(order.createdAt)}
@@ -317,17 +315,17 @@ export default function OrderDetailPage() {
           {/* Items table */}
           <div className="bg-white rounded-xl border border-border overflow-hidden">
             <div className="px-6 py-4 border-b border-border">
-              <h2 className="font-semibold text-foreground">{t('items')}</h2>
+              <h2 className="font-semibold text-foreground">Articles</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/50">
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground w-16" />
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('product')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('quantity')}</th>
-                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">{t('unitPrice')}</th>
-                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">{t('total')}</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Produit</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Quantité</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Prix unitaire</th>
+                    <th className="text-right px-4 py-3 font-medium text-muted-foreground">Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -372,15 +370,15 @@ export default function OrderDetailPage() {
             <div className="px-6 py-4 border-t border-border bg-muted/30">
               <div className="flex flex-col items-end gap-1">
                 <div className="flex items-center justify-between w-full max-w-xs text-sm">
-                  <span className="text-muted-foreground">{t('subtotal')}</span>
+                  <span className="text-muted-foreground">Sous-total</span>
                   <span className="text-foreground">{formatPrice(order.subtotalCDF)}</span>
                 </div>
                 <div className="flex items-center justify-between w-full max-w-xs text-sm">
-                  <span className="text-muted-foreground">{t('deliveryFee')}</span>
+                  <span className="text-muted-foreground">Frais de livraison</span>
                   <span className="text-foreground">{formatPrice(order.deliveryFeeCDF)}</span>
                 </div>
                 <div className="flex items-center justify-between w-full max-w-xs text-sm font-semibold border-t border-border pt-1 mt-1">
-                  <span className="text-foreground">{t('total')}</span>
+                  <span className="text-foreground">Total</span>
                   <span className="text-foreground">{formatPrice(order.totalCDF)}</span>
                 </div>
               </div>
@@ -390,7 +388,7 @@ export default function OrderDetailPage() {
           {/* Status timeline */}
           <div className="bg-white rounded-xl border border-border overflow-hidden">
             <div className="px-6 py-4 border-b border-border">
-              <h2 className="font-semibold text-foreground">{t('timeline')}</h2>
+              <h2 className="font-semibold text-foreground">Historique</h2>
             </div>
             <div className="p-6">
               {order.statusLogs && order.statusLogs.length > 0 ? (
@@ -424,7 +422,7 @@ export default function OrderDetailPage() {
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">{t('noTimeline')}</p>
+                <p className="text-sm text-muted-foreground">Aucun historique disponible</p>
               )}
             </div>
           </div>
@@ -435,7 +433,7 @@ export default function OrderDetailPage() {
           {/* Buyer info */}
           <div className="bg-white rounded-xl border border-border overflow-hidden">
             <div className="px-6 py-4 border-b border-border">
-              <h2 className="font-semibold text-foreground">{t('buyer')}</h2>
+              <h2 className="font-semibold text-foreground">Acheteur</h2>
             </div>
             <div className="p-6 space-y-3">
               <div>
@@ -444,7 +442,7 @@ export default function OrderDetailPage() {
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">{t('phone')}</p>
+                <p className="text-xs text-muted-foreground">Téléphone</p>
                 <p className="text-sm text-foreground">{order.buyer?.phone}</p>
               </div>
             </div>
@@ -453,7 +451,7 @@ export default function OrderDetailPage() {
           {/* Delivery address */}
           <div className="bg-white rounded-xl border border-border overflow-hidden">
             <div className="px-6 py-4 border-b border-border">
-              <h2 className="font-semibold text-foreground">{t('deliveryAddress')}</h2>
+              <h2 className="font-semibold text-foreground">Adresse de livraison</h2>
             </div>
             <div className="p-6">
               {order.deliveryAddress ? (
@@ -480,21 +478,21 @@ export default function OrderDetailPage() {
           {/* Payment info */}
           <div className="bg-white rounded-xl border border-border overflow-hidden">
             <div className="px-6 py-4 border-b border-border">
-              <h2 className="font-semibold text-foreground">{t('paymentMethod')}</h2>
+              <h2 className="font-semibold text-foreground">Mode de paiement</h2>
             </div>
             <div className="p-6 space-y-3">
               <div>
-                <p className="text-xs text-muted-foreground">{t('paymentMethod')}</p>
+                <p className="text-xs text-muted-foreground">Mode de paiement</p>
                 <p className="text-sm font-medium text-foreground">
                   {order.paymentMethod === 'MOBILE_MONEY'
-                    ? t('mobileMoney')
+                    ? 'Mobile Money'
                     : order.paymentMethod === 'CASH_ON_DELIVERY'
-                      ? t('cod')
+                      ? 'Paiement à la livraison'
                       : order.paymentMethod || '---'}
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">{t('paymentStatus')}</p>
+                <p className="text-xs text-muted-foreground">Statut du paiement</p>
                 <p className="text-sm">
                   <span
                     className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -506,10 +504,10 @@ export default function OrderDetailPage() {
                     }`}
                   >
                     {order.paymentStatus === 'COMPLETED'
-                      ? t('paymentCompleted')
+                      ? 'Payé'
                       : order.paymentStatus === 'FAILED'
-                        ? t('paymentFailed')
-                        : t('paymentPending')}
+                        ? 'Échoué'
+                        : 'En attente'}
                   </span>
                 </p>
               </div>
@@ -520,7 +518,7 @@ export default function OrderDetailPage() {
           {order.buyerNote && (
             <div className="bg-white rounded-xl border border-border overflow-hidden">
               <div className="px-6 py-4 border-b border-border">
-                <h2 className="font-semibold text-foreground">{t('buyerNote')}</h2>
+                <h2 className="font-semibold text-foreground">Note de l&apos;acheteur</h2>
               </div>
               <div className="p-6">
                 <p className="text-sm text-foreground">{order.buyerNote}</p>
@@ -534,14 +532,14 @@ export default function OrderDetailPage() {
       {showRejectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-foreground mb-4">{t('reject')}</h3>
+            <h3 className="text-lg font-semibold text-foreground mb-4">Rejeter</h3>
             <label className="block text-sm font-medium text-foreground mb-1">
-              {t('rejectReason')}
+              Raison du rejet
             </label>
             <textarea
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              placeholder={t('rejectPlaceholder')}
+              placeholder="Expliquez la raison du rejet..."
               rows={4}
               className="w-full rounded-lg border border-border px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
             />
@@ -553,14 +551,14 @@ export default function OrderDetailPage() {
                 }}
                 className="px-4 py-2 text-sm font-medium rounded-lg border border-border text-foreground hover:bg-muted transition-colors"
               >
-                {t('cancel')}
+                Annuler
               </button>
               <button
                 onClick={handleRejectSubmit}
                 disabled={!rejectReason.trim() || actionLoading}
                 className="px-4 py-2 text-sm font-medium rounded-lg bg-destructive text-white hover:bg-destructive/90 disabled:opacity-50 transition-colors"
               >
-                {actionLoading ? '...' : t('reject')}
+                {actionLoading ? '...' : 'Rejeter'}
               </button>
             </div>
           </div>
