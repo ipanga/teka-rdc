@@ -2,10 +2,22 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../analytics/posthog_analytics.dart';
 import '../router/app_router.dart';
 import '../../features/city/presentation/providers/city_provider.dart';
 import 'deep_link_parser.dart';
+
+/// Coarse route category for analytics (never the id/slug/url — no PII).
+String _routeType(String route) {
+  if (route == '/') return 'home';
+  if (route.startsWith('/products/')) return 'product';
+  if (route.startsWith('/categories/')) return 'category';
+  if (route.startsWith('/search')) return 'search';
+  if (route.startsWith('/promotions')) return 'promotions';
+  return 'other';
+}
 
 /// Listens for incoming Android App Links / iOS Universal Links (and the
 /// `teka://` scheme) and routes them through [DeepLinkParser]. Handles all
@@ -46,7 +58,21 @@ class DeepLinkController {
 
   void _handle(Uri uri) {
     final target = DeepLinkParser.parse(uri);
+
+    // Breadcrumb for crash diagnosis — scheme + route type only, never the path
+    // (no slugs/ids/query → no PII). No-op when Sentry isn't initialized.
+    Sentry.addBreadcrumb(Breadcrumb(
+      category: 'deeplink',
+      message: target == null
+          ? 'browser-fallback'
+          : 'open ${_routeType(target.route)}',
+      data: {'scheme': uri.scheme},
+    ));
+
     if (target == null) {
+      // Unmappable (foreign host / private path / unknown) → open the website.
+      const PosthogAnalytics()
+          .capture('deep_link_opened', properties: {'matched': false});
       _openInBrowser(uri);
       return;
     }
@@ -66,7 +92,14 @@ class DeepLinkController {
 
     try {
       _ref.read(appRouterProvider).push(target.route);
+      const PosthogAnalytics().capture('deep_link_opened', properties: {
+        'matched': true,
+        'route_type': _routeType(target.route),
+        'scheme': uri.scheme,
+      });
     } catch (_) {
+      const PosthogAnalytics()
+          .capture('deep_link_failed', properties: {'reason': 'navigation'});
       _openInBrowser(uri);
     }
   }
