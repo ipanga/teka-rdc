@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/app_states.dart';
+import '../../../../core/widgets/product_skeletons.dart';
 import '../../../city/presentation/providers/city_provider.dart';
 import '../../../wishlist/presentation/providers/wishlist_provider.dart';
 import '../../data/catalog_repository.dart';
@@ -191,58 +193,22 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     });
 
     if (state.isLoading && state.products.isEmpty) {
-      return const Center(
-        child: CircularProgressIndicator(strokeWidth: 2),
-      );
+      return const ProductGridSkeleton(count: 6);
     }
 
     if (state.error != null && state.products.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.error_outline,
-                size: 48,
-                color: TekaColors.mutedForeground,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                state.error!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: TekaColors.mutedForeground),
-              ),
-            ],
-          ),
-        ),
+      return AppErrorState(
+        message: state.error!,
+        onRetry: () {
+          ref.read(browseProductsProvider(_params).notifier).refresh();
+        },
       );
     }
 
     if (state.products.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.search_off,
-                size: 64,
-                color: TekaColors.mutedForeground,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                "Aucun resultat pour votre recherche",
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: TekaColors.mutedForeground,
-                    ),
-              ),
-            ],
-          ),
-        ),
+      return const AppEmptyState(
+        icon: Icons.search_off,
+        title: "Aucun resultat pour votre recherche",
       );
     }
 
@@ -278,7 +244,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               ),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                childAspectRatio: 0.65,
+                childAspectRatio: kProductCardAspectRatio,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
               ),

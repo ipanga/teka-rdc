@@ -6,11 +6,17 @@
 
 ## Active initiative
 
-**None.** Buyer-mobile navigation overhaul + redesign SHIPPED to `main` 2026-06-23 (see below). No in-flight
-build work — ask the user what to start next. Deferred follow-up on the backlog: **buyer-mobile Step 3**
-(product-card polish + shared skeleton/empty/error widgets + push error-mapping into the shopping providers —
-raw `state.error!` in wishlist/cart/checkout/orders); also pending: seller-mobile l10n removal + web next-intl
-removal (user wants both, as separate initiatives).
+**Buyer-mobile Step 3 — shared loading/empty/error states + product-grid consistency.** ✅ CODE DONE on
+branch `feat/buyer-mobile-states-polish`, PENDING PR. New `lib/core/widgets/` `AppEmptyState`/`AppErrorState`
++ `ShimmerBox`/`ProductCardSkeleton`/`ProductGridSkeleton`/`ProductRowSkeleton`; wired into home/category/
+search/wishlist/orders/cart (skeletons for product grids/rows, shared empty/error with retry); all product
+grids unified to `kProductCardAspectRatio = 0.62`. Removed unused `_Empty*View`s. **Note:** the audit's "raw
+`state.error!`" was already fixed — providers map via `friendlyErrorMessage`/`extractDioErrorMessage`.
+analyze 0 errors; 93 tests; device-verified (skeletons caught on cold load, grid renders clean). Builds on
+the redesign already SHIPPED to main (release #424). Tracker: `docs/buyer-mobile-redesign.md`.
+
+**Next sub-task:** open the `feat/buyer-mobile-states-polish` PR. Then remaining backlog: seller-mobile l10n
+removal + web next-intl removal (user wants both, separate initiatives).
 
 ---
 

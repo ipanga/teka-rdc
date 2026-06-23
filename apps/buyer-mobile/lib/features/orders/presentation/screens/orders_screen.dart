@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/app_states.dart';
 import '../providers/orders_provider.dart';
 import '../widgets/order_card.dart';
 
@@ -79,40 +80,16 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : ordersState.error != null
-                    ? Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(
-                                Icons.error_outline,
-                                size: 48,
-                                color: TekaColors.mutedForeground,
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                ordersState.error!,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: TekaColors.mutedForeground,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              FilledButton(
-                                onPressed: () =>
-                                    ref.read(ordersProvider.notifier).refresh(),
-                                style: FilledButton.styleFrom(
-                                  backgroundColor: TekaColors.tekaRed,
-                                ),
-                                child: const Text("Reessayer"),
-                              ),
-                            ],
-                          ),
-                        ),
+                    ? AppErrorState(
+                        message: ordersState.error,
+                        onRetry: () =>
+                            ref.read(ordersProvider.notifier).refresh(),
                       )
                     : ordersState.orders.isEmpty
-                        ? const _EmptyOrdersView()
+                        ? const AppEmptyState(
+                            icon: Icons.receipt_long_outlined,
+                            title: "Vous n'avez aucune commande",
+                          )
                         : RefreshIndicator(
                             color: TekaColors.tekaRed,
                             onRefresh: () =>
@@ -156,38 +133,6 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                           ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _EmptyOrdersView extends StatelessWidget {
-  const _EmptyOrdersView();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.receipt_long_outlined,
-              size: 80,
-              color: TekaColors.mutedForeground,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              "Vous n'avez aucune commande",
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: TekaColors.mutedForeground,
-                    fontWeight: FontWeight.w600,
-                  ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
       ),
     );
   }

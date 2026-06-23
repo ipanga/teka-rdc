@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/teka_colors.dart';
+import '../../../core/widgets/product_skeletons.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../../catalog/data/models/category_model.dart';
 import '../../catalog/data/models/product_model.dart';
@@ -206,12 +207,7 @@ class HomeScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
-              loading: () => const SizedBox(
-                height: 280,
-                child: Center(
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
+              loading: () => const ProductRowSkeleton(),
               error: (_, __) => Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Text(
@@ -251,10 +247,10 @@ class HomeScreen extends ConsumerWidget {
                         gridDelegate:
                             const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
-                          // Was 0.65 → cells were ~243h on a ~158w grid
-                          // cell, but ProductCard needs ~267h. Dropped
-                          // to 0.6 to give a comfortable buffer.
-                          childAspectRatio: 0.6,
+                          // Shared product-grid cell shape across home,
+                          // category, search, wishlist — see
+                          // kProductCardAspectRatio in product_skeletons.dart.
+                          childAspectRatio: kProductCardAspectRatio,
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
                         ),
@@ -264,12 +260,7 @@ class HomeScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
-              loading: () => const Padding(
-                padding: EdgeInsets.all(32),
-                child: Center(
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
+              loading: () => const ProductGridSkeleton(count: 6),
               error: (_, __) => Padding(
                 padding: const EdgeInsets.all(16),
                 child: Center(

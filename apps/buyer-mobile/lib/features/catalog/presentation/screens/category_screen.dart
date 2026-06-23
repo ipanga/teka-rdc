@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/app_states.dart';
+import '../../../../core/widgets/product_skeletons.dart';
 import '../../../city/presentation/providers/city_provider.dart';
 import '../../../wishlist/presentation/providers/wishlist_provider.dart';
 import '../providers/catalog_provider.dart';
@@ -142,9 +144,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
         children: [
           conditionBar,
           const Expanded(
-            child: Center(
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
+            child: ProductGridSkeleton(count: 6),
           ),
         ],
       );
@@ -155,38 +155,11 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
         children: [
           conditionBar,
           Expanded(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.error_outline,
-                      size: 48,
-                      color: TekaColors.mutedForeground,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      state.error!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: TekaColors.mutedForeground,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    FilledButton(
-                      onPressed: () {
-                        ref.read(browseProductsProvider(_params).notifier).refresh();
-                      },
-                      style: FilledButton.styleFrom(
-                        backgroundColor: TekaColors.tekaRed,
-                      ),
-                      child: Text("Charger plus"),
-                    ),
-                  ],
-                ),
-              ),
+            child: AppErrorState(
+              message: state.error!,
+              onRetry: () {
+                ref.read(browseProductsProvider(_params).notifier).refresh();
+              },
             ),
           ),
         ],
@@ -197,28 +170,10 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
       return Column(
         children: [
           conditionBar,
-          Expanded(
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.inventory_2_outlined,
-                      size: 64,
-                      color: TekaColors.mutedForeground,
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      "Aucun produit trouve",
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: TekaColors.mutedForeground,
-                          ),
-                    ),
-                  ],
-                ),
-              ),
+          const Expanded(
+            child: AppEmptyState(
+              icon: Icons.inventory_2_outlined,
+              title: "Aucun produit trouve",
             ),
           ),
         ],
@@ -250,7 +205,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
             ),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              childAspectRatio: 0.65,
+              childAspectRatio: kProductCardAspectRatio,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
             ),

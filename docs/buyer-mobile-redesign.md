@@ -79,9 +79,23 @@ routes.
 Device-verified on the Android emulator (production flavor, Kolwezi): redesigned Home, Categories tab,
 guest→protected-tab→login redirect + ✕ close, white AppBar / bottom nav.
 
-## Deferred follow-ups (not in this PR)
+### Step 3 — Shared states + product-grid consistency (SHIPPED)
 
-- Deeper product-card polish + shared skeleton/empty/error widgets + pushing error-mapping down into the
-  shopping providers (the audit flagged raw `state.error!` in wishlist/cart/checkout/orders).
+- **Shared widgets** (`lib/core/widgets/`): `AppEmptyState` (icon + title + optional message + CTA) and
+  `AppErrorState` (icon + friendly message + Réessayer) replace the ad-hoc empty/error columns each screen
+  re-implemented; `product_skeletons.dart` adds a dependency-free `ShimmerBox` + `ProductCardSkeleton` /
+  `ProductGridSkeleton` / `ProductRowSkeleton` so loading product grids/rows show **content-shaped shimmer
+  placeholders** instead of a bare spinner (important on DRC 2G/3G).
+- **Wired:** Home (populaires row + nouveautés grid skeletons), Category + Search (grid skeleton + AppEmpty/
+  AppError + retry), Wishlist (grid skeleton + AppEmpty/AppError), Orders + Cart (AppEmptyState; list spinner
+  kept). Removed the now-unused `_EmptyCartView`/`_EmptyWishlistView`/`_EmptyOrdersView`.
+- **Product-grid consistency:** all product grids now share `kProductCardAspectRatio = 0.62` (was 0.6 home vs
+  0.65 category/search → cards had different heights per screen).
+- **Error-mapping note:** the audit's "raw `state.error!`" finding was already addressed — the shopping
+  providers map errors via `friendlyErrorMessage`/`extractDioErrorMessage`, so `state.error` is already
+  user-safe French; `AppErrorState` just renders it consistently with a retry.
+
+## Deferred follow-ups
+
 - seller-mobile l10n removal; web next-intl removal.
 - In-app notification feed API → wire the bell's unread badge.
