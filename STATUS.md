@@ -6,17 +6,26 @@
 
 ## Active initiative
 
-**Buyer-mobile Step 3 — shared loading/empty/error states + product-grid consistency.** ✅ CODE DONE on
-branch `feat/buyer-mobile-states-polish`, PENDING PR. New `lib/core/widgets/` `AppEmptyState`/`AppErrorState`
-+ `ShimmerBox`/`ProductCardSkeleton`/`ProductGridSkeleton`/`ProductRowSkeleton`; wired into home/category/
-search/wishlist/orders/cart (skeletons for product grids/rows, shared empty/error with retry); all product
-grids unified to `kProductCardAspectRatio = 0.62`. Removed unused `_Empty*View`s. **Note:** the audit's "raw
-`state.error!`" was already fixed — providers map via `friendlyErrorMessage`/`extractDioErrorMessage`.
-analyze 0 errors; 93 tests; device-verified (skeletons caught on cold load, grid renders clean). Builds on
-the redesign already SHIPPED to main (release #424). Tracker: `docs/buyer-mobile-redesign.md`.
+**None.** Buyer-mobile UX/UI redesign fully SHIPPED to `main` (Steps 1+2 release #424, Step 3 release #426,
+`develop == main` @ `d0a295d`). No in-flight build work — ask the user what to start next.
 
-**Next sub-task:** open the `feat/buyer-mobile-states-polish` PR. Then remaining backlog: seller-mobile l10n
-removal + web next-intl removal (user wants both, separate initiatives).
+**Backlog (user wants both, as separate initiatives):**
+- **seller-mobile l10n removal** — mirror the buyer-mobile gen-l10n/`AppLocalizations` removal on seller-mobile
+  (French literals). See [[feedback-no-multilingual-scaffolding]] + `docs/buyer-mobile-redesign.md`.
+- **web next-intl removal** — inline `apps/*/messages/fr.json` strings as French literals across buyer/seller/
+  admin-web (next-intl string-loader removed).
+
+**Operator step (not code):** run "Release mobile AAB" + upload to Play Store so the buyer-mobile redesign
+(Steps 1–3) reaches real devices — `docs/mobile-release.md`.
+
+### Recently completed — 2026-06-23 (Buyer-mobile Step 3 — shared states — SHIPPED to main)
+
+Step 3 of the buyer-mobile redesign (release #426). New `lib/core/widgets/` `AppEmptyState`/`AppErrorState`
++ dependency-free `ShimmerBox`/`ProductCardSkeleton`/`ProductGridSkeleton`/`ProductRowSkeleton`; wired into
+home/category/search/wishlist/orders/cart (content-shaped skeletons for product grids/rows; consistent empty/
+error with retry); all product grids unified to `kProductCardAspectRatio = 0.62`; removed unused `_Empty*View`s.
+The audit's "raw `state.error!`" was already fixed (providers map via `friendlyErrorMessage`/
+`extractDioErrorMessage`). No API/DB. analyze 0 errors; 93 tests; device-verified.
 
 ---
 
