@@ -156,28 +156,43 @@ Same steps, log in via email + password instead of WhatsApp OTP. The `role` colu
 
 ### iOS
 
-**buyer-mobile — config landed 2026-06-23 (not yet shipping).** The iOS scaffold exists under
-`apps/buyer-mobile/ios/` (untracked) and the **prod** `GoogleService-Info.plist` (Firebase iOS app
-`com.tootiye.teka`, project `teka-rdc`) is in place at `ios/Runner/GoogleService-Info.plist` (gitignored;
-restore in CI/fresh checkouts from the `BUYER_GOOGLE_SERVICE_INFO_PLIST_B64` secret via
-`scripts/sync-firebase-secrets.sh`). The iOS bundle id was aligned `com.tootiye.buyerMobile → com.tootiye.teka`
-to match, and `Info.plist` declares `UIBackgroundModes: [remote-notification]`. The Dart FCM stack
-(permission, token registration, foreground/background/tap, `NotificationRouter`) is shared with Android —
-no native code changes needed.
+**buyer-mobile — config wired + build-verified 2026-06-23 (not yet shipping).** The iOS scaffold lives under
+`apps/buyer-mobile/ios/` (untracked) with the **prod** `GoogleService-Info.plist` (Firebase iOS app
+`com.tootiye.teka`, project `teka-rdc`) at `ios/Runner/GoogleService-Info.plist` (gitignored; restore in
+CI/fresh checkouts from the `BUYER_GOOGLE_SERVICE_INFO_PLIST_B64` secret via `scripts/sync-firebase-secrets.sh`).
+The Dart FCM stack (permission, token registration, foreground/background/tap, `NotificationRouter`) is shared
+with Android — no native code changes needed.
 
-**Remaining before iOS push works (operator / Xcode / Apple — not automatable here):**
-1. **APNs auth key** — upload a `.p8` APNs key to Firebase Console → project `teka-rdc` → Cloud Messaging →
-   Apple app config. **This is the delivery gate** — FCM cannot reach iOS without it.
-2. **Xcode capabilities** on the Runner target — add **Push Notifications** (creates `Runner.entitlements`
-   with `aps-environment`) and confirm **Background Modes → Remote notifications**; ensure
-   `GoogleService-Info.plist` is in the target's *Copy Bundle Resources*.
-3. `cd ios && pod install`, sign with a provisioning profile for `com.tootiye.teka`, test on a **real device
-   / TestFlight** (the simulator can't receive remote push).
-4. iOS flavors + CI are still out of scope (Android-only today). The `ios/` tree is untracked — committing it
-   is the remaining "PR C" decision. (`CFBundleDisplayName` is still the scaffold default "Buyer Mobile" —
-   rebrand separately if desired; not a push blocker.)
+Automated + verified (`flutter build ios --no-codesign` → `Runner.app` built, 1142 `FIRMessaging/FIRApp` symbols
+linked):
+- Bundle id aligned `com.tootiye.buyerMobile → com.tootiye.teka` (all configs).
+- `Info.plist` → `UIBackgroundModes: [remote-notification]`.
+- `Runner.entitlements` created (`aps-environment = development`) + `CODE_SIGN_ENTITLEMENTS` set on
+  Debug/Release/Profile.
+- `GoogleService-Info.plist` added to the Runner target's *Copy Bundle Resources* (confirmed in the built bundle).
+- **iOS deployment target 13.0 → 15.0** (Firebase iOS SDK 12.x requires 15.0) in the pbxproj + Podfile;
+  created the missing `Flutter/Profile.xcconfig`.
+- Plugins are managed by **Swift Package Manager** (Flutter 3.44 default) — SPM↔Xcode integration is done;
+  the hybrid CocoaPods/SPM setup builds (CocoaPods can be deintegrated later for speed, optional).
 
-**seller-mobile — still pending its `ios/` scaffold** (no iOS directory yet).
+**APNs key (operator — upload to Firebase Console, no API):** project `teka-rdc` → Cloud Messaging → Apple app
+config → APNs Authentication Key. **Buyer key:** `.p8` **Key ID `78KG84553N`**, **Team ID `YK6Z393A4D`** (the
+`.p8` private key is held by the operator). One `.p8` is project-wide (covers seller iOS later). **This is the
+delivery gate** — FCM cannot reach iOS without it.
+
+**Remaining before iOS push ships (device / Apple — not automatable):**
+1. Upload the APNs `.p8` (above) to Firebase.
+2. **Signing** — in Xcode, select a team + provisioning profile for `com.tootiye.teka` with the **Push
+   Notifications** capability (the `aps-environment` entitlement is already in the project; for TestFlight/App
+   Store flip it `development → production`).
+3. Install on a **real device / TestFlight** (the simulator can't receive remote push), grant the permission
+   prompt → the app registers an APNs→FCM token to `/v1/users/device-tokens`.
+4. Send a broadcast from admin and confirm delivery (foreground/background/tap deep-link).
+5. The `ios/` tree is untracked — committing it (+ iOS flavors/CI) is the remaining "PR C" decision.
+   (`CFBundleDisplayName` is still the scaffold default "Buyer Mobile" — rebrand separately if desired; not a
+   push blocker.)
+
+**seller-mobile — still pending its `ios/` scaffold** (no iOS directory yet; the same `.p8` will cover it).
 
 ## Wired events
 
