@@ -9,7 +9,6 @@ const mocks = vi.hoisted(() => ({
   auth: { user: null as null | { role: string }, isLoading: false },
 }));
 
-vi.mock('next-intl', () => ({ useTranslations: () => (k: string) => k }));
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mocks.replace, push: mocks.push }),
   useSearchParams: () => ({ get: () => mocks.redirectParam }),
@@ -62,7 +61,7 @@ describe('ConnexionPage — already-logged-in redirect (real session state)', ()
     mocks.auth = { user: null, isLoading: false };
     render(<ConnexionPage />);
     expect(mocks.replace).not.toHaveBeenCalled();
-    expect(screen.getByText('otpPhoneTitle')).toBeInTheDocument();
+    expect(screen.getByText('Connexion ou inscription')).toBeInTheDocument();
   });
 
   it('defaults to "/" when there is no redirect param', () => {

@@ -1,8 +1,30 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
+
+const map: Record<string, string> = {
+  "Common.save": "Enregistrer",
+  "CatalogCoverage.title": "Couverture du catalogue",
+  "CatalogCoverage.subtitle": "Produits réels (vendeurs) vs catalogue de démonstration, par catégorie.",
+  "CatalogCoverage.category": "Catégorie",
+  "CatalogCoverage.realProducts": "Produits réels",
+  "CatalogCoverage.demoProducts": "Démo",
+  "CatalogCoverage.status": "Statut",
+  "CatalogCoverage.covered": "Couvert",
+  "CatalogCoverage.noRealSellers": "Aucun vendeur réel",
+  "CatalogCoverage.loading": "Chargement...",
+  "CatalogCoverage.empty": "Aucune catégorie.",
+  "CatalogCoverage.retirementTitle": "Retrait du catalogue de démonstration",
+  "CatalogCoverage.retirementHint": "Quand activé, le démo d'une catégorie est masqué (et ses pages redirigées 301 vers la catégorie) dès qu'elle atteint le seuil de produits réels.",
+  "CatalogCoverage.thresholdLabel": "Seuil de produits réels",
+  "CatalogCoverage.enabled": "Activé",
+  "CatalogCoverage.disabled": "Désactivé",
+  "CatalogCoverage.retired": "Démo retiré",
+  "CatalogCoverage.pendingRetire": "En attente du seuil",
+  "CatalogCoverage.saved": "Enregistré",
+  "CatalogCoverage.error": "Erreur",
+};
 
 interface CategoryCoverage {
   categoryId: string;
@@ -17,9 +39,6 @@ interface Setting {
 }
 
 export default function CatalogCoveragePage() {
-  const t = useTranslations('CatalogCoverage');
-  const tCommon = useTranslations('Common');
-
   const [rows, setRows] = useState<CategoryCoverage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -76,10 +95,10 @@ export default function CatalogCoveragePage() {
         method: 'PUT',
         body: JSON.stringify({ value }),
       });
-      showFeedback('success', t('saved'));
+      showFeedback('success', map["CatalogCoverage.saved"]);
       await load();
     } catch {
-      showFeedback('error', t('error'));
+      showFeedback('error', map["CatalogCoverage.error"]);
     } finally {
       setSaving(false);
     }
@@ -92,27 +111,27 @@ export default function CatalogCoveragePage() {
     if (retireEnabled && r.realCount >= threshold) {
       return (
         <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-success/10 text-success">
-          {t('retired')}
+          {map["CatalogCoverage.retired"]}
         </span>
       );
     }
     if (retireEnabled && r.realCount > 0) {
       return (
         <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-warning/10 text-warning">
-          {t('pendingRetire')}
+          {map["CatalogCoverage.pendingRetire"]}
         </span>
       );
     }
     if (r.realCount > 0) {
       return (
         <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-success/10 text-success">
-          {t('covered')}
+          {map["CatalogCoverage.covered"]}
         </span>
       );
     }
     return (
       <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-muted text-muted-foreground">
-        {t('noRealSellers')}
+        {map["CatalogCoverage.noRealSellers"]}
       </span>
     );
   };
@@ -131,18 +150,18 @@ export default function CatalogCoveragePage() {
         </div>
       )}
 
-      <h1 className="text-2xl font-bold text-foreground mb-2">{t('title')}</h1>
-      <p className="text-muted-foreground mb-6">{t('subtitle')}</p>
+      <h1 className="text-2xl font-bold text-foreground mb-2">{map["CatalogCoverage.title"]}</h1>
+      <p className="text-muted-foreground mb-6">{map["CatalogCoverage.subtitle"]}</p>
 
       {/* Demo-retirement control panel (P3c) */}
       <div className="mb-6 bg-white rounded-xl border border-border p-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-sm font-semibold text-foreground">
-              {t('retirementTitle')}
+              {map["CatalogCoverage.retirementTitle"]}
             </h2>
             <p className="text-xs text-muted-foreground mt-0.5 max-w-xl">
-              {t('retirementHint')}
+              {map["CatalogCoverage.retirementHint"]}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -162,12 +181,12 @@ export default function CatalogCoveragePage() {
               />
             </button>
             <span className="text-sm text-muted-foreground">
-              {retireEnabled ? t('enabled') : t('disabled')}
+              {retireEnabled ? map["CatalogCoverage.enabled"] : map["CatalogCoverage.disabled"]}
             </span>
           </div>
         </div>
         <div className="mt-4 flex items-center gap-2">
-          <label className="text-sm text-foreground">{t('thresholdLabel')}</label>
+          <label className="text-sm text-foreground">{map["CatalogCoverage.thresholdLabel"]}</label>
           <input
             type="number"
             min={1}
@@ -182,18 +201,14 @@ export default function CatalogCoveragePage() {
             }
             className="px-3 py-1.5 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {tCommon('save')}
+            {map["Common.save"]}
           </button>
         </div>
       </div>
 
       {!isLoading && (
         <div className="mb-6 text-sm text-muted-foreground">
-          {t('summary', {
-            covered: coveredCategories,
-            total: rows.length,
-            real: totalReal,
-          })}
+          {`${coveredCategories}/${rows.length} catégories couvertes par des vendeurs réels — ${totalReal} produits réels au total.`}
         </div>
       )}
 
@@ -201,10 +216,10 @@ export default function CatalogCoveragePage() {
         <table className="w-full">
           <thead className="bg-muted/50">
             <tr className="text-left text-sm text-muted-foreground">
-              <th className="px-4 py-3 font-medium">{t('category')}</th>
-              <th className="px-4 py-3 font-medium">{t('realProducts')}</th>
-              <th className="px-4 py-3 font-medium">{t('demoProducts')}</th>
-              <th className="px-4 py-3 font-medium">{t('status')}</th>
+              <th className="px-4 py-3 font-medium">{map["CatalogCoverage.category"]}</th>
+              <th className="px-4 py-3 font-medium">{map["CatalogCoverage.realProducts"]}</th>
+              <th className="px-4 py-3 font-medium">{map["CatalogCoverage.demoProducts"]}</th>
+              <th className="px-4 py-3 font-medium">{map["CatalogCoverage.status"]}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -214,7 +229,7 @@ export default function CatalogCoveragePage() {
                   colSpan={4}
                   className="px-4 py-8 text-center text-muted-foreground"
                 >
-                  {t('loading')}
+                  {map["CatalogCoverage.loading"]}
                 </td>
               </tr>
             ) : rows.length === 0 ? (
@@ -223,7 +238,7 @@ export default function CatalogCoveragePage() {
                   colSpan={4}
                   className="px-4 py-8 text-center text-muted-foreground"
                 >
-                  {t('empty')}
+                  {map["CatalogCoverage.empty"]}
                 </td>
               </tr>
             ) : (

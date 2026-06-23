@@ -13,7 +13,6 @@
     "@sentry/nextjs": "^10.53.1",
     "@teka/shared": "workspace:*",
     "next": "15.5.18",
-    "next-intl": "^4.9.2",
     "posthog-js": "^1.378.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",

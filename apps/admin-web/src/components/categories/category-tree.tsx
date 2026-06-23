@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
 
 export interface Category {
   id: string;
@@ -30,12 +29,10 @@ export function CategoryTree({
   onEdit,
   onDelete,
 }: CategoryTreeProps) {
-  const t = useTranslations('Categories');
-
   if (categories.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-4 text-center">
-        {t('noCategories')}
+        Aucune catégorie trouvée
       </p>
     );
   }
@@ -51,7 +48,6 @@ export function CategoryTree({
           onSelect={onSelect}
           onEdit={onEdit}
           onDelete={onDelete}
-          t={t}
         />
       ))}
     </div>
@@ -65,7 +61,6 @@ interface CategoryNodeProps {
   onSelect: (category: Category) => void;
   onEdit: (category: Category) => void;
   onDelete: (category: Category) => void;
-  t: ReturnType<typeof useTranslations<'Categories'>>;
 }
 
 function CategoryNode({
@@ -75,7 +70,6 @@ function CategoryNode({
   onSelect,
   onEdit,
   onDelete,
-  t,
 }: CategoryNodeProps) {
   const [expanded, setExpanded] = useState(true);
   const hasChildren = category.children && category.children.length > 0;
@@ -100,7 +94,7 @@ function CategoryNode({
               setExpanded(!expanded);
             }}
             className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
-            title={expanded ? t('collapse') : t('expand')}
+            title={expanded ? "Réduire" : "Développer"}
           >
             <svg
               className={`w-3.5 h-3.5 transition-transform ${expanded ? 'rotate-90' : ''}`}
@@ -137,7 +131,7 @@ function CategoryNode({
               onEdit(category);
             }}
             className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
-            title={t('editCategory')}
+            title="Modifier la catégorie"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -149,7 +143,7 @@ function CategoryNode({
               onDelete(category);
             }}
             className="p-1 text-muted-foreground hover:text-destructive rounded transition-colors"
-            title={t('deleteCategory')}
+            title="Supprimer la catégorie"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -169,7 +163,6 @@ function CategoryNode({
               onSelect={onSelect}
               onEdit={onEdit}
               onDelete={onDelete}
-              t={t}
             />
           ))}
         </div>

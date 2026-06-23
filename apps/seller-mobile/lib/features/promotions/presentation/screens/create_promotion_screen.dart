@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../../products/data/models/product_model.dart';
 import '../../../products/data/products_repository.dart';
 import '../providers/promotion_provider.dart';
@@ -67,12 +66,11 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final dateFormat = DateFormat('dd/MM/yyyy', 'fr');
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.promotionCreate),
+        title: const Text("Creer une promotion"),
       ),
       body: _isLoadingProducts
           ? const Center(child: CircularProgressIndicator())
@@ -82,25 +80,25 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                 padding: const EdgeInsets.all(16),
                 children: [
                   // Promotion type selector
-                  Text(
-                    l10n.promotionType,
-                    style: const TextStyle(
+                  const Text(
+                    "Type de promotion",
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                     ),
                   ),
                   const SizedBox(height: 8),
                   SegmentedButton<String>(
-                    segments: [
+                    segments: const [
                       ButtonSegment<String>(
                         value: 'PROMOTION',
-                        label: Text(l10n.promotionPromotion),
-                        icon: const Icon(Icons.local_offer, size: 18),
+                        label: Text("Promotion"),
+                        icon: Icon(Icons.local_offer, size: 18),
                       ),
                       ButtonSegment<String>(
                         value: 'FLASH_DEAL',
-                        label: Text(l10n.promotionFlashDeal),
-                        icon: const Icon(Icons.flash_on, size: 18),
+                        label: Text("Vente Flash"),
+                        icon: Icon(Icons.flash_on, size: 18),
                       ),
                     ],
                     selected: {_promotionType},
@@ -111,9 +109,9 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                   const SizedBox(height: 20),
 
                   // Product selector
-                  Text(
-                    l10n.promotionSelectProduct,
-                    style: const TextStyle(
+                  const Text(
+                    "Selectionner un produit",
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                     ),
@@ -130,7 +128,7 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                       child: DropdownButtonFormField<String>(
                         initialValue: _selectedProductId,
                         isExpanded: true,
-                        hint: Text(l10n.promotionSelectProduct),
+                        hint: const Text("Selectionner un produit"),
                         icon: const Icon(Icons.keyboard_arrow_down),
                         decoration: const InputDecoration(
                           border: InputBorder.none,
@@ -138,7 +136,7 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                         ),
                         validator: (value) {
                           if (value == null || value.isEmpty) {
-                            return l10n.promotionSelectProduct;
+                            return "Selectionner un produit";
                           }
                           return null;
                         },
@@ -164,14 +162,14 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                   TextFormField(
                     controller: _titleFrController,
                     decoration: InputDecoration(
-                      labelText: '${l10n.titleFr} *',
+                      labelText: 'Titre (francais) *',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return l10n.titleFr;
+                        return "Titre (francais)";
                       }
                       return null;
                     },
@@ -182,7 +180,7 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                   TextFormField(
                     controller: _descriptionFrController,
                     decoration: InputDecoration(
-                      labelText: l10n.descriptionFr,
+                      labelText: "Description (francais)",
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -192,25 +190,25 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                   const SizedBox(height: 20),
 
                   // Discount type toggle
-                  Text(
-                    l10n.promotionDiscountType,
-                    style: const TextStyle(
+                  const Text(
+                    "Type de reduction",
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                     ),
                   ),
                   const SizedBox(height: 8),
                   SegmentedButton<bool>(
-                    segments: [
+                    segments: const [
                       ButtonSegment<bool>(
                         value: true,
-                        label: Text(l10n.promotionDiscountPercent),
-                        icon: const Icon(Icons.percent, size: 18),
+                        label: Text("Pourcentage de reduction"),
+                        icon: Icon(Icons.percent, size: 18),
                       ),
                       ButtonSegment<bool>(
                         value: false,
-                        label: Text(l10n.promotionDiscountAmount),
-                        icon: const Icon(Icons.payments_outlined, size: 18),
+                        label: Text("Montant fixe (CDF)"),
+                        icon: Icon(Icons.payments_outlined, size: 18),
                       ),
                     ],
                     selected: {_isPercentage},
@@ -228,8 +226,8 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                     controller: _discountValueController,
                     decoration: InputDecoration(
                       labelText: _isPercentage
-                          ? l10n.promotionDiscountPercent
-                          : l10n.promotionDiscountAmount,
+                          ? "Pourcentage de reduction"
+                          : "Montant fixe (CDF)",
                       suffixText: _isPercentage ? '%' : 'CDF',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -240,17 +238,17 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
                         return _isPercentage
-                            ? l10n.promotionDiscountPercent
-                            : l10n.promotionDiscountAmount;
+                            ? "Pourcentage de reduction"
+                            : "Montant fixe (CDF)";
                       }
                       final num = int.tryParse(value);
                       if (num == null || num <= 0) {
                         return _isPercentage
-                            ? l10n.promotionDiscountPercent
-                            : l10n.promotionDiscountAmount;
+                            ? "Pourcentage de reduction"
+                            : "Montant fixe (CDF)";
                       }
                       if (_isPercentage && num > 100) {
-                        return l10n.promotionDiscountPercent;
+                        return "Pourcentage de reduction";
                       }
                       return null;
                     },
@@ -258,9 +256,9 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                   const SizedBox(height: 20),
 
                   // Start date
-                  Text(
-                    l10n.promotionStartDate,
-                    style: const TextStyle(
+                  const Text(
+                    "Date de debut",
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                     ),
@@ -284,7 +282,7 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                           Text(
                             _startDate != null
                                 ? dateFormat.format(_startDate!)
-                                : l10n.promotionStartDate,
+                                : "Date de debut",
                             style: TextStyle(
                               color: _startDate != null
                                   ? TekaColors.foreground
@@ -299,9 +297,9 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                   const SizedBox(height: 16),
 
                   // End date
-                  Text(
-                    l10n.promotionEndDate,
-                    style: const TextStyle(
+                  const Text(
+                    "Date de fin",
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                     ),
@@ -325,7 +323,7 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                           Text(
                             _endDate != null
                                 ? dateFormat.format(_endDate!)
-                                : l10n.promotionEndDate,
+                                : "Date de fin",
                             style: TextStyle(
                               color: _endDate != null
                                   ? TekaColors.foreground
@@ -354,7 +352,7 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                               ),
                             )
                           : const Icon(Icons.send),
-                      label: Text(l10n.promotionSubmitForApproval),
+                      label: const Text("Soumettre pour approbation"),
                       style: FilledButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
@@ -397,16 +395,12 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
   }
 
   Future<void> _submit() async {
-    final l10n = AppLocalizations.of(context)!;
-
     if (!_formKey.currentState!.validate()) return;
 
     if (_startDate == null || _endDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${l10n.promotionStartDate} / ${l10n.promotionEndDate}',
-          ),
+        const SnackBar(
+          content: Text("Date de debut / Date de fin"),
         ),
       );
       return;
@@ -415,7 +409,7 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
     if (_endDate!.isBefore(_startDate!) ||
         _endDate!.isAtSameMomentAs(_startDate!)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.promotionEndDate)),
+        const SnackBar(content: Text("Date de fin")),
       );
       return;
     }
@@ -454,12 +448,13 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
       setState(() => _isSaving = false);
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.promotionCreated)),
+          const SnackBar(content: Text("Promotion creee avec succes")),
         );
         context.pop();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.authGenericError)),
+          const SnackBar(
+              content: Text("Une erreur est survenue. Veuillez reessayer.")),
         );
       }
     }

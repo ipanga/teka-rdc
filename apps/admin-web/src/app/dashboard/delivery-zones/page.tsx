@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 
 interface DeliveryZone {
@@ -23,9 +22,6 @@ interface DeliveryZoneFormData {
 }
 
 export default function DeliveryZonesPage() {
-  const t = useTranslations('DeliveryZones');
-  const tCommon = useTranslations('Common');
-
   const [zones, setZones] = useState<DeliveryZone[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -119,7 +115,7 @@ export default function DeliveryZonesPage() {
         });
       }
 
-      showFeedbackMessage('success', t('saved'));
+      showFeedbackMessage('success', "Zone enregistrée avec succès");
       closeModal();
       fetchZones();
     } catch {
@@ -137,7 +133,7 @@ export default function DeliveryZonesPage() {
       await apiFetch(`/v1/admin/delivery-zones/${deletingId}`, {
         method: 'DELETE',
       });
-      showFeedbackMessage('success', t('deleted'));
+      showFeedbackMessage('success', "Zone supprimée avec succès");
       setDeletingId(null);
       fetchZones();
     } catch {
@@ -192,12 +188,12 @@ export default function DeliveryZonesPage() {
       )}
 
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+        <h1 className="text-2xl font-bold text-foreground">Zones de livraison</h1>
         <button
           onClick={openCreateModal}
           className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
         >
-          {t('create')}
+          Ajouter une zone
         </button>
       </div>
 
@@ -207,22 +203,22 @@ export default function DeliveryZonesPage() {
           <thead>
             <tr className="border-b border-border bg-muted">
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('fromTown')}
+                Ville de départ
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('toTown')}
+                Ville d&apos;arrivée
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('feeCDF')}
+                Frais (CDF)
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('feeUSD')}
+                Frais (USD)
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('isActive')}
+                Actif
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('actions')}
+                Actions
               </th>
             </tr>
           </thead>
@@ -230,13 +226,13 @@ export default function DeliveryZonesPage() {
             {isLoading ? (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                  {t('loading')}
+                  Chargement...
                 </td>
               </tr>
             ) : zones.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                  {t('noZones')}
+                  Aucune zone de livraison
                 </td>
               </tr>
             ) : (
@@ -263,7 +259,7 @@ export default function DeliveryZonesPage() {
                           : 'bg-muted text-muted-foreground hover:bg-muted/80'
                       }`}
                     >
-                      {zone.isActive ? t('active') : t('inactive')}
+                      {zone.isActive ? "Actif" : "Inactif"}
                     </button>
                   </td>
                   <td className="px-4 py-3">
@@ -272,13 +268,13 @@ export default function DeliveryZonesPage() {
                         onClick={() => openEditModal(zone)}
                         className="px-2.5 py-1 text-xs font-medium bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
                       >
-                        {t('edit')}
+                        Modifier
                       </button>
                       <button
                         onClick={() => setDeletingId(zone.id)}
                         className="px-2.5 py-1 text-xs font-medium bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors"
                       >
-                        {t('delete')}
+                        Supprimer
                       </button>
                     </div>
                   </td>
@@ -296,7 +292,7 @@ export default function DeliveryZonesPage() {
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between p-6 border-b border-border">
               <h2 className="text-lg font-semibold text-foreground">
-                {editingZone ? t('editZone') : t('newZone')}
+                {editingZone ? "Modifier la zone" : "Nouvelle zone"}
               </h2>
               <button
                 onClick={closeModal}
@@ -311,28 +307,28 @@ export default function DeliveryZonesPage() {
             <form onSubmit={handleSave} className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  {t('fromTown')} <span className="text-destructive">*</span>
+                  Ville de départ <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="text"
                   value={formFromTown}
                   onChange={(e) => setFormFromTown(e.target.value)}
                   required
-                  placeholder={t('townPlaceholder')}
+                  placeholder="Ex: Lubumbashi"
                   className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  {t('toTown')} <span className="text-destructive">*</span>
+                  Ville d&apos;arrivée <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="text"
                   value={formToTown}
                   onChange={(e) => setFormToTown(e.target.value)}
                   required
-                  placeholder={t('townPlaceholder')}
+                  placeholder="Ex: Lubumbashi"
                   className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
@@ -340,7 +336,7 @@ export default function DeliveryZonesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
-                    {t('feeCDF')} <span className="text-destructive">*</span>
+                    Frais (CDF) <span className="text-destructive">*</span>
                   </label>
                   <input
                     type="number"
@@ -348,21 +344,21 @@ export default function DeliveryZonesPage() {
                     onChange={(e) => setFormFeeCDF(e.target.value)}
                     required
                     min="0"
-                    placeholder={t('feePlaceholder')}
+                    placeholder="Montant en centimes"
                     className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
-                    {t('feeUSD')}
+                    Frais (USD)
                   </label>
                   <input
                     type="number"
                     value={formFeeUSD}
                     onChange={(e) => setFormFeeUSD(e.target.value)}
                     min="0"
-                    placeholder={t('feePlaceholder')}
+                    placeholder="Montant en centimes"
                     className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
@@ -377,7 +373,7 @@ export default function DeliveryZonesPage() {
                   className="w-4 h-4 rounded border-input text-primary focus:ring-ring"
                 />
                 <label htmlFor="zoneIsActive" className="text-sm font-medium text-foreground">
-                  {t('isActive')}
+                  Actif
                 </label>
               </div>
 
@@ -387,14 +383,14 @@ export default function DeliveryZonesPage() {
                   onClick={closeModal}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving || !formFromTown.trim() || !formToTown.trim() || !formFeeCDF.trim()}
                   className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSaving ? tCommon('loading') : t('save')}
+                  {isSaving ? "Chargement..." : "Enregistrer"}
                 </button>
               </div>
             </form>
@@ -408,21 +404,21 @@ export default function DeliveryZonesPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setDeletingId(null)} />
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-sm mx-4">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-2">{t('delete')}</h3>
-              <p className="text-sm text-muted-foreground mb-4">{t('deleteConfirm')}</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Supprimer</h3>
+              <p className="text-sm text-muted-foreground mb-4">Voulez-vous vraiment supprimer cette zone ?</p>
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setDeletingId(null)}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  Annuler
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={isDeleting}
                   className="px-4 py-2 text-sm font-medium text-white bg-destructive rounded-lg hover:bg-destructive/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isDeleting ? tCommon('loading') : t('delete')}
+                  {isDeleting ? "Chargement..." : "Supprimer"}
                 </button>
               </div>
             </div>

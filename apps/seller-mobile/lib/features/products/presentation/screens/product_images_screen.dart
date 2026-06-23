@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/product_model.dart';
 import '../../data/products_repository.dart';
 import '../providers/products_provider.dart';
@@ -27,12 +26,11 @@ class _ProductImagesScreenState extends ConsumerState<ProductImagesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final productAsync = ref.watch(productDetailProvider(widget.productId));
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.images),
+        title: Text("Images"),
       ),
       body: productAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -43,23 +41,23 @@ class _ProductImagesScreenState extends ConsumerState<ProductImagesScreen> {
               const Icon(Icons.error_outline,
                   size: 48, color: TekaColors.destructive),
               const SizedBox(height: 12),
-              Text(l10n.authGenericError),
+              Text("Une erreur est survenue. Veuillez reessayer."),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () =>
                     ref.invalidate(productDetailProvider(widget.productId)),
-                child: Text(l10n.loadMore),
+                child: Text("Reessayer"),
               ),
             ],
           ),
         ),
-        data: (product) => _buildContent(context, l10n, product),
+        data: (product) => _buildContent(context, product),
       ),
     );
   }
 
   Widget _buildContent(
-      BuildContext context, AppLocalizations l10n, SellerProductModel product) {
+      BuildContext context, SellerProductModel product) {
     final images = product.images;
     final canAdd = images.length < _maxImages;
 
@@ -72,7 +70,7 @@ class _ProductImagesScreenState extends ConsumerState<ProductImagesScreen> {
           child: Row(
             children: [
               Text(
-                l10n.imagesCount(images.length, _maxImages),
+                "${images.length}/$_maxImages images",
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -87,7 +85,7 @@ class _ProductImagesScreenState extends ConsumerState<ProductImagesScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    l10n.maxImagesReached,
+                    "Maximum atteint",
                     style: const TextStyle(
                       fontSize: 11,
                       color: TekaColors.warning,
@@ -116,13 +114,13 @@ class _ProductImagesScreenState extends ConsumerState<ProductImagesScreen> {
                 return ImageUploadTile(
                   image: image,
                   onDelete: () => _confirmDeleteImage(
-                      context, l10n, product.id, image),
+                      context, product.id, image),
                 );
               }
               // Add tile
               return ImageUploadTile(
                 isUploading: _isUploading,
-                onTap: () => _pickAndUploadImage(context, l10n, product.id),
+                onTap: () => _pickAndUploadImage(context, product.id),
               );
             },
           ),
@@ -132,7 +130,7 @@ class _ProductImagesScreenState extends ConsumerState<ProductImagesScreen> {
   }
 
   Future<void> _pickAndUploadImage(
-      BuildContext context, AppLocalizations l10n, String productId) async {
+      BuildContext context, String productId) async {
     try {
       final xFile = await _picker.pickImage(
         source: ImageSource.gallery,
@@ -153,7 +151,7 @@ class _ProductImagesScreenState extends ConsumerState<ProductImagesScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.imageUploaded),
+            content: Text("Image ajoutee"),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -162,7 +160,7 @@ class _ProductImagesScreenState extends ConsumerState<ProductImagesScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.authGenericError),
+            content: Text("Une erreur est survenue. Veuillez reessayer."),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -172,24 +170,24 @@ class _ProductImagesScreenState extends ConsumerState<ProductImagesScreen> {
     }
   }
 
-  Future<void> _confirmDeleteImage(BuildContext context, AppLocalizations l10n,
+  Future<void> _confirmDeleteImage(BuildContext context,
       String productId, ProductImageModel image) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l10n.deleteImage),
-        content: Text(l10n.deleteImage),
+        title: Text("Supprimer l'image"),
+        content: Text("Supprimer l'image"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.cancel),
+            child: Text("Annuler"),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: TekaColors.destructive,
             ),
-            child: Text(l10n.deleteImage),
+            child: Text("Supprimer l'image"),
           ),
         ],
       ),
@@ -207,7 +205,7 @@ class _ProductImagesScreenState extends ConsumerState<ProductImagesScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.imageDeleted),
+            content: Text("Image supprimee"),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -216,7 +214,7 @@ class _ProductImagesScreenState extends ConsumerState<ProductImagesScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.authGenericError),
+            content: Text("Une erreur est survenue. Veuillez reessayer."),
             behavior: SnackBarBehavior.floating,
           ),
         );

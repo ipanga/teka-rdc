@@ -1,6 +1,4 @@
 import type { Metadata } from 'next';
-import { NextIntlClientProvider } from 'next-intl';
-import { getMessages } from 'next-intl/server';
 import { Suspense } from 'react';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { PostHogPageview } from '@/components/providers/posthog-pageview';
@@ -17,20 +15,16 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const messages = await getMessages();
-
   return (
     <html lang="fr">
       <body className="font-sans antialiased">
         <PostHogProvider>
-          <NextIntlClientProvider messages={messages}>
-            <AuthProvider>
-              {children}
-              <Suspense fallback={null}>
-                <PostHogPageview />
-              </Suspense>
-            </AuthProvider>
-          </NextIntlClientProvider>
+          <AuthProvider>
+            {children}
+            <Suspense fallback={null}>
+              <PostHogPageview />
+            </Suspense>
+          </AuthProvider>
         </PostHogProvider>
       </body>
     </html>

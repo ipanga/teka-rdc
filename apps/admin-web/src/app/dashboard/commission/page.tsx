@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 
 interface CategoryOverride {
@@ -17,13 +16,10 @@ interface CommissionSettings {
 
 interface Category {
   id: string;
-  name: Record<string, string>;
+  name: string;
 }
 
 export default function CommissionPage() {
-  const t = useTranslations('Commission');
-  const tCommon = useTranslations('Common');
-
   const [settings, setSettings] = useState<CommissionSettings | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,13 +54,13 @@ export default function CommissionPage() {
   const fetchSettings = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await apiFetch<CommissionSettings | Array<{ categoryId: string | null; rate: string; category?: { name: Record<string, string> } }>>('/v1/admin/commission-settings');
+      const res = await apiFetch<CommissionSettings | Array<{ categoryId: string | null; rate: string; category?: { name: string } }>>('/v1/admin/commission-settings');
       if (Array.isArray(res.data)) {
         // API returns flat array — transform to expected structure
         const globalEntry = res.data.find(e => !e.categoryId);
         const overrides = res.data.filter(e => e.categoryId).map(e => ({
           categoryId: e.categoryId!,
-          categoryName: e.category?.name?.fr || e.category?.name?.en || '---',
+          categoryName: e.category?.name || '---',
           rate: parseFloat(e.rate),
         }));
         const settings: CommissionSettings = {
@@ -108,7 +104,7 @@ export default function CommissionPage() {
         method: 'PUT',
         body: JSON.stringify({ rate: ratePercent / 100 }),
       });
-      showFeedbackMessage('success', t('saved'));
+      showFeedbackMessage('success', "Taux enregistré avec succès");
       fetchSettings();
     } catch {
       showFeedbackMessage('error', 'Erreur');
@@ -130,7 +126,7 @@ export default function CommissionPage() {
         method: 'PUT',
         body: JSON.stringify({ rate: ratePercent / 100 }),
       });
-      showFeedbackMessage('success', t('saved'));
+      showFeedbackMessage('success', "Taux enregistré avec succès");
       setShowAddForm(false);
       setAddCategoryId('');
       setAddRate('');
@@ -152,7 +148,7 @@ export default function CommissionPage() {
         method: 'PUT',
         body: JSON.stringify({ rate: ratePercent / 100 }),
       });
-      showFeedbackMessage('success', t('saved'));
+      showFeedbackMessage('success', "Taux enregistré avec succès");
       setEditingCategoryId(null);
       setEditRate('');
       fetchSettings();
@@ -171,7 +167,7 @@ export default function CommissionPage() {
       await apiFetch(`/v1/admin/commission-settings/${deletingCategoryId}`, {
         method: 'DELETE',
       });
-      showFeedbackMessage('success', t('saved'));
+      showFeedbackMessage('success', "Taux enregistré avec succès");
       setDeletingCategoryId(null);
       fetchSettings();
     } catch {
@@ -181,9 +177,7 @@ export default function CommissionPage() {
     }
   };
 
-  const getCategoryName = (name: Record<string, string>) => {
-    return name.fr || name.en || Object.values(name)[0] || '-';
-  };
+  const getCategoryName = (name: string) => name || '-';
 
   // Filter out categories that already have overrides for the add form
   const availableCategories = categories.filter(
@@ -193,8 +187,8 @@ export default function CommissionPage() {
   if (isLoading) {
     return (
       <div className="p-8">
-        <h1 className="text-2xl font-bold text-foreground mb-6">{t('title')}</h1>
-        <p className="text-muted-foreground">{tCommon('loading')}</p>
+        <h1 className="text-2xl font-bold text-foreground mb-6">Commissions</h1>
+        <p className="text-muted-foreground">Chargement...</p>
       </div>
     );
   }
@@ -214,12 +208,12 @@ export default function CommissionPage() {
         </div>
       )}
 
-      <h1 className="text-2xl font-bold text-foreground mb-6">{t('title')}</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-6">Commissions</h1>
 
       {/* Global rate card */}
       <div className="bg-white rounded-xl border border-border p-6 mb-8">
-        <h2 className="text-lg font-semibold text-foreground mb-1">{t('globalRate')}</h2>
-        <p className="text-sm text-muted-foreground mb-4">{t('globalRateDescription')}</p>
+        <h2 className="text-lg font-semibold text-foreground mb-1">Taux global</h2>
+        <p className="text-sm text-muted-foreground mb-4">Taux de commission appliqué par défaut à toutes les catégories</p>
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
             <input
@@ -238,19 +232,19 @@ export default function CommissionPage() {
             disabled={isSavingGlobal}
             className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isSavingGlobal ? tCommon('loading') : t('save')}
+            {isSavingGlobal ? "Chargement..." : "Enregistrer"}
           </button>
         </div>
       </div>
 
       {/* Category overrides */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-foreground">{t('categoryOverrides')}</h2>
+        <h2 className="text-lg font-semibold text-foreground">Taux par catégorie</h2>
         <button
           onClick={() => setShowAddForm(!showAddForm)}
           className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors text-sm"
         >
-          {t('addOverride')}
+          Ajouter un taux par catégorie
         </button>
       </div>
 
@@ -260,7 +254,7 @@ export default function CommissionPage() {
           <div className="flex gap-4 items-end flex-wrap">
             <div className="flex-1 min-w-[200px]">
               <label className="block text-sm font-medium text-foreground mb-1">
-                {t('category')} <span className="text-destructive">*</span>
+                Catégorie <span className="text-destructive">*</span>
               </label>
               <select
                 value={addCategoryId}
@@ -278,7 +272,7 @@ export default function CommissionPage() {
             </div>
             <div className="w-32">
               <label className="block text-sm font-medium text-foreground mb-1">
-                {t('rate')} <span className="text-destructive">*</span>
+                Taux (%) <span className="text-destructive">*</span>
               </label>
               <input
                 type="number"
@@ -302,14 +296,14 @@ export default function CommissionPage() {
                 }}
                 className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
               >
-                {tCommon('cancel')}
+                Annuler
               </button>
               <button
                 type="submit"
                 disabled={isSavingOverride || !addCategoryId || !addRate.trim()}
                 className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSavingOverride ? tCommon('loading') : t('save')}
+                {isSavingOverride ? "Chargement..." : "Enregistrer"}
               </button>
             </div>
           </div>
@@ -322,13 +316,13 @@ export default function CommissionPage() {
           <thead>
             <tr className="border-b border-border bg-muted">
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('category')}
+                Catégorie
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('rate')}
+                Taux (%)
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('actions')}
+                Actions
               </th>
             </tr>
           </thead>
@@ -336,7 +330,7 @@ export default function CommissionPage() {
             {!settings?.categoryOverrides.length ? (
               <tr>
                 <td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">
-                  {t('noOverrides')}
+                  Aucun taux spécifique par catégorie
                 </td>
               </tr>
             ) : (
@@ -363,7 +357,7 @@ export default function CommissionPage() {
                           disabled={isSavingEdit || !editRate.trim()}
                           className="px-2 py-1 text-xs font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          {isSavingEdit ? '...' : t('save')}
+                          {isSavingEdit ? '...' : "Enregistrer"}
                         </button>
                         <button
                           onClick={() => {
@@ -372,7 +366,7 @@ export default function CommissionPage() {
                           }}
                           className="px-2 py-1 text-xs font-medium bg-background text-foreground border border-border rounded-lg hover:bg-muted transition-colors"
                         >
-                          {tCommon('cancel')}
+                          Annuler
                         </button>
                       </div>
                     ) : (
@@ -389,13 +383,13 @@ export default function CommissionPage() {
                           }}
                           className="px-2.5 py-1 text-xs font-medium bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
                         >
-                          {tCommon('edit')}
+                          Modifier
                         </button>
                         <button
                           onClick={() => setDeletingCategoryId(override.categoryId)}
                           className="px-2.5 py-1 text-xs font-medium bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors"
                         >
-                          {t('delete')}
+                          Supprimer
                         </button>
                       </div>
                     )}
@@ -413,21 +407,21 @@ export default function CommissionPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setDeletingCategoryId(null)} />
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-sm mx-4">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-2">{t('delete')}</h3>
-              <p className="text-sm text-muted-foreground mb-4">{t('deleteConfirm')}</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Supprimer</h3>
+              <p className="text-sm text-muted-foreground mb-4">Êtes-vous sûr de vouloir supprimer ce taux spécifique ?</p>
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setDeletingCategoryId(null)}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  Annuler
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={isDeleting}
                   className="px-4 py-2 text-sm font-medium text-white bg-destructive rounded-lg hover:bg-destructive/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isDeleting ? tCommon('loading') : tCommon('confirm')}
+                  {isDeleting ? "Chargement..." : "Confirmer"}
                 </button>
               </div>
             </div>

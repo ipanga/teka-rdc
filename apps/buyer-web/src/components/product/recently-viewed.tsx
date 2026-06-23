@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { Container, SectionHeader } from '@/components/ui';
 import { ProductGrid } from '@/components/product/product-grid';
 import { getRecentlyViewed } from '@/lib/recently-viewed';
@@ -21,7 +20,6 @@ export function RecentlyViewed({
   excludeId?: string;
   withContainer?: boolean;
 }) {
-  const t = useTranslations('Products');
   const [items, setItems] = useState<BrowseProduct[]>([]);
 
   useEffect(() => {
@@ -34,7 +32,7 @@ export function RecentlyViewed({
     return (
       <section className="py-8">
         <Container>
-          <SectionHeader title={t('recentlyViewed')} />
+          <SectionHeader title={"Vus récemment"} />
           <ProductGrid products={items} />
         </Container>
       </section>
@@ -44,7 +42,7 @@ export function RecentlyViewed({
   return (
     <section className="mt-12">
       <h2 className="text-xl font-bold text-foreground mb-4">
-        {t('recentlyViewed')}
+        {"Vus récemment"}
       </h2>
       <ProductGrid products={items} />
     </section>

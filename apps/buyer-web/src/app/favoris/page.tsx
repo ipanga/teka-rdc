@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -16,8 +15,6 @@ import { Badge, Button, Card, Container, buttonVariants, cn } from '@/components
 import type { WishlistItem, PaginatedWishlist } from '@/lib/types';
 
 export default function WishlistPage() {
-  const t = useTranslations('Wishlist');
-  const tProducts = useTranslations('Products');
   const addItem = useCartStore((s) => s.addItem);
   const loadCount = useWishlistStore((s) => s.loadCount);
   const [items, setItems] = useState<WishlistItem[]>([]);
@@ -99,7 +96,7 @@ export default function WishlistPage() {
         <main className="flex-1">
           <Container className="py-6 md:py-10">
             <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight mb-6">
-              {t('title')}
+              {"Ma liste de souhaits"}
             </h1>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
               {Array.from({ length: 10 }).map((_, i) => (
@@ -126,13 +123,13 @@ export default function WishlistPage() {
       <main className="flex-1">
         <Container className="py-6 md:py-10">
           <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight mb-6">
-            {t('title')}
+            {"Ma liste de souhaits"}
           </h1>
 
           {isError ? (
             <Card padding="lg" className="text-center">
               <h2 className="text-lg font-semibold text-foreground tracking-tight mb-2">
-                {t('loadError')}
+                {"Impossible de charger votre liste de souhaits."}
               </h2>
               <Button
                 variant="default"
@@ -140,7 +137,7 @@ export default function WishlistPage() {
                 onClick={() => fetchWishlist(page)}
                 className="mt-2"
               >
-                {t('retry')}
+                {"Réessayer"}
               </Button>
             </Card>
           ) : items.length === 0 ? (
@@ -161,13 +158,13 @@ export default function WishlistPage() {
                 </svg>
               </div>
               <h2 className="text-lg font-semibold text-foreground tracking-tight mb-2">
-                {t('empty')}
+                {"Votre liste de souhaits est vide"}
               </h2>
               <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto">
-                {t('emptyDescription')}
+                {"Parcourez nos produits et ajoutez vos favoris"}
               </p>
               <Link href="/" className={buttonVariants({ variant: 'default', size: 'lg' })}>
-                {t('browseProducts')}
+                {"Parcourir les produits"}
               </Link>
             </Card>
           ) : (
@@ -189,7 +186,7 @@ export default function WishlistPage() {
                         onClick={() => handleRemove(item.productId)}
                         disabled={removingId === item.productId}
                         className="absolute top-2 right-2 z-10 w-8 h-8 inline-flex items-center justify-center bg-surface/95 backdrop-blur rounded-full shadow-sm border border-border hover:bg-surface hover:border-border-strong transition-all disabled:opacity-50"
-                        aria-label={t('remove')}
+                        aria-label={"Retirer"}
                       >
                         <svg
                           className="w-4 h-4 text-primary"
@@ -230,7 +227,7 @@ export default function WishlistPage() {
                           <div className="absolute top-2 left-2 flex flex-col gap-1">
                             {outOfStock && (
                               <Badge variant="solid" size="sm" className="shadow-sm w-fit">
-                                {t('outOfStock')}
+                                {"Rupture de stock"}
                               </Badge>
                             )}
                             <Badge
@@ -238,7 +235,7 @@ export default function WishlistPage() {
                               size="sm"
                               className="shadow-sm w-fit"
                             >
-                              {tProducts(`condition_${product.condition}`)}
+                              {product.condition === 'NEW' ? 'Neuf' : 'Occasion'}
                             </Badge>
                           </div>
                         </div>
@@ -266,10 +263,10 @@ export default function WishlistPage() {
                           onClick={() => handleAddToCart(item.productId)}
                         >
                           {outOfStock
-                            ? t('outOfStock')
+                            ? "Rupture de stock"
                             : addedId === item.productId
-                              ? t('addedToCart')
-                              : t('addToCart')}
+                              ? "Ajouté au panier"
+                              : "Ajouter au panier"}
                         </Button>
                       </div>
                     </div>

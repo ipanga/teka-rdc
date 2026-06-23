@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import type { Review, ReviewStats, SellerProduct } from '@/lib/types';
 
@@ -26,7 +25,6 @@ interface ReviewsResponse {
 }
 
 export default function ReviewsPage() {
-  const t = useTranslations('Reviews');
   const [products, setProducts] = useState<SellerProduct[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [selectedProductId, setSelectedProductId] = useState<string>('');
@@ -86,12 +84,12 @@ export default function ReviewsPage() {
       });
     } catch (err) {
       if (err instanceof ApiError) {
-        setError(t('errorLoadingProducts'));
+        setError("Erreur lors du chargement des produits");
       }
     } finally {
       setProductsLoading(false);
     }
-  }, [t]);
+  }, []);
 
   // Load reviews for a specific product
   const loadReviews = useCallback(async (productId: string) => {
@@ -159,11 +157,11 @@ export default function ReviewsPage() {
       setReviews(allReviews.slice(0, 20));
       setReviewsTotalPages(1);
     } catch {
-      setError(t('errorLoading'));
+      setError("Erreur lors du chargement des avis");
     } finally {
       setReviewsLoading(false);
     }
-  }, [products, t]);
+  }, [products]);
 
   useEffect(() => {
     loadProducts();
@@ -203,7 +201,7 @@ export default function ReviewsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-foreground mb-6">{t('title')}</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-6">Avis clients</h1>
 
       {error && (
         <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
@@ -214,7 +212,7 @@ export default function ReviewsPage() {
       {/* KPI cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div className="bg-white rounded-xl border border-border p-5">
-          <h3 className="text-sm font-medium text-muted-foreground">{t('averageRating')}</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">Note moyenne</h3>
           <div className="flex items-center gap-3 mt-2">
             <p className="text-3xl font-bold text-foreground">
               {productsLoading || statsLoading ? (
@@ -227,14 +225,14 @@ export default function ReviewsPage() {
               <div className="flex flex-col">
                 {renderStars(displayedAvgRating, 'lg')}
                 <span className="text-xs text-muted-foreground mt-0.5">
-                  {t('outOf5')}
+                  sur 5
                 </span>
               </div>
             )}
           </div>
         </div>
         <div className="bg-white rounded-xl border border-border p-5">
-          <h3 className="text-sm font-medium text-muted-foreground">{t('totalReviews')}</h3>
+          <h3 className="text-sm font-medium text-muted-foreground">Total des avis</h3>
           <p className="text-3xl font-bold mt-2 text-foreground">
             {productsLoading || statsLoading ? (
               <span className="inline-block w-12 h-8 bg-muted rounded animate-pulse" />
@@ -248,7 +246,7 @@ export default function ReviewsPage() {
       {/* Product filter */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-foreground mb-1">
-          {t('filterByProduct')}
+          Filtrer par produit
         </label>
         <select
           value={selectedProductId}
@@ -256,7 +254,7 @@ export default function ReviewsPage() {
           disabled={productsLoading}
           className="w-full sm:w-80 rounded-lg border border-border px-3 py-2 text-sm text-foreground bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary disabled:opacity-50"
         >
-          <option value="">{t('allProducts')}</option>
+          <option value="">Tous les produits</option>
           {products.map((product) => (
             <option key={product.id} value={product.id}>
               {getProductTitle(product)} {product.reviewCount ? `(${product.reviewCount})` : ''}
@@ -268,7 +266,7 @@ export default function ReviewsPage() {
       {/* Rating distribution (only when a specific product is selected) */}
       {selectedProductId && stats && stats.distribution && (
         <div className="bg-white rounded-xl border border-border p-5 mb-6">
-          <h3 className="text-sm font-semibold text-foreground mb-3">{t('distribution')}</h3>
+          <h3 className="text-sm font-semibold text-foreground mb-3">Répartition des notes</h3>
           <div className="space-y-2">
             {[5, 4, 3, 2, 1].map((star) => {
               const count = stats.distribution[star as keyof typeof stats.distribution] || 0;
@@ -277,7 +275,7 @@ export default function ReviewsPage() {
               return (
                 <div key={star} className="flex items-center gap-3">
                   <span className="text-sm text-foreground w-12 text-right">
-                    {star} {star === 1 ? t('star') : t('stars')}
+                    {star} {star === 1 ? 'étoile' : 'étoiles'}
                   </span>
                   <div className="flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden">
                     <div
@@ -296,7 +294,7 @@ export default function ReviewsPage() {
       {/* Reviews list */}
       <div className="mb-2">
         <h2 className="text-lg font-semibold text-foreground">
-          {selectedProductId ? t('recentReviews') : t('recentReviews')}
+          {selectedProductId ? 'Avis récents' : 'Avis récents'}
         </h2>
       </div>
 
@@ -317,8 +315,8 @@ export default function ReviewsPage() {
       ) : reviews.length === 0 ? (
         <div className="bg-white rounded-xl border border-border p-12 text-center">
           <div className="text-4xl text-muted-foreground/40 mb-3">{'\u2605'}</div>
-          <p className="text-muted-foreground font-medium">{t('noReviews')}</p>
-          <p className="text-sm text-muted-foreground mt-1">{t('noReviewsDesc')}</p>
+          <p className="text-muted-foreground font-medium">Aucun avis reçu</p>
+          <p className="text-sm text-muted-foreground mt-1">Les avis de vos clients apparaîtront ici</p>
         </div>
       ) : (
         <>
@@ -335,12 +333,12 @@ export default function ReviewsPage() {
                         {review.buyer?.firstName} {review.buyer?.lastName}
                       </span>
                       <span className="text-xs text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
-                        {t('verifiedBuyer')}
+                        Acheteur vérifié
                       </span>
                     </div>
                     {review.product && (
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {t('product')}: {getProductTitle(review.product)}
+                        Produit: {getProductTitle(review.product)}
                       </p>
                     )}
                     <div className="flex items-center gap-2 mt-1.5">

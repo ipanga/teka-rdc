@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import {
   canonicalToUrlSlug,
@@ -11,20 +10,18 @@ import { useCityStore } from '@/lib/city-store';
 import { cityHref } from '@/lib/urls';
 
 // Static pages in the order rendered in the footer.
-const FOOTER_LINKS: Array<{ canonical: CanonicalSlug; key: string }> = [
-  { canonical: 'about',       key: 'about' },
-  { canonical: 'help',        key: 'help' },
-  { canonical: 'faq',         key: 'faq' },
-  { canonical: 'terms',       key: 'terms' },
-  { canonical: 'privacy',     key: 'privacy' },
-  { canonical: 'how-to-buy',  key: 'howToBuy' },
-  { canonical: 'how-to-sell', key: 'howToSell' },
-  { canonical: 'contact',     key: 'contact' },
+const FOOTER_LINKS: Array<{ canonical: CanonicalSlug; label: string }> = [
+  { canonical: 'about',       label: 'À propos' },
+  { canonical: 'help',        label: 'Aide' },
+  { canonical: 'faq',         label: 'FAQ' },
+  { canonical: 'terms',       label: "Conditions d'utilisation" },
+  { canonical: 'privacy',     label: 'Politique de confidentialité' },
+  { canonical: 'how-to-buy',  label: 'Comment acheter' },
+  { canonical: 'how-to-sell', label: 'Comment vendre' },
+  { canonical: 'contact',     label: 'Contact' },
 ];
 
 export function Footer() {
-  const t = useTranslations('Footer');
-  const tCity = useTranslations('City');
   const year = new Date().getFullYear();
 
   // Crawlable /{ville} internal links (moved here from the homepage in the Town
@@ -42,7 +39,7 @@ export function Footer() {
         {townLinks.length > 0 && (
           <div className="mb-6 pb-6 border-b border-white/10">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-white/50 mb-3">
-              {tCity('shopByCity')}
+              {"Achetez dans votre ville"}
             </h2>
             <nav className="flex flex-wrap gap-2">
               {townLinks.map((c) => (
@@ -68,19 +65,19 @@ export function Footer() {
             height={28}
           />
           <nav className="flex flex-wrap justify-center gap-4 text-sm text-white/70">
-            {FOOTER_LINKS.map(({ canonical, key }) => (
+            {FOOTER_LINKS.map(({ canonical, label }) => (
               <Link
                 key={canonical}
                 href={`/${canonicalToUrlSlug(canonical)}`}
                 className="hover:text-white transition-colors"
               >
-                {t(key)}
+                {label}
               </Link>
             ))}
           </nav>
         </div>
         <div className="mt-6 pt-4 border-t border-white/10 text-center text-sm text-white/50">
-          {t('copyright', { year: String(year) })}
+          {`© ${year} Teka RDC. Tous droits réservés.`}
         </div>
       </div>
     </footer>

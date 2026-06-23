@@ -1,7 +1,6 @@
 import path from 'node:path';
 import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
-import createNextIntlPlugin from 'next-intl/plugin';
 
 // Prod-on-subdomain sets NEXT_PUBLIC_BASE_PATH='' so admin.teka.cd serves from
 // the root; local dev keeps the /admin path prefix so all three Next.js apps
@@ -45,10 +44,8 @@ const nextConfig: NextConfig = {
   },
 };
 
-const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
-
 // See apps/buyer-web/next.config.ts for the withSentryConfig rationale.
-export default withSentryConfig(withNextIntl(nextConfig), {
+export default withSentryConfig(nextConfig, {
   org: 'teka-rdc',
   project: 'teka-admin-web',
   silent: !process.env.CI,

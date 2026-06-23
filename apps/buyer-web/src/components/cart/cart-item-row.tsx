@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useCartStore } from '@/lib/cart-store';
 import { formatCDF } from '@/lib/format';
@@ -14,7 +13,6 @@ interface CartItemRowProps {
 }
 
 export function CartItemRow({ item }: CartItemRowProps) {
-  const t = useTranslations('Cart');
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeItem = useCartStore((s) => s.removeItem);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -78,7 +76,7 @@ export function CartItemRow({ item }: CartItemRowProps) {
             {title}
           </Link>
           <p className="text-xs text-muted-foreground mt-1">
-            {t('seller')}: <span className="font-medium">{product.seller.businessName}</span>
+            {"Vendeur"}: <span className="font-medium">{product.seller.businessName}</span>
           </p>
           <p className="text-base md:text-lg font-bold text-primary mt-1.5">
             {formatCDF(product.priceCDF)}
@@ -126,14 +124,14 @@ export function CartItemRow({ item }: CartItemRowProps) {
             disabled={isUpdating}
             className="text-xs text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40 underline-offset-4 hover:underline"
           >
-            {t('remove')}
+            {"Supprimer"}
           </button>
         </div>
       </div>
 
       {/* Subtotal */}
       <div className="text-right shrink-0 self-start">
-        <p className="text-xs text-muted-foreground hidden md:block">{t('subtotal')}</p>
+        <p className="text-xs text-muted-foreground hidden md:block">{"Sous-total"}</p>
         <p className="text-base md:text-lg font-bold text-foreground mt-0.5">
           {formatCDF(subtotalCentimes.toString())}
         </p>

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 
 export interface CategoryAttribute {
@@ -34,9 +33,6 @@ export function AttributeManager({
   attributes,
   onRefresh,
 }: AttributeManagerProps) {
-  const t = useTranslations('Categories');
-  const tCommon = useTranslations('Common');
-
   const [showForm, setShowForm] = useState(false);
   const [editingAttr, setEditingAttr] = useState<CategoryAttribute | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -127,7 +123,7 @@ export function AttributeManager({
   };
 
   const handleDelete = async (attrId: string) => {
-    if (!confirm(t('confirmDeleteAttribute'))) return;
+    if (!confirm("Voulez-vous vraiment supprimer cet attribut ?")) return;
 
     try {
       await apiFetch(`/v1/admin/categories/${categoryId}/attributes/${attrId}`, {
@@ -163,7 +159,7 @@ export function AttributeManager({
     <div>
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-base font-semibold text-foreground">{t('attributes')}</h3>
+          <h3 className="text-base font-semibold text-foreground">Attributs</h3>
           <p className="text-sm text-muted-foreground">{categoryName}</p>
         </div>
         {!showForm && (
@@ -174,7 +170,7 @@ export function AttributeManager({
             }}
             className="px-3 py-1.5 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors"
           >
-            + {t('addAttribute')}
+            + Ajouter un attribut
           </button>
         )}
       </div>
@@ -186,7 +182,7 @@ export function AttributeManager({
         >
           <div>
             <label className="block text-xs font-medium text-foreground mb-1">
-              {t('attributeName')} <span className="text-destructive">*</span>
+              Nom de l&apos;attribut <span className="text-destructive">*</span>
             </label>
             <input
               type="text"
@@ -201,7 +197,7 @@ export function AttributeManager({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-foreground mb-1">
-                {t('attributeType')}
+                Type
               </label>
               <select
                 value={type}
@@ -217,7 +213,7 @@ export function AttributeManager({
             </div>
             <div>
               <label className="block text-xs font-medium text-foreground mb-1">
-                {t('sortOrder')}
+                Ordre d&apos;affichage
               </label>
               <input
                 type="number"
@@ -232,7 +228,7 @@ export function AttributeManager({
           {needsOptions && (
             <div>
               <label className="block text-xs font-medium text-foreground mb-1">
-                {t('attributeOptionsLabel')}
+                Options
               </label>
               <div className="flex gap-2">
                 <input
@@ -246,18 +242,18 @@ export function AttributeManager({
                     }
                   }}
                   className="flex-1 px-2.5 py-1.5 text-sm border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder={t('optionPlaceholder')}
+                  placeholder="Saisir une option puis Entrée"
                 />
                 <button
                   type="button"
                   onClick={addOption}
                   className="px-3 py-1.5 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {t('addOption')}
+                  Ajouter
                 </button>
               </div>
               {optionList.length === 0 ? (
-                <p className="mt-2 text-xs text-muted-foreground">{t('noOptionsYet')}</p>
+                <p className="mt-2 text-xs text-muted-foreground">Aucune option ajoutée</p>
               ) : (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {optionList.map((opt) => (
@@ -270,7 +266,7 @@ export function AttributeManager({
                         type="button"
                         onClick={() => removeOption(opt)}
                         className="text-muted-foreground hover:text-destructive"
-                        aria-label={`${t('attributeOptionsLabel')}: ${opt}`}
+                        aria-label={`Options: ${opt}`}
                       >
                         ×
                       </button>
@@ -282,7 +278,7 @@ export function AttributeManager({
           )}
 
           {type === 'BOOLEAN' && (
-            <p className="text-xs text-muted-foreground">{t('booleanHint')}</p>
+            <p className="text-xs text-muted-foreground">Type oui/non — aucune option requise</p>
           )}
 
           <div className="flex items-center gap-2">
@@ -294,7 +290,7 @@ export function AttributeManager({
               className="w-4 h-4 rounded border-input text-primary focus:ring-ring"
             />
             <label htmlFor="attrRequired" className="text-xs font-medium text-foreground">
-              {t('attributeRequired')}
+              Obligatoire
             </label>
           </div>
 
@@ -304,14 +300,14 @@ export function AttributeManager({
               onClick={resetForm}
               className="px-3 py-1.5 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
             >
-              {tCommon('cancel')}
+              Annuler
             </button>
             <button
               type="submit"
               disabled={isSaving || !name.trim()}
               className="px-3 py-1.5 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSaving ? tCommon('loading') : tCommon('save')}
+              {isSaving ? "Chargement..." : "Enregistrer"}
             </button>
           </div>
         </form>
@@ -319,7 +315,7 @@ export function AttributeManager({
 
       {attributes.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-6 bg-muted/30 rounded-lg">
-          {t('noAttributes')}
+          Aucun attribut défini pour cette catégorie
         </p>
       ) : (
         <div className="bg-white rounded-lg border border-border overflow-hidden">
@@ -327,19 +323,19 @@ export function AttributeManager({
             <thead>
               <tr className="border-b border-border bg-muted">
                 <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">
-                  {t('attributeName')}
+                  Nom de l&apos;attribut
                 </th>
                 <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">
-                  {t('attributeType')}
+                  Type
                 </th>
                 <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">
-                  {t('attributeRequired')}
+                  Obligatoire
                 </th>
                 <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">
-                  {t('attributeOptionsLabel')}
+                  Options
                 </th>
                 <th className="text-right px-3 py-2 text-xs font-medium text-muted-foreground">
-                  {tCommon('actions')}
+                  Actions
                 </th>
               </tr>
             </thead>
@@ -357,9 +353,9 @@ export function AttributeManager({
                   </td>
                   <td className="px-3 py-2 text-sm text-foreground">
                     {attr.isRequired ? (
-                      <span className="text-success font-medium">{tCommon('yes')}</span>
+                      <span className="text-success font-medium">Oui</span>
                     ) : (
-                      <span className="text-muted-foreground">{tCommon('no')}</span>
+                      <span className="text-muted-foreground">Non</span>
                     )}
                   </td>
                   <td className="px-3 py-2 text-xs text-muted-foreground max-w-[200px] truncate">
@@ -371,7 +367,7 @@ export function AttributeManager({
                         onClick={() => move(index, -1)}
                         disabled={index === 0 || isReordering}
                         className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                        title={t('moveUp')}
+                        title="Monter"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
@@ -381,7 +377,7 @@ export function AttributeManager({
                         onClick={() => move(index, 1)}
                         disabled={index === attributes.length - 1 || isReordering}
                         className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                        title={t('moveDown')}
+                        title="Descendre"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -390,7 +386,7 @@ export function AttributeManager({
                       <button
                         onClick={() => startEdit(attr)}
                         className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
-                        title={t('editAttribute')}
+                        title="Modifier l'attribut"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -399,7 +395,7 @@ export function AttributeManager({
                       <button
                         onClick={() => handleDelete(attr.id)}
                         className="p-1 text-muted-foreground hover:text-destructive rounded transition-colors"
-                        title={t('deleteAttribute')}
+                        title="Supprimer l'attribut"
                       >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

@@ -1,7 +1,5 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
-
 type OrderStatus =
   | 'PENDING'
   | 'CONFIRMED'
@@ -23,20 +21,18 @@ const statusStyles: Record<OrderStatus, string> = {
   RETURNED: 'bg-muted text-muted-foreground',
 };
 
+const labelMap: Record<OrderStatus, string> = {
+  PENDING: 'En attente',
+  CONFIRMED: 'Confirmées',
+  PROCESSING: 'En préparation',
+  SHIPPED: 'Expédiées',
+  OUT_FOR_DELIVERY: 'En livraison',
+  DELIVERED: 'Livrées',
+  CANCELLED: 'Annulées',
+  RETURNED: 'Retournées',
+};
+
 export function OrderStatusBadge({ status }: { status: string }) {
-  const t = useTranslations('Orders');
-
-  const labelMap: Record<OrderStatus, string> = {
-    PENDING: t('pending'),
-    CONFIRMED: t('confirmed'),
-    PROCESSING: t('processing'),
-    SHIPPED: t('shipped'),
-    OUT_FOR_DELIVERY: t('outForDeliveryTab'),
-    DELIVERED: t('delivered'),
-    CANCELLED: t('cancelled'),
-    RETURNED: t('returned'),
-  };
-
   const s = status as OrderStatus;
   const style = statusStyles[s] || 'bg-muted text-muted-foreground';
   const label = labelMap[s] || status;

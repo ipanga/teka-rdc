@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../providers/promotion_provider.dart';
 import '../widgets/promotion_card.dart';
 
@@ -11,17 +10,16 @@ class PromotionsListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     final state = ref.watch(sellerPromotionsProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.promotionMyPromotions),
+        title: const Text("Mes promotions"),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/promotions/create'),
         icon: const Icon(Icons.add),
-        label: Text(l10n.promotionCreate),
+        label: const Text("Creer une promotion"),
       ),
       body: RefreshIndicator(
         onRefresh: () =>
@@ -29,10 +27,10 @@ class PromotionsListScreen extends ConsumerWidget {
         child: state.isLoading && state.promotions.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : state.error != null && state.promotions.isEmpty
-                ? _buildError(context, ref, l10n)
+                ? _buildError(context, ref)
                 : state.promotions.isEmpty
-                    ? _buildEmpty(context, l10n)
-                    : _buildList(context, ref, l10n, state),
+                    ? _buildEmpty(context)
+                    : _buildList(context, ref, state),
       ),
     );
   }
@@ -40,7 +38,6 @@ class PromotionsListScreen extends ConsumerWidget {
   Widget _buildList(
     BuildContext context,
     WidgetRef ref,
-    AppLocalizations l10n,
     PromotionsListState state,
   ) {
     return NotificationListener<ScrollNotification>(
@@ -70,7 +67,7 @@ class PromotionsListScreen extends ConsumerWidget {
           return PromotionCard(
             promotion: promotion,
             onCancel: promotion.canCancel
-                ? () => _confirmCancel(context, ref, l10n, promotion.id)
+                ? () => _confirmCancel(context, ref, promotion.id)
                 : null,
           );
         },
@@ -78,7 +75,7 @@ class PromotionsListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmpty(BuildContext context, AppLocalizations l10n) {
+  Widget _buildEmpty(BuildContext context) {
     return ListView(
       children: [
         const SizedBox(height: 100),
@@ -89,21 +86,21 @@ class PromotionsListScreen extends ConsumerWidget {
               const Icon(Icons.campaign_outlined,
                   size: 64, color: TekaColors.mutedForeground),
               const SizedBox(height: 16),
-              Text(
-                l10n.promotionNoPromotions,
-                style: const TextStyle(
+              const Text(
+                "Aucune promotion",
+                style: TextStyle(
                   fontWeight: FontWeight.w600,
                   fontSize: 16,
                   color: TekaColors.foreground,
                 ),
               ),
               const SizedBox(height: 8),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 48),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 48),
                 child: Text(
-                  l10n.promotionCreateFirst,
+                  "Creez votre premiere promotion pour augmenter vos ventes",
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
                     color: TekaColors.mutedForeground,
                   ),
@@ -116,8 +113,7 @@ class PromotionsListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildError(
-      BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+  Widget _buildError(BuildContext context, WidgetRef ref) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -127,12 +123,12 @@ class PromotionsListScreen extends ConsumerWidget {
             const Icon(Icons.error_outline,
                 size: 48, color: TekaColors.destructive),
             const SizedBox(height: 12),
-            Text(l10n.authGenericError),
+            const Text("Une erreur est survenue. Veuillez reessayer."),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () =>
                   ref.read(sellerPromotionsProvider.notifier).loadPromotions(),
-              child: Text(l10n.loadMore),
+              child: const Text("Reessayer"),
             ),
           ],
         ),
@@ -143,18 +139,17 @@ class PromotionsListScreen extends ConsumerWidget {
   void _confirmCancel(
     BuildContext context,
     WidgetRef ref,
-    AppLocalizations l10n,
     String promotionId,
   ) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l10n.promotionCancel),
-        content: Text(l10n.promotionConfirmCancel),
+        title: const Text("Annuler la promotion"),
+        content: const Text("Etes-vous sur de vouloir annuler cette promotion ?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(l10n.cancel),
+            child: const Text("Annuler"),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -169,13 +164,13 @@ class PromotionsListScreen extends ConsumerWidget {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(success
-                        ? l10n.promotionCancelled
-                        : l10n.authGenericError),
+                        ? "Annulee"
+                        : "Une erreur est survenue. Veuillez reessayer."),
                   ),
                 );
               }
             },
-            child: Text(l10n.promotionCancel),
+            child: const Text("Annuler la promotion"),
           ),
         ],
       ),

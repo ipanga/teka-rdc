@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
@@ -14,7 +13,6 @@ import { useAuthStore, type User } from '@/lib/auth-store';
  * gated (see dashboard/layout.tsx).
  */
 export default function SellerRegisterPage() {
-  const t = useTranslations('Auth');
   const router = useRouter();
   const setUser = useAuthStore((s) => s.setUser);
 
@@ -31,7 +29,7 @@ export default function SellerRegisterPage() {
     setError('');
 
     if (password !== confirmPassword) {
-      setError(t('passwordMismatch'));
+      setError("Les mots de passe ne correspondent pas");
       return;
     }
 
@@ -45,7 +43,7 @@ export default function SellerRegisterPage() {
       // Cookies are set by the API; next step is the business application.
       router.push('/devenir-vendeur');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : t('genericError'));
+      setError(err instanceof ApiError ? err.message : "Une erreur est survenue");
     } finally {
       setIsLoading(false);
     }
@@ -57,9 +55,9 @@ export default function SellerRegisterPage() {
         <div className="bg-white rounded-xl shadow-lg border border-border p-8">
           <div className="text-center mb-8">
             <h1 className="text-2xl font-bold text-foreground">
-              {t('registerTitle')}
+              Créer un compte vendeur
             </h1>
-            <p className="text-muted-foreground mt-2">{t('registerSubtitle')}</p>
+            <p className="text-muted-foreground mt-2">Vendez vos produits sur Teka RDC</p>
           </div>
 
           {error && (
@@ -75,7 +73,7 @@ export default function SellerRegisterPage() {
                   htmlFor="firstName"
                   className="block text-sm font-medium text-foreground mb-1"
                 >
-                  {t('firstNameLabel')}
+                  Prénom
                 </label>
                 <input
                   id="firstName"
@@ -92,7 +90,7 @@ export default function SellerRegisterPage() {
                   htmlFor="lastName"
                   className="block text-sm font-medium text-foreground mb-1"
                 >
-                  {t('lastNameLabel')}
+                  Nom de famille
                 </label>
                 <input
                   id="lastName"
@@ -111,14 +109,14 @@ export default function SellerRegisterPage() {
                 htmlFor="email"
                 className="block text-sm font-medium text-foreground mb-1"
               >
-                {t('emailLabel')}
+                Email
               </label>
               <input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder={t('emailPlaceholder')}
+                placeholder="vous@exemple.com"
                 autoComplete="email"
                 className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 required
@@ -130,7 +128,7 @@ export default function SellerRegisterPage() {
                 htmlFor="password"
                 className="block text-sm font-medium text-foreground mb-1"
               >
-                {t('passwordLabel')}
+                Mot de passe
               </label>
               <input
                 id="password"
@@ -142,7 +140,7 @@ export default function SellerRegisterPage() {
                 required
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                {t('passwordHint')}
+                Au moins 8 caractères, avec lettres et chiffres
               </p>
             </div>
 
@@ -151,7 +149,7 @@ export default function SellerRegisterPage() {
                 htmlFor="confirmPassword"
                 className="block text-sm font-medium text-foreground mb-1"
               >
-                {t('confirmPasswordLabel')}
+                Confirmer le mot de passe
               </label>
               <input
                 id="confirmPassword"
@@ -176,13 +174,13 @@ export default function SellerRegisterPage() {
               }
               className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {isLoading ? '...' : t('createAccount')}
+              {isLoading ? '...' : 'Créer un compte'}
             </button>
 
             <p className="text-center text-sm text-muted-foreground">
-              {t('hasAccount')}{' '}
+              Déjà inscrit ?{' '}
               <Link href="/login" className="text-primary hover:underline">
-                {t('loginHere')}
+                Se connecter ici
               </Link>
             </p>
           </form>

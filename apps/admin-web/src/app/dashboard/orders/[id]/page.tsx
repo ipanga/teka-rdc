@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
@@ -10,7 +9,7 @@ import { OrderStatusBadge } from '@/components/orders/order-status-badge';
 interface OrderItem {
   id: string;
   productId: string;
-  title: { fr: string; en?: string };
+  title: string;
   quantity: number;
   unitPriceCDF: string;
   unitPriceUSD?: string | null;
@@ -88,8 +87,6 @@ const ALL_STATUSES = [
 ];
 
 export default function OrderDetailPage() {
-  const t = useTranslations('Orders');
-  const tCommon = useTranslations('Common');
   const params = useParams();
   const orderId = params.id as string;
 
@@ -158,7 +155,7 @@ export default function OrderDetailPage() {
           note: statusNote.trim() || undefined,
         }),
       });
-      showFeedback('success', t('statusChanged'));
+      showFeedback('success', "Statut mis à jour");
       setShowStatusModal(false);
       setNewStatus('');
       setStatusNote('');
@@ -181,7 +178,7 @@ export default function OrderDetailPage() {
           reason: cancelReason.trim() || undefined,
         }),
       });
-      showFeedback('success', t('orderCancelled'));
+      showFeedback('success', "Commande annulée");
       setShowCancelModal(false);
       setCancelReason('');
       fetchOrder();
@@ -199,7 +196,7 @@ export default function OrderDetailPage() {
   if (isLoading) {
     return (
       <div className="p-8">
-        <p className="text-muted-foreground">{t('loading')}</p>
+        <p className="text-muted-foreground">Chargement...</p>
       </div>
     );
   }
@@ -207,12 +204,12 @@ export default function OrderDetailPage() {
   if (!order) {
     return (
       <div className="p-8">
-        <p className="text-muted-foreground">{t('noOrders')}</p>
+        <p className="text-muted-foreground">Aucune commande</p>
         <Link
           href="/dashboard/orders"
           className="text-primary hover:underline text-sm mt-2 inline-block"
         >
-          {t('backToList')}
+          Retour aux commandes
         </Link>
       </div>
     );
@@ -243,14 +240,14 @@ export default function OrderDetailPage() {
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
-        {t('backToList')}
+        Retour aux commandes
       </Link>
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            {t('orderDetail')} — {order.orderNumber}
+            Détail de la commande — {order.orderNumber}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {new Date(order.createdAt).toLocaleDateString('fr-CD', {
@@ -271,7 +268,7 @@ export default function OrderDetailPage() {
           {/* Order Items */}
           <div className="bg-white rounded-xl border border-border p-4">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-              {t('orderItems')}
+              Articles de la commande
             </h2>
             <div className="space-y-3">
               {order.items.map((item) => (
@@ -282,7 +279,7 @@ export default function OrderDetailPage() {
                   {item.coverImageUrl ? (
                     <img
                       src={getOptimizedUrl(item.coverImageUrl)}
-                      alt={item.title.fr}
+                      alt={item.title}
                       className="w-12 h-12 rounded-lg object-cover bg-muted shrink-0"
                       loading="lazy"
                     />
@@ -295,10 +292,10 @@ export default function OrderDetailPage() {
                   )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">
-                      {item.title.fr}
+                      {item.title}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {t('quantity')}: {item.quantity} &times; {formatCDF(item.unitPriceCDF)}
+                      Quantité: {item.quantity} &times; {formatCDF(item.unitPriceCDF)}
                     </p>
                   </div>
                   <div className="text-sm font-medium text-foreground whitespace-nowrap">
@@ -311,15 +308,15 @@ export default function OrderDetailPage() {
             {/* Totals */}
             <div className="mt-4 pt-3 border-t border-border space-y-1">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{t('subtotal')}</span>
+                <span className="text-muted-foreground">Sous-total</span>
                 <span className="text-foreground">{formatCDF(order.subtotalCDF)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">{t('deliveryFee')}</span>
+                <span className="text-muted-foreground">Frais de livraison</span>
                 <span className="text-foreground">{formatCDF(order.deliveryFeeCDF)}</span>
               </div>
               <div className="flex justify-between text-sm font-bold pt-1 border-t border-border">
-                <span className="text-foreground">{t('total')}</span>
+                <span className="text-foreground">Total</span>
                 <span className="text-primary">{formatCDF(order.totalCDF)}</span>
               </div>
               {order.totalUSD && (
@@ -334,10 +331,10 @@ export default function OrderDetailPage() {
           {/* Timeline */}
           <div className="bg-white rounded-xl border border-border p-4">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-              {t('timeline')}
+              Historique
             </h2>
             {order.statusLogs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">{t('noTimeline')}</p>
+              <p className="text-sm text-muted-foreground">Aucun historique</p>
             ) : (
               <div className="space-y-3">
                 {order.statusLogs.map((log, index) => (
@@ -386,7 +383,7 @@ export default function OrderDetailPage() {
           {order.paymentMethod && (
             <div className="bg-white rounded-xl border border-border p-4">
               <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                {t('paymentMethod')}
+                Mode de paiement
               </h2>
               <p className="text-sm font-medium text-foreground">{order.paymentMethod}</p>
             </div>
@@ -395,7 +392,7 @@ export default function OrderDetailPage() {
           {/* Buyer Info */}
           <div className="bg-white rounded-xl border border-border p-4">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              {t('buyerInfo')}
+              Informations acheteur
             </h2>
             {order.buyer ? (
               <div className="space-y-1 text-sm">
@@ -403,12 +400,12 @@ export default function OrderDetailPage() {
                   {order.buyer.firstName} {order.buyer.lastName}
                 </p>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">{t('phone')}</span>
+                  <span className="text-muted-foreground">Téléphone</span>
                   <span className="text-foreground">{order.buyer.phone ?? '—'}</span>
                 </div>
                 {order.buyer.email && (
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">{t('email')}</span>
+                    <span className="text-muted-foreground">Email</span>
                     <span className="text-foreground">{order.buyer.email}</span>
                   </div>
                 )}
@@ -421,7 +418,7 @@ export default function OrderDetailPage() {
           {/* Seller Info */}
           <div className="bg-white rounded-xl border border-border p-4">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              {t('sellerInfo')}
+              Informations vendeur
             </h2>
             {order.seller ? (
               <div className="space-y-1 text-sm">
@@ -429,12 +426,12 @@ export default function OrderDetailPage() {
                 {order.seller.user && (
                   <>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">{t('phone')}</span>
+                      <span className="text-muted-foreground">Téléphone</span>
                       <span className="text-foreground">{order.seller.user.phone ?? '—'}</span>
                     </div>
                     {order.seller.user.email && (
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">{t('email')}</span>
+                        <span className="text-muted-foreground">Email</span>
                         <span className="text-foreground">{order.seller.user.email}</span>
                       </div>
                     )}
@@ -449,7 +446,7 @@ export default function OrderDetailPage() {
           {/* Delivery Address */}
           <div className="bg-white rounded-xl border border-border p-4">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-              {t('deliveryAddress')}
+              Adresse de livraison
             </h2>
             {order.address ? (
               <div className="text-sm text-foreground space-y-0.5">
@@ -472,7 +469,7 @@ export default function OrderDetailPage() {
           {!isTerminal && (
             <div className="bg-white rounded-xl border border-border p-4">
               <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-                {tCommon('actions')}
+                Actions
               </h2>
               <div className="space-y-2">
                 <button
@@ -483,7 +480,7 @@ export default function OrderDetailPage() {
                   }}
                   className="w-full px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors"
                 >
-                  {t('forceStatus')}
+                  Changer le statut
                 </button>
                 <button
                   onClick={() => {
@@ -492,7 +489,7 @@ export default function OrderDetailPage() {
                   }}
                   className="w-full px-4 py-2 text-sm font-medium text-destructive bg-destructive/10 rounded-lg hover:bg-destructive/20 transition-colors"
                 >
-                  {t('cancelOrder')}
+                  Annuler la commande
                 </button>
               </div>
             </div>
@@ -506,7 +503,7 @@ export default function OrderDetailPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowStatusModal(false)} />
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-md mx-4">
             <div className="flex items-center justify-between p-6 border-b border-border">
-              <h2 className="text-lg font-semibold text-foreground">{t('forceStatus')}</h2>
+              <h2 className="text-lg font-semibold text-foreground">Changer le statut</h2>
               <button
                 onClick={() => setShowStatusModal(false)}
                 className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
@@ -519,7 +516,7 @@ export default function OrderDetailPage() {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  {t('status')} <span className="text-destructive">*</span>
+                  Statut <span className="text-destructive">*</span>
                 </label>
                 <select
                   value={newStatus}
@@ -528,19 +525,19 @@ export default function OrderDetailPage() {
                 >
                   {ALL_STATUSES.map((s) => (
                     <option key={s} value={s}>
-                      {t(s === 'PENDING' ? 'pending' :
-                        s === 'CONFIRMED' ? 'confirmed' :
-                        s === 'PROCESSING' ? 'processing' :
-                        s === 'SHIPPED' ? 'shipped' :
-                        s === 'DELIVERED' ? 'delivered' :
-                        s === 'CANCELLED' ? 'cancelled' : 'returned')}
+                      {s === 'PENDING' ? 'En attente' :
+                        s === 'CONFIRMED' ? 'Confirmées' :
+                        s === 'PROCESSING' ? 'En préparation' :
+                        s === 'SHIPPED' ? 'Expédiées' :
+                        s === 'DELIVERED' ? 'Livrées' :
+                        s === 'CANCELLED' ? 'Annulées' : 'Retournées'}
                     </option>
                   ))}
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  {t('forceNote')}
+                  Note (optionnel)
                 </label>
                 <textarea
                   value={statusNote}
@@ -555,14 +552,14 @@ export default function OrderDetailPage() {
                   onClick={() => setShowStatusModal(false)}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  Annuler
                 </button>
                 <button
                   onClick={handleForceStatus}
                   disabled={isSubmittingStatus || !newStatus || newStatus === order.status}
                   className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmittingStatus ? tCommon('loading') : t('apply')}
+                  {isSubmittingStatus ? "Chargement..." : "Appliquer"}
                 </button>
               </div>
             </div>
@@ -576,7 +573,7 @@ export default function OrderDetailPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowCancelModal(false)} />
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-md mx-4">
             <div className="flex items-center justify-between p-6 border-b border-border">
-              <h2 className="text-lg font-semibold text-foreground">{t('cancelOrder')}</h2>
+              <h2 className="text-lg font-semibold text-foreground">Annuler la commande</h2>
               <button
                 onClick={() => setShowCancelModal(false)}
                 className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
@@ -589,7 +586,7 @@ export default function OrderDetailPage() {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  {t('cancelReason')}
+                  Raison de l&apos;annulation
                 </label>
                 <textarea
                   value={cancelReason}
@@ -604,14 +601,14 @@ export default function OrderDetailPage() {
                   onClick={() => setShowCancelModal(false)}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  Annuler
                 </button>
                 <button
                   onClick={handleCancelOrder}
                   disabled={isSubmittingCancel}
                   className="px-4 py-2 text-sm font-medium text-white bg-destructive rounded-lg hover:bg-destructive/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmittingCancel ? tCommon('loading') : t('cancelOrder')}
+                  {isSubmittingCancel ? "Chargement..." : "Annuler la commande"}
                 </button>
               </div>
             </div>

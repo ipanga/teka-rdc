@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/notification_model.dart';
 import '../providers/notifications_provider.dart';
 
@@ -49,18 +48,17 @@ class NotificationsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     final state = ref.watch(notificationsProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.notificationsTitle),
+        title: Text("Notifications"),
         actions: [
           if (state.unread > 0)
             TextButton(
               onPressed: () =>
                   ref.read(notificationsProvider.notifier).markAllRead(),
-              child: Text(l10n.notificationsMarkAllRead),
+              child: Text("Tout marquer comme lu"),
             ),
         ],
       ),
@@ -80,7 +78,7 @@ class NotificationsScreen extends ConsumerWidget {
                       const SizedBox(height: 12),
                       Center(
                         child: Text(
-                          l10n.notificationsEmpty,
+                          "Aucune notification",
                           style: const TextStyle(
                             color: TekaColors.mutedForeground,
                           ),

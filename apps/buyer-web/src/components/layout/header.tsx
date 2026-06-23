@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
@@ -22,8 +21,6 @@ function PinIcon({ className }: { className?: string }) {
 }
 
 export function Header() {
-  const t = useTranslations('Header');
-  const tCity = useTranslations('City');
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.isLoading);
@@ -72,15 +69,15 @@ export function Header() {
               ? `${cityAcc.surface} border-transparent hover:brightness-95`
               : 'border-border text-foreground hover:border-primary/40 hover:bg-muted/50'
           }`}
-          title={selectedCity ? tCity('changeCity') : tCity('selectCity')}
+          title={selectedCity ? "Changer de ville" : "Choisissez votre ville"}
         >
           <PinIcon className="w-4 h-4 shrink-0" />
           <span className="flex flex-col items-start leading-tight text-left">
             <span className="text-[10px] font-medium opacity-80">
-              {tCity('deliverTo')}
+              {"Livrer à"}
             </span>
             <span className="text-sm font-bold -mt-0.5">
-              {selectedCity ? selectedCity.name : tCity('selectCityShort')}
+              {selectedCity ? selectedCity.name : "Choisir une ville"}
             </span>
           </span>
           <svg className="w-3 h-3 opacity-70 self-end mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -93,8 +90,8 @@ export function Header() {
           <SearchAutocomplete
             cityId={selectedCity?.id}
             citySlug={selectedCity?.slug}
-            placeholder={t('search')}
-            categoryLabel={t('categories')}
+            placeholder={"Rechercher des produits..."}
+            categoryLabel={"Catégories"}
           />
         </div>
 
@@ -104,7 +101,7 @@ export function Header() {
             href="/categories"
             className="text-sm text-foreground hover:text-primary transition-colors"
           >
-            {t('categories')}
+            {"Catégories"}
           </Link>
           {authLoading ? (
             // Auth resolving — render nothing rather than the login button, so
@@ -118,13 +115,13 @@ export function Header() {
                 href="/profil"
                 className="text-sm text-foreground hover:text-primary transition-colors"
               >
-                {user.firstName || t('myAccount')}
+                {user.firstName || "Mon compte"}
               </Link>
               <button
                 onClick={handleLogout}
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
-                {t('logout')}
+                {"Se déconnecter"}
               </button>
             </div>
           ) : (
@@ -133,7 +130,7 @@ export function Header() {
                 href="/connexion"
                 className={buttonVariants({ variant: 'default', size: 'md' })}
               >
-                {t('login')}
+                {"Se connecter"}
               </Link>
             </div>
           )}
@@ -150,7 +147,7 @@ export function Header() {
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="md:hidden p-2 text-foreground"
-          aria-label={t('menu')}
+          aria-label={"Menu"}
         >
           {mobileMenuOpen ? (
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -181,7 +178,7 @@ export function Header() {
           >
             <PinIcon className="w-4 h-4" />
             <span className="font-semibold">
-              {selectedCity ? selectedCity.name : tCity('selectCity')}
+              {selectedCity ? selectedCity.name : "Choisissez votre ville"}
             </span>
             <svg className="w-3 h-3 opacity-70 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -192,8 +189,8 @@ export function Header() {
           <SearchAutocomplete
             cityId={selectedCity?.id}
             citySlug={selectedCity?.slug}
-            placeholder={t('search')}
-            categoryLabel={t('categories')}
+            placeholder={"Rechercher des produits..."}
+            categoryLabel={"Catégories"}
             onNavigate={() => setMobileMenuOpen(false)}
           />
 
@@ -204,14 +201,14 @@ export function Header() {
               onClick={() => setMobileMenuOpen(false)}
               className="text-sm text-foreground hover:text-primary transition-colors"
             >
-              {t('home')}
+              {"Accueil"}
             </Link>
             <Link
               href="/categories"
               onClick={() => setMobileMenuOpen(false)}
               className="text-sm text-foreground hover:text-primary transition-colors"
             >
-              {t('categories')}
+              {"Catégories"}
             </Link>
           </nav>
 
@@ -224,7 +221,7 @@ export function Header() {
                   onClick={() => setMobileMenuOpen(false)}
                   className="text-sm text-foreground hover:text-primary transition-colors"
                 >
-                  {user.firstName || t('myAccount')}
+                  {user.firstName || "Mon compte"}
                 </Link>
                 <Link
                   href="/favoris"
@@ -234,7 +231,7 @@ export function Header() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
                   </svg>
-                  {t('wishlist')}
+                  {"Liste de souhaits"}
                 </Link>
                 <button
                   onClick={() => {
@@ -243,7 +240,7 @@ export function Header() {
                   }}
                   className="text-sm text-left text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {t('logout')}
+                  {"Se déconnecter"}
                 </button>
               </>
             ) : (
@@ -253,14 +250,14 @@ export function Header() {
                   onClick={() => setMobileMenuOpen(false)}
                   className={buttonVariants({ variant: 'default', size: 'md' })}
                 >
-                  {t('login')}
+                  {"Se connecter"}
                 </Link>
                 <Link
                   href="/reclamer-compte"
                   onClick={() => setMobileMenuOpen(false)}
                   className={buttonVariants({ variant: 'outline', size: 'md' })}
                 >
-                  {t('claim')}
+                  {"Ancien compte ?"}
                 </Link>
               </div>
             )}

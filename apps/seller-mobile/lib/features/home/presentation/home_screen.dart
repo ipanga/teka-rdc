@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/teka_colors.dart';
-import '../../../l10n/app_localizations.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../../orders/data/models/order_model.dart';
 import '../../orders/presentation/providers/orders_provider.dart';
@@ -17,7 +16,6 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     final authState = ref.watch(authProvider);
     final productsState = ref.watch(sellerProductsProvider);
     final ordersState = ref.watch(sellerOrdersProvider);
@@ -35,12 +33,12 @@ class HomeScreen extends ConsumerWidget {
               label: Text(unread > 9 ? '9+' : '$unread'),
               child: const Icon(Icons.notifications_outlined),
             ),
-            tooltip: l10n.notificationsTitle,
+            tooltip: "Notifications",
             onPressed: () => context.push('/notifications'),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: l10n.authLogout,
+            tooltip: "Se deconnecter",
             onPressed: () async {
               await ref.read(authProvider.notifier).logout();
               if (context.mounted) context.go('/auth/login');
@@ -58,7 +56,7 @@ class HomeScreen extends ConsumerWidget {
             Text(
               userName.isNotEmpty
                   ? 'Bonjour, $userName !'
-                  : l10n.welcome,
+                  : "Bienvenue sur Teka RDC",
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: TekaColors.foreground,
@@ -66,7 +64,7 @@ class HomeScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              l10n.authSellerSpace,
+              "Espace Vendeur",
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: TekaColors.mutedForeground,
                   ),
@@ -74,23 +72,23 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: 20),
 
             // Stats cards
-            _buildStatsGrid(context, l10n, productsState),
+            _buildStatsGrid(context, productsState),
             const SizedBox(height: 12),
 
             // Orders card
-            _buildOrdersCard(context, l10n, ordersState),
+            _buildOrdersCard(context, ordersState),
             const SizedBox(height: 12),
 
             // Earnings card
-            _buildEarningsCard(context, l10n),
+            _buildEarningsCard(context),
             const SizedBox(height: 12),
 
             // Reviews card
-            _buildReviewsCard(context, l10n),
+            _buildReviewsCard(context),
             const SizedBox(height: 12),
 
             // Promotions card
-            _buildPromotionsCard(context, l10n),
+            _buildPromotionsCard(context),
             const SizedBox(height: 20),
 
             // Quick actions
@@ -99,7 +97,7 @@ class HomeScreen extends ConsumerWidget {
               child: ElevatedButton.icon(
                 onPressed: () => context.push('/products/new'),
                 icon: const Icon(Icons.add),
-                label: Text(l10n.newProduct),
+                label: Text("Nouveau produit"),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
@@ -111,7 +109,7 @@ class HomeScreen extends ConsumerWidget {
             Row(
               children: [
                 Text(
-                  l10n.productsTitle,
+                  "Produits",
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -119,7 +117,7 @@ class HomeScreen extends ConsumerWidget {
                 const Spacer(),
                 TextButton(
                   onPressed: () => context.go('/products'),
-                  child: Text(l10n.allStatuses),
+                  child: Text("Tous"),
                 ),
               ],
             ),
@@ -133,7 +131,7 @@ class HomeScreen extends ConsumerWidget {
                 ),
               )
             else if (productsState.products.isEmpty)
-              _buildEmptyProducts(context, l10n)
+              _buildEmptyProducts(context)
             else
               ...productsState.products
                   .take(5)
@@ -165,27 +163,27 @@ class HomeScreen extends ConsumerWidget {
           NavigationDestination(
             icon: const Icon(Icons.home_outlined),
             selectedIcon: const Icon(Icons.home),
-            label: l10n.dashboard,
+            label: "Accueil",
           ),
           NavigationDestination(
             icon: const Icon(Icons.receipt_long_outlined),
             selectedIcon: const Icon(Icons.receipt_long),
-            label: l10n.ordersTitle,
+            label: "Commandes",
           ),
           NavigationDestination(
             icon: const Icon(Icons.inventory_2_outlined),
             selectedIcon: const Icon(Icons.inventory_2),
-            label: l10n.products,
+            label: "Produits",
           ),
           NavigationDestination(
             icon: const Icon(Icons.account_balance_wallet_outlined),
             selectedIcon: const Icon(Icons.account_balance_wallet),
-            label: l10n.earningsTitle,
+            label: "Revenus",
           ),
           NavigationDestination(
             icon: const Icon(Icons.person_outline),
             selectedIcon: const Icon(Icons.person),
-            label: l10n.profile,
+            label: "Profil",
           ),
         ],
       ),
@@ -193,7 +191,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildStatsGrid(
-      BuildContext context, AppLocalizations l10n, ProductsListState state) {
+      BuildContext context, ProductsListState state) {
     final products = state.products;
     final total = state.total;
     final active = products.where((p) => p.status == ProductStatus.active).length;
@@ -210,25 +208,25 @@ class HomeScreen extends ConsumerWidget {
       childAspectRatio: 1.6,
       children: [
         _StatCard(
-          label: l10n.totalProducts,
+          label: "Total produits",
           value: total.toString(),
           icon: Icons.inventory_2_outlined,
           color: TekaColors.tekaRed,
         ),
         _StatCard(
-          label: l10n.activeProducts,
+          label: "Actifs",
           value: active.toString(),
           icon: Icons.check_circle_outline,
           color: TekaColors.success,
         ),
         _StatCard(
-          label: l10n.pendingProducts,
+          label: "En attente",
           value: pending.toString(),
           icon: Icons.hourglass_empty,
           color: TekaColors.warning,
         ),
         _StatCard(
-          label: l10n.draftProducts,
+          label: "Brouillons",
           value: drafts.toString(),
           icon: Icons.edit_note,
           color: TekaColors.mutedForeground,
@@ -238,7 +236,7 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildOrdersCard(
-      BuildContext context, AppLocalizations l10n, SellerOrdersState ordersState) {
+      BuildContext context, SellerOrdersState ordersState) {
     final pendingCount = ordersState.orders
         .where((o) => o.status == OrderStatus.pending)
         .length;
@@ -270,7 +268,7 @@ class HomeScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    l10n.ordersTitle,
+                    "Commandes",
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
@@ -278,7 +276,7 @@ class HomeScreen extends ConsumerWidget {
                   ),
                   if (pendingCount > 0)
                     Text(
-                      '$pendingCount ${l10n.ordersPending.toLowerCase()}',
+                      '$pendingCount en attente',
                       style: TextStyle(
                         fontSize: 12,
                         color: TekaColors.tekaRed,
@@ -296,7 +294,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEarningsCard(BuildContext context, AppLocalizations l10n) {
+  Widget _buildEarningsCard(BuildContext context) {
     return InkWell(
       onTap: () => context.push('/earnings'),
       borderRadius: BorderRadius.circular(12),
@@ -324,14 +322,14 @@ class HomeScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    l10n.earningsTitle,
+                    "Revenus",
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
                     ),
                   ),
                   Text(
-                    l10n.earningsWalletBalance,
+                    "Solde disponible",
                     style: TextStyle(
                       fontSize: 12,
                       color: TekaColors.mutedForeground,
@@ -348,7 +346,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildReviewsCard(BuildContext context, AppLocalizations l10n) {
+  Widget _buildReviewsCard(BuildContext context) {
     return InkWell(
       onTap: () => context.push('/reviews'),
       borderRadius: BorderRadius.circular(12),
@@ -376,14 +374,14 @@ class HomeScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    l10n.reviewsTitle,
+                    "Avis clients",
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
                     ),
                   ),
                   Text(
-                    l10n.recentReviews,
+                    "Avis recents",
                     style: TextStyle(
                       fontSize: 12,
                       color: TekaColors.mutedForeground,
@@ -400,7 +398,7 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPromotionsCard(BuildContext context, AppLocalizations l10n) {
+  Widget _buildPromotionsCard(BuildContext context) {
     return InkWell(
       onTap: () => context.push('/promotions'),
       borderRadius: BorderRadius.circular(12),
@@ -429,14 +427,14 @@ class HomeScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    l10n.promotionPromotions,
+                    "Promotions",
                     style: const TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
                     ),
                   ),
                   Text(
-                    l10n.promotionCreate,
+                    "Creer une promotion",
                     style: TextStyle(
                       fontSize: 12,
                       color: TekaColors.mutedForeground,
@@ -455,7 +453,7 @@ class HomeScreen extends ConsumerWidget {
 
   // _buildMessagesCard removed 2026-05-17 with the messaging feature.
 
-  Widget _buildEmptyProducts(BuildContext context, AppLocalizations l10n) {
+  Widget _buildEmptyProducts(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
@@ -468,7 +466,7 @@ class HomeScreen extends ConsumerWidget {
               size: 48, color: TekaColors.mutedForeground),
           const SizedBox(height: 12),
           Text(
-            l10n.noProducts,
+            "Aucun produit pour le moment",
             style: const TextStyle(color: TekaColors.mutedForeground),
           ),
         ],

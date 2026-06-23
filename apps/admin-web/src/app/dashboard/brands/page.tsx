@@ -1,8 +1,42 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
+
+const map: Record<string, string> = {
+  "Common.loading": "Chargement...",
+  "Common.edit": "Modifier",
+  "Brands.title": "Gestion des marques",
+  "Brands.subtitle": "Bibliothèque de marques réutilisable pour tout le catalogue",
+  "Brands.newBrand": "Nouvelle marque",
+  "Brands.editBrand": "Modifier la marque",
+  "Brands.name": "Nom",
+  "Brands.logoUrl": "URL du logo (optionnel)",
+  "Brands.sortOrder": "Ordre d'affichage",
+  "Brands.active": "Active",
+  "Brands.inactive": "Inactive",
+  "Brands.enable": "Activer",
+  "Brands.disable": "Désactiver",
+  "Brands.subcategories": "Sous-catégories",
+  "Brands.subcategoriesHint": "Sélectionnez les sous-catégories où cette marque est proposée",
+  "Brands.search": "Rechercher une marque",
+  "Brands.merge": "Fusionner",
+  "Brands.mergeTitle": "Fusionner la marque",
+  "Brands.selectTarget": "Sélectionner la marque cible",
+  "Brands.delete": "Supprimer",
+  "Brands.confirmDelete": "Êtes-vous sûr de vouloir supprimer cette marque ? Ses produits conserveront leur référence mais elle disparaîtra des filtres.",
+  "Brands.noBrands": "Aucune marque configurée",
+  "Brands.noBrandsFound": "Aucune marque ne correspond à votre recherche",
+  "Brands.save": "Enregistrer",
+  "Brands.cancel": "Annuler",
+  "Brands.saveSuccess": "Marque enregistrée avec succès",
+  "Brands.deleteSuccess": "Marque supprimée",
+  "Brands.mergeSuccess": "Marques fusionnées avec succès",
+  "Brands.errorSaving": "Erreur lors de l'enregistrement",
+  "Brands.errorDeleting": "Erreur lors de la suppression",
+  "Brands.errorMerging": "Erreur lors de la fusion",
+  "Brands.nameRequired": "Le nom de la marque est requis",
+};
 
 interface Brand {
   id: string;
@@ -30,9 +64,6 @@ interface TopCat {
 }
 
 export default function BrandsPage() {
-  const t = useTranslations('Brands');
-  const tc = useTranslations('Common');
-
   const [brands, setBrands] = useState<Brand[]>([]);
   const [tree, setTree] = useState<TopCat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -68,11 +99,11 @@ export default function BrandsPage() {
       const res = await apiFetch<Brand[]>('/v1/admin/brands');
       setBrands(res.data);
     } catch {
-      showFeedback('error', t('errorSaving'));
+      showFeedback('error', map["Brands.errorSaving"]);
     } finally {
       setIsLoading(false);
     }
-  }, [t]);
+  }, []);
 
   const fetchTree = useCallback(async () => {
     try {
@@ -134,7 +165,7 @@ export default function BrandsPage() {
 
   const save = async () => {
     if (!fName.trim()) {
-      showFeedback('error', t('nameRequired'));
+      showFeedback('error', map["Brands.nameRequired"]);
       return;
     }
     setIsSaving(true);
@@ -153,9 +184,9 @@ export default function BrandsPage() {
       }
       setShowModal(false);
       fetchBrands();
-      showFeedback('success', t('saveSuccess'));
+      showFeedback('success', map["Brands.saveSuccess"]);
     } catch {
-      showFeedback('error', t('errorSaving'));
+      showFeedback('error', map["Brands.errorSaving"]);
     } finally {
       setIsSaving(false);
     }
@@ -166,7 +197,7 @@ export default function BrandsPage() {
       await apiFetch(`/v1/admin/brands/${b.id}/${b.isActive ? 'deactivate' : 'activate'}`, { method: 'PATCH' });
       fetchBrands();
     } catch {
-      showFeedback('error', t('errorSaving'));
+      showFeedback('error', map["Brands.errorSaving"]);
     }
   };
 
@@ -175,9 +206,9 @@ export default function BrandsPage() {
       await apiFetch(`/v1/admin/brands/${id}`, { method: 'DELETE' });
       setDeletingId(null);
       fetchBrands();
-      showFeedback('success', t('deleteSuccess'));
+      showFeedback('success', map["Brands.deleteSuccess"]);
     } catch {
-      showFeedback('error', t('errorDeleting'));
+      showFeedback('error', map["Brands.errorDeleting"]);
     }
   };
 
@@ -192,16 +223,16 @@ export default function BrandsPage() {
       setMergeSource(null);
       setMergeTargetId('');
       fetchBrands();
-      showFeedback('success', t('mergeSuccess'));
+      showFeedback('success', map["Brands.mergeSuccess"]);
     } catch {
-      showFeedback('error', t('errorMerging'));
+      showFeedback('error', map["Brands.errorMerging"]);
     } finally {
       setIsMerging(false);
     }
   };
 
   if (isLoading) {
-    return <div className="p-8 text-center text-muted-foreground">{tc('loading')}</div>;
+    return <div className="p-8 text-center text-muted-foreground">{map["Common.loading"]}</div>;
   }
 
   return (
@@ -215,25 +246,25 @@ export default function BrandsPage() {
       )}
 
       <div className="flex items-center justify-between mb-2">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+        <h1 className="text-2xl font-bold text-foreground">{map["Brands.title"]}</h1>
         <button onClick={openCreate} className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
-          + {t('newBrand')}
+          + {map["Brands.newBrand"]}
         </button>
       </div>
-      <p className="text-sm text-muted-foreground mb-6">{t('subtitle')}</p>
+      <p className="text-sm text-muted-foreground mb-6">{map["Brands.subtitle"]}</p>
 
       <input
         type="text"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder={t('search')}
+        placeholder={map["Brands.search"]}
         className="w-full mb-4 px-3 py-2 border border-border rounded-lg text-sm bg-white"
       />
 
       <div className="bg-white rounded-xl border border-border shadow-sm">
         {filtered.length === 0 ? (
           <p className="p-6 text-center text-muted-foreground text-sm">
-            {brands.length === 0 ? t('noBrands') : t('noBrandsFound')}
+            {brands.length === 0 ? map["Brands.noBrands"] : map["Brands.noBrandsFound"]}
           </p>
         ) : (
           <div className="divide-y divide-border">
@@ -252,27 +283,27 @@ export default function BrandsPage() {
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-foreground truncate">{b.name}</span>
                       {!b.isActive && (
-                        <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{t('inactive')}</span>
+                        <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{map["Brands.inactive"]}</span>
                       )}
                     </div>
                     <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
-                      <span>{t('productCount', { count: b.productCount })}</span>
-                      <span>{t('categoryCount', { count: b.categoryIds.length })}</span>
+                      <span>{b.productCount === 0 ? 'Aucun produit' : b.productCount === 1 ? '1 produit' : `${b.productCount} produits`}</span>
+                      <span>{b.categoryIds.length === 0 ? 'Aucune sous-catégorie' : b.categoryIds.length === 1 ? '1 sous-catégorie' : `${b.categoryIds.length} sous-catégories`}</span>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button onClick={() => toggleActive(b)} className="px-2 py-1 text-xs rounded border border-border hover:bg-muted/50 transition-colors">
-                    {b.isActive ? t('disable') : t('enable')}
+                    {b.isActive ? map["Brands.disable"] : map["Brands.enable"]}
                   </button>
                   <button onClick={() => openEdit(b)} className="px-2 py-1 text-xs rounded border border-border hover:bg-muted/50 transition-colors">
-                    {tc('edit')}
+                    {map["Common.edit"]}
                   </button>
                   <button onClick={() => { setMergeSource(b); setMergeTargetId(''); }} className="px-2 py-1 text-xs rounded border border-border hover:bg-muted/50 transition-colors">
-                    {t('merge')}
+                    {map["Brands.merge"]}
                   </button>
                   <button onClick={() => setDeletingId(b.id)} className="px-2 py-1 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50 transition-colors">
-                    {t('delete')}
+                    {map["Brands.delete"]}
                   </button>
                 </div>
               </div>
@@ -286,30 +317,30 @@ export default function BrandsPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowModal(false)}>
           <div className="bg-white rounded-xl shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="p-5 border-b border-border">
-              <h2 className="font-semibold text-foreground">{editing ? t('editBrand') : t('newBrand')}</h2>
+              <h2 className="font-semibold text-foreground">{editing ? map["Brands.editBrand"] : map["Brands.newBrand"]}</h2>
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">{t('name')}</label>
+                <label className="block text-sm font-medium text-foreground mb-1">{map["Brands.name"]}</label>
                 <input type="text" value={fName} onChange={(e) => setFName(e.target.value)} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">{t('logoUrl')}</label>
+                <label className="block text-sm font-medium text-foreground mb-1">{map["Brands.logoUrl"]}</label>
                 <input type="text" value={fLogo} onChange={(e) => setFLogo(e.target.value)} placeholder="https://…" className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
               </div>
               <div className="flex items-center gap-4">
                 <div className="flex-1">
-                  <label className="block text-sm font-medium text-foreground mb-1">{t('sortOrder')}</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">{map["Brands.sortOrder"]}</label>
                   <input type="number" value={fSort} onChange={(e) => setFSort(Number(e.target.value))} className="w-full px-3 py-2 border border-border rounded-lg text-sm" />
                 </div>
                 <label className="flex items-center gap-2 mt-6 text-sm text-foreground cursor-pointer">
                   <input type="checkbox" checked={fActive} onChange={(e) => setFActive(e.target.checked)} />
-                  {t('active')}
+                  {map["Brands.active"]}
                 </label>
               </div>
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1">{t('subcategories')}</label>
-                <p className="text-xs text-muted-foreground mb-2">{t('subcategoriesHint')}</p>
+                <label className="block text-sm font-medium text-foreground mb-1">{map["Brands.subcategories"]}</label>
+                <p className="text-xs text-muted-foreground mb-2">{map["Brands.subcategoriesHint"]}</p>
                 <div className="border border-border rounded-lg max-h-56 overflow-y-auto divide-y divide-border">
                   {tree.map((top) => (
                     <div key={top.id} className="p-2">
@@ -328,8 +359,8 @@ export default function BrandsPage() {
               </div>
             </div>
             <div className="p-5 border-t border-border flex justify-end gap-2">
-              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted/50">{t('cancel')}</button>
-              <button onClick={save} disabled={isSaving} className="px-4 py-2 text-sm rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50">{t('save')}</button>
+              <button onClick={() => setShowModal(false)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted/50">{map["Brands.cancel"]}</button>
+              <button onClick={save} disabled={isSaving} className="px-4 py-2 text-sm rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50">{map["Brands.save"]}</button>
             </div>
           </div>
         </div>
@@ -340,21 +371,21 @@ export default function BrandsPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setMergeSource(null)}>
           <div className="bg-white rounded-xl shadow-lg w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="p-5 border-b border-border">
-              <h2 className="font-semibold text-foreground">{t('mergeTitle')}</h2>
+              <h2 className="font-semibold text-foreground">{map["Brands.mergeTitle"]}</h2>
             </div>
             <div className="p-5 space-y-3">
-              <p className="text-sm text-foreground">{t('mergeIntoLabel', { name: mergeSource.name })}</p>
+              <p className="text-sm text-foreground">{`Fusionner « ${mergeSource.name} » dans une autre marque :`}</p>
               <select value={mergeTargetId} onChange={(e) => setMergeTargetId(e.target.value)} className="w-full px-3 py-2 border border-border rounded-lg text-sm bg-white">
-                <option value="">{t('selectTarget')}</option>
+                <option value="">{map["Brands.selectTarget"]}</option>
                 {brands.filter((b) => b.id !== mergeSource.id).map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
               </select>
-              <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">{t('mergeWarning', { name: mergeSource.name })}</p>
+              <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg p-2">{`Tous les produits de « ${mergeSource.name} » seront réattribués à la marque cible, puis « ${mergeSource.name} » sera supprimée. Cette action est irréversible.`}</p>
             </div>
             <div className="p-5 border-t border-border flex justify-end gap-2">
-              <button onClick={() => setMergeSource(null)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted/50">{t('cancel')}</button>
-              <button onClick={doMerge} disabled={!mergeTargetId || isMerging} className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">{t('merge')}</button>
+              <button onClick={() => setMergeSource(null)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted/50">{map["Brands.cancel"]}</button>
+              <button onClick={doMerge} disabled={!mergeTargetId || isMerging} className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50">{map["Brands.merge"]}</button>
             </div>
           </div>
         </div>
@@ -365,11 +396,11 @@ export default function BrandsPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setDeletingId(null)}>
           <div className="bg-white rounded-xl shadow-lg w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <div className="p-5">
-              <p className="text-sm text-foreground">{t('confirmDelete')}</p>
+              <p className="text-sm text-foreground">{map["Brands.confirmDelete"]}</p>
             </div>
             <div className="p-5 pt-0 flex justify-end gap-2">
-              <button onClick={() => setDeletingId(null)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted/50">{t('cancel')}</button>
-              <button onClick={() => doDelete(deletingId)} className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700">{t('delete')}</button>
+              <button onClick={() => setDeletingId(null)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted/50">{map["Brands.cancel"]}</button>
+              <button onClick={() => doDelete(deletingId)} className="px-4 py-2 text-sm rounded-lg bg-red-600 text-white hover:bg-red-700">{map["Brands.delete"]}</button>
             </div>
           </div>
         </div>

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/promotion_model.dart';
 import 'promotion_status_badge.dart';
 
@@ -17,7 +16,6 @@ class PromotionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final dateFormat = DateFormat('dd/MM/yyyy', 'fr');
     final priceFormat = NumberFormat('#,###', 'fr');
 
@@ -62,8 +60,8 @@ class PromotionCard extends StatelessWidget {
                       const SizedBox(width: 4),
                       Text(
                         isFlashDeal
-                            ? l10n.promotionFlashDeal
-                            : l10n.promotionPromotion,
+                            ? "Vente Flash"
+                            : "Promotion",
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -85,7 +83,7 @@ class PromotionCard extends StatelessWidget {
                   IconButton(
                     icon: const Icon(Icons.cancel_outlined, size: 20),
                     color: TekaColors.destructive,
-                    tooltip: l10n.promotionCancel,
+                    tooltip: "Annuler la promotion",
                     onPressed: onCancel,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(
@@ -178,7 +176,7 @@ class PromotionCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      l10n.promotionRejectionReason,
+                      "Raison du refus",
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,

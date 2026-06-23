@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/review_model.dart';
 import '../providers/reviews_provider.dart';
 import '../widgets/review_tile.dart';
@@ -12,20 +11,19 @@ class SellerReviewsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     final state = ref.watch(sellerReviewsProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.reviewsTitle),
+        title: Text("Avis clients"),
       ),
       body: RefreshIndicator(
         onRefresh: () => ref.read(sellerReviewsProvider.notifier).refresh(),
         child: state.isLoadingProducts && state.products.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : state.products.isEmpty
-                ? _buildEmptyProducts(context, l10n)
-                : _buildContent(context, ref, l10n, state),
+                ? _buildEmptyProducts(context)
+                : _buildContent(context, ref, state),
       ),
     );
   }
@@ -33,7 +31,6 @@ class SellerReviewsScreen extends ConsumerWidget {
   Widget _buildContent(
     BuildContext context,
     WidgetRef ref,
-    AppLocalizations l10n,
     SellerReviewsState state,
   ) {
     return NotificationListener<ScrollNotification>(
@@ -50,18 +47,18 @@ class SellerReviewsScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         children: [
           // Product selector
-          _buildProductSelector(context, ref, l10n, state),
+          _buildProductSelector(context, ref, state),
           const SizedBox(height: 16),
 
           // Stats section
           if (state.stats != null) ...[
-            _buildStatsCard(context, l10n, state.stats!),
+            _buildStatsCard(context, state.stats!),
             const SizedBox(height: 16),
           ],
 
           // Reviews header
           Text(
-            l10n.recentReviews,
+            "Avis recents",
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -77,9 +74,9 @@ class SellerReviewsScreen extends ConsumerWidget {
               ),
             )
           else if (state.error != null && state.reviews.isEmpty)
-            _buildError(context, ref, l10n)
+            _buildError(context, ref)
           else if (state.reviews.isEmpty)
-            _buildEmptyReviews(context, l10n)
+            _buildEmptyReviews(context)
           else ...[
             ...state.reviews.map((review) => ReviewTile(review: review)),
             if (state.isLoadingMore)
@@ -98,7 +95,6 @@ class SellerReviewsScreen extends ConsumerWidget {
   Widget _buildProductSelector(
     BuildContext context,
     WidgetRef ref,
-    AppLocalizations l10n,
     SellerReviewsState state,
   ) {
     return Container(
@@ -112,7 +108,7 @@ class SellerReviewsScreen extends ConsumerWidget {
         child: DropdownButton<String>(
           value: state.selectedProductId,
           isExpanded: true,
-          hint: Text(l10n.filterByProduct),
+          hint: Text("Filtrer par produit"),
           icon: const Icon(Icons.keyboard_arrow_down),
           items: state.products.map((product) {
             return DropdownMenuItem<String>(
@@ -136,7 +132,6 @@ class SellerReviewsScreen extends ConsumerWidget {
 
   Widget _buildStatsCard(
     BuildContext context,
-    AppLocalizations l10n,
     ReviewStatsModel stats,
   ) {
     return Container(
@@ -162,7 +157,7 @@ class SellerReviewsScreen extends ConsumerWidget {
               StarRatingDouble(rating: stats.avgRating, size: 18),
               const SizedBox(height: 4),
               Text(
-                '${stats.totalReviews} ${l10n.totalReviews.toLowerCase()}',
+                '${stats.totalReviews} avis',
                 style: const TextStyle(
                   fontSize: 12,
                   color: TekaColors.mutedForeground,
@@ -236,7 +231,7 @@ class SellerReviewsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyProducts(BuildContext context, AppLocalizations l10n) {
+  Widget _buildEmptyProducts(BuildContext context) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -245,7 +240,7 @@ class SellerReviewsScreen extends ConsumerWidget {
               size: 48, color: TekaColors.mutedForeground),
           const SizedBox(height: 12),
           Text(
-            l10n.noProducts,
+            "Aucun produit pour le moment",
             style: const TextStyle(color: TekaColors.mutedForeground),
           ),
         ],
@@ -253,7 +248,7 @@ class SellerReviewsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildEmptyReviews(BuildContext context, AppLocalizations l10n) {
+  Widget _buildEmptyReviews(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(32),
       child: Column(
@@ -262,7 +257,7 @@ class SellerReviewsScreen extends ConsumerWidget {
               size: 48, color: TekaColors.mutedForeground),
           const SizedBox(height: 12),
           Text(
-            l10n.noReviews,
+            "Aucun avis",
             style: const TextStyle(
               fontWeight: FontWeight.w600,
               color: TekaColors.foreground,
@@ -270,7 +265,7 @@ class SellerReviewsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            l10n.noReviewsDesc,
+            "Ce produit n'a pas encore recu d'avis de la part des acheteurs.",
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 13,
@@ -283,7 +278,7 @@ class SellerReviewsScreen extends ConsumerWidget {
   }
 
   Widget _buildError(
-      BuildContext context, WidgetRef ref, AppLocalizations l10n) {
+      BuildContext context, WidgetRef ref) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -293,12 +288,12 @@ class SellerReviewsScreen extends ConsumerWidget {
             const Icon(Icons.error_outline,
                 size: 48, color: TekaColors.destructive),
             const SizedBox(height: 12),
-            Text(l10n.authGenericError),
+            Text("Une erreur est survenue. Veuillez reessayer."),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () =>
                   ref.read(sellerReviewsProvider.notifier).loadReviews(),
-              child: Text(l10n.loadMore),
+              child: Text("Reessayer"),
             ),
           ],
         ),

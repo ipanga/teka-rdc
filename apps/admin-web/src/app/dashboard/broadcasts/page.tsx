@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 
 interface Broadcast {
@@ -66,9 +65,6 @@ const SEGMENTS = ['ALL_BUYERS', 'ALL_SELLERS', 'ALL_USERS'];
 const MESSAGE_MAX_LENGTH = 500;
 
 export default function BroadcastsPage() {
-  const t = useTranslations('Broadcasts');
-  const tCommon = useTranslations('Common');
-
   const [broadcasts, setBroadcasts] = useState<Broadcast[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -129,10 +125,10 @@ export default function BroadcastsPage() {
       });
       setShowCreateModal(false);
       setForm(EMPTY_FORM);
-      showFeedback('success', t('created'));
+      showFeedback('success', "Diffusion créée avec succès");
       fetchBroadcasts();
     } catch {
-      showFeedback('error', t('error'));
+      showFeedback('error', "Une erreur est survenue");
     } finally {
       setIsSaving(false);
     }
@@ -145,10 +141,10 @@ export default function BroadcastsPage() {
       await apiFetch(`/v1/admin/broadcasts/${sendingId}/send`, { method: 'POST' });
       setSendingId(null);
       setSendingBroadcast(null);
-      showFeedback('success', t('sent'));
+      showFeedback('success', "Diffusion envoyée avec succès");
       fetchBroadcasts();
     } catch {
-      showFeedback('error', t('error'));
+      showFeedback('error', "Une erreur est survenue");
     } finally {
       setIsSending(false);
     }
@@ -160,10 +156,10 @@ export default function BroadcastsPage() {
     try {
       await apiFetch(`/v1/admin/broadcasts/${deletingId}`, { method: 'DELETE' });
       setDeletingId(null);
-      showFeedback('success', t('deleted'));
+      showFeedback('success', "Diffusion supprimée");
       fetchBroadcasts();
     } catch {
-      showFeedback('error', t('error'));
+      showFeedback('error', "Une erreur est survenue");
     } finally {
       setIsDeleting(false);
     }
@@ -171,19 +167,19 @@ export default function BroadcastsPage() {
 
   const statusLabel = (status: string) => {
     switch (status) {
-      case 'DRAFT': return t('statusDraft');
-      case 'SENDING': return t('statusSending');
-      case 'SENT': return t('statusSent');
-      case 'FAILED': return t('statusFailed');
+      case 'DRAFT': return "Brouillon";
+      case 'SENDING': return "En cours d'envoi";
+      case 'SENT': return "Envoyé";
+      case 'FAILED': return "Échoué";
       default: return status;
     }
   };
 
   const segmentLabel = (segment: string) => {
     switch (segment) {
-      case 'ALL_BUYERS': return t('allBuyers');
-      case 'ALL_SELLERS': return t('allSellers');
-      case 'ALL_USERS': return t('allUsers');
+      case 'ALL_BUYERS': return "Tous les acheteurs";
+      case 'ALL_SELLERS': return "Tous les vendeurs";
+      case 'ALL_USERS': return "Tous les utilisateurs";
       default: return segment;
     }
   };
@@ -217,12 +213,12 @@ export default function BroadcastsPage() {
       )}
 
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+        <h1 className="text-2xl font-bold text-foreground">Diffusions</h1>
         <button
           onClick={() => { setForm(EMPTY_FORM); setShowCreateModal(true); }}
           className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
         >
-          {t('create')}
+          Nouvelle diffusion
         </button>
       </div>
 
@@ -231,26 +227,26 @@ export default function BroadcastsPage() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted">
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('date')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('titleLabel')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('messageLabel')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('segment')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('status')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('results')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{tCommon('actions')}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Date</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Titre</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Message</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Segment</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Statut</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Résultats</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Actions</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                  {tCommon('loading')}
+                  Chargement...
                 </td>
               </tr>
             ) : broadcasts.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                  {t('noBroadcasts')}
+                  Aucune diffusion trouvée
                 </td>
               </tr>
             ) : (
@@ -278,7 +274,7 @@ export default function BroadcastsPage() {
                       <span>
                         {bc.sentCount ?? 0} / {bc.totalRecipients ?? 0}
                         {bc.failedCount ? (
-                          <span className="text-destructive ml-1">({bc.failedCount} {t('failed')})</span>
+                          <span className="text-destructive ml-1">({bc.failedCount} échoué(s))</span>
                         ) : null}
                       </span>
                     ) : '-'}
@@ -291,13 +287,13 @@ export default function BroadcastsPage() {
                             onClick={() => openSendConfirm(bc)}
                             className="px-2.5 py-1 text-xs font-medium bg-success/10 text-success rounded-lg hover:bg-success/20 transition-colors"
                           >
-                            {t('send')}
+                            Envoyer
                           </button>
                           <button
                             onClick={() => setDeletingId(bc.id)}
                             className="px-2.5 py-1 text-xs font-medium bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors"
                           >
-                            {tCommon('delete')}
+                            Supprimer
                           </button>
                         </>
                       )}
@@ -318,7 +314,7 @@ export default function BroadcastsPage() {
             disabled={page <= 1}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {tCommon('previous')}
+            Précédent
           </button>
           <span className="text-sm text-muted-foreground">
             {page} / {totalPages}
@@ -328,7 +324,7 @@ export default function BroadcastsPage() {
             disabled={page >= totalPages}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {tCommon('next')}
+            Suivant
           </button>
         </div>
       )}
@@ -339,11 +335,11 @@ export default function BroadcastsPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setShowCreateModal(false)} />
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-lg mx-4">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">{t('create')}</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-4">Nouvelle diffusion</h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">{t('titleLabel')}</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">Titre</label>
                   <input
                     type="text"
                     value={form.title}
@@ -353,7 +349,7 @@ export default function BroadcastsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">{t('messageLabel')}</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">Message</label>
                   <textarea
                     value={form.message}
                     onChange={(e) => setForm({ ...form, message: e.target.value })}
@@ -362,12 +358,12 @@ export default function BroadcastsPage() {
                     maxLength={MESSAGE_MAX_LENGTH}
                   />
                   <p className={`text-xs mt-1 ${form.message.length > MESSAGE_MAX_LENGTH ? 'text-destructive' : 'text-muted-foreground'}`}>
-                    {t('characterCount', { count: form.message.length, max: MESSAGE_MAX_LENGTH })}
+                    {`${form.message.length}/${MESSAGE_MAX_LENGTH} caractères`}
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-2">{t('channelsLabel')}</label>
+                  <label className="block text-sm font-medium text-foreground mb-2">Canaux de diffusion</label>
                   <div className="space-y-2">
                     <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer">
                       <input
@@ -377,8 +373,8 @@ export default function BroadcastsPage() {
                         className="mt-0.5 accent-primary"
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-foreground">{t('channelPush')}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{t('channelPushDesc')}</div>
+                        <div className="text-sm font-medium text-foreground">Notification push</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">Envoyée aux appareils mobiles connectés</div>
                       </div>
                     </label>
                     <label className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer">
@@ -389,18 +385,18 @@ export default function BroadcastsPage() {
                         className="mt-0.5 accent-primary"
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-foreground">{t('channelEmail')}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{t('channelEmailDesc')}</div>
+                        <div className="text-sm font-medium text-foreground">Email</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">Envoyée aux utilisateurs ayant un email enregistré</div>
                       </div>
                     </label>
                   </div>
                   {!hasAnyChannel && (
-                    <p className="text-xs text-destructive mt-1">{t('channelsRequired')}</p>
+                    <p className="text-xs text-destructive mt-1">Sélectionnez au moins un canal</p>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">{t('segment')}</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">Segment</label>
                   <select
                     value={form.segment}
                     onChange={(e) => setForm({ ...form, segment: e.target.value })}
@@ -418,14 +414,14 @@ export default function BroadcastsPage() {
                   onClick={() => setShowCreateModal(false)}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  Annuler
                 </button>
                 <button
                   onClick={handleCreate}
                   disabled={isSaving || !form.title || !form.message || !hasAnyChannel}
                   className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSaving ? tCommon('loading') : tCommon('save')}
+                  {isSaving ? "Chargement..." : "Enregistrer"}
                 </button>
               </div>
             </div>
@@ -439,23 +435,23 @@ export default function BroadcastsPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => { setSendingId(null); setSendingBroadcast(null); }} />
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-sm mx-4">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-2">{t('confirmSendTitle')}</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Confirmer l&apos;envoi</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                {t('confirmSendMessage', { segment: segmentLabel(sendingBroadcast.segment) })}
+                {`Êtes-vous sûr ? La diffusion sera envoyée à tous les utilisateurs du segment « ${segmentLabel(sendingBroadcast.segment)} » sur les canaux sélectionnés.`}
               </p>
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => { setSendingId(null); setSendingBroadcast(null); }}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  Annuler
                 </button>
                 <button
                   onClick={handleSend}
                   disabled={isSending}
                   className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSending ? tCommon('loading') : t('send')}
+                  {isSending ? "Chargement..." : "Envoyer"}
                 </button>
               </div>
             </div>
@@ -469,21 +465,21 @@ export default function BroadcastsPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setDeletingId(null)} />
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-sm mx-4">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-2">{t('deleteTitle')}</h3>
-              <p className="text-sm text-muted-foreground mb-4">{t('deleteConfirm')}</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Supprimer la diffusion</h3>
+              <p className="text-sm text-muted-foreground mb-4">Voulez-vous vraiment supprimer cette diffusion ?</p>
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setDeletingId(null)}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  Annuler
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={isDeleting}
                   className="px-4 py-2 text-sm font-medium text-white bg-destructive rounded-lg hover:bg-destructive/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isDeleting ? tCommon('loading') : tCommon('confirm')}
+                  {isDeleting ? "Chargement..." : "Confirmer"}
                 </button>
               </div>
             </div>

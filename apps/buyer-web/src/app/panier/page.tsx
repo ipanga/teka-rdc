@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -14,7 +13,6 @@ import { Card, Container, buttonVariants } from '@/components/ui';
 import type { CartItem, GuestCartItem, ProductDetail } from '@/lib/types';
 
 export default function CartPage() {
-  const t = useTranslations('Cart');
   const user = useAuthStore((s) => s.user);
   const isLoadingAuth = useAuthStore((s) => s.isLoading);
 
@@ -145,10 +143,10 @@ export default function CartPage() {
       <main className="flex-1">
         <Container className="py-6 md:py-10">
           <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight mb-6">
-            {t('title')}{' '}
+            {"Panier"}{' '}
             {totalItemCount > 0 && (
               <span className="text-base font-normal text-muted-foreground ml-2">
-                ({t('itemCount', { count: totalItemCount })})
+                ({totalItemCount === 0 ? '0 article' : totalItemCount === 1 ? '1 article' : `${totalItemCount} articles`})
               </span>
             )}
           </h1>
@@ -170,9 +168,9 @@ export default function CartPage() {
                   />
                 </svg>
               </div>
-              <p className="text-muted-foreground mb-5">{t('empty')}</p>
+              <p className="text-muted-foreground mb-5">{"Votre panier est vide"}</p>
               <Link href="/categories" className={buttonVariants({ variant: 'default', size: 'lg' })}>
-                {t('emptyAction')}
+                {"Découvrir nos produits"}
               </Link>
             </Card>
           ) : (
@@ -204,7 +202,7 @@ export default function CartPage() {
                           {initial}
                         </span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground">{t('seller')}</p>
+                          <p className="text-xs text-muted-foreground">{"Vendeur"}</p>
                           <p className="text-sm font-semibold text-foreground truncate">
                             {safeSellerName || '—'}
                           </p>
@@ -220,7 +218,7 @@ export default function CartPage() {
 
                       {/* Seller subtotal */}
                       <div className="flex justify-between items-center mt-3 pt-3 border-t border-border">
-                        <span className="text-sm text-muted-foreground">{t('subtotal')}</span>
+                        <span className="text-sm text-muted-foreground">{"Sous-total"}</span>
                         <span className="text-base font-semibold text-foreground">
                           {formatCDF(sellerSubtotal.toString())}
                         </span>
@@ -234,13 +232,13 @@ export default function CartPage() {
               <div className="lg:col-span-1">
                 <Card padding="md" className="sticky top-20">
                   <h2 className="text-lg font-semibold text-foreground tracking-tight mb-4">
-                    {t('total')}
+                    {"Total"}
                   </h2>
 
                   <div className="space-y-3 mb-5">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">
-                        {t('subtotal')} ({t('itemCount', { count: totalItemCount })})
+                        {"Sous-total"} ({totalItemCount === 0 ? '0 article' : totalItemCount === 1 ? '1 article' : `${totalItemCount} articles`})
                       </span>
                       <span className="text-sm font-medium text-foreground">
                         {formatCDF(totalCDF.toString())}
@@ -249,7 +247,7 @@ export default function CartPage() {
 
                     <div className="border-t border-border pt-3">
                       <div className="flex justify-between items-baseline">
-                        <span className="text-base font-semibold text-foreground">{t('total')}</span>
+                        <span className="text-base font-semibold text-foreground">{"Total"}</span>
                         <span className="text-2xl font-bold text-primary tracking-tight">
                           {formatCDF(totalCDF.toString())}
                         </span>
@@ -261,7 +259,7 @@ export default function CartPage() {
                     href={user ? '/paiement' : '/connexion?redirect=/panier'}
                     className={buttonVariants({ variant: 'default', size: 'lg', className: 'w-full' })}
                   >
-                    {t('checkout')}
+                    {"Passer la commande"}
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>

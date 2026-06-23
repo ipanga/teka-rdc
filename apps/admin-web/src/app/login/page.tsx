@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
@@ -13,7 +12,6 @@ import { useAuthStore, type User } from '@/lib/auth-store';
 const ADMIN_ROLES = ['ADMIN', 'SUPPORT', 'FINANCE'];
 
 export default function AdminLoginPage() {
-  const t = useTranslations('Auth');
   const router = useRouter();
   const setUser = useAuthStore((s) => s.setUser);
 
@@ -61,8 +59,8 @@ export default function AdminLoginPage() {
       <div className="w-full max-w-md">
         <div className="bg-white rounded-xl shadow-lg border border-border p-8">
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-foreground">{t('loginTitle')}</h1>
-            <p className="text-muted-foreground mt-2">{t('adminPortal')}</p>
+            <h1 className="text-2xl font-bold text-foreground">Connexion Administration</h1>
+            <p className="text-muted-foreground mt-2">Administration - Teka RDC</p>
           </div>
 
           {error && (
@@ -73,8 +71,8 @@ export default function AdminLoginPage() {
 
           {roleError && (
             <div className="mb-4 p-4 rounded-lg bg-destructive/10 border border-destructive/20 text-foreground text-sm">
-              <p className="font-medium">{t('notAdminAccount')}</p>
-              <p className="mt-1 text-muted-foreground text-xs">{t('notAdminHint')}</p>
+              <p className="font-medium">Accès non autorisé.</p>
+              <p className="mt-1 text-muted-foreground text-xs">Votre compte n&apos;a pas les droits administrateur nécessaires.</p>
             </div>
           )}
 
@@ -82,14 +80,14 @@ export default function AdminLoginPage() {
             <form onSubmit={handleEmailLogin} className="space-y-4">
               <div>
                 <label htmlFor="email" className="block text-sm font-medium text-foreground mb-1">
-                  {t('emailLabel')}
+                  Email
                 </label>
                 <input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder={t('emailPlaceholder')}
+                  placeholder="vous@exemple.com"
                   autoComplete="email"
                   className="w-full px-3 py-2 border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                   required
@@ -97,7 +95,7 @@ export default function AdminLoginPage() {
               </div>
               <div>
                 <label htmlFor="password" className="block text-sm font-medium text-foreground mb-1">
-                  {t('passwordLabel')}
+                  Mot de passe
                 </label>
                 <input
                   id="password"
@@ -114,10 +112,10 @@ export default function AdminLoginPage() {
                 disabled={isLoading || !email || !password}
                 className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
-                {isLoading ? '...' : t('login')}
+                {isLoading ? '...' : 'Se connecter'}
               </button>
               <Link href="/forgot-password" className="block text-center text-sm text-primary hover:underline">
-                {t('forgotPassword')}
+                Mot de passe oublié ?
               </Link>
             </form>
           )}
@@ -133,7 +131,7 @@ export default function AdminLoginPage() {
               }}
               className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
             >
-              {t('tryAgain')}
+              Réessayer
             </button>
           )}
         </div>

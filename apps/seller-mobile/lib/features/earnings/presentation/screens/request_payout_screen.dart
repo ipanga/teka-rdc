@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../providers/earnings_provider.dart';
 
 /// Payout request form (Initiative #3 / C2). Operator + reception number,
@@ -57,15 +56,14 @@ class _RequestPayoutScreenState extends ConsumerState<RequestPayoutScreen> {
   }
 
   Future<void> _submit() async {
-    final l10n = AppLocalizations.of(context)!;
     setState(() => _error = null);
     final phone = _phoneController.text.trim();
     if (_method == null) {
-      setState(() => _error = l10n.payoutSelectOperator);
+      setState(() => _error = "Operateur Mobile Money");
       return;
     }
     if (!RegExp(r'^\+243[0-9]{9}$').hasMatch(phone)) {
-      setState(() => _error = l10n.payoutPhoneHint);
+      setState(() => _error = "+243...");
       return;
     }
     setState(() => _submitting = true);
@@ -75,7 +73,7 @@ class _RequestPayoutScreenState extends ConsumerState<RequestPayoutScreen> {
     setState(() => _submitting = false);
     if (errorMessage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l10n.payoutSuccess)),
+        const SnackBar(content: Text("Demande envoyee avec succes")),
       );
       context.pop();
     } else {
@@ -85,19 +83,18 @@ class _RequestPayoutScreenState extends ConsumerState<RequestPayoutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final wallet = ref.watch(earningsProvider).wallet;
     final balance = wallet?.balanceCDFDisplay ?? 0;
 
     return Scaffold(
-      appBar: AppBar(title: Text(l10n.payoutFormTitle)),
+      appBar: AppBar(title: const Text("Demande de virement")),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${l10n.payoutCurrentBalance} : $balance CDF',
+              'Solde actuel : $balance CDF',
               style: const TextStyle(
                 fontSize: 14,
                 color: TekaColors.mutedForeground,
@@ -122,9 +119,9 @@ class _RequestPayoutScreenState extends ConsumerState<RequestPayoutScreen> {
               ),
               const SizedBox(height: 16),
             ],
-            Text(
-              l10n.payoutSelectOperator,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            const Text(
+              "Operateur Mobile Money",
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
@@ -141,18 +138,18 @@ class _RequestPayoutScreenState extends ConsumerState<RequestPayoutScreen> {
                   : (v) => setState(() => _method = v),
             ),
             const SizedBox(height: 16),
-            Text(
-              l10n.payoutPhone,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            const Text(
+              "Numero de reception",
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             TextField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
               enabled: !_submitting,
-              decoration: InputDecoration(
-                hintText: l10n.payoutPhoneHint,
-                border: const OutlineInputBorder(),
+              decoration: const InputDecoration(
+                hintText: "+243...",
+                border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 32),
@@ -174,7 +171,7 @@ class _RequestPayoutScreenState extends ConsumerState<RequestPayoutScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : Text(l10n.payoutSubmit),
+                    : const Text("Envoyer la demande"),
               ),
             ),
           ],

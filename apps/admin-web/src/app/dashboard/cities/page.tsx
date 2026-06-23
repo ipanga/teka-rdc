@@ -1,8 +1,34 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
+
+const map: Record<string, string> = {
+  "Common.loading": "Chargement...",
+  "Common.edit": "Modifier",
+  "Common.delete": "Supprimer",
+  "Common.cancel": "Annuler",
+  "Common.save": "Enregistrer",
+  "Cities.title": "Gestion des villes",
+  "Cities.newCity": "Nouvelle ville",
+  "Cities.editCity": "Modifier la ville",
+  "Cities.province": "Province",
+  "Cities.active": "Active",
+  "Cities.inactive": "Inactive",
+  "Cities.sortOrder": "Ordre d'affichage",
+  "Cities.communes": "Communes",
+  "Cities.newCommune": "Nouvelle commune",
+  "Cities.editCommune": "Modifier la commune",
+  "Cities.deleteCommune": "Supprimer la commune",
+  "Cities.confirmDeleteCommune": "Êtes-vous sûr de vouloir supprimer cette commune ?",
+  "Cities.noCities": "Aucune ville configurée",
+  "Cities.noCommunes": "Aucune commune pour cette ville",
+  "Cities.saveSuccess": "Enregistré avec succès",
+  "Cities.deleteSuccess": "Commune supprimée",
+  "Cities.errorSaving": "Erreur lors de l'enregistrement",
+  "Cities.errorDeleting": "Erreur lors de la suppression",
+  "Cities.name": "Nom",
+};
 
 interface Commune {
   id: string;
@@ -21,9 +47,6 @@ interface City {
 }
 
 export default function CitiesPage() {
-  const t = useTranslations('Cities');
-  const tc = useTranslations('Common');
-
   // Data state
   const [cities, setCities] = useState<City[]>([]);
   const [selectedCity, setSelectedCity] = useState<City | null>(null);
@@ -61,11 +84,11 @@ export default function CitiesPage() {
       const res = await apiFetch<City[]>('/v1/admin/cities');
       setCities(res.data);
     } catch {
-      showFeedback('error', t('errorSaving'));
+      showFeedback('error', map["Cities.errorSaving"]);
     } finally {
       setIsLoading(false);
     }
-  }, [t]);
+  }, []);
 
   // Fetch communes for selected city
   const fetchCommunes = useCallback(async (cityId: string) => {
@@ -97,9 +120,9 @@ export default function CitiesPage() {
         body: JSON.stringify({ isActive: !city.isActive }),
       });
       fetchCities();
-      showFeedback('success', t('saveSuccess'));
+      showFeedback('success', map["Cities.saveSuccess"]);
     } catch {
-      showFeedback('error', t('errorSaving'));
+      showFeedback('error', map["Cities.errorSaving"]);
     }
   };
 
@@ -145,9 +168,9 @@ export default function CitiesPage() {
       }
       setShowCityModal(false);
       fetchCities();
-      showFeedback('success', t('saveSuccess'));
+      showFeedback('success', map["Cities.saveSuccess"]);
     } catch {
-      showFeedback('error', t('errorSaving'));
+      showFeedback('error', map["Cities.errorSaving"]);
     } finally {
       setIsSavingCity(false);
     }
@@ -193,9 +216,9 @@ export default function CitiesPage() {
       setShowCommuneModal(false);
       fetchCommunes(selectedCity.id);
       fetchCities(); // refresh commune counts
-      showFeedback('success', t('saveSuccess'));
+      showFeedback('success', map["Cities.saveSuccess"]);
     } catch {
-      showFeedback('error', t('errorSaving'));
+      showFeedback('error', map["Cities.errorSaving"]);
     } finally {
       setIsSavingCommune(false);
     }
@@ -209,14 +232,14 @@ export default function CitiesPage() {
       setDeletingCommuneId(null);
       fetchCommunes(selectedCity.id);
       fetchCities();
-      showFeedback('success', t('deleteSuccess'));
+      showFeedback('success', map["Cities.deleteSuccess"]);
     } catch {
-      showFeedback('error', t('errorDeleting'));
+      showFeedback('error', map["Cities.errorDeleting"]);
     }
   };
 
   if (isLoading) {
-    return <div className="p-8 text-center text-muted-foreground">{tc('loading')}</div>;
+    return <div className="p-8 text-center text-muted-foreground">{map["Common.loading"]}</div>;
   }
 
   return (
@@ -231,9 +254,9 @@ export default function CitiesPage() {
       )}
 
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+        <h1 className="text-2xl font-bold text-foreground">{map["Cities.title"]}</h1>
         <button onClick={openCreateCity} className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">
-          + {t('newCity')}
+          + {map["Cities.newCity"]}
         </button>
       </div>
 
@@ -241,10 +264,10 @@ export default function CitiesPage() {
         {/* Cities list */}
         <div className="bg-white rounded-xl border border-border shadow-sm">
           <div className="p-4 border-b border-border">
-            <h2 className="font-semibold text-foreground">{t('title')}</h2>
+            <h2 className="font-semibold text-foreground">{map["Cities.title"]}</h2>
           </div>
           {cities.length === 0 ? (
-            <p className="p-6 text-center text-muted-foreground text-sm">{t('noCities')}</p>
+            <p className="p-6 text-center text-muted-foreground text-sm">{map["Cities.noCities"]}</p>
           ) : (
             <div className="divide-y divide-border">
               {cities.map((city) => (
@@ -274,13 +297,13 @@ export default function CitiesPage() {
                           : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                       }`}
                     >
-                      {city.isActive ? t('active') : t('inactive')}
+                      {city.isActive ? map["Cities.active"] : map["Cities.inactive"]}
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); openEditCity(city); }}
                       className="px-2 py-1 text-xs text-primary hover:text-primary/80 font-medium"
                     >
-                      {tc('edit')}
+                      {map["Common.edit"]}
                     </button>
                   </div>
                 </div>
@@ -293,19 +316,19 @@ export default function CitiesPage() {
         <div className="bg-white rounded-xl border border-border shadow-sm">
           <div className="p-4 border-b border-border flex items-center justify-between">
             <h2 className="font-semibold text-foreground">
-              {t('communes')} {selectedCity && <span className="font-normal text-muted-foreground">— {selectedCity.name}</span>}
+              {map["Cities.communes"]} {selectedCity && <span className="font-normal text-muted-foreground">— {selectedCity.name}</span>}
             </h2>
             {selectedCity && (
               <button onClick={openCreateCommune} className="px-3 py-1.5 bg-primary text-white rounded-lg text-xs font-medium hover:bg-primary/90 transition-colors">
-                + {t('newCommune')}
+                + {map["Cities.newCommune"]}
               </button>
             )}
           </div>
 
           {!selectedCity ? (
-            <p className="p-6 text-center text-muted-foreground text-sm">{t('noCities')}</p>
+            <p className="p-6 text-center text-muted-foreground text-sm">{map["Cities.noCities"]}</p>
           ) : communes.length === 0 ? (
-            <p className="p-6 text-center text-muted-foreground text-sm">{t('noCommunes')}</p>
+            <p className="p-6 text-center text-muted-foreground text-sm">{map["Cities.noCommunes"]}</p>
           ) : (
             <div className="divide-y divide-border">
               {communes.map((commune) => (
@@ -315,10 +338,10 @@ export default function CitiesPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <button onClick={() => openEditCommune(commune)} className="px-2 py-1 text-xs text-primary hover:text-primary/80 font-medium">
-                      {tc('edit')}
+                      {map["Common.edit"]}
                     </button>
                     <button onClick={() => setDeletingCommuneId(commune.id)} className="px-2 py-1 text-xs text-red-600 hover:text-red-700 font-medium">
-                      {tc('delete')}
+                      {map["Common.delete"]}
                     </button>
                   </div>
                 </div>
@@ -332,25 +355,25 @@ export default function CitiesPage() {
       {showCityModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
-            <h3 className="text-lg font-semibold mb-4">{editingCity ? t('editCity') : t('newCity')}</h3>
+            <h3 className="text-lg font-semibold mb-4">{editingCity ? map["Cities.editCity"] : map["Cities.newCity"]}</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">{t('name')} *</label>
+                <label className="block text-sm font-medium mb-1">{map["Cities.name"]} *</label>
                 <input value={cityName} onChange={(e) => setCityName(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input text-sm focus:ring-2 focus:ring-ring focus:outline-none" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">{t('province')} *</label>
+                <label className="block text-sm font-medium mb-1">{map["Cities.province"]} *</label>
                 <input value={cityProvince} onChange={(e) => setCityProvince(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input text-sm focus:ring-2 focus:ring-ring focus:outline-none" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">{t('sortOrder')}</label>
+                <label className="block text-sm font-medium mb-1">{map["Cities.sortOrder"]}</label>
                 <input type="number" value={citySortOrder} onChange={(e) => setCitySortOrder(Number(e.target.value))} className="w-full px-3 py-2 rounded-lg border border-input text-sm focus:ring-2 focus:ring-ring focus:outline-none" />
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowCityModal(false)} className="px-4 py-2 text-sm rounded-lg border border-input hover:bg-muted transition-colors">{tc('cancel')}</button>
+              <button onClick={() => setShowCityModal(false)} className="px-4 py-2 text-sm rounded-lg border border-input hover:bg-muted transition-colors">{map["Common.cancel"]}</button>
               <button onClick={saveCity} disabled={isSavingCity || !cityName.trim() || !cityProvince.trim()} className="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors">
-                {isSavingCity ? tc('loading') : tc('save')}
+                {isSavingCity ? map["Common.loading"] : map["Common.save"]}
               </button>
             </div>
           </div>
@@ -361,21 +384,21 @@ export default function CitiesPage() {
       {showCommuneModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
-            <h3 className="text-lg font-semibold mb-4">{editingCommune ? t('editCommune') : t('newCommune')}</h3>
+            <h3 className="text-lg font-semibold mb-4">{editingCommune ? map["Cities.editCommune"] : map["Cities.newCommune"]}</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">{t('name')} *</label>
+                <label className="block text-sm font-medium mb-1">{map["Cities.name"]} *</label>
                 <input value={communeName} onChange={(e) => setCommuneName(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-input text-sm focus:ring-2 focus:ring-ring focus:outline-none" />
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">{t('sortOrder')}</label>
+                <label className="block text-sm font-medium mb-1">{map["Cities.sortOrder"]}</label>
                 <input type="number" value={communeSortOrder} onChange={(e) => setCommuneSortOrder(Number(e.target.value))} className="w-full px-3 py-2 rounded-lg border border-input text-sm focus:ring-2 focus:ring-ring focus:outline-none" />
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setShowCommuneModal(false)} className="px-4 py-2 text-sm rounded-lg border border-input hover:bg-muted transition-colors">{tc('cancel')}</button>
+              <button onClick={() => setShowCommuneModal(false)} className="px-4 py-2 text-sm rounded-lg border border-input hover:bg-muted transition-colors">{map["Common.cancel"]}</button>
               <button onClick={saveCommune} disabled={isSavingCommune || !communeName.trim()} className="px-4 py-2 bg-primary text-white text-sm rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors">
-                {isSavingCommune ? tc('loading') : tc('save')}
+                {isSavingCommune ? map["Common.loading"] : map["Common.save"]}
               </button>
             </div>
           </div>
@@ -386,12 +409,12 @@ export default function CitiesPage() {
       {deletingCommuneId && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-full max-w-sm mx-4 shadow-xl">
-            <h3 className="text-lg font-semibold mb-2">{t('deleteCommune')}</h3>
-            <p className="text-sm text-muted-foreground mb-6">{t('confirmDeleteCommune')}</p>
+            <h3 className="text-lg font-semibold mb-2">{map["Cities.deleteCommune"]}</h3>
+            <p className="text-sm text-muted-foreground mb-6">{map["Cities.confirmDeleteCommune"]}</p>
             <div className="flex justify-end gap-3">
-              <button onClick={() => setDeletingCommuneId(null)} className="px-4 py-2 text-sm rounded-lg border border-input hover:bg-muted transition-colors">{tc('cancel')}</button>
+              <button onClick={() => setDeletingCommuneId(null)} className="px-4 py-2 text-sm rounded-lg border border-input hover:bg-muted transition-colors">{map["Common.cancel"]}</button>
               <button onClick={() => deleteCommune(deletingCommuneId)} className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors">
-                {tc('delete')}
+                {map["Common.delete"]}
               </button>
             </div>
           </div>

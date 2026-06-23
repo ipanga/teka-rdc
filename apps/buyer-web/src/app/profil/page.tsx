@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useRef, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiFetch, ApiError } from '@/lib/api-client';
@@ -27,7 +26,6 @@ interface SessionDto {
 
 
 export default function BuyerProfilePage() {
-  const t = useTranslations('Profile');
   const router = useRouter();
   const authUser = useAuthStore((s) => s.user);
   const setAuthUser = useAuthStore((s) => s.setUser);
@@ -88,7 +86,7 @@ export default function BuyerProfilePage() {
       setSessions(res.data);
     } catch {
       setSessions([]);
-      showFeedback('error', t('sessionsLoadError'));
+      showFeedback('error', "Impossible de charger la liste des appareils");
     } finally {
       setSessionsLoading(false);
     }
@@ -106,9 +104,9 @@ export default function BuyerProfilePage() {
     try {
       await apiFetch(`/v1/users/sessions/${id}`, { method: 'DELETE' });
       setSessions((prev) => prev?.filter((s) => s.id !== id) ?? null);
-      showFeedback('success', t('sessionRevoked'));
+      showFeedback('success', "Appareil déconnecté");
     } catch {
-      showFeedback('error', t('sessionRevokeError'));
+      showFeedback('error', "Impossible de déconnecter cet appareil");
     } finally {
       setSessionAction(null);
     }
@@ -119,9 +117,9 @@ export default function BuyerProfilePage() {
     try {
       const res = await apiFetch<{ revoked: number }>('/v1/users/sessions', { method: 'DELETE' });
       setSessions((prev) => prev?.filter((s) => s.current) ?? null);
-      showFeedback('success', t('sessionRevokedAll', { count: res.data.revoked }));
+      showFeedback('success', res.data.revoked === 0 ? 'Aucun autre appareil' : res.data.revoked === 1 ? '1 appareil déconnecté' : `${res.data.revoked} appareils déconnectés`);
     } catch {
-      showFeedback('error', t('sessionRevokeError'));
+      showFeedback('error', "Impossible de déconnecter cet appareil");
     } finally {
       setSessionAction(null);
     }
@@ -136,11 +134,11 @@ export default function BuyerProfilePage() {
         method: 'PATCH',
         body: JSON.stringify({ [key]: value }),
       });
-      showFeedback('success', t('notifSaved'));
+      showFeedback('success', "Préférences enregistrées");
     } catch {
       if (key === 'smsOrderUpdates') setSmsOrderUpdates(!value);
       else setSmsBroadcasts(!value);
-      showFeedback('error', t('notifError'));
+      showFeedback('error', "Erreur lors de la mise à jour");
     } finally {
       setNotifSaving(false);
     }
@@ -173,9 +171,9 @@ export default function BuyerProfilePage() {
       });
       setUser((u) => (u ? { ...u, avatar: json.data.avatar } : u));
       if (authUser) setAuthUser({ ...authUser, avatar: json.data.avatar });
-      showFeedback('success', t('saveSuccess'));
+      showFeedback('success', "Profil mis à jour");
     } catch {
-      showFeedback('error', t('uploadError'));
+      showFeedback('error', "Erreur lors de l'envoi de la photo");
     } finally {
       setUploading(false);
     }
@@ -197,10 +195,10 @@ export default function BuyerProfilePage() {
         method: 'PATCH',
         body: JSON.stringify(body),
       });
-      showFeedback('success', t('saveSuccess'));
+      showFeedback('success', "Profil mis à jour");
       loadMe();
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : t('saveError');
+      const msg = err instanceof ApiError ? err.message : "Erreur lors de l'enregistrement";
       showFeedback('error', msg);
     } finally {
       setSaving(false);
@@ -221,8 +219,8 @@ export default function BuyerProfilePage() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{t('subtitle')}</p>
+        <h1 className="text-2xl font-bold text-foreground">{"Mon profil"}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{"Gérez vos informations personnelles"}</p>
       </div>
 
       {feedback && (
@@ -235,7 +233,7 @@ export default function BuyerProfilePage() {
 
       {/* Avatar */}
       <section className="mb-6 bg-white rounded-xl border border-border p-6">
-        <h2 className="text-base font-semibold text-foreground mb-4">{t('sectionAvatar')}</h2>
+        <h2 className="text-base font-semibold text-foreground mb-4">{"Photo de profil"}</h2>
         <div className="flex items-center gap-5">
           {user?.avatar ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -262,7 +260,7 @@ export default function BuyerProfilePage() {
               disabled={uploading}
               className="px-4 py-2 text-sm font-medium rounded-lg border border-border bg-background hover:bg-muted transition-colors disabled:opacity-50"
             >
-              {uploading ? t('uploading') : t('uploadAvatar')}
+              {uploading ? "Envoi en cours..." : "Changer la photo"}
             </button>
           </div>
         </div>
@@ -270,11 +268,11 @@ export default function BuyerProfilePage() {
 
       {/* Personal */}
       <section className="mb-6 bg-white rounded-xl border border-border p-6">
-        <h2 className="text-base font-semibold text-foreground mb-4">{t('sectionPersonal')}</h2>
+        <h2 className="text-base font-semibold text-foreground mb-4">{"Informations personnelles"}</h2>
         <form onSubmit={handleSave} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">{t('firstName')}</label>
+              <label className="block text-sm font-medium text-foreground mb-1">{"Prénom"}</label>
               <input
                 type="text"
                 value={firstName}
@@ -283,7 +281,7 @@ export default function BuyerProfilePage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">{t('lastName')}</label>
+              <label className="block text-sm font-medium text-foreground mb-1">{"Nom"}</label>
               <input
                 type="text"
                 value={lastName}
@@ -293,52 +291,52 @@ export default function BuyerProfilePage() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">{t('email')}</label>
+            <label className="block text-sm font-medium text-foreground mb-1">{"Email"}</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
-            <p className="text-xs text-muted-foreground mt-1">{t('emailHint')}</p>
+            <p className="text-xs text-muted-foreground mt-1">{"Optionnel — utilisé pour les confirmations de commande."}</p>
           </div>
           {/* Phone is the WhatsApp OTP auth identifier — not editable from the
               app. Surfaced as read-only with an explanatory hint. */}
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">{t('phone')}</label>
+            <label className="block text-sm font-medium text-foreground mb-1">{"Numéro WhatsApp"}</label>
             <input
               type="tel"
               value={user?.phone ?? ''}
               disabled
               className="w-full px-3 py-2 border border-input rounded-lg bg-muted text-muted-foreground cursor-not-allowed"
             />
-            <p className="text-xs text-muted-foreground mt-1">{t('phoneHint')}</p>
+            <p className="text-xs text-muted-foreground mt-1">{"Numéro de connexion à votre compte. Contactez le support pour le modifier."}</p>
           </div>
           <button
             type="submit"
             disabled={saving}
             className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
           >
-            {saving ? t('saving') : t('save')}
+            {saving ? "Enregistrement..." : "Enregistrer"}
           </button>
         </form>
       </section>
 
       {/* Notifications */}
       <section className="mb-6 bg-white rounded-xl border border-border p-6">
-        <h2 className="text-base font-semibold text-foreground mb-2">{t('sectionNotifications')}</h2>
-        <p className="text-sm text-muted-foreground mb-4">{t('notificationsHint')}</p>
+        <h2 className="text-base font-semibold text-foreground mb-2">{"Notifications"}</h2>
+        <p className="text-sm text-muted-foreground mb-4">{"Choisissez les SMS que vous voulez recevoir. Les codes WhatsApp restent toujours envoyés."}</p>
         <div className="space-y-3">
           <NotifToggle
-            label={t('notifOrderUpdates')}
-            description={t('notifOrderUpdatesDesc')}
+            label={"Mises à jour de commande"}
+            description={"Confirmation, expédition, livraison, annulation"}
             checked={smsOrderUpdates}
             disabled={notifSaving}
             onChange={(v) => updateNotifPref('smsOrderUpdates', v)}
           />
           <NotifToggle
-            label={t('notifBroadcasts')}
-            description={t('notifBroadcastsDesc')}
+            label={"Annonces et promotions"}
+            description={"Messages marketing envoyés par l'équipe Teka"}
             checked={smsBroadcasts}
             disabled={notifSaving}
             onChange={(v) => updateNotifPref('smsBroadcasts', v)}
@@ -350,8 +348,8 @@ export default function BuyerProfilePage() {
       <section className="mb-6 bg-white rounded-xl border border-border p-6">
         <div className="flex items-start justify-between gap-4 mb-2">
           <div>
-            <h2 className="text-base font-semibold text-foreground">{t('sectionSessions')}</h2>
-            <p className="text-sm text-muted-foreground mt-1">{t('sessionsHint')}</p>
+            <h2 className="text-base font-semibold text-foreground">{"Appareils connectés"}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{"Liste des appareils actuellement connectés à votre compte. Révoquez ceux que vous ne reconnaissez pas."}</p>
           </div>
           {sessions && sessions.some((s) => !s.current) && (
             <button
@@ -360,7 +358,7 @@ export default function BuyerProfilePage() {
               disabled={sessionAction !== null}
               className="shrink-0 text-xs font-medium text-destructive hover:underline disabled:opacity-50"
             >
-              {sessionAction === 'all' ? t('sessionRevoking') : t('sessionRevokeAll')}
+              {sessionAction === 'all' ? "Déconnexion..." : "Déconnecter les autres appareils"}
             </button>
           )}
         </div>
@@ -375,20 +373,15 @@ export default function BuyerProfilePage() {
               <li key={s.id} className="flex items-center justify-between gap-3 py-3">
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium text-foreground flex items-center gap-2">
-                    {s.ipAddress ? t('sessionIp', { ip: s.ipAddress }) : t('sessionIpUnknown')}
+                    {s.ipAddress ? `IP ${s.ipAddress}` : "IP inconnue"}
                     {s.current && (
                       <span className="inline-block px-2 py-0.5 text-[10px] font-medium rounded-full bg-primary/10 text-primary">
-                        {t('sessionCurrent')}
+                        {"Cet appareil"}
                       </span>
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    {t('sessionConnectedOn', {
-                      date: new Date(s.createdAt).toLocaleString('fr-FR', {
-                        dateStyle: 'short',
-                        timeStyle: 'short',
-                      }),
-                    })}
+                    {`Connecté le ${new Date(s.createdAt).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}`}
                   </div>
                 </div>
                 {!s.current && (
@@ -398,14 +391,14 @@ export default function BuyerProfilePage() {
                     disabled={sessionAction !== null}
                     className="shrink-0 text-xs font-medium text-destructive hover:underline disabled:opacity-50"
                   >
-                    {sessionAction === s.id ? t('sessionRevoking') : t('sessionRevoke')}
+                    {sessionAction === s.id ? "Déconnexion..." : "Déconnecter"}
                   </button>
                 )}
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-muted-foreground mt-3">{t('sessionsEmpty')}</p>
+          <p className="text-sm text-muted-foreground mt-3">{"Aucun autre appareil connecté"}</p>
         )}
       </section>
 
@@ -416,13 +409,13 @@ export default function BuyerProfilePage() {
             href="/commandes"
             className="text-sm font-medium text-primary hover:underline"
           >
-            {t('viewOrders')}
+            {"Voir mes commandes"}
           </Link>
           <Link
             href="/favoris"
             className="text-sm font-medium text-primary hover:underline"
           >
-            {t('viewWishlist')}
+            {"Voir ma liste de souhaits"}
           </Link>
         </div>
       </section>
