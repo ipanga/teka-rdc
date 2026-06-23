@@ -6,7 +6,23 @@
 
 ## Active initiative
 
-**None.** Broadcast notifications shipped to prod (see below). No in-flight dev initiative — next work TBD.
+**Universal Deep Linking & App Links** (started 2026-06-23) — clicking/sharing/tapping a `https://teka.cd/...`
+URL opens **buyer-mobile** on the right screen (product/category/search/promotions/home) when installed, else the
+website; **zero SEO/URL changes** (additive only). Buyer-mobile only (seller deferred). **Detailed tracker:
+`tasks/deep-linking-progress.md`.**
+- **Decisions:** single Flutter `DeepLinkParser` mirroring web `lib/urls.ts` (shortCode resolver); the API
+  `GET /v1/browse/{products,categories}/:identifier` already resolves shortCode/slug/uuid (no new endpoints);
+  association files via `buyer-web/public/.well-known/` (nginx passes through, no Cloudflare); unmapped/host-
+  mismatch URLs fall back to the browser (SEO-safe); auth/city guards prevent protected-route bypass.
+- **Phased PRs:** 2 web association files → 3 Flutter parser+`app_links` → 4 Android App Links → 5 iOS Universal
+  Links → 6 notification+share unify → 7 analytics+security+docs+tests.
+- **Phase 2 ✅ DONE** (branch `feat/deep-linking-web-association`): `assetlinks.json` (**placeholder Play-signing
+  SHA-256 — operator TODO**) + `apple-app-site-association` (`YK6Z393A4D.com.tootiye.teka`) + `next.config.ts`
+  content-type header. Verified live (both 200 + `application/json`). PR pending.
+- **Operator inputs:** Android **Play App Signing cert SHA-256** (Play Console → App integrity) → assetlinks.json;
+  iOS enable **Associated Domains** on the App ID + profile at sign time.
+
+> Broadcast notifications shipped to prod (release #443, see below).
 
 > **Buyer iOS push — config wired + build-verified 2026-06-23, device/Apple steps remain.** Prod
 > `GoogleService-Info.plist` (`com.tootiye.teka`) in `apps/buyer-mobile/ios/Runner/` (gitignored; secret
