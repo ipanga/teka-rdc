@@ -6,21 +6,45 @@
 
 ## Active initiative
 
-**Broadcast notifications (Admin → Buyers)** (started 2026-06-23) — admin sends notifications to all buyers /
-one / many (extensible segments), delivered as **push + a persisted in-app Notification Center** (read/unread)
-on buyer-web + buyer-mobile, plus an admin notification center. **Detailed tracker:
-`tasks/broadcast-notifications-progress.md`.** Plan: `~/.claude/plans/generic-sleeping-tide.md`.
-- **Decisions:** **fan-out on write** (one `UserNotification` per recipient — reuses the generic feed); target
-  all-buyers (segment) OR specific buyers (`recipientIds`) + optional **linked product** (`PRODUCT_PROMO` →
-  PDP deep-link); **extend** the existing broadcasts page (no parallel module); buyer-web real-time = 60s
-  polling; unified `/v1/notifications` feed (seller's `/v1/seller/notifications` untouched); iOS push deferred.
-- **Phased PRs (resumable):** A backend → B admin-web → C buyer-web → D buyer-mobile → E analytics/docs.
-- **✅ ALL PHASES MERGED to develop** (A #438 backend · B #439 admin-web · C #440 buyer-web · D #441
-  buyer-mobile · E docs/analytics). Verified: api 149 unit + 116 e2e; web tsc ×3 + builds (incl. `/notifications`
-  noindex); flutter analyze 0 issues + 93 tests; dev schema confirmed. Tracker: `tasks/broadcast-notifications-progress.md`.
-- **Remaining before prod:** release `develop→main`; **apply the prod migration**
-  `apps/api/prisma/migrations/manual/2026-06-23_broadcast_notifications.sql` via the Apply-prod-migration Action
-  at release (enum ADD VALUE + nullable cols; no backfill). Mobile reaches devices on the next Play Store AAB.
+**Universal Deep Linking & App Links** (started 2026-06-23) — clicking/sharing/tapping a `https://teka.cd/...`
+URL opens **buyer-mobile** on the right screen (product/category/search/promotions/home) when installed, else the
+website; **zero SEO/URL changes** (additive only). Buyer-mobile only (seller deferred). **Detailed tracker:
+`tasks/deep-linking-progress.md`.**
+- **Decisions:** single Flutter `DeepLinkParser` mirroring web `lib/urls.ts` (shortCode resolver); the API
+  `GET /v1/browse/{products,categories}/:identifier` already resolves shortCode/slug/uuid (no new endpoints);
+  association files via `buyer-web/public/.well-known/` (nginx passes through, no Cloudflare); unmapped/host-
+  mismatch URLs fall back to the browser (SEO-safe); auth/city guards prevent protected-route bypass.
+- **Phased PRs:** 2 web association files → 3 Flutter parser+`app_links` → 4 Android App Links → 5 iOS Universal
+  Links → 6 notification+share unify → 7 analytics+security+docs+tests.
+- **✅ ALL PHASES MERGED to develop** (2 web #446 · 3 Flutter core #447 · 4 Android #448 · 5 iOS + 6 notif/share
+  #449 · 7 analytics/docs). Verified: buyer-web build + live `.well-known` serving (200 + `application/json`);
+  116 mobile tests (22 deep-link unit); dev APK + iOS Runner.app build; aapt-confirmed manifest. Model:
+  `docs/deep-linking.md`.
+- **Remaining before live (operator):** (1) put the real **Play App Signing SHA-256** in
+  `apps/buyer-web/public/.well-known/assetlinks.json` (placeholder now); (2) enable iOS **Associated Domains**
+  on the `com.tootiye.teka` App ID + profile, signed-device test; (3) release `develop→main`. Mobile reaches
+  devices on the next Play Store AAB.
+- **Operator inputs:** Android **Play App Signing cert SHA-256** (Play Console → App integrity) → assetlinks.json;
+  iOS enable **Associated Domains** on the App ID + profile at sign time.
+
+> Broadcast notifications shipped to prod (release #443, see below).
+
+> **Buyer iOS push — config wired + build-verified 2026-06-23, device/Apple steps remain.** Prod
+> `GoogleService-Info.plist` (`com.tootiye.teka`) in `apps/buyer-mobile/ios/Runner/` (gitignored; secret
+> `BUYER_GOOGLE_SERVICE_INFO_PLIST_B64`). Automated + verified by `flutter build ios --no-codesign` (Runner.app
+> built, Firebase SPM-linked): bundle id aligned `buyerMobile→teka`, `UIBackgroundModes`, `Runner.entitlements`
+> (`aps-environment`) + `CODE_SIGN_ENTITLEMENTS`, plist in Copy-Bundle-Resources, deployment target 13→15 (Firebase
+> req), SPM integrated. **Remaining (device/Apple, not automatable):** upload APNs `.p8` (Key ID `78KG84553N`,
+> Team ID `YK6Z393A4D`) to Firebase Console; sign for `com.tootiye.teka`; real-device/TestFlight install + live
+> push test; commit the untracked `ios/` tree ("PR C"). Full checklist: `docs/push-notifications.md` → iOS.
+
+### Recently completed — 2026-06-23 (Broadcast notifications — SHIPPED to prod, release #443)
+Admin→buyers notifications as **push + a persisted in-app Notification Center** across API + admin-web +
+buyer-web + buyer-mobile. 5 phased PRs #438–#442 → release #443 (`develop→main`, `0ea66d1`, main==develop);
+prod migration `2026-06-23_broadcast_notifications.sql` applied via the Action (productId/recipientIds cols +
+BROADCAST/PRODUCT_PROMO enum values confirmed on prod); prod-smoke verified (feed + admin endpoints 401-gated,
+browse 200, `/notifications` 200). Tracker: `tasks/broadcast-notifications-progress.md`; model:
+`docs/architecture.md` → "Notifications & broadcasts". Mobile reaches devices on the next Play Store AAB.
   iOS push deferred (no GoogleService-Info.plist). Optional: before/after screenshots (needs running apps).
 
 ### Recently completed — 2026-06-23 (Discount system + product-card UX — SHIPPED to prod, release #437)

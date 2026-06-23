@@ -5,6 +5,7 @@ import 'core/analytics/posthog_analytics.dart';
 import 'core/connectivity/connectivity_lifecycle_observer.dart';
 import 'core/connectivity/connectivity_sentry_reporter.dart';
 import 'core/connectivity/widgets/connectivity_banner.dart';
+import 'core/deep_link/deep_link_controller.dart';
 import 'core/push/push_controller.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
@@ -23,6 +24,12 @@ class TekaApp extends ConsumerWidget {
     // The provider is read (not watched) because we don't need to
     // rebuild on changes; we just need it instantiated.
     ref.read(pushControllerProvider);
+
+    // Activate the deep-link controller — subscribes to incoming App Links /
+    // Universal Links and routes them via DeepLinkParser. Read-once-instantiate
+    // (same pattern as pushController); the cold-start link is handled after
+    // the first frame so the router is mounted.
+    ref.read(deepLinkControllerProvider);
 
     // Activate the Sentry reporter — subscribes to the connectivity
     // stream + tags every Sentry event with the current state and

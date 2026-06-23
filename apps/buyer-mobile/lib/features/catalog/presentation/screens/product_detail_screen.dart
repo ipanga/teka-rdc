@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/auth/auth_guard.dart';
+import '../../../../core/deep_link/web_links.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
@@ -30,6 +32,17 @@ class ProductDetailScreen extends ConsumerStatefulWidget {
 
 class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   bool _viewTracked = false;
+
+  /// Share the product's canonical web URL — opens the app via App/Universal
+  /// Links when the recipient has it installed, else the website.
+  Future<void> _shareProduct(ProductDetailModel product) async {
+    final url = productWebUrl(product);
+    if (url == null) return;
+    const PosthogAnalytics().capture('product_shared', properties: {
+      'productId': product.id,
+    });
+    await Share.share(url, subject: product.title);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +73,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       appBar: AppBar(
         title: Text("Details du produit"),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.share_outlined),
+            tooltip: 'Partager',
+            onPressed: () {
+              final product = productAsync.valueOrNull;
+              if (product != null) _shareProduct(product);
+            },
+          ),
           WishlistButton(productId: productId),
         ],
       ),
