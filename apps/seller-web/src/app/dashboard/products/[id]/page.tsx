@@ -29,6 +29,7 @@ interface Product {
   description?: string | null;
   priceCDF: string;
   priceUSD?: string | null;
+  discountPriceCDF?: string | null;
   quantity: number;
   status: string;
   condition: string;
@@ -63,6 +64,7 @@ export default function ProductDetailPage() {
   const [brandId, setBrandId] = useState('');
   const [priceCDF, setPriceCDF] = useState('');
   const [priceUSD, setPriceUSD] = useState('');
+  const [discountPriceCDF, setDiscountPriceCDF] = useState('');
   const [quantity, setQuantity] = useState('');
   const [condition, setCondition] = useState<'NEW' | 'USED'>('NEW');
   const [images, setImages] = useState<ProductImage[]>([]);
@@ -75,6 +77,9 @@ export default function ProductDetailPage() {
   );
 
   const isEditable = product?.status === 'DRAFT' || product?.status === 'REJECTED';
+  // On a published (ACTIVE) product the seller may still adjust price /
+  // promotional price / stock (no re-review); content fields stay locked.
+  const pricingEditable = isEditable || product?.status === 'ACTIVE';
   const canSubmit = product?.status === 'DRAFT';
 
   const loadProduct = useCallback(async () => {
@@ -90,6 +95,9 @@ export default function ProductDetailPage() {
       setBrandId(p.brand?.id || p.brandId || '');
       setPriceCDF(p.priceCDF ? String(Number(p.priceCDF) / 100) : '');
       setPriceUSD(p.priceUSD ? String(Number(p.priceUSD) / 100) : '');
+      setDiscountPriceCDF(
+        p.discountPriceCDF ? String(Number(p.discountPriceCDF) / 100) : '',
+      );
       setQuantity(String(p.quantity ?? 0));
       setCondition((p.condition as 'NEW' | 'USED') || 'NEW');
       setImages(p.images || []);
@@ -144,6 +152,16 @@ export default function ProductDetailPage() {
     if (priceUSD && (isNaN(Number(priceUSD)) || Number(priceUSD) < 0)) {
       errors.priceUSD = "Veuillez entrer un prix valide";
     }
+    if (discountPriceCDF) {
+      const d = Number(discountPriceCDF);
+      const p = Number(priceCDF);
+      if (isNaN(d) || d <= 0) {
+        errors.discountPriceCDF = "Veuillez entrer un prix promotionnel valide";
+      } else if (p && d >= p) {
+        errors.discountPriceCDF =
+          "Le prix promotionnel doit être inférieur au prix normal";
+      }
+    }
     if (!quantity || isNaN(Number(quantity)) || Number(quantity) < 0) {
       errors.quantity = "Ce champ est requis";
     }
@@ -153,29 +171,41 @@ export default function ProductDetailPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isEditable || !validate()) return;
+    if (!pricingEditable || !validate()) return;
 
     setIsSaving(true);
     setError('');
     setSuccessMessage('');
 
     try {
-      const body: Record<string, unknown> = {
-        title: title.trim(),
-        description: description.trim() || undefined,
-        categoryId,
-        priceCDF: String(Math.round(Number(priceCDF) * 100)),
-        quantity: Number(quantity),
-        condition,
-        // null clears the brand; a value sets it (the API treats undefined as
-        // "leave unchanged", but on edit we always send the current selection).
-        brandId: brandId || null,
-        specifications,
-      };
+      // On a published product the API accepts ONLY price/discount/stock — so
+      // send just those. DRAFT/REJECTED sends the full editable payload.
+      const body: Record<string, unknown> = isEditable
+        ? {
+            title: title.trim(),
+            description: description.trim() || undefined,
+            categoryId,
+            priceCDF: String(Math.round(Number(priceCDF) * 100)),
+            quantity: Number(quantity),
+            condition,
+            // null clears the brand; a value sets it.
+            brandId: brandId || null,
+            specifications,
+          }
+        : {
+            priceCDF: String(Math.round(Number(priceCDF) * 100)),
+            quantity: Number(quantity),
+          };
 
       if (priceUSD && Number(priceUSD) > 0) {
         body.priceUSD = String(Math.round(Number(priceUSD) * 100));
       }
+
+      // Always send the promo (value or null) so clearing it works.
+      body.discountPriceCDF =
+        discountPriceCDF && Number(discountPriceCDF) > 0
+          ? String(Math.round(Number(discountPriceCDF) * 100))
+          : null;
 
       await apiFetch(`/v1/sellers/products/${productId}`, {
         method: 'PATCH',
@@ -291,7 +321,9 @@ export default function ProductDetailPage() {
       {/* Read-only notice */}
       {!isEditable && (
         <div className="mb-4 p-3 rounded-lg bg-muted text-muted-foreground text-sm">
-          Ce produit ne peut pas être modifié dans son statut actuel.
+          {pricingEditable
+            ? 'Produit publié : vous pouvez modifier le prix, le prix promotionnel et le stock. Les autres informations ne sont pas modifiables.'
+            : 'Ce produit ne peut pas être modifié dans son statut actuel.'}
         </div>
       )}
 
@@ -455,7 +487,7 @@ export default function ProductDetailPage() {
                 <label htmlFor="priceCDF" className="block text-sm font-medium text-foreground mb-1">
                   Prix en CDF *
                 </label>
-                {isEditable ? (
+                {pricingEditable ? (
                   <div className="relative">
                     <input
                       id="priceCDF"
@@ -485,7 +517,7 @@ export default function ProductDetailPage() {
                 <label htmlFor="priceUSD" className="block text-sm font-medium text-foreground mb-1">
                   Prix en USD (optionnel)
                 </label>
-                {isEditable ? (
+                {pricingEditable ? (
                   <div className="relative">
                     <input
                       id="priceUSD"
@@ -510,12 +542,56 @@ export default function ProductDetailPage() {
                 )}
               </div>
 
+              {/* Promotional price (optional) */}
+              <div>
+                <label htmlFor="discountPriceCDF" className="block text-sm font-medium text-foreground mb-1">
+                  Prix promotionnel en CDF (optionnel)
+                </label>
+                {pricingEditable ? (
+                  <>
+                    <div className="relative">
+                      <input
+                        id="discountPriceCDF"
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={discountPriceCDF}
+                        onChange={(e) => { setDiscountPriceCDF(e.target.value); setFieldErrors((prev) => ({ ...prev, discountPriceCDF: '' })); }}
+                        className={`w-full px-3 py-2 pr-14 border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring ${
+                          fieldErrors.discountPriceCDF ? 'border-destructive' : 'border-input'
+                        }`}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">CDF</span>
+                    </div>
+                    {!fieldErrors.discountPriceCDF &&
+                      priceCDF &&
+                      discountPriceCDF &&
+                      Number(discountPriceCDF) > 0 &&
+                      Number(discountPriceCDF) < Number(priceCDF) && (
+                        <p className="text-xs text-success mt-1">
+                          {`-${Math.round((1 - Number(discountPriceCDF) / Number(priceCDF)) * 100)}% · Vous économisez ${(Number(priceCDF) - Number(discountPriceCDF)).toLocaleString('fr-CD')} CDF`}
+                        </p>
+                      )}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Laissez vide pour retirer la promotion. Doit être inférieur au prix normal.
+                    </p>
+                  </>
+                ) : (
+                  <p className="px-3 py-2 bg-muted rounded-lg text-foreground text-sm">
+                    {product.discountPriceCDF ? formatPrice(product.discountPriceCDF) : '---'}
+                  </p>
+                )}
+                {fieldErrors.discountPriceCDF && (
+                  <p className="text-xs text-destructive mt-1">{fieldErrors.discountPriceCDF}</p>
+                )}
+              </div>
+
               {/* Quantity */}
               <div>
                 <label htmlFor="quantity" className="block text-sm font-medium text-foreground mb-1">
                   Quantité *
                 </label>
-                {isEditable ? (
+                {pricingEditable ? (
                   <input
                     id="quantity"
                     type="number"
@@ -539,7 +615,7 @@ export default function ProductDetailPage() {
 
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-3">
-            {isEditable && (
+            {pricingEditable && (
               <button
                 type="submit"
                 disabled={isSaving}

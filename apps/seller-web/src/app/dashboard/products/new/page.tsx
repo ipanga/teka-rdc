@@ -31,6 +31,7 @@ export default function NewProductPage() {
   const [brandId, setBrandId] = useState('');
   const [priceCDF, setPriceCDF] = useState('');
   const [priceUSD, setPriceUSD] = useState('');
+  const [discountPriceCDF, setDiscountPriceCDF] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [condition, setCondition] = useState<'NEW' | 'USED'>('NEW');
   const [specifications, setSpecifications] = useState<{ attributeId: string; value: string }[]>([]);
@@ -70,6 +71,16 @@ export default function NewProductPage() {
     if (priceUSD && (isNaN(Number(priceUSD)) || Number(priceUSD) < 0)) {
       errors.priceUSD = "Veuillez entrer un prix valide";
     }
+    if (discountPriceCDF) {
+      const d = Number(discountPriceCDF);
+      const p = Number(priceCDF);
+      if (isNaN(d) || d <= 0) {
+        errors.discountPriceCDF = "Veuillez entrer un prix promotionnel valide";
+      } else if (p && d >= p) {
+        errors.discountPriceCDF =
+          "Le prix promotionnel doit être inférieur au prix normal";
+      }
+    }
     if (!quantity || isNaN(Number(quantity)) || Number(quantity) < 0) {
       errors.quantity = "Ce champ est requis";
     }
@@ -100,6 +111,12 @@ export default function NewProductPage() {
 
       if (priceUSD && Number(priceUSD) > 0) {
         body.priceUSD = String(Math.round(Number(priceUSD) * 100));
+      }
+
+      if (discountPriceCDF && Number(discountPriceCDF) > 0) {
+        body.discountPriceCDF = String(
+          Math.round(Number(discountPriceCDF) * 100),
+        );
       }
 
       if (specifications.length > 0) {
@@ -285,6 +302,43 @@ export default function NewProductPage() {
               {fieldErrors.priceCDF && (
                 <p className="text-xs text-destructive mt-1">{fieldErrors.priceCDF}</p>
               )}
+            </div>
+
+            {/* Promotional price (optional) */}
+            <div>
+              <label htmlFor="discountPriceCDF" className="block text-sm font-medium text-foreground mb-1">
+                Prix promotionnel en CDF (optionnel)
+              </label>
+              <div className="relative">
+                <input
+                  id="discountPriceCDF"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={discountPriceCDF}
+                  onChange={(e) => { setDiscountPriceCDF(e.target.value); setFieldErrors((prev) => ({ ...prev, discountPriceCDF: '' })); }}
+                  className={`w-full px-3 py-2 pr-14 border rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring ${
+                    fieldErrors.discountPriceCDF ? 'border-destructive' : 'border-input'
+                  }`}
+                  placeholder="4000"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">CDF</span>
+              </div>
+              {fieldErrors.discountPriceCDF ? (
+                <p className="text-xs text-destructive mt-1">{fieldErrors.discountPriceCDF}</p>
+              ) : (
+                priceCDF &&
+                discountPriceCDF &&
+                Number(discountPriceCDF) > 0 &&
+                Number(discountPriceCDF) < Number(priceCDF) && (
+                  <p className="text-xs text-success mt-1">
+                    {`-${Math.round((1 - Number(discountPriceCDF) / Number(priceCDF)) * 100)}% · Vous économisez ${(Number(priceCDF) - Number(discountPriceCDF)).toLocaleString('fr-CD')} CDF`}
+                  </p>
+                )
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Laissez vide pour ne pas faire de promotion. Doit être inférieur au prix normal.
+              </p>
             </div>
 
             {/* Price USD */}
