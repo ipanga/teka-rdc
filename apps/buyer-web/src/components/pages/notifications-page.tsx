@@ -7,6 +7,7 @@ import { Footer } from '@/components/layout/footer';
 import { Container, SectionHeader } from '@/components/ui';
 import { apiFetch } from '@/lib/api-client';
 import { useAuthStore } from '@/lib/auth-store';
+import { track } from '@/lib/analytics';
 import {
   hrefForNotification,
   type BuyerNotification,
@@ -125,7 +126,10 @@ export default function NotificationsPage() {
                 <li key={n.id}>
                   <Link
                     href={hrefForNotification(n)}
-                    onClick={() => markRead(n.id)}
+                    onClick={() => {
+                      track('notification_opened', { notificationId: n.id, type: n.type });
+                      markRead(n.id);
+                    }}
                     className={`block rounded-xl border p-4 transition-colors hover:border-border-strong ${
                       n.readAt
                         ? 'bg-surface border-border'
