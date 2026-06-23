@@ -16,9 +16,12 @@ website; **zero SEO/URL changes** (additive only). Buyer-mobile only (seller def
   mismatch URLs fall back to the browser (SEO-safe); auth/city guards prevent protected-route bypass.
 - **Phased PRs:** 2 web association files → 3 Flutter parser+`app_links` → 4 Android App Links → 5 iOS Universal
   Links → 6 notification+share unify → 7 analytics+security+docs+tests.
-- **Phase 2 ✅ DONE** (branch `feat/deep-linking-web-association`): `assetlinks.json` (**placeholder Play-signing
-  SHA-256 — operator TODO**) + `apple-app-site-association` (`YK6Z393A4D.com.tootiye.teka`) + `next.config.ts`
-  content-type header. Verified live (both 200 + `application/json`). PR pending.
+- **Phases 2–6 ✅ MERGED to develop:** 2 web association files (#446) · 3 Flutter `DeepLinkParser`+`app_links`
+  (#447) · 4 Android App Links manifest+`autoVerify` (#448) · 5 iOS Universal Links entitlement (local
+  untracked `ios/`, build-verified) · 6 notification `url` unify + product Share (`share_plus`). Verified:
+  buyer-web build + live `.well-known` serving; 115 mobile tests; dev APK + iOS Runner.app build. **Remaining:
+  Phase 7** (analytics + security + docs + cross-platform test matrix). `assetlinks.json` still holds the
+  **placeholder Play-signing SHA-256 — operator TODO**.
 - **Operator inputs:** Android **Play App Signing cert SHA-256** (Play Console → App integrity) → assetlinks.json;
   iOS enable **Associated Domains** on the App ID + profile at sign time.
 

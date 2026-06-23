@@ -29,6 +29,9 @@ dependencies:
   # (so web-only pages + SEO are never hijacked). See lib/core/deep_link/.
   app_links: ^6.3.2
   url_launcher: ^6.3.0
+  # Share a product's canonical web URL (opens the app via App/Universal Links
+  # when installed, else the website).
+  share_plus: ^10.1.4
 
   # --- Connectivity management (PR1, 2026-05-27) ---------------------
   # Interface-level network detection (wifi / mobile / none). Combined
