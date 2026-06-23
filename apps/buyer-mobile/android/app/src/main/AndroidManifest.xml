@@ -31,6 +31,29 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+
+            <!-- Android App Links (verified): https://${appLinkHost}/... opens
+                 the app directly. autoVerify checks
+                 https://${appLinkHost}/.well-known/assetlinks.json against the
+                 app's signing cert. Host is per-flavor (prod=teka.cd) via the
+                 appLinkHost manifest placeholder. Unmatched/unmappable paths
+                 fall back to the browser in DeepLinkController. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="${appLinkHost}"/>
+                <data android:scheme="http"/>
+            </intent-filter>
+
+            <!-- Custom-scheme fallback (not auto-verified): teka://... — useful
+                 for contexts that don't honour App Links. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="teka"/>
+            </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
