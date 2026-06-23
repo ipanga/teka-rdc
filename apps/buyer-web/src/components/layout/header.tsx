@@ -7,6 +7,7 @@ import { useAuthStore } from '@/lib/auth-store';
 import { useCityStore } from '@/lib/city-store';
 import { CartBadge } from '@/components/cart/cart-badge';
 import { WishlistBadge } from '@/components/wishlist/wishlist-badge';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 import { SearchAutocomplete } from './search-autocomplete';
 import { buttonVariants } from '@/components/ui';
 import { cityAccentClasses } from '@/lib/city-accent';
@@ -110,6 +111,7 @@ export function Header() {
             <div className="w-px" aria-hidden />
           ) : user ? (
             <div className="flex items-center gap-3">
+              <NotificationBell />
               <WishlistBadge />
               <Link
                 href="/profil"
@@ -139,6 +141,7 @@ export function Header() {
 
         {/* Mobile icons (always visible) */}
         <div className="md:hidden ml-auto flex items-center gap-1">
+          <NotificationBell compact />
           <WishlistBadge compact />
           <CartBadge />
         </div>

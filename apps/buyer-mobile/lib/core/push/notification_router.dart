@@ -28,6 +28,9 @@ class NotificationRouter {
       case 'product-reviews':
         final id = _stringOrNull(data['productId']);
         return id == null ? null : '/products/$id/reviews';
+      case 'notifications':
+        // Generic admin broadcast → open the Notification Center.
+        return '/notifications';
       default:
         return null;
     }

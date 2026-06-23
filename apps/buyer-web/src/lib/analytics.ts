@@ -29,6 +29,7 @@ export type BuyerAnalyticsEvents = {
   wishlist_removed: { productId: string };
   wishlist_viewed: { item_count: number };
   wishlist_item_moved_to_cart: { productId: string };
+  notification_opened: { notificationId: string; type: string };
 };
 
 export function track<E extends keyof BuyerAnalyticsEvents>(

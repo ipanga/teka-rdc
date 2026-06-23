@@ -7,6 +7,9 @@ import {
   IsOptional,
   IsBoolean,
   ValidateNested,
+  IsArray,
+  ArrayMinSize,
+  ArrayMaxSize,
 } from 'class-validator';
 
 export const BROADCAST_SEGMENTS = [
@@ -63,4 +66,21 @@ export class CreateBroadcastDto {
   @ValidateNested()
   @Type(() => BroadcastChannelsDto)
   channels?: BroadcastChannelsDto;
+
+  // "Specific buyers" mode: explicit recipient user ids. When present the
+  // service targets exactly these (validated to be ACTIVE BUYERs) and ignores
+  // `segment`. Lenient here (bounded string array); the service is strict.
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(1000, { message: 'Trop de destinataires (max 1000)' })
+  @IsString({ each: true })
+  recipientIds?: string[];
+
+  // Optional linked product → the broadcast becomes a product promo and
+  // deep-links to the PDP. Validated by DB lookup in the service (seeded ids
+  // are non-RFC4122, so no @IsUUID here).
+  @IsOptional()
+  @IsString()
+  productId?: string;
 }

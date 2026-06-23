@@ -8,6 +8,7 @@ import {
   Query,
   ParseUUIDPipe,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { BroadcastsService } from './broadcasts.service';
 import { CreateBroadcastDto } from './dto/create-broadcast.dto';
 import { BroadcastQueryDto } from './dto/broadcast-query.dto';
@@ -54,8 +55,11 @@ export class BroadcastsController {
 
   /**
    * POST /api/v1/admin/broadcasts/:id/send
-   * Admin: trigger broadcast sending.
+   * Admin: trigger broadcast sending. Anti-spam: at most 10 sends/minute per
+   * admin (a broadcast fans out to many users — guard against accidental
+   * repeat-clicks / runaway loops).
    */
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post(':id/send')
   async send(@Param('id', ParseUUIDPipe) id: string) {
     const data = await this.broadcastsService.send(id);

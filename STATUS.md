@@ -6,26 +6,30 @@
 
 ## Active initiative
 
-**Discount system + product-card UX** (started 2026-06-23) — industry-standard, seller-set per-product
-discount price (no admin approval, always-on until cleared) flowing card→PDP→cart→checkout→order, plus
-product-card cleanup (drop condition badge + seller name from cards) and discovery surfaces, across API +
-buyer-web (SEO-safe) + seller-web + buyer-mobile + seller-mobile. **Detailed tracker:
-`tasks/discount-system-progress.md`.** Plan: `~/.claude/plans/generic-sleeping-tide.md`.
-- **Decisions:** new `Product.discountPriceCDF/USD` (not the admin Promotion model, which stays untouched);
-  effective price = `discountPriceCDF ?? priceCDF`; % derived on display; `OrderItem.listUnitPriceCDF/USD`
-  snapshots the original. On ACTIVE products sellers edit only price/discount/stock (no re-review). Discovery =
-  `/promotions` route + home section + `onPromotion` filter.
-- **Phased PRs (resumable):** A backend → B buyer-web → C seller-web → D buyer-mobile → E seller-mobile → F
-  analytics/docs.
-- **✅ ALL PHASES MERGED to develop** (A #431 backend · B #432 buyer-web · C #433 seller-web · D #434
-  buyer-mobile · E #435 seller-mobile · F docs/analytics). Verified each phase: api 142 unit + 116 e2e;
-  web tsc + `next build` ×3; flutter analyze 0 errors + buyer 93 / seller 3 tests; dev data path confirmed
-  (45/165 ACTIVE on-promo, invariant `0<discount<price` holds). Tracker: `tasks/discount-system-progress.md`.
+**Broadcast notifications (Admin → Buyers)** (started 2026-06-23) — admin sends notifications to all buyers /
+one / many (extensible segments), delivered as **push + a persisted in-app Notification Center** (read/unread)
+on buyer-web + buyer-mobile, plus an admin notification center. **Detailed tracker:
+`tasks/broadcast-notifications-progress.md`.** Plan: `~/.claude/plans/generic-sleeping-tide.md`.
+- **Decisions:** **fan-out on write** (one `UserNotification` per recipient — reuses the generic feed); target
+  all-buyers (segment) OR specific buyers (`recipientIds`) + optional **linked product** (`PRODUCT_PROMO` →
+  PDP deep-link); **extend** the existing broadcasts page (no parallel module); buyer-web real-time = 60s
+  polling; unified `/v1/notifications` feed (seller's `/v1/seller/notifications` untouched); iOS push deferred.
+- **Phased PRs (resumable):** A backend → B admin-web → C buyer-web → D buyer-mobile → E analytics/docs.
+- **✅ ALL PHASES MERGED to develop** (A #438 backend · B #439 admin-web · C #440 buyer-web · D #441
+  buyer-mobile · E docs/analytics). Verified: api 149 unit + 116 e2e; web tsc ×3 + builds (incl. `/notifications`
+  noindex); flutter analyze 0 issues + 93 tests; dev schema confirmed. Tracker: `tasks/broadcast-notifications-progress.md`.
 - **Remaining before prod:** release `develop→main`; **apply the prod migration**
-  `apps/api/prisma/migrations/manual/2026-06-23_product_discount_price.sql` via the Apply-prod-migration Action
-  at release (all-nullable, no backfill). Deferred: seller-mobile edit-after-publish for ACTIVE (seller-web
-  covers it). Mobile reaches devices on the next Play Store AAB. Optional: prod re-seed for demo discounts;
-  before/after screenshots (needs running apps).
+  `apps/api/prisma/migrations/manual/2026-06-23_broadcast_notifications.sql` via the Apply-prod-migration Action
+  at release (enum ADD VALUE + nullable cols; no backfill). Mobile reaches devices on the next Play Store AAB.
+  iOS push deferred (no GoogleService-Info.plist). Optional: before/after screenshots (needs running apps).
+
+### Recently completed — 2026-06-23 (Discount system + product-card UX — SHIPPED to prod, release #437)
+Per-product seller-set discount price across API + all 4 frontends + card cleanup + `/promotions` discovery.
+6 phased PRs #431–#436 → release #437 (`develop→main`, `d40d38e`, main==develop); prod migration
+`2026-06-23_product_discount_price.sql` applied via the Action (4 cols confirmed); prod-smoke verified (browse/
+onPromotion/PDP/`/promotions` all 200, discount fields flow, no 500). Tracker: `tasks/discount-system-progress.md`.
+Deferred: seller-mobile edit-after-publish for ACTIVE (seller-web covers it). Optional: prod re-seed to surface
+demo discounts (prod currently 0 on-promo). Mobile reaches devices on the next Play Store AAB.
 
 ### Recently completed — 2026-06-23 (Localization removal sweep — SHIPPED to prod, release #430)
 French-only platform: next-intl removed from all 3 web apps (#428 admin + #429 seller/buyer), gen-l10n removed

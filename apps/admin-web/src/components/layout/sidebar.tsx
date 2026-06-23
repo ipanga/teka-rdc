@@ -74,7 +74,7 @@ export function Sidebar() {
     { href: '/dashboard/banners', label: "Banni\u00E8res", icon: '\uD83D\uDDBC' },
     { href: '/dashboard/promotions', label: "Promotions", icon: '\uD83C\uDFF7' },
     { href: '/dashboard/content', label: "Contenu", icon: '\uD83D\uDCDD' },
-    { href: '/dashboard/broadcasts', label: "Diffusions", icon: '\uD83D\uDCE2' },
+    { href: '/dashboard/broadcasts', label: "Centre de notifications", icon: '\uD83D\uDCE2' },
     { href: '/dashboard/reports', label: "Rapports", icon: '\uD83D\uDCCA' },
     { href: '/dashboard/settings', label: "Param\u00E8tres", icon: '\u2699\uFE0F' },
   ];
