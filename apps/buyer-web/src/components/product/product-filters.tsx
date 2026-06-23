@@ -5,9 +5,8 @@ export type SortOption = 'newest' | 'price_asc' | 'price_desc' | 'popularity';
 export type ConditionFilter = '' | 'NEW' | 'USED';
 
 /**
- * A filterable category attribute (SELECT / MULTISELECT only). `name` comes
- * from the API as a JSON-encoded `{ fr, en }` string for legacy attributes;
- * {@link attrLabel} extracts the French label. `options` is a plain string[].
+ * A filterable category attribute (SELECT / MULTISELECT only). `name` is a
+ * plain French label; `options` is a plain string[].
  */
 export interface FacetAttribute {
   id: string;
@@ -20,24 +19,6 @@ export interface FacetAttribute {
 export interface FacetBrand {
   id: string;
   name: string;
-}
-
-/**
- * Attribute names are stored as `{"fr":"Marque","en":"Brand"}` JSONB and reach
- * the client as a JSON-encoded string. Parse out the French label, tolerating
- * plain strings and malformed values so the UI never renders raw JSON.
- */
-export function attrLabel(name: string): string {
-  if (!name) return '';
-  if (name.startsWith('{')) {
-    try {
-      const parsed = JSON.parse(name) as { fr?: string; en?: string };
-      return parsed.fr ?? parsed.en ?? name;
-    } catch {
-      return name;
-    }
-  }
-  return name;
 }
 
 interface ProductFiltersProps {
@@ -192,7 +173,7 @@ export function ProductFilters({
                     onChange={() => onAttributeToggle(attr.id, 'true')}
                     className="h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
                   />
-                  <span className="truncate">{attrLabel(attr.name)}</span>
+                  <span className="truncate">{attr.name}</span>
                 </label>
               );
             }
@@ -200,7 +181,7 @@ export function ProductFilters({
             return (
               <div key={attr.id}>
                 <label className="block text-sm font-medium text-foreground mb-1.5">
-                  {attrLabel(attr.name)}
+                  {attr.name}
                 </label>
                 <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                   {attr.options.map((opt) => (

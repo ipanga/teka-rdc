@@ -25,7 +25,7 @@ describe('Browse (e2e)', () => {
       const mockCategories = [
         {
           id: '20000000-0000-0000-0000-000000000001',
-          name: { fr: 'Electronique', en: 'Electronics' },
+          name: 'Electronique',
           slug: 'electronique',
           parentCategoryId: null,
           isActive: true,

@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
@@ -247,7 +245,7 @@ class FacetAttribute {
   factory FacetAttribute.fromJson(Map<String, dynamic> json) {
     return FacetAttribute(
       id: json['id'] as String,
-      name: _frAttributeLabel(json['name']),
+      name: (json['name'] ?? '').toString(),
       type: json['type']?.toString() ?? 'TEXT',
       options: (json['options'] as List?)
               ?.map((e) => e.toString())
@@ -255,28 +253,6 @@ class FacetAttribute {
           const [],
     );
   }
-}
-
-/// Attribute names are stored as `{"fr":"Marque","en":"Brand"}` JSONB and reach
-/// the client as a JSON-encoded string (or, defensively, a Map). Extract the
-/// French label, tolerating plain strings + malformed values.
-String _frAttributeLabel(dynamic name) {
-  if (name == null) return '';
-  if (name is Map) {
-    return (name['fr'] ?? name['en'] ?? '').toString();
-  }
-  final s = name.toString();
-  if (s.startsWith('{')) {
-    try {
-      final parsed = jsonDecode(s);
-      if (parsed is Map) {
-        return (parsed['fr'] ?? parsed['en'] ?? s).toString();
-      }
-    } catch (_) {
-      // fall through to raw
-    }
-  }
-  return s;
 }
 
 /// A category match returned by the search-suggestions endpoint.

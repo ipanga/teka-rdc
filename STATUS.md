@@ -19,11 +19,17 @@
     converted; the 1 server-side `getTranslations('Common')` + the `getMessages` provider removed (metadata was
     already static French → no SSR-translation risk); 3 vitest `next-intl` mocks dropped + 2 key-based test
     queries updated to French. **tsc clean; 54 tests pass; `next build` 27/27 pages (SSG `/[ville]` intact).**
-- ⚠️ **REMAINING (not started, separate concern):** a defensive `{fr, en}` JSONB *data-shape* parser for
-  legacy attribute/category names survives in `product-filters.tsx` (buyer-web), `dynamic-attributes-form.tsx`
-  (seller-web), admin-web commission/orders pages, and `_frAttributeLabel`/order models in both mobile apps.
-  This is DB-data compatibility, not UI localization — removing it needs a DB migration normalizing those
-  fields to plain French TEXT first. Flagged for user decision.
+- **`{fr, en}` data-shape removal — ✅ DONE (this working tree).** Phase 0 (read-only) found prod **100% clean**
+  (0 JSON rows everywhere); only **dev** held legacy `{fr,en}` JSON-strings in `product_attributes.name` (88,
+  all on inactive categories) + `order_items."productTitle"` (11 pre-jsonb-migration order snapshots). Cleaned
+  dev via guarded idempotent UPDATEs (88+11 → 0); recorded as
+  `prisma/migrations/manual/2026-06-23_translatable_jsonstring_to_fr.sql` (**no-op on prod — apply optional**).
+  Deleted all parsers (`attrLabel`/`getLocalizedName`/`_frAttributeLabel` + mobile order-address Map branches),
+  fixed the now-stale admin `{fr,en}` type annotations to `string` (commission/orders/reviews — these were also
+  latent bugs: plain-string names rendered as a single letter / blank), removed dead
+  `packages/shared/src/constants/locales.ts` (`SUPPORTED_LOCALES` listed `'en'`), and fixed the stale
+  `browse.e2e-spec.ts` mock. Verified: tsc ×3 clean, buyer-web 54 + api browse 29 tests, flutter analyze clean
+  on edited files, admin-web + buyer-web `next build` green. **No prod migration required** (prod already clean).
 
 **Branch note:** all of the above is on `chore/web-remove-next-intl-seller` (scope grew beyond seller-web).
 Uncommitted. Decide branch/PR split before committing.

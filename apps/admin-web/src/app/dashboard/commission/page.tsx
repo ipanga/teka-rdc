@@ -16,7 +16,7 @@ interface CommissionSettings {
 
 interface Category {
   id: string;
-  name: Record<string, string>;
+  name: string;
 }
 
 export default function CommissionPage() {
@@ -54,13 +54,13 @@ export default function CommissionPage() {
   const fetchSettings = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await apiFetch<CommissionSettings | Array<{ categoryId: string | null; rate: string; category?: { name: Record<string, string> } }>>('/v1/admin/commission-settings');
+      const res = await apiFetch<CommissionSettings | Array<{ categoryId: string | null; rate: string; category?: { name: string } }>>('/v1/admin/commission-settings');
       if (Array.isArray(res.data)) {
         // API returns flat array — transform to expected structure
         const globalEntry = res.data.find(e => !e.categoryId);
         const overrides = res.data.filter(e => e.categoryId).map(e => ({
           categoryId: e.categoryId!,
-          categoryName: e.category?.name?.fr || e.category?.name?.en || '---',
+          categoryName: e.category?.name || '---',
           rate: parseFloat(e.rate),
         }));
         const settings: CommissionSettings = {
@@ -177,9 +177,7 @@ export default function CommissionPage() {
     }
   };
 
-  const getCategoryName = (name: Record<string, string>) => {
-    return name.fr || name.en || Object.values(name)[0] || '-';
-  };
+  const getCategoryName = (name: string) => name || '-';
 
   // Filter out categories that already have overrides for the add form
   const availableCategories = categories.filter(

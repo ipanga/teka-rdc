@@ -5,7 +5,6 @@ export * from './types/pagination';
 export * from './types/common';
 
 // Constants
-export * from './constants/locales';
 export * from './constants/currencies';
 export * from './constants/phone';
 export * from './constants/roles';
