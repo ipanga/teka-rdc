@@ -138,6 +138,7 @@ class SellerProductModel {
   final String? brandId;
   final String priceCDF;
   final String? priceUSD;
+  final String? discountPriceCDF;
   final int quantity;
   final ProductCondition condition;
   final ProductStatus status;
@@ -156,6 +157,7 @@ class SellerProductModel {
     this.brandId,
     required this.priceCDF,
     this.priceUSD,
+    this.discountPriceCDF,
     required this.quantity,
     required this.condition,
     required this.status,
@@ -178,6 +180,13 @@ class SellerProductModel {
     if (priceUSD == null) return null;
     final centimes = int.tryParse(priceUSD!) ?? 0;
     return centimes / 100;
+  }
+
+  /// Display promotional price in CDF (null when no promotion).
+  int? get discountPriceCDFDisplay {
+    if (discountPriceCDF == null) return null;
+    final centimes = int.tryParse(discountPriceCDF!) ?? 0;
+    return centimes ~/ 100;
   }
 
   String? get coverImageUrl {
@@ -212,6 +221,7 @@ class SellerProductModel {
       brandId: json['brandId'] as String? ?? brandRaw?['id'] as String?,
       priceCDF: json['priceCDF']?.toString() ?? '0',
       priceUSD: json['priceUSD']?.toString(),
+      discountPriceCDF: json['discountPriceCDF']?.toString(),
       quantity: json['quantity'] as int? ?? 0,
       condition: parseProductCondition(json['condition'] as String?),
       status: parseProductStatus(json['status'] as String?),
