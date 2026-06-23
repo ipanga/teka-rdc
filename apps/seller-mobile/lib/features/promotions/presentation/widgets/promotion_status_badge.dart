@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 
 class PromotionStatusBadge extends StatelessWidget {
   final String status;
@@ -14,8 +13,7 @@ class PromotionStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final config = _statusConfig(l10n);
+    final config = _statusConfig();
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -45,49 +43,49 @@ class PromotionStatusBadge extends StatelessWidget {
     );
   }
 
-  _PromotionStatusConfig _statusConfig(AppLocalizations l10n) {
+  _PromotionStatusConfig _statusConfig() {
     switch (status) {
       case 'DRAFT':
         return _PromotionStatusConfig(
           color: TekaColors.mutedForeground,
           icon: Icons.edit_note,
-          label: l10n.statusDraft,
+          label: "Brouillon",
         );
       case 'PENDING_APPROVAL':
         return _PromotionStatusConfig(
           color: TekaColors.warning,
           icon: Icons.hourglass_empty,
-          label: l10n.promotionPendingApproval,
+          label: "En attente d'approbation",
         );
       case 'APPROVED':
         return _PromotionStatusConfig(
           color: const Color(0xFF3B82F6),
           icon: Icons.check_circle_outline,
-          label: l10n.promotionApproved,
+          label: "Approuvee",
         );
       case 'ACTIVE':
         return _PromotionStatusConfig(
           color: TekaColors.success,
           icon: Icons.campaign,
-          label: l10n.statusActive,
+          label: "Actif",
         );
       case 'REJECTED':
         return _PromotionStatusConfig(
           color: TekaColors.destructive,
           icon: Icons.cancel_outlined,
-          label: l10n.promotionRejected,
+          label: "Refusee",
         );
       case 'EXPIRED':
         return _PromotionStatusConfig(
           color: const Color(0xFF9CA3AF),
           icon: Icons.timer_off_outlined,
-          label: l10n.promotionExpired,
+          label: "Expiree",
         );
       case 'CANCELLED':
         return _PromotionStatusConfig(
           color: const Color(0xFF9CA3AF),
           icon: Icons.block,
-          label: l10n.promotionCancelled,
+          label: "Annulee",
         );
       default:
         return _PromotionStatusConfig(

@@ -6,14 +6,18 @@
 
 ## Active initiative
 
-**None.** Buyer-mobile UX/UI redesign fully SHIPPED to `main` (Steps 1+2 release #424, Step 3 release #426,
-`develop == main` @ `d0a295d`). No in-flight build work — ask the user what to start next.
-
-**Backlog (user wants both, as separate initiatives):**
-- **seller-mobile l10n removal** — mirror the buyer-mobile gen-l10n/`AppLocalizations` removal on seller-mobile
-  (French literals). See [[feedback-no-multilingual-scaffolding]] + `docs/buyer-mobile-redesign.md`.
-- **web next-intl removal** — inline `apps/*/messages/fr.json` strings as French literals across buyer/seller/
-  admin-web (next-intl string-loader removed).
+**Localization removal sweep** (started 2026-06-23) — finish removing the localization machinery platform-wide
+(French-only). Buyer-mobile already done (shipped #424/#426).
+- **seller-mobile l10n removal** — ✅ CODE DONE on branch `chore/seller-mobile-remove-l10n`, PENDING PR.
+  Mirror of buyer-mobile: ~369 `l10n.*` across 25 feature files inlined as French literals (parameterized
+  keys incl. two-arg `imagesCount` → interpolation); deleted `lib/l10n/` + `locale_provider.dart` + `l10n.yaml`;
+  dropped `generate: true` + the `AppLocalizations` delegate (framework `GlobalMaterialLocalizations` stays
+  `fr`). CI gen-l10n step already guards on `l10n.yaml` (no CI change). CLAUDE.md Rule 1 updated. **analyze 0
+  errors, 3 tests green.**
+- **web next-intl removal (NEXT)** — inline `apps/*/messages/fr.json` strings as French literals across
+  buyer/seller/admin-web; remove next-intl (`useTranslations`/`getTranslations`/`NextIntlClientProvider`/
+  `i18n/request.ts`). LARGE (~1,550 `t()` call sites / ~103 files) + SSR/SEO-sensitive → do **app-by-app**,
+  lowest-risk first: **admin-web** (no SEO) → seller-web → buyer-web (most SEO-critical, most care). Not started.
 
 **Operator step (not code):** run "Release mobile AAB" + upload to Play Store so the buyer-mobile redesign
 (Steps 1–3) reaches real devices — `docs/mobile-release.md`.

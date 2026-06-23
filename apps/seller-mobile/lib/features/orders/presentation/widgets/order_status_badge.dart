@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/order_model.dart';
 
 class OrderStatusBadge extends StatelessWidget {
@@ -15,8 +14,7 @@ class OrderStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final config = _statusConfig(l10n);
+    final config = _statusConfig();
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -46,55 +44,55 @@ class OrderStatusBadge extends StatelessWidget {
     );
   }
 
-  _OrderStatusConfig _statusConfig(AppLocalizations l10n) {
+  _OrderStatusConfig _statusConfig() {
     switch (status) {
       case OrderStatus.pending:
         return _OrderStatusConfig(
           color: TekaColors.warning,
           icon: Icons.hourglass_empty,
-          label: l10n.orderStatusPENDING,
+          label: "En attente",
         );
       case OrderStatus.confirmed:
         return _OrderStatusConfig(
           color: const Color(0xFF3B82F6),
           icon: Icons.check_circle_outline,
-          label: l10n.orderStatusCONFIRMED,
+          label: "Confirmee",
         );
       case OrderStatus.processing:
         return _OrderStatusConfig(
           color: const Color(0xFF6366F1),
           icon: Icons.settings_outlined,
-          label: l10n.orderStatusPROCESSING,
+          label: "En preparation",
         );
       case OrderStatus.shipped:
         return _OrderStatusConfig(
           color: const Color(0xFF0EA5E9),
           icon: Icons.local_shipping_outlined,
-          label: l10n.orderStatusSHIPPED,
+          label: "Expediee",
         );
       case OrderStatus.outForDelivery:
         return _OrderStatusConfig(
           color: const Color(0xFF0891B2),
           icon: Icons.delivery_dining,
-          label: l10n.orderStatusOUT_FOR_DELIVERY,
+          label: "En livraison",
         );
       case OrderStatus.delivered:
         return _OrderStatusConfig(
           color: TekaColors.success,
           icon: Icons.check_circle,
-          label: l10n.orderStatusDELIVERED,
+          label: "Livree",
         );
       case OrderStatus.cancelled:
         return _OrderStatusConfig(
           color: TekaColors.destructive,
           icon: Icons.cancel_outlined,
-          label: l10n.orderStatusCANCELLED,
+          label: "Annulee",
         );
       case OrderStatus.returned:
         return _OrderStatusConfig(
           color: const Color(0xFF9CA3AF),
           icon: Icons.undo,
-          label: l10n.orderStatusRETURNED,
+          label: "Retournee",
         );
     }
   }

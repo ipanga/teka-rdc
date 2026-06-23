@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/profile_repository.dart';
 
@@ -126,15 +125,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _sessions = const <SessionDto>[]);
-      final l10n = AppLocalizations.of(context)!;
-      _toast(l10n.profileSessionsLoadError, error: true);
+      _toast("Impossible de charger la liste des appareils", error: true);
     } finally {
       if (mounted) setState(() => _sessionsLoading = false);
     }
   }
 
   Future<void> _revokeSession(String id) async {
-    final l10n = AppLocalizations.of(context)!;
     setState(() => _sessionAction = id);
     try {
       await ref.read(profileRepositoryProvider).revokeSession(id);
@@ -142,17 +139,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(
         () => _sessions = _sessions?.where((s) => s.id != id).toList(),
       );
-      _toast(l10n.profileSessionRevoked);
+      _toast("Appareil deconnecte");
     } catch (_) {
       if (!mounted) return;
-      _toast(l10n.profileSessionRevokeError, error: true);
+      _toast("Impossible de deconnecter cet appareil", error: true);
     } finally {
       if (mounted) setState(() => _sessionAction = null);
     }
   }
 
   Future<void> _revokeAllOtherSessions() async {
-    final l10n = AppLocalizations.of(context)!;
     setState(() => _sessionAction = 'all');
     try {
       await ref.read(profileRepositoryProvider).revokeAllOtherSessions();
@@ -160,10 +156,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(
         () => _sessions = _sessions?.where((s) => s.current).toList(),
       );
-      _toast(l10n.profileSessionRevoked);
+      _toast("Appareil deconnecte");
     } catch (_) {
       if (!mounted) return;
-      _toast(l10n.profileSessionRevokeError, error: true);
+      _toast("Impossible de deconnecter cet appareil", error: true);
     } finally {
       if (mounted) setState(() => _sessionAction = null);
     }
@@ -173,7 +169,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     bool? smsOrderUpdates,
     bool? smsBroadcasts,
   }) async {
-    final l10n = AppLocalizations.of(context)!;
     final previous = _notifPrefs;
     // Optimistic update.
     setState(() {
@@ -194,7 +189,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (!mounted) return;
       // Revert on failure.
       setState(() => _notifPrefs = previous);
-      _toast(l10n.profileNotifError, error: true);
+      _toast("Erreur lors de la mise a jour", error: true);
     } finally {
       if (mounted) setState(() => _notifSaving = false);
     }
@@ -211,7 +206,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _pickAvatar() async {
-    final l10n = AppLocalizations.of(context)!;
     try {
       final xFile = await _picker.pickImage(
         source: ImageSource.gallery,
@@ -238,16 +232,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           sellerProfile: _user!.sellerProfile,
         );
       });
-      _toast(l10n.profileSaveSuccess);
+      _toast("Profil mis a jour");
     } catch (_) {
       if (!mounted) return;
       setState(() => _uploading = false);
-      _toast(l10n.profileUploadError, error: true);
+      _toast("Erreur lors de l'envoi de la photo", error: true);
     }
   }
 
   Future<void> _savePersonal() async {
-    final l10n = AppLocalizations.of(context)!;
     setState(() => _savingPersonal = true);
     try {
       final body = <String, String>{};
@@ -267,16 +260,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             email: body['email'],
           );
       await _load();
-      _toast(l10n.profileSaveSuccess);
+      _toast("Profil mis a jour");
     } catch (_) {
-      _toast(l10n.profileSaveError, error: true);
+      _toast("Erreur lors de l'enregistrement", error: true);
     } finally {
       if (mounted) setState(() => _savingPersonal = false);
     }
   }
 
   Future<void> _saveBusiness() async {
-    final l10n = AppLocalizations.of(context)!;
     setState(() => _savingBusiness = true);
     try {
       final sp = _user?.sellerProfile;
@@ -306,18 +298,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             description: body['description'],
           );
       await _load();
-      _toast(l10n.profileSaveSuccess);
+      _toast("Profil mis a jour");
     } catch (_) {
-      _toast(l10n.profileSaveError, error: true);
+      _toast("Erreur lors de l'enregistrement", error: true);
     } finally {
       if (mounted) setState(() => _savingBusiness = false);
     }
   }
 
   Future<void> _changePassword() async {
-    final l10n = AppLocalizations.of(context)!;
     if (_newPasswordCtrl.text != _confirmPasswordCtrl.text) {
-      _toast(l10n.profilePasswordMismatch, error: true);
+      _toast("Les deux mots de passe ne correspondent pas", error: true);
       return;
     }
     setState(() => _changingPassword = true);
@@ -329,9 +320,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _currentPasswordCtrl.clear();
       _newPasswordCtrl.clear();
       _confirmPasswordCtrl.clear();
-      _toast(l10n.profilePasswordChangeSuccess);
+      _toast("Mot de passe modifie avec succes. Les autres appareils ont ete deconnectes.");
     } catch (_) {
-      _toast(l10n.profilePasswordChangeError, error: true);
+      _toast("Erreur lors de la modification du mot de passe", error: true);
     } finally {
       if (mounted) setState(() => _changingPassword = false);
     }
@@ -339,10 +330,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: Text(l10n.profileTitle)),
+        appBar: AppBar(title: Text("Mon profil")),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -355,11 +345,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.profileTitle),
+        title: Text("Mon profil"),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: l10n.profileLogout,
+            tooltip: "Se deconnecter",
             onPressed: () async {
               await ref.read(authProvider.notifier).logout();
               if (context.mounted) context.go('/auth/login');
@@ -373,7 +363,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              l10n.profileSubtitle,
+              "Gerez vos informations personnelles et celles de votre boutique",
               style: const TextStyle(
                 fontSize: 13,
                 color: TekaColors.mutedForeground,
@@ -383,7 +373,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
             // Avatar
             _Section(
-              title: l10n.profileSectionAvatar,
+              title: "Photo de profil",
               child: Row(
                 children: [
                   CircleAvatar(
@@ -411,8 +401,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       icon: const Icon(Icons.upload_outlined),
                       label: Text(
                         _uploading
-                            ? l10n.profileUploading
-                            : l10n.profileUploadAvatar,
+                            ? "Envoi en cours..."
+                            : "Changer la photo",
                       ),
                     ),
                   ),
@@ -422,25 +412,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
             // Personal
             _Section(
-              title: l10n.profileSectionPersonal,
+              title: "Informations personnelles",
               child: Column(
                 children: [
                   TextField(
                     controller: _firstNameCtrl,
-                    decoration: InputDecoration(labelText: l10n.profileFirstName),
+                    decoration: InputDecoration(labelText: "Prenom"),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _lastNameCtrl,
-                    decoration: InputDecoration(labelText: l10n.profileLastName),
+                    decoration: InputDecoration(labelText: "Nom"),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _emailCtrl,
                     keyboardType: TextInputType.emailAddress,
                     decoration: InputDecoration(
-                      labelText: l10n.profileEmail,
-                      helperText: l10n.profileEmailHint,
+                      labelText: "Email",
+                      helperText: "Modifier votre email vous demandera de le re-verifier.",
                       helperMaxLines: 2,
                     ),
                   ),
@@ -451,8 +441,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       onPressed: _savingPersonal ? null : _savePersonal,
                       child: Text(
                         _savingPersonal
-                            ? l10n.profileSaving
-                            : l10n.profileSave,
+                            ? "Enregistrement..."
+                            : "Enregistrer",
                       ),
                     ),
                   ),
@@ -462,25 +452,25 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
             // Business
             _Section(
-              title: l10n.profileSectionBusiness,
+              title: "Informations de la boutique",
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (appStatus == 'PENDING')
                     _Banner(
-                      text: l10n.profileApplicationPending,
+                      text: "Votre demande d'inscription est en cours de revision. Vous pourrez modifier les informations de la boutique une fois la demande approuvee.",
                       color: TekaColors.warning,
                     ),
                   if (appStatus == 'REJECTED')
                     _Banner(
-                      text: l10n.profileApplicationRejected,
+                      text: "Votre demande a ete rejetee. Contactez le support pour en savoir plus.",
                       color: TekaColors.destructive,
                     ),
                   TextField(
                     controller: _businessNameCtrl,
                     enabled: businessEditable,
                     decoration:
-                        InputDecoration(labelText: l10n.profileBusinessName),
+                        InputDecoration(labelText: "Nom de la boutique"),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -488,8 +478,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     enabled: businessEditable,
                     keyboardType: TextInputType.phone,
                     decoration: InputDecoration(
-                      labelText: l10n.profilePhone,
-                      helperText: l10n.profilePhoneHint,
+                      labelText: "Telephone (livraison)",
+                      helperText: "Utilise pour la communication avec les livreurs.",
                       helperMaxLines: 2,
                     ),
                   ),
@@ -500,8 +490,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         : null,
                     isExpanded: true,
                     decoration:
-                        InputDecoration(labelText: l10n.profileCity),
-                    hint: Text(l10n.profileCitySelect),
+                        InputDecoration(labelText: "Ville"),
+                    hint: Text("Sélectionnez votre ville"),
                     items: _cities
                         .map((c) => DropdownMenuItem<String>(
                               value: c.id,
@@ -520,8 +510,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     controller: _locationCtrl,
                     enabled: businessEditable,
                     decoration: InputDecoration(
-                      labelText: l10n.profileLocation,
-                      helperText: l10n.profileLocationHint,
+                      labelText: "Adresse / quartier",
+                      helperText: "Détail de l'adresse (rue, quartier) en complément de la ville.",
                       helperMaxLines: 2,
                     ),
                   ),
@@ -531,8 +521,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     enabled: businessEditable,
                     maxLines: 4,
                     decoration: InputDecoration(
-                      labelText: l10n.profileDescription,
-                      hintText: l10n.profileDescriptionPlaceholder,
+                      labelText: "Description",
+                      hintText: "Decrivez votre boutique en quelques phrases...",
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -544,8 +534,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           : _saveBusiness,
                       child: Text(
                         _savingBusiness
-                            ? l10n.profileSaving
-                            : l10n.profileSave,
+                            ? "Enregistrement..."
+                            : "Enregistrer",
                       ),
                     ),
                   ),
@@ -555,12 +545,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
             // Notifications
             _Section(
-              title: l10n.profileSectionNotifications,
+              title: "Notifications",
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    l10n.profileNotificationsHint,
+                    "Choisissez les SMS que vous voulez recevoir. Les codes de verification restent toujours envoyes.",
                     style: const TextStyle(
                       fontSize: 12,
                       color: TekaColors.mutedForeground,
@@ -569,8 +559,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: 8),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text(l10n.profileNotifOrderUpdates),
-                    subtitle: Text(l10n.profileNotifOrderUpdatesDesc),
+                    title: Text("Mises a jour de commande"),
+                    subtitle: Text("Confirmation, expedition, livraison, annulation"),
                     value: _notifPrefs?.smsOrderUpdates ?? true,
                     onChanged: _notifSaving
                         ? null
@@ -578,8 +568,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text(l10n.profileNotifBroadcasts),
-                    subtitle: Text(l10n.profileNotifBroadcastsDesc),
+                    title: Text("Annonces et promotions"),
+                    subtitle: Text("Messages marketing envoyes par l'equipe Teka"),
                     value: _notifPrefs?.smsBroadcasts ?? true,
                     onChanged: _notifSaving
                         ? null
@@ -591,12 +581,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
             // Password
             _Section(
-              title: l10n.profileSectionPassword,
+              title: "Mot de passe",
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    l10n.profilePasswordHint,
+                    "Modifier votre mot de passe vous deconnectera de tous vos autres appareils.",
                     style: const TextStyle(
                       fontSize: 12,
                       color: TekaColors.mutedForeground,
@@ -607,7 +597,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     controller: _currentPasswordCtrl,
                     obscureText: true,
                     decoration: InputDecoration(
-                      labelText: l10n.profileCurrentPassword,
+                      labelText: "Mot de passe actuel",
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -615,8 +605,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     controller: _newPasswordCtrl,
                     obscureText: true,
                     decoration: InputDecoration(
-                      labelText: l10n.profileNewPassword,
-                      helperText: l10n.profilePasswordRules,
+                      labelText: "Nouveau mot de passe",
+                      helperText: "Au moins 8 caracteres, avec lettres et chiffres.",
                       helperMaxLines: 2,
                     ),
                   ),
@@ -625,7 +615,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     controller: _confirmPasswordCtrl,
                     obscureText: true,
                     decoration: InputDecoration(
-                      labelText: l10n.profileConfirmPassword,
+                      labelText: "Confirmer le nouveau mot de passe",
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -640,8 +630,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           : _changePassword,
                       child: Text(
                         _changingPassword
-                            ? l10n.profileSaving
-                            : l10n.profileChangePassword,
+                            ? "Enregistrement..."
+                            : "Modifier le mot de passe",
                       ),
                     ),
                   ),
@@ -738,7 +728,6 @@ class _SessionsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final hasOthers = sessions?.any((s) => !s.current) ?? false;
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -759,7 +748,7 @@ class _SessionsCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      l10n.profileSectionSessions,
+                      "Appareils connectes",
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -768,7 +757,7 @@ class _SessionsCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      l10n.profileSessionsHint,
+                      "Liste des appareils actuellement connectes a votre compte. Revoquez ceux que vous ne reconnaissez pas.",
                       style: const TextStyle(
                         fontSize: 12,
                         color: TekaColors.mutedForeground,
@@ -787,8 +776,8 @@ class _SessionsCard extends StatelessWidget {
                   ),
                   child: Text(
                     action == 'all'
-                        ? l10n.profileSessionRevoking
-                        : l10n.profileSessionRevokeAll,
+                        ? "Deconnexion..."
+                        : "Deconnecter les autres appareils",
                     style: const TextStyle(fontSize: 12),
                   ),
                 ),
@@ -810,7 +799,7 @@ class _SessionsCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
-                l10n.profileSessionsEmpty,
+                "Aucun autre appareil connecte",
                 style: const TextStyle(
                   fontSize: 13,
                   color: TekaColors.mutedForeground,
@@ -838,8 +827,8 @@ class _SessionsCard extends StatelessWidget {
                                   Flexible(
                                     child: Text(
                                       s.ipAddress != null
-                                          ? l10n.profileSessionIp(s.ipAddress!)
-                                          : l10n.profileSessionIpUnknown,
+                                          ? "IP ${s.ipAddress!}"
+                                          : "IP inconnue",
                                       style: const TextStyle(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w500,
@@ -865,7 +854,7 @@ class _SessionsCard extends StatelessWidget {
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: Text(
-                                        l10n.profileSessionCurrent,
+                                        "Cet appareil",
                                         style: const TextStyle(
                                           fontSize: 10,
                                           fontWeight: FontWeight.w500,
@@ -878,7 +867,7 @@ class _SessionsCard extends StatelessWidget {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                l10n.profileSessionConnectedOn(dateLabel),
+                                "Connecte le $dateLabel",
                                 style: const TextStyle(
                                   fontSize: 11,
                                   color: TekaColors.mutedForeground,
@@ -898,8 +887,8 @@ class _SessionsCard extends StatelessWidget {
                             ),
                             child: Text(
                               action == s.id
-                                  ? l10n.profileSessionRevoking
-                                  : l10n.profileSessionRevoke,
+                                  ? "Deconnexion..."
+                                  : "Deconnecter",
                               style: const TextStyle(fontSize: 12),
                             ),
                           ),

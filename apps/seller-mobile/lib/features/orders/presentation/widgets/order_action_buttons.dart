@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/order_model.dart';
 
 class OrderActionButtons extends StatelessWidget {
@@ -25,8 +24,6 @@ class OrderActionButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
     switch (status) {
       case OrderStatus.pending:
         return Row(
@@ -39,7 +36,7 @@ class OrderActionButtons extends StatelessWidget {
                   side: const BorderSide(color: TekaColors.destructive),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                child: Text(l10n.orderReject),
+                child: Text("Rejeter"),
               ),
             ),
             const SizedBox(width: 12),
@@ -51,7 +48,7 @@ class OrderActionButtons extends StatelessWidget {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                child: Text(l10n.orderConfirm),
+                child: Text("Confirmer"),
               ),
             ),
           ],
@@ -67,7 +64,7 @@ class OrderActionButtons extends StatelessWidget {
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
-            child: Text(l10n.orderProcess),
+            child: Text("Preparer"),
           ),
         );
 
@@ -81,7 +78,7 @@ class OrderActionButtons extends StatelessWidget {
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
-            child: Text(l10n.orderShip),
+            child: Text("Expedier"),
           ),
         );
 
@@ -94,7 +91,7 @@ class OrderActionButtons extends StatelessWidget {
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                child: Text(l10n.orderOutForDelivery),
+                child: Text("En livraison"),
               ),
             ),
             const SizedBox(width: 12),
@@ -106,7 +103,7 @@ class OrderActionButtons extends StatelessWidget {
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                child: Text(l10n.orderDeliver),
+                child: Text("Livrer"),
               ),
             ),
           ],
@@ -122,7 +119,7 @@ class OrderActionButtons extends StatelessWidget {
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
-            child: Text(l10n.orderDeliver),
+            child: Text("Livrer"),
           ),
         );
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/attribute_model.dart';
 
 class DynamicAttributeField extends StatelessWidget {
@@ -21,11 +20,10 @@ class DynamicAttributeField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = attribute.name;
-    final l10n = AppLocalizations.of(context)!;
 
     switch (attribute.type) {
       case 'SELECT':
-        return _buildSelect(context, label, l10n);
+        return _buildSelect(context, label);
       case 'MULTISELECT':
         return _buildMultiselect(context, label);
       case 'NUMERIC':
@@ -47,19 +45,19 @@ class DynamicAttributeField extends StatelessWidget {
     );
   }
 
-  Widget _buildSelect(BuildContext context, String label, AppLocalizations l10n) {
+  Widget _buildSelect(BuildContext context, String label) {
     return DropdownButtonFormField<String>(
       initialValue: value.isNotEmpty ? value : null,
       decoration: InputDecoration(
         labelText: attribute.isRequired ? '$label *' : label,
       ),
-      hint: Text(l10n.selectOption),
+      hint: Text("Sélectionnez..."),
       items: attribute.options.map((opt) {
         return DropdownMenuItem(value: opt, child: Text(opt));
       }).toList(),
       onChanged: (v) => onChanged(v ?? ''),
       validator: attribute.isRequired
-          ? (v) => (v == null || v.isEmpty) ? l10n.requiredField : null
+          ? (v) => (v == null || v.isEmpty) ? "Ce champ est obligatoire" : null
           : null,
     );
   }
@@ -114,7 +112,7 @@ class DynamicAttributeField extends StatelessWidget {
       onChanged: onChanged,
       validator: attribute.isRequired
           ? (v) => (v == null || v.trim().isEmpty)
-              ? AppLocalizations.of(context)!.requiredField
+              ? "Ce champ est obligatoire"
               : null
           : null,
     );
@@ -129,7 +127,7 @@ class DynamicAttributeField extends StatelessWidget {
       onChanged: onChanged,
       validator: attribute.isRequired
           ? (v) => (v == null || v.trim().isEmpty)
-              ? AppLocalizations.of(context)!.requiredField
+              ? "Ce champ est obligatoire"
               : null
           : null,
     );

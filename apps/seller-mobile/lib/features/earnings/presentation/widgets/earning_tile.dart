@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/earning_model.dart';
 
 class EarningTile extends StatelessWidget {
@@ -11,9 +10,8 @@ class EarningTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final priceFormat = NumberFormat('#,###', 'fr');
-    final dateFormat = DateFormat('dd/MM/yyyy', l10n.localeName);
+    final dateFormat = DateFormat('dd/MM/yyyy', 'fr');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -31,7 +29,7 @@ class EarningTile extends StatelessWidget {
               Expanded(
                 child: Text(
                   earning.orderNumber != null
-                      ? l10n.orderNumber(earning.orderNumber!)
+                      ? "Commande ${earning.orderNumber!}"
                       : earning.orderId,
                   style: const TextStyle(
                     fontSize: 13,
@@ -53,8 +51,8 @@ class EarningTile extends StatelessWidget {
                 ),
                 child: Text(
                   earning.isPaid
-                      ? l10n.earningsPaid
-                      : l10n.earningsAvailable,
+                      ? "Paye"
+                      : "Disponible",
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
@@ -96,9 +94,9 @@ class EarningTile extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    l10n.orderTotal,
-                    style: const TextStyle(
+                  const Text(
+                    "Total",
+                    style: TextStyle(
                       fontSize: 11,
                       color: TekaColors.mutedForeground,
                     ),
@@ -115,9 +113,9 @@ class EarningTile extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(
-                    l10n.earningsTotalCommission,
-                    style: const TextStyle(
+                  const Text(
+                    "Commission prelevee",
+                    style: TextStyle(
                       fontSize: 11,
                       color: TekaColors.mutedForeground,
                     ),
@@ -135,9 +133,9 @@ class EarningTile extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    l10n.earningsTabEarnings,
-                    style: const TextStyle(
+                  const Text(
+                    "Gains",
+                    style: TextStyle(
                       fontSize: 11,
                       color: TekaColors.mutedForeground,
                     ),

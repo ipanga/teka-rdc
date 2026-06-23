@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/product_model.dart';
 import '../../data/products_repository.dart';
 import '../providers/products_provider.dart';
@@ -25,12 +24,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final productAsync = ref.watch(productDetailProvider(widget.productId));
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.productsTitle),
+        title: Text("Produits"),
       ),
       body: productAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -43,26 +41,26 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 const Icon(Icons.error_outline,
                     size: 48, color: TekaColors.destructive),
                 const SizedBox(height: 12),
-                Text(l10n.authGenericError),
+                Text("Une erreur est survenue. Veuillez reessayer."),
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () =>
                       ref.invalidate(productDetailProvider(widget.productId)),
-                  child: Text(l10n.loadMore),
+                  child: Text("Reessayer"),
                 ),
               ],
             ),
           ),
         ),
-        data: (product) => _buildContent(context, l10n, product),
+        data: (product) => _buildContent(context, product),
       ),
     );
   }
 
   Widget _buildContent(
-      BuildContext context, AppLocalizations l10n, SellerProductModel product) {
+      BuildContext context, SellerProductModel product) {
     final priceFormat = NumberFormat('#,###', 'fr');
-    final locale = l10n.localeName;
+    final locale = 'fr';
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -89,7 +87,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        l10n.rejectionReason,
+                        "Motif du rejet",
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           color: TekaColors.destructive,
@@ -170,7 +168,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 size: 16, color: TekaColors.mutedForeground),
             const SizedBox(width: 4),
             Text(
-              '${l10n.quantity}: ${product.quantity}',
+              'Quantite: ${product.quantity}',
               style: const TextStyle(
                   fontSize: 13, color: TekaColors.mutedForeground),
             ),
@@ -180,8 +178,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             const SizedBox(width: 4),
             Text(
               product.condition == ProductCondition.newItem
-                  ? l10n.conditionNew
-                  : l10n.conditionUsed,
+                  ? "Neuf"
+                  : "Occasion",
               style: const TextStyle(
                   fontSize: 13, color: TekaColors.mutedForeground),
             ),
@@ -222,14 +220,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         Row(
           children: [
             Text(
-              l10n.images,
+              "Images",
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
             ),
             const SizedBox(width: 8),
             Text(
-              l10n.imagesCount(product.images.length, 8),
+              "${product.images.length}/${8} images",
               style: const TextStyle(
                   fontSize: 12, color: TekaColors.mutedForeground),
             ),
@@ -240,7 +238,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 onPressed: () =>
                     context.push('/products/${product.id}/images'),
                 icon: const Icon(Icons.edit, size: 16),
-                label: Text(l10n.uploadImage),
+                label: Text("Ajouter"),
                 style: TextButton.styleFrom(
                   foregroundColor: TekaColors.tekaRed,
                 ),
@@ -295,7 +293,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           const Divider(),
           const SizedBox(height: 8),
           Text(
-            l10n.specifications,
+            "Specifications",
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -329,14 +327,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         // Action buttons
         const Divider(),
         const SizedBox(height: 12),
-        _buildActions(context, l10n, product),
+        _buildActions(context, product),
         const SizedBox(height: 24),
       ],
     );
   }
 
   Widget _buildActions(
-      BuildContext context, AppLocalizations l10n, SellerProductModel product) {
+      BuildContext context, SellerProductModel product) {
     switch (product.status) {
       case ProductStatus.draft:
         return Column(
@@ -346,7 +344,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               child: ElevatedButton.icon(
                 onPressed: _isSubmitting
                     ? null
-                    : () => _submitForReview(context, l10n, product),
+                    : () => _submitForReview(context, product),
                 icon: _isSubmitting
                     ? const SizedBox(
                         width: 16,
@@ -355,7 +353,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                             strokeWidth: 2, color: Colors.white),
                       )
                     : const Icon(Icons.send),
-                label: Text(l10n.submitForReview),
+                label: Text("Soumettre pour revision"),
               ),
             ),
             const SizedBox(height: 8),
@@ -365,7 +363,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 onPressed: () =>
                     context.push('/products/${product.id}/edit', extra: product),
                 icon: const Icon(Icons.edit),
-                label: Text(l10n.editProduct),
+                label: Text("Modifier le produit"),
               ),
             ),
           ],
@@ -377,7 +375,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             onPressed: () =>
                 context.push('/products/${product.id}/edit', extra: product),
             icon: const Icon(Icons.edit),
-            label: Text(l10n.editProduct),
+            label: Text("Modifier le produit"),
           ),
         );
       case ProductStatus.active:
@@ -386,7 +384,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           child: OutlinedButton.icon(
             onPressed: _isArchiving
                 ? null
-                : () => _archiveProduct(context, l10n, product),
+                : () => _archiveProduct(context, product),
             icon: _isArchiving
                 ? const SizedBox(
                     width: 16,
@@ -394,7 +392,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.archive_outlined),
-            label: Text(l10n.archive),
+            label: Text("Archiver"),
             style: OutlinedButton.styleFrom(
               foregroundColor: TekaColors.destructive,
               side: const BorderSide(color: TekaColors.destructive),
@@ -408,20 +406,20 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   }
 
   Future<void> _submitForReview(
-      BuildContext context, AppLocalizations l10n, SellerProductModel product) async {
+      BuildContext context, SellerProductModel product) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l10n.submitForReview),
-        content: Text(l10n.confirmSubmit),
+        title: Text("Soumettre pour revision"),
+        content: Text("Voulez-vous soumettre ce produit pour revision ? Il sera examine par notre equipe."),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.cancel),
+            child: Text("Annuler"),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(l10n.submitForReview),
+            child: Text("Soumettre pour revision"),
           ),
         ],
       ),
@@ -436,7 +434,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.productSubmitted),
+            content: Text("Produit soumis pour revision"),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -445,7 +443,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.authGenericError),
+            content: Text("Une erreur est survenue. Veuillez reessayer."),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -456,23 +454,23 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   }
 
   Future<void> _archiveProduct(
-      BuildContext context, AppLocalizations l10n, SellerProductModel product) async {
+      BuildContext context, SellerProductModel product) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l10n.archive),
-        content: Text(l10n.confirmArchive),
+        title: Text("Archiver"),
+        content: Text("Voulez-vous archiver ce produit ? Il ne sera plus visible par les acheteurs."),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.cancel),
+            child: Text("Annuler"),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: TekaColors.destructive,
             ),
-            child: Text(l10n.archive),
+            child: Text("Archiver"),
           ),
         ],
       ),
@@ -486,7 +484,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.productArchived),
+            content: Text("Produit archive"),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -496,7 +494,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.authGenericError),
+            content: Text("Une erreur est survenue. Veuillez reessayer."),
             behavior: SnackBarBehavior.floating,
           ),
         );

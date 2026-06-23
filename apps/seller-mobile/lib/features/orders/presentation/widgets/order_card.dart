@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/order_model.dart';
 import 'order_status_badge.dart';
 
@@ -13,8 +12,7 @@ class OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final dateFormat = DateFormat('dd/MM/yyyy HH:mm', l10n.localeName);
+    final dateFormat = DateFormat('dd/MM/yyyy HH:mm', 'fr');
     final priceFormat = NumberFormat('#,###', 'fr');
 
     return Card(
@@ -37,7 +35,7 @@ class OrderCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      l10n.orderNumber(order.orderNumber),
+                      "Commande ${order.orderNumber}",
                       style: const TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
@@ -92,7 +90,7 @@ class OrderCard extends StatelessWidget {
                       size: 12, color: TekaColors.mutedForeground),
                   const SizedBox(width: 4),
                   Text(
-                    l10n.orderItems(order.itemCount),
+                    "${order.itemCount} article(s)",
                     style: const TextStyle(
                       fontSize: 11,
                       color: TekaColors.mutedForeground,

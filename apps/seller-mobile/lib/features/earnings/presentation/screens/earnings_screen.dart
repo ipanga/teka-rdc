@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../providers/earnings_provider.dart';
 import '../widgets/earning_tile.dart';
 import '../widgets/payout_tile.dart';
@@ -48,7 +47,6 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final state = ref.watch(earningsProvider);
 
     // Keep tab controller in sync with state
@@ -60,7 +58,7 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.earningsTitle),
+        title: const Text("Revenus"),
       ),
       body: Column(
         children: [
@@ -73,7 +71,7 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen>
                   children: [
                     Expanded(
                       child: WalletCard(
-                        label: l10n.earningsWalletBalance,
+                        label: "Solde disponible",
                         amountCDF: wallet?.balanceCDFDisplay ?? 0,
                         icon: Icons.account_balance_wallet_outlined,
                         color: TekaColors.tekaRed,
@@ -82,7 +80,7 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen>
                     const SizedBox(width: 12),
                     Expanded(
                       child: WalletCard(
-                        label: l10n.earningsTotalEarned,
+                        label: "Revenus totaux",
                         amountCDF: wallet?.totalEarnedCDFDisplay ?? 0,
                         icon: Icons.trending_up,
                         color: TekaColors.success,
@@ -92,7 +90,7 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen>
                 ),
                 const SizedBox(height: 12),
                 WalletCard(
-                  label: l10n.earningsTotalCommission,
+                  label: "Commission prelevee",
                   amountCDF: wallet?.totalCommissionCDFDisplay ?? 0,
                   icon: Icons.percent,
                   color: TekaColors.warning,
@@ -117,9 +115,9 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen>
             labelColor: TekaColors.tekaRed,
             unselectedLabelColor: TekaColors.mutedForeground,
             indicatorColor: TekaColors.tekaRed,
-            tabs: [
-              Tab(text: l10n.earningsTabEarnings),
-              Tab(text: l10n.earningsTabPayouts),
+            tabs: const [
+              Tab(text: "Gains"),
+              Tab(text: "Virements"),
             ],
           ),
 
@@ -146,8 +144,6 @@ class _EarningsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
-
     if (state.isLoading && state.earnings.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -162,12 +158,12 @@ class _EarningsTab extends ConsumerWidget {
               const Icon(Icons.error_outline,
                   size: 48, color: TekaColors.destructive),
               const SizedBox(height: 12),
-              Text(l10n.authGenericError),
+              const Text("Une erreur est survenue. Veuillez reessayer."),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () =>
                     ref.read(earningsProvider.notifier).loadEarnings(),
-                child: Text(l10n.loadMore),
+                child: const Text("Reessayer"),
               ),
             ],
           ),
@@ -183,9 +179,9 @@ class _EarningsTab extends ConsumerWidget {
             const Icon(Icons.monetization_on_outlined,
                 size: 48, color: TekaColors.mutedForeground),
             const SizedBox(height: 12),
-            Text(
-              l10n.earningsNoEarnings,
-              style: const TextStyle(color: TekaColors.mutedForeground),
+            const Text(
+              "Aucun revenu pour le moment",
+              style: TextStyle(color: TekaColors.mutedForeground),
             ),
           ],
         ),
@@ -228,8 +224,6 @@ class _PayoutsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
-
     if (state.isLoading && state.payouts.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -244,12 +238,12 @@ class _PayoutsTab extends ConsumerWidget {
               const Icon(Icons.error_outline,
                   size: 48, color: TekaColors.destructive),
               const SizedBox(height: 12),
-              Text(l10n.authGenericError),
+              const Text("Une erreur est survenue. Veuillez reessayer."),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () =>
                     ref.read(earningsProvider.notifier).loadPayouts(),
-                child: Text(l10n.loadMore),
+                child: const Text("Reessayer"),
               ),
             ],
           ),
@@ -265,9 +259,9 @@ class _PayoutsTab extends ConsumerWidget {
             const Icon(Icons.send_outlined,
                 size: 48, color: TekaColors.mutedForeground),
             const SizedBox(height: 12),
-            Text(
-              l10n.earningsNoPayouts,
-              style: const TextStyle(color: TekaColors.mutedForeground),
+            const Text(
+              "Aucun virement pour le moment",
+              style: TextStyle(color: TekaColors.mutedForeground),
             ),
           ],
         ),
@@ -317,7 +311,6 @@ class _PayoutRequestAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final belowMin = balanceCdf < _minPayoutCdf;
     final canRequest = walletLoaded && !belowMin && !hasPendingPayout;
 
@@ -333,22 +326,22 @@ class _PayoutRequestAction extends StatelessWidget {
             foregroundColor: Colors.white,
             disabledBackgroundColor: TekaColors.muted,
           ),
-          child: Text(l10n.earningsRequestPayout),
+          child: const Text("Demander un virement"),
         ),
         if (walletLoaded && belowMin) ...[
           const SizedBox(height: 6),
-          Text(
-            l10n.payoutMinimumBalance,
-            style: const TextStyle(
+          const Text(
+            "Solde minimum: 5 000 CDF",
+            style: TextStyle(
               fontSize: 12,
               color: TekaColors.mutedForeground,
             ),
           ),
         ] else if (hasPendingPayout) ...[
           const SizedBox(height: 6),
-          Text(
-            l10n.payoutPendingNotice,
-            style: const TextStyle(
+          const Text(
+            "Vous avez deja une demande de virement en cours. Vous pourrez en faire une nouvelle une fois celle-ci traitee.",
+            style: TextStyle(
               fontSize: 12,
               color: TekaColors.mutedForeground,
             ),
