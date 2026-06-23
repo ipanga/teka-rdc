@@ -8,13 +8,14 @@
 
 **None.** Broadcast notifications shipped to prod (see below). No in-flight dev initiative — next work TBD.
 
-> **Buyer iOS push — config landed 2026-06-23, operator-pending.** Prod `GoogleService-Info.plist`
-> (`com.tootiye.teka`) placed in `apps/buyer-mobile/ios/Runner/` (gitignored; restore from secret
-> `BUYER_GOOGLE_SERVICE_INFO_PLIST_B64` via `scripts/sync-firebase-secrets.sh`); iOS bundle id aligned
-> `buyerMobile→teka`; `UIBackgroundModes: [remote-notification]` set; sync-script + docs wired (PR
-> `chore/ios-buyer-push-config`). **Blocked on operator steps:** upload APNs `.p8` to Firebase, enable Xcode
-> Push/Background-Modes capabilities, `pod install`, sign, real-device test, commit the untracked `ios/` tree.
-> Full checklist: `docs/push-notifications.md` → iOS.
+> **Buyer iOS push — config wired + build-verified 2026-06-23, device/Apple steps remain.** Prod
+> `GoogleService-Info.plist` (`com.tootiye.teka`) in `apps/buyer-mobile/ios/Runner/` (gitignored; secret
+> `BUYER_GOOGLE_SERVICE_INFO_PLIST_B64`). Automated + verified by `flutter build ios --no-codesign` (Runner.app
+> built, Firebase SPM-linked): bundle id aligned `buyerMobile→teka`, `UIBackgroundModes`, `Runner.entitlements`
+> (`aps-environment`) + `CODE_SIGN_ENTITLEMENTS`, plist in Copy-Bundle-Resources, deployment target 13→15 (Firebase
+> req), SPM integrated. **Remaining (device/Apple, not automatable):** upload APNs `.p8` (Key ID `78KG84553N`,
+> Team ID `YK6Z393A4D`) to Firebase Console; sign for `com.tootiye.teka`; real-device/TestFlight install + live
+> push test; commit the untracked `ios/` tree ("PR C"). Full checklist: `docs/push-notifications.md` → iOS.
 
 ### Recently completed — 2026-06-23 (Broadcast notifications — SHIPPED to prod, release #443)
 Admin→buyers notifications as **push + a persisted in-app Notification Center** across API + admin-web +
