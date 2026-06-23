@@ -6,30 +6,34 @@
 
 ## Active initiative
 
-**Buyer-mobile UX/UI redesign + navigation overhaul** (started 2026-06-22). Branch work off `develop`, phased
-PRs, each tested. Constraints: no global refactor; preserve APIs/business-logic/analytics/auth/town-architecture.
+**None.** Buyer-mobile navigation overhaul + redesign SHIPPED to `main` 2026-06-23 (see below). No in-flight
+build work — ask the user what to start next. Deferred follow-up on the backlog: **buyer-mobile Step 3**
+(product-card polish + shared skeleton/empty/error widgets + push error-mapping into the shopping providers —
+raw `state.error!` in wishlist/cart/checkout/orders); also pending: seller-mobile l10n removal + web next-intl
+removal (user wants both, as separate initiatives).
 
-**Sequencing (user decisions 2026-06-22):**
-- **Step 1 — Remove the buyer-mobile localization machinery (l10n) FIRST → clean base.** ✅ CODE DONE on
-  branch `chore/buyer-mobile-remove-l10n`, PENDING PR. Replaced all ~272 `AppLocalizations`/`l10n.*` calls
-  across 27 files with plain French literals; deleted `lib/l10n/` (`app_fr.arb` + generated
-  `app_localizations*.dart`), `lib/core/locale/locale_provider.dart`, `l10n.yaml`; dropped `generate: true` +
-  the `AppLocalizations` delegate (kept framework `GlobalMaterialLocalizations`=fr). CLAUDE.md Rule 1 updated.
-  **analyze 0 errors (13 pre-existing info-level deprecations), 93 tests green.** *(seller-mobile l10n + web
-  next-intl removal are separate later follow-ups — user 2026-06-22.)*
-- **Step 2 — Navigation + redesign.** ✅ CODE DONE on branch `feat/buyer-mobile-bottom-nav`, PENDING PR.
-  `StatefulShellRoute.indexedStack` bottom nav (Accueil · Categories · Favoris · Panier · Compte, cart badge);
-  Search = prominent Home search bar (not a tab); Orders → under Compte; simplified **white** AppBar (brand +
-  town pill + notification bell → new Notifications screen); new Categories tab grid; Favorites back-button
-  bug fixed by construction (top-level tab); guest→protected-tab→login gains a ✕ close (no dead-end); red
-  rebalanced to CTAs/accents (white AppBar + NavigationBarTheme). New: `main_shell.dart`,
-  `categories_screen.dart`, `notifications/.../notifications_screen.dart`. Tracker:
-  `docs/buyer-mobile-redesign.md`. **analyze 0 errors, 93 tests; device-verified on emulator (prod flavor,
-  Kolwezi) with screenshots.**
-- **Step 3 (deferred follow-up, NOT started):** deeper product-card polish + shared skeleton/empty/error
-  widgets + push error-mapping into shopping providers (raw `state.error!` in wishlist/cart/checkout/orders).
+---
 
-**Next sub-task:** open the `feat/buyer-mobile-bottom-nav` PR (with screenshots) for user review before merge.
+### Recently completed — 2026-06-23 (Buyer-mobile navigation overhaul + redesign — SHIPPED to main)
+
+**Buyer-mobile UX/UI redesign + navigation overhaul** — 2 PRs, released `develop → main` (#424, `develop ==
+main` @ `716362a`). **No API/DB/migration; buyer-mobile only.** Mobile changes reach devices on the next
+**Play Store AAB** build (web/api unaffected by this deploy). Tracker: `docs/buyer-mobile-redesign.md`.
+- **Step 1 — l10n removal (#422):** French-only platform → removed the gen-l10n/`AppLocalizations` machinery;
+  ~272 `l10n.*` calls across 27 files inlined as French literals; deleted `lib/l10n/` + `locale_provider.dart`
+  + `l10n.yaml`; dropped `generate: true` + the delegate (framework `GlobalMaterialLocalizations` stays `fr`);
+  CI gen-l10n step guards on `l10n.yaml`; **CLAUDE.md Rule 1 rewritten** so this stops recurring.
+- **Step 2 — bottom-nav shell + redesign (#423):** `StatefulShellRoute.indexedStack` bottom nav (Accueil ·
+  Categories · Favoris · Panier · Compte, cart badge, one navigator per tab); Search = Home search bar (not a
+  tab); Orders → under Compte; new Categories tab grid + Notifications screen; **white** AppBar (brand + town
+  pill + bell) replacing the red 6-icon header; **Favorites back-button bug fixed by construction**
+  (top-level tab — old cause: `context.go(returnTo)` replacing stack to `[Wishlist]` root vs `push` keeping a
+  parent); guest→protected-tab→login gains a ✕ close (never stranded); red rebalanced to CTAs/accents.
+  Preserved APIs/business-logic/analytics (PostHog `$screen` via per-branch `PosthogObserver`)/auth/
+  town-architecture/guest gates. analyze 0 errors; 93 tests; device-verified on emulator (prod flavor, Kolwezi).
+- **Deferred (Step 3, not started):** product-card polish + shared skeleton/empty/error widgets + push
+  error-mapping into shopping providers. **Operator step:** run "Release mobile AAB" + upload to Play Store
+  for the redesign to reach real devices.
 
 ---
 
