@@ -51,6 +51,7 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [onPromotion, setOnPromotion] = useState(false);
   // SELECT/MULTISELECT facets for this category + the buyer's selections
   // (attributeId -> chosen option values). Applied together with the other
   // filters on "Apply".
@@ -68,6 +69,7 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
     minPrice,
     maxPrice,
     sortBy,
+    onPromotion,
     selectedAttributes,
     selectedBrandIds,
   });
@@ -76,6 +78,7 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
     minPrice,
     maxPrice,
     sortBy,
+    onPromotion,
     selectedAttributes,
     selectedBrandIds,
   };
@@ -100,6 +103,7 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
     if (f.condition) qs.set('condition', f.condition);
     if (f.minPrice) qs.set('minPrice', f.minPrice);
     if (f.maxPrice) qs.set('maxPrice', f.maxPrice);
+    if (f.onPromotion) qs.set('onPromotion', 'true');
     if (effectiveCityId) qs.set('cityId', effectiveCityId);
     // Attribute facets: only send attributes with at least one selected value.
     const activeAttrs = Object.fromEntries(
@@ -222,6 +226,7 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
     setMinPrice('');
     setMaxPrice('');
     setSortBy('newest');
+    setOnPromotion(false);
     setSelectedAttributes({});
     setSelectedBrandIds([]);
     setShowMobileFilters(false);
@@ -233,6 +238,7 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
       minPrice: '',
       maxPrice: '',
       sortBy: 'newest',
+      onPromotion: false,
       selectedAttributes: {},
       selectedBrandIds: [],
     })
@@ -318,6 +324,8 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
                   onMaxPriceChange={setMaxPrice}
                   sortBy={sortBy}
                   onSortChange={setSortBy}
+                  onPromotion={onPromotion}
+                  onPromotionChange={setOnPromotion}
                   attributes={attributes}
                   selectedAttributes={selectedAttributes}
                   onAttributeToggle={handleAttributeToggle}
@@ -366,6 +374,8 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
                       onMaxPriceChange={setMaxPrice}
                       sortBy={sortBy}
                       onSortChange={setSortBy}
+                      onPromotion={onPromotion}
+                      onPromotionChange={setOnPromotion}
                       attributes={attributes}
                       selectedAttributes={selectedAttributes}
                       onAttributeToggle={handleAttributeToggle}

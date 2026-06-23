@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { WishlistButton } from '@/components/wishlist-button';
 import { useCartStore } from '@/lib/cart-store';
-import { formatCDF, formatUSD } from '@/lib/format';
+import { formatCDF, formatUSD, discountPercent } from '@/lib/format';
 import { productHref } from '@/lib/urls';
 import type { BrowseProduct } from '@/lib/types';
 
@@ -24,6 +24,15 @@ export function ProductCard({ product }: ProductCardProps) {
   // Scarcity cue (Phase D): in stock but running low. Threshold mirrors
   // buyer-mobile's isLowStock (≤ 5).
   const lowStock = !outOfStock && product.quantity <= 5;
+
+  // Promotional price (seller-set). When present, show the discounted price
+  // with the original struck through + a −X% badge. The API guarantees
+  // discount < price; discountPercent is defensive.
+  const discount = discountPercent(product.priceCDF, product.discountPriceCDF);
+  const hasDiscount = discount > 0;
+  const effectiveCDF = hasDiscount
+    ? (product.discountPriceCDF as string)
+    : product.priceCDF;
 
   // Quick-add (Phase D): add a single unit straight from the card. The PDP
   // keeps its own quantity selector for larger orders. addItem() already fires
@@ -75,6 +84,12 @@ export function ProductCard({ product }: ProductCardProps) {
               (not the subtle Badge variants) with high-contrast text + shadow
               so they stay legible over ANY product photo. */}
           <div className="absolute top-2 left-2 flex flex-col items-start gap-1">
+            {/* Discount badge first — the highest-intent signal on the grid. */}
+            {hasDiscount && (
+              <span className="rounded-md bg-primary px-2 py-0.5 text-[11px] font-bold text-primary-foreground shadow-md">
+                {`-${discount}%`}
+              </span>
+            )}
             {outOfStock && (
               <span className="rounded-md bg-foreground px-2 py-0.5 text-[11px] font-semibold text-white shadow-md">
                 {"Rupture de stock"}
@@ -85,14 +100,6 @@ export function ProductCard({ product }: ProductCardProps) {
                 {`Plus que ${product.quantity} en stock`}
               </span>
             )}
-            {/* Only badge second-hand items — "Neuf" is the default, so
-                badging every new product just adds noise. White pill + dark
-                text reads cleanly over photos. */}
-            {product.condition === 'USED' && (
-              <span className="rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-foreground shadow-md ring-1 ring-black/5">
-                {"Occasion"}
-              </span>
-            )}
           </div>
         </div>
 
@@ -101,21 +108,29 @@ export function ProductCard({ product }: ProductCardProps) {
           <h3 className="text-sm font-medium text-foreground line-clamp-2 min-h-[2.5rem] leading-snug">
             {title}
           </h3>
-          {/* Price hierarchy: bold CDF (dark, premium) + secondary USD. The red
-              is reserved for the add-to-cart CTA, not flooded across the grid. */}
+          {/* Price hierarchy: bold effective CDF + struck-through original when
+              discounted (effective turns red to signal the deal) + secondary
+              USD. The seller name was removed from cards to cut clutter — it
+              stays on the PDP + store page. */}
           <div className="flex items-baseline gap-2 flex-wrap pt-0.5">
-            <span className="text-base md:text-lg font-extrabold text-foreground tracking-tight">
-              {formatCDF(product.priceCDF)}
+            <span
+              className={`text-base md:text-lg font-extrabold tracking-tight ${
+                hasDiscount ? 'text-primary' : 'text-foreground'
+              }`}
+            >
+              {formatCDF(effectiveCDF)}
             </span>
+            {hasDiscount && (
+              <span className="text-xs font-medium text-muted-foreground line-through">
+                {formatCDF(product.priceCDF)}
+              </span>
+            )}
             {product.priceUSD != null && product.priceUSD > 0 && (
               <span className="text-xs font-medium text-muted-foreground">
                 {formatUSD(product.priceUSD)}
               </span>
             )}
           </div>
-          <p className="text-xs text-muted-foreground truncate group-hover:text-foreground transition-colors">
-            {product.seller.businessName}
-          </p>
           {product.unitsSold != null && product.unitsSold > 0 && (
             <p className="text-[11px] text-muted-foreground">
               {product.unitsSold <= 1 ? `${product.unitsSold} vendu` : `${product.unitsSold} vendus`}

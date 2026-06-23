@@ -8,7 +8,7 @@ import { CartItemRow } from '@/components/cart/cart-item-row';
 import { useCartStore } from '@/lib/cart-store';
 import { useAuthStore } from '@/lib/auth-store';
 import { apiFetch } from '@/lib/api-client';
-import { formatCDF } from '@/lib/format';
+import { formatCDF, effectiveCentimes } from '@/lib/format';
 import { Card, Container, buttonVariants } from '@/components/ui';
 import type { CartItem, GuestCartItem, ProductDetail } from '@/lib/types';
 
@@ -74,6 +74,8 @@ export default function CartPage() {
               title: p.title,
               priceCDF: p.priceCDF,
               priceUSD: p.priceUSD,
+              discountPriceCDF: p.discountPriceCDF,
+              discountPriceUSD: p.discountPriceUSD,
               quantity: p.quantity,
               condition: p.condition,
               image: firstImage
@@ -111,7 +113,20 @@ export default function CartPage() {
 
   const totalCDF = useMemo(() => {
     return cartItems.reduce(
-      (sum, item) => sum + BigInt(item.product.priceCDF) * BigInt(item.quantity),
+      (sum, item) =>
+        sum + BigInt(effectiveCentimes(item.product)) * BigInt(item.quantity),
+      BigInt(0),
+    );
+  }, [cartItems]);
+
+  // Total savings vs the regular prices (shown only when > 0).
+  const savingsCDF = useMemo(() => {
+    return cartItems.reduce(
+      (sum, item) =>
+        sum +
+        (BigInt(item.product.priceCDF) -
+          BigInt(effectiveCentimes(item.product))) *
+          BigInt(item.quantity),
       BigInt(0),
     );
   }, [cartItems]);
@@ -180,7 +195,9 @@ export default function CartPage() {
                 {Object.entries(itemsBySeller).map(([sellerId, group]) => {
                   const sellerSubtotal = group.items.reduce(
                     (sum, item) =>
-                      sum + BigInt(item.product.priceCDF) * BigInt(item.quantity),
+                      sum +
+                      BigInt(effectiveCentimes(item.product)) *
+                        BigInt(item.quantity),
                     BigInt(0),
                   );
                   // Defensive: `sellerName` should always come from
@@ -244,6 +261,17 @@ export default function CartPage() {
                         {formatCDF(totalCDF.toString())}
                       </span>
                     </div>
+
+                    {savingsCDF > BigInt(0) && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-success">
+                          {"Économies promotions"}
+                        </span>
+                        <span className="text-sm font-medium text-success">
+                          {`- ${formatCDF(savingsCDF.toString())}`}
+                        </span>
+                      </div>
+                    )}
 
                     <div className="border-t border-border pt-3">
                       <div className="flex justify-between items-baseline">
