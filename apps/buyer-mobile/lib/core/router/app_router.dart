@@ -14,6 +14,7 @@ import '../../features/catalog/presentation/screens/categories_screen.dart';
 import '../../features/catalog/presentation/screens/category_screen.dart';
 import '../../features/catalog/presentation/screens/product_detail_screen.dart';
 import '../../features/catalog/presentation/screens/search_screen.dart';
+import '../../features/catalog/presentation/screens/promotions_screen.dart';
 import '../../features/checkout/data/models/checkout_model.dart';
 import '../../features/checkout/presentation/screens/checkout_screen.dart';
 import '../../features/checkout/presentation/screens/checkout_success_screen.dart';
@@ -154,6 +155,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/search',
         builder: (context, state) => const SearchScreen(),
+      ),
+      GoRoute(
+        path: '/promotions',
+        builder: (context, state) => const PromotionsScreen(),
       ),
       GoRoute(
         path: '/products/:id',

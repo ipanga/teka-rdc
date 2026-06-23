@@ -19,7 +19,7 @@ class CartItemTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final title = item.product.title;
-    final unitPrice = formatCDF(item.product.priceCDF);
+    final unitPrice = formatCDF(item.product.effectiveCDF);
     final subtotal = formatCDF(item.subtotalCDF);
     final imageUrl = item.product.thumbnailUrl;
     final maxStock = item.product.quantity;

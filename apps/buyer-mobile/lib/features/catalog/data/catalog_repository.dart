@@ -46,11 +46,15 @@ class CatalogRepository {
     String? cityId,
     String? attributesJson,
     String? brandIds,
+    bool onPromotion = false,
     int limit = 20,
   }) async {
     final queryParams = <String, dynamic>{
       'limit': limit,
     };
+    if (onPromotion) {
+      queryParams['onPromotion'] = 'true';
+    }
 
     if (categoryId != null && categoryId.isNotEmpty) {
       queryParams['categoryId'] = categoryId;
