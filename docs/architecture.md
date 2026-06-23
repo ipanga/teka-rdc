@@ -388,7 +388,7 @@ Each transition is logged in the `OrderStatusLog` table with timestamp, actor (b
 | **ProductSpecification** | Junction Product ↔ ProductAttribute holding the chosen `value` (BOOLEAN stored as `'true'`/`'false'`). `onDelete: Cascade`. |
 | **Brand** | First-class reusable brand library (name/slug unique, logoUrl, isActive, sortOrder, soft-delete). Replaces the old "Marque" SELECT-attribute approach. |
 | **BrandCategory** | Brand ↔ subcategory link (which brands are offered per subcategory). |
-| **Product** | Title/description (plain TEXT, French), `categoryId`, optional `brandId` (FK → Brand, `ON DELETE SET NULL`), priceCDF/priceUSD (BigInt), stock, condition, status, `isDemo`. |
+| **Product** | Title/description (plain TEXT, French), `categoryId`, optional `brandId` (FK → Brand, `ON DELETE SET NULL`), priceCDF/priceUSD (BigInt), optional **discountPriceCDF/discountPriceUSD** (BigInt; seller-set promo, always-on), stock, condition, status, `isDemo`. See "Per-product discounts" below. |
 | **ProductImage** | Cloudinary URLs, position ordering, cover flag |
 | **Address** | Town + neighborhood + avenue (no postal codes), isDefault flag |
 
@@ -608,6 +608,15 @@ As real merchants populate categories, demo products are **retired** — hidden 
 - **Hide = filter, not delete.** `BrowseService` ORs `(isDemo = false OR categoryId NOT IN retired)` into browse (both branches), search suggestions, and related; the sitemap inherits it (it reads `/v1/browse/products`). The `isDemo` rows are untouched (reversible; catalog-coverage still works).
 - **301 → category.** `GET /v1/browse/products/:id` returns `isRetired` (a demo product in a retired category); the buyer-web PDP `permanentRedirect()`s it to `/{ville}/categorie/{slug}`, funnelling inbound links/SEO to the category instead of 404'ing.
 - **Operator controls:** the catalog-coverage page surfaces the toggle + threshold (also editable on the generic settings page) and a per-category "Démo retiré / En attente du seuil" status. The two setting rows are created by the seed (`update:{}` so a re-seed never resets an operator change).
+
+### Per-product discounts (2026-06-23)
+A seller-set **promotional price** applied at point of sale — distinct from the admin `Promotion`/flash-deal model (time-boxed, admin-approved, marketing-only; **left untouched**). No approval, always-on until cleared.
+- **Storage:** `Product.discountPriceCDF`/`discountPriceUSD` (nullable BigInt). The percentage is **never stored** — derived on display as `round((price − discount) / price × 100)`. **Effective price** = `discountPriceCDF ?? priceCDF`; a small helper substitutes it at every cart/checkout/browse read. "On promotion" ⇔ `discountPriceCDF IS NOT NULL` (the validation invariant guarantees a stored discount is always `< price`).
+- **Validation** (DTO + `ProductsService.validateDiscount`, create & update): a promo must be `> 0 AND < priceCDF`; `==`/`>` price or `≤ 0` → 400; `null` clears it; any **price change re-validates** the resulting discount against the new price.
+- **Edit-after-publish:** on an ACTIVE product sellers may edit **only** price / discount / stock (`ProductsService.LIVE_EDITABLE_FIELDS`) with no re-review; content fields keep the draft→review flow. (Seller-web enables this; the seller-mobile form still edits DRAFT/REJECTED only.)
+- **Order snapshot:** checkout writes `OrderItem.unitPriceCDF` = the **charged** (effective) price and `listUnitPriceCDF`/`listUnitPriceUSD` = the **original** (null ⇒ no discount), so reporting keeps accurate list-vs-paid figures; legacy rows read as no-discount.
+- **Discovery:** `GET /v1/browse/products?onPromotion=true` (Prisma + FTS branches); buyer surfaces show a `−X%` badge + struck-through original + "Vous économisez X"; a dedicated **`/promotions`** page + homepage section + a "Produits en promotion" filter. **Condition badge + seller name were removed from product cards** (they stay on the PDP). SEO: PDP JSON-LD `offers.price` + metadata use the effective price; card prices stay server-rendered.
+- **Migration:** `prisma/migrations/manual/2026-06-23_product_discount_price.sql` (idempotent `ADD COLUMN IF NOT EXISTS` ×4 + index; all-nullable, no backfill).
 
 ### SEO surface
 - **Sitemap**: dynamic at `/sitemap.xml` (Next.js `app/sitemap.ts`). FR-only URLs: home, categories + subcategories (slug-based), cities, products (top 500 by recency), and the 8 static-page URLs.

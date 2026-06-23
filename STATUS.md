@@ -6,36 +6,35 @@
 
 ## Active initiative
 
-**Localization removal sweep** (started 2026-06-23) — remove the localization machinery platform-wide
-(French-only). **UI layer COMPLETE across all 6 apps.**
-- **Flutter** — buyer-mobile (#424/#426) + seller-mobile (#427) gen-l10n removed (shipped). Dead locale
-  constants `AppConstants.defaultLocale`/`supportedLocales` (the latter listed `'en'`) also removed from both.
-- **Web next-intl removal — DONE for all three apps:**
-  - **admin-web** — ✅ MERGED (#428, on `main`). 34 components, 730 `t()` calls.
-  - **seller-web** — ✅ CODE DONE (this working tree). ~360 `t()` calls inlined; ICU plurals → ternaries;
-    dynamic `t(MAP[x])` → French-valued maps; removed provider/plugin/`src/i18n/`/`messages/fr.json`/dep.
-    **tsc clean; `next build` 19/19 pages.**
-  - **buyer-web** — ✅ CODE DONE (this working tree). 348 simple + 25 interp/plural + 6 dynamic-key sites
-    converted; the 1 server-side `getTranslations('Common')` + the `getMessages` provider removed (metadata was
-    already static French → no SSR-translation risk); 3 vitest `next-intl` mocks dropped + 2 key-based test
-    queries updated to French. **tsc clean; 54 tests pass; `next build` 27/27 pages (SSG `/[ville]` intact).**
-- **`{fr, en}` data-shape removal — ✅ DONE (this working tree).** Phase 0 (read-only) found prod **100% clean**
-  (0 JSON rows everywhere); only **dev** held legacy `{fr,en}` JSON-strings in `product_attributes.name` (88,
-  all on inactive categories) + `order_items."productTitle"` (11 pre-jsonb-migration order snapshots). Cleaned
-  dev via guarded idempotent UPDATEs (88+11 → 0); recorded as
-  `prisma/migrations/manual/2026-06-23_translatable_jsonstring_to_fr.sql` (**no-op on prod — apply optional**).
-  Deleted all parsers (`attrLabel`/`getLocalizedName`/`_frAttributeLabel` + mobile order-address Map branches),
-  fixed the now-stale admin `{fr,en}` type annotations to `string` (commission/orders/reviews — these were also
-  latent bugs: plain-string names rendered as a single letter / blank), removed dead
-  `packages/shared/src/constants/locales.ts` (`SUPPORTED_LOCALES` listed `'en'`), and fixed the stale
-  `browse.e2e-spec.ts` mock. Verified: tsc ×3 clean, buyer-web 54 + api browse 29 tests, flutter analyze clean
-  on edited files, admin-web + buyer-web `next build` green. **No prod migration required** (prod already clean).
+**Discount system + product-card UX** (started 2026-06-23) — industry-standard, seller-set per-product
+discount price (no admin approval, always-on until cleared) flowing card→PDP→cart→checkout→order, plus
+product-card cleanup (drop condition badge + seller name from cards) and discovery surfaces, across API +
+buyer-web (SEO-safe) + seller-web + buyer-mobile + seller-mobile. **Detailed tracker:
+`tasks/discount-system-progress.md`.** Plan: `~/.claude/plans/generic-sleeping-tide.md`.
+- **Decisions:** new `Product.discountPriceCDF/USD` (not the admin Promotion model, which stays untouched);
+  effective price = `discountPriceCDF ?? priceCDF`; % derived on display; `OrderItem.listUnitPriceCDF/USD`
+  snapshots the original. On ACTIVE products sellers edit only price/discount/stock (no re-review). Discovery =
+  `/promotions` route + home section + `onPromotion` filter.
+- **Phased PRs (resumable):** A backend → B buyer-web → C seller-web → D buyer-mobile → E seller-mobile → F
+  analytics/docs.
+- **✅ ALL PHASES MERGED to develop** (A #431 backend · B #432 buyer-web · C #433 seller-web · D #434
+  buyer-mobile · E #435 seller-mobile · F docs/analytics). Verified each phase: api 142 unit + 116 e2e;
+  web tsc + `next build` ×3; flutter analyze 0 errors + buyer 93 / seller 3 tests; dev data path confirmed
+  (45/165 ACTIVE on-promo, invariant `0<discount<price` holds). Tracker: `tasks/discount-system-progress.md`.
+- **Remaining before prod:** release `develop→main`; **apply the prod migration**
+  `apps/api/prisma/migrations/manual/2026-06-23_product_discount_price.sql` via the Apply-prod-migration Action
+  at release (all-nullable, no backfill). Deferred: seller-mobile edit-after-publish for ACTIVE (seller-web
+  covers it). Mobile reaches devices on the next Play Store AAB. Optional: prod re-seed for demo discounts;
+  before/after screenshots (needs running apps).
 
-**Branch note:** all of the above is on `chore/web-remove-next-intl-seller` (scope grew beyond seller-web).
-Uncommitted. Decide branch/PR split before committing.
-
-**Operator step (not code):** run "Release mobile AAB" + upload to Play Store so the buyer-mobile redesign
-(Steps 1–3) reaches real devices — `docs/mobile-release.md`.
+### Recently completed — 2026-06-23 (Localization removal sweep — SHIPPED to prod, release #430)
+French-only platform: next-intl removed from all 3 web apps (#428 admin + #429 seller/buyer), gen-l10n removed
+from both Flutter apps (#424/#426/#427), and the legacy `{fr,en}` JSONB data-shape eliminated (parsers + stale
+admin types + dead `shared/constants/locales.ts`; dev DB backfilled via
+`2026-06-23_translatable_jsonstring_to_fr.sql`, prod already clean). Released `develop→main` #430 (`4767128`,
+main==develop), deployed + prod-smoke-verified (French renders, 0 raw JSON, attribute names plain). No
+multilingual machinery remains. **Operator step still pending:** run "Release mobile AAB" + upload to Play
+Store so the buyer-mobile redesign (Steps 1–3) reaches devices — `docs/mobile-release.md`.
 
 ### Recently completed — 2026-06-23 (Buyer-mobile Step 3 — shared states — SHIPPED to main)
 

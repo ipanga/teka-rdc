@@ -30,6 +30,9 @@ interface ProductFiltersProps {
   onMaxPriceChange: (v: string) => void;
   sortBy: SortOption;
   onSortChange: (v: SortOption) => void;
+  /** "Produits en promotion" facet — only products with an active discount. */
+  onPromotion?: boolean;
+  onPromotionChange?: (v: boolean) => void;
   /** SELECT/MULTISELECT/BOOLEAN attributes for the current category (may be empty). */
   attributes?: FacetAttribute[];
   /** attributeId -> selected option values. */
@@ -55,6 +58,8 @@ export function ProductFilters({
   onMaxPriceChange,
   sortBy,
   onSortChange,
+  onPromotion,
+  onPromotionChange,
   attributes,
   selectedAttributes,
   onAttributeToggle,
@@ -87,6 +92,21 @@ export function ProductFilters({
           <option value="price_desc">{"Prix décroissant"}</option>
         </select>
       </div>
+
+      {/* Promotion toggle */}
+      {onPromotionChange && (
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={!!onPromotion}
+            onChange={(e) => onPromotionChange(e.target.checked)}
+            className="h-4 w-4 rounded border-input text-primary focus:ring-2 focus:ring-ring"
+          />
+          <span className="text-sm font-medium text-foreground">
+            {"Produits en promotion"}
+          </span>
+        </label>
+      )}
 
       {/* Condition */}
       <div>

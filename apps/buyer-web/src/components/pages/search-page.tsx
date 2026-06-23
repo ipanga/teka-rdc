@@ -30,9 +30,10 @@ function SearchContent() {
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('popularity');
+  const [onPromotion, setOnPromotion] = useState(false);
 
-  const filtersRef = useRef({ condition, minPrice, maxPrice, sortBy });
-  filtersRef.current = { condition, minPrice, maxPrice, sortBy };
+  const filtersRef = useRef({ condition, minPrice, maxPrice, sortBy, onPromotion });
+  filtersRef.current = { condition, minPrice, maxPrice, sortBy, onPromotion };
 
   const selectedCity = useCityStore((s) => s.selectedCity);
 
@@ -45,6 +46,7 @@ function SearchContent() {
     if (f.condition) qs.set('condition', f.condition);
     if (f.minPrice) qs.set('minPrice', f.minPrice);
     if (f.maxPrice) qs.set('maxPrice', f.maxPrice);
+    if (f.onPromotion) qs.set('onPromotion', 'true');
     if (selectedCity) qs.set('cityId', selectedCity.id);
     if (cursor) qs.set('cursor', cursor);
     return qs.toString();
@@ -108,11 +110,12 @@ function SearchContent() {
     setMinPrice('');
     setMaxPrice('');
     setSortBy('popularity');
+    setOnPromotion(false);
     setShowMobileFilters(false);
 
     setIsLoading(true);
     setProducts([]);
-    doFetch(undefined, { condition: '', minPrice: '', maxPrice: '', sortBy: 'popularity' })
+    doFetch(undefined, { condition: '', minPrice: '', maxPrice: '', sortBy: 'popularity', onPromotion: false })
       .then((res) => {
         setProducts(res.data);
         setPagination(res.pagination);
@@ -185,6 +188,8 @@ function SearchContent() {
                 onMaxPriceChange={setMaxPrice}
                 sortBy={sortBy}
                 onSortChange={setSortBy}
+                onPromotion={onPromotion}
+                onPromotionChange={setOnPromotion}
                 onApply={handleApplyFilters}
                 onClear={handleClearFilters}
               />
@@ -227,6 +232,8 @@ function SearchContent() {
                     onMaxPriceChange={setMaxPrice}
                     sortBy={sortBy}
                     onSortChange={setSortBy}
+                    onPromotion={onPromotion}
+                    onPromotionChange={setOnPromotion}
                     onApply={handleApplyFilters}
                     onClear={handleClearFilters}
                   />

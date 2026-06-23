@@ -9,7 +9,7 @@ import { Footer } from '@/components/layout/footer';
 import { useCartStore } from '@/lib/cart-store';
 import { apiFetch } from '@/lib/api-client';
 import { track } from '@/lib/analytics';
-import { formatCDF } from '@/lib/format';
+import { formatCDF, effectiveCentimes } from '@/lib/format';
 import { Badge, Button, Card, Container, Input, Label, buttonVariants, cn } from '@/components/ui';
 import type {
   Address,
@@ -71,7 +71,7 @@ export default function CheckoutPage() {
     if (checkoutTracked.current || cartItems.length === 0) return;
     checkoutTracked.current = true;
     const cartValueCdf = cartItems.reduce(
-      (sum, i) => sum + Number(i.product.priceCDF) * i.quantity,
+      (sum, i) => sum + Number(effectiveCentimes(i.product)) * i.quantity,
       0,
     );
     track('checkout_started', {
@@ -202,7 +202,9 @@ export default function CheckoutPage() {
     const result: Record<string, bigint> = {};
     for (const [sid, group] of Object.entries(itemsBySeller)) {
       result[sid] = group.items.reduce(
-        (sum, item) => sum + BigInt(item.product.priceCDF) * BigInt(item.quantity),
+        (sum, item) =>
+          sum +
+          BigInt(effectiveCentimes(item.product)) * BigInt(item.quantity),
         BigInt(0),
       );
     }
@@ -211,7 +213,8 @@ export default function CheckoutPage() {
 
   const subtotalCDF = useMemo(() => {
     return cartItems.reduce(
-      (sum, item) => sum + BigInt(item.product.priceCDF) * BigInt(item.quantity),
+      (sum, item) =>
+        sum + BigInt(effectiveCentimes(item.product)) * BigInt(item.quantity),
       BigInt(0),
     );
   }, [cartItems]);
@@ -763,7 +766,8 @@ export default function CheckoutPage() {
                       {group.items.map((item) => {
                         const title = item.product.title ?? '';
                         const lineTotal =
-                          BigInt(item.product.priceCDF) * BigInt(item.quantity);
+                          BigInt(effectiveCentimes(item.product)) *
+                          BigInt(item.quantity);
                         const thumbUrl =
                           item.product.image?.thumbnailUrl || item.product.image?.url;
 
@@ -802,7 +806,7 @@ export default function CheckoutPage() {
                             <div className="flex-1 min-w-0">
                               <p className="text-sm text-foreground truncate">{title}</p>
                               <p className="text-xs text-muted-foreground">
-                                {formatCDF(item.product.priceCDF)} × {item.quantity}
+                                {formatCDF(effectiveCentimes(item.product))} × {item.quantity}
                               </p>
                             </div>
                             <p className="text-sm font-semibold text-foreground shrink-0">

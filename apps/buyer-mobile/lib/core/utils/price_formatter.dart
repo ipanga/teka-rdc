@@ -13,6 +13,17 @@ String formatCDF(String centimes) {
   return formatter.format(cdf);
 }
 
+/// Discount percentage from regular + promotional centimes strings:
+/// round((price - discount) / price * 100). Returns 0 when there is no valid
+/// promotion (the API guarantees 0 < discount < price; this is defensive).
+int discountPercent(String priceCDF, String? discountPriceCDF) {
+  if (discountPriceCDF == null) return 0;
+  final price = int.tryParse(priceCDF) ?? 0;
+  final discount = int.tryParse(discountPriceCDF) ?? 0;
+  if (price <= 0 || !(discount > 0 && discount < price)) return 0;
+  return ((price - discount) / price * 100).round();
+}
+
 /// Format a price in centimes (string) to a human-readable USD string.
 /// Example: "1500" (cents) -> "15,00 USD"
 String formatUSD(String cents) {

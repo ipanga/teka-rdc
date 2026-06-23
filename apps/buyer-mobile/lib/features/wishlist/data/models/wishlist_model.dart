@@ -29,6 +29,7 @@ class WishlistProductModel {
   final String title;
   final String priceCDF;
   final String? priceUSD;
+  final String? discountPriceCDF;
   final String condition;
   final int quantity;
   final String? image;
@@ -41,6 +42,7 @@ class WishlistProductModel {
     required this.title,
     required this.priceCDF,
     this.priceUSD,
+    this.discountPriceCDF,
     required this.condition,
     required this.quantity,
     this.image,
@@ -70,6 +72,7 @@ class WishlistProductModel {
       title: json['title']?.toString() ?? '',
       priceCDF: json['priceCDF']?.toString() ?? '0',
       priceUSD: json['priceUSD']?.toString(),
+      discountPriceCDF: json['discountPriceCDF']?.toString(),
       condition: json['condition'] as String? ?? 'NEW',
       quantity: json['quantity'] as int? ?? 0,
       image: imageUrl,
@@ -85,6 +88,21 @@ class WishlistProductModel {
   }
 
   bool get isOutOfStock => quantity <= 0;
+
+  bool get hasDiscount {
+    final p = int.tryParse(priceCDF) ?? 0;
+    final d = int.tryParse(discountPriceCDF ?? '') ?? 0;
+    return p > 0 && d > 0 && d < p;
+  }
+
+  String get effectivePriceCDF => hasDiscount ? discountPriceCDF! : priceCDF;
+
+  int get discountPct {
+    if (!hasDiscount) return 0;
+    final p = int.tryParse(priceCDF) ?? 0;
+    final d = int.tryParse(discountPriceCDF!) ?? 0;
+    return ((p - d) / p * 100).round();
+  }
 }
 
 class WishlistSellerModel {

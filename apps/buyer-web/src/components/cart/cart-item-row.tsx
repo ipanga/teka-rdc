@@ -21,7 +21,14 @@ export function CartItemRow({ item }: CartItemRowProps) {
   const title = product.title;
   const maxStock = product.quantity;
   const thumbnailUrl = product.image?.thumbnailUrl || product.image?.url;
-  const subtotalCentimes = BigInt(product.priceCDF) * BigInt(quantity);
+  // Charge the effective (discounted) price; keep the original for strikethrough.
+  const hasDiscount =
+    product.discountPriceCDF != null &&
+    Number(product.discountPriceCDF) < Number(product.priceCDF);
+  const effectiveCDF = hasDiscount
+    ? (product.discountPriceCDF as string)
+    : product.priceCDF;
+  const subtotalCentimes = BigInt(effectiveCDF) * BigInt(quantity);
 
   async function handleQuantityChange(newQty: number) {
     if (newQty < 1 || newQty > maxStock || isUpdating) return;
@@ -79,7 +86,12 @@ export function CartItemRow({ item }: CartItemRowProps) {
             {"Vendeur"}: <span className="font-medium">{product.seller.businessName}</span>
           </p>
           <p className="text-base md:text-lg font-bold text-primary mt-1.5">
-            {formatCDF(product.priceCDF)}
+            {formatCDF(effectiveCDF)}
+            {hasDiscount && (
+              <span className="ml-2 text-xs font-medium text-muted-foreground line-through">
+                {formatCDF(product.priceCDF)}
+              </span>
+            )}
           </p>
         </div>
 

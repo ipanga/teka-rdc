@@ -16,7 +16,7 @@ import { apiFetch } from '@/lib/api-client';
 import { useCartStore } from '@/lib/cart-store';
 import { useAuthStore } from '@/lib/auth-store';
 import { track } from '@/lib/analytics';
-import { formatCDF, formatUSD } from '@/lib/format';
+import { formatCDF, formatUSD, discountPercent } from '@/lib/format';
 import { Badge, Button, Card, Container, buttonVariants, cn } from '@/components/ui';
 import type { ProductDetail } from '@/lib/types';
 
@@ -61,7 +61,17 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
         track('product_viewed', {
           productId: res.data.id,
           categoryId: res.data.categoryId,
-          price_cdf: Number(res.data.priceCDF),
+          // Effective (charged) price + discount enrichment on the existing
+          // event (no new event — keeps analytics noise-free).
+          price_cdf: Number(res.data.discountPriceCDF ?? res.data.priceCDF),
+          ...(discountPercent(res.data.priceCDF, res.data.discountPriceCDF) > 0
+            ? {
+                discount_percent: discountPercent(
+                  res.data.priceCDF,
+                  res.data.discountPriceCDF,
+                ),
+              }
+            : {}),
           sellerId: res.data.seller?.id,
         });
       })
@@ -240,21 +250,58 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                 <WishlistButton productId={product.id} className="shrink-0 mt-1" />
               </div>
 
-              {/* Price block */}
+              {/* Price block — effective price prominent; when discounted, show
+                  the original struck through, a −X% badge, and the savings. */}
               <div className="mb-5">
-                <p className="text-3xl md:text-4xl font-bold text-primary tracking-tight">
-                  {formatCDF(product.priceCDF)}
-                </p>
-                {product.priceUSD && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    ~ {formatUSD(product.priceUSD)}
-                  </p>
-                )}
-                {product.unitsSold != null && product.unitsSold > 0 && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {product.unitsSold <= 1 ? `${product.unitsSold} vendu` : `${product.unitsSold} vendus`}
-                  </p>
-                )}
+                {(() => {
+                  const discount = discountPercent(
+                    product.priceCDF,
+                    product.discountPriceCDF,
+                  );
+                  const hasDiscount = discount > 0;
+                  const effectiveCDF = hasDiscount
+                    ? (product.discountPriceCDF as string)
+                    : product.priceCDF;
+                  const savings = hasDiscount
+                    ? (Number(product.priceCDF) - Number(effectiveCDF)).toString()
+                    : null;
+                  return (
+                    <>
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <p className="text-3xl md:text-4xl font-bold text-primary tracking-tight">
+                          {formatCDF(effectiveCDF)}
+                        </p>
+                        {hasDiscount && (
+                          <span className="rounded-md bg-primary px-2 py-1 text-sm font-bold text-primary-foreground">
+                            {`-${discount}%`}
+                          </span>
+                        )}
+                      </div>
+                      {hasDiscount && (
+                        <p className="text-base text-muted-foreground line-through mt-1">
+                          {formatCDF(product.priceCDF)}
+                        </p>
+                      )}
+                      {savings && (
+                        <p className="text-sm font-medium text-success mt-1">
+                          {`Vous économisez ${formatCDF(savings)}`}
+                        </p>
+                      )}
+                      {product.priceUSD && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          ~ {formatUSD(product.priceUSD)}
+                        </p>
+                      )}
+                      {product.unitsSold != null && product.unitsSold > 0 && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {product.unitsSold <= 1
+                            ? `${product.unitsSold} vendu`
+                            : `${product.unitsSold} vendus`}
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Stock indicator */}

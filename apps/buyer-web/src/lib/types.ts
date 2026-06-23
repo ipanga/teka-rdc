@@ -37,6 +37,11 @@ export interface BrowseProduct {
   description?: string;
   priceCDF: string;
   priceUSD?: number | null;
+  // Optional seller-set promotional price (centimes string). When present the
+  // effective/charged price is discountPriceCDF; the original priceCDF is shown
+  // struck through. The API guarantees discount < price.
+  discountPriceCDF?: string | null;
+  discountPriceUSD?: string | null;
   condition: 'NEW' | 'USED';
   quantity: number;
   image: { url: string; thumbnailUrl: string } | null;
@@ -67,6 +72,8 @@ export interface ProductDetail {
   description: string;
   priceCDF: string;
   priceUSD?: number | null;
+  discountPriceCDF?: string | null;
+  discountPriceUSD?: string | null;
   condition: 'NEW' | 'USED';
   quantity: number;
   images: ProductImage[];
@@ -111,6 +118,8 @@ export interface CartItem {
     title: string;
     priceCDF: string;
     priceUSD?: number | null;
+    discountPriceCDF?: string | null;
+    discountPriceUSD?: string | null;
     quantity: number; // stock available
     condition: 'NEW' | 'USED';
     image: { url: string; thumbnailUrl: string } | null;

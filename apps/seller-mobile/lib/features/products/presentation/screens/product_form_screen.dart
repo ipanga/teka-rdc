@@ -27,6 +27,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   late final TextEditingController _descriptionFrController;
   late final TextEditingController _priceCDFController;
   late final TextEditingController _priceUSDController;
+  late final TextEditingController _discountPriceCDFController;
   late final TextEditingController _quantityController;
 
   String? _selectedCategoryId;
@@ -55,6 +56,11 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     _priceUSDController = TextEditingController(
       text: p?.priceUSDDisplay != null
           ? p!.priceUSDDisplay!.toStringAsFixed(2)
+          : '',
+    );
+    _discountPriceCDFController = TextEditingController(
+      text: p?.discountPriceCDFDisplay != null
+          ? p!.discountPriceCDFDisplay!.toString()
           : '',
     );
     _quantityController = TextEditingController(
@@ -125,6 +131,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     _descriptionFrController.dispose();
     _priceCDFController.dispose();
     _priceUSDController.dispose();
+    _discountPriceCDFController.dispose();
     _quantityController.dispose();
     super.dispose();
   }
@@ -213,6 +220,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                     ),
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: (_) => setState(() {}),
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
                         return "Prix CDF";
@@ -240,6 +248,32 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 16),
+
+            // Promotional price (optional)
+            TextFormField(
+              controller: _discountPriceCDFController,
+              decoration: InputDecoration(
+                labelText: "Prix promotionnel CDF (optionnel)",
+                suffixText: 'CDF',
+                helperText: _discountPreview(),
+                helperStyle: const TextStyle(color: TekaColors.success),
+              ),
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              onChanged: (_) => setState(() {}),
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return null;
+                final d = int.tryParse(v.trim());
+                if (d == null || d <= 0) return "Prix promotionnel invalide";
+                final p = int.tryParse(_priceCDFController.text.trim());
+                if (p != null && d >= p) {
+                  return "Doit être inférieur au prix normal";
+                }
+                return null;
+              },
+              textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 16),
 
@@ -371,6 +405,15 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     );
   }
 
+  /// Live "-X% · Vous économisez Y CDF" helper text under the promo field.
+  String? _discountPreview() {
+    final p = int.tryParse(_priceCDFController.text.trim());
+    final d = int.tryParse(_discountPriceCDFController.text.trim());
+    if (p == null || d == null || d <= 0 || d >= p) return null;
+    final pct = ((p - d) / p * 100).round();
+    return "-$pct% · Vous économisez ${p - d} CDF";
+  }
+
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedCategoryId == null) {
@@ -398,6 +441,12 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         priceUSDCentimes = (priceUSDAmount * 100).round().toString();
       }
 
+      // Promotional price (optional). On edit, send null to clear it.
+      final discountText = _discountPriceCDFController.text.trim();
+      final String? discountPriceCDFCentimes = discountText.isNotEmpty
+          ? (int.parse(discountText) * 100).toString()
+          : null;
+
       final data = <String, dynamic>{
         'title': title,
         'description': description,
@@ -410,6 +459,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       };
       if (priceUSDCentimes != null) {
         data['priceUSD'] = priceUSDCentimes;
+      }
+      // Always include on edit (null clears the promo); on create, only when set.
+      if (_isEditing || discountPriceCDFCentimes != null) {
+        data['discountPriceCDF'] = discountPriceCDFCentimes;
       }
 
       // Add specifications

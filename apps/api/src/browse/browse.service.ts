@@ -142,6 +142,14 @@ export class BrowseService {
       where.avgRating = { gte: query.minRating };
     }
 
+    // Promotion facet: only products with an active seller-set discount. The
+    // validateDiscount invariant guarantees a stored discount is always
+    // < priceCDF, so "not null" is exactly "on promotion".
+    const onPromotion = query.onPromotion === 'true';
+    if (onPromotion) {
+      where.discountPriceCDF = { not: null };
+    }
+
     // Brand facet filter (OR within the selected brand ids). Options come from
     // GET /v1/brands?categoryId=; here we just narrow the result set.
     const brandIds = this.parseBrandIds(query.brandIds);
@@ -190,6 +198,8 @@ export class BrowseService {
       title: true,
       priceCDF: true,
       priceUSD: true,
+      discountPriceCDF: true,
+      discountPriceUSD: true,
       condition: true,
       quantity: true,
       categoryId: true,
@@ -252,6 +262,9 @@ export class BrowseService {
       }
       if (query.minRating) {
         conds.push(Prisma.sql`p."avgRating" >= ${query.minRating}`);
+      }
+      if (onPromotion) {
+        conds.push(Prisma.sql`p."discountPriceCDF" IS NOT NULL`);
       }
       if (brandIds && brandIds.length > 0) {
         conds.push(Prisma.sql`p."brandId"::text IN (${Prisma.join(brandIds)})`);
@@ -356,6 +369,8 @@ export class BrowseService {
       title: p.title,
       priceCDF: p.priceCDF,
       priceUSD: p.priceUSD,
+      discountPriceCDF: p.discountPriceCDF,
+      discountPriceUSD: p.discountPriceUSD,
       condition: p.condition,
       quantity: p.quantity,
       categoryId: p.categoryId,
@@ -643,6 +658,8 @@ export class BrowseService {
       title: true,
       priceCDF: true,
       priceUSD: true,
+      discountPriceCDF: true,
+      discountPriceUSD: true,
       condition: true,
       quantity: true,
       categoryId: true,
@@ -703,6 +720,8 @@ export class BrowseService {
       title: p.title,
       priceCDF: p.priceCDF,
       priceUSD: p.priceUSD,
+      discountPriceCDF: p.discountPriceCDF,
+      discountPriceUSD: p.discountPriceUSD,
       condition: p.condition,
       quantity: p.quantity,
       categoryId: p.categoryId,
