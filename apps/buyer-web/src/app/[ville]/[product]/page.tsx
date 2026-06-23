@@ -20,6 +20,8 @@ interface ProductData {
   description: string;
   priceCDF: string;
   priceUSD?: string | null;
+  discountPriceCDF?: string | null;
+  discountPriceUSD?: string | null;
   avgRating: number;
   totalReviews: number;
   quantity: number;
@@ -88,7 +90,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = pickStr(product.title);
   const desc = pickStr(product.description);
   const ogImage = ogImageUrl(product.images?.[0]?.url);
-  const price = (Number(product.priceCDF) / 100).toLocaleString('fr-CD');
+  // Use the effective (discounted) price in the title/description.
+  const effectiveCDF = product.discountPriceCDF ?? product.priceCDF;
+  const price = (Number(effectiveCDF) / 100).toLocaleString('fr-CD');
   const categoryName = pickStr(product.category?.name);
   const cityName = pickStr(product.city?.name);
   const sellerName =
@@ -194,7 +198,8 @@ export default async function Page({ params }: Props) {
     offers: {
       '@type': 'Offer',
       priceCurrency: 'CDF',
-      price: String(Number(product.priceCDF) / 100),
+      // Effective (discounted) price — what the buyer actually pays.
+      price: String(Number(product.discountPriceCDF ?? product.priceCDF) / 100),
       availability:
         product.quantity > 0
           ? 'https://schema.org/InStock'

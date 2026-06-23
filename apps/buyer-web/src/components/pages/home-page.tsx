@@ -21,9 +21,11 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
   const [categories, setCategories] = useState<BrowseCategory[]>([]);
   const [popularProducts, setPopularProducts] = useState<BrowseProduct[]>([]);
   const [newestProducts, setNewestProducts] = useState<BrowseProduct[]>([]);
+  const [promoProducts, setPromoProducts] = useState<BrowseProduct[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [loadingPopular, setLoadingPopular] = useState(true);
   const [loadingNewest, setLoadingNewest] = useState(true);
+  const [loadingPromo, setLoadingPromo] = useState(true);
 
   // City store
   const { selectedCity, initFromStorage, fetchCities, maybePromptFirstVisit } =
@@ -70,6 +72,13 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
       .then((res) => setNewestProducts(res.data.data))
       .catch(() => {})
       .finally(() => setLoadingNewest(false));
+
+    // Fetch promotional products (seller-set discounts, filtered by city)
+    setLoadingPromo(true);
+    apiFetch<{ data: BrowseProduct[] }>(`/v1/browse/products?onPromotion=true&limit=10${cityParam}`)
+      .then((res) => setPromoProducts(res.data.data))
+      .catch(() => {})
+      .finally(() => setLoadingPromo(false));
   }, [selectedCity, cityInitialized]);
 
   return (
@@ -147,6 +156,21 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
             the Town Architecture Refactor — town selection now lives in the
             header + first-visit modal. The crawlable /{ville} internal links
             moved to the global footer (CityLinks) so SEO discovery is kept. */}
+
+        {/* Promotions Section — seller-set discounts. Only renders when promos
+            exist; "Voir tout" → the dedicated /promotions page. */}
+        {(loadingPromo || promoProducts.length > 0) && (
+          <section className="bg-background">
+            <Container className="py-10 md:py-14">
+              <SectionHeader
+                title={"Promotions"}
+                viewAllHref="/promotions"
+                viewAllLabel={"Voir toutes les promotions"}
+              />
+              <ProductGrid products={promoProducts} isLoading={loadingPromo} />
+            </Container>
+          </section>
+        )}
 
         {/* Recently viewed (client-local; renders nothing until the buyer has
             viewed products). */}

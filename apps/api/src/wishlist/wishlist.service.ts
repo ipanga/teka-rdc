@@ -9,6 +9,8 @@ const WISHLIST_PRODUCT_SELECT = {
   title: true,
   priceCDF: true,
   priceUSD: true,
+  discountPriceCDF: true,
+  discountPriceUSD: true,
   condition: true,
   quantity: true,
   status: true,

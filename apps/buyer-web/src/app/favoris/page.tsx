@@ -9,7 +9,7 @@ import { apiFetch } from '@/lib/api-client';
 import { useCartStore } from '@/lib/cart-store';
 import { useWishlistStore } from '@/lib/wishlist-store';
 import { track } from '@/lib/analytics';
-import { formatCDF } from '@/lib/format';
+import { formatCDF, discountPercent } from '@/lib/format';
 import { productHref } from '@/lib/urls';
 import { Badge, Button, Card, Container, buttonVariants, cn } from '@/components/ui';
 import type { WishlistItem, PaginatedWishlist } from '@/lib/types';
@@ -175,6 +175,14 @@ export default function WishlistPage() {
                   const title = product.title ?? '';
                   const imageUrl = product.image?.thumbnailUrl || product.image?.url;
                   const outOfStock = product.quantity <= 0;
+                  const discount = discountPercent(
+                    product.priceCDF,
+                    product.discountPriceCDF,
+                  );
+                  const hasDiscount = discount > 0;
+                  const effectiveCDF = hasDiscount
+                    ? (product.discountPriceCDF as string)
+                    : product.priceCDF;
 
                   return (
                     <div
@@ -223,20 +231,19 @@ export default function WishlistPage() {
                             </div>
                           )}
 
-                          {/* Stacked stock + condition badges */}
+                          {/* Discount + stock badges (condition + seller removed
+                              from cards — they stay on the PDP). */}
                           <div className="absolute top-2 left-2 flex flex-col gap-1">
+                            {hasDiscount && (
+                              <Badge variant="discount" size="sm" className="shadow-sm w-fit">
+                                {`-${discount}%`}
+                              </Badge>
+                            )}
                             {outOfStock && (
                               <Badge variant="solid" size="sm" className="shadow-sm w-fit">
                                 {"Rupture de stock"}
                               </Badge>
                             )}
-                            <Badge
-                              variant={product.condition === 'NEW' ? 'new' : 'used'}
-                              size="sm"
-                              className="shadow-sm w-fit"
-                            >
-                              {product.condition === 'NEW' ? 'Neuf' : 'Occasion'}
-                            </Badge>
                           </div>
                         </div>
 
@@ -244,12 +251,16 @@ export default function WishlistPage() {
                           <h3 className="text-sm font-medium text-foreground line-clamp-2 min-h-[2.5rem] leading-snug">
                             {title}
                           </h3>
-                          <p className="text-lg font-bold text-primary tracking-tight">
-                            {formatCDF(product.priceCDF)}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {product.seller.businessName}
-                          </p>
+                          <div className="flex items-baseline gap-2 flex-wrap">
+                            <p className="text-lg font-bold text-primary tracking-tight">
+                              {formatCDF(effectiveCDF)}
+                            </p>
+                            {hasDiscount && (
+                              <p className="text-xs font-medium text-muted-foreground line-through">
+                                {formatCDF(product.priceCDF)}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </Link>
 
