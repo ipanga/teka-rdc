@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../providers/notifications_provider.dart';
 
@@ -102,6 +103,8 @@ class NotificationsScreen extends ConsumerWidget {
               : TekaColors.tekaRed.withValues(alpha: 0.05),
           child: InkWell(
             onTap: () {
+              const PosthogAnalytics().capture('notification_opened',
+                  properties: {'notificationId': n.id, 'type': n.type});
               notifier.markRead(n.id);
               ref.invalidate(notificationUnreadCountProvider);
               final path = n.deepLinkPath;

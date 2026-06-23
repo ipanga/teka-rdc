@@ -236,6 +236,16 @@ page + home section + `onPromotion=true` browse filter; cards show `−X%` + str
 the condition badge or seller name** (those stay on the PDP). Full model: `docs/architecture.md` →
 "Per-product discounts".
 
+**Broadcast notifications (2026-06-23).** Admin → buyers notification platform on the generic user-scoped
+`UserNotification` feed + FCM. Admin `/v1/admin/broadcasts` targets **all buyers** (segment) or **specific
+buyers** (`recipientIds`) + an optional **linked product** (`PRODUCT_PROMO` → PDP deep-link); send is
+**fan-out on write** (one `UserNotification` per recipient; opt-outs only gate push/email *delivery*, never
+the feed). Buyers read it via the unified **`/v1/notifications`** feed — buyer-web header bell + `/notifications`
+page (client islands, `noindex`, 60s poll) and the buyer-mobile Notification Center + AppBar unread badge
+(FCM tap deep-links via `NotificationRouter`). Admin uses the **Centre de notifications** (the extended
+broadcasts page). The seller `/v1/seller/notifications` alias is untouched. Full model: `docs/architecture.md`
+→ "Notifications & broadcasts".
+
 ---
 
 ## 5. DATABASE DESIGN PRINCIPLES

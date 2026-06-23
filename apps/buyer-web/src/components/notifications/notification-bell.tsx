@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
 import { useAuthStore } from '@/lib/auth-store';
+import { track } from '@/lib/analytics';
 
 export interface BuyerNotification {
   id: string;
@@ -180,6 +181,7 @@ export function NotificationBell({ compact = false }: { compact?: boolean }) {
                   <Link
                     href={hrefForNotification(n)}
                     onClick={() => {
+                      track('notification_opened', { notificationId: n.id, type: n.type });
                       markRead(n.id);
                       setOpen(false);
                     }}

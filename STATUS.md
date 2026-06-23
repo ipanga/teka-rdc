@@ -15,11 +15,13 @@ on buyer-web + buyer-mobile, plus an admin notification center. **Detailed track
   PDP deep-link); **extend** the existing broadcasts page (no parallel module); buyer-web real-time = 60s
   polling; unified `/v1/notifications` feed (seller's `/v1/seller/notifications` untouched); iOS push deferred.
 - **Phased PRs (resumable):** A backend → B admin-web → C buyer-web → D buyer-mobile → E analytics/docs.
-- **Phase A — backend: ✅ CODE DONE** on `feat/broadcast-notifications-api`. Schema (enum + broadcast cols) +
-  idempotent migration `2026-06-23_broadcast_notifications.sql` (dev-applied) + DTO/validation + audience
-  resolution + per-recipient `UserNotification` createMany + product/notifications push data + new
-  `/v1/notifications` controller + send throttle. **149 unit + 116 e2e green; tsc clean.** PR pending.
-- **Next:** open Phase A PR → develop, then Phase B (admin-web).
+- **✅ ALL PHASES MERGED to develop** (A #438 backend · B #439 admin-web · C #440 buyer-web · D #441
+  buyer-mobile · E docs/analytics). Verified: api 149 unit + 116 e2e; web tsc ×3 + builds (incl. `/notifications`
+  noindex); flutter analyze 0 issues + 93 tests; dev schema confirmed. Tracker: `tasks/broadcast-notifications-progress.md`.
+- **Remaining before prod:** release `develop→main`; **apply the prod migration**
+  `apps/api/prisma/migrations/manual/2026-06-23_broadcast_notifications.sql` via the Apply-prod-migration Action
+  at release (enum ADD VALUE + nullable cols; no backfill). Mobile reaches devices on the next Play Store AAB.
+  iOS push deferred (no GoogleService-Info.plist). Optional: before/after screenshots (needs running apps).
 
 ### Recently completed — 2026-06-23 (Discount system + product-card UX — SHIPPED to prod, release #437)
 Per-product seller-set discount price across API + all 4 frontends + card cleanup + `/promotions` discovery.
