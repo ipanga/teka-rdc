@@ -8,6 +8,7 @@ import '../../catalog/data/models/category_model.dart';
 import '../../catalog/data/models/product_model.dart';
 import '../../catalog/presentation/providers/catalog_provider.dart';
 import '../../catalog/presentation/widgets/category_circle.dart';
+import '../../notifications/presentation/providers/notifications_provider.dart';
 import 'widgets/city_hero.dart';
 import '../../catalog/presentation/widgets/product_card.dart';
 import '../../catalog/presentation/widgets/recently_viewed_section.dart';
@@ -34,6 +35,12 @@ class HomeScreen extends ConsumerWidget {
     final categories = ref.watch(categoriesProvider);
     final popular = ref.watch(popularProductsProvider);
     final newest = ref.watch(newestProductsProvider);
+    // Unread notification badge — only for authenticated buyers.
+    final isAuthed =
+        ref.watch(authProvider).status == AuthStatus.authenticated;
+    final unreadNotifications = isAuthed
+        ? (ref.watch(notificationUnreadCountProvider).valueOrNull ?? 0)
+        : 0;
     final promo = ref.watch(promoProductsProvider);
 
     // Hydrate wishlist heart state for the visible products (batch /check —
@@ -92,7 +99,15 @@ class HomeScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_none_rounded),
+            icon: unreadNotifications > 0
+                ? Badge(
+                    label: Text(
+                        unreadNotifications > 9 ? '9+' : '$unreadNotifications'),
+                    backgroundColor: TekaColors.tekaRed,
+                    textColor: Colors.white,
+                    child: const Icon(Icons.notifications_none_rounded),
+                  )
+                : const Icon(Icons.notifications_none_rounded),
             tooltip: "Notifications",
             onPressed: () => context.push('/notifications'),
           ),
@@ -108,6 +123,7 @@ class HomeScreen extends ConsumerWidget {
           ref.invalidate(popularProductsProvider);
           ref.invalidate(newestProductsProvider);
           ref.invalidate(promoProductsProvider);
+          if (isAuthed) ref.invalidate(notificationUnreadCountProvider);
           // Wait for data to reload
           await Future.wait([
             ref.read(bannersProvider.future).catchError((_) => <BannerModel>[]),

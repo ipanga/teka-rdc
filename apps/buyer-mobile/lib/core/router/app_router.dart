@@ -42,6 +42,7 @@ const _protectedPrefixes = <String>[
   '/orders',
   '/wishlist',
   '/profile',
+  '/notifications',
 ];
 
 /// True when a route requires authentication (so guests are sent to login).
