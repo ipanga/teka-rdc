@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/product_model.dart';
 import '../providers/products_provider.dart';
 
@@ -17,17 +16,15 @@ class CategorySelector extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
-
     return InkWell(
       onTap: () => _showCategorySheet(context, ref),
       child: InputDecorator(
         decoration: InputDecoration(
-          labelText: l10n.category,
+          labelText: "Categorie",
           suffixIcon: const Icon(Icons.arrow_drop_down),
         ),
         child: Text(
-          _selectedCategoryName(ref) ?? l10n.selectCategory,
+          _selectedCategoryName(ref) ?? "Selectionner une categorie",
           style: TextStyle(
             color: selectedCategoryId != null
                 ? TekaColors.foreground
@@ -57,8 +54,6 @@ class CategorySelector extends ConsumerWidget {
   }
 
   void _showCategorySheet(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
-
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -79,7 +74,7 @@ class CategorySelector extends ConsumerWidget {
                   child: Row(
                     children: [
                       Text(
-                        l10n.selectCategory,
+                        "Selectionner une categorie",
                         style: Theme.of(sheetContext)
                             .textTheme
                             .titleLarge
@@ -111,7 +106,7 @@ class CategorySelector extends ConsumerWidget {
                               children: [
                                 const Icon(Icons.error_outline, size: 48),
                                 const SizedBox(height: 8),
-                                Text(l10n.authGenericError),
+                                Text("Une erreur est survenue. Veuillez reessayer."),
                               ],
                             ),
                           ),
@@ -206,7 +201,6 @@ class _CategoryListState extends State<_CategoryList> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final searching = _query.trim().isNotEmpty;
 
     return Column(
@@ -217,7 +211,7 @@ class _CategoryListState extends State<_CategoryList> {
             controller: _searchController,
             autofocus: false,
             decoration: InputDecoration(
-              hintText: l10n.searchCategoryHint,
+              hintText: "Rechercher une categorie...",
               prefixIcon: const Icon(Icons.search),
               isDense: true,
               suffixIcon: searching
@@ -236,20 +230,20 @@ class _CategoryListState extends State<_CategoryList> {
         const Divider(height: 1),
         Expanded(
           child: searching
-              ? _buildSearchResults(l10n)
+              ? _buildSearchResults()
               : _buildTree(),
         ),
       ],
     );
   }
 
-  Widget _buildSearchResults(AppLocalizations l10n) {
+  Widget _buildSearchResults() {
     final matches = _matches(_query);
     if (matches.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(l10n.noCategoryFound),
+          child: Text("Aucune categorie trouvee"),
         ),
       );
     }

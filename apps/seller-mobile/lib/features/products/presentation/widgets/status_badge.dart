@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/product_model.dart';
 
 class StatusBadge extends StatelessWidget {
@@ -15,8 +14,7 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final config = _statusConfig(l10n);
+    final config = _statusConfig();
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -46,37 +44,37 @@ class StatusBadge extends StatelessWidget {
     );
   }
 
-  _StatusConfig _statusConfig(AppLocalizations l10n) {
+  _StatusConfig _statusConfig() {
     switch (status) {
       case ProductStatus.draft:
         return _StatusConfig(
           color: TekaColors.mutedForeground,
           icon: Icons.edit_note,
-          label: l10n.statusDraft,
+          label: "Brouillon",
         );
       case ProductStatus.pendingReview:
         return _StatusConfig(
           color: TekaColors.warning,
           icon: Icons.hourglass_empty,
-          label: l10n.statusPendingReview,
+          label: "En attente",
         );
       case ProductStatus.active:
         return _StatusConfig(
           color: TekaColors.success,
           icon: Icons.check_circle_outline,
-          label: l10n.statusActive,
+          label: "Actif",
         );
       case ProductStatus.rejected:
         return _StatusConfig(
           color: TekaColors.destructive,
           icon: Icons.cancel_outlined,
-          label: l10n.statusRejected,
+          label: "Rejete",
         );
       case ProductStatus.archived:
         return _StatusConfig(
           color: const Color(0xFF9CA3AF),
           icon: Icons.archive_outlined,
-          label: l10n.statusArchived,
+          label: "Archive",
         );
     }
   }

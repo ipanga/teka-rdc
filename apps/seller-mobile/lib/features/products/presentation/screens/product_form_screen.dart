@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/attribute_model.dart';
 import '../../data/models/brand_option_model.dart';
 import '../../data/models/product_model.dart';
@@ -132,11 +131,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-
     return Scaffold(
       appBar: AppBar(
-        title: Text(_isEditing ? l10n.editProduct : l10n.newProduct),
+        title: Text(_isEditing ? "Modifier le produit" : "Nouveau produit"),
       ),
       body: Form(
         key: _formKey,
@@ -164,12 +161,12 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             if (_brands.isNotEmpty) ...[
               DropdownButtonFormField<String>(
                 initialValue: _brandId,
-                decoration: InputDecoration(labelText: l10n.brand),
-                hint: Text(l10n.selectBrand),
+                decoration: InputDecoration(labelText: "Marque"),
+                hint: Text("Sélectionner une marque"),
                 items: [
                   DropdownMenuItem<String>(
                     value: null,
-                    child: Text(l10n.noBrand),
+                    child: Text("Sans marque"),
                   ),
                   ..._brands.map(
                     (b) => DropdownMenuItem(value: b.id, child: Text(b.name)),
@@ -184,10 +181,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             TextFormField(
               controller: _titleFrController,
               decoration: InputDecoration(
-                labelText: l10n.titleFr,
+                labelText: "Titre (francais)",
               ),
               validator: (v) =>
-                  v == null || v.trim().isEmpty ? l10n.titleFr : null,
+                  v == null || v.trim().isEmpty ? "Titre (francais)" : null,
               textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 16),
@@ -196,7 +193,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             TextFormField(
               controller: _descriptionFrController,
               decoration: InputDecoration(
-                labelText: l10n.descriptionFr,
+                labelText: "Description (francais)",
                 alignLabelWithHint: true,
               ),
               maxLines: 4,
@@ -211,18 +208,18 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   child: TextFormField(
                     controller: _priceCDFController,
                     decoration: InputDecoration(
-                      labelText: l10n.priceCDF,
+                      labelText: "Prix CDF",
                       suffixText: 'CDF',
                     ),
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
-                        return l10n.priceCDF;
+                        return "Prix CDF";
                       }
                       final amount = int.tryParse(v);
                       if (amount == null || amount <= 0) {
-                        return l10n.priceCDF;
+                        return "Prix CDF";
                       }
                       return null;
                     },
@@ -234,7 +231,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   child: TextFormField(
                     controller: _priceUSDController,
                     decoration: InputDecoration(
-                      labelText: l10n.priceUSD,
+                      labelText: "Prix USD",
                       suffixText: 'USD',
                     ),
                     keyboardType:
@@ -250,17 +247,17 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             TextFormField(
               controller: _quantityController,
               decoration: InputDecoration(
-                labelText: l10n.quantity,
+                labelText: "Quantite",
               ),
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               validator: (v) {
                 if (v == null || v.trim().isEmpty) {
-                  return l10n.quantity;
+                  return "Quantite";
                 }
                 final qty = int.tryParse(v);
                 if (qty == null || qty < 0) {
-                  return l10n.quantity;
+                  return "Quantite";
                 }
                 return null;
               },
@@ -270,7 +267,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
 
             // Condition
             Text(
-              l10n.condition,
+              "Etat",
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     color: TekaColors.mutedForeground,
                   ),
@@ -280,7 +277,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               children: [
                 Expanded(
                   child: _ConditionOption(
-                    label: l10n.conditionNew,
+                    label: "Neuf",
                     icon: Icons.new_releases_outlined,
                     isSelected: _condition == ProductCondition.newItem,
                     onTap: () =>
@@ -290,7 +287,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: _ConditionOption(
-                    label: l10n.conditionUsed,
+                    label: "Occasion",
                     icon: Icons.recycling,
                     isSelected: _condition == ProductCondition.used,
                     onTap: () =>
@@ -309,7 +306,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               )
             else if (_attributes.isNotEmpty) ...[
               Text(
-                l10n.productAttributes,
+                "Caractéristiques du produit",
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       color: TekaColors.mutedForeground,
                     ),
@@ -339,7 +336,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8),
                 child: Text(
-                  l10n.noAttributes,
+                  "Aucune caractéristique pour cette catégorie",
                   style: TextStyle(
                     color: TekaColors.mutedForeground,
                     fontSize: 14,
@@ -364,7 +361,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : Text(l10n.save),
+                    : Text("Enregistrer"),
               ),
             ),
             const SizedBox(height: 16),
@@ -377,14 +374,13 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedCategoryId == null) {
-      _showSnackBar(AppLocalizations.of(context)!.selectCategory);
+      _showSnackBar("Selectionner une categorie");
       return;
     }
 
     setState(() => _isSaving = true);
 
     try {
-      final l10n = AppLocalizations.of(context)!;
       final repository = ref.read(productsRepositoryProvider);
 
       // API DTOs (create-product.dto.ts, update-product.dto.ts) declare
@@ -428,10 +424,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       SellerProductModel result;
       if (_isEditing) {
         result = await repository.updateProduct(widget.product!.id, data);
-        if (mounted) _showSnackBar(l10n.productUpdated);
+        if (mounted) _showSnackBar("Produit mis a jour");
       } else {
         result = await repository.createProduct(data);
-        if (mounted) _showSnackBar(l10n.productCreated);
+        if (mounted) _showSnackBar("Produit cree avec succes");
       }
 
       // Refresh products list
@@ -449,7 +445,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       }
     } catch (e) {
       if (mounted) {
-        _showSnackBar(AppLocalizations.of(context)!.authGenericError);
+        _showSnackBar("Une erreur est survenue. Veuillez reessayer.");
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/order_model.dart';
 import '../../data/orders_repository.dart';
 import '../providers/orders_provider.dart';
@@ -16,12 +15,11 @@ class OrderDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     final orderAsync = ref.watch(sellerOrderDetailProvider(orderId));
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.ordersTitle),
+        title: Text("Commandes"),
       ),
       body: orderAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -34,12 +32,12 @@ class OrderDetailScreen extends ConsumerWidget {
                 const Icon(Icons.error_outline,
                     size: 48, color: TekaColors.destructive),
                 const SizedBox(height: 12),
-                Text(l10n.authGenericError),
+                Text("Une erreur est survenue. Veuillez reessayer."),
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () =>
                       ref.invalidate(sellerOrderDetailProvider(orderId)),
-                  child: Text(l10n.loadMore),
+                  child: Text("Reessayer"),
                 ),
               ],
             ),
@@ -70,8 +68,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final locale = l10n.localeName;
+    final locale = 'fr';
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm', locale);
     final priceFormat = NumberFormat('#,###', 'fr');
     final order = widget.order;
@@ -87,7 +84,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                 children: [
                   Expanded(
                     child: Text(
-                      l10n.orderNumber(order.orderNumber),
+                      "Commande ${order.orderNumber}",
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                           ),
@@ -116,17 +113,17 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
               // Buyer info
               _buildSectionCard(
                 context,
-                title: l10n.orderBuyer,
+                title: "Acheteur",
                 icon: Icons.person_outline,
                 children: [
                   if (order.buyer != null) ...[
                     _buildInfoRow(
-                      l10n.orderBuyer,
+                      "Acheteur",
                       order.buyer!.fullName,
                     ),
                     const SizedBox(height: 4),
                     _buildInfoRow(
-                      l10n.orderPhone,
+                      "Telephone",
                       order.buyer!.phone,
                     ),
                   ],
@@ -137,11 +134,11 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
               // Items
               _buildSectionCard(
                 context,
-                title: l10n.orderItems(order.items.length),
+                title: "${order.items.length} article(s)",
                 icon: Icons.shopping_bag_outlined,
                 children: [
                   ...order.items.map(
-                      (item) => _buildOrderItem(context, l10n, item, locale)),
+                      (item) => _buildOrderItem(context, item, locale)),
                 ],
               ),
               const SizedBox(height: 12),
@@ -149,21 +146,21 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
               // Price breakdown
               _buildSectionCard(
                 context,
-                title: l10n.orderTotal,
+                title: "Total",
                 icon: Icons.receipt_outlined,
                 children: [
                   _buildPriceRow(
-                    l10n.orderSubtotal,
+                    "Sous-total",
                     '${priceFormat.format(order.subtotalCDFDisplay)} CDF',
                   ),
                   const SizedBox(height: 4),
                   _buildPriceRow(
-                    l10n.orderDeliveryFee,
+                    "Frais de livraison",
                     '${priceFormat.format(order.deliveryFeeCDFDisplay)} CDF',
                   ),
                   const Divider(height: 16),
                   _buildPriceRow(
-                    l10n.orderTotal,
+                    "Total",
                     '${priceFormat.format(order.totalCDFDisplay)} CDF',
                     isBold: true,
                     color: TekaColors.tekaRed,
@@ -189,19 +186,19 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                 const SizedBox(height: 12),
                 _buildSectionCard(
                   context,
-                  title: l10n.orderPaymentMethod,
+                  title: "Mode de paiement",
                   icon: Icons.payment_outlined,
                   children: [
                     if (order.paymentMethod != null)
                       _buildInfoRow(
-                        l10n.orderPaymentMethod,
-                        _formatPaymentMethod(l10n, order.paymentMethod!),
+                        "Mode de paiement",
+                        _formatPaymentMethod(order.paymentMethod!),
                       ),
                     if (order.paymentStatus != null) ...[
                       const SizedBox(height: 4),
                       _buildInfoRow(
-                        l10n.orderPaymentStatus,
-                        _formatPaymentStatus(l10n, order.paymentStatus!),
+                        "Statut du paiement",
+                        _formatPaymentStatus(order.paymentStatus!),
                       ),
                     ],
                   ],
@@ -214,7 +211,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
               if (order.deliveryAddress != null)
                 _buildSectionCard(
                   context,
-                  title: l10n.orderDeliveryAddress,
+                  title: "Adresse de livraison",
                   icon: Icons.location_on_outlined,
                   children: [
                     Text(
@@ -258,7 +255,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                 const SizedBox(height: 12),
                 _buildSectionCard(
                   context,
-                  title: l10n.orderBuyerNote,
+                  title: "Note de l'acheteur",
                   icon: Icons.note_outlined,
                   children: [
                     Text(
@@ -274,10 +271,10 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                 const SizedBox(height: 12),
                 _buildSectionCard(
                   context,
-                  title: l10n.orderTimeline,
+                  title: "Historique",
                   icon: Icons.timeline,
                   children: [
-                    _buildStatusTimeline(context, l10n, order.statusLogs),
+                    _buildStatusTimeline(context, order.statusLogs),
                   ],
                 ),
               ],
@@ -310,41 +307,36 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                       status: order.status,
                       onConfirm: () => _performAction(
                         context,
-                        l10n,
-                        l10n.orderConfirm,
+                        "Confirmer",
                         () => ref
                             .read(sellerOrdersRepositoryProvider)
                             .confirmOrder(order.id),
                       ),
-                      onReject: () => _showRejectDialog(context, l10n, order),
+                      onReject: () => _showRejectDialog(context, order),
                       onProcess: () => _performAction(
                         context,
-                        l10n,
-                        l10n.orderProcess,
+                        "Preparer",
                         () => ref
                             .read(sellerOrdersRepositoryProvider)
                             .processOrder(order.id),
                       ),
                       onShip: () => _performAction(
                         context,
-                        l10n,
-                        l10n.orderShip,
+                        "Expedier",
                         () => ref
                             .read(sellerOrdersRepositoryProvider)
                             .shipOrder(order.id),
                       ),
                       onOutForDelivery: () => _performAction(
                         context,
-                        l10n,
-                        l10n.orderOutForDelivery,
+                        "En livraison",
                         () => ref
                             .read(sellerOrdersRepositoryProvider)
                             .markOutForDelivery(order.id),
                       ),
                       onDeliver: () => _performAction(
                         context,
-                        l10n,
-                        l10n.orderDeliver,
+                        "Livrer",
                         () => ref
                             .read(sellerOrdersRepositoryProvider)
                             .deliverOrder(order.id),
@@ -452,8 +444,8 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
     );
   }
 
-  Widget _buildOrderItem(BuildContext context, AppLocalizations l10n,
-      OrderItemModel item, String locale) {
+  Widget _buildOrderItem(
+      BuildContext context, OrderItemModel item, String locale) {
     final priceFormat = NumberFormat('#,###', 'fr');
     final title = item.productTitle;
 
@@ -498,7 +490,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${l10n.quantity}: ${item.quantity} x ${priceFormat.format(item.unitPriceCDFDisplay)} CDF',
+                  'Quantite: ${item.quantity} x ${priceFormat.format(item.unitPriceCDFDisplay)} CDF',
                   style: const TextStyle(
                     fontSize: 11,
                     color: TekaColors.mutedForeground,
@@ -532,15 +524,15 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
     );
   }
 
-  Widget _buildStatusTimeline(BuildContext context, AppLocalizations l10n,
-      List<OrderStatusLogModel> logs) {
-    final dateFormat = DateFormat('dd/MM HH:mm', l10n.localeName);
+  Widget _buildStatusTimeline(
+      BuildContext context, List<OrderStatusLogModel> logs) {
+    final dateFormat = DateFormat('dd/MM HH:mm', 'fr');
 
     return Column(
       children: List.generate(logs.length, (index) {
         final log = logs[index];
         final isLast = index == logs.length - 1;
-        final statusLabel = _getStatusLabel(l10n, log.toStatus);
+        final statusLabel = _getStatusLabel(log.toStatus);
 
         return IntrinsicHeight(
           child: Row(
@@ -620,53 +612,53 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
     );
   }
 
-  String _formatPaymentMethod(AppLocalizations l10n, String method) {
+  String _formatPaymentMethod(String method) {
     switch (method.toUpperCase()) {
       case 'COD':
       case 'CASH_ON_DELIVERY':
-        return l10n.paymentCOD;
+        return "Paiement a la livraison";
       case 'MOBILE_MONEY':
       case 'MPESA':
       case 'AIRTEL':
       case 'ORANGE':
-        return l10n.paymentMobileMoney;
+        return "Mobile Money";
       default:
         return method;
     }
   }
 
-  String _formatPaymentStatus(AppLocalizations l10n, String status) {
+  String _formatPaymentStatus(String status) {
     switch (status.toUpperCase()) {
       case 'PENDING':
-        return l10n.paymentPending;
+        return "En attente";
       case 'COMPLETED':
       case 'PAID':
-        return l10n.paymentCompleted;
+        return "Paye";
       case 'FAILED':
-        return l10n.paymentFailed;
+        return "Echoue";
       default:
         return status;
     }
   }
 
-  String _getStatusLabel(AppLocalizations l10n, String status) {
+  String _getStatusLabel(String status) {
     switch (status.toUpperCase()) {
       case 'PENDING':
-        return l10n.orderStatusPENDING;
+        return "En attente";
       case 'CONFIRMED':
-        return l10n.orderStatusCONFIRMED;
+        return "Confirmee";
       case 'PROCESSING':
-        return l10n.orderStatusPROCESSING;
+        return "En preparation";
       case 'SHIPPED':
-        return l10n.orderStatusSHIPPED;
+        return "Expediee";
       case 'OUT_FOR_DELIVERY':
-        return l10n.orderStatusOUT_FOR_DELIVERY;
+        return "En livraison";
       case 'DELIVERED':
-        return l10n.orderStatusDELIVERED;
+        return "Livree";
       case 'CANCELLED':
-        return l10n.orderStatusCANCELLED;
+        return "Annulee";
       case 'RETURNED':
-        return l10n.orderStatusRETURNED;
+        return "Retournee";
       default:
         return status;
     }
@@ -674,7 +666,6 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
 
   Future<void> _performAction(
     BuildContext context,
-    AppLocalizations l10n,
     String actionLabel,
     Future<SellerOrderModel> Function() action,
   ) async {
@@ -682,11 +673,11 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(actionLabel),
-        content: Text(l10n.orderActionConfirm),
+        content: Text("Confirmer cette action ?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text(l10n.cancel),
+            child: Text("Annuler"),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -709,7 +700,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.orderActionSuccess),
+            content: Text("Action effectuee"),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -718,7 +709,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.authGenericError),
+            content: Text("Une erreur est survenue. Veuillez reessayer."),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -730,24 +721,23 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
 
   Future<void> _showRejectDialog(
     BuildContext context,
-    AppLocalizations l10n,
     SellerOrderModel order,
   ) async {
     final reasonController = TextEditingController();
     final reason = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(l10n.orderReject),
+        title: Text("Rejeter"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(l10n.orderRejectReason),
+            Text("Raison du rejet"),
             const SizedBox(height: 12),
             TextField(
               controller: reasonController,
               maxLines: 3,
               decoration: InputDecoration(
-                hintText: l10n.orderRejectHint,
+                hintText: "Expliquez la raison...",
                 border: const OutlineInputBorder(),
               ),
             ),
@@ -756,7 +746,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text(l10n.cancel),
+            child: Text("Annuler"),
           ),
           ElevatedButton(
             onPressed: () {
@@ -769,7 +759,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
               backgroundColor: TekaColors.destructive,
               foregroundColor: Colors.white,
             ),
-            child: Text(l10n.orderReject),
+            child: Text("Rejeter"),
           ),
         ],
       ),
@@ -789,7 +779,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.orderActionSuccess),
+            content: Text("Action effectuee"),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -798,7 +788,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.authGenericError),
+            content: Text("Une erreur est survenue. Veuillez reessayer."),
             behavior: SnackBarBehavior.floating,
           ),
         );

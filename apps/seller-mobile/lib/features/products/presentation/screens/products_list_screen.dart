@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/product_model.dart';
 import '../providers/products_provider.dart';
 import '../widgets/status_badge.dart';
@@ -40,12 +39,11 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final state = ref.watch(sellerProductsProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.productsTitle),
+        title: Text("Produits"),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/products/new'),
@@ -55,15 +53,15 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
       ),
       body: Column(
         children: [
-          _buildFilterChips(context, l10n, state),
+          _buildFilterChips(context, state),
           Expanded(
             child: state.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : state.error != null && state.products.isEmpty
-                    ? _buildErrorState(context, l10n, state.error!)
+                    ? _buildErrorState(context, state.error!)
                     : state.products.isEmpty
-                        ? _buildEmptyState(context, l10n)
-                        : _buildProductsList(context, l10n, state),
+                        ? _buildEmptyState(context)
+                        : _buildProductsList(context, state),
           ),
         ],
       ),
@@ -71,14 +69,14 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
   }
 
   Widget _buildFilterChips(
-      BuildContext context, AppLocalizations l10n, ProductsListState state) {
+      BuildContext context, ProductsListState state) {
     final filters = <_FilterItem>[
-      _FilterItem(null, l10n.allStatuses),
-      _FilterItem(ProductStatus.draft, l10n.statusDraft),
-      _FilterItem(ProductStatus.pendingReview, l10n.statusPendingReview),
-      _FilterItem(ProductStatus.active, l10n.statusActive),
-      _FilterItem(ProductStatus.rejected, l10n.statusRejected),
-      _FilterItem(ProductStatus.archived, l10n.statusArchived),
+      _FilterItem(null, "Tous"),
+      _FilterItem(ProductStatus.draft, "Brouillon"),
+      _FilterItem(ProductStatus.pendingReview, "En attente"),
+      _FilterItem(ProductStatus.active, "Actif"),
+      _FilterItem(ProductStatus.rejected, "Rejete"),
+      _FilterItem(ProductStatus.archived, "Archive"),
     ];
 
     return SizedBox(
@@ -108,7 +106,7 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
   }
 
   Widget _buildErrorState(
-      BuildContext context, AppLocalizations l10n, String error) {
+      BuildContext context, String error) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -119,7 +117,7 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
                 size: 48, color: TekaColors.destructive),
             const SizedBox(height: 12),
             Text(
-              l10n.authGenericError,
+              "Une erreur est survenue. Veuillez reessayer.",
               textAlign: TextAlign.center,
               style: const TextStyle(color: TekaColors.mutedForeground),
             ),
@@ -128,7 +126,7 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
               onPressed: () =>
                   ref.read(sellerProductsProvider.notifier).loadProducts(),
               icon: const Icon(Icons.refresh),
-              label: Text(l10n.loadMore),
+              label: Text("Reessayer"),
             ),
           ],
         ),
@@ -136,7 +134,7 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context, AppLocalizations l10n) {
+  Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -147,7 +145,7 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
                 size: 64, color: TekaColors.mutedForeground.withValues(alpha: 0.5)),
             const SizedBox(height: 16),
             Text(
-              l10n.noProducts,
+              "Aucun produit pour le moment",
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: TekaColors.mutedForeground,
                   ),
@@ -156,7 +154,7 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
             ElevatedButton.icon(
               onPressed: () => context.push('/products/new'),
               icon: const Icon(Icons.add),
-              label: Text(l10n.newProduct),
+              label: Text("Nouveau produit"),
             ),
           ],
         ),
@@ -165,7 +163,7 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
   }
 
   Widget _buildProductsList(
-      BuildContext context, AppLocalizations l10n, ProductsListState state) {
+      BuildContext context, ProductsListState state) {
     return RefreshIndicator(
       onRefresh: () =>
           ref.read(sellerProductsProvider.notifier).loadProducts(),
@@ -195,8 +193,7 @@ class _ProductListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final dateFormat = DateFormat('dd/MM/yyyy', l10n.localeName);
+    final dateFormat = DateFormat('dd/MM/yyyy', 'fr');
     final priceFormat = NumberFormat('#,###', 'fr');
 
     return Card(

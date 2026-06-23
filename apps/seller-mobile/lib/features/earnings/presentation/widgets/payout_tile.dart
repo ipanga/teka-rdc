@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/earning_model.dart';
 
 class PayoutTile extends StatelessWidget {
@@ -11,9 +10,8 @@ class PayoutTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final priceFormat = NumberFormat('#,###', 'fr');
-    final dateFormat = DateFormat('dd/MM/yyyy HH:mm', l10n.localeName);
+    final dateFormat = DateFormat('dd/MM/yyyy HH:mm', 'fr');
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -37,7 +35,7 @@ class PayoutTile extends StatelessWidget {
                   ),
                 ),
               ),
-              _buildStatusBadge(l10n, payout.status),
+              _buildStatusBadge(payout.status),
             ],
           ),
           const SizedBox(height: 6),
@@ -104,7 +102,7 @@ class PayoutTile extends StatelessWidget {
               payout.externalReference!.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
-              '${l10n.payoutReferenceLabel} : ${payout.externalReference}',
+              'Reference : ${payout.externalReference}',
               style: const TextStyle(
                 fontSize: 11,
                 color: TekaColors.mutedForeground,
@@ -116,30 +114,30 @@ class PayoutTile extends StatelessWidget {
     );
   }
 
-  Widget _buildStatusBadge(AppLocalizations l10n, String status) {
+  Widget _buildStatusBadge(String status) {
     Color color;
     String label;
 
     switch (status.toUpperCase()) {
       case 'REQUESTED':
         color = TekaColors.warning;
-        label = l10n.payoutStatusRequested;
+        label = "En attente";
         break;
       case 'APPROVED':
         color = const Color(0xFF3B82F6);
-        label = l10n.payoutStatusApproved;
+        label = "Approuve";
         break;
       case 'PROCESSING':
         color = const Color(0xFF8B5CF6);
-        label = l10n.payoutStatusProcessing;
+        label = "En traitement";
         break;
       case 'COMPLETED':
         color = TekaColors.success;
-        label = l10n.payoutStatusCompleted;
+        label = "Complete";
         break;
       case 'REJECTED':
         color = TekaColors.destructive;
-        label = l10n.payoutStatusRejected;
+        label = "Rejete";
         break;
       default:
         color = TekaColors.mutedForeground;

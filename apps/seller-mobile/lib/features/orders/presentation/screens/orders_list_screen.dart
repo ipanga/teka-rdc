@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../l10n/app_localizations.dart';
 import '../../data/models/order_model.dart';
 import '../providers/orders_provider.dart';
 import '../widgets/order_card.dart';
@@ -37,40 +36,38 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
     final state = ref.watch(sellerOrdersProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(l10n.ordersTitle),
+        title: Text("Commandes"),
       ),
       body: Column(
         children: [
-          _buildFilterChips(context, l10n, state),
+          _buildFilterChips(context, state),
           Expanded(
             child: state.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : state.error != null && state.orders.isEmpty
-                    ? _buildErrorState(context, l10n, state.error!)
+                    ? _buildErrorState(context, state.error!)
                     : state.orders.isEmpty
-                        ? _buildEmptyState(context, l10n)
-                        : _buildOrdersList(context, l10n, state),
+                        ? _buildEmptyState(context)
+                        : _buildOrdersList(context, state),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFilterChips(
-      BuildContext context, AppLocalizations l10n, SellerOrdersState state) {
+  Widget _buildFilterChips(BuildContext context, SellerOrdersState state) {
     final filters = <_FilterItem>[
-      _FilterItem(null, l10n.ordersAll),
-      _FilterItem(OrderStatus.pending, l10n.ordersPending),
-      _FilterItem(OrderStatus.confirmed, l10n.ordersConfirmed),
-      _FilterItem(OrderStatus.processing, l10n.ordersProcessing),
-      _FilterItem(OrderStatus.shipped, l10n.ordersShipped),
-      _FilterItem(OrderStatus.delivered, l10n.ordersDelivered),
-      _FilterItem(OrderStatus.cancelled, l10n.ordersCancelled),
+      _FilterItem(null, "Toutes"),
+      _FilterItem(OrderStatus.pending, "En attente"),
+      _FilterItem(OrderStatus.confirmed, "Confirmees"),
+      _FilterItem(OrderStatus.processing, "En preparation"),
+      _FilterItem(OrderStatus.shipped, "Expediees"),
+      _FilterItem(OrderStatus.delivered, "Livrees"),
+      _FilterItem(OrderStatus.cancelled, "Annulees"),
     ];
 
     return SizedBox(
@@ -99,8 +96,7 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
     );
   }
 
-  Widget _buildErrorState(
-      BuildContext context, AppLocalizations l10n, String error) {
+  Widget _buildErrorState(BuildContext context, String error) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -111,7 +107,7 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
                 size: 48, color: TekaColors.destructive),
             const SizedBox(height: 12),
             Text(
-              l10n.authGenericError,
+              "Une erreur est survenue. Veuillez reessayer.",
               textAlign: TextAlign.center,
               style: const TextStyle(color: TekaColors.mutedForeground),
             ),
@@ -120,7 +116,7 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
               onPressed: () =>
                   ref.read(sellerOrdersProvider.notifier).loadOrders(),
               icon: const Icon(Icons.refresh),
-              label: Text(l10n.loadMore),
+              label: Text("Reessayer"),
             ),
           ],
         ),
@@ -128,7 +124,7 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context, AppLocalizations l10n) {
+  Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -140,7 +136,7 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
                 color: TekaColors.mutedForeground.withValues(alpha: 0.5)),
             const SizedBox(height: 16),
             Text(
-              l10n.ordersEmpty,
+              "Aucune commande",
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: TekaColors.mutedForeground,
                   ),
@@ -151,8 +147,7 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
     );
   }
 
-  Widget _buildOrdersList(
-      BuildContext context, AppLocalizations l10n, SellerOrdersState state) {
+  Widget _buildOrdersList(BuildContext context, SellerOrdersState state) {
     return RefreshIndicator(
       onRefresh: () => ref.read(sellerOrdersProvider.notifier).refresh(),
       child: ListView.builder(
