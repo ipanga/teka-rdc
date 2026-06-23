@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
 
@@ -15,7 +14,6 @@ export default function AdminResetPasswordPage() {
 }
 
 function AdminResetPasswordPageInner() {
-  const t = useTranslations('Auth');
   const searchParams = useSearchParams();
 
   const [token, setToken] = useState('');
@@ -39,7 +37,7 @@ function AdminResetPasswordPageInner() {
     e.preventDefault();
     setError('');
     if (newPassword !== confirm) {
-      setError(t('passwordHint'));
+      setError("Au moins 8 caractères, avec lettres et chiffres");
       return;
     }
     setIsLoading(true);
@@ -61,7 +59,7 @@ function AdminResetPasswordPageInner() {
       <div className="w-full max-w-md">
         <div className="bg-white rounded-xl shadow-lg border border-border p-8">
           <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-foreground">{t('resetPasswordTitle')}</h1>
+            <h1 className="text-2xl font-bold text-foreground">Nouveau mot de passe</h1>
           </div>
 
           {error && (
@@ -71,26 +69,26 @@ function AdminResetPasswordPageInner() {
           {tokenMissing ? (
             <div className="space-y-4">
               <div className="p-4 rounded-lg bg-destructive/10 text-destructive text-sm">
-                {t('resetPasswordInvalid')}
+                Lien invalide ou expiré.
               </div>
               <Link href="/forgot-password" className="block text-center text-sm text-primary hover:underline">
-                {t('forgotPassword')}
+                Mot de passe oublié ?
               </Link>
             </div>
           ) : success ? (
             <div className="space-y-4">
               <div className="p-4 rounded-lg bg-green-50 text-green-900 text-sm">
-                {t('resetPasswordSuccess')}
+                Mot de passe réinitialisé. Vous pouvez vous connecter.
               </div>
               <Link href="/login" className="block text-center text-sm text-primary hover:underline">
-                &larr; {t('backToLogin')}
+                &larr; Retour à la connexion
               </Link>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label htmlFor="newPassword" className="block text-sm font-medium text-foreground mb-1">
-                  {t('passwordLabel')}
+                  Mot de passe
                 </label>
                 <input
                   id="newPassword"
@@ -101,11 +99,11 @@ function AdminResetPasswordPageInner() {
                   className="w-full px-3 py-2 border border-input rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-ring"
                   required
                 />
-                <p className="mt-1 text-xs text-muted-foreground">{t('passwordHint')}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Au moins 8 caractères, avec lettres et chiffres</p>
               </div>
               <div>
                 <label htmlFor="confirm" className="block text-sm font-medium text-foreground mb-1">
-                  {t('confirmPasswordLabel')}
+                  Confirmer le mot de passe
                 </label>
                 <input
                   id="confirm"
@@ -122,7 +120,7 @@ function AdminResetPasswordPageInner() {
                 disabled={isLoading || !newPassword || !confirm}
                 className="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
-                {isLoading ? '...' : t('resetPassword')}
+                {isLoading ? '...' : 'Réinitialiser le mot de passe'}
               </button>
             </form>
           )}

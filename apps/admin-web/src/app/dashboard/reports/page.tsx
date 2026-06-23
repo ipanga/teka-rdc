@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch, SURFACE } from '@/lib/api-client';
 
 type ReportTab = 'sales' | 'financial' | 'sellers' | 'payouts';
@@ -16,9 +15,6 @@ interface ReportRow {
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5050/api';
 
 export default function ReportsPage() {
-  const t = useTranslations('Reports');
-  const tCommon = useTranslations('Common');
-
   const [activeTab, setActiveTab] = useState<ReportTab>('sales');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
@@ -92,10 +88,10 @@ export default function ReportsPage() {
   };
 
   const tabs: { key: ReportTab; label: string }[] = [
-    { key: 'sales', label: t('sales') },
-    { key: 'financial', label: t('financial') },
-    { key: 'sellers', label: t('sellerPerformance') },
-    { key: 'payouts', label: t('payouts') },
+    { key: 'sales', label: 'Ventes' },
+    { key: 'financial', label: 'Financier' },
+    { key: 'sellers', label: 'Performance vendeurs' },
+    { key: 'payouts', label: 'Virements' },
   ];
 
   const formatCellValue = (value: string | number | null): string => {
@@ -105,7 +101,7 @@ export default function ReportsPage() {
 
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold text-foreground mb-6">{t('title')}</h1>
+      <h1 className="text-2xl font-bold text-foreground mb-6">Rapports</h1>
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6 flex-wrap">
@@ -128,7 +124,7 @@ export default function ReportsPage() {
       <div className="bg-white rounded-xl border border-border p-4 mb-6">
         <div className="flex flex-wrap items-end gap-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">{t('dateFrom')}</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Date de début</label>
             <input
               type="date"
               value={dateFrom}
@@ -137,7 +133,7 @@ export default function ReportsPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1">{t('dateTo')}</label>
+            <label className="block text-sm font-medium text-foreground mb-1">Date de fin</label>
             <input
               type="date"
               value={dateTo}
@@ -147,12 +143,12 @@ export default function ReportsPage() {
           </div>
           {SELLER_FILTERABLE.includes(activeTab) && (
             <div>
-              <label className="block text-sm font-medium text-foreground mb-1">{t('sellerIdFilter')}</label>
+              <label className="block text-sm font-medium text-foreground mb-1">ID vendeur (optionnel)</label>
               <input
                 type="text"
                 value={sellerId}
                 onChange={(e) => setSellerId(e.target.value)}
-                placeholder={t('sellerIdPlaceholder')}
+                placeholder="UUID du vendeur"
                 className="px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
               />
             </div>
@@ -162,14 +158,14 @@ export default function ReportsPage() {
             disabled={isLoading}
             className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? tCommon('loading') : t('generate')}
+            {isLoading ? "Chargement..." : "Générer"}
           </button>
           {hasLoaded && data.length > 0 && (
             <button
               onClick={handleDownloadCsv}
               className="px-4 py-2 text-sm font-medium bg-success/10 text-success border border-success/20 rounded-lg hover:bg-success/20 transition-colors"
             >
-              {t('downloadCsv')}
+              Télécharger CSV
             </button>
           )}
         </div>
@@ -178,12 +174,12 @@ export default function ReportsPage() {
       {/* Data table */}
       {isLoading ? (
         <div className="bg-white rounded-xl border border-border p-8 text-center text-muted-foreground">
-          {tCommon('loading')}
+          Chargement...
         </div>
       ) : hasLoaded ? (
         data.length === 0 ? (
           <div className="bg-white rounded-xl border border-border p-8 text-center text-muted-foreground">
-            {t('noData')}
+            Aucune donnée pour cette période
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-border overflow-hidden overflow-x-auto">
@@ -217,14 +213,14 @@ export default function ReportsPage() {
             </table>
             {data.length > 50 && (
               <div className="px-4 py-3 text-sm text-muted-foreground border-t border-border">
-                {t('showingRows', { count: 50, total: data.length })}
+                {`Affichage de ${50} lignes sur ${data.length}`}
               </div>
             )}
           </div>
         )
       ) : (
         <div className="bg-white rounded-xl border border-border p-8 text-center text-muted-foreground">
-          {t('selectFilters')}
+          Sélectionnez une période et cliquez sur Générer
         </div>
       )}
     </div>

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 
 interface SellerProfileLite {
@@ -40,9 +39,19 @@ interface PaginatedResponse {
 // filter. SUSPENDED is exposed as a separate tab for account-level review.
 type Filter = '' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
 
+const APP_STATUS_LABELS: Record<string, string> = {
+  PENDING: "En attente",
+  APPROVED: "Approuvé",
+  REJECTED: "Rejeté",
+};
+
+const ACCOUNT_STATUS_LABELS: Record<string, string> = {
+  ACTIVE: "Actif",
+  SUSPENDED: "Suspendu",
+  BANNED: "Banni",
+};
+
 export default function SellersPage() {
-  const t = useTranslations('Sellers');
-  const tCommon = useTranslations('Common');
   const [sellers, setSellers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -66,7 +75,7 @@ export default function SellersPage() {
       );
       setDocumentUrl(res.data.url);
     } catch {
-      setDocError(t('noDocument'));
+      setDocError("Aucune pièce d’identité disponible.");
     } finally {
       setLoadingDocId(null);
     }
@@ -154,17 +163,17 @@ export default function SellersPage() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{t('subtitle')}</p>
+        <h1 className="text-2xl font-bold text-foreground">Vendeurs</h1>
+        <p className="text-sm text-muted-foreground mt-1">Gérez les vendeurs et leurs demandes d&apos;inscription</p>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6">
         {([
-          { value: '', label: t('filterAll') },
-          { value: 'PENDING', label: t('filterPending') },
-          { value: 'APPROVED', label: t('filterApproved') },
-          { value: 'REJECTED', label: t('filterRejected') },
-          { value: 'SUSPENDED', label: t('filterSuspended') },
+          { value: '', label: "Tous" },
+          { value: 'PENDING', label: "En attente" },
+          { value: 'APPROVED', label: "Approuvés" },
+          { value: 'REJECTED', label: "Rejetés" },
+          { value: 'SUSPENDED', label: "Suspendus" },
         ] as { value: Filter; label: string }[]).map((tab) => (
           <button
             key={tab.value}
@@ -186,14 +195,14 @@ export default function SellersPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('searchPlaceholder')}
+            placeholder="Rechercher par boutique, nom ou téléphone..."
             className="flex-1 max-w-md px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
           <button
             type="submit"
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
           >
-            {t('search')}
+            Rechercher
           </button>
         </div>
       </form>
@@ -202,21 +211,21 @@ export default function SellersPage() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted">
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('businessName')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('owner')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('email')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('phone')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('applicationStatus')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('accountStatus')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('date')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('actions')}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Boutique</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Propriétaire</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Email</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Téléphone</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Validation</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Compte</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Date</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Actions</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">{t('loading')}</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">Chargement...</td></tr>
             ) : sellers.length === 0 ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">{t('noSellers')}</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">Aucun vendeur trouvé</td></tr>
             ) : (
               sellers.map((u) => {
                 const sp = u.sellerProfile;
@@ -232,13 +241,13 @@ export default function SellersPage() {
                     <td className="px-4 py-3">
                       {appStatus ? (
                         <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${appStatusClass(appStatus)}`}>
-                          {t(`appStatus_${appStatus}` as 'appStatus_PENDING')}
+                          {APP_STATUS_LABELS[appStatus] ?? appStatus}
                         </span>
                       ) : <span className="text-muted-foreground text-xs">—</span>}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${accountStatusClass(u.status)}`}>
-                        {t(`status_${u.status}` as 'status_ACTIVE')}
+                        {ACCOUNT_STATUS_LABELS[u.status] ?? u.status}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">
@@ -252,7 +261,7 @@ export default function SellersPage() {
                             disabled={loadingDocId === sp.id}
                             className="px-2.5 py-1 text-xs font-medium bg-muted text-foreground rounded-lg hover:bg-muted/70 transition-colors disabled:opacity-50"
                           >
-                            {loadingDocId === sp.id ? '...' : t('viewDocument')}
+                            {loadingDocId === sp.id ? '...' : "Voir la pièce"}
                           </button>
                           {appStatus === 'PENDING' && (
                             <>
@@ -260,13 +269,13 @@ export default function SellersPage() {
                                 onClick={() => handleApprove(sp.id)}
                                 className="px-2.5 py-1 text-xs font-medium bg-success/10 text-success rounded-lg hover:bg-success/20 transition-colors"
                               >
-                                {t('approve')}
+                                Approuver
                               </button>
                               <button
                                 onClick={() => { setRejectingId(sp.id); setRejectionReason(''); }}
                                 className="px-2.5 py-1 text-xs font-medium bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors"
                               >
-                                {t('reject')}
+                                Rejeter
                               </button>
                             </>
                           )}
@@ -288,7 +297,7 @@ export default function SellersPage() {
             disabled={page <= 1}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {t('previous')}
+            Précédent
           </button>
           <span className="text-sm text-muted-foreground">{page} / {totalPages}</span>
           <button
@@ -296,7 +305,7 @@ export default function SellersPage() {
             disabled={page >= totalPages}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {t('next')}
+            Suivant
           </button>
         </div>
       )}
@@ -306,15 +315,15 @@ export default function SellersPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setRejectingId(null)} />
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-md mx-4">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">{t('rejectConfirm')}</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-4">Rejeter la demande</h3>
               <label className="block text-sm font-medium text-foreground mb-1">
-                {t('rejectReason')} <span className="text-destructive">*</span>
+                Motif du rejet <span className="text-destructive">*</span>
               </label>
               <textarea
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
                 rows={4}
-                placeholder={t('rejectPlaceholder')}
+                placeholder="Décrivez la raison du rejet (minimum 5 caractères)..."
                 className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
               />
               {rejectionReason.trim().length > 0 && rejectionReason.trim().length < 5 && (
@@ -325,14 +334,14 @@ export default function SellersPage() {
                   onClick={() => { setRejectingId(null); setRejectionReason(''); }}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  Annuler
                 </button>
                 <button
                   onClick={handleReject}
                   disabled={isSubmitting || rejectionReason.trim().length < 5}
                   className="px-4 py-2 text-sm font-medium text-primary-foreground bg-destructive rounded-lg hover:bg-destructive/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? '...' : t('reject')}
+                  {isSubmitting ? '...' : "Rejeter"}
                 </button>
               </div>
             </div>
@@ -350,19 +359,19 @@ export default function SellersPage() {
             <div className="p-4">
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-semibold text-foreground">
-                  {t('documentTitle')}
+                  Pièce d’identité du vendeur
                 </h3>
                 <button
                   onClick={() => setDocumentUrl(null)}
                   className="text-sm text-muted-foreground hover:text-foreground"
                 >
-                  {tCommon('close')}
+                  Fermer
                 </button>
               </div>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={documentUrl}
-                alt={t('documentTitle')}
+                alt="Pièce d’identité du vendeur"
                 className="w-full max-h-[70vh] object-contain rounded-lg bg-muted"
               />
               <div className="mt-3 text-right">
@@ -372,7 +381,7 @@ export default function SellersPage() {
                   rel="noopener noreferrer"
                   className="text-sm text-primary hover:underline"
                 >
-                  {t('documentOpenNewTab')} &rarr;
+                  Ouvrir dans un nouvel onglet &rarr;
                 </a>
               </div>
             </div>

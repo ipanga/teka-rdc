@@ -1,8 +1,44 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
+
+const map: Record<string, string> = {
+  "Common.actions": "Actions",
+  "Common.loading": "Chargement...",
+  "Common.previous": "Précédent",
+  "Common.next": "Suivant",
+  "Common.cancel": "Annuler",
+  "Common.save": "Enregistrer",
+  "Common.confirm": "Confirmer",
+  "Common.edit": "Modifier",
+  "Common.delete": "Supprimer",
+  "Banners.title": "Gestion des bannières",
+  "Banners.create": "Nouvelle bannière",
+  "Banners.edit": "Modifier la bannière",
+  "Banners.deleteTitle": "Supprimer la bannière",
+  "Banners.deleteConfirm": "Voulez-vous vraiment supprimer cette bannière ? Cette action est irréversible.",
+  "Banners.saved": "Bannière enregistrée avec succès",
+  "Banners.deleted": "Bannière supprimée avec succès",
+  "Banners.error": "Une erreur est survenue",
+  "Banners.noBanners": "Aucune bannière trouvée",
+  "Banners.all": "Toutes",
+  "Banners.image": "Image",
+  "Banners.titleLabel": "Titre",
+  "Banners.imageUrl": "URL de l'image",
+  "Banners.linkType": "Type de lien",
+  "Banners.linkTarget": "Cible du lien",
+  "Banners.startDate": "Date de début",
+  "Banners.endDate": "Date de fin",
+  "Banners.dates": "Période",
+  "Banners.sortOrder": "Ordre d'affichage",
+  "Banners.status": "Statut",
+  "Banners.statusDraft": "Brouillon",
+  "Banners.statusActive": "Active",
+  "Banners.statusScheduled": "Programmée",
+  "Banners.statusExpired": "Expirée",
+  "Banners.subtitle": "Sous-titre",
+};
 
 interface Banner {
   id: string;
@@ -64,9 +100,6 @@ const STATUS_STYLES: Record<string, string> = {
 const LINK_TYPES = ['product', 'category', 'promotion', 'url'];
 
 export default function BannersPage() {
-  const t = useTranslations('Banners');
-  const tCommon = useTranslations('Common');
-
   const [banners, setBanners] = useState<Banner[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -161,10 +194,10 @@ export default function BannersPage() {
       }
 
       setShowModal(false);
-      showFeedback('success', t('saved'));
+      showFeedback('success', map["Banners.saved"]);
       fetchBanners();
     } catch {
-      showFeedback('error', t('error'));
+      showFeedback('error', map["Banners.error"]);
     } finally {
       setIsSaving(false);
     }
@@ -176,10 +209,10 @@ export default function BannersPage() {
     try {
       await apiFetch(`/v1/admin/banners/${deletingId}`, { method: 'DELETE' });
       setDeletingId(null);
-      showFeedback('success', t('deleted'));
+      showFeedback('success', map["Banners.deleted"]);
       fetchBanners();
     } catch {
-      showFeedback('error', t('error'));
+      showFeedback('error', map["Banners.error"]);
     } finally {
       setIsDeleting(false);
     }
@@ -187,16 +220,16 @@ export default function BannersPage() {
 
   const statusLabel = (status: string) => {
     switch (status) {
-      case 'DRAFT': return t('statusDraft');
-      case 'ACTIVE': return t('statusActive');
-      case 'SCHEDULED': return t('statusScheduled');
-      case 'EXPIRED': return t('statusExpired');
+      case 'DRAFT': return map["Banners.statusDraft"];
+      case 'ACTIVE': return map["Banners.statusActive"];
+      case 'SCHEDULED': return map["Banners.statusScheduled"];
+      case 'EXPIRED': return map["Banners.statusExpired"];
       default: return status;
     }
   };
 
   const tabLabel = (status: string) => {
-    if (!status) return t('all');
+    if (!status) return map["Banners.all"];
     return statusLabel(status);
   };
 
@@ -215,12 +248,12 @@ export default function BannersPage() {
       )}
 
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+        <h1 className="text-2xl font-bold text-foreground">{map["Banners.title"]}</h1>
         <button
           onClick={openCreate}
           className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
         >
-          {t('create')}
+          {map["Banners.create"]}
         </button>
       </div>
 
@@ -246,25 +279,25 @@ export default function BannersPage() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted">
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('image')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('titleLabel')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('status')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('dates')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('sortOrder')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{tCommon('actions')}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{map["Banners.image"]}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{map["Banners.titleLabel"]}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{map["Banners.status"]}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{map["Banners.dates"]}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{map["Banners.sortOrder"]}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{map["Common.actions"]}</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                  {tCommon('loading')}
+                  {map["Common.loading"]}
                 </td>
               </tr>
             ) : banners.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                  {t('noBanners')}
+                  {map["Banners.noBanners"]}
                 </td>
               </tr>
             ) : (
@@ -301,13 +334,13 @@ export default function BannersPage() {
                         onClick={() => openEdit(banner)}
                         className="px-2.5 py-1 text-xs font-medium bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
                       >
-                        {tCommon('edit')}
+                        {map["Common.edit"]}
                       </button>
                       <button
                         onClick={() => setDeletingId(banner.id)}
                         className="px-2.5 py-1 text-xs font-medium bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors"
                       >
-                        {tCommon('delete')}
+                        {map["Common.delete"]}
                       </button>
                     </div>
                   </td>
@@ -326,7 +359,7 @@ export default function BannersPage() {
             disabled={page <= 1}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {tCommon('previous')}
+            {map["Common.previous"]}
           </button>
           <span className="text-sm text-muted-foreground">
             {page} / {totalPages}
@@ -336,7 +369,7 @@ export default function BannersPage() {
             disabled={page >= totalPages}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {tCommon('next')}
+            {map["Common.next"]}
           </button>
         </div>
       )}
@@ -348,12 +381,12 @@ export default function BannersPage() {
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <h3 className="text-lg font-semibold text-foreground mb-4">
-                {editingId ? t('edit') : t('create')}
+                {editingId ? map["Banners.edit"] : map["Banners.create"]}
               </h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">{t('titleLabel')}</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">{map["Banners.titleLabel"]}</label>
                   <input
                     type="text"
                     value={form.title}
@@ -363,7 +396,7 @@ export default function BannersPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">{t('subtitle')}</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">{map["Banners.subtitle"]}</label>
                   <input
                     type="text"
                     value={form.subtitle}
@@ -373,7 +406,7 @@ export default function BannersPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">{t('imageUrl')}</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">{map["Banners.imageUrl"]}</label>
                   <input
                     type="text"
                     value={form.imageUrl}
@@ -385,7 +418,7 @@ export default function BannersPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('linkType')}</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">{map["Banners.linkType"]}</label>
                     <select
                       value={form.linkType}
                       onChange={(e) => setForm({ ...form, linkType: e.target.value })}
@@ -397,7 +430,7 @@ export default function BannersPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('linkTarget')}</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">{map["Banners.linkTarget"]}</label>
                     <input
                       type="text"
                       value={form.linkTarget}
@@ -409,7 +442,7 @@ export default function BannersPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('startDate')}</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">{map["Banners.startDate"]}</label>
                     <input
                       type="date"
                       value={form.startDate}
@@ -418,7 +451,7 @@ export default function BannersPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('endDate')}</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">{map["Banners.endDate"]}</label>
                     <input
                       type="date"
                       value={form.endDate}
@@ -430,7 +463,7 @@ export default function BannersPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('sortOrder')}</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">{map["Banners.sortOrder"]}</label>
                     <input
                       type="number"
                       value={form.sortOrder}
@@ -439,15 +472,15 @@ export default function BannersPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('status')}</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">{map["Banners.status"]}</label>
                     <select
                       value={form.status}
                       onChange={(e) => setForm({ ...form, status: e.target.value })}
                       className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                     >
-                      <option value="DRAFT">{t('statusDraft')}</option>
-                      <option value="ACTIVE">{t('statusActive')}</option>
-                      <option value="SCHEDULED">{t('statusScheduled')}</option>
+                      <option value="DRAFT">{map["Banners.statusDraft"]}</option>
+                      <option value="ACTIVE">{map["Banners.statusActive"]}</option>
+                      <option value="SCHEDULED">{map["Banners.statusScheduled"]}</option>
                     </select>
                   </div>
                 </div>
@@ -458,14 +491,14 @@ export default function BannersPage() {
                   onClick={() => setShowModal(false)}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  {map["Common.cancel"]}
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={isSaving || !form.title}
                   className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSaving ? tCommon('loading') : tCommon('save')}
+                  {isSaving ? map["Common.loading"] : map["Common.save"]}
                 </button>
               </div>
             </div>
@@ -479,21 +512,21 @@ export default function BannersPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setDeletingId(null)} />
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-sm mx-4">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-2">{t('deleteTitle')}</h3>
-              <p className="text-sm text-muted-foreground mb-4">{t('deleteConfirm')}</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">{map["Banners.deleteTitle"]}</h3>
+              <p className="text-sm text-muted-foreground mb-4">{map["Banners.deleteConfirm"]}</p>
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setDeletingId(null)}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  {map["Common.cancel"]}
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={isDeleting}
                   className="px-4 py-2 text-sm font-medium text-white bg-destructive rounded-lg hover:bg-destructive/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isDeleting ? tCommon('loading') : tCommon('confirm')}
+                  {isDeleting ? map["Common.loading"] : map["Common.confirm"]}
                 </button>
               </div>
             </div>

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 
 interface TransactionSeller {
@@ -43,10 +42,27 @@ const STATUS_STYLES: Record<string, string> = {
   REFUNDED: 'bg-secondary text-secondary-foreground',
 };
 
-export default function TransactionsPage() {
-  const t = useTranslations('Transactions');
-  const tCommon = useTranslations('Common');
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: 'En attente',
+  PROCESSING: 'En traitement',
+  COMPLETED: 'Complétée',
+  FAILED: 'Échouée',
+  REFUNDED: 'Remboursée',
+};
 
+const TYPE_LABELS: Record<string, string> = {
+  PAYMENT: 'Paiement',
+  REFUND: 'Remboursement',
+  PAYOUT: 'Virement',
+};
+
+const PROVIDER_LABELS: Record<string, string> = {
+  FLEXPAY: 'Flexpay',
+  COD: 'Espèces',
+  MANUAL: 'Manuel',
+};
+
+export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -102,7 +118,7 @@ export default function TransactionsPage() {
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+        <h1 className="text-2xl font-bold text-foreground">Transactions</h1>
       </div>
 
       {/* Filters */}
@@ -118,7 +134,7 @@ export default function TransactionsPage() {
           >
             {STATUS_OPTIONS.map((status) => (
               <option key={status} value={status}>
-                {status ? t(`status.${status}`) : `${t('filters.status')}: ${t('filters.all')}`}
+                {status ? STATUS_LABELS[status] : "Statut: Tous"}
               </option>
             ))}
           </select>
@@ -133,7 +149,7 @@ export default function TransactionsPage() {
           >
             {TYPE_OPTIONS.map((type) => (
               <option key={type} value={type}>
-                {type ? t(`type.${type}`) : `${t('filters.type')}: ${t('filters.all')}`}
+                {type ? TYPE_LABELS[type] : "Type: Tous"}
               </option>
             ))}
           </select>
@@ -142,12 +158,12 @@ export default function TransactionsPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('filters.search')}
+            placeholder="Rechercher par commande"
             className="flex-1 min-w-[200px] max-w-sm px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
 
           <div className="flex items-center gap-2">
-            <label className="text-sm text-muted-foreground whitespace-nowrap">{t('filters.dateFrom')}</label>
+            <label className="text-sm text-muted-foreground whitespace-nowrap">Du</label>
             <input
               type="date"
               value={dateFrom}
@@ -159,7 +175,7 @@ export default function TransactionsPage() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-sm text-muted-foreground whitespace-nowrap">{t('filters.dateTo')}</label>
+            <label className="text-sm text-muted-foreground whitespace-nowrap">Au</label>
             <input
               type="date"
               value={dateTo}
@@ -174,7 +190,7 @@ export default function TransactionsPage() {
             type="submit"
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
           >
-            {tCommon('search')}
+            Rechercher
           </button>
         </div>
       </form>
@@ -185,25 +201,25 @@ export default function TransactionsPage() {
           <thead>
             <tr className="border-b border-border bg-muted">
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('table.date')}
+                Date
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('table.order')}
+                Commande
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('table.seller')}
+                Vendeur
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('table.amount')}
+                Montant
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('table.method')}
+                Méthode
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('table.status')}
+                Statut
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('table.reference')}
+                Référence
               </th>
             </tr>
           </thead>
@@ -211,13 +227,13 @@ export default function TransactionsPage() {
             {isLoading ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                  {tCommon('loading')}
+                  Chargement...
                 </td>
               </tr>
             ) : transactions.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                  {t('table.noTransactions')}
+                  Aucune transaction
                 </td>
               </tr>
             ) : (
@@ -236,7 +252,7 @@ export default function TransactionsPage() {
                     {formatCDF(tx.amountCDF)}
                   </td>
                   <td className="px-4 py-3 text-sm text-foreground">
-                    {t(`provider.${tx.provider}`)}
+                    {PROVIDER_LABELS[tx.provider] ?? tx.provider}
                   </td>
                   <td className="px-4 py-3">
                     <span
@@ -244,7 +260,7 @@ export default function TransactionsPage() {
                         STATUS_STYLES[tx.status] || 'bg-secondary text-secondary-foreground'
                       }`}
                     >
-                      {t(`status.${tx.status}`)}
+                      {STATUS_LABELS[tx.status] ?? tx.status}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground font-mono">
@@ -265,7 +281,7 @@ export default function TransactionsPage() {
             disabled={page <= 1}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {tCommon('previous')}
+            Précédent
           </button>
           <span className="text-sm text-muted-foreground">
             {page} / {totalPages}
@@ -275,7 +291,7 @@ export default function TransactionsPage() {
             disabled={page >= totalPages}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {tCommon('next')}
+            Suivant
           </button>
         </div>
       )}

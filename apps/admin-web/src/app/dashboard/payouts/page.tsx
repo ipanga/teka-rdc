@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 
 interface PayoutSeller {
@@ -33,13 +32,21 @@ interface PaginatedResponse {
 
 const STATUS_TABS = ['', 'REQUESTED', 'APPROVED', 'PROCESSING', 'COMPLETED', 'REJECTED'];
 
-const STATUS_TAB_KEYS: Record<string, string> = {
-  '': 'all',
-  REQUESTED: 'requested',
-  APPROVED: 'approved',
-  PROCESSING: 'processing',
-  COMPLETED: 'completed',
-  REJECTED: 'rejected',
+const STATUS_TAB_LABELS: Record<string, string> = {
+  '': 'Tous',
+  REQUESTED: 'En attente',
+  APPROVED: 'Approuvés',
+  PROCESSING: 'En traitement',
+  COMPLETED: 'Complétés',
+  REJECTED: 'Rejetés',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  REQUESTED: 'En attente',
+  APPROVED: 'Approuvé',
+  PROCESSING: 'En traitement',
+  COMPLETED: 'Complété',
+  REJECTED: 'Rejeté',
 };
 
 const STATUS_STYLES: Record<string, string> = {
@@ -51,9 +58,6 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default function PayoutsPage() {
-  const t = useTranslations('Payouts');
-  const tCommon = useTranslations('Common');
-
   const [payouts, setPayouts] = useState<Payout[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -196,7 +200,7 @@ export default function PayoutsPage() {
       )}
 
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+        <h1 className="text-2xl font-bold text-foreground">Virements vendeurs</h1>
       </div>
 
       {/* Status filter tabs */}
@@ -214,7 +218,7 @@ export default function PayoutsPage() {
                 : 'bg-background text-foreground border-border hover:bg-muted'
             }`}
           >
-            {t(`tabs.${STATUS_TAB_KEYS[status]}`)}
+            {STATUS_TAB_LABELS[status]}
           </button>
         ))}
       </div>
@@ -225,25 +229,25 @@ export default function PayoutsPage() {
           <thead>
             <tr className="border-b border-border bg-muted">
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('table.date')}
+                Date
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('table.seller')}
+                Vendeur
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('table.amount')}
+                Montant
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('table.method')}
+                Méthode
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('table.phone')}
+                Téléphone
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('table.status')}
+                Statut
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('table.actions')}
+                Actions
               </th>
             </tr>
           </thead>
@@ -251,13 +255,13 @@ export default function PayoutsPage() {
             {isLoading ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                  {tCommon('loading')}
+                  Chargement...
                 </td>
               </tr>
             ) : payouts.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                  {t('table.noPayouts')}
+                  Aucun virement
                 </td>
               </tr>
             ) : (
@@ -284,11 +288,11 @@ export default function PayoutsPage() {
                         STATUS_STYLES[payout.status] || 'bg-secondary text-secondary-foreground'
                       }`}
                     >
-                      {t(`status.${payout.status}`)}
+                      {STATUS_LABELS[payout.status] ?? payout.status}
                     </span>
                     {payout.status === 'COMPLETED' && payout.externalReference && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        {t('referenceLabel')} {payout.externalReference}
+                        Réf. {payout.externalReference}
                       </p>
                     )}
                   </td>
@@ -299,7 +303,7 @@ export default function PayoutsPage() {
                           onClick={() => setApprovingId(payout.id)}
                           className="px-2.5 py-1 text-xs font-medium bg-success/10 text-success rounded-lg hover:bg-success/20 transition-colors"
                         >
-                          {t('approve')}
+                          Approuver
                         </button>
                       )}
                       {payout.status === 'APPROVED' && (
@@ -307,7 +311,7 @@ export default function PayoutsPage() {
                           onClick={() => setProcessingId(payout.id)}
                           className="px-2.5 py-1 text-xs font-medium bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
                         >
-                          {t('process')}
+                          Marquer en traitement
                         </button>
                       )}
                       {(payout.status === 'APPROVED' ||
@@ -319,7 +323,7 @@ export default function PayoutsPage() {
                           }}
                           className="px-2.5 py-1 text-xs font-medium bg-success/10 text-success rounded-lg hover:bg-success/20 transition-colors"
                         >
-                          {t('markPaid')}
+                          Marquer payé
                         </button>
                       )}
                       {(payout.status === 'REQUESTED' ||
@@ -331,7 +335,7 @@ export default function PayoutsPage() {
                           }}
                           className="px-2.5 py-1 text-xs font-medium bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors"
                         >
-                          {t('reject')}
+                          Rejeter
                         </button>
                       )}
                     </div>
@@ -351,7 +355,7 @@ export default function PayoutsPage() {
             disabled={page <= 1}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {tCommon('previous')}
+            Précédent
           </button>
           <span className="text-sm text-muted-foreground">
             {page} / {totalPages}
@@ -361,7 +365,7 @@ export default function PayoutsPage() {
             disabled={page >= totalPages}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {tCommon('next')}
+            Suivant
           </button>
         </div>
       )}
@@ -372,21 +376,21 @@ export default function PayoutsPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setApprovingId(null)} />
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-sm mx-4">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-2">{t('approve')}</h3>
-              <p className="text-sm text-muted-foreground mb-4">{t('approveConfirm')}</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Approuver</h3>
+              <p className="text-sm text-muted-foreground mb-4">Êtes-vous sûr de vouloir approuver ce virement ?</p>
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setApprovingId(null)}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  Annuler
                 </button>
                 <button
                   onClick={handleApprove}
                   disabled={isApproving}
                   className="px-4 py-2 text-sm font-medium text-white bg-success rounded-lg hover:bg-success/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isApproving ? tCommon('loading') : tCommon('confirm')}
+                  {isApproving ? "Chargement..." : "Confirmer"}
                 </button>
               </div>
             </div>
@@ -400,7 +404,7 @@ export default function PayoutsPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setRejectingId(null)} />
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-lg mx-4">
             <div className="flex items-center justify-between p-6 border-b border-border">
-              <h2 className="text-lg font-semibold text-foreground">{t('reject')}</h2>
+              <h2 className="text-lg font-semibold text-foreground">Rejeter</h2>
               <button
                 onClick={() => setRejectingId(null)}
                 className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
@@ -413,12 +417,12 @@ export default function PayoutsPage() {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  {t('rejectReason')} <span className="text-destructive">*</span>
+                  Raison du rejet <span className="text-destructive">*</span>
                 </label>
                 <textarea
                   value={rejectReason}
                   onChange={(e) => setRejectReason(e.target.value)}
-                  placeholder={t('rejectReasonPlaceholder')}
+                  placeholder="Expliquez pourquoi ce virement est rejeté..."
                   rows={3}
                   className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                 />
@@ -428,14 +432,14 @@ export default function PayoutsPage() {
                   onClick={() => setRejectingId(null)}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  Annuler
                 </button>
                 <button
                   onClick={handleReject}
                   disabled={isRejecting || !rejectReason.trim()}
                   className="px-4 py-2 text-sm font-medium text-white bg-destructive rounded-lg hover:bg-destructive/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isRejecting ? tCommon('loading') : t('rejectConfirm')}
+                  {isRejecting ? "Chargement..." : "Confirmer le rejet"}
                 </button>
               </div>
             </div>
@@ -449,21 +453,21 @@ export default function PayoutsPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setProcessingId(null)} />
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-sm mx-4">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-2">{t('process')}</h3>
-              <p className="text-sm text-muted-foreground mb-4">{t('processConfirm')}</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">Marquer en traitement</h3>
+              <p className="text-sm text-muted-foreground mb-4">Confirmer la mise en traitement de ce virement ?</p>
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setProcessingId(null)}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  Annuler
                 </button>
                 <button
                   onClick={handleProcess}
                   disabled={isProcessing}
                   className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isProcessing ? tCommon('loading') : tCommon('confirm')}
+                  {isProcessing ? "Chargement..." : "Confirmer"}
                 </button>
               </div>
             </div>
@@ -477,7 +481,7 @@ export default function PayoutsPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setCompletingId(null)} />
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-lg mx-4">
             <div className="flex items-center justify-between p-6 border-b border-border">
-              <h2 className="text-lg font-semibold text-foreground">{t('completeForm')}</h2>
+              <h2 className="text-lg font-semibold text-foreground">Marquer le virement comme payé</h2>
               <button
                 onClick={() => setCompletingId(null)}
                 className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors"
@@ -490,13 +494,13 @@ export default function PayoutsPage() {
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  {t('reference')} <span className="text-destructive">*</span>
+                  Référence de paiement <span className="text-destructive">*</span>
                 </label>
                 <input
                   type="text"
                   value={completeReference}
                   onChange={(e) => setCompleteReference(e.target.value)}
-                  placeholder={t('referencePlaceholder')}
+                  placeholder="Ex : ID de transaction M-Pesa"
                   className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
@@ -505,14 +509,14 @@ export default function PayoutsPage() {
                   onClick={() => setCompletingId(null)}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  Annuler
                 </button>
                 <button
                   onClick={handleComplete}
                   disabled={isCompleting || !completeReference.trim()}
                   className="px-4 py-2 text-sm font-medium text-white bg-success rounded-lg hover:bg-success/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isCompleting ? tCommon('loading') : t('completeConfirm')}
+                  {isCompleting ? "Chargement..." : "Confirmer le paiement"}
                 </button>
               </div>
             </div>

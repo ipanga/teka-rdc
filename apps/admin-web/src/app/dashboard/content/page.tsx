@@ -1,8 +1,39 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
+
+const map: Record<string, string> = {
+  "Common.actions": "Actions",
+  "Common.loading": "Chargement...",
+  "Common.cancel": "Annuler",
+  "Common.save": "Enregistrer",
+  "Common.confirm": "Confirmer",
+  "Common.edit": "Modifier",
+  "Common.delete": "Supprimer",
+  "Common.close": "Fermer",
+  "Content.title": "Gestion du contenu",
+  "Content.create": "Nouvelle page",
+  "Content.editPage": "Modifier la page",
+  "Content.deleteTitle": "Supprimer la page",
+  "Content.deleteConfirm": "Voulez-vous vraiment supprimer cette page ? Cette action est irréversible.",
+  "Content.saved": "Page enregistrée avec succès",
+  "Content.deleted": "Page supprimée avec succès",
+  "Content.error": "Une erreur est survenue",
+  "Content.noContent": "Aucune page de contenu trouvée",
+  "Content.slug": "Identifiant (slug)",
+  "Content.customSlug": "Personnalisé",
+  "Content.customSlugPlaceholder": "mon-identifiant",
+  "Content.titleLabel": "Titre",
+  "Content.status": "Statut",
+  "Content.published": "Publié",
+  "Content.draft": "Brouillon",
+  "Content.sortOrder": "Ordre d'affichage",
+  "Content.updatedAt": "Dernière modification",
+  "Content.preview": "Aperçu",
+  "Content.noContentYet": "Aucun contenu pour le moment",
+  "Content.content": "Contenu",
+};
 
 interface ContentPage {
   id: string;
@@ -36,9 +67,6 @@ const EMPTY_FORM: ContentForm = {
 const PREDEFINED_SLUGS = ['faq', 'terms', 'privacy', 'help', 'about', 'contact'];
 
 export default function ContentManagementPage() {
-  const t = useTranslations('Content');
-  const tCommon = useTranslations('Common');
-
   const [pages, setPages] = useState<ContentPage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -127,10 +155,10 @@ export default function ContentManagementPage() {
       }
 
       setShowModal(false);
-      showFeedback('success', t('saved'));
+      showFeedback('success', map["Content.saved"]);
       fetchPages();
     } catch {
-      showFeedback('error', t('error'));
+      showFeedback('error', map["Content.error"]);
     } finally {
       setIsSaving(false);
     }
@@ -142,10 +170,10 @@ export default function ContentManagementPage() {
     try {
       await apiFetch(`/v1/admin/content/${deletingId}`, { method: 'DELETE' });
       setDeletingId(null);
-      showFeedback('success', t('deleted'));
+      showFeedback('success', map["Content.deleted"]);
       fetchPages();
     } catch {
-      showFeedback('error', t('error'));
+      showFeedback('error', map["Content.error"]);
     } finally {
       setIsDeleting(false);
     }
@@ -166,12 +194,12 @@ export default function ContentManagementPage() {
       )}
 
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+        <h1 className="text-2xl font-bold text-foreground">{map["Content.title"]}</h1>
         <button
           onClick={openCreate}
           className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
         >
-          {t('create')}
+          {map["Content.create"]}
         </button>
       </div>
 
@@ -180,25 +208,25 @@ export default function ContentManagementPage() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted">
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('slug')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('titleLabel')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('status')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('sortOrder')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('updatedAt')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{tCommon('actions')}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{map["Content.slug"]}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{map["Content.titleLabel"]}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{map["Content.status"]}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{map["Content.sortOrder"]}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{map["Content.updatedAt"]}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{map["Common.actions"]}</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                  {tCommon('loading')}
+                  {map["Common.loading"]}
                 </td>
               </tr>
             ) : pages.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                  {t('noContent')}
+                  {map["Content.noContent"]}
                 </td>
               </tr>
             ) : (
@@ -214,7 +242,7 @@ export default function ContentManagementPage() {
                         ? 'bg-success/10 text-success'
                         : 'bg-gray-100 text-gray-700'
                     }`}>
-                      {pg.status === 'PUBLISHED' ? t('published') : t('draft')}
+                      {pg.status === 'PUBLISHED' ? map["Content.published"] : map["Content.draft"]}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">{pg.sortOrder}</td>
@@ -227,19 +255,19 @@ export default function ContentManagementPage() {
                         onClick={() => setPreviewPage(pg)}
                         className="px-2.5 py-1 text-xs font-medium bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
                       >
-                        {t('preview')}
+                        {map["Content.preview"]}
                       </button>
                       <button
                         onClick={() => openEdit(pg)}
                         className="px-2.5 py-1 text-xs font-medium bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors"
                       >
-                        {tCommon('edit')}
+                        {map["Common.edit"]}
                       </button>
                       <button
                         onClick={() => setDeletingId(pg.id)}
                         className="px-2.5 py-1 text-xs font-medium bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors"
                       >
-                        {tCommon('delete')}
+                        {map["Common.delete"]}
                       </button>
                     </div>
                   </td>
@@ -257,13 +285,13 @@ export default function ContentManagementPage() {
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <h3 className="text-lg font-semibold text-foreground mb-4">
-                {editingId ? t('editPage') : t('create')}
+                {editingId ? map["Content.editPage"] : map["Content.create"]}
               </h3>
 
               <div className="space-y-4">
                 {/* Slug */}
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">{t('slug')}</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">{map["Content.slug"]}</label>
                   <div className="flex gap-2">
                     <select
                       value={useCustomSlug ? 'custom' : form.slug}
@@ -280,7 +308,7 @@ export default function ContentManagementPage() {
                       {PREDEFINED_SLUGS.map((s) => (
                         <option key={s} value={s}>{s}</option>
                       ))}
-                      <option value="custom">{t('customSlug')}</option>
+                      <option value="custom">{map["Content.customSlug"]}</option>
                     </select>
                   </div>
                   {useCustomSlug && (
@@ -288,14 +316,14 @@ export default function ContentManagementPage() {
                       type="text"
                       value={form.customSlug}
                       onChange={(e) => setForm({ ...form, customSlug: e.target.value })}
-                      placeholder={t('customSlugPlaceholder')}
+                      placeholder={map["Content.customSlugPlaceholder"]}
                       className="w-full mt-2 px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                     />
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">{t('titleLabel')}</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">{map["Content.titleLabel"]}</label>
                   <input
                     type="text"
                     value={form.title}
@@ -305,7 +333,7 @@ export default function ContentManagementPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1">{t('content')}</label>
+                  <label className="block text-sm font-medium text-foreground mb-1">{map["Content.content"]}</label>
                   <textarea
                     value={form.content}
                     onChange={(e) => setForm({ ...form, content: e.target.value })}
@@ -316,18 +344,18 @@ export default function ContentManagementPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('status')}</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">{map["Content.status"]}</label>
                     <select
                       value={form.status}
                       onChange={(e) => setForm({ ...form, status: e.target.value })}
                       className="w-full px-3 py-2 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                     >
-                      <option value="DRAFT">{t('draft')}</option>
-                      <option value="PUBLISHED">{t('published')}</option>
+                      <option value="DRAFT">{map["Content.draft"]}</option>
+                      <option value="PUBLISHED">{map["Content.published"]}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">{t('sortOrder')}</label>
+                    <label className="block text-sm font-medium text-foreground mb-1">{map["Content.sortOrder"]}</label>
                     <input
                       type="number"
                       value={form.sortOrder}
@@ -343,14 +371,14 @@ export default function ContentManagementPage() {
                   onClick={() => setShowModal(false)}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  {map["Common.cancel"]}
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={isSaving || !form.title}
                   className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSaving ? tCommon('loading') : tCommon('save')}
+                  {isSaving ? map["Common.loading"] : map["Common.save"]}
                 </button>
               </div>
             </div>
@@ -365,12 +393,12 @@ export default function ContentManagementPage() {
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-foreground">{t('preview')}</h3>
+                <h3 className="text-lg font-semibold text-foreground">{map["Content.preview"]}</h3>
                 <button
                   onClick={() => setPreviewPage(null)}
                   className="text-muted-foreground hover:text-foreground"
                 >
-                  {tCommon('close')}
+                  {map["Common.close"]}
                 </button>
               </div>
               <div className="mb-2">
@@ -380,7 +408,7 @@ export default function ContentManagementPage() {
               </div>
               <h4 className="text-xl font-bold text-foreground mb-4">{previewPage.title}</h4>
               <div className="prose prose-sm max-w-none text-foreground whitespace-pre-wrap">
-                {previewPage.content || t('noContentYet')}
+                {previewPage.content || map["Content.noContentYet"]}
               </div>
             </div>
           </div>
@@ -393,21 +421,21 @@ export default function ContentManagementPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setDeletingId(null)} />
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-sm mx-4">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-2">{t('deleteTitle')}</h3>
-              <p className="text-sm text-muted-foreground mb-4">{t('deleteConfirm')}</p>
+              <h3 className="text-lg font-semibold text-foreground mb-2">{map["Content.deleteTitle"]}</h3>
+              <p className="text-sm text-muted-foreground mb-4">{map["Content.deleteConfirm"]}</p>
               <div className="flex justify-end gap-3">
                 <button
                   onClick={() => setDeletingId(null)}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  {map["Common.cancel"]}
                 </button>
                 <button
                   onClick={handleDelete}
                   disabled={isDeleting}
                   className="px-4 py-2 text-sm font-medium text-white bg-destructive rounded-lg hover:bg-destructive/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isDeleting ? tCommon('loading') : tCommon('confirm')}
+                  {isDeleting ? map["Common.loading"] : map["Common.confirm"]}
                 </button>
               </div>
             </div>

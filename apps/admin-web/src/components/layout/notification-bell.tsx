@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
 
@@ -35,7 +34,6 @@ function timeAgoFr(iso: string): string {
 }
 
 export function NotificationBell() {
-  const t = useTranslations('Notifications');
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
   const [items, setItems] = useState<AdminNotification[]>([]);
@@ -113,7 +111,7 @@ export function NotificationBell() {
       <button
         type="button"
         onClick={toggle}
-        aria-label={t('aria')}
+        aria-label="Notifications"
         className="relative flex items-center justify-center w-9 h-9 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
       >
         <span className="text-lg">🔔</span>
@@ -127,25 +125,25 @@ export function NotificationBell() {
       {open && (
         <div className="absolute left-full top-0 ml-2 w-80 max-h-[28rem] overflow-y-auto bg-white text-foreground rounded-xl border border-border shadow-lg z-50">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border sticky top-0 bg-white">
-            <p className="text-sm font-semibold">{t('title')}</p>
+            <p className="text-sm font-semibold">Notifications</p>
             {unread > 0 && (
               <button
                 type="button"
                 onClick={markAllRead}
                 className="text-xs text-primary hover:underline"
               >
-                {t('markAllRead')}
+                Tout marquer comme lu
               </button>
             )}
           </div>
 
           {loading ? (
             <p className="px-4 py-6 text-sm text-muted-foreground text-center">
-              {t('loading')}
+              Chargement...
             </p>
           ) : items.length === 0 ? (
             <p className="px-4 py-6 text-sm text-muted-foreground text-center">
-              {t('empty')}
+              Aucune notification
             </p>
           ) : (
             <ul>

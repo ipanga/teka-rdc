@@ -8,16 +8,20 @@
 
 **Localization removal sweep** (started 2026-06-23) — finish removing the localization machinery platform-wide
 (French-only). Buyer-mobile already done (shipped #424/#426).
-- **seller-mobile l10n removal** — ✅ CODE DONE on branch `chore/seller-mobile-remove-l10n`, PENDING PR.
-  Mirror of buyer-mobile: ~369 `l10n.*` across 25 feature files inlined as French literals (parameterized
-  keys incl. two-arg `imagesCount` → interpolation); deleted `lib/l10n/` + `locale_provider.dart` + `l10n.yaml`;
-  dropped `generate: true` + the `AppLocalizations` delegate (framework `GlobalMaterialLocalizations` stays
-  `fr`). CI gen-l10n step already guards on `l10n.yaml` (no CI change). CLAUDE.md Rule 1 updated. **analyze 0
-  errors, 3 tests green.**
-- **web next-intl removal (NEXT)** — inline `apps/*/messages/fr.json` strings as French literals across
-  buyer/seller/admin-web; remove next-intl (`useTranslations`/`getTranslations`/`NextIntlClientProvider`/
-  `i18n/request.ts`). LARGE (~1,550 `t()` call sites / ~103 files) + SSR/SEO-sensitive → do **app-by-app**,
-  lowest-risk first: **admin-web** (no SEO) → seller-web → buyer-web (most SEO-critical, most care). Not started.
+- **seller-mobile l10n removal** — ✅ MERGED to `develop` (#427). Mirror of buyer-mobile: ~369 `l10n.*` across
+  25 feature files → French literals; deleted `lib/l10n/` + `locale_provider.dart` + `l10n.yaml`; dropped
+  `generate: true` + the delegate. analyze 0 errors, 3 tests.
+- **web next-intl removal — app-by-app** (LARGE: ~1,550 `t()` sites / ~103 files; SSR/SEO-sensitive). Inline
+  `messages/fr.json` as French literals; remove next-intl (`useTranslations`, `NextIntlClientProvider`,
+  `i18n/request.ts`, the `createNextIntlPlugin` wrapper, the dep). Order: admin-web (no SEO) → seller-web →
+  buyer-web (most SEO-critical).
+  - **admin-web** — ✅ CODE DONE on branch `chore/web-remove-next-intl-admin`, PENDING PR. All 34 client
+    components/pages converted (730 `t()` calls; ICU plurals → ternaries; dynamic `t(MAP[x])` → French-valued
+    maps); removed the provider from `layout.tsx`, the plugin from `next.config.ts`, deleted `src/i18n/` +
+    `messages/fr.json`, dropped the dep (lockfile updated). **tsc clean; `next build` succeeds (30/30 static
+    pages).** admin-web is all-client (no `getTranslations`/SSR-translated metadata) → lowest risk.
+  - **seller-web** — NEXT (not started). **buyer-web** — LAST, extra care (SEO/SSR; check for server-side
+    `getTranslations`/metadata before converting).
 
 **Operator step (not code):** run "Release mobile AAB" + upload to Play Store so the buyer-mobile redesign
 (Steps 1–3) reaches real devices — `docs/mobile-release.md`.

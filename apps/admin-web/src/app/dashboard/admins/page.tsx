@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import { apiFetch } from '@/lib/api-client';
 
 interface User {
@@ -25,8 +24,13 @@ interface PaginatedResponse {
   };
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  ACTIVE: "Actif",
+  SUSPENDED: "Suspendu",
+  BANNED: "Banni",
+};
+
 export default function AdminsPage() {
-  const t = useTranslations('Admins');
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -70,8 +74,8 @@ export default function AdminsPage() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{t('subtitle')}</p>
+        <h1 className="text-2xl font-bold text-foreground">Administrateurs</h1>
+        <p className="text-sm text-muted-foreground mt-1">Comptes administrateurs de la plateforme</p>
       </div>
 
       <form onSubmit={handleSearch} className="mb-6">
@@ -80,14 +84,14 @@ export default function AdminsPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('searchPlaceholder')}
+            placeholder="Rechercher par nom ou email..."
             className="flex-1 max-w-md px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
           <button
             type="submit"
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
           >
-            {t('search')}
+            Rechercher
           </button>
         </div>
       </form>
@@ -96,19 +100,19 @@ export default function AdminsPage() {
         <table className="w-full">
           <thead>
             <tr className="border-b border-border bg-muted">
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('name')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('email')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('phone')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('status')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('createdAt')}</th>
-              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">{t('lastLogin')}</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Nom</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Email</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Téléphone</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Statut</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Date d&apos;inscription</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Dernière connexion</th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">{t('loading')}</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Chargement...</td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">{t('noUsers')}</td></tr>
+              <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">Aucun administrateur trouvé</td></tr>
             ) : (
               users.map((user) => (
                 <tr key={user.id} className="border-b border-border last:border-0 hover:bg-muted/50">
@@ -119,14 +123,14 @@ export default function AdminsPage() {
                   <td className="px-4 py-3 text-sm text-foreground">{user.phone ?? '—'}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${statusBadgeClass(user.status)}`}>
-                      {t(`status_${user.status}` as 'status_ACTIVE')}
+                      {STATUS_LABELS[user.status] ?? user.status}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">
                     {new Date(user.createdAt).toLocaleDateString('fr-CD')}
                   </td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">
-                    {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString('fr-CD') : t('never')}
+                    {user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString('fr-CD') : "Jamais"}
                   </td>
                 </tr>
               ))
@@ -142,7 +146,7 @@ export default function AdminsPage() {
             disabled={page <= 1}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {t('previous')}
+            Précédent
           </button>
           <span className="text-sm text-muted-foreground">{page} / {totalPages}</span>
           <button
@@ -150,7 +154,7 @@ export default function AdminsPage() {
             disabled={page >= totalPages}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {t('next')}
+            Suivant
           </button>
         </div>
       )}

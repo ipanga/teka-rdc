@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
 
@@ -47,9 +46,6 @@ interface PaginatedResponse {
 type StatusFilter = '' | 'PENDING_REVIEW' | 'ACTIVE' | 'REJECTED' | 'ARCHIVED' | 'DRAFT';
 
 export default function ProductModerationPage() {
-  const t = useTranslations('Moderation');
-  const tCommon = useTranslations('Common');
-
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -107,7 +103,7 @@ export default function ProductModerationPage() {
   const handleApprove = async (productId: string) => {
     try {
       await apiFetch(`/v1/admin/products/${productId}/approve`, { method: 'PATCH' });
-      showFeedback('success', t('approved'));
+      showFeedback('success', "Produit approuvé avec succès");
       fetchProducts();
     } catch {
       showFeedback('error', 'Erreur');
@@ -123,7 +119,7 @@ export default function ProductModerationPage() {
         method: 'PATCH',
         body: JSON.stringify({ rejectionReason: rejectionReason.trim() }),
       });
-      showFeedback('success', t('rejected'));
+      showFeedback('success', "Produit rejeté");
       setRejectingId(null);
       setRejectionReason('');
       fetchProducts();
@@ -175,19 +171,19 @@ export default function ProductModerationPage() {
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t('pendingProducts')}</p>
+          <h1 className="text-2xl font-bold text-foreground">Produits</h1>
+          <p className="text-sm text-muted-foreground mt-1">Gérez le catalogue produits de la plateforme</p>
         </div>
       </div>
 
       <div className="flex gap-2 mb-6 flex-wrap">
         {([
-          { value: '', label: t('filterAll') },
-          { value: 'PENDING_REVIEW', label: t('filterPending') },
-          { value: 'ACTIVE', label: t('filterActive') },
-          { value: 'REJECTED', label: t('filterRejected') },
-          { value: 'ARCHIVED', label: t('filterArchived') },
-          { value: 'DRAFT', label: t('filterDraft') },
+          { value: '', label: "Tous" },
+          { value: 'PENDING_REVIEW', label: "En attente" },
+          { value: 'ACTIVE', label: "Actifs" },
+          { value: 'REJECTED', label: "Rejetés" },
+          { value: 'ARCHIVED', label: "Archivés" },
+          { value: 'DRAFT', label: "Brouillons" },
         ] as { value: StatusFilter; label: string }[]).map((tab) => (
           <button
             key={tab.value}
@@ -211,25 +207,25 @@ export default function ProductModerationPage() {
           <thead>
             <tr className="border-b border-border bg-muted">
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('thumbnail')}
+                Image
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('product')}
+                Produit
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('seller')}
+                Vendeur
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('price')}
+                Prix
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('date')}
+                Date de soumission
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('status')}
+                Statut
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                {t('actions')}
+                Actions
               </th>
             </tr>
           </thead>
@@ -237,13 +233,13 @@ export default function ProductModerationPage() {
             {isLoading ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                  {t('loading')}
+                  Chargement...
                 </td>
               </tr>
             ) : products.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                  {t('noProducts')}
+                  Aucun produit trouvé
                 </td>
               </tr>
             ) : (
@@ -298,14 +294,14 @@ export default function ProductModerationPage() {
                               : 'bg-secondary text-secondary-foreground'
                       }`}>
                         {product.status === 'ACTIVE'
-                          ? t('status_active')
+                          ? "Actif"
                           : product.status === 'REJECTED'
-                            ? t('status_rejected')
+                            ? "Rejeté"
                             : product.status === 'PENDING_REVIEW'
-                              ? t('status_pending')
+                              ? "En attente"
                               : product.status === 'ARCHIVED'
-                                ? t('status_archived')
-                                : t('status_draft')}
+                                ? "Archivé"
+                                : "Brouillon"}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -314,7 +310,7 @@ export default function ProductModerationPage() {
                           href={`/dashboard/products/${product.id}`}
                           className="px-2.5 py-1 text-xs font-medium bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
                         >
-                          {t('view')}
+                          Voir
                         </Link>
                         {product.status === 'PENDING_REVIEW' && (
                           <>
@@ -322,7 +318,7 @@ export default function ProductModerationPage() {
                               onClick={() => handleApprove(product.id)}
                               className="px-2.5 py-1 text-xs font-medium bg-success/10 text-success rounded-lg hover:bg-success/20 transition-colors"
                             >
-                              {t('approve')}
+                              Approuver
                             </button>
                             <button
                               onClick={() => {
@@ -331,7 +327,7 @@ export default function ProductModerationPage() {
                               }}
                               className="px-2.5 py-1 text-xs font-medium bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors"
                             >
-                              {t('reject')}
+                              Rejeter
                             </button>
                           </>
                         )}
@@ -353,7 +349,7 @@ export default function ProductModerationPage() {
             disabled={page <= 1}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {t('previous')}
+            Précédent
           </button>
           <span className="text-sm text-muted-foreground">
             {page} / {totalPages}
@@ -363,7 +359,7 @@ export default function ProductModerationPage() {
             disabled={page >= totalPages}
             className="px-3 py-1.5 text-sm border border-border rounded-lg hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {t('next')}
+            Suivant
           </button>
         </div>
       )}
@@ -374,16 +370,16 @@ export default function ProductModerationPage() {
           <div className="fixed inset-0 bg-black/50" onClick={() => setRejectingId(null)} />
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-md mx-4">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">{t('reject')}</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-4">Rejeter</h3>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  {t('rejectionReason')} <span className="text-destructive">*</span>
+                  Motif du rejet <span className="text-destructive">*</span>
                 </label>
                 <textarea
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
                   rows={4}
-                  placeholder={t('rejectionPlaceholder')}
+                  placeholder="Décrivez le motif du rejet (minimum 5 caractères)..."
                   className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                 />
                 {rejectionReason.trim().length > 0 && rejectionReason.trim().length < 5 && (
@@ -398,14 +394,14 @@ export default function ProductModerationPage() {
                   }}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
-                  {tCommon('cancel')}
+                  Annuler
                 </button>
                 <button
                   onClick={handleReject}
                   disabled={isSubmitting || rejectionReason.trim().length < 5}
                   className="px-4 py-2 text-sm font-medium text-primary-foreground bg-destructive rounded-lg hover:bg-destructive/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? '...' : t('reject')}
+                  {isSubmitting ? '...' : "Rejeter"}
                 </button>
               </div>
             </div>
