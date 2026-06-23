@@ -64,7 +64,8 @@ If you see `Push notifications disabled — neither GOOGLE_APPLICATION_CREDENTIA
 |---|---|---|
 | `apps/buyer-mobile/android/app/google-services.json` | Buyer Android Firebase client config | gitignored, decoded from `BUYER_GOOGLE_SERVICES_JSON_B64` secret |
 | `apps/seller-mobile/android/app/google-services.json` | Seller Android Firebase client config | gitignored, decoded from `SELLER_GOOGLE_SERVICES_JSON_B64` secret |
-| `apps/{buyer,seller}-mobile/ios/Runner/GoogleService-Info.plist` | iOS Firebase client config | gitignored (iOS scaffold pending — PR C) |
+| `apps/buyer-mobile/ios/Runner/GoogleService-Info.plist` | iOS Firebase client config (prod, `com.tootiye.teka`) | gitignored; landed 2026-06-23, restored from `BUYER_GOOGLE_SERVICE_INFO_PLIST_B64` |
+| `apps/seller-mobile/ios/Runner/GoogleService-Info.plist` | iOS Firebase client config | gitignored (seller iOS scaffold still pending) |
 | `AuthKey_XXXXXXXXXX.p8` | APNs auth key | gitignored. Uploaded once to Firebase Console → Cloud Messaging → Apple app config. Not consumed by app code. |
 | Firebase Admin SDK JSON | Backend auth | NOT used directly anymore; discrete env trio replaces it in prod. The JSON file at `~/Desktop/teka-rdc/buyer/teka-rdc-firebase-adminsdk-*.json` is what you'd download from Firebase Console → Service accounts → Generate new private key if you need to rotate. |
 
@@ -155,7 +156,28 @@ Same steps, log in via email + password instead of WhatsApp OTP. The `role` colu
 
 ### iOS
 
-Pending PR C.
+**buyer-mobile — config landed 2026-06-23 (not yet shipping).** The iOS scaffold exists under
+`apps/buyer-mobile/ios/` (untracked) and the **prod** `GoogleService-Info.plist` (Firebase iOS app
+`com.tootiye.teka`, project `teka-rdc`) is in place at `ios/Runner/GoogleService-Info.plist` (gitignored;
+restore in CI/fresh checkouts from the `BUYER_GOOGLE_SERVICE_INFO_PLIST_B64` secret via
+`scripts/sync-firebase-secrets.sh`). The iOS bundle id was aligned `com.tootiye.buyerMobile → com.tootiye.teka`
+to match, and `Info.plist` declares `UIBackgroundModes: [remote-notification]`. The Dart FCM stack
+(permission, token registration, foreground/background/tap, `NotificationRouter`) is shared with Android —
+no native code changes needed.
+
+**Remaining before iOS push works (operator / Xcode / Apple — not automatable here):**
+1. **APNs auth key** — upload a `.p8` APNs key to Firebase Console → project `teka-rdc` → Cloud Messaging →
+   Apple app config. **This is the delivery gate** — FCM cannot reach iOS without it.
+2. **Xcode capabilities** on the Runner target — add **Push Notifications** (creates `Runner.entitlements`
+   with `aps-environment`) and confirm **Background Modes → Remote notifications**; ensure
+   `GoogleService-Info.plist` is in the target's *Copy Bundle Resources*.
+3. `cd ios && pod install`, sign with a provisioning profile for `com.tootiye.teka`, test on a **real device
+   / TestFlight** (the simulator can't receive remote push).
+4. iOS flavors + CI are still out of scope (Android-only today). The `ios/` tree is untracked — committing it
+   is the remaining "PR C" decision. (`CFBundleDisplayName` is still the scaffold default "Buyer Mobile" —
+   rebrand separately if desired; not a push blocker.)
+
+**seller-mobile — still pending its `ios/` scaffold** (no iOS directory yet).
 
 ## Wired events
 
@@ -180,6 +202,7 @@ The set of events that fire a push today:
 | `order-details` | `orderId` | `/orders/$orderId` | `/orders/$orderId` |
 | `product-details` | `productId` | `/products/$productId` | `/products/$productId` |
 | `product-reviews` | `productId` | `/products/$productId/reviews` | `/reviews` *(flat list — productId dropped; seller dashboard's reviews page filters)* |
+| `notifications` | — | `/notifications` *(Notification Center; generic admin broadcast)* | *(n/a — seller broadcasts unchanged)* |
 
 Tap sources handled:
 
@@ -195,6 +218,6 @@ Unknown `screen` values (or missing required IDs) are silently ignored — the n
 
 ## Future work
 
-- **PR C** — iOS scaffold. `flutter create --platforms=ios . --org com.tootiye` per app, drop the gitignored GoogleService-Info.plist, enable Push Notifications + Background Modes capability in Runner.xcodeproj. APNs `.p8` already uploaded.
+- **PR C** — iOS scaffold. **buyer-mobile: config landed 2026-06-23** (`ios/` scaffold + prod GoogleService-Info.plist for `com.tootiye.teka` + `UIBackgroundModes`; bundle id aligned). Remaining = upload APNs `.p8` to Firebase, enable Push Notifications + Background Modes in Xcode, `pod install`, sign, real-device test, and commit the `ios/` tree (see the **iOS** section above). **seller-mobile** still needs `flutter create --platforms=ios . --org com.tootiye` + its own GoogleService-Info.plist.
 - **PR E full** — Tap-navigation: extend `PushController` to listen to `getInitialMessage` + `onMessageOpenedApp`, push the `data.screen` value into `go_router`. Plus stock-alert notifications once the schema gains a low-stock threshold.
 - **Web push** — Documented as future work, not currently planned. Buyer + seller web Firebase configs (for `teka.cd` and `seller.teka.cd`) are noted in the operator's docs but unused. Adding requires Firebase Web SDK + service worker + browser permission UI; trade-off vs marketing value is unclear for a DRC-targeted marketplace where mobile is the primary surface.

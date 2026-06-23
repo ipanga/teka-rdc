@@ -10,10 +10,12 @@
 #   BUYER_GOOGLE_SERVICES_JSON_B64   — base64 of buyer-mobile/android/app/google-services.json
 #   SELLER_GOOGLE_SERVICES_JSON_B64  — base64 of seller-mobile/android/app/google-services.json
 #
-# Future inputs once iOS scaffold lands (PR C):
-#   BUYER_GOOGLE_SERVICE_INFO_PLIST_B64
-#   SELLER_GOOGLE_SERVICE_INFO_PLIST_B64
-#   APNS_AUTH_KEY_P8_B64
+# iOS (buyer wired 2026-06-23; seller pending its ios/ scaffold):
+#   BUYER_GOOGLE_SERVICE_INFO_PLIST_B64  — base64 of buyer-mobile/ios/Runner/GoogleService-Info.plist
+#   SELLER_GOOGLE_SERVICE_INFO_PLIST_B64 — base64 of seller-mobile/ios/Runner/GoogleService-Info.plist
+#   APNS_AUTH_KEY_P8_B64                 — base64 of the Apple APNs .p8 auth key. NOTE: FCM→APNs delivery
+#                                          uses the copy uploaded to the Firebase console — this decode is
+#                                          only for a build/CI step that needs the .p8 on disk.
 #
 # Backend FCM auth is handled separately via the discrete
 # `FIREBASE_PROJECT_ID` / `FIREBASE_PRIVATE_KEY` / `FIREBASE_CLIENT_EMAIL`
@@ -57,10 +59,17 @@ decode_to BUYER_GOOGLE_SERVICES_JSON_B64 \
 decode_to SELLER_GOOGLE_SERVICES_JSON_B64 \
   "$repo_root/apps/seller-mobile/android/app/google-services.json"
 
-# iOS placements are commented out until PR C lands the ios/ folders.
-# decode_to BUYER_GOOGLE_SERVICE_INFO_PLIST_B64 \
-#   "$repo_root/apps/buyer-mobile/ios/Runner/GoogleService-Info.plist"
+# iOS — buyer-mobile is wired (ios/ scaffold present, prod GoogleService-Info.plist
+# for com.tootiye.teka). The decode is a no-op until the secret is set, so it's
+# safe to leave active.
+decode_to BUYER_GOOGLE_SERVICE_INFO_PLIST_B64 \
+  "$repo_root/apps/buyer-mobile/ios/Runner/GoogleService-Info.plist"
+
+# seller-mobile has no ios/ folder yet — keep commented until its scaffold lands.
 # decode_to SELLER_GOOGLE_SERVICE_INFO_PLIST_B64 \
 #   "$repo_root/apps/seller-mobile/ios/Runner/GoogleService-Info.plist"
+
+# The APNs .p8 lives in the Firebase console for delivery; decode locally only
+# if a build/CI step needs the file on disk.
 # decode_to APNS_AUTH_KEY_P8_B64 \
 #   "$repo_root/secrets/AuthKey.p8"
