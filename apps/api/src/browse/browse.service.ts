@@ -670,13 +670,14 @@ export class BrowseService {
   async searchSuggestions(q: string, cityId?: string) {
     const term = q.trim();
     if (term.length < 2) {
-      return { products: [], categories: [] };
+      return { products: [], categories: [], brands: [] };
     }
 
+    const synTerms = this.expandSynonyms(term, await this.getSynonymGroups());
     const conds: Prisma.Sql[] = [
       Prisma.sql`p."status" = 'ACTIVE'`,
       Prisma.sql`p."deletedAt" IS NULL`,
-      Prisma.sql`(p."search_vector" @@ websearch_to_tsquery('french', public.f_unaccent(${term})) OR public.f_unaccent(${term}) <% public.f_unaccent(p."title"))`,
+      this.buildSearchMatch(term, synTerms),
     ];
     if (cityId) {
       conds.push(Prisma.sql`p."cityId"::text = ${cityId}`);
@@ -733,7 +734,8 @@ export class BrowseService {
         thumbnailUrl: p.images[0]?.thumbnailUrl ?? null,
       }));
 
-    // Accent-insensitive category match ("telephone" → "Téléphones").
+    // Accent-insensitive category match ("telephone" → "Téléphones"). Covers all
+    // 3 levels incl. product types (they are category nodes).
     const categories = await this.prisma.$queryRaw<
       { id: string; name: string; slug: string | null }[]
     >(Prisma.sql`
@@ -746,7 +748,56 @@ export class BrowseService {
       LIMIT 5
     `);
 
-    return { products, categories };
+    // Accent-insensitive brand match ("samsng" → Samsung via trigram, "lux" → substring).
+    const brands = await this.prisma.$queryRaw<
+      { id: string; name: string; slug: string | null }[]
+    >(Prisma.sql`
+      SELECT b."id", b."name", b."slug"
+      FROM "brands" b
+      WHERE b."isActive" = true
+        AND b."deletedAt" IS NULL
+        AND (public.f_unaccent(b."name") ILIKE '%' || public.f_unaccent(${term}) || '%'
+             OR public.f_unaccent(${term}) <% public.f_unaccent(b."name"))
+      ORDER BY public.f_unaccent(b."name") ILIKE public.f_unaccent(${term}) || '%' DESC,
+               b."name" ASC
+      LIMIT 5
+    `);
+
+    return { products, categories, brands };
+  }
+
+  /**
+   * Popular searches (for the empty/focused autocomplete state): the most
+   * frequent non-zero-result terms over the last 7 days, optionally city-scoped.
+   * Reads from the SearchQuery log (Phase 2).
+   */
+  async getPopularSearches(cityId?: string, limit = 8) {
+    const take = Math.min(Math.max(limit, 1), 20);
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    try {
+      const rows = await this.prisma.searchQuery.groupBy({
+        by: ['termNormalized'],
+        where: {
+          createdAt: { gte: since },
+          resultCount: { gt: 0 },
+          ...(cityId ? { cityId } : {}),
+          // Skip 1-char noise.
+          termNormalized: { not: '' },
+        },
+        _count: { termNormalized: true },
+        _max: { term: true },
+        orderBy: { _count: { termNormalized: 'desc' } },
+        take,
+      });
+      return rows
+        .filter((r) => r.termNormalized.length >= 2)
+        .map((r) => ({
+          term: r._max.term ?? r.termNormalized,
+          count: r._count.termNormalized,
+        }));
+    } catch {
+      return [];
+    }
   }
 
   /**

@@ -44,6 +44,16 @@ export class BrowseController {
     return this.browseService.searchSuggestions(q ?? '', cityId);
   }
 
+  /**
+   * Popular searches for the empty/focused autocomplete state — top non-zero
+   * terms over the last 7 days, optionally city-scoped.
+   */
+  @Get('search/popular')
+  @Public()
+  getPopularSearches(@Query('cityId') cityId?: string) {
+    return this.browseService.getPopularSearches(cityId);
+  }
+
   @Get('products/:identifier')
   @Public()
   getProductDetail(@Param('identifier') identifier: string) {
