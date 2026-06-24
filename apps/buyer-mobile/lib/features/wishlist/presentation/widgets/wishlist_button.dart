@@ -13,12 +13,20 @@ class WishlistButton extends ConsumerWidget {
   final Color? activeColor;
   final Color? inactiveColor;
 
+  /// Optional tight padding/constraints so the button can sit inside a compact
+  /// chip (e.g. the product-card heart) without the IconButton's default 48dp
+  /// touch target bloating its container.
+  final EdgeInsetsGeometry? padding;
+  final BoxConstraints? constraints;
+
   const WishlistButton({
     super.key,
     required this.productId,
     this.size = 24,
     this.activeColor,
     this.inactiveColor,
+    this.padding,
+    this.constraints,
   });
 
   @override
@@ -32,6 +40,10 @@ class WishlistButton extends ConsumerWidget {
         authed && ref.watch(wishlistProvider).wishlistedIds.contains(productId);
 
     return IconButton(
+      padding: padding,
+      constraints: constraints,
+      visualDensity:
+          constraints != null ? VisualDensity.compact : null,
       icon: Icon(
         isWishlisted ? Icons.favorite : Icons.favorite_border,
         size: size,
