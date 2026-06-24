@@ -10,7 +10,7 @@ import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductQueryDto } from './dto/product-query.dto';
-import { ProductCondition, ProductStatus } from '@prisma/client';
+import { ProductCondition, ProductStatus, Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import {
   generateProductSlug,
@@ -193,6 +193,15 @@ export class ProductsService {
       },
     });
 
+    await this.logStatus(
+      product.id,
+      null,
+      ProductStatus.DRAFT,
+      sellerId,
+      'SELLER',
+      'Créé',
+    );
+
     // Server-owned seller event (created in DRAFT). distinctId = seller.
     this.analytics.capture(sellerId, 'product_created', {
       productId: product.id,
@@ -211,10 +220,19 @@ export class ProductsService {
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
-    const where = {
+    const search = query.search?.trim();
+    const where: Prisma.ProductWhereInput = {
       sellerId,
       deletedAt: null,
       ...(query.status && { status: query.status as ProductStatus }),
+      ...(search && {
+        OR: [
+          { title: { contains: search, mode: 'insensitive' as const } },
+          { shortCode: { equals: search, mode: 'insensitive' as const } },
+          // Match a pasted full UUID exactly (ignored otherwise).
+          ...(/^[0-9a-f-]{36}$/i.test(search) ? [{ id: search }] : []),
+        ],
+      }),
     };
 
     const [data, total] = await Promise.all([
@@ -294,24 +312,34 @@ export class ProductsService {
       throw new NotFoundException('Produit non trouvé');
     }
 
-    const isDraftOrRejected =
-      product.status === ProductStatus.DRAFT ||
-      product.status === ProductStatus.REJECTED;
-
-    if (!isDraftOrRejected) {
-      // Reject any non-pricing/stock field on a live product.
-      const submitted = Object.entries(dto)
-        .filter(([, v]) => v !== undefined)
-        .map(([k]) => k);
-      const disallowed = submitted.filter(
-        (k) => !ProductsService.LIVE_EDITABLE_FIELDS.has(k),
+    // ARCHIVED / SUSPENDED products can't be edited in place — the seller must
+    // restore an archive first, and only an admin can lift a suspension.
+    if (
+      product.status === ProductStatus.ARCHIVED ||
+      product.status === ProductStatus.SUSPENDED
+    ) {
+      throw new BadRequestException(
+        product.status === ProductStatus.SUSPENDED
+          ? 'Ce produit a été suspendu par un administrateur et ne peut pas être modifié.'
+          : 'Restaurez ce produit avant de le modifier.',
       );
-      if (disallowed.length > 0) {
-        throw new BadRequestException(
-          'Sur un produit publié, seuls le prix, le prix promotionnel et le stock peuvent être modifiés.',
-        );
-      }
     }
+
+    // Which fields changed? Content fields (title/description/category/brand/
+    // condition/specifications) are everything outside LIVE_EDITABLE_FIELDS.
+    const changedFields = Object.entries(dto)
+      .filter(([, v]) => v !== undefined)
+      .map(([k]) => k);
+    const contentChanged = changedFields.some(
+      (k) => !ProductsService.LIVE_EDITABLE_FIELDS.has(k),
+    );
+
+    // Re-review: a content edit to a PUBLISHED (ACTIVE) product sends it back to
+    // moderation (PENDING_REVIEW). Price/discount/stock stay instant. A REJECTED
+    // product's edit resets it to DRAFT (handled below). DRAFT/PENDING edits
+    // don't change status.
+    const reReview =
+      product.status === ProductStatus.ACTIVE && contentChanged;
 
     // Validate category if changing
     if (dto.categoryId && dto.categoryId !== product.categoryId) {
@@ -404,6 +432,8 @@ export class ProductsService {
             status: ProductStatus.DRAFT,
             rejectionReason: null,
           }),
+          // Content edit to a live product → back to moderation.
+          ...(reReview && { status: ProductStatus.PENDING_REVIEW }),
           // Create new specifications if provided
           ...(dto.specifications?.length && {
             specifications: {
@@ -424,12 +454,192 @@ export class ProductsService {
       });
     });
 
+    // Audit + notify on any status transition triggered by this edit.
+    if (reReview) {
+      await this.logStatus(
+        productId,
+        ProductStatus.ACTIVE,
+        ProductStatus.PENDING_REVIEW,
+        sellerId,
+        'SELLER',
+        'Modification du contenu — nouvelle revue requise',
+      );
+      void this.adminNotifications.create({
+        type: 'PRODUCT_SUBMITTED',
+        title: 'Produit modifié à revalider',
+        body: `« ${updatedProduct.title} » a été modifié et attend une nouvelle validation.`,
+        entityType: 'product',
+        entityId: updatedProduct.id,
+      });
+    } else if (product.status === ProductStatus.REJECTED) {
+      await this.logStatus(
+        productId,
+        ProductStatus.REJECTED,
+        ProductStatus.DRAFT,
+        sellerId,
+        'SELLER',
+        'Modification après rejet',
+      );
+    }
+
     this.analytics.capture(sellerId, 'product_updated', {
       productId: updatedProduct.id,
       status: updatedProduct.status,
     });
 
     return updatedProduct;
+  }
+
+  /**
+   * Appends a product status-transition to the audit log. Never blocks the
+   * caller's action — a failed audit write is logged but swallowed.
+   */
+  private async logStatus(
+    productId: string,
+    fromStatus: ProductStatus | null,
+    toStatus: ProductStatus,
+    actorId: string | null,
+    actorRole: 'SELLER' | 'ADMIN' | 'SYSTEM',
+    reason?: string,
+  ): Promise<void> {
+    try {
+      await this.prisma.productStatusLog.create({
+        data: { productId, fromStatus, toStatus, actorId, actorRole, reason },
+      });
+    } catch (e) {
+      this.logger.warn(`Failed to write product status log: ${String(e)}`);
+    }
+  }
+
+  /**
+   * Withdraws a product from review (PENDING_REVIEW → DRAFT). Owner-scoped.
+   */
+  async withdraw(sellerId: string, productId: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId, sellerId, deletedAt: null },
+    });
+    if (!product) throw new NotFoundException('Produit non trouvé');
+    if (product.status !== ProductStatus.PENDING_REVIEW) {
+      throw new BadRequestException(
+        'Seul un produit en attente de révision peut être retiré.',
+      );
+    }
+    const updated = await this.prisma.product.update({
+      where: { id: productId },
+      data: { status: ProductStatus.DRAFT },
+      include: { images: { orderBy: { displayOrder: 'asc' } }, category: true },
+    });
+    await this.logStatus(
+      productId,
+      ProductStatus.PENDING_REVIEW,
+      ProductStatus.DRAFT,
+      sellerId,
+      'SELLER',
+      'Retiré de la revue par le vendeur',
+    );
+    return updated;
+  }
+
+  /**
+   * Restores an ARCHIVED product back to DRAFT so the seller can edit + resubmit.
+   * Owner-scoped. (Admin-suspended products are NOT seller-restorable.)
+   */
+  async restore(sellerId: string, productId: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId, sellerId, deletedAt: null },
+    });
+    if (!product) throw new NotFoundException('Produit non trouvé');
+    if (product.status !== ProductStatus.ARCHIVED) {
+      throw new BadRequestException(
+        'Seul un produit archivé peut être restauré.',
+      );
+    }
+    const updated = await this.prisma.product.update({
+      where: { id: productId },
+      data: { status: ProductStatus.DRAFT },
+      include: { images: { orderBy: { displayOrder: 'asc' } }, category: true },
+    });
+    await this.logStatus(
+      productId,
+      ProductStatus.ARCHIVED,
+      ProductStatus.DRAFT,
+      sellerId,
+      'SELLER',
+      'Restauré depuis les archives',
+    );
+    return updated;
+  }
+
+  /**
+   * Duplicates a product into a fresh DRAFT owned by the same seller: copies
+   * title (+ " (copie)"), description, prices, category, brand, condition,
+   * specifications and images. The clone always starts as a DRAFT (re-review
+   * before it can go live), with its own shortCode + a 0 sales counter.
+   */
+  async duplicate(sellerId: string, productId: string) {
+    const src = await this.prisma.product.findUnique({
+      where: { id: productId, sellerId, deletedAt: null },
+      include: {
+        images: { orderBy: { displayOrder: 'asc' } },
+        specifications: true,
+      },
+    });
+    if (!src) throw new NotFoundException('Produit non trouvé');
+
+    const clone = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.product.create({
+        data: {
+          sellerId,
+          cityId: src.cityId,
+          categoryId: src.categoryId,
+          brandId: src.brandId,
+          title: `${src.title} (copie)`,
+          slug: src.slug,
+          shortCode: await this.generateUniqueShortCode(),
+          description: src.description,
+          priceCDF: src.priceCDF,
+          priceUSD: src.priceUSD,
+          discountPriceCDF: src.discountPriceCDF,
+          discountPriceUSD: src.discountPriceUSD,
+          condition: src.condition,
+          quantity: src.quantity,
+          status: ProductStatus.DRAFT,
+          specifications: {
+            create: src.specifications.map((s) => ({
+              attributeId: s.attributeId,
+              value: s.value,
+            })),
+          },
+          images: {
+            create: src.images.map((img) => ({
+              url: img.url,
+              thumbnailUrl: img.thumbnailUrl,
+              cloudinaryId: img.cloudinaryId,
+              displayOrder: img.displayOrder,
+            })),
+          },
+        },
+        include: {
+          images: { orderBy: { displayOrder: 'asc' } },
+          category: true,
+        },
+      });
+      return created;
+    });
+
+    await this.logStatus(
+      clone.id,
+      null,
+      ProductStatus.DRAFT,
+      sellerId,
+      'SELLER',
+      `Dupliqué depuis ${src.id}`,
+    );
+    this.analytics.capture(sellerId, 'product_duplicated', {
+      productId: clone.id,
+      sourceProductId: src.id,
+    });
+    return clone;
   }
 
   /**
@@ -453,6 +663,18 @@ export class ProductsService {
       },
     });
 
+    await this.logStatus(
+      productId,
+      product.status,
+      ProductStatus.ARCHIVED,
+      sellerId,
+      'SELLER',
+      'Archivé par le vendeur',
+    );
+    this.analytics.capture(sellerId, 'product_archived', {
+      productId,
+      from: product.status,
+    });
     return archived;
   }
 
@@ -496,6 +718,15 @@ export class ProductsService {
         category: true,
       },
     });
+
+    await this.logStatus(
+      productId,
+      ProductStatus.DRAFT,
+      ProductStatus.PENDING_REVIEW,
+      sellerId,
+      'SELLER',
+      'Soumis pour révision',
+    );
 
     // Notify admins a product is awaiting moderation. Fire-and-forget — the
     // service swallows its own errors, so this never blocks the submission.

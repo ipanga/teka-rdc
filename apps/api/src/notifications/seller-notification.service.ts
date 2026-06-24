@@ -161,6 +161,56 @@ export class SellerNotificationService {
   }
 
   /**
+   * Notifies a seller their published product was suspended (admin takedown).
+   * In-app feed entry + push. Reuses the PRODUCT_REJECTED feed type (same
+   * negative-event deep-link to the product); the copy says "suspendu".
+   */
+  async notifyProductSuspended(
+    product: {
+      id: string;
+      sellerId: string;
+      title?: string | null;
+      name?: string | null;
+    },
+    reason: string,
+  ): Promise<void> {
+    try {
+      const productName = this.resolveProductLabel(product);
+      const shortReason =
+        reason.length > 140 ? reason.slice(0, 137) + '…' : reason;
+      const body = `${productName} a été suspendu. Raison : ${shortReason}`;
+
+      await this.userNotifications.create({
+        userId: product.sellerId,
+        type: 'PRODUCT_REJECTED',
+        title: 'Produit suspendu',
+        body,
+        entityType: 'product',
+        entityId: product.id,
+      });
+
+      const user = await this.loadSellerUser(product.sellerId);
+      if (!user) return;
+      await this.pushService
+        .sendToUser(user.id, {
+          title: 'Produit suspendu',
+          body,
+          data: {
+            productId: product.id,
+            screen: 'product-details',
+            event: 'product-suspended',
+          },
+        })
+        .catch(() => {});
+    } catch (error: any) {
+      this.logger.error(
+        `Échec de notification suspension produit ${product.id}: ${error?.message ?? error}`,
+        error?.stack,
+      );
+    }
+  }
+
+  /**
    * Notifies the seller that a buyer left a new review on one of
    * their products. Gated by the seller's order-updates pref —
    * users opting out of order SMS probably don't want review pings
