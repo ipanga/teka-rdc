@@ -40,13 +40,21 @@ class CategorySelector extends ConsumerWidget {
     final categoriesAsync = ref.watch(categoriesProvider);
     return categoriesAsync.whenOrNull(
       data: (categories) {
-        for (final cat in categories) {
-          if (cat.id == selectedCategoryId) return cat.name;
-          for (final sub in cat.subcategories) {
-            if (sub.id == selectedCategoryId) {
-              return '${cat.name} > ${sub.name}';
-            }
+        // Recurse all levels, returning the full path to the selected node
+        // (e.g. "Téléphones & Accessoires > Smartphones > Android").
+        String? find(CategoryModel node, String path) {
+          final full = path.isEmpty ? node.name : '$path > ${node.name}';
+          if (node.id == selectedCategoryId) return full;
+          for (final child in node.subcategories) {
+            final r = find(child, full);
+            if (r != null) return r;
           }
+          return null;
+        }
+
+        for (final cat in categories) {
+          final r = find(cat, '');
+          if (r != null) return r;
         }
         return null;
       },
@@ -180,21 +188,24 @@ class _CategoryListState extends State<_CategoryList> {
     super.dispose();
   }
 
-  // Flat matches across category AND subcategory names (own-name match), each
-  // subcategory carrying its parent for context. Filtering is client-side —
-  // the full taxonomy is already loaded.
+  // Flat matches across ALL levels (category, subcategory, product type) by
+  // own-name match, each carrying its full parent path for context (e.g.
+  // "Téléphones & Accessoires › Smartphones"). Client-side — the full taxonomy
+  // is already loaded.
   List<_FlatMatch> _matches(String query) {
     final nq = _normalizeCat(query);
     final out = <_FlatMatch>[];
+    void walk(CategoryModel node, String? path) {
+      if (_normalizeCat(node.name).contains(nq)) {
+        out.add(_FlatMatch(node, path));
+      }
+      final childPath = path == null ? node.name : '$path › ${node.name}';
+      for (final child in node.subcategories) {
+        walk(child, childPath);
+      }
+    }
     for (final cat in widget.categories) {
-      if (_normalizeCat(cat.name).contains(nq)) {
-        out.add(_FlatMatch(cat, null));
-      }
-      for (final sub in cat.subcategories) {
-        if (_normalizeCat(sub.name).contains(nq)) {
-          out.add(_FlatMatch(sub, cat.name));
-        }
-      }
+      walk(cat, null);
     }
     return out;
   }
@@ -277,64 +288,62 @@ class _CategoryListState extends State<_CategoryList> {
     return ListView.builder(
       controller: widget.scrollController,
       itemCount: widget.categories.length,
-      itemBuilder: (context, index) {
-        final category = widget.categories[index];
-        final isExpanded = _expandedIds.contains(category.id);
-        final hasSubs = category.subcategories.isNotEmpty;
+      itemBuilder: (context, index) => _buildNode(widget.categories[index], 0),
+    );
+  }
 
-        return Column(
-          children: [
-            ListTile(
-              leading: category.emoji != null
-                  ? Text(category.emoji!, style: const TextStyle(fontSize: 24))
-                  : const Icon(Icons.category_outlined),
-              title: Text(
-                category.name,
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              trailing: hasSubs
-                  ? Icon(
-                      isExpanded
-                          ? Icons.keyboard_arrow_up
-                          : Icons.keyboard_arrow_down,
-                    )
-                  : (widget.selectedId == category.id
-                      ? const Icon(Icons.check, color: TekaColors.success)
-                      : null),
-              selected: widget.selectedId == category.id,
-              onTap: () {
-                if (hasSubs) {
-                  setState(() {
-                    if (isExpanded) {
-                      _expandedIds.remove(category.id);
-                    } else {
-                      _expandedIds.add(category.id);
-                    }
-                  });
-                } else {
-                  widget.onSelect(category);
-                }
-              },
+  // Recursive node: branches (with children) expand/collapse; leaves (product
+  // types) are selectable. Works for any depth (category → subcategory →
+  // product type).
+  Widget _buildNode(CategoryModel node, int depth) {
+    final isExpanded = _expandedIds.contains(node.id);
+    final hasChildren = node.subcategories.isNotEmpty;
+    final isSelected = widget.selectedId == node.id;
+
+    return Column(
+      children: [
+        ListTile(
+          contentPadding: EdgeInsets.only(left: 16.0 + depth * 24, right: 16),
+          leading: node.emoji != null
+              ? Text(node.emoji!,
+                  style: TextStyle(fontSize: depth == 0 ? 24 : 20))
+              : Icon(
+                  depth == 0
+                      ? Icons.category_outlined
+                      : Icons.subdirectory_arrow_right,
+                  size: depth == 0 ? 24 : 20,
+                ),
+          title: Text(
+            node.name,
+            style: TextStyle(
+              fontWeight: depth == 0 ? FontWeight.w600 : FontWeight.normal,
             ),
-            if (isExpanded && hasSubs)
-              ...category.subcategories.map((sub) {
-                return ListTile(
-                  contentPadding: const EdgeInsets.only(left: 56, right: 16),
-                  leading: sub.emoji != null
-                      ? Text(sub.emoji!,
-                          style: const TextStyle(fontSize: 20))
-                      : const Icon(Icons.subdirectory_arrow_right, size: 20),
-                  title: Text(sub.name),
-                  trailing: widget.selectedId == sub.id
-                      ? const Icon(Icons.check, color: TekaColors.success)
-                      : null,
-                  selected: widget.selectedId == sub.id,
-                  onTap: () => widget.onSelect(sub),
-                );
-              }),
-          ],
-        );
-      },
+          ),
+          trailing: hasChildren
+              ? Icon(isExpanded
+                  ? Icons.keyboard_arrow_up
+                  : Icons.keyboard_arrow_down)
+              : (isSelected
+                  ? const Icon(Icons.check, color: TekaColors.success)
+                  : null),
+          selected: isSelected,
+          onTap: () {
+            if (hasChildren) {
+              setState(() {
+                if (isExpanded) {
+                  _expandedIds.remove(node.id);
+                } else {
+                  _expandedIds.add(node.id);
+                }
+              });
+            } else {
+              widget.onSelect(node); // leaf (product type)
+            }
+          },
+        ),
+        if (isExpanded && hasChildren)
+          ...node.subcategories.map((child) => _buildNode(child, depth + 1)),
+      ],
     );
   }
 }

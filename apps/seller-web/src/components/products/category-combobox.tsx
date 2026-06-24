@@ -36,7 +36,10 @@ function flatten(
     const label = c.name || '---';
     out.push({ id: c.id, label, parentLabel, depth });
     const kids = c.children || c.subcategories || [];
-    if (kids.length) out.push(...flatten(kids, depth + 1, label));
+    // Pass the FULL path down so a product type reads e.g.
+    // "Téléphones & Accessoires › Smartphones › Android" (not just its parent).
+    const path = parentLabel ? `${parentLabel} › ${label}` : label;
+    if (kids.length) out.push(...flatten(kids, depth + 1, path));
   }
   return out;
 }
