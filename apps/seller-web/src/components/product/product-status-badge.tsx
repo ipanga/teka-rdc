@@ -1,6 +1,6 @@
 'use client';
 
-type ProductStatus = 'DRAFT' | 'PENDING_REVIEW' | 'ACTIVE' | 'REJECTED' | 'ARCHIVED';
+type ProductStatus = 'DRAFT' | 'PENDING_REVIEW' | 'ACTIVE' | 'REJECTED' | 'ARCHIVED' | 'SUSPENDED';
 
 const statusStyles: Record<ProductStatus, string> = {
   DRAFT: 'bg-muted text-muted-foreground',
@@ -8,6 +8,7 @@ const statusStyles: Record<ProductStatus, string> = {
   ACTIVE: 'bg-success/15 text-success',
   REJECTED: 'bg-destructive/15 text-destructive',
   ARCHIVED: 'bg-muted text-muted-foreground/70',
+  SUSPENDED: 'bg-destructive/15 text-destructive',
 };
 
 const labelMap: Record<ProductStatus, string> = {
@@ -16,6 +17,7 @@ const labelMap: Record<ProductStatus, string> = {
   ACTIVE: 'Actif',
   REJECTED: 'Rejeté',
   ARCHIVED: 'Archivé',
+  SUSPENDED: 'Suspendu',
 };
 
 export function ProductStatusBadge({ status }: { status: string }) {

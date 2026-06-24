@@ -76,10 +76,16 @@ export default function ProductDetailPage() {
     [],
   );
 
-  const isEditable = product?.status === 'DRAFT' || product?.status === 'REJECTED';
-  // On a published (ACTIVE) product the seller may still adjust price /
-  // promotional price / stock (no re-review); content fields stay locked.
-  const pricingEditable = isEditable || product?.status === 'ACTIVE';
+  // DRAFT/REJECTED: fully editable. ACTIVE: now also editable — but saving a
+  // CONTENT change (title/description/category/brand/condition/specs) resubmits
+  // the product for review (D2); price/discount/stock stay instant. PENDING/
+  // ARCHIVED/SUSPENDED: read-only.
+  const isPublishedActive = product?.status === 'ACTIVE';
+  const isEditable =
+    product?.status === 'DRAFT' ||
+    product?.status === 'REJECTED' ||
+    isPublishedActive;
+  const pricingEditable = isEditable;
   const canSubmit = product?.status === 'DRAFT';
 
   const loadProduct = useCallback(async () => {
@@ -178,9 +184,18 @@ export default function ProductDetailPage() {
     setSuccessMessage('');
 
     try {
-      // On a published product the API accepts ONLY price/discount/stock — so
-      // send just those. DRAFT/REJECTED sends the full editable payload.
-      const body: Record<string, unknown> = isEditable
+      // On a published (ACTIVE) product, send the full payload ONLY if a content
+      // field actually changed (which re-submits it for review); otherwise send
+      // just price/stock so it stays ACTIVE. DRAFT/REJECTED always send full.
+      const contentDirty =
+        isPublishedActive &&
+        (title.trim() !== (product?.title ?? '') ||
+          (description.trim() || '') !== (product?.description ?? '') ||
+          categoryId !== (product?.categoryId ?? '') ||
+          condition !== (product?.condition ?? '') ||
+          (brandId || '') !== (product?.brandId ?? ''));
+      const sendFull = !isPublishedActive || contentDirty;
+      const body: Record<string, unknown> = sendFull
         ? {
             title: title.trim(),
             description: description.trim() || undefined,
@@ -318,12 +333,20 @@ export default function ProductDetailPage() {
         </div>
       )}
 
-      {/* Read-only notice */}
+      {/* Published-product notice: pricing instant, content edits re-review */}
+      {isPublishedActive && (
+        <div className="mb-4 p-3 rounded-lg bg-warning/10 text-warning text-sm">
+          Produit publié : le prix, le prix promotionnel et le stock sont mis à
+          jour instantanément. Toute modification du contenu (titre, description,
+          catégorie, marque, état, caractéristiques) renverra le produit en
+          révision avant sa republication.
+        </div>
+      )}
+
+      {/* Read-only notice (en attente / archivé / suspendu) */}
       {!isEditable && (
         <div className="mb-4 p-3 rounded-lg bg-muted text-muted-foreground text-sm">
-          {pricingEditable
-            ? 'Produit publié : vous pouvez modifier le prix, le prix promotionnel et le stock. Les autres informations ne sont pas modifiables.'
-            : 'Ce produit ne peut pas être modifié dans son statut actuel.'}
+          Ce produit ne peut pas être modifié dans son statut actuel.
         </div>
       )}
 

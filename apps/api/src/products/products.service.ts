@@ -325,14 +325,21 @@ export class ProductsService {
       );
     }
 
-    // Which fields changed? Content fields (title/description/category/brand/
-    // condition/specifications) are everything outside LIVE_EDITABLE_FIELDS.
-    const changedFields = Object.entries(dto)
-      .filter(([, v]) => v !== undefined)
-      .map(([k]) => k);
-    const contentChanged = changedFields.some(
-      (k) => !ProductsService.LIVE_EDITABLE_FIELDS.has(k),
-    );
+    // Did a CONTENT field actually CHANGE value (not merely appear in the
+    // payload)? Compares against the stored product so re-submitting an
+    // unchanged title alongside a price edit does NOT trigger re-review.
+    const contentChanged =
+      (dto.title !== undefined && dto.title !== product.title) ||
+      (dto.description !== undefined &&
+        dto.description !== product.description) ||
+      (dto.categoryId !== undefined &&
+        dto.categoryId !== product.categoryId) ||
+      (dto.brandId !== undefined &&
+        (dto.brandId || null) !== product.brandId) ||
+      (dto.condition !== undefined &&
+        dto.condition !== product.condition) ||
+      // Specifications are a set — any provided value counts as a content edit.
+      dto.specifications !== undefined;
 
     // Re-review: a content edit to a PUBLISHED (ACTIVE) product sends it back to
     // moderation (PENDING_REVIEW). Price/discount/stock stay instant. A REJECTED
