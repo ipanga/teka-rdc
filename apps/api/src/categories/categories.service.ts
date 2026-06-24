@@ -17,30 +17,39 @@ export class CategoriesService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Returns the full category tree (up to 3 levels deep).
+   * Returns the full category tree (3 levels: category → subcategory → product
+   * type). The relation is exposed as `children` (recursively) — the shape the
+   * admin tree + parent-picker consume — with `_count.products` per node.
    */
   async findTree() {
     const categories = await this.prisma.category.findMany({
-      where: {
-        parentCategoryId: null,
-        deletedAt: null,
-      },
+      where: { parentCategoryId: null, deletedAt: null },
       include: {
+        _count: { select: { products: true } },
         subcategories: {
           where: { deletedAt: null },
+          orderBy: { sortOrder: 'asc' },
           include: {
+            _count: { select: { products: true } },
             subcategories: {
               where: { deletedAt: null },
+              orderBy: { sortOrder: 'asc' },
+              include: { _count: { select: { products: true } } },
             },
           },
-          orderBy: { sortOrder: 'asc' },
         },
-        attributes: true,
       },
       orderBy: { sortOrder: 'asc' },
     });
 
-    return { data: categories };
+    // Map the `subcategories` relation onto `children` (recursively) so the
+    // admin UI renders all 3 levels and the parent picker lists every node.
+    type Raw = { subcategories?: Raw[]; [k: string]: unknown };
+    const toNode = (c: Raw): Record<string, unknown> => {
+      const { subcategories, ...rest } = c;
+      return { ...rest, children: (subcategories ?? []).map(toNode) };
+    };
+    return { data: categories.map((c) => toNode(c as Raw)) };
   }
 
   /**
@@ -293,6 +302,40 @@ export class CategoriesService {
     });
 
     return { message: 'Attribut supprimé avec succès' };
+  }
+
+  /**
+   * Reorders a set of sibling categories (nodes sharing the same parent — top
+   * categories, subcategories, or product types). `orderedIds` is the full set
+   * of one parent's children in the desired display order; each row's sortOrder
+   * is set to its index. Validates the ids all share a single parent and that
+   * none are missing/foreign before writing.
+   */
+  async reorderCategories(orderedIds: string[]) {
+    const nodes = await this.prisma.category.findMany({
+      where: { id: { in: orderedIds }, deletedAt: null },
+      select: { id: true, parentCategoryId: true },
+    });
+    if (nodes.length !== orderedIds.length) {
+      throw new BadRequestException(
+        'Certaines catégories sont introuvables',
+      );
+    }
+    const parents = new Set(nodes.map((n) => n.parentCategoryId ?? 'ROOT'));
+    if (parents.size > 1) {
+      throw new BadRequestException(
+        'Toutes les catégories doivent avoir le même parent',
+      );
+    }
+    await this.prisma.$transaction(
+      orderedIds.map((id, index) =>
+        this.prisma.category.update({
+          where: { id },
+          data: { sortOrder: index },
+        }),
+      ),
+    );
+    return { reordered: orderedIds.length };
   }
 
   /**

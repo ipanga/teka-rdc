@@ -32,6 +32,12 @@ export class CategoriesController {
     return this.categoriesService.create(dto);
   }
 
+  // Declared BEFORE :id so "reorder" isn't captured as a category id.
+  @Patch('reorder')
+  reorderCategories(@Body() dto: ReorderAttributesDto) {
+    return this.categoriesService.reorderCategories(dto.orderedIds);
+  }
+
   @Get(':id')
   findById(@Param('id', ParseUUIDPipe) id: string) {
     return this.categoriesService.findById(id);

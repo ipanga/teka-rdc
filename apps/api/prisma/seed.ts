@@ -1078,6 +1078,16 @@ async function main() {
   });
   console.log(`Soft-deleted ${demoCleared.count} old demo products (re-seeded onto new types below)`);
 
+  // Soft-delete orphaned old taxonomy nodes: after the strict upserts, any
+  // category still inactive is a node from a prior taxonomy not present in the
+  // new tree (its products were already remapped to strict nodes). Removing
+  // them keeps the admin tree + buyer facets clean (no line-through cruft).
+  const catCleared = await prisma.category.updateMany({
+    where: { isActive: false, deletedAt: null },
+    data: { deletedAt: new Date() },
+  });
+  console.log(`Soft-deleted ${catCleared.count} orphaned old category nodes`);
+
   // ============================================================
   // PLATFORM BASELINE (content pages + system settings)
   // Foundational: published static pages (FAQ, Terms, Privacy, About,
