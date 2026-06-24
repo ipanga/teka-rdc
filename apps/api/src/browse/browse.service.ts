@@ -62,19 +62,20 @@ export class BrowseService {
       }
     }
 
-    // Roll up subcategory counts into the parent. Products are assigned to
-    // leaf (sub)categories, never directly to a top-level category, so the
-    // parent's _count.products is always 0 in our seed. Without this rollup
-    // the homepage shows "0 produits" under every main category card even
-    // though the catalog has 152 products.
-    for (const root of roots) {
-      const subTotal = root.subcategories.reduce(
-        (sum, sub) =>
-          sum + ((sub as { productCount?: number }).productCount ?? 0),
-        0,
-      );
-      root.productCount = root.productCount + subTotal;
-    }
+    // Roll product counts up the tree. Products are assigned to LEAF nodes
+    // (product types — the 3rd level), never to a subcategory or top category,
+    // so each node's count = its own products + the sum of all its descendants'.
+    // Recursive (depth-agnostic) so it works for the 3-level tree; without it
+    // every subcategory + top category card shows "0 produits".
+    const rollUp = (node: { productCount: number; subcategories: unknown[] }): number => {
+      let total = node.productCount;
+      for (const child of node.subcategories) {
+        total += rollUp(child as typeof node);
+      }
+      node.productCount = total;
+      return total;
+    };
+    for (const root of roots) rollUp(root);
 
     return roots;
   }

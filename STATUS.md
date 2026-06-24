@@ -6,28 +6,20 @@
 
 ## Active initiative
 
-**Universal Deep Linking & App Links** (started 2026-06-23) — clicking/sharing/tapping a `https://teka.cd/...`
-URL opens **buyer-mobile** on the right screen (product/category/search/promotions/home) when installed, else the
-website; **zero SEO/URL changes** (additive only). Buyer-mobile only (seller deferred). **Detailed tracker:
-`tasks/deep-linking-progress.md`.**
-- **Decisions:** single Flutter `DeepLinkParser` mirroring web `lib/urls.ts` (shortCode resolver); the API
-  `GET /v1/browse/{products,categories}/:identifier` already resolves shortCode/slug/uuid (no new endpoints);
-  association files via `buyer-web/public/.well-known/` (nginx passes through, no Cloudflare); unmapped/host-
-  mismatch URLs fall back to the browser (SEO-safe); auth/city guards prevent protected-route bypass.
-- **Phased PRs:** 2 web association files → 3 Flutter parser+`app_links` → 4 Android App Links → 5 iOS Universal
-  Links → 6 notification+share unify → 7 analytics+security+docs+tests.
-- **✅ ALL PHASES MERGED to develop** (2 web #446 · 3 Flutter core #447 · 4 Android #448 · 5 iOS + 6 notif/share
-  #449 · 7 analytics/docs). Verified: buyer-web build + live `.well-known` serving (200 + `application/json`);
-  116 mobile tests (22 deep-link unit); dev APK + iOS Runner.app build; aapt-confirmed manifest. Model:
-  `docs/deep-linking.md`.
-- **Remaining before live (operator):** (1) put the real **Play App Signing SHA-256** in
-  `apps/buyer-web/public/.well-known/assetlinks.json` (placeholder now); (2) enable iOS **Associated Domains**
-  on the `com.tootiye.teka` App ID + profile, signed-device test; (3) release `develop→main`. Mobile reaches
-  devices on the next Play Store AAB.
-- **Operator inputs:** Android **Play App Signing cert SHA-256** (Play Console → App integrity) → assetlinks.json;
-  iOS enable **Associated Domains** on the App ID + profile at sign time.
+**Catalog Architecture Refactor** (started 2026-06-24) — add a 3rd taxonomy level **Product Type** (Category →
+Subcategory → Product Type), a new 7-category ordered tree, remove Construction & Bricolage + Automobile & Moto,
+product-type-driven attributes + brands, condition = New/Used, full admin catalog management. **Reuse the existing
+self-referential `Category` tree** for the 3rd level (no new table). **Tracker: `tasks/catalog-refactor-progress.md`.**
+- **Phase 1 audit + migration report ✅ DONE:** condition already NEW/USED; removed cats have **0 real products**
+  (dev+prod); only **9 real products** platform-wide (all in kept cats) → high-confidence remap. Reuse Category
+  tree decided.
+- **Scope: foundation-first (A–B), then review.** A taxonomy-data + seed + migration → B API depth (child-expansion
+  2→3, breadcrumb, category reorder). Then C admin / D seller / E buyer+SEO / F docs+tests after review.
+- **▶ IN PROGRESS: Phase A** (branch `feat/catalog-refactor-taxonomy`).
 
-> Broadcast notifications shipped to prod (release #443, see below).
+> **Universal Deep Linking** shipped (release #451; #446–#450 + iOS push config #444/#445). Operator-pending: real
+> Play-signing SHA-256 in `assetlinks.json`; iOS Associated Domains capability on a signed device. Model:
+> `docs/deep-linking.md`. Broadcast notifications shipped to prod (release #443, see below).
 
 > **Buyer iOS push — config wired + build-verified 2026-06-23, device/Apple steps remain.** Prod
 > `GoogleService-Info.plist` (`com.tootiye.teka`) in `apps/buyer-mobile/ios/Runner/` (gitignored; secret
