@@ -1,6 +1,7 @@
 import { PrismaClient, AttributeType, ProductCondition, ProductStatus, OrderStatus, PaymentMethod, PaymentStatus, TransactionType, TransactionProvider, PayoutStatus, ReviewStatus, BannerStatus, PromotionType, PromotionStatus, ContentPageStatus, NotificationBroadcastStatus } from '@prisma/client';
 import { createHash } from 'crypto';
 import { STRICT_CATEGORIES, STRICT_BRANDS } from './taxonomy-data';
+import { credentialsForSeed } from '../src/common/utils/seed-credentials.util';
 
 const prisma = new PrismaClient();
 
@@ -3319,9 +3320,14 @@ async function seedTekaOfficielSeller(adminId: string): Promise<string> {
   const bcrypt = await import('bcrypt');
   const passwordHash = await bcrypt.hash(TEKA_OFFICIEL_DEV_PASSWORD, 10);
 
-  const baseAuth = {
+  // The seeded dev credentials. **Only ever applied to a fresh or password-less
+  // account** — NEVER to one that already has a real password. The officiel
+  // seller email is a real, owner-managed account in prod; before this guard,
+  // every `prisma:seed:prod` (run on each DB upgrade) overwrote its passwordHash
+  // with TEKA_OFFICIEL_DEV_PASSWORD, locking the seller out until a password
+  // reset — the recurring "Email ou mot de passe invalide" after deployments.
+  const seededCredentials = {
     authProvider: 'EMAIL_PASSWORD' as const,
-    emailVerified: true,
     passwordHash,
     passwordSetAt: new Date(),
   };
@@ -3333,10 +3339,15 @@ async function seedTekaOfficielSeller(adminId: string): Promise<string> {
   let resolvedUserId: string;
 
   if (byId) {
-    // Path 1: canonical user exists. Refresh auth + email.
+    // Path 1: canonical user exists. Refresh email + ensure verified; only
+    // (re)seed credentials if the account has NO password yet.
     await prisma.user.update({
       where: { id: TEKA_OFFICIEL_USER_ID },
-      data: { email: TEKA_OFFICIEL_SELLER_EMAIL, ...baseAuth },
+      data: {
+        email: TEKA_OFFICIEL_SELLER_EMAIL,
+        emailVerified: true,
+        ...credentialsForSeed(byId.passwordHash, seededCredentials),
+      },
     });
     resolvedUserId = TEKA_OFFICIEL_USER_ID;
   } else {
@@ -3344,15 +3355,22 @@ async function seedTekaOfficielSeller(adminId: string): Promise<string> {
       where: { email: TEKA_OFFICIEL_SELLER_EMAIL },
     });
     if (byEmail) {
-      // Path 2: dev's personal account owns the email. Promote it and use
-      // its id for the SellerProfile + sample products.
+      // Path 2: a real account already owns the email (e.g. the platform
+      // owner's seller account in prod). Promote it to an ACTIVE seller but
+      // PRESERVE its existing password — only seed credentials if it has none.
       await prisma.user.update({
         where: { id: byEmail.id },
-        data: { role: 'SELLER', status: 'ACTIVE', ...baseAuth },
+        data: {
+          role: 'SELLER',
+          status: 'ACTIVE',
+          emailVerified: true,
+          ...credentialsForSeed(byEmail.passwordHash, seededCredentials),
+        },
       });
       console.log(
         `  Adopting existing user ${byEmail.id} as Teka Officiel ` +
-          `(matched on email ${TEKA_OFFICIEL_SELLER_EMAIL}).`,
+          `(matched on email ${TEKA_OFFICIEL_SELLER_EMAIL}; ` +
+          `${byEmail.passwordHash ? 'preserved existing password' : 'seeded credentials'}).`,
       );
       resolvedUserId = byEmail.id;
     } else {
@@ -3367,7 +3385,8 @@ async function seedTekaOfficielSeller(adminId: string): Promise<string> {
           role: 'SELLER',
           status: 'ACTIVE',
           phoneVerified: true,
-          ...baseAuth,
+          emailVerified: true,
+          ...seededCredentials,
         },
       });
       resolvedUserId = TEKA_OFFICIEL_USER_ID;
