@@ -44,6 +44,8 @@ class CatalogRepository {
     String? sortBy,
     String? cursor,
     String? cityId,
+    String? minPrice,
+    String? maxPrice,
     String? attributesJson,
     String? brandIds,
     bool onPromotion = false,
@@ -54,6 +56,12 @@ class CatalogRepository {
     };
     if (onPromotion) {
       queryParams['onPromotion'] = 'true';
+    }
+    if (minPrice != null && minPrice.isNotEmpty) {
+      queryParams['minPrice'] = minPrice;
+    }
+    if (maxPrice != null && maxPrice.isNotEmpty) {
+      queryParams['maxPrice'] = maxPrice;
     }
 
     if (categoryId != null && categoryId.isNotEmpty) {
@@ -179,6 +187,26 @@ class CatalogRepository {
         .cast<Map<String, dynamic>>()
         .map(SuggestedCategory.fromJson)
         .toList(growable: false);
+  }
+
+  /// GET /v1/browse/search/popular — top recent search terms (for the empty /
+  /// focused search state + zero-result fallback). Empty list on any error.
+  Future<List<String>> getPopularSearches({String? cityId}) async {
+    try {
+      final response = await _dio.get(
+        '/v1/browse/search/popular',
+        queryParameters: {if (cityId != null) 'cityId': cityId},
+      );
+      final data = response.data['data'] ?? response.data;
+      final raw = (data is List) ? data : const [];
+      return raw
+          .map((e) => (e is Map ? e['term'] : null)?.toString())
+          .whereType<String>()
+          .where((t) => t.trim().isNotEmpty)
+          .toList(growable: false);
+    } catch (_) {
+      return const [];
+    }
   }
 
   /// GET /v1/browse/categories/:id/attributes — the SELECT / MULTISELECT

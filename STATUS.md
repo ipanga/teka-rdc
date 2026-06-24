@@ -6,22 +6,28 @@
 
 ## Active initiative
 
-**Catalog Architecture Refactor** (started 2026-06-24) — add a 3rd taxonomy level **Product Type** (Category →
-Subcategory → Product Type), a new 7-category ordered tree, remove Construction & Bricolage + Automobile & Moto,
-product-type-driven attributes + brands, condition = New/Used, full admin catalog management. **Reuse the existing
-self-referential `Category` tree** for the 3rd level (no new table). **Tracker: `tasks/catalog-refactor-progress.md`.**
-- **Phase 1 audit + migration report ✅ DONE:** condition already NEW/USED; removed cats have **0 real products**
-  (dev+prod); only **9 real products** platform-wide (all in kept cats) → high-confidence remap. Reuse Category
-  tree decided.
-- **✅ ALL PHASES MERGED to develop** — A+B taxonomy/seed/migration + API depth (#455) · C admin 3-level mgmt +
-  reorder + orphan cleanup (#456) · D seller selectors web+mobile (#457) · E buyer drill-down + sitemap (#458) ·
-  F docs + reorder tests. Reused the Category tree (no new table); 7 cats / 35 subs / ~145 product types / ~360
-  attrs / 49 brands; Construction+Automobile removed (0 real lost); 21/21 real products remapped. Verified on dev:
-  facet counts roll up, all 6 apps build/analyze clean, 149 unit + 116 e2e + mobile tests pass.
-- **Remaining before prod (gated): the prod migration** — re-seed taxonomy on prod + remap the 9 real prod
-  products (the seed handles it idempotently: 3-level upsert, brand-name freeing, name-based remap, orphan +
-  old-demo soft-delete). Do as a deliberate `prisma:seed:prod`-style step at release. Mobile reaches devices on
-  the next Play Store AAB. Condition already NEW/USED.
+**Advanced Search, Autocomplete & Filtering** (started 2026-06-24) — marketplace-grade search across buyer-web +
+buyer-mobile: richer autocomplete (brands/product-types/popular/recent), **synonyms**, ranking signal blend,
+search analytics (zero-result/CTR), complete dynamic filtering, better empty states — **reusing the existing FTS
+engine** (it's enrich+connect, not greenfield). **Tracker: `tasks/search-progress.md`.**
+- **✅ ALL PHASES SHIPPED to develop.** Decisions (locked): DB `SearchSynonym` (query-expansion) + `SearchQuery`
+  log (+ PostHog) + ranking blend (no ML) + recent searches client-local.
+  - **#461 (P2–3 backend):** synonyms (8 seed groups, cached, sanitized), ranking blend (relevance → in-stock →
+    unitsSold → avgRating → recency), search logging (guarded), `@Throttle(40/10s)` autocomplete, suggestions +=
+    brands + synonym-expanded products, `GET /v1/browse/search/popular`. Migration `2026-06-24_search_*.sql`.
+  - **#462 (P4):** mobile filter parity — price + promotion + sort-bug fix. **#463 (P5):** mobile recent/popular/
+    empty-state + active-filter badge + `zero_results`. **#464 (P6):** web autocomplete brands/recent/popular +
+    zero-result recovery + `zero_results`. **P7–8:** perf-validated + docs (architecture.md Search section).
+  - Verified: gsm 0→5, telephonne→Smartphones, sam→Samsung; 152 unit + 116 e2e + 115 mobile; all apps build clean.
+- **Remaining before prod (gated): the search migration** `2026-06-24_search_synonyms_and_logging.sql` (idempotent:
+  SearchSynonym + SearchQuery + GIN/trgm indexes + 8 seed synonym groups) ships via the "Apply prod migration"
+  action at release. Mobile reaches devices on the next Play Store AAB. SEO preserved (`/recherche` noindex).
+
+> **Catalog Architecture Refactor** SHIPPED to prod (release #460, 2026-06-24). 3-level taxonomy (Category →
+> Subcategory → Product Type, reused Category tree); 7 cats / 35 subs / ~145 types / ~360 attrs / 49 brands;
+> Construction+Automobile removed; **prod data migrated — 9/9 real products remapped, 0 cruft, deploy green**.
+> main==develop. Mobile selectors/drill-down ship on the next Play Store AAB. Model: `docs/architecture.md` →
+> "Marketplace taxonomy + brands"; history: `tasks/catalog-refactor-progress.md`.
 
 > **Universal Deep Linking** shipped (release #451; #446–#450 + iOS push config #444/#445). Operator-pending: real
 > Play-signing SHA-256 in `assetlinks.json`; iOS Associated Domains capability on a signed device. Model:

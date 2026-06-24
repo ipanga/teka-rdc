@@ -9,6 +9,7 @@ import '../../../../core/widgets/product_skeletons.dart';
 import '../../../city/presentation/providers/city_provider.dart';
 import '../../../wishlist/presentation/providers/wishlist_provider.dart';
 import '../../data/catalog_repository.dart';
+import '../../data/recent_searches_store.dart';
 import '../providers/catalog_provider.dart';
 import '../widgets/product_card.dart';
 
@@ -25,14 +26,18 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _controller = TextEditingController();
+  final _recentStore = RecentSearchesStore();
   Timer? _debounce;
   String _query = '';
   String? _lastSearchTracked; // de-dups the search_performed event per query
   List<SuggestedCategory> _categories = const []; // autocomplete category hits
+  List<String> _recent = const []; // recent searches (local)
+  List<String> _popular = const []; // popular searches (API)
 
   @override
   void initState() {
     super.initState();
+    _loadDiscovery();
     final q = widget.initialQuery?.trim() ?? '';
     if (q.isNotEmpty) {
       _controller.text = q;
@@ -41,6 +46,35 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         if (mounted) _applyQuery(q);
       });
     }
+  }
+
+  /// Load recent (local) + popular (API) terms for the empty/zero states.
+  Future<void> _loadDiscovery() async {
+    final recent = await _recentStore.get();
+    if (mounted) setState(() => _recent = recent);
+    final cityId = ref.read(cityProvider).selectedCity?.id;
+    final popular = await ref
+        .read(catalogRepositoryProvider)
+        .getPopularSearches(cityId: cityId);
+    if (mounted) setState(() => _popular = popular);
+  }
+
+  /// Persist an explicit search term + refresh the recent list.
+  Future<void> _saveRecent(String term) async {
+    final t = term.trim();
+    if (t.length < 2) return;
+    await _recentStore.add(t);
+    final recent = await _recentStore.get();
+    if (mounted) setState(() => _recent = recent);
+  }
+
+  /// Run a search from a tapped chip (recent/popular).
+  void _runTerm(String term) {
+    _controller.text = term;
+    _controller.selection =
+        TextSelection.collapsed(offset: term.length);
+    _saveRecent(term);
+    _applyQuery(term);
   }
 
   BrowseProductsParams get _params => BrowseProductsParams(
@@ -95,7 +129,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             autofocus: true,
             onChanged: _onSearchChanged,
             textInputAction: TextInputAction.search,
-            onSubmitted: _applyQuery,
+            onSubmitted: (v) {
+              _saveRecent(v);
+              _applyQuery(v);
+            },
             decoration: InputDecoration(
               hintText: "Rechercher un produit...",
               hintStyle: const TextStyle(
@@ -124,26 +161,105 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   Widget _buildEmptySearch(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.search,
-              size: 64,
-              color: TekaColors.mutedForeground,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              "Rechercher un produit...",
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: TekaColors.mutedForeground,
-                  ),
-            ),
-          ],
+    // Discovery state (box empty): recent searches + popular searches as chips.
+    if (_recent.isEmpty && _popular.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.search, size: 64, color: TekaColors.mutedForeground),
+              const SizedBox(height: 16),
+              Text(
+                "Rechercher un produit...",
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                      color: TekaColors.mutedForeground,
+                    ),
+              ),
+            ],
+          ),
         ),
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        if (_recent.isNotEmpty) ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("Recherches recentes",
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w600)),
+              TextButton(
+                onPressed: () async {
+                  await _recentStore.clear();
+                  if (mounted) setState(() => _recent = const []);
+                },
+                child: const Text("Effacer"),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: _recent
+                .map((t) => ActionChip(
+                      avatar: const Icon(Icons.history, size: 18),
+                      label: Text(t),
+                      onPressed: () => _runTerm(t),
+                    ))
+                .toList(),
+          ),
+          const SizedBox(height: 20),
+        ],
+        if (_popular.isNotEmpty) ...[
+          Text("Recherches populaires",
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: _popular
+                .map((t) => ActionChip(
+                      avatar: const Icon(Icons.trending_up, size: 18),
+                      label: Text(t),
+                      onPressed: () => _runTerm(t),
+                    ))
+                .toList(),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Tappable popular-term chips for the zero-result fallback.
+  Widget _popularChips() {
+    if (_popular.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Column(
+        children: [
+          Text("Recherches populaires",
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            alignment: WrapAlignment.center,
+            children: _popular
+                .map((t) => ActionChip(
+                      avatar: const Icon(Icons.trending_up, size: 18),
+                      label: Text(t),
+                      onPressed: () => _runTerm(t),
+                    ))
+                .toList(),
+          ),
+        ],
       ),
     );
   }
@@ -202,10 +318,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       // Query routed through scrubAnalyticsText (free-text → strip phones).
       if (!next.isLoading && _query.isNotEmpty && _lastSearchTracked != _query) {
         _lastSearchTracked = _query;
+        final count = next.pagination?.total ?? next.products.length;
         const PosthogAnalytics().capture('search_performed', properties: {
           'query': scrubAnalyticsText(_query),
-          'result_count': next.pagination?.total ?? next.products.length,
+          'result_count': count,
         });
+        if (count == 0) {
+          const PosthogAnalytics().capture('zero_results', properties: {
+            'query': scrubAnalyticsText(_query),
+          });
+        }
       }
     });
 
@@ -223,9 +345,32 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     }
 
     if (state.products.isEmpty) {
-      return const AppEmptyState(
-        icon: Icons.search_off,
-        title: "Aucun resultat pour votre recherche",
+      // Also save the (failed) term so it appears in recent — and offer popular
+      // searches as a recovery path instead of a dead end.
+      return ListView(
+        children: [
+          const SizedBox(height: 48),
+          const Icon(Icons.search_off, size: 56, color: TekaColors.mutedForeground),
+          const SizedBox(height: 12),
+          Center(
+            child: Text(
+              "Aucun resultat pour \"$_query\"",
+              style: Theme.of(context).textTheme.titleSmall,
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Center(
+            child: Text(
+              "Essayez un autre mot-cle ou une recherche populaire :",
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: TekaColors.mutedForeground),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 20),
+          _popularChips(),
+        ],
       );
     }
 

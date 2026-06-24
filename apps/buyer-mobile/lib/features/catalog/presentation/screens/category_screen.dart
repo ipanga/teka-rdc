@@ -54,6 +54,9 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
         categoryId: widget.categoryId,
         condition: _filters.condition,
         sortBy: _filters.sortBy,
+        minPrice: _filters.minPrice,
+        maxPrice: _filters.maxPrice,
+        onPromotion: _filters.onPromotion,
         // Scope the listing to the selected city (parity with buyer-web's
         // city-scoped category page). Watched so a city change refetches.
         cityId: ref.watch(cityProvider).selectedCity?.id,
@@ -96,7 +99,12 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
         title: Text(widget.categoryName ?? "Categories"),
         actions: [
           IconButton(
-            icon: const Icon(Icons.tune),
+            icon: Badge(
+              isLabelVisible: _filters.activeCount > 0,
+              label: Text('${_filters.activeCount}'),
+              backgroundColor: TekaColors.tekaRed,
+              child: const Icon(Icons.tune),
+            ),
             tooltip: "Trier et filtrer",
             onPressed: () async {
               final result = await FilterBottomSheet.show(

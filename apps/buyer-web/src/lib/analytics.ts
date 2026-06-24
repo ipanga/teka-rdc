@@ -22,6 +22,8 @@ export type BuyerAnalyticsEvents = {
   };
   category_viewed: { categoryId: string; slug?: string };
   search_performed: { query: string; result_count: number };
+  zero_results: { query: string };
+  search_result_clicked: { query: string; productId: string; position: number };
   add_to_cart: { productId: string; quantity: number };
   remove_from_cart: { productId: string };
   checkout_started: { item_count: number; cart_value_cdf: number };

@@ -404,7 +404,11 @@ describe('Browse (e2e)', () => {
       const res = await request(app.getHttpServer())
         .get('/api/v1/browse/search/suggestions?q=a')
         .expect(200);
-      expect(res.body.data).toEqual({ products: [], categories: [] });
+      expect(res.body.data).toEqual({
+        products: [],
+        categories: [],
+        brands: [],
+      });
     });
 
     it('returns relevant products + matching categories', async () => {

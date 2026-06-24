@@ -1186,3 +1186,34 @@ model UserNotification {
   @@index([userId, createdAt])
   @@map("user_notifications")
 }
+
+// Admin-editable synonym groups for search query-expansion (e.g.
+// {gsm, portable, smartphone, telephone}). Terms stored unaccented + lowercase;
+// applied at search time so adding a group needs no code change. Table + GIN
+// index created by manual migration 2026-06-24_search_synonyms_and_logging.sql.
+model SearchSynonym {
+  id        String   @id @default(uuid()) @db.Uuid
+  terms     String[]
+  isActive  Boolean  @default(true)
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("search_synonyms")
+}
+
+// Search log — powers popular/trending suggestions + zero-result reports.
+// Written fire-and-forget on the first page of each search. Pruneable by createdAt.
+model SearchQuery {
+  id             String   @id @default(uuid()) @db.Uuid
+  term           String
+  termNormalized String
+  resultCount    Int
+  cityId         String?  @db.Uuid
+  createdAt      DateTime @default(now())
+
+  @@index([termNormalized, createdAt])
+  @@index([createdAt])
+  @@index([resultCount])
+  @@map("search_queries")
+}
