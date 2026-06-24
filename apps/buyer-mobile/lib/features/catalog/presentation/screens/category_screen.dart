@@ -54,6 +54,9 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
         categoryId: widget.categoryId,
         condition: _filters.condition,
         sortBy: _filters.sortBy,
+        minPrice: _filters.minPrice,
+        maxPrice: _filters.maxPrice,
+        onPromotion: _filters.onPromotion,
         // Scope the listing to the selected city (parity with buyer-web's
         // city-scoped category page). Watched so a city change refetches.
         cityId: ref.watch(cityProvider).selectedCity?.id,

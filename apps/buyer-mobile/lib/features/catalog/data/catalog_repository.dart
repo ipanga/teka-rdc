@@ -44,6 +44,8 @@ class CatalogRepository {
     String? sortBy,
     String? cursor,
     String? cityId,
+    String? minPrice,
+    String? maxPrice,
     String? attributesJson,
     String? brandIds,
     bool onPromotion = false,
@@ -54,6 +56,12 @@ class CatalogRepository {
     };
     if (onPromotion) {
       queryParams['onPromotion'] = 'true';
+    }
+    if (minPrice != null && minPrice.isNotEmpty) {
+      queryParams['minPrice'] = minPrice;
+    }
+    if (maxPrice != null && maxPrice.isNotEmpty) {
+      queryParams['maxPrice'] = maxPrice;
     }
 
     if (categoryId != null && categoryId.isNotEmpty) {

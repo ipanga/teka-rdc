@@ -7,6 +7,13 @@ class FilterOptions {
   final String? condition;
   final String? sortBy;
 
+  /// Price range (CDF, as strings to match the query params). Null = unset.
+  final String? minPrice;
+  final String? maxPrice;
+
+  /// Promotion-only facet (seller-set discounts).
+  final bool onPromotion;
+
   /// attributeId -> selected option values (SELECT / MULTISELECT / BOOLEAN
   /// facets; a BOOLEAN facet uses the single value 'true').
   final Map<String, List<String>> attributes;
@@ -17,23 +24,43 @@ class FilterOptions {
   const FilterOptions({
     this.condition,
     this.sortBy,
+    this.minPrice,
+    this.maxPrice,
+    this.onPromotion = false,
     this.attributes = const {},
     this.brandIds = const [],
   });
 
+  /// Count of active filters (for an active-filter badge/chip count).
+  int get activeCount =>
+      (condition != null ? 1 : 0) +
+      (sortBy != null ? 1 : 0) +
+      ((minPrice != null && minPrice!.isNotEmpty) ? 1 : 0) +
+      ((maxPrice != null && maxPrice!.isNotEmpty) ? 1 : 0) +
+      (onPromotion ? 1 : 0) +
+      attributes.length +
+      brandIds.length;
+
   FilterOptions copyWith({
     String? condition,
     String? sortBy,
+    String? minPrice,
+    String? maxPrice,
+    bool? onPromotion,
     Map<String, List<String>>? attributes,
     List<String>? brandIds,
     bool clearCondition = false,
     bool clearSortBy = false,
+    bool clearPrice = false,
     bool clearAttributes = false,
     bool clearBrandIds = false,
   }) {
     return FilterOptions(
       condition: clearCondition ? null : (condition ?? this.condition),
       sortBy: clearSortBy ? null : (sortBy ?? this.sortBy),
+      minPrice: clearPrice ? null : (minPrice ?? this.minPrice),
+      maxPrice: clearPrice ? null : (maxPrice ?? this.maxPrice),
+      onPromotion: onPromotion ?? this.onPromotion,
       attributes:
           clearAttributes ? const {} : (attributes ?? this.attributes),
       brandIds: clearBrandIds ? const [] : (brandIds ?? this.brandIds),
@@ -76,6 +103,9 @@ class FilterBottomSheet extends ConsumerStatefulWidget {
 class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
   String? _condition;
   String? _sortBy;
+  bool _onPromotion = false;
+  late final TextEditingController _minPriceController;
+  late final TextEditingController _maxPriceController;
   late Map<String, List<String>> _selectedAttributes;
   late List<String> _selectedBrandIds;
 
@@ -88,6 +118,11 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
     super.initState();
     _condition = widget.initialFilters.condition;
     _sortBy = widget.initialFilters.sortBy;
+    _onPromotion = widget.initialFilters.onPromotion;
+    _minPriceController =
+        TextEditingController(text: widget.initialFilters.minPrice ?? '');
+    _maxPriceController =
+        TextEditingController(text: widget.initialFilters.maxPrice ?? '');
     // Deep-copy so toggles don't mutate the caller's map.
     _selectedAttributes = {
       for (final e in widget.initialFilters.attributes.entries)
@@ -97,6 +132,15 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
     _loadAttributes();
     _loadBrands();
   }
+
+  @override
+  void dispose() {
+    _minPriceController.dispose();
+    _maxPriceController.dispose();
+    super.dispose();
+  }
+
+  String? _trimToNull(String s) => s.trim().isEmpty ? null : s.trim();
 
   Future<void> _loadBrands() async {
     try {
@@ -228,7 +272,56 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                     _buildSortOption('newest', "Plus recents"),
                     _buildSortOption('price_asc', "Prix croissant"),
                     _buildSortOption('price_desc', "Prix decroissant"),
-                    _buildSortOption('popular', "Popularite"),
+                    _buildSortOption('popularity', "Popularite"),
+
+                    const SizedBox(height: 20),
+
+                    // Price range (CDF)
+                    Text(
+                      "Fourchette de prix (CDF)",
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _minPriceController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: "Min",
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: _maxPriceController,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: "Max",
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Promotion toggle
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      title: const Text("Produits en promotion"),
+                      value: _onPromotion,
+                      activeThumbColor: TekaColors.tekaRed,
+                      onChanged: (v) => setState(() => _onPromotion = v),
+                    ),
 
                     // Brand facet
                     ..._buildBrandFacet(),
@@ -251,6 +344,9 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                       setState(() {
                         _condition = null;
                         _sortBy = null;
+                        _onPromotion = false;
+                        _minPriceController.clear();
+                        _maxPriceController.clear();
                         _selectedAttributes = {};
                         _selectedBrandIds = [];
                       });
@@ -268,6 +364,9 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                       Navigator.of(context).pop(FilterOptions(
                         condition: _condition,
                         sortBy: _sortBy,
+                        minPrice: _trimToNull(_minPriceController.text),
+                        maxPrice: _trimToNull(_maxPriceController.text),
+                        onPromotion: _onPromotion,
                         attributes: _selectedAttributes,
                         brandIds: _selectedBrandIds,
                       ));
