@@ -146,6 +146,28 @@ Required env vars (fail fast if unset):
 
 The admin is created with `phoneVerified=false` and `emailVerified=false` on purpose — first sign-in goes through `/admin/forgot-password`, which sends a reset link, lets the operator set a password, and marks the email verified atomically.
 
+#### ⚠️ Seeding NEVER overwrites an existing password (regression guard)
+
+The seed **must never clobber a real user's credentials on re-run** — every prod
+DB upgrade re-runs `prisma:seed:prod`, so overwriting a password would lock that
+user out (the recurring *"Email ou mot de passe invalide"* after deployments).
+
+Root cause history (fixed 2026-06-24): `seedTekaOfficielSeller` adopts the
+`TEKA_OFFICIEL_SELLER_EMAIL` account (a **real, owner-managed seller** in prod)
+and used to spread fixed dev credentials (`TEKA_OFFICIEL_DEV_PASSWORD`)
+unconditionally — so every seed run reset that seller's password to the dev one.
+The fix routes all credential writes through `credentialsForSeed(existingHash,
+seeded)` (`apps/api/src/common/utils/seed-credentials.util.ts`), which returns
+`{}` when the account already has a password — so the seed only ever seeds
+credentials onto a **fresh or password-less** account. Unit-tested in
+`seed-credentials.util.spec.ts`.
+
+**Recovery (if an account was already clobbered by a pre-fix seed):** deploy the
+fix first, then have the user do **one** password reset (or sign in with the dev
+password and change it). After the fix is live, the new password persists across
+all future seeds. (Auth DTOs already lowercase + trim email, so case is not a
+factor.)
+
 ```bash
 # Seed foundational data against production
 docker compose --env-file .env.production -f docker-compose.prod.yml \
