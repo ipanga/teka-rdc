@@ -21,6 +21,7 @@ class ProductDetailScreen extends ConsumerStatefulWidget {
 class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   bool _isSubmitting = false;
   bool _isArchiving = false;
+  bool _busy = false; // withdraw / restore / duplicate in flight
 
   @override
   Widget build(BuildContext context) {
@@ -379,29 +380,117 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           ),
         );
       case ProductStatus.active:
-        return SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: _isArchiving
-                ? null
-                : () => _archiveProduct(context, product),
-            icon: _isArchiving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.archive_outlined),
-            label: Text("Archiver"),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: TekaColors.destructive,
-              side: const BorderSide(color: TekaColors.destructive),
+        return Column(
+          children: [
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _isArchiving
+                    ? null
+                    : () => _archiveProduct(context, product),
+                icon: _isArchiving
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.archive_outlined),
+                label: Text("Archiver"),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: TekaColors.destructive,
+                  side: const BorderSide(color: TekaColors.destructive),
+                ),
+              ),
             ),
-          ),
+            const SizedBox(height: 8),
+            _duplicateButton(product),
+          ],
         );
       case ProductStatus.pendingReview:
+        return Column(
+          children: [
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: _busy ? null : () => _withdraw(product),
+                icon: const Icon(Icons.undo),
+                label: Text("Retirer de la revision"),
+              ),
+            ),
+            const SizedBox(height: 8),
+            _duplicateButton(product),
+          ],
+        );
       case ProductStatus.archived:
-        return const SizedBox.shrink();
+        return Column(
+          children: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _busy ? null : () => _restore(product),
+                icon: const Icon(Icons.unarchive_outlined),
+                label: Text("Restaurer"),
+              ),
+            ),
+            const SizedBox(height: 8),
+            _duplicateButton(product),
+          ],
+        );
+      case ProductStatus.suspended:
+        return _duplicateButton(product);
+    }
+  }
+
+  Widget _duplicateButton(SellerProductModel product) {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: _busy ? null : () => _duplicate(product),
+        icon: const Icon(Icons.copy_outlined),
+        label: Text("Dupliquer"),
+      ),
+    );
+  }
+
+  Future<void> _withdraw(SellerProductModel product) async {
+    setState(() => _busy = true);
+    final p = await ref.read(sellerProductsProvider.notifier).withdraw(product.id);
+    ref.invalidate(productDetailProvider(widget.productId));
+    if (mounted) {
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(p != null ? "Produit retiré" : "Une erreur est survenue."),
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
+
+  Future<void> _restore(SellerProductModel product) async {
+    setState(() => _busy = true);
+    final p = await ref.read(sellerProductsProvider.notifier).restore(product.id);
+    ref.invalidate(productDetailProvider(widget.productId));
+    if (mounted) {
+      setState(() => _busy = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(p != null ? "Produit restauré" : "Une erreur est survenue."),
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
+  }
+
+  Future<void> _duplicate(SellerProductModel product) async {
+    setState(() => _busy = true);
+    final p = await ref.read(sellerProductsProvider.notifier).duplicate(product.id);
+    if (mounted) {
+      setState(() => _busy = false);
+      if (p != null) {
+        context.pushReplacement('/products/${p.id}');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text("Une erreur est survenue."),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
     }
   }
 

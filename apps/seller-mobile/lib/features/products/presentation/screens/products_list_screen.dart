@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -53,6 +54,7 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
       ),
       body: Column(
         children: [
+          const _ProductSearchField(),
           _buildFilterChips(context, state),
           Expanded(
             child: state.isLoading
@@ -77,6 +79,7 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
       _FilterItem(ProductStatus.active, "Actif"),
       _FilterItem(ProductStatus.rejected, "Rejete"),
       _FilterItem(ProductStatus.archived, "Archive"),
+      _FilterItem(ProductStatus.suspended, "Suspendu"),
     ];
 
     return SizedBox(
@@ -298,4 +301,59 @@ class _FilterItem {
   final String label;
 
   const _FilterItem(this.status, this.label);
+}
+
+/// Debounced search box (title / référence / id) feeding the products provider.
+class _ProductSearchField extends ConsumerStatefulWidget {
+  const _ProductSearchField();
+
+  @override
+  ConsumerState<_ProductSearchField> createState() =>
+      _ProductSearchFieldState();
+}
+
+class _ProductSearchFieldState extends ConsumerState<_ProductSearchField> {
+  final _controller = TextEditingController();
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () {
+      ref.read(sellerProductsProvider.notifier).setSearch(value.trim());
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      child: TextField(
+        controller: _controller,
+        onChanged: _onChanged,
+        textInputAction: TextInputAction.search,
+        decoration: InputDecoration(
+          hintText: "Rechercher (nom, référence, ID)…",
+          prefixIcon: const Icon(Icons.search, size: 20),
+          isDense: true,
+          border: const OutlineInputBorder(),
+          suffixIcon: _controller.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () {
+                    _controller.clear();
+                    ref.read(sellerProductsProvider.notifier).setSearch('');
+                  },
+                )
+              : null,
+        ),
+      ),
+    );
+  }
 }

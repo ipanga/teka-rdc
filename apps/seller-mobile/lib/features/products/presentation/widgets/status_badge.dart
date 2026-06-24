@@ -76,6 +76,12 @@ class StatusBadge extends StatelessWidget {
           icon: Icons.archive_outlined,
           label: "Archive",
         );
+      case ProductStatus.suspended:
+        return _StatusConfig(
+          color: TekaColors.destructive,
+          icon: Icons.block,
+          label: "Suspendu",
+        );
     }
   }
 }
