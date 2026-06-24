@@ -20,6 +20,8 @@ interface CategoryTreeProps {
   onSelect: (category: Category) => void;
   onEdit: (category: Category) => void;
   onDelete: (category: Category) => void;
+  /** Persist a new sibling order (the full ordered id list of one parent). */
+  onReorder?: (orderedIds: string[]) => void;
 }
 
 export function CategoryTree({
@@ -28,6 +30,7 @@ export function CategoryTree({
   onSelect,
   onEdit,
   onDelete,
+  onReorder,
 }: CategoryTreeProps) {
   if (categories.length === 0) {
     return (
@@ -39,15 +42,18 @@ export function CategoryTree({
 
   return (
     <div className="space-y-0.5">
-      {categories.map((category) => (
+      {categories.map((category, index) => (
         <CategoryNode
           key={category.id}
           category={category}
           depth={0}
+          siblings={categories}
+          index={index}
           selectedId={selectedId}
           onSelect={onSelect}
           onEdit={onEdit}
           onDelete={onDelete}
+          onReorder={onReorder}
         />
       ))}
     </div>
@@ -57,24 +63,40 @@ export function CategoryTree({
 interface CategoryNodeProps {
   category: Category;
   depth: number;
+  siblings: Category[];
+  index: number;
   selectedId?: string | null;
   onSelect: (category: Category) => void;
   onEdit: (category: Category) => void;
   onDelete: (category: Category) => void;
+  onReorder?: (orderedIds: string[]) => void;
 }
 
 function CategoryNode({
   category,
   depth,
+  siblings,
+  index,
   selectedId,
   onSelect,
   onEdit,
   onDelete,
+  onReorder,
 }: CategoryNodeProps) {
   const [expanded, setExpanded] = useState(true);
   const hasChildren = category.children && category.children.length > 0;
   const isSelected = selectedId === category.id;
   const productCount = category._count?.products ?? 0;
+
+  // Reorder this node within its sibling group: build the full ordered id list
+  // with this node moved one slot up/down, then persist it.
+  const move = (direction: -1 | 1) => {
+    const target = index + direction;
+    if (!onReorder || target < 0 || target >= siblings.length) return;
+    const ids = siblings.map((s) => s.id);
+    [ids[index], ids[target]] = [ids[target], ids[index]];
+    onReorder(ids);
+  };
 
   return (
     <div>
@@ -125,6 +147,30 @@ function CategoryNode({
         )}
 
         <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          {onReorder && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); move(-1); }}
+                disabled={index === 0}
+                className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Monter"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                </svg>
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); move(1); }}
+                disabled={index === siblings.length - 1}
+                className="p-1 text-muted-foreground hover:text-foreground rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                title="Descendre"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+            </>
+          )}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -154,15 +200,18 @@ function CategoryNode({
 
       {hasChildren && expanded && (
         <div>
-          {category.children!.map((child) => (
+          {category.children!.map((child, childIndex) => (
             <CategoryNode
               key={child.id}
               category={child}
               depth={depth + 1}
+              siblings={category.children!}
+              index={childIndex}
               selectedId={selectedId}
               onSelect={onSelect}
               onEdit={onEdit}
               onDelete={onDelete}
+              onReorder={onReorder}
             />
           ))}
         </div>

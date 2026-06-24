@@ -111,6 +111,18 @@ export default function CategoriesPage() {
     setShowModal(true);
   };
 
+  const handleReorder = async (orderedIds: string[]) => {
+    try {
+      await apiFetch('/v1/admin/categories/reorder', {
+        method: 'PATCH',
+        body: JSON.stringify({ orderedIds }),
+      });
+      fetchCategories();
+    } catch {
+      showFeedback('error', 'Erreur lors du réordonnancement');
+    }
+  };
+
   // Build flat list of parent options from the category tree
   const buildParentOptions = (cats: Category[], prefix = ''): { id: string; name: string }[] => {
     const result: { id: string; name: string }[] = [];
@@ -165,6 +177,7 @@ export default function CategoriesPage() {
               onSelect={handleSelect}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              onReorder={handleReorder}
             />
           )}
         </div>
