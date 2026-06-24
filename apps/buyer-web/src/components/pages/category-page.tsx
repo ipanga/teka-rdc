@@ -14,6 +14,7 @@ import {
   type FacetBrand,
 } from '@/components/product/product-filters';
 import { apiFetch } from '@/lib/api-client';
+import { categoryHref } from '@/lib/urls';
 import { useCityStore } from '@/lib/city-store';
 import { track } from '@/lib/analytics';
 import { Button, Card, Container } from '@/components/ui';
@@ -37,8 +38,9 @@ interface CategoryPageProps {
 }
 
 export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps = {}) {
-  const params = useParams<{ id?: string; slug?: string }>();
+  const params = useParams<{ ville?: string; id?: string; slug?: string }>();
   const categoryId = categoryUuid ?? params.id ?? '';
+  const ville = params.ville ?? '';
 
   const [category, setCategory] = useState<BrowseCategory | null>(null);
   const [products, setProducts] = useState<BrowseProduct[]>([]);
@@ -310,6 +312,25 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
               {"Filtres"}
             </Button>
           </div>
+
+          {/* Drill-down: this category's children (subcategories, or product
+              types under a subcategory) as quick links — lets buyers narrow
+              from Category → Subcategory → Product Type. */}
+          {category?.subcategories && category.subcategories.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-6">
+              {category.subcategories
+                .filter((c) => c.slug)
+                .map((child) => (
+                  <Link
+                    key={child.id}
+                    href={categoryHref(ville, child)}
+                    className="px-3 py-1.5 text-sm rounded-full border border-border bg-surface hover:border-primary hover:text-primary transition-colors"
+                  >
+                    {child.name}
+                  </Link>
+                ))}
+            </div>
+          )}
 
           <div className="flex gap-6">
             {/* Sidebar filters - desktop */}

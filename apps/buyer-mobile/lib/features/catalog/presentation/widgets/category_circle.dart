@@ -23,31 +23,39 @@ class CategoryCircle extends StatelessWidget {
         extra: {'categoryName': name},
       ),
       child: SizedBox(
-        width: 76,
+        width: 78,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Clean white avatar — the product illustration pops on white, with
+            // a soft shadow for depth (replaces the flat gray-with-border tile).
             Container(
-              width: 64,
-              height: 64,
+              width: 66,
+              height: 66,
               decoration: BoxDecoration(
-                color: TekaColors.surfaceMuted,
+                color: TekaColors.surface,
                 shape: BoxShape.circle,
-                border: Border.all(color: TekaColors.border),
+                boxShadow: [
+                  BoxShadow(
+                    color: TekaColors.foreground.withValues(alpha: 0.06),
+                    blurRadius: 7,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
               clipBehavior: Clip.antiAlias,
               alignment: Alignment.center,
               child: asset != null
                   ? Padding(
-                      padding: const EdgeInsets.all(10),
+                      padding: const EdgeInsets.all(11),
                       child: Image.asset(asset, fit: BoxFit.contain),
                     )
                   : Text(
                       category.emoji ?? '📦',
-                      style: const TextStyle(fontSize: 26),
+                      style: const TextStyle(fontSize: 28),
                     ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
               name,
               maxLines: 2,
@@ -56,7 +64,7 @@ class CategoryCircle extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
-                height: 1.15,
+                height: 1.2,
                 color: TekaColors.foreground,
               ),
             ),

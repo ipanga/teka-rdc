@@ -27,26 +27,29 @@ class CityHero extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: SizedBox(
-          height: 196,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Background: bundled city image, or an accent gradient fallback.
-              if (asset != null)
-                Image.asset(asset, fit: BoxFit.cover)
-              else
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [accent, accentDark],
+        // Content (min-sized, with a minimum height) defines the card height;
+        // the background fills behind it. This avoids a fixed-height overflow
+        // when iOS/Android font metrics or larger text push the copy past a
+        // hard-coded height.
+        child: Stack(
+          children: [
+            // Background: bundled city image, or an accent gradient fallback.
+            Positioned.fill(
+              child: asset != null
+                  ? Image.asset(asset, fit: BoxFit.cover)
+                  : DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [accent, accentDark],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              // Legibility scrim (darkest on the left where the copy sits).
-              const DecoratedBox(
+            ),
+            // Legibility scrim (darkest on the left where the copy sits).
+            const Positioned.fill(
+              child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.centerLeft,
@@ -55,9 +58,13 @@ class CityHero extends ConsumerWidget {
                   ),
                 ),
               ),
-              Padding(
+            ),
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 196),
+              child: Padding(
                 padding: const EdgeInsets.all(18),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -126,8 +133,8 @@ class CityHero extends ConsumerWidget {
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

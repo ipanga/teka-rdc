@@ -158,19 +158,21 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             categories.when(
               data: (cats) => SizedBox(
-                height: 112,
+                height: 118,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  // Vertical padding gives the tile shadows room (the list clips
+                  // to its bounds).
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
                   itemCount: cats.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  separatorBuilder: (_, __) => const SizedBox(width: 10),
                   itemBuilder: (context, index) => CategoryCircle(
                     category: cats[index],
                   ),
                 ),
               ),
               loading: () => const SizedBox(
-                height: 112,
+                height: 118,
                 child: Center(
                   child: SizedBox(
                     width: 20,
@@ -358,21 +360,32 @@ class _HomeSearchBar extends StatelessWidget {
       child: GestureDetector(
         onTap: () => context.push('/search'),
         child: Container(
-          height: 46,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          height: 50,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
-            color: TekaColors.surfaceMuted,
-            borderRadius: BorderRadius.circular(12),
+            color: TekaColors.surface,
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(color: TekaColors.border),
+            boxShadow: [
+              BoxShadow(
+                color: TekaColors.foreground.withValues(alpha: 0.05),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
           child: const Row(
             children: [
-              Icon(Icons.search, size: 20, color: TekaColors.mutedForeground),
+              Icon(Icons.search_rounded, size: 22, color: TekaColors.tekaRed),
               SizedBox(width: 10),
-              Text(
-                'Rechercher des produits...',
-                style:
-                    TextStyle(color: TekaColors.mutedForeground, fontSize: 14),
+              Expanded(
+                child: Text(
+                  'Rechercher des produits...',
+                  style: TextStyle(
+                    color: TekaColors.mutedForeground,
+                    fontSize: 14.5,
+                  ),
+                ),
               ),
             ],
           ),
