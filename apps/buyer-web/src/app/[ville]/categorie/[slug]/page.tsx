@@ -12,6 +12,8 @@ interface ApiCategoryDetail {
   slug: string | null;
   name: string;
   productCount?: number;
+  // Ancestor path root→self (inclusive) from getCategoryDetail.
+  breadcrumb?: { id: string; slug: string | null; name: string }[];
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -58,6 +60,23 @@ export default async function Page({ params }: Props) {
     Math.floor(Date.now() / 3_600_000) * 3_600_000,
   ).toISOString();
 
+  // Full ancestor path (Accueil › Ville › Catégorie › … › current) — matches
+  // the visible breadcrumb. Each ancestor links to its city-scoped listing.
+  const crumbs = category.breadcrumb ?? [{ id: category.id, slug: category.slug, name }];
+  const itemListElement: Array<Record<string, unknown>> = [
+    { '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://teka.cd' },
+    { '@type': 'ListItem', position: 2, name: city.name, item: `https://teka.cd/${ville}` },
+  ];
+  crumbs.forEach((c, i) => {
+    const isLast = i === crumbs.length - 1;
+    itemListElement.push({
+      '@type': 'ListItem',
+      position: 3 + i,
+      name: c.name,
+      ...(isLast || !c.slug ? {} : { item: `https://teka.cd/${ville}/categorie/${c.slug}` }),
+    });
+  });
+
   return (
     <>
       <meta property="og:updated_time" content={ogUpdated} />
@@ -65,11 +84,7 @@ export default async function Page({ params }: Props) {
         data={{
           '@context': 'https://schema.org',
           '@type': 'BreadcrumbList',
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://teka.cd' },
-            { '@type': 'ListItem', position: 2, name: city.name, item: `https://teka.cd/${ville}` },
-            { '@type': 'ListItem', position: 3, name },
-          ],
+          itemListElement,
         }}
       />
       <CategoryPage categoryUuid={category.id} cityId={city.id} />

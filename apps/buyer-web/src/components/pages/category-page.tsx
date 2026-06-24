@@ -43,6 +43,7 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
   const ville = params.ville ?? '';
 
   const [category, setCategory] = useState<BrowseCategory | null>(null);
+  const [path, setPath] = useState<BrowseCategory[]>([]);
   const [products, setProducts] = useState<BrowseProduct[]>([]);
   const [pagination, setPagination] = useState<CursorPagination | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -133,6 +134,7 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
     setIsLoading(true);
     setProducts([]);
     setCategory(null);
+    setPath([]);
     setCondition('');
     setMinPrice('');
     setMaxPrice('');
@@ -146,6 +148,7 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
       .then((res) => {
         const found = findCategory(res.data, categoryId);
         setCategory(found);
+        setPath(findCategoryPath(res.data, categoryId) ?? []);
       })
       .catch(() => {});
 
@@ -274,15 +277,41 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
 
       <main className="flex-1">
         <Container className="py-6 md:py-10">
-          {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-5 overflow-x-auto">
-            <Link href="/" className="hover:text-primary transition-colors shrink-0">
-              {"Catégories"}
-            </Link>
-            <span>/</span>
-            {category && (
-              <span className="text-foreground font-medium truncate">{categoryName}</span>
-            )}
+          {/* Breadcrumb — full ancestor path (Accueil › … › current). `path`
+              is root→current; the last node is the current (non-link) page. */}
+          <nav aria-label="Fil d'Ariane" className="mb-5">
+            <ol className="flex items-center gap-1.5 text-sm text-muted-foreground overflow-x-auto whitespace-nowrap">
+              <li className="shrink-0">
+                <Link href="/" className="hover:text-primary transition-colors">
+                  {"Accueil"}
+                </Link>
+              </li>
+              {path.map((crumb, i) => {
+                const isLast = i === path.length - 1;
+                return (
+                  <li key={crumb.id} className="flex items-center gap-1.5 shrink-0 min-w-0">
+                    <span className="text-muted-foreground/50" aria-hidden>
+                      /
+                    </span>
+                    {isLast ? (
+                      <span
+                        className="text-foreground font-medium truncate max-w-[40ch]"
+                        aria-current="page"
+                      >
+                        {crumb.name}
+                      </span>
+                    ) : (
+                      <Link
+                        href={categoryHref(ville, { slug: crumb.slug, id: crumb.id })}
+                        className="hover:text-primary transition-colors"
+                      >
+                        {crumb.name}
+                      </Link>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
           </nav>
 
           {/* Title + mobile filter toggle */}
@@ -445,6 +474,27 @@ function findCategory(
     if (cat.id === id) return cat;
     if (cat.subcategories) {
       const found = findCategory(cat.subcategories, id);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/**
+ * Returns the ancestor path root→target (inclusive) for `id` in the nested
+ * category tree, or null if not found. Used to render the full breadcrumb
+ * (Accueil › Catégorie › Sous-catégorie › Type).
+ */
+function findCategoryPath(
+  categories: BrowseCategory[],
+  id: string,
+  trail: BrowseCategory[] = [],
+): BrowseCategory[] | null {
+  for (const cat of categories) {
+    const next = [...trail, cat];
+    if (cat.id === id) return next;
+    if (cat.subcategories) {
+      const found = findCategoryPath(cat.subcategories, id, next);
       if (found) return found;
     }
   }

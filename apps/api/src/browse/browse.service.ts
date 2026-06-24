@@ -1065,7 +1065,14 @@ export class BrowseService {
       },
       include: {
         parentCategory: {
-          select: { id: true, slug: true, name: true },
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            // Grandparent too, so the breadcrumb is complete for a 3rd-level
+            // (product-type) page: top category → subcategory → type.
+            parentCategory: { select: { id: true, slug: true, name: true } },
+          },
         },
         subcategories: {
           where: { isActive: true, deletedAt: null },
@@ -1092,8 +1099,25 @@ export class BrowseService {
       throw new NotFoundException('Catégorie non trouvée');
     }
 
+    // Ancestor path root→self (inclusive), for the breadcrumb + SEO JSON-LD.
+    const breadcrumb: { id: string; slug: string | null; name: string }[] = [];
+    const gp = category.parentCategory?.parentCategory;
+    if (gp) breadcrumb.push({ id: gp.id, slug: gp.slug, name: gp.name });
+    if (category.parentCategory) {
+      breadcrumb.push({
+        id: category.parentCategory.id,
+        slug: category.parentCategory.slug,
+        name: category.parentCategory.name,
+      });
+    }
+    breadcrumb.push({
+      id: category.id,
+      slug: category.slug,
+      name: category.name,
+    });
+
     const { _count, ...rest } = category;
-    return { ...rest, productCount: _count.products };
+    return { ...rest, productCount: _count.products, breadcrumb };
   }
 
   /**
