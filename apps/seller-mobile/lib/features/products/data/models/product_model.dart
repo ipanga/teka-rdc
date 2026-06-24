@@ -77,7 +77,7 @@ class ProductSpecificationModel {
 
 enum ProductCondition { newItem, used }
 
-enum ProductStatus { draft, pendingReview, active, rejected, archived }
+enum ProductStatus { draft, pendingReview, active, rejected, archived, suspended }
 
 ProductStatus parseProductStatus(String? status) {
   switch (status?.toUpperCase()) {
@@ -91,6 +91,8 @@ ProductStatus parseProductStatus(String? status) {
       return ProductStatus.rejected;
     case 'ARCHIVED':
       return ProductStatus.archived;
+    case 'SUSPENDED':
+      return ProductStatus.suspended;
     default:
       return ProductStatus.draft;
   }
@@ -108,6 +110,8 @@ String productStatusToApi(ProductStatus status) {
       return 'REJECTED';
     case ProductStatus.archived:
       return 'ARCHIVED';
+    case ProductStatus.suspended:
+      return 'SUSPENDED';
   }
 }
 

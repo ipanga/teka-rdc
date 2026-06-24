@@ -14,6 +14,7 @@ class ProductsListState {
   final bool isLoadingMore;
   final String? error;
   final ProductStatus? statusFilter;
+  final String search;
 
   const ProductsListState({
     this.products = const [],
@@ -24,6 +25,7 @@ class ProductsListState {
     this.isLoadingMore = false,
     this.error,
     this.statusFilter,
+    this.search = '',
   });
 
   bool get hasMore => page * limit < total;
@@ -37,6 +39,7 @@ class ProductsListState {
     bool? isLoadingMore,
     String? error,
     ProductStatus? statusFilter,
+    String? search,
     bool clearFilter = false,
     bool clearError = false,
   }) {
@@ -49,6 +52,7 @@ class ProductsListState {
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       error: clearError ? null : (error ?? this.error),
       statusFilter: clearFilter ? null : (statusFilter ?? this.statusFilter),
+      search: search ?? this.search,
     );
   }
 }
@@ -70,6 +74,7 @@ class ProductsListNotifier extends StateNotifier<ProductsListState> {
         page: 1,
         limit: state.limit,
         status: statusApi,
+        search: state.search,
       );
       state = state.copyWith(
         products: result.items,
@@ -97,6 +102,7 @@ class ProductsListNotifier extends StateNotifier<ProductsListState> {
         page: nextPage,
         limit: state.limit,
         status: statusApi,
+        search: state.search,
       );
       state = state.copyWith(
         products: [...state.products, ...result.items],
@@ -117,8 +123,51 @@ class ProductsListNotifier extends StateNotifier<ProductsListState> {
     state = ProductsListState(
       statusFilter: status,
       limit: state.limit,
+      search: state.search,
     );
     loadProducts();
+  }
+
+  void setSearch(String search) {
+    if (search == state.search) return;
+    state = state.copyWith(search: search);
+    loadProducts();
+  }
+
+  /// Lifecycle actions — withdraw / restore / duplicate. Each refreshes the
+  /// list so the moved product reflects its new status. Returns the (possibly
+  /// new) product, or null on error.
+  Future<SellerProductModel?> withdraw(String id) async {
+    try {
+      final p = await _repository.withdrawProduct(id);
+      await loadProducts();
+      return p;
+    } catch (e) {
+      state = state.copyWith(error: friendlyErrorMessage(e));
+      return null;
+    }
+  }
+
+  Future<SellerProductModel?> restore(String id) async {
+    try {
+      final p = await _repository.restoreProduct(id);
+      await loadProducts();
+      return p;
+    } catch (e) {
+      state = state.copyWith(error: friendlyErrorMessage(e));
+      return null;
+    }
+  }
+
+  Future<SellerProductModel?> duplicate(String id) async {
+    try {
+      final p = await _repository.duplicateProduct(id);
+      await loadProducts();
+      return p;
+    } catch (e) {
+      state = state.copyWith(error: friendlyErrorMessage(e));
+      return null;
+    }
   }
 }
 
