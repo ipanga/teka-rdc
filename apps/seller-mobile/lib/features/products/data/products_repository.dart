@@ -33,6 +33,7 @@ class ProductsRepository {
     int page = 1,
     int limit = 20,
     String? status,
+    String? search,
   }) async {
     final queryParams = <String, dynamic>{
       'page': page,
@@ -40,6 +41,9 @@ class ProductsRepository {
     };
     if (status != null && status.isNotEmpty) {
       queryParams['status'] = status;
+    }
+    if (search != null && search.trim().isNotEmpty) {
+      queryParams['search'] = search.trim();
     }
 
     final response = await _dio.get(
@@ -96,6 +100,24 @@ class ProductsRepository {
     final response = await _dio.patch(
       '/v1/sellers/products/$id/submit',
     );
+    return SellerProductModel.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  Future<SellerProductModel> withdrawProduct(String id) async {
+    final response = await _dio.patch('/v1/sellers/products/$id/withdraw');
+    return SellerProductModel.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  Future<SellerProductModel> restoreProduct(String id) async {
+    final response = await _dio.patch('/v1/sellers/products/$id/restore');
+    return SellerProductModel.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  Future<SellerProductModel> duplicateProduct(String id) async {
+    final response = await _dio.post('/v1/sellers/products/$id/duplicate');
     return SellerProductModel.fromJson(
         response.data['data'] as Map<String, dynamic>);
   }

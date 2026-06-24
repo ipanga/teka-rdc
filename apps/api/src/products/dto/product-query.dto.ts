@@ -13,4 +13,10 @@ export class ProductQueryDto {
   @IsOptional()
   @IsString()
   status?: string;
+
+  // Free-text search over the seller's own products: title (partial,
+  // case-insensitive), shortCode, or full product id.
+  @IsOptional()
+  @IsString()
+  search?: string;
 }

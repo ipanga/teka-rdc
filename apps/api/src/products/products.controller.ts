@@ -82,6 +82,33 @@ export class ProductsController {
     return this.productsService.submitForReview(userId, id);
   }
 
+  // Withdraw a product from review (PENDING_REVIEW → DRAFT).
+  @Patch(':id/withdraw')
+  withdraw(
+    @CurrentUser('userId') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.productsService.withdraw(userId, id);
+  }
+
+  // Restore an archived product (ARCHIVED → DRAFT).
+  @Patch(':id/restore')
+  restore(
+    @CurrentUser('userId') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.productsService.restore(userId, id);
+  }
+
+  // Duplicate a product into a fresh DRAFT (color/size variants, etc.).
+  @Post(':id/duplicate')
+  duplicate(
+    @CurrentUser('userId') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.productsService.duplicate(userId, id);
+  }
+
   @Post(':id/images')
   @UseInterceptors(FileInterceptor('image'))
   uploadImage(

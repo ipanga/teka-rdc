@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
-import { ProductStatus } from '@prisma/client';
+import { ProductStatus, Prisma } from '@prisma/client';
 import { SellerNotificationService } from '../notifications/seller-notification.service';
 import { PostHogService } from '../analytics/posthog.service';
 
@@ -30,17 +30,44 @@ export class AdminProductsService {
    * queue. Pass `status=PENDING_REVIEW` to get the moderation subset.
    * Approve/Reject actions still gate on PENDING_REVIEW server-side.
    */
-  async findProducts(page: number = 1, limit: number = 20, status?: string) {
+  async findProducts(
+    page: number = 1,
+    limit: number = 20,
+    status?: string,
+    search?: string,
+  ) {
     page = Math.max(1, page);
     limit = Math.min(Math.max(1, limit), 100);
     const skip = (page - 1) * limit;
 
     const allowedStatuses = Object.values(ProductStatus) as string[];
-    const where = {
+    const q = search?.trim();
+    const insensitive = { mode: 'insensitive' as const };
+    const where: Prisma.ProductWhereInput = {
       deletedAt: null,
       ...(status && allowedStatuses.includes(status)
         ? { status: status as ProductStatus }
         : {}),
+      // Marketplace admin search: product title/shortCode/id, seller
+      // name + email, brand name, category name.
+      ...(q && {
+        OR: [
+          { title: { contains: q, ...insensitive } },
+          { shortCode: { equals: q, ...insensitive } },
+          ...(/^[0-9a-f-]{36}$/i.test(q) ? [{ id: q }] : []),
+          {
+            seller: {
+              OR: [
+                { firstName: { contains: q, ...insensitive } },
+                { lastName: { contains: q, ...insensitive } },
+                { email: { contains: q, ...insensitive } },
+              ],
+            },
+          },
+          { brand: { name: { contains: q, ...insensitive } } },
+          { category: { name: { contains: q, ...insensitive } } },
+        ],
+      }),
     };
 
     const [data, total] = await Promise.all([
@@ -228,6 +255,169 @@ export class AdminProductsService {
     });
 
     return updated;
+  }
+
+  /** Appends a status-transition to the audit log (never blocks the action). */
+  private async logStatus(
+    productId: string,
+    fromStatus: ProductStatus | null,
+    toStatus: ProductStatus,
+    actorId: string | null,
+    reason?: string,
+  ): Promise<void> {
+    try {
+      await this.prisma.productStatusLog.create({
+        data: {
+          productId,
+          fromStatus,
+          toStatus,
+          actorId,
+          actorRole: 'ADMIN',
+          reason,
+        },
+      });
+    } catch (e) {
+      this.logger.warn(`Failed to write product status log: ${String(e)}`);
+    }
+  }
+
+  private readonly adminSelect = {
+    images: { orderBy: { displayOrder: 'asc' as const } },
+    category: { select: { id: true, name: true } },
+    seller: {
+      select: { id: true, phone: true, firstName: true, lastName: true },
+    },
+  };
+
+  /**
+   * Suspends a published product (ACTIVE → SUSPENDED) — an admin takedown.
+   * Hidden from buyers; only an admin can lift it. Notifies the seller.
+   */
+  async suspendProduct(productId: string, adminId: string, reason: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId, deletedAt: null },
+    });
+    if (!product) throw new NotFoundException('Produit non trouvé');
+    if (product.status !== ProductStatus.ACTIVE) {
+      throw new BadRequestException(
+        'Seul un produit actif peut être suspendu.',
+      );
+    }
+    const updated = await this.prisma.product.update({
+      where: { id: productId },
+      data: { status: ProductStatus.SUSPENDED },
+      include: this.adminSelect,
+    });
+    await this.logStatus(
+      productId,
+      ProductStatus.ACTIVE,
+      ProductStatus.SUSPENDED,
+      adminId,
+      reason,
+    );
+    void this.sellerNotifications.notifyProductSuspended(
+      { id: updated.id, sellerId: updated.sellerId, title: updated.title },
+      reason,
+    );
+    this.analytics.capture(updated.sellerId, 'product_suspended', {
+      productId: updated.id,
+    });
+    return updated;
+  }
+
+  /**
+   * Restores a SUSPENDED or ARCHIVED product back to ACTIVE (admin authority).
+   */
+  async restoreProduct(productId: string, adminId: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId, deletedAt: null },
+    });
+    if (!product) throw new NotFoundException('Produit non trouvé');
+    if (
+      product.status !== ProductStatus.SUSPENDED &&
+      product.status !== ProductStatus.ARCHIVED
+    ) {
+      throw new BadRequestException(
+        'Seul un produit suspendu ou archivé peut être réactivé.',
+      );
+    }
+    const updated = await this.prisma.product.update({
+      where: { id: productId },
+      data: { status: ProductStatus.ACTIVE },
+      include: this.adminSelect,
+    });
+    await this.logStatus(
+      productId,
+      product.status,
+      ProductStatus.ACTIVE,
+      adminId,
+      'Réactivé par un administrateur',
+    );
+    this.analytics.capture(updated.sellerId, 'product_restored', {
+      productId: updated.id,
+    });
+    return updated;
+  }
+
+  /**
+   * Archives any product (admin → ARCHIVED). Distinct from suspend.
+   */
+  async archiveProduct(productId: string, adminId: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId, deletedAt: null },
+    });
+    if (!product) throw new NotFoundException('Produit non trouvé');
+    if (product.status === ProductStatus.ARCHIVED) {
+      throw new BadRequestException('Ce produit est déjà archivé.');
+    }
+    const updated = await this.prisma.product.update({
+      where: { id: productId },
+      data: { status: ProductStatus.ARCHIVED },
+      include: this.adminSelect,
+    });
+    await this.logStatus(
+      productId,
+      product.status,
+      ProductStatus.ARCHIVED,
+      adminId,
+      'Archivé par un administrateur',
+    );
+    this.analytics.capture(updated.sellerId, 'product_archived', {
+      productId: updated.id,
+    });
+    return updated;
+  }
+
+  /**
+   * Soft-deletes a product (sets deletedAt). Reversible at the DB level; hidden
+   * everywhere (buyer filters already exclude deletedAt != null). Use the /hard
+   * endpoint only to purge a product with no order history.
+   */
+  async softDeleteProduct(productId: string, adminId: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id: productId, deletedAt: null },
+    });
+    if (!product) throw new NotFoundException('Produit non trouvé');
+    await this.prisma.product.update({
+      where: { id: productId },
+      data: { deletedAt: new Date() },
+    });
+    await this.logStatus(
+      productId,
+      product.status,
+      product.status,
+      adminId,
+      'Supprimé (soft-delete) par un administrateur',
+    );
+    return { id: productId, deleted: true };
+  }
+
+  /** Status-transition history for a product (admin audit view). */
+  async getStatusHistory(productId: string) {
+    return this.prisma.productStatusLog.findMany({
+      where: { productId },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
   /**

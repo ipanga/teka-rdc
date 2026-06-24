@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { ProductStatusBadge } from '@/components/product/product-status-badge';
 
@@ -33,19 +34,32 @@ interface ProductsResponse {
   };
 }
 
-type StatusFilter = '' | 'DRAFT' | 'PENDING_REVIEW' | 'ACTIVE' | 'REJECTED' | 'ARCHIVED';
+type StatusFilter = '' | 'DRAFT' | 'PENDING_REVIEW' | 'ACTIVE' | 'REJECTED' | 'ARCHIVED' | 'SUSPENDED';
 
 const LIMIT = 20;
 
 export default function ProductsListPage() {
+  const router = useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  // Debounce the search box (title / shortCode / id).
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [search]);
 
   const loadProducts = useCallback(async () => {
     setIsLoading(true);
@@ -57,6 +71,9 @@ export default function ProductsListPage() {
       });
       if (statusFilter) {
         params.set('status', statusFilter);
+      }
+      if (debouncedSearch) {
+        params.set('search', debouncedSearch);
       }
       const res = await apiFetch<ProductsResponse>(`/v1/sellers/products?${params}`);
       setProducts(res.data.data || []);
@@ -70,7 +87,7 @@ export default function ProductsListPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, statusFilter]);
+  }, [page, statusFilter, debouncedSearch]);
 
   useEffect(() => {
     loadProducts();
@@ -103,6 +120,44 @@ export default function ProductsListPage() {
       // ignore
     } finally {
       setSubmittingId(null);
+    }
+  };
+
+  const handleWithdraw = async (productId: string) => {
+    setBusyId(productId);
+    try {
+      await apiFetch(`/v1/sellers/products/${productId}/withdraw`, { method: 'PATCH' });
+      loadProducts();
+    } catch {
+      // ignore
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleRestore = async (productId: string) => {
+    setBusyId(productId);
+    try {
+      await apiFetch(`/v1/sellers/products/${productId}/restore`, { method: 'PATCH' });
+      loadProducts();
+    } catch {
+      // ignore
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleDuplicate = async (productId: string) => {
+    setBusyId(productId);
+    try {
+      const res = await apiFetch<{ id: string }>(`/v1/sellers/products/${productId}/duplicate`, { method: 'POST' });
+      // Land the seller on the new draft to finish editing the variant.
+      if (res.data?.id) router.push(`/dashboard/products/${res.data.id}`);
+      else loadProducts();
+    } catch {
+      // ignore
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -142,6 +197,7 @@ export default function ProductsListPage() {
     { key: 'ACTIVE', label: "Actifs" },
     { key: 'REJECTED', label: "Rejetés" },
     { key: 'ARCHIVED', label: "Archivés" },
+    { key: 'SUSPENDED', label: "Suspendus" },
   ];
 
   return (
@@ -154,6 +210,17 @@ export default function ProductsListPage() {
         >
           + Nouveau produit
         </Link>
+      </div>
+
+      {/* Search (name / référence / ID) */}
+      <div className="mb-4">
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Rechercher un produit (nom, référence, ID)…"
+          className="w-full max-w-md px-3 py-2 text-sm border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        />
       </div>
 
       {/* Status filter tabs */}
@@ -225,7 +292,13 @@ export default function ProductsListPage() {
                     const thumbUrl = getThumbUrl(product);
                     const isEditable = product.status === 'DRAFT' || product.status === 'REJECTED';
                     const isSubmittable = product.status === 'DRAFT';
-                    const isArchivable = product.status !== 'ARCHIVED';
+                    const isArchivable =
+                      product.status !== 'ARCHIVED' && product.status !== 'SUSPENDED';
+                    const isWithdrawable = product.status === 'PENDING_REVIEW';
+                    const isRestorable = product.status === 'ARCHIVED';
+                    // Suspended products are an admin takedown — seller can't act
+                    // beyond duplicating into a fresh draft.
+                    const isDuplicable = product.status !== 'SUSPENDED';
 
                     return (
                       <tr key={product.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
@@ -270,6 +343,33 @@ export default function ProductsListPage() {
                                 className="px-2.5 py-1 text-xs font-medium rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
                               >
                                 {submittingId === product.id ? '...' : 'Soumettre'}
+                              </button>
+                            )}
+                            {isWithdrawable && (
+                              <button
+                                onClick={() => handleWithdraw(product.id)}
+                                disabled={busyId === product.id}
+                                className="px-2.5 py-1 text-xs font-medium rounded border border-border text-foreground hover:bg-muted disabled:opacity-50 transition-colors"
+                              >
+                                {busyId === product.id ? '...' : 'Retirer'}
+                              </button>
+                            )}
+                            {isRestorable && (
+                              <button
+                                onClick={() => handleRestore(product.id)}
+                                disabled={busyId === product.id}
+                                className="px-2.5 py-1 text-xs font-medium rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                              >
+                                {busyId === product.id ? '...' : 'Restaurer'}
+                              </button>
+                            )}
+                            {isDuplicable && (
+                              <button
+                                onClick={() => handleDuplicate(product.id)}
+                                disabled={busyId === product.id}
+                                className="px-2.5 py-1 text-xs font-medium rounded border border-border text-foreground hover:bg-muted disabled:opacity-50 transition-colors"
+                              >
+                                {busyId === product.id ? '...' : 'Dupliquer'}
                               </button>
                             )}
                             {isArchivable && (

@@ -46,6 +46,9 @@ enum ProductStatus {
   ACTIVE
   REJECTED
   ARCHIVED
+  // Admin takedown of a published product (distinct from seller-initiated
+  // ARCHIVED). Hidden from buyers; only an admin can lift it back to ACTIVE.
+  SUSPENDED
 }
 
 enum AttributeType {
@@ -518,6 +521,7 @@ model Product {
   reviews         Review[]
   wishlistEntries Wishlist[]
   promotions      Promotion[]
+  statusLogs      ProductStatusLog[]
 
   @@index([slug])
   @@index([shortCode])
@@ -1200,6 +1204,24 @@ model SearchSynonym {
   updatedAt DateTime @updatedAt
 
   @@map("search_synonyms")
+}
+
+// Durable audit trail of product lifecycle transitions (mirrors OrderStatusLog).
+// One row per status change — who (actor + role), from→to, optional reason.
+model ProductStatusLog {
+  id         String         @id @default(uuid()) @db.Uuid
+  productId  String         @db.Uuid
+  fromStatus ProductStatus?
+  toStatus   ProductStatus
+  actorId    String?        @db.Uuid
+  actorRole  String // SELLER | ADMIN | SYSTEM
+  reason     String?
+  createdAt  DateTime       @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, createdAt])
+  @@map("product_status_logs")
 }
 
 // Search log — powers popular/trending suggestions + zero-result reports.

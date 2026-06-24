@@ -6,22 +6,28 @@
 
 ## Active initiative
 
-**Advanced Search, Autocomplete & Filtering** (started 2026-06-24) — marketplace-grade search across buyer-web +
-buyer-mobile: richer autocomplete (brands/product-types/popular/recent), **synonyms**, ranking signal blend,
-search analytics (zero-result/CTR), complete dynamic filtering, better empty states — **reusing the existing FTS
-engine** (it's enrich+connect, not greenfield). **Tracker: `tasks/search-progress.md`.**
-- **✅ ALL PHASES SHIPPED to develop.** Decisions (locked): DB `SearchSynonym` (query-expansion) + `SearchQuery`
-  log (+ PostHog) + ranking blend (no ML) + recent searches client-local.
-  - **#461 (P2–3 backend):** synonyms (8 seed groups, cached, sanitized), ranking blend (relevance → in-stock →
-    unitsSold → avgRating → recency), search logging (guarded), `@Throttle(40/10s)` autocomplete, suggestions +=
-    brands + synonym-expanded products, `GET /v1/browse/search/popular`. Migration `2026-06-24_search_*.sql`.
-  - **#462 (P4):** mobile filter parity — price + promotion + sort-bug fix. **#463 (P5):** mobile recent/popular/
-    empty-state + active-filter badge + `zero_results`. **#464 (P6):** web autocomplete brands/recent/popular +
-    zero-result recovery + `zero_results`. **P7–8:** perf-validated + docs (architecture.md Search section).
-  - Verified: gsm 0→5, telephonne→Smartphones, sam→Samsung; 152 unit + 116 e2e + 115 mobile; all apps build clean.
-- **Remaining before prod (gated): the search migration** `2026-06-24_search_synonyms_and_logging.sql` (idempotent:
-  SearchSynonym + SearchQuery + GIN/trgm indexes + 8 seed synonym groups) ships via the "Apply prod migration"
-  action at release. Mobile reaches devices on the next Play Store AAB. SEO preserved (`/recherche` noindex).
+**Product Lifecycle Management** (started 2026-06-24) — marketplace-grade product lifecycle across API + admin +
+seller (web+mobile) + buyer: withdraw/restore/duplicate/suspend, admin moderation actions, seller+admin search,
+status audit log, lifecycle notifications/analytics — **extending the existing lifecycle** (DRAFT/PENDING/ACTIVE/
+REJECTED/ARCHIVED + soft-delete + IDOR-safe ownership all already exist). **Tracker: `tasks/product-lifecycle-progress.md`.**
+- **✅ ALL PHASES SHIPPED to develop.** Decisions (locked): +`SUSPENDED` enum (out-of-stock derived; DELETED=
+  `deletedAt`) · ACTIVE content edit → re-review (value-compared) · skip SKU + add `ProductStatusLog`.
+  - **#473 (API):** migration (+SUSPENDED + `product_status_logs`); seller withdraw/restore/duplicate + re-review
+    + search; admin suspend/restore/archive/soft-delete/history + multi-field search; status-log + analytics.
+  - **#474 admin-web** (search + lifecycle actions + history) · **#475 seller-web** (search + withdraw/restore/
+    duplicate + ACTIVE content-unlock w/ re-review banner) · **#476 seller-mobile** (parity). Buyer: no change
+    (SUSPENDED auto-excluded; out-of-stock UX already done).
+  - 163 unit + 116 e2e + mobile tests; all apps build/analyze clean.
+- **Remaining before prod (gated): the migration** `2026-06-24_product_lifecycle.sql` (+SUSPENDED enum value +
+  `product_status_logs`) ships via the Apply-migration action at release. Mobile on the next Play Store AAB.
+  Noted follow-up: seller-mobile inline content-edit of ACTIVE products (full D2 web parity) — mobile keeps
+  archive→edit→resubmit for now.
+
+> **Advanced Search** SHIPPED to prod (release #466, 2026-06-24): synonyms + ranking + logging + autocomplete +
+> filters; migration applied (8 synonym groups; gsm→phones live). Mobile on next AAB. `docs/architecture.md` →
+> "Search engine"; history: `tasks/search-progress.md`.
+> **Seller-login-after-upgrade** FIXED + shipped (release #472): the prod seed no longer clobbers an existing
+> seller password (`credentialsForSeed` guard + test). `docs/deployment.md §5b`.
 
 > **Catalog Architecture Refactor** SHIPPED to prod (release #460, 2026-06-24). 3-level taxonomy (Category →
 > Subcategory → Product Type, reused Category tree); 7 cats / 35 subs / ~145 types / ~360 attrs / 49 brands;

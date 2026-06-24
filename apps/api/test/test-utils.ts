@@ -322,6 +322,10 @@ export const mockPrismaService: Record<string, any> = {
     findMany: jest.fn().mockResolvedValue([]),
     groupBy: jest.fn().mockResolvedValue([]),
   },
+  productStatusLog: {
+    create: jest.fn().mockResolvedValue({}),
+    findMany: jest.fn().mockResolvedValue([]),
+  },
 
   // Prisma client methods
   $queryRaw: jest.fn().mockResolvedValue([{ '?column?': 1 }]),
