@@ -13,9 +13,12 @@ self-referential `Category` tree** for the 3rd level (no new table). **Tracker: 
 - **Phase 1 audit + migration report ✅ DONE:** condition already NEW/USED; removed cats have **0 real products**
   (dev+prod); only **9 real products** platform-wide (all in kept cats) → high-confidence remap. Reuse Category
   tree decided.
-- **Scope: foundation-first (A–B), then review.** A taxonomy-data + seed + migration → B API depth (child-expansion
-  2→3, breadcrumb, category reorder). Then C admin / D seller / E buyer+SEO / F docs+tests after review.
-- **▶ IN PROGRESS: Phase A** (branch `feat/catalog-refactor-taxonomy`).
+- **Scope: foundation-first (A–B), then review.** ✅ **A + B MERGED to develop (#455, `0e6e363`).** A taxonomy-data
+  + seed + migration (7 cats / 35 subs / 145 product types / 360 attrs / 49 brands; Construction+Automobile removed,
+  0 real lost; 21/21 real products remapped); B = recursive facet count roll-up (the only depth fix — reusing the
+  tree meant child-expansion + breadcrumb were already 3-level). Verified on dev; 149 unit + 116 e2e pass.
+- **▶ NEXT (post-review): C admin catalog mgmt · D seller forms (web+mobile) · E buyer filters+nav+SEO (web+mobile)
+  · F docs+tests.** Prod migration (re-seed + remap) is a separate gated step. Condition already NEW/USED.
 
 > **Universal Deep Linking** shipped (release #451; #446–#450 + iOS push config #444/#445). Operator-pending: real
 > Play-signing SHA-256 in `assetlinks.json`; iOS Associated Domains capability on a signed device. Model:
