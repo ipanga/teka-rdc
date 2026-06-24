@@ -1,6 +1,6 @@
 import { PrismaClient, AttributeType, ProductCondition, ProductStatus, OrderStatus, PaymentMethod, PaymentStatus, TransactionType, TransactionProvider, PayoutStatus, ReviewStatus, BannerStatus, PromotionType, PromotionStatus, ContentPageStatus, NotificationBroadcastStatus } from '@prisma/client';
 import { createHash } from 'crypto';
-import { STRICT_CATEGORIES, STRICT_ATTRIBUTES, STRICT_BRANDS } from './taxonomy-data';
+import { STRICT_CATEGORIES, STRICT_BRANDS } from './taxonomy-data';
 
 const prisma = new PrismaClient();
 
@@ -890,6 +890,8 @@ async function main() {
     `14000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
   const strictBrandId = (n: number) =>
     `15000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
+  const strictTypeId = (n: number) =>
+    `16000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
 
   // Deactivate all prior categories AND null their slugs so the strict tree can
   // claim clean URL slugs (Category.slug is globally @unique; the interim 8-cat
@@ -916,8 +918,24 @@ async function main() {
     return s;
   };
 
-  // Top categories + subcategories (the strict upserts reactivate their own rows).
+  // The strict tree reuses numeric keys with NEW meanings (e.g. old sub 401
+  // "Vêtements Homme" → new sub 401 "Cuisine"), so capture every real product's
+  // CURRENT category name BEFORE the upserts rename those nodes — we remap them
+  // onto the new tree at the end (see REMAP below).
+  const realProductCats = await prisma.product.findMany({
+    where: { isDemo: false, deletedAt: null },
+    select: { id: true, categoryId: true, category: { select: { name: true } } },
+  });
+
+  // Helper: a 5-digit n is a product-type leaf (16000000-), a 3-digit n is a
+  // subcategory, 1-digit is a top category (both 13000000-).
+  const strictNodeId = (n: number) => (n >= 10000 ? strictTypeId(n) : strictCatId(n));
+
+  // Categories → subcategories → product types (3 levels) + per-type attributes.
   let strictSubCount = 0;
+  let strictTypeCount = 0;
+  let strictAttrCount = 0;
+  const allTypeIds: string[] = [];
   for (const cat of STRICT_CATEGORIES) {
     const topId = strictCatId(cat.n);
     const topSlug = uniqueSlug(cat.fr);
@@ -935,37 +953,48 @@ async function main() {
         create: { id: subId, name: sub.fr, slug: subSlug, sortOrder: sub.n % 100, parentCategoryId: topId, isActive: true },
       });
       strictSubCount++;
+      for (const type of sub.types) {
+        const typeId = strictTypeId(type.n);
+        const typeSlug = uniqueSlug(type.fr, sub.fr);
+        await prisma.category.upsert({
+          where: { id: typeId },
+          update: { isActive: true, name: type.fr, slug: typeSlug, sortOrder: type.n % 100, parentCategoryId: subId },
+          create: { id: typeId, name: type.fr, slug: typeSlug, sortOrder: type.n % 100, parentCategoryId: subId, isActive: true },
+        });
+        allTypeIds.push(typeId);
+        strictTypeCount++;
+        const attrs = type.attrs ?? [];
+        for (let slot = 0; slot < attrs.length; slot++) {
+          const attr = attrs[slot];
+          const attrId = strictAttrId(type.n * 100 + slot + 1);
+          await prisma.productAttribute.upsert({
+            where: { id: attrId },
+            update: { categoryId: typeId, name: attr.fr, type: attr.type, options: attr.options ? (attr.options as unknown as object) : undefined, isRequired: attr.isRequired ?? false, sortOrder: slot + 1 },
+            create: { id: attrId, categoryId: typeId, name: attr.fr, type: attr.type, options: attr.options ? (attr.options as unknown as object) : undefined, isRequired: attr.isRequired ?? false, sortOrder: slot + 1 },
+          });
+          strictAttrCount++;
+        }
+      }
     }
   }
-  console.log(`Seeded ${STRICT_CATEGORIES.length} strict categories + ${strictSubCount} subcategories`);
+  console.log(`Seeded ${STRICT_CATEGORIES.length} categories + ${strictSubCount} subcategories + ${strictTypeCount} product types + ${strictAttrCount} attributes`);
 
-  // Per-subcategory attribute templates.
-  for (const attr of STRICT_ATTRIBUTES) {
-    const id = strictAttrId(attr.n);
-    await prisma.productAttribute.upsert({
-      where: { id },
-      update: {
-        categoryId: strictCatId(attr.subN),
-        name: attr.fr,
-        type: attr.type,
-        options: attr.options ? (attr.options as unknown as object) : undefined,
-        isRequired: attr.isRequired ?? false,
-        sortOrder: attr.n % 100,
-      },
-      create: {
-        id,
-        categoryId: strictCatId(attr.subN),
-        name: attr.fr,
-        type: attr.type,
-        options: attr.options ? (attr.options as unknown as object) : undefined,
-        isRequired: attr.isRequired ?? false,
-        sortOrder: attr.n % 100,
-      },
+  // Free the globally-unique brand name/slug before re-upserting: a prior brand
+  // library mapped some of these names to DIFFERENT ids, so rename + deactivate
+  // every existing brand first (per-row temp values keep them unique). The
+  // strict upserts below then reclaim the canonical names by id; brands not in
+  // the new set stay deactivated under their temp name (products keep their
+  // brandId — FK intact).
+  const existingBrands = await prisma.brand.findMany({ select: { id: true } });
+  for (let k = 0; k < existingBrands.length; k++) {
+    const tmp = `__old__${k}__${existingBrands[k].id.slice(-6)}`;
+    await prisma.brand.update({
+      where: { id: existingBrands[k].id },
+      data: { name: tmp, slug: tmp, isActive: false, deletedAt: new Date() },
     });
   }
-  console.log(`Seeded ${STRICT_ATTRIBUTES.length} strict attribute templates`);
 
-  // Brand library + brand↔subcategory links.
+  // Brand library + brand↔product-type links. "Autre" (empty types) links to all.
   let brandLinkCount = 0;
   for (const brand of STRICT_BRANDS) {
     const id = strictBrandId(brand.n);
@@ -975,8 +1004,8 @@ async function main() {
       update: { isActive: true, name: brand.fr, slug, sortOrder: brand.n, deletedAt: null },
       create: { id, name: brand.fr, slug, sortOrder: brand.n, isActive: true },
     });
-    for (const subN of brand.subs) {
-      const categoryId = strictCatId(subN);
+    const typeIds = brand.types.length > 0 ? brand.types.map((tn) => strictTypeId(tn)) : allTypeIds;
+    for (const categoryId of typeIds) {
       await prisma.brandCategory.upsert({
         where: { brandId_categoryId: { brandId: id, categoryId } },
         update: {},
@@ -985,7 +1014,69 @@ async function main() {
       brandLinkCount++;
     }
   }
-  console.log(`Seeded ${STRICT_BRANDS.length} brands + ${brandLinkCount} brand-category links`);
+  console.log(`Seeded ${STRICT_BRANDS.length} brands + ${brandLinkCount} brand-type links`);
+
+  // Migrate existing REAL (merchant) products onto the new tree by their old
+  // subcategory name. Removed cats (Construction, Automobile) have 0 real
+  // products. Unmapped names keep their categoryId (logged) for manual review.
+  const REMAP: Record<string, number> = {
+    // Supermarché
+    'Riz, Farines & Céréales': 10101, 'Huiles & Condiments': 10107, Conserves: 10106,
+    'Pâtes alimentaires': 10104, 'Produits surgelés': 101, Boissons: 102,
+    'Snacks & Biscuits': 10110, 'Café, Thé & Petit-déjeuner': 10204,
+    "Produits d'entretien": 104, 'Hygiène personnelle': 103, 'Couches & Bébés': 10501,
+    'Eau minérale': 10201,
+    // Téléphones & informatique (old cat 2)
+    Smartphones: 20101, 'Téléphones simples': 20201, Tablettes: 20301, Chargeurs: 20401,
+    'Écouteurs & Casques': 20402, 'Power Banks': 20404, 'Coques & Protections': 20405,
+    'Routeurs & Modems': 30501, 'Ordinateurs portables': 30201, 'Ordinateurs de bureau': 30202,
+    Imprimantes: 30204, 'Accessoires informatiques': 204,
+    // Électroménager (old cat 3)
+    'Réfrigérateurs & Congélateurs': 40201, 'Cuisinières & Fours': 40105, 'Micro-ondes': 40103,
+    'Machines à laver': 40301, 'Fers à repasser': 40501, Ventilateurs: 40402, Climatiseurs: 40401,
+    'Mixeurs & Blenders': 40101, 'Bouilloires & Cafetières': 40104,
+    Générateurs: 405, 'Équipements solaires': 405, 'Onduleurs & Régulateurs': 405,
+    // Mode (old cat 4)
+    'Vêtements Homme': 501, 'Vêtements Femme': 502, 'Vêtements Enfant': 503,
+    'Chaussures Homme': 504, 'Chaussures Femme': 504, 'Chaussures Enfant': 504,
+    'Sacs & Valises': 50501, Montres: 50503, Bijoux: 50505, Lunettes: 50504, 'Accessoires de mode': 505,
+    // Beauté & Santé (old cat 5)
+    'Soins du visage': 60102, 'Soins du corps': 60203, 'Produits capillaires': 60103,
+    'Perruques & Mèches': 601, Maquillage: 60101, 'Parfums Homme': 60301, 'Parfums Femme': 60302,
+    'Produits pour bébé': 105, 'Premiers secours': 60401, 'Santé & Bien-être': 605,
+    // Legacy 15-category tree names (older dev/test data).
+    'Chemises & T-shirts': 50101, 'Robes & Jupes': 50201, 'Sacs à Main': 50501,
+    'Équipements de Sport': 50108, 'Soins du Visage': 60102, 'Accessoires Informatique': 302,
+    'Cuisine & Vaisselle': 701, 'Ordinateurs Portables': 30201, 'Téléviseurs': 30101,
+    'Imprimantes & Scanners': 30204, 'Accessoires Téléphone': 204, 'Audio & Hi-Fi': 30103,
+    'Fournitures Scolaires': 702,
+  };
+  let remapped = 0;
+  let alreadyOnLeaf = 0;
+  for (const p of realProductCats) {
+    // Already on a product-type leaf (16000000-) from a prior migration — skip.
+    if (p.categoryId?.startsWith('16000000')) {
+      alreadyOnLeaf++;
+      continue;
+    }
+    const oldName = p.category?.name;
+    const newN = oldName ? REMAP[oldName] : undefined;
+    if (newN === undefined) {
+      if (oldName) console.warn(`  ⚠ real product ${p.id}: no remap for category "${oldName}" — left as-is`);
+      continue;
+    }
+    await prisma.product.update({ where: { id: p.id }, data: { categoryId: strictNodeId(newN) } });
+    remapped++;
+  }
+  console.log(`Remapped ${remapped}/${realProductCats.length} real products onto the new tree (${alreadyOnLeaf} already on a leaf)`);
+
+  // Old demo products are tied to the previous taxonomy — soft-delete them so
+  // the storefront only shows demo products re-seeded onto the new leaf types.
+  const demoCleared = await prisma.product.updateMany({
+    where: { isDemo: true, deletedAt: null },
+    data: { deletedAt: new Date() },
+  });
+  console.log(`Soft-deleted ${demoCleared.count} old demo products (re-seeded onto new types below)`);
 
   // ============================================================
   // PLATFORM BASELINE (content pages + system settings)
@@ -3315,317 +3406,74 @@ async function seedSampleProducts(sellerId: string): Promise<void> {
   const picsumThumb = (seed: string) =>
     `https://picsum.photos/seed/${seed}/300/300`;
 
-  // Demo catalog (P2b-2, decision D3). 2 variants per subcategory, mapped onto
-  // the STRICT taxonomy subcategories (13000000-) with an optional brand from
-  // the new library (15000000-) and optional specifications keyed by strict
-  // attribute n (14000000-). `specs` values MUST be valid options of their
-  // attribute (or free text for TEXT attrs); BOOLEAN values are 'true'/'false'.
-  interface Tpl {
-    titleFr: string;
-    descKey: string;
-    priceCDF: number;
-    priceUSD?: number;
-    brandN?: number;
-    specs?: Array<[number, string]>;
-  }
 
-  const TEMPLATES: Record<number, [Tpl, Tpl]> = {
-    // ── 1. Supermarché ──────────────────────────────────────────────────────
-    101: [
-      { titleFr: 'Riz parfumé 25kg', descKey: 'Riz long grain de qualité supérieure', priceCDF: 95000, specs: [[10101, '25kg'], [10102, 'Riz']] },
-      { titleFr: 'Farine de froment 50kg', descKey: 'Farine de boulangerie tout usage', priceCDF: 78000, specs: [[10101, '50kg'], [10102, 'Farine de froment']] },
-    ],
-    102: [
-      { titleFr: 'Huile végétale 5L', descKey: 'Huile de cuisine raffinée', priceCDF: 45000, specs: [[10201, '5L'], [10202, 'Huile végétale']] },
-      { titleFr: "Sel de cuisine 1kg (lot de 6)", descKey: 'Sel iodé de table', priceCDF: 12000, specs: [[10202, 'Sel']] },
-    ],
-    106: [
-      { titleFr: 'Coca-Cola 1.5L (pack de 6)', descKey: 'Boissons gazeuses fraîches', priceCDF: 25000, specs: [[10601, 'Soda'], [10602, '1.5L']] },
-      { titleFr: 'Jus Cécémel 1L (pack de 12)', descKey: 'Jus de fruits naturel', priceCDF: 30000, specs: [[10601, 'Jus'], [10602, '1L']] },
-    ],
-    107: [
-      { titleFr: 'Biscuits Petit Beurre (carton 24)', descKey: 'Biscuits sucrés pour toute la famille', priceCDF: 32000, specs: [[10701, 'Biscuits']] },
-      { titleFr: "Chips assorties (carton 20)", descKey: 'Snacks salés croustillants', priceCDF: 28000, specs: [[10701, 'Chips']] },
-    ],
-    111: [
-      { titleFr: 'Couches bébé taille Maxi (pack 60)', descKey: 'Couches absorbantes 12h', priceCDF: 32000, specs: [[11101, 'Maxi (7-18kg)'], [11102, 'Couches']] },
-      { titleFr: 'Lait infantile 1er âge 900g', descKey: 'Lait en poudre nourrisson', priceCDF: 48000, specs: [[11102, 'Lait infantile']] },
-    ],
-    112: [
-      { titleFr: 'Eau minérale Cristal 1.5L (pack de 6)', descKey: 'Eau minérale naturelle', priceCDF: 12000, specs: [[11201, 'Pack de 6']] },
-      { titleFr: 'Eau minérale Swissta 50cl (pack de 12)', descKey: 'Eau pure embouteillée', priceCDF: 9000, specs: [[11201, 'Pack de 12']] },
-    ],
-
-    // ── 2. Téléphones & Accessoires ─────────────────────────────────────────
-    201: [
-      { titleFr: 'Tecno Spark 10 Pro - 128Go', descKey: 'Smartphone Android 4G écran 6.6"', priceCDF: 380000, priceUSD: 145, brandN: 3, specs: [[20102, '128Go'], [20103, '8Go'], [20105, 'Neuf'], [20107, '6.6"']] },
-      { titleFr: 'Infinix Hot 30 - 64Go', descKey: 'Smartphone abordable batterie 5000mAh', priceCDF: 250000, priceUSD: 95, brandN: 4, specs: [[20102, '64Go'], [20103, '4Go'], [20105, 'Neuf']] },
-    ],
-    203: [
-      { titleFr: 'Samsung Galaxy Tab A8 - 64Go', descKey: 'Tablette Android 10.5"', priceCDF: 480000, priceUSD: 180, brandN: 1, specs: [[20301, '64Go'], [20302, '10.1"']] },
-      { titleFr: 'Lenovo Tab M10 - 32Go', descKey: 'Tablette familiale', priceCDF: 320000, priceUSD: 120, brandN: 15, specs: [[20301, '32Go'], [20302, '10.1"']] },
-    ],
-    204: [
-      { titleFr: 'Chargeur USB-C rapide 25W', descKey: 'Charge rapide pour smartphones', priceCDF: 18000, brandN: 22, specs: [[20401, 'USB-C'], [20402, '25W'], [20403, 'true']] },
-      { titleFr: 'Chargeur secteur Samsung 15W', descKey: 'Chargeur original avec câble', priceCDF: 22000, brandN: 1, specs: [[20401, 'USB-C'], [20402, '18W']] },
-    ],
-    205: [
-      { titleFr: 'Enceinte JBL Go 3 Bluetooth', descKey: 'Enceinte portable étanche', priceCDF: 95000, priceUSD: 36, brandN: 20, specs: [[20501, 'Oreillette Bluetooth'], [20502, 'true']] },
-      { titleFr: 'Casque audio Sony sans fil', descKey: 'Casque circum-auriculaire 30h', priceCDF: 130000, priceUSD: 50, brandN: 21, specs: [[20501, 'Casque'], [20502, 'true']] },
-    ],
-    206: [
-      { titleFr: 'Power Bank Anker 20000mAh', descKey: 'Batterie externe charge rapide', priceCDF: 65000, priceUSD: 25, brandN: 22, specs: [[20601, '20000mAh'], [20602, 'true']] },
-      { titleFr: 'Power Bank Xiaomi 10000mAh', descKey: 'Batterie de secours compacte', priceCDF: 38000, priceUSD: 14, brandN: 6, specs: [[20601, '10000mAh'], [20602, 'true']] },
-    ],
-    209: [
-      { titleFr: 'HP Pavilion 15 i5 8Go 512Go SSD', descKey: 'Ordinateur portable bureautique', priceCDF: 1850000, priceUSD: 700, brandN: 13, specs: [[20901, 'Intel Core i5'], [20902, '8Go'], [20903, '512Go SSD'], [20904, '15.6"']] },
-      { titleFr: 'Lenovo IdeaPad 3 Ryzen 5 8Go 256Go', descKey: 'Laptop performances + autonomie', priceCDF: 1450000, priceUSD: 550, brandN: 15, specs: [[20901, 'AMD Ryzen 5'], [20902, '8Go'], [20903, '256Go SSD'], [20904, '15.6"']] },
-    ],
-
-    // ── 3. Électroménager ───────────────────────────────────────────────────
-    301: [
-      { titleFr: 'Réfrigérateur Hisense 200L 2 portes', descKey: 'Réfrigérateur basse consommation', priceCDF: 950000, priceUSD: 360, brandN: 25, specs: [[30101, 'Réfrigérateur 2 portes'], [30102, '200L']] },
-      { titleFr: 'Congélateur coffre LG 250L', descKey: 'Congélateur grande capacité', priceCDF: 1100000, priceUSD: 420, brandN: 24, specs: [[30101, 'Congélateur coffre'], [30102, '250L']] },
-    ],
-    304: [
-      { titleFr: 'Machine à laver Beko 7kg frontale', descKey: 'Lave-linge automatique hublot', priceCDF: 1100000, priceUSD: 420, brandN: 28, specs: [[30401, 'Frontale (hublot)'], [30402, '7kg']] },
-      { titleFr: 'Machine à laver Samsung 9kg', descKey: 'Lave-linge automatique grande famille', priceCDF: 1350000, priceUSD: 510, brandN: 1, specs: [[30401, 'Automatique'], [30402, '9kg']] },
-    ],
-    306: [
-      { titleFr: 'Ventilateur sur pied Binatone 16"', descKey: 'Ventilateur 3 vitesses oscillant', priceCDF: 55000, brandN: 30, specs: [[30601, 'Ventilateur sur pied']] },
-      { titleFr: 'Ventilateur plafond Midea 56"', descKey: 'Brasseur d air silencieux', priceCDF: 78000, brandN: 29, specs: [[30601, 'Ventilateur plafond']] },
-    ],
-    308: [
-      { titleFr: 'Blender Midea 1.5L 500W', descKey: 'Mixeur bol en verre', priceCDF: 48000, brandN: 29, specs: [[30801, 'Blender'], [30802, '500W']] },
-      { titleFr: 'Robot multifonction Binatone', descKey: 'Hachoir + presse-agrumes', priceCDF: 65000, brandN: 30, specs: [[30801, 'Robot multifonction'], [30802, '800W']] },
-    ],
-    310: [
-      { titleFr: 'Générateur Elepaq 2.5kVA essence', descKey: 'Groupe électrogène silencieux', priceCDF: 650000, priceUSD: 245, brandN: 33, specs: [[31001, '2.5kVA'], [31002, 'Essence'], [31003, 'true']] },
-      { titleFr: 'Générateur Honda 5kVA', descKey: 'Groupe électrogène robuste', priceCDF: 1850000, priceUSD: 700, brandN: 34, specs: [[31001, '5kVA'], [31002, 'Essence']] },
-    ],
-
-    // ── 4. Mode ─────────────────────────────────────────────────────────────
-    401: [
-      { titleFr: 'Chemise homme manches longues', descKey: 'Chemise classique de bureau', priceCDF: 45000, specs: [[40101, 'L'], [40103, 'Coton']] },
-      { titleFr: 'Polo coton homme', descKey: 'Polo décontracté quotidien', priceCDF: 32000, specs: [[40101, 'M'], [40103, 'Coton']] },
-    ],
-    402: [
-      { titleFr: 'Robe wax femme - Modèle Africain', descKey: 'Robe en pagne wax coupe moderne', priceCDF: 65000, brandN: 40, specs: [[40201, 'M'], [40203, 'Wax']] },
-      { titleFr: 'Blouse en lin femme', descKey: 'Blouse légère pour le climat', priceCDF: 38000, specs: [[40201, 'S'], [40203, 'Lin']] },
-    ],
-    404: [
-      { titleFr: 'Baskets Nike homme', descKey: 'Baskets running confort', priceCDF: 95000, priceUSD: 36, brandN: 35, specs: [[40401, '42'], [40403, 'Tissu']] },
-      { titleFr: 'Chaussures de ville cuir homme', descKey: 'Chaussures formelles élégantes', priceCDF: 85000, specs: [[40401, '43'], [40403, 'Cuir']] },
-    ],
-    405: [
-      { titleFr: 'Baskets Adidas femme', descKey: 'Baskets confort tendance', priceCDF: 88000, priceUSD: 33, brandN: 36, specs: [[40501, '38'], [40503, 'Tissu']] },
-      { titleFr: 'Sandales femme cuir', descKey: 'Sandales élégantes été', priceCDF: 42000, specs: [[40501, '39'], [40503, 'Cuir']] },
-    ],
-    407: [
-      { titleFr: 'Sac à main femme cuir', descKey: 'Sac à main élégant', priceCDF: 75000, specs: [[40701, 'Sac à main'], [40702, 'Cuir']] },
-      { titleFr: 'Valise rigide 24 pouces', descKey: 'Valise de voyage 4 roues', priceCDF: 120000, specs: [[40701, 'Valise']] },
-    ],
-    408: [
-      { titleFr: 'Montre homme bracelet métal', descKey: 'Montre analogique élégante', priceCDF: 58000, specs: [[40801, 'Montre analogique'], [40802, 'Homme']] },
-      { titleFr: 'Montre connectée sport', descKey: 'Montre connectée podomètre', priceCDF: 85000, specs: [[40801, 'Montre connectée'], [40802, 'Unisexe']] },
-    ],
-
-    // ── 5. Beauté & Santé ───────────────────────────────────────────────────
-    501: [
-      { titleFr: "Crème hydratante visage L'Oréal 50ml", descKey: 'Crème jour anti-âge', priceCDF: 32000, brandN: 41, specs: [[50101, 'Crème hydratante'], [50102, 'Tous types']] },
-      { titleFr: 'Sérum vitamine C Nivea 30ml', descKey: 'Sérum éclat anti-taches', priceCDF: 28000, brandN: 42, specs: [[50101, 'Sérum'], [50102, 'Peau mixte']] },
-    ],
-    503: [
-      { titleFr: 'Crème défrisante Dark and Lovely', descKey: 'Soin capillaire défrisant', priceCDF: 18000, brandN: 43, specs: [[50301, 'Défrisant'], [50302, 'Cheveux crépus']] },
-      { titleFr: "Shampooing L'Oréal argan 500ml", descKey: 'Shampooing nourrissant', priceCDF: 22000, brandN: 41, specs: [[50301, 'Shampooing'], [50302, 'Tous types']] },
-    ],
-    504: [
-      { titleFr: 'Perruque lace frontale 18"', descKey: 'Perruque naturelle aspect réaliste', priceCDF: 150000, specs: [[50401, 'Perruque'], [50402, '18"'], [50403, 'Naturel humain']] },
-      { titleFr: 'Mèches brésiliennes 16" (lot de 3)', descKey: 'Tissage qualité premium', priceCDF: 120000, specs: [[50401, 'Mèches'], [50402, '16"']] },
-    ],
-    505: [
-      { titleFr: 'Palette maquillage Maybelline 24 couleurs', descKey: 'Palette yeux pigmentée', priceCDF: 48000, brandN: 44, specs: [[50501, 'Palette']] },
-      { titleFr: "Rouge à lèvres mat L'Oréal", descKey: 'Rouge à lèvres longue durée', priceCDF: 18000, brandN: 41, specs: [[50501, 'Rouge à lèvres']] },
-    ],
-    507: [
-      { titleFr: 'Parfum femme floral 100ml', descKey: 'Eau de parfum longue tenue', priceCDF: 75000, specs: [[50701, '100ml'], [50702, 'Eau de parfum']] },
-      { titleFr: 'Eau de toilette femme 50ml', descKey: 'Parfum frais quotidien', priceCDF: 45000, specs: [[50701, '50ml'], [50702, 'Eau de toilette']] },
-    ],
-
-    // ── 6. Construction & Bricolage ─────────────────────────────────────────
-    601: [
-      { titleFr: 'Sac ciment 50kg (lot de 10)', descKey: 'Ciment Portland qualité construction', priceCDF: 320000, specs: [[60101, 'Ciment'], [60102, 'Sac 50kg']] },
-      { titleFr: 'Sable de construction (mètre cube)', descKey: 'Sable lavé pour maçonnerie', priceCDF: 85000, specs: [[60101, 'Sable'], [60102, 'Mètre cube']] },
-    ],
-    606: [
-      { titleFr: 'Peinture acrylique blanche 20L', descKey: 'Peinture murale couvrante', priceCDF: 95000, specs: [[60601, 'Peinture à eau'], [60602, '20L']] },
-      { titleFr: 'Vernis bois incolore 5L', descKey: 'Vernis protection menuiserie', priceCDF: 48000, specs: [[60601, 'Vernis'], [60602, '5L']] },
-    ],
-    607: [
-      { titleFr: 'Coffret outils Stanley 86 pièces', descKey: 'Coffret bricolage complet', priceCDF: 145000, brandN: 48, specs: [[60701, 'Clé']] },
-      { titleFr: 'Marteau acier 500g', descKey: 'Marteau de charpentier professionnel', priceCDF: 18000, specs: [[60701, 'Marteau']] },
-    ],
-    608: [
-      { titleFr: 'Perceuse-visseuse Bosch 18V', descKey: 'Perceuse sans fil 2 batteries', priceCDF: 285000, brandN: 45, specs: [[60801, 'Perceuse'], [60802, 'Batterie']] },
-      { titleFr: 'Meuleuse Makita 850W 125mm', descKey: 'Meuleuse d angle polyvalente', priceCDF: 165000, brandN: 46, specs: [[60801, 'Meuleuse'], [60802, 'Filaire 220V']] },
-    ],
-    610: [
-      { titleFr: 'Casque de chantier (lot de 5)', descKey: 'Casques de sécurité norme CE', priceCDF: 45000, specs: [[61001, 'Casque']] },
-      { titleFr: 'Chaussures de sécurité embout acier', descKey: 'Chaussures montantes anti-perforation', priceCDF: 65000, specs: [[61001, 'Chaussures de sécurité']] },
-    ],
-
-    // ── 7. Automobile & Moto ────────────────────────────────────────────────
-    701: [
-      { titleFr: 'Batterie auto 60Ah', descKey: 'Batterie de démarrage 12V', priceCDF: 145000, specs: [[70101, 'Batterie auto'], [70102, '60Ah']] },
-      { titleFr: 'Batterie auto 100Ah 4x4', descKey: 'Batterie haute capacité', priceCDF: 220000, specs: [[70101, 'Batterie auto'], [70102, '100Ah']] },
-    ],
-    702: [
-      { titleFr: 'Pneu auto 195/65 R15', descKey: 'Pneu été qualité européenne', priceCDF: 145000, specs: [[70201, 'Pneu'], [70202, '195/65 R15']] },
-      { titleFr: 'Jante alu 15 pouces', descKey: 'Jante design sportif', priceCDF: 95000, specs: [[70201, 'Jante'], [70202, '15"']] },
-    ],
-    703: [
-      { titleFr: 'Huile moteur Total 5W30 5L', descKey: 'Huile synthétique premium', priceCDF: 65000, brandN: 49, specs: [[70301, 'Huile moteur'], [70302, '5W30'], [70303, '5L']] },
-      { titleFr: 'Huile moteur Castrol 10W40 4L', descKey: 'Huile semi-synthétique', priceCDF: 52000, brandN: 50, specs: [[70301, 'Huile moteur'], [70302, '10W40'], [70303, '4L']] },
-    ],
-    704: [
-      { titleFr: 'Filtre à huile (lot de 4)', descKey: 'Filtres compatibles toutes marques', priceCDF: 28000, specs: [[70401, 'Filtre'], [70402, 'Toyota']] },
-      { titleFr: 'Plaquettes de frein avant Toyota', descKey: 'Plaquettes origine qualité', priceCDF: 65000, specs: [[70401, 'Joint'], [70402, 'Toyota']] },
-    ],
-    708: [
-      { titleFr: 'Pneu moto 90/90-18', descKey: 'Pneu moto adhérence renforcée', priceCDF: 48000, specs: [[70801, 'Pneu moto'], [70802, '125cc']] },
-      { titleFr: 'Chaîne de transmission moto', descKey: 'Chaîne renforcée 125cc', priceCDF: 32000, specs: [[70801, 'Chaîne'], [70802, '125cc']] },
-    ],
-  };
-
-  const strictCatId = (n: number) =>
-    `13000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
-  const strictAttrId = (n: number) =>
-    `14000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
   const strictBrandId = (n: number) =>
     `15000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
+  const strictTypeId = (n: number) =>
+    `16000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
   const seedProdId = (n: number) =>
     `31000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
   const seedImgId = (n: number) =>
     `41000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
-  const seedSpecId = (n: number) =>
-    `42000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
 
   const cities = [
     { id: LUBUMBASHI_CITY_ID, fr: 'Lubumbashi' },
     { id: KOLWEZI_CITY_ID, fr: 'Kolwezi' },
   ];
 
+  // First brand linked to each product type (skip "Autre"), for a realistic demo.
+  const brandByType = new Map<number, number>();
+  for (const b of STRICT_BRANDS) {
+    if (b.n === 1) continue;
+    for (const tn of b.types) if (!brandByType.has(tn)) brandByType.set(tn, b.n);
+  }
+
+  // Taxonomy-driven: one demo product per (leaf product type × city). Stable
+  // ids derived from the type's numeric key so re-seeds are idempotent; the
+  // `deletedAt: null` on update revives any previously soft-deleted demo row.
   let counter = 0;
   let imgCounter = 0;
-  let specCounter = 0;
-  const subcatNs = Object.keys(TEMPLATES).map(Number).sort((a, b) => a - b);
+  let typeCount = 0;
+  for (const cat of STRICT_CATEGORIES) {
+    for (const sub of cat.subs) {
+      for (const type of sub.types) {
+        typeCount += 1;
+        const categoryId = strictTypeId(type.n);
+        const brandN = brandByType.get(type.n);
+        const brandId = brandN ? strictBrandId(brandN) : null;
+        for (let cityIdx = 0; cityIdx < cities.length; cityIdx++) {
+          const city = cities[cityIdx];
+          counter += 1;
+          const productId = seedProdId(type.n * 10 + cityIdx);
+          const titleFr = `${type.fr} — ${sub.fr}`;
+          const descFr =
+            `${type.fr} de qualité (${cat.fr} › ${sub.fr}). Disponible à ${city.fr}. ` +
+            'Livraison rapide partout en RDC. Achetez en toute confiance sur Teka RDC.';
+          const slug = generateProductSlug(`${type.fr}-${city.fr}-${type.n}`);
+          const shortCode = shortCodeFromId(productId);
+          const priceCDF = BigInt((5000 + (type.n % 50) * 1500) * 100); // centimes
 
-  for (const subcatN of subcatNs) {
-    const categoryId = strictCatId(subcatN);
+          // ~1 in 4 demo products on sale (stable per id) to exercise the
+          // discount UI; integer division keeps discount < price.
+          const promoSeed = parseInt(productId.slice(-2), 16) || 0;
+          const onPromo = promoSeed % 4 === 0;
+          const promoPct = [15, 20, 25, 30][(promoSeed >> 2) % 4];
+          const discountPriceCDF = onPromo ? (priceCDF * BigInt(100 - promoPct)) / 100n : null;
 
-    for (let cityIdx = 0; cityIdx < cities.length; cityIdx++) {
-      const city = cities[cityIdx];
-
-      for (let v = 0; v < TEMPLATES[subcatN].length; v++) {
-        counter += 1;
-        const tpl = TEMPLATES[subcatN][v];
-        const productId = seedProdId(counter);
-
-        const titleFr = tpl.titleFr;
-        const descFr =
-          `${tpl.descKey}. Disponible à ${city.fr}. ` +
-          'Livraison rapide partout en RDC. Achetez en toute confiance sur Teka RDC, ' +
-          'votre marketplace en République Démocratique du Congo.';
-        const slug = generateProductSlug(titleFr);
-        const shortCode = shortCodeFromId(productId);
-        const priceCDF = BigInt(tpl.priceCDF * 100); // CDF -> centimes
-        const priceUSD = tpl.priceUSD ? BigInt(tpl.priceUSD * 100) : null;
-        const brandId = tpl.brandN ? strictBrandId(tpl.brandN) : null;
-
-        // Demo promotions: deterministically put ~1 in 4 demo products on sale
-        // (15/20/25/30% off, stable per product id) so the storefront exercises
-        // the new discount UI. The integer division keeps the promo strictly
-        // below the regular price, satisfying the discount<price invariant.
-        const promoSeed = parseInt(productId.slice(-2), 16) || 0;
-        const onPromo = promoSeed % 4 === 0;
-        const promoPct = [15, 20, 25, 30][(promoSeed >> 2) % 4];
-        const discountPriceCDF = onPromo
-          ? (priceCDF * BigInt(100 - promoPct)) / 100n
-          : null;
-        const discountPriceUSD =
-          onPromo && priceUSD
-            ? (priceUSD * BigInt(100 - promoPct)) / 100n
-            : null;
-
-        await prisma.product.upsert({
-          where: { id: productId },
-          // Full reconcile on update: the strict-taxonomy remap reuses the same
-          // 31000000- ids the interim demo catalog used, so title/description/
-          // price must be overwritten too (not just category/brand) — otherwise
-          // a re-seed would strand old titles on new categories.
-          update: {
-            slug,
-            shortCode,
-            title: titleFr,
-            description: descFr,
-            cityId: city.id,
-            categoryId,
-            brandId,
-            sellerId,
-            priceCDF,
-            priceUSD,
-            discountPriceCDF,
-            discountPriceUSD,
-            status: ProductStatus.ACTIVE,
-            isDemo: true,
-          },
-          create: {
-            id: productId,
-            slug,
-            shortCode,
-            title: titleFr,
-            description: descFr,
-            categoryId,
-            brandId,
-            sellerId,
-            cityId: city.id,
-            priceCDF,
-            priceUSD,
-            discountPriceCDF,
-            discountPriceUSD,
-            quantity: 25,
-            condition: ProductCondition.NEW,
-            status: ProductStatus.ACTIVE,
-            isDemo: true,
-          },
-        });
-
-        // Two product images per product, stable per (product, index).
-        for (let i = 0; i < 2; i++) {
-          imgCounter += 1;
-          const seed = `${productId}-${i}`;
-          const fields = {
-            cloudinaryId: `picsum/${seed}`,
-            url: picsumFull(seed),
-            thumbnailUrl: picsumThumb(seed),
-            displayOrder: i,
-          };
-          await prisma.productImage.upsert({
-            where: { id: seedImgId(imgCounter) },
-            update: fields,
-            create: { id: seedImgId(imgCounter), productId, ...fields },
+          await prisma.product.upsert({
+            where: { id: productId },
+            update: { slug, shortCode, title: titleFr, description: descFr, cityId: city.id, categoryId, brandId, sellerId, priceCDF, priceUSD: null, discountPriceCDF, discountPriceUSD: null, status: ProductStatus.ACTIVE, isDemo: true, deletedAt: null },
+            create: { id: productId, slug, shortCode, title: titleFr, description: descFr, categoryId, brandId, sellerId, cityId: city.id, priceCDF, discountPriceCDF, quantity: 25, condition: ProductCondition.NEW, status: ProductStatus.ACTIVE, isDemo: true },
           });
-        }
 
-        // Specifications, keyed by strict attribute n.
-        if (tpl.specs) {
-          for (const [attrN, value] of tpl.specs) {
-            specCounter += 1;
-            const attributeId = strictAttrId(attrN);
-            await prisma.productSpecification.upsert({
-              where: { productId_attributeId: { productId, attributeId } },
-              update: { value },
-              create: { id: seedSpecId(specCounter), productId, attributeId, value },
+          for (let i = 0; i < 2; i++) {
+            imgCounter += 1;
+            const seed = `${productId}-${i}`;
+            const fields = { cloudinaryId: `picsum/${seed}`, url: picsumFull(seed), thumbnailUrl: picsumThumb(seed), displayOrder: i };
+            await prisma.productImage.upsert({
+              where: { id: seedImgId(imgCounter) },
+              update: fields,
+              create: { id: seedImgId(imgCounter), productId, ...fields },
             });
           }
         }
@@ -3633,7 +3481,7 @@ async function seedSampleProducts(sellerId: string): Promise<void> {
     }
   }
 
-  console.log(`  Seeded ${counter} demo products (${subcatNs.length} subcategories x 2 cities) with brands + specs`);
+  console.log(`  Seeded ${counter} demo products (${typeCount} product types x 2 cities) with brands`);
 }
 
 main()
