@@ -1,4 +1,5 @@
 import { Controller, Get, Param, Query, ParseUUIDPipe } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { BrowseService } from './browse.service';
 import { BrowseProductsQueryDto } from './dto/browse-products-query.dto';
 import { Public } from '../common/decorators/public.decorator';
@@ -33,8 +34,12 @@ export class BrowseController {
    * Search autocomplete: top relevant products + matching categories for a
    * partial query. City-scoped products when cityId is provided.
    */
+  // Burst-friendly but abuse-resistant: autocomplete fires per keystroke
+  // (debounced), so allow 40 hits / 10s per IP — comfortably covers fast typing
+  // while blocking scripted scraping.
   @Get('search/suggestions')
   @Public()
+  @Throttle({ default: { limit: 40, ttl: 10000 } })
   searchSuggestions(@Query('q') q?: string, @Query('cityId') cityId?: string) {
     return this.browseService.searchSuggestions(q ?? '', cityId);
   }

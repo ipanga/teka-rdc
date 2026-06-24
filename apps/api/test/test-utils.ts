@@ -314,6 +314,14 @@ export const mockPrismaService: Record<string, any> = {
     delete: jest.fn(),
     deleteMany: jest.fn(),
   },
+  searchSynonym: {
+    findMany: jest.fn().mockResolvedValue([]),
+  },
+  searchQuery: {
+    create: jest.fn().mockResolvedValue({}),
+    findMany: jest.fn().mockResolvedValue([]),
+    groupBy: jest.fn().mockResolvedValue([]),
+  },
 
   // Prisma client methods
   $queryRaw: jest.fn().mockResolvedValue([{ '?column?': 1 }]),

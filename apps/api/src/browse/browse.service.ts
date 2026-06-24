@@ -4,11 +4,117 @@ import { ProductStatus, Prisma } from '@prisma/client';
 import { BrowseProductsQueryDto } from './dto/browse-products-query.dto';
 import { isShortCode } from '../common/utils/slugify';
 
+// Lowercase + strip French accents (JS-side), mirroring the DB's f_unaccent so
+// synonym matching ("téléphone" ⇄ "telephone") is consistent on both sides.
+function stripAccents(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
 @Injectable()
 export class BrowseService {
   private readonly logger = new Logger(BrowseService.name);
 
+  // Short-lived cache of active synonym groups (admin-editable; reloaded every
+  // 60s) so we don't hit the table on every search.
+  private synonymCache: { at: number; groups: string[][] } | null = null;
+
   constructor(private prisma: PrismaService) {}
+
+  /** Active synonym groups (unaccented/lowercase), cached for 60s. */
+  private async getSynonymGroups(): Promise<string[][]> {
+    if (this.synonymCache && Date.now() - this.synonymCache.at < 60_000) {
+      return this.synonymCache.groups;
+    }
+    let groups: string[][] = [];
+    try {
+      const rows = await this.prisma.searchSynonym.findMany({
+        where: { isActive: true },
+        select: { terms: true },
+      });
+      groups = rows.map((r) => r.terms.map(stripAccents).filter(Boolean));
+    } catch {
+      groups = this.synonymCache?.groups ?? [];
+    }
+    this.synonymCache = { at: Date.now(), groups };
+    return groups;
+  }
+
+  /**
+   * Extra OR-terms for a query from any synonym group it hits. E.g. "gsm" →
+   * ["portable","smartphone","telephone","mobile"]. Returns [] when no group
+   * matches. Terms already present in the query are dropped.
+   */
+  private expandSynonyms(q: string, groups: string[][]): string[] {
+    const tokens = stripAccents(q).split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return [];
+    const tokenSet = new Set(tokens);
+    const extra = new Set<string>();
+    for (const group of groups) {
+      const hit = group.some((term) => {
+        const words = term.split(/\s+/).filter(Boolean);
+        return words.length === 1
+          ? tokenSet.has(term)
+          : words.every((w) => tokenSet.has(w));
+      });
+      if (hit) for (const term of group) extra.add(term);
+    }
+    for (const t of tokens) extra.delete(t);
+    return [...extra];
+  }
+
+  /**
+   * Builds the FTS/trigram match condition + an optional synonym OR-clause.
+   * `synTerms` are admin-controlled + sanitized to tsquery lexemes here, so the
+   * to_tsquery interpolation is injection-safe (and still a bound parameter).
+   */
+  private buildSearchMatch(q: string, synTerms: string[]): Prisma.Sql {
+    const parts: Prisma.Sql[] = [
+      Prisma.sql`p."search_vector" @@ websearch_to_tsquery('french', public.f_unaccent(${q}))`,
+      Prisma.sql`public.f_unaccent(${q}) <% public.f_unaccent(p."title")`,
+    ];
+    const sanitized = synTerms
+      .map((t) =>
+        stripAccents(t)
+          .replace(/[^a-z0-9\s]+/g, ' ')
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean)
+          .join(' & '),
+      )
+      .filter(Boolean)
+      .map((s) => `(${s})`);
+    if (sanitized.length > 0) {
+      const orStr = sanitized.join(' | ');
+      parts.push(
+        Prisma.sql`p."search_vector" @@ to_tsquery('french', public.f_unaccent(${orStr}))`,
+      );
+    }
+    return Prisma.sql`(${Prisma.join(parts, ' OR ')})`;
+  }
+
+  /** Fire-and-forget search log (first page only) for popular/zero-result analytics. */
+  private logSearch(term: string, resultCount: number, cityId?: string): void {
+    // Logging must NEVER break search — swallow any error (incl. a missing
+    // delegate in tests or a transient DB blip).
+    try {
+      void this.prisma.searchQuery
+        ?.create({
+          data: {
+            term: term.slice(0, 200),
+            termNormalized: stripAccents(term).slice(0, 200),
+            resultCount,
+            cityId: cityId ?? null,
+          },
+        })
+        ?.catch(() => {});
+    } catch {
+      /* no-op */
+    }
+  }
 
   /**
    * Returns active categories as a tree with ACTIVE product counts.
@@ -238,11 +344,13 @@ export class BrowseService {
       // rank-ordered result set. Same filters as the default path.
       const q = query.search;
       // Accent-insensitive (f_unaccent) so "telephone" matches "Téléphones";
-      // word_similarity (<%) gives one-word typo tolerance against long titles.
+      // word_similarity (<%) gives one-word typo tolerance against long titles;
+      // synonym groups OR in related terms (gsm → portable/smartphone/…).
+      const synTerms = this.expandSynonyms(q, await this.getSynonymGroups());
       const conds: Prisma.Sql[] = [
         Prisma.sql`p."status" = 'ACTIVE'`,
         Prisma.sql`p."deletedAt" IS NULL`,
-        Prisma.sql`(p."search_vector" @@ websearch_to_tsquery('french', public.f_unaccent(${q})) OR public.f_unaccent(${q}) <% public.f_unaccent(p."title"))`,
+        this.buildSearchMatch(q, synTerms),
       ];
       if (query.cityId) {
         conds.push(Prisma.sql`p."cityId"::text = ${query.cityId}`);
@@ -294,6 +402,9 @@ export class BrowseService {
         ORDER BY p."isDemo" ASC,
                  ts_rank(p."search_vector", websearch_to_tsquery('french', public.f_unaccent(${q}))) DESC,
                  word_similarity(public.f_unaccent(${q}), public.f_unaccent(p."title")) DESC,
+                 (p."quantity" > 0) DESC,
+                 p."unitsSold" DESC,
+                 p."avgRating" DESC,
                  p."createdAt" DESC
         LIMIT ${limit + 1} OFFSET ${offset}
       `);
@@ -306,6 +417,9 @@ export class BrowseService {
         Prisma.sql`SELECT COUNT(*)::bigint AS count FROM "products" p WHERE ${whereSql}`,
       );
       total = Number(countRows[0]?.count ?? 0);
+
+      // Log the search once per session (first page) for popular/zero-result analytics.
+      if (!query.cursor) this.logSearch(q, total, query.cityId);
 
       const fetched = await this.prisma.product.findMany({
         where: { id: { in: pageIds } },
