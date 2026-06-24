@@ -146,24 +146,41 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
 
       <main className="flex-1 pb-24 md:pb-12">
         <Container className="py-6">
-          {/* Breadcrumb */}
-          <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-5 overflow-x-auto">
-            <Link href="/" className="hover:text-primary transition-colors shrink-0">
-              {"Catégories"}
-            </Link>
-            {product.category?.breadcrumb?.map((crumb) => (
-              <span key={crumb.id} className="flex items-center gap-2 shrink-0">
-                <span>/</span>
-                <Link
-                  href={categoryHref(product.city?.slug, crumb)}
-                  className="hover:text-primary transition-colors"
-                >
-                  {crumb.name ?? ''}
+          {/* Breadcrumb — full category path (Accueil › Catégorie › Sous-catégorie
+              › … › produit). product.breadcrumb ends with the product's own
+              category; the last node renders as the current (non-link) page. */}
+          <nav aria-label="Fil d'Ariane" className="mb-5">
+            <ol className="flex items-center gap-1.5 text-sm text-muted-foreground overflow-x-auto whitespace-nowrap">
+              <li className="shrink-0">
+                <Link href="/" className="hover:text-primary transition-colors">
+                  {"Accueil"}
                 </Link>
-              </span>
-            ))}
-            <span>/</span>
-            <span className="text-foreground truncate">{title}</span>
+              </li>
+              {product.breadcrumb?.map((crumb) => (
+                <li key={crumb.id} className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-muted-foreground/50" aria-hidden>
+                    /
+                  </span>
+                  <Link
+                    href={categoryHref(product.city?.slug, crumb)}
+                    className="hover:text-primary transition-colors"
+                  >
+                    {crumb.name ?? ''}
+                  </Link>
+                </li>
+              ))}
+              <li className="flex items-center gap-1.5 min-w-0">
+                <span className="text-muted-foreground/50" aria-hidden>
+                  /
+                </span>
+                <span
+                  className="text-foreground font-medium truncate max-w-[40ch]"
+                  aria-current="page"
+                >
+                  {title}
+                </span>
+              </li>
+            </ol>
           </nav>
 
           {/* Product main grid: gallery + info side-by-side on desktop */}

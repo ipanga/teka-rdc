@@ -129,22 +129,25 @@ export function ProductFilters({
         <label className="block text-sm font-medium text-foreground mb-1.5">
           {"Fourchette de prix"} (CDF)
         </label>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <input
             type="number"
+            inputMode="numeric"
             value={minPrice}
             onChange={(e) => onMinPriceChange(e.target.value)}
             placeholder={"Prix min"}
             min="0"
-            className="flex-1 px-3 py-2 border border-input rounded-lg bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full min-w-0 flex-1 px-3 py-2 border border-input rounded-lg bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
+          <span className="shrink-0 text-muted-foreground text-sm">–</span>
           <input
             type="number"
+            inputMode="numeric"
             value={maxPrice}
             onChange={(e) => onMaxPriceChange(e.target.value)}
             placeholder={"Prix max"}
             min="0"
-            className="flex-1 px-3 py-2 border border-input rounded-lg bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full min-w-0 flex-1 px-3 py-2 border border-input rounded-lg bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
         </div>
       </div>

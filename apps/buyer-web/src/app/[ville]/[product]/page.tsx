@@ -35,6 +35,8 @@ interface ProductData {
     sellerProfile?: { businessName?: string };
   };
   category?: { id: string; slug?: string | null; name: string };
+  // Full category path (Catégorie → Sous-catégorie → Type), from getProductDetail.
+  breadcrumb?: { id: string; slug: string | null; name: string }[];
   brand?: { id: string; name: string; slug?: string | null } | null;
   // Demo retirement (P3c): true for a demo product in a retired category.
   isRetired?: boolean;
@@ -228,7 +230,6 @@ export default async function Page({ params }: Props) {
     }),
   };
 
-  const categoryName = pickStr(product.category?.name);
   const cityName = pickStr(product.city?.name);
   const productName = pickStr(product.title);
   const cityUrl = canonicalCity ? `https://teka.cd/${canonicalCity}` : undefined;
@@ -239,8 +240,17 @@ export default async function Page({ params }: Props) {
   if (cityName && cityUrl) {
     breadcrumbItems.push({ '@type': 'ListItem', position: pos++, name: cityName, item: cityUrl });
   }
-  if (categoryName) {
-    breadcrumbItems.push({ '@type': 'ListItem', position: pos++, name: categoryName });
+  // Full category path (Catégorie → Sous-catégorie → Type), matching the
+  // visible breadcrumb. Each crumb links to its city-scoped listing page.
+  const crumbs = product.breadcrumb ?? [];
+  for (const crumb of crumbs) {
+    const name = pickStr(crumb.name);
+    if (!name) continue;
+    const item =
+      canonicalCity && crumb.slug
+        ? `https://teka.cd/${canonicalCity}/categorie/${crumb.slug}`
+        : undefined;
+    breadcrumbItems.push({ '@type': 'ListItem', position: pos++, name, ...(item ? { item } : {}) });
   }
   breadcrumbItems.push({ '@type': 'ListItem', position: pos, name: productName });
   const breadcrumbJsonLd = {

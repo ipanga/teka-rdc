@@ -86,8 +86,10 @@ export interface ProductDetail {
     id: string;
     slug: string | null;
     name: string;
-    breadcrumb: { id: string; slug: string | null; name: string }[];
   };
+  // Full category path (Catégorie → Sous-catégorie → Type de produit), returned
+  // at the top level by getProductDetail. Ends with the product's own category.
+  breadcrumb: { id: string; slug: string | null; name: string }[];
   specifications: ProductSpecification[];
   unitsSold?: number | null;
 }
