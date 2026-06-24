@@ -6,22 +6,23 @@
 
 ## Active initiative
 
-**Catalog Architecture Refactor** (started 2026-06-24) — add a 3rd taxonomy level **Product Type** (Category →
-Subcategory → Product Type), a new 7-category ordered tree, remove Construction & Bricolage + Automobile & Moto,
-product-type-driven attributes + brands, condition = New/Used, full admin catalog management. **Reuse the existing
-self-referential `Category` tree** for the 3rd level (no new table). **Tracker: `tasks/catalog-refactor-progress.md`.**
-- **Phase 1 audit + migration report ✅ DONE:** condition already NEW/USED; removed cats have **0 real products**
-  (dev+prod); only **9 real products** platform-wide (all in kept cats) → high-confidence remap. Reuse Category
-  tree decided.
-- **✅ ALL PHASES MERGED to develop** — A+B taxonomy/seed/migration + API depth (#455) · C admin 3-level mgmt +
-  reorder + orphan cleanup (#456) · D seller selectors web+mobile (#457) · E buyer drill-down + sitemap (#458) ·
-  F docs + reorder tests. Reused the Category tree (no new table); 7 cats / 35 subs / ~145 product types / ~360
-  attrs / 49 brands; Construction+Automobile removed (0 real lost); 21/21 real products remapped. Verified on dev:
-  facet counts roll up, all 6 apps build/analyze clean, 149 unit + 116 e2e + mobile tests pass.
-- **Remaining before prod (gated): the prod migration** — re-seed taxonomy on prod + remap the 9 real prod
-  products (the seed handles it idempotently: 3-level upsert, brand-name freeing, name-based remap, orphan +
-  old-demo soft-delete). Do as a deliberate `prisma:seed:prod`-style step at release. Mobile reaches devices on
-  the next Play Store AAB. Condition already NEW/USED.
+**Advanced Search, Autocomplete & Filtering** (started 2026-06-24) — marketplace-grade search across buyer-web +
+buyer-mobile: richer autocomplete (brands/product-types/popular/recent), **synonyms**, ranking signal blend,
+search analytics (zero-result/CTR), complete dynamic filtering, better empty states — **reusing the existing FTS
+engine** (it's enrich+connect, not greenfield). **Tracker: `tasks/search-progress.md`.**
+- **Phase 1 audit ✅ DONE** (3 parallel sweeps). Strong base already exists: French FTS + `unaccent` + GIN,
+  trigram fuzzy (title), suggestions endpoint (5 products + 5 cats), dynamic attr/brand facets, `search_performed`.
+  Gaps: no synonyms, no server search-log/popular, thin analytics, autocomplete lacks brands/types/popular/recent,
+  search page lacks facets, mobile lacks price/promo (+ sort bug), no active-filter chips, search endpoints unthrottled.
+- **⏳ AWAITING 2 architecture decisions:** D1 synonyms storage (recommend DB `SearchSynonym` + query-expansion);
+  D2 search logging (recommend lightweight `SearchQuery` table for popular/zero-result + keep PostHog).
+- **▶ NEXT:** on approval, Phase 2 backend (`feat/search-backend`). Phased shippable PRs 2→8 (see tracker).
+
+> **Catalog Architecture Refactor** SHIPPED to prod (release #460, 2026-06-24). 3-level taxonomy (Category →
+> Subcategory → Product Type, reused Category tree); 7 cats / 35 subs / ~145 types / ~360 attrs / 49 brands;
+> Construction+Automobile removed; **prod data migrated — 9/9 real products remapped, 0 cruft, deploy green**.
+> main==develop. Mobile selectors/drill-down ship on the next Play Store AAB. Model: `docs/architecture.md` →
+> "Marketplace taxonomy + brands"; history: `tasks/catalog-refactor-progress.md`.
 
 > **Universal Deep Linking** shipped (release #451; #446–#450 + iOS push config #444/#445). Operator-pending: real
 > Play-signing SHA-256 in `assetlinks.json`; iOS Associated Domains capability on a signed device. Model:
