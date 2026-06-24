@@ -133,6 +133,7 @@ describe('ProductsService.update — edit-after-publish + discount', () => {
         update: updateMock,
       },
       productSpecification: { deleteMany: jest.fn() },
+      productStatusLog: { create: jest.fn() },
       $transaction: jest.fn(async (cb: (tx: unknown) => unknown) =>
         cb({
           product: { update: updateMock },
@@ -162,10 +163,29 @@ describe('ProductsService.update — edit-after-publish + discount', () => {
     expect(data.quantity).toBe(10);
   });
 
-  it('rejects editing a content field (title) on a published product (400)', async () => {
+  it('re-reviews (ACTIVE → PENDING_REVIEW) when a content field is edited on a published product', async () => {
+    // D2: a content edit to a live product is allowed but re-enters moderation.
     const { service, updateMock } = makeUpdateService(ACTIVE);
+    await service.update('seller1', 'p1', { title: 'Nouveau titre' } as never);
+    const data = updateMock.mock.calls[0][0].data;
+    expect(data.title).toBe('Nouveau titre');
+    expect(data.status).toBe('PENDING_REVIEW');
+  });
+
+  it('keeps ACTIVE (no re-review) when only price/stock are edited', async () => {
+    const { service, updateMock } = makeUpdateService(ACTIVE);
+    await service.update('seller1', 'p1', { priceCDF: '40000000' } as never);
+    const data = updateMock.mock.calls[0][0].data;
+    expect(data.status).toBeUndefined();
+  });
+
+  it('rejects editing a SUSPENDED product (400)', async () => {
+    const { service, updateMock } = makeUpdateService({
+      id: 'p1',
+      status: 'SUSPENDED',
+    });
     await expect(
-      service.update('seller1', 'p1', { title: 'Nouveau titre' } as never),
+      service.update('seller1', 'p1', { title: 'x' } as never),
     ).rejects.toBeInstanceOf(BadRequestException);
     expect(updateMock).not.toHaveBeenCalled();
   });
