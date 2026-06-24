@@ -26,6 +26,10 @@ class BrowseProductsParams {
   final String? sortBy;
   final String? cityId;
 
+  /// Price range (CDF) for the price facet. Null = unbounded on that side.
+  final String? minPrice;
+  final String? maxPrice;
+
   /// Promotion facet: only products with an active seller-set discount.
   final bool onPromotion;
 
@@ -44,6 +48,8 @@ class BrowseProductsParams {
     this.condition,
     this.sortBy,
     this.cityId,
+    this.minPrice,
+    this.maxPrice,
     this.onPromotion = false,
     this.attributesJson,
     this.brandIds,
@@ -59,6 +65,8 @@ class BrowseProductsParams {
           condition == other.condition &&
           sortBy == other.sortBy &&
           cityId == other.cityId &&
+          minPrice == other.minPrice &&
+          maxPrice == other.maxPrice &&
           onPromotion == other.onPromotion &&
           attributesJson == other.attributesJson &&
           brandIds == other.brandIds;
@@ -70,6 +78,8 @@ class BrowseProductsParams {
       condition.hashCode ^
       sortBy.hashCode ^
       cityId.hashCode ^
+      minPrice.hashCode ^
+      maxPrice.hashCode ^
       onPromotion.hashCode ^
       attributesJson.hashCode ^
       brandIds.hashCode;
@@ -80,6 +90,8 @@ class BrowseProductsParams {
     String? condition,
     String? sortBy,
     String? cityId,
+    String? minPrice,
+    String? maxPrice,
     bool? onPromotion,
     String? attributesJson,
     String? brandIds,
@@ -88,6 +100,7 @@ class BrowseProductsParams {
     bool clearCondition = false,
     bool clearSortBy = false,
     bool clearCityId = false,
+    bool clearPrice = false,
     bool clearAttributes = false,
     bool clearBrandIds = false,
   }) {
@@ -97,6 +110,8 @@ class BrowseProductsParams {
       condition: clearCondition ? null : (condition ?? this.condition),
       sortBy: clearSortBy ? null : (sortBy ?? this.sortBy),
       cityId: clearCityId ? null : (cityId ?? this.cityId),
+      minPrice: clearPrice ? null : (minPrice ?? this.minPrice),
+      maxPrice: clearPrice ? null : (maxPrice ?? this.maxPrice),
       onPromotion: onPromotion ?? this.onPromotion,
       attributesJson:
           clearAttributes ? null : (attributesJson ?? this.attributesJson),
@@ -158,6 +173,8 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
         condition: _params.condition,
         sortBy: _params.sortBy,
         cityId: _params.cityId,
+        minPrice: _params.minPrice,
+        maxPrice: _params.maxPrice,
         onPromotion: _params.onPromotion,
         attributesJson: _params.attributesJson,
         brandIds: _params.brandIds,
@@ -191,6 +208,8 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
         condition: _params.condition,
         sortBy: _params.sortBy,
         cityId: _params.cityId,
+        minPrice: _params.minPrice,
+        maxPrice: _params.maxPrice,
         onPromotion: _params.onPromotion,
         attributesJson: _params.attributesJson,
         brandIds: _params.brandIds,
