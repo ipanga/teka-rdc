@@ -2,10 +2,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/auth/auth_guard.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
-import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../wishlist/presentation/widgets/wishlist_button.dart';
 import '../../data/models/product_model.dart';
 
@@ -13,38 +11,6 @@ class ProductCard extends ConsumerWidget {
   final BrowseProductModel product;
 
   const ProductCard({super.key, required this.product});
-
-  // Quick-add (Phase D): add a single unit straight from the card. The
-  // IconButton wins the tap within its bounds (like the wishlist heart), so it
-  // adds to cart instead of navigating to the PDP. cartProvider.addItem already
-  // fires the add_to_cart analytics event.
-  Future<void> _quickAdd(
-    BuildContext context,
-    WidgetRef ref,
-  ) async {
-    // The cart requires an account — gate guests to login, then return.
-    if (!ensureAuthenticated(context, ref)) return;
-    try {
-      await ref.read(cartProvider.notifier).addItem(product.id);
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Ajouté au panier"),
-          backgroundColor: TekaColors.success,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    } catch (_) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Une erreur est survenue. Veuillez reessayer."),
-          backgroundColor: TekaColors.destructive,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -121,7 +87,7 @@ class ProductCard extends ConsumerWidget {
                         foreground: Colors.white,
                       ),
                     ),
-                  // Low stock warning bottom-left (bottom-right is the quick-add)
+                  // Low stock warning, bottom-left.
                   if (!product.isOutOfStock && product.isLowStock)
                     Positioned(
                       bottom: 8,
@@ -132,46 +98,34 @@ class ProductCard extends ConsumerWidget {
                         foreground: Colors.white,
                       ),
                     ),
-                  // Quick-add to cart, bottom-right. Hidden when out of stock.
-                  if (!product.isOutOfStock)
-                    Positioned(
-                      bottom: 4,
-                      right: 4,
-                      child: DecoratedBox(
-                        decoration: const BoxDecoration(
-                          color: TekaColors.tekaRed,
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          onPressed: () => _quickAdd(context, ref),
-                          icon: const Icon(
-                            Icons.add_shopping_cart_outlined,
-                            color: Colors.white,
-                            size: 18,
-                          ),
-                          constraints: const BoxConstraints.tightFor(
-                            width: 34,
-                            height: 34,
-                          ),
-                          padding: EdgeInsets.zero,
-                          tooltip: "Ajouter au panier",
-                        ),
-                      ),
-                    ),
-                  // Wishlist heart top-right. The IconButton wins the tap
-                  // gesture within its bounds, so tapping it toggles the
-                  // wishlist instead of navigating to the PDP.
+                  // Wishlist heart, top-right — a compact, clean circular chip.
+                  // The IconButton wins the tap within its bounds, so tapping it
+                  // toggles the wishlist instead of navigating to the PDP.
                   Positioned(
-                    top: 4,
-                    right: 4,
-                    child: DecoratedBox(
+                    top: 6,
+                    right: 6,
+                    child: Container(
+                      width: 32,
+                      height: 32,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.88),
+                        color: Colors.white.withValues(alpha: 0.92),
                         shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.10),
+                            blurRadius: 4,
+                            offset: const Offset(0, 1),
+                          ),
+                        ],
                       ),
                       child: WishlistButton(
                         productId: product.id,
-                        size: 20,
+                        size: 17,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints.tightFor(
+                          width: 32,
+                          height: 32,
+                        ),
                       ),
                     ),
                   ),
@@ -195,36 +149,37 @@ class ProductCard extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          price,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: TekaColors.tekaRed,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
+                  // Effective price on its own full-width line — scales down
+                  // (never truncates) so even multi-million CDF values stay
+                  // fully readable. The original price is struck through below
+                  // when discounted, so neither steals width from the other.
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      price,
+                      maxLines: 1,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800,
+                        color: TekaColors.tekaRed,
+                        letterSpacing: -0.2,
                       ),
-                      if (hasDiscount) ...[
-                        const SizedBox(width: 6),
-                        Text(
-                          formatCDF(product.priceCDF),
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: TekaColors.mutedForeground,
-                            decoration: TextDecoration.lineThrough,
-                          ),
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
+                  if (hasDiscount) ...[
+                    const SizedBox(height: 1),
+                    Text(
+                      formatCDF(product.priceCDF),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: TekaColors.mutedForeground,
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    ),
+                  ],
                   if (product.unitsSold > 0) ...[
                     const SizedBox(height: 2),
                     Text(

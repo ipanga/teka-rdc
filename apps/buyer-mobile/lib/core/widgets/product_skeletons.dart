@@ -3,8 +3,10 @@ import '../theme/teka_colors.dart';
 
 /// Shared product-grid metrics so every product grid (home, category, search,
 /// wishlist) uses the SAME cell shape — previously these drifted between 0.6
-/// and 0.65, giving cards different heights per screen.
-const double kProductCardAspectRatio = 0.62;
+/// and 0.65, giving cards different heights per screen. Lowered 0.62 → 0.58 to
+/// give the price block room for the stacked sale + struck-through original
+/// price (see ProductCard).
+const double kProductCardAspectRatio = 0.58;
 const double kProductGridSpacing = 12;
 
 /// A lightweight shimmer placeholder block — a muted rounded rectangle with a
