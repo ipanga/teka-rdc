@@ -99,7 +99,12 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
         title: Text(widget.categoryName ?? "Categories"),
         actions: [
           IconButton(
-            icon: const Icon(Icons.tune),
+            icon: Badge(
+              isLabelVisible: _filters.activeCount > 0,
+              label: Text('${_filters.activeCount}'),
+              backgroundColor: TekaColors.tekaRed,
+              child: const Icon(Icons.tune),
+            ),
             tooltip: "Trier et filtrer",
             onPressed: () async {
               final result = await FilterBottomSheet.show(

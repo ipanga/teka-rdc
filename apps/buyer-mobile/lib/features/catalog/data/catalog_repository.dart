@@ -189,6 +189,26 @@ class CatalogRepository {
         .toList(growable: false);
   }
 
+  /// GET /v1/browse/search/popular — top recent search terms (for the empty /
+  /// focused search state + zero-result fallback). Empty list on any error.
+  Future<List<String>> getPopularSearches({String? cityId}) async {
+    try {
+      final response = await _dio.get(
+        '/v1/browse/search/popular',
+        queryParameters: {if (cityId != null) 'cityId': cityId},
+      );
+      final data = response.data['data'] ?? response.data;
+      final raw = (data is List) ? data : const [];
+      return raw
+          .map((e) => (e is Map ? e['term'] : null)?.toString())
+          .whereType<String>()
+          .where((t) => t.trim().isNotEmpty)
+          .toList(growable: false);
+    } catch (_) {
+      return const [];
+    }
+  }
+
   /// GET /v1/browse/categories/:id/attributes — the SELECT / MULTISELECT
   /// attributes for a category, used to build the facet filter. TEXT / NUMERIC
   /// and option-less attributes are dropped (not filterable).
