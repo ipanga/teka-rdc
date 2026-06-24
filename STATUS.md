@@ -6,22 +6,23 @@
 
 ## Active initiative
 
-**Advanced Search, Autocomplete & Filtering** (started 2026-06-24) — marketplace-grade search across buyer-web +
-buyer-mobile: richer autocomplete (brands/product-types/popular/recent), **synonyms**, ranking signal blend,
-search analytics (zero-result/CTR), complete dynamic filtering, better empty states — **reusing the existing FTS
-engine** (it's enrich+connect, not greenfield). **Tracker: `tasks/search-progress.md`.**
-- **✅ ALL PHASES SHIPPED to develop.** Decisions (locked): DB `SearchSynonym` (query-expansion) + `SearchQuery`
-  log (+ PostHog) + ranking blend (no ML) + recent searches client-local.
-  - **#461 (P2–3 backend):** synonyms (8 seed groups, cached, sanitized), ranking blend (relevance → in-stock →
-    unitsSold → avgRating → recency), search logging (guarded), `@Throttle(40/10s)` autocomplete, suggestions +=
-    brands + synonym-expanded products, `GET /v1/browse/search/popular`. Migration `2026-06-24_search_*.sql`.
-  - **#462 (P4):** mobile filter parity — price + promotion + sort-bug fix. **#463 (P5):** mobile recent/popular/
-    empty-state + active-filter badge + `zero_results`. **#464 (P6):** web autocomplete brands/recent/popular +
-    zero-result recovery + `zero_results`. **P7–8:** perf-validated + docs (architecture.md Search section).
-  - Verified: gsm 0→5, telephonne→Smartphones, sam→Samsung; 152 unit + 116 e2e + 115 mobile; all apps build clean.
-- **Remaining before prod (gated): the search migration** `2026-06-24_search_synonyms_and_logging.sql` (idempotent:
-  SearchSynonym + SearchQuery + GIN/trgm indexes + 8 seed synonym groups) ships via the "Apply prod migration"
-  action at release. Mobile reaches devices on the next Play Store AAB. SEO preserved (`/recherche` noindex).
+**Product Lifecycle Management** (started 2026-06-24) — marketplace-grade product lifecycle across API + admin +
+seller (web+mobile) + buyer: withdraw/restore/duplicate/suspend, admin moderation actions, seller+admin search,
+status audit log, lifecycle notifications/analytics — **extending the existing lifecycle** (DRAFT/PENDING/ACTIVE/
+REJECTED/ARCHIVED + soft-delete + IDOR-safe ownership all already exist). **Tracker: `tasks/product-lifecycle-progress.md`.**
+- **Phase 1 audit ✅ DONE** (3 sweeps). Strong base: 5-status enum, seller create/submit/update(ACTIVE-locked)/
+  archive/hard-delete, admin approve/reject, buyer ACTIVE-only filter, out-of-stock UX (web+mobile), approve/reject
+  notifications. Gaps: withdraw, restore, duplicate, admin suspend/archive/restore, seller+admin search, status
+  audit log, lifecycle analytics, mobile ACTIVE-edit lock, ACTIVE content-edit re-review path.
+- **⏳ AWAITING 3 decisions:** D1 suspend modeling (recommend add `SUSPENDED` enum, keep OUT_OF_STOCK derived);
+  D2 ACTIVE content edits → re-review (recommend yes); D3 skip SKU + add `ProductStatusLog`.
+- **▶ NEXT:** on approval, Phase 2 API (`feat/product-lifecycle-api`). Phased PRs 2→7 (see tracker).
+
+> **Advanced Search** SHIPPED to prod (release #466, 2026-06-24): synonyms + ranking + logging + autocomplete +
+> filters; migration applied (8 synonym groups; gsm→phones live). Mobile on next AAB. `docs/architecture.md` →
+> "Search engine"; history: `tasks/search-progress.md`.
+> **Seller-login-after-upgrade** FIXED + shipped (release #472): the prod seed no longer clobbers an existing
+> seller password (`credentialsForSeed` guard + test). `docs/deployment.md §5b`.
 
 > **Catalog Architecture Refactor** SHIPPED to prod (release #460, 2026-06-24). 3-level taxonomy (Category →
 > Subcategory → Product Type, reused Category tree); 7 cats / 35 subs / ~145 types / ~360 attrs / 49 brands;
