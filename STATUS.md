@@ -13,12 +13,15 @@ self-referential `Category` tree** for the 3rd level (no new table). **Tracker: 
 - **Phase 1 audit + migration report ✅ DONE:** condition already NEW/USED; removed cats have **0 real products**
   (dev+prod); only **9 real products** platform-wide (all in kept cats) → high-confidence remap. Reuse Category
   tree decided.
-- **Scope: foundation-first (A–B), then review.** ✅ **A + B MERGED to develop (#455, `0e6e363`).** A taxonomy-data
-  + seed + migration (7 cats / 35 subs / 145 product types / 360 attrs / 49 brands; Construction+Automobile removed,
-  0 real lost; 21/21 real products remapped); B = recursive facet count roll-up (the only depth fix — reusing the
-  tree meant child-expansion + breadcrumb were already 3-level). Verified on dev; 149 unit + 116 e2e pass.
-- **▶ NEXT (post-review): C admin catalog mgmt · D seller forms (web+mobile) · E buyer filters+nav+SEO (web+mobile)
-  · F docs+tests.** Prod migration (re-seed + remap) is a separate gated step. Condition already NEW/USED.
+- **✅ ALL PHASES MERGED to develop** — A+B taxonomy/seed/migration + API depth (#455) · C admin 3-level mgmt +
+  reorder + orphan cleanup (#456) · D seller selectors web+mobile (#457) · E buyer drill-down + sitemap (#458) ·
+  F docs + reorder tests. Reused the Category tree (no new table); 7 cats / 35 subs / ~145 product types / ~360
+  attrs / 49 brands; Construction+Automobile removed (0 real lost); 21/21 real products remapped. Verified on dev:
+  facet counts roll up, all 6 apps build/analyze clean, 149 unit + 116 e2e + mobile tests pass.
+- **Remaining before prod (gated): the prod migration** — re-seed taxonomy on prod + remap the 9 real prod
+  products (the seed handles it idempotently: 3-level upsert, brand-name freeing, name-based remap, orphan +
+  old-demo soft-delete). Do as a deliberate `prisma:seed:prod`-style step at release. Mobile reaches devices on
+  the next Play Store AAB. Condition already NEW/USED.
 
 > **Universal Deep Linking** shipped (release #451; #446–#450 + iOS push config #444/#445). Operator-pending: real
 > Play-signing SHA-256 in `assetlinks.json`; iOS Associated Domains capability on a signed device. Model:

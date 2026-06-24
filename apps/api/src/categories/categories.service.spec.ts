@@ -58,3 +58,52 @@ describe('CategoriesService.reorderAttributes', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });
+
+function makeCatService(nodes: Array<{ id: string; parentCategoryId: string | null }>) {
+  const prisma = {
+    category: {
+      findMany: jest.fn().mockResolvedValue(nodes),
+      update: jest.fn().mockImplementation((args) => args),
+    },
+    $transaction: jest.fn().mockResolvedValue([]),
+  };
+  const service = new CategoriesService(prisma as never);
+  return { service, prisma };
+}
+
+describe('CategoriesService.reorderCategories', () => {
+  it('writes sortOrder = index for sibling ids', async () => {
+    const { service, prisma } = makeCatService([
+      { id: 'a', parentCategoryId: 'p' },
+      { id: 'b', parentCategoryId: 'p' },
+      { id: 'c', parentCategoryId: 'p' },
+    ]);
+    await service.reorderCategories(['c', 'a', 'b']);
+    expect(prisma.$transaction.mock.calls[0][0]).toHaveLength(3);
+    expect(prisma.category.update).toHaveBeenNthCalledWith(1, {
+      where: { id: 'c' },
+      data: { sortOrder: 0 },
+    });
+  });
+
+  it('rejects nodes that span more than one parent', async () => {
+    const { service, prisma } = makeCatService([
+      { id: 'a', parentCategoryId: 'p1' },
+      { id: 'b', parentCategoryId: 'p2' },
+    ]);
+    await expect(
+      service.reorderCategories(['a', 'b']),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('rejects when an id is missing/foreign', async () => {
+    const { service, prisma } = makeCatService([
+      { id: 'a', parentCategoryId: 'p' },
+    ]);
+    await expect(
+      service.reorderCategories(['a', 'b']),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+});

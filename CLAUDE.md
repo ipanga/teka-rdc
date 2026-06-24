@@ -210,11 +210,18 @@ role-by-role feature spec is in **`docs/product-spec.md`** (historical reference
 behaviour the authoritative sources are §10 (Rules) below + `docs/architecture.md` — where the original
 spec and current behaviour differ (auth, payments, SMS), **the Rules win.**
 
-**Catalog taxonomy + brands (2026-06-14).** The catalog uses a **strict 2-level taxonomy** — **7 categories
-→ 80 subcategories** — defined in `apps/api/prisma/taxonomy-data.ts` and seeded as the **only active** tree
-(older taxonomies are deactivated + slug-nulled). Brands are a **first-class library** (`Brand` model;
-admin `/dashboard/brands` CRUD/merge; `Product.brandId`; buyer brand-filter facet `brandIds`), **not** a
-"Marque" attribute. Per-subcategory **dynamic attributes** support `TEXT/SELECT/MULTISELECT/NUMERIC/BOOLEAN`.
+**Catalog taxonomy + brands (refactored 2026-06-24).** The catalog is a **3-level taxonomy** — **Category →
+Subcategory → Product Type** (7 categories → 35 subcategories → ~145 product types) — built by **reusing the
+self-referential `Category` tree** (product types are `Category` nodes, `16000000-` UUID range; **no separate
+ProductType table**). Defined in `apps/api/prisma/taxonomy-data.ts`, seeded as the **only active** tree (older
+nodes are deactivated **and soft-deleted** — FK-safe; existing products remapped by old name). The 7 (fixed
+order): Supermarché · Téléphones & Accessoires · Électronique · Électroménager · Mode · Beauté & Santé · Maison
+& Cuisine (**Construction & Bricolage + Automobile & Moto removed** — 0 real products). **Products link to the
+leaf (product type).** Attributes + brands attach **per product type**. Brands are a **first-class library**
+(`Brand` model; admin `/dashboard/brands` CRUD/merge; `Product.brandId`; buyer `brandIds` facet; always includes
+"Autre"), **not** a "Marque" attribute. **Condition = `NEW`/`USED` enum only** (not an attribute). Admin manages
+all 3 levels (polymorphic category endpoints + `PATCH /v1/admin/categories/reorder`). Dynamic attributes support
+`TEXT/SELECT/MULTISELECT/NUMERIC/BOOLEAN`.
 Pre-launch reset tooling: `pnpm db:reset-catalog` (dry-run / `-- --confirm`) + admin `DELETE
 /v1/admin/products/:id/hard`. Seeded ids are non-RFC4122 (`13000000-`/`15000000-`) → endpoints validate ids
 by DB lookup, not `@IsUUID`. Full model: `docs/architecture.md` → "Marketplace taxonomy + brands".
