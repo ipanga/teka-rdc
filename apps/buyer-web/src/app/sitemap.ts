@@ -30,7 +30,7 @@ async function fetchApi<T>(path: string): Promise<T | null> {
 interface SitemapCategory {
   id: string;
   slug: string | null;
-  subcategories?: Array<{ id: string; slug: string | null }>;
+  subcategories?: SitemapCategory[];
 }
 interface SitemapCity {
   id: string;
@@ -84,10 +84,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // -- City-scoped categories (/{ville}/categorie/{slug}) — per D1 the canonical
   //    category page is city-scoped, so emit categories × active cities. --
-  const flatCategories: SitemapCategory[] = (categories || []).flatMap((cat) => [
-    cat,
-    ...(cat.subcategories || []).map((s) => ({ id: s.id, slug: s.slug })),
-  ]);
+  // Flatten ALL levels (category → subcategory → product type) so every node's
+  // city-scoped listing page is in the sitemap.
+  const flattenCats = (cats: SitemapCategory[]): SitemapCategory[] =>
+    cats.flatMap((c) => [c, ...flattenCats(c.subcategories || [])]);
+  const flatCategories: SitemapCategory[] = flattenCats(categories || []);
   const categoryPages: MetadataRoute.Sitemap = activeCities.flatMap((city) =>
     flatCategories
       .filter((cat) => cat.slug)
