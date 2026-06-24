@@ -10,13 +10,18 @@
 buyer-mobile: richer autocomplete (brands/product-types/popular/recent), **synonyms**, ranking signal blend,
 search analytics (zero-result/CTR), complete dynamic filtering, better empty states — **reusing the existing FTS
 engine** (it's enrich+connect, not greenfield). **Tracker: `tasks/search-progress.md`.**
-- **Phase 1 audit ✅ DONE** (3 parallel sweeps). Strong base already exists: French FTS + `unaccent` + GIN,
-  trigram fuzzy (title), suggestions endpoint (5 products + 5 cats), dynamic attr/brand facets, `search_performed`.
-  Gaps: no synonyms, no server search-log/popular, thin analytics, autocomplete lacks brands/types/popular/recent,
-  search page lacks facets, mobile lacks price/promo (+ sort bug), no active-filter chips, search endpoints unthrottled.
-- **⏳ AWAITING 2 architecture decisions:** D1 synonyms storage (recommend DB `SearchSynonym` + query-expansion);
-  D2 search logging (recommend lightweight `SearchQuery` table for popular/zero-result + keep PostHog).
-- **▶ NEXT:** on approval, Phase 2 backend (`feat/search-backend`). Phased shippable PRs 2→8 (see tracker).
+- **✅ ALL PHASES SHIPPED to develop.** Decisions (locked): DB `SearchSynonym` (query-expansion) + `SearchQuery`
+  log (+ PostHog) + ranking blend (no ML) + recent searches client-local.
+  - **#461 (P2–3 backend):** synonyms (8 seed groups, cached, sanitized), ranking blend (relevance → in-stock →
+    unitsSold → avgRating → recency), search logging (guarded), `@Throttle(40/10s)` autocomplete, suggestions +=
+    brands + synonym-expanded products, `GET /v1/browse/search/popular`. Migration `2026-06-24_search_*.sql`.
+  - **#462 (P4):** mobile filter parity — price + promotion + sort-bug fix. **#463 (P5):** mobile recent/popular/
+    empty-state + active-filter badge + `zero_results`. **#464 (P6):** web autocomplete brands/recent/popular +
+    zero-result recovery + `zero_results`. **P7–8:** perf-validated + docs (architecture.md Search section).
+  - Verified: gsm 0→5, telephonne→Smartphones, sam→Samsung; 152 unit + 116 e2e + 115 mobile; all apps build clean.
+- **Remaining before prod (gated): the search migration** `2026-06-24_search_synonyms_and_logging.sql` (idempotent:
+  SearchSynonym + SearchQuery + GIN/trgm indexes + 8 seed synonym groups) ships via the "Apply prod migration"
+  action at release. Mobile reaches devices on the next Play Store AAB. SEO preserved (`/recherche` noindex).
 
 > **Catalog Architecture Refactor** SHIPPED to prod (release #460, 2026-06-24). 3-level taxonomy (Category →
 > Subcategory → Product Type, reused Category tree); 7 cats / 35 subs / ~145 types / ~360 attrs / 49 brands;
