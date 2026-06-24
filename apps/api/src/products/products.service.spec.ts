@@ -211,3 +211,59 @@ describe('ProductsService.update — edit-after-publish + discount', () => {
     expect(updateMock.mock.calls[0][0].data.discountPriceCDF).toBeNull();
   });
 });
+
+// --- Lifecycle transitions: withdraw / restore / duplicate ---
+function makeLifecycleService(product: Record<string, unknown> | null) {
+  const updateMock = jest
+    .fn()
+    .mockImplementation((args) => ({ id: 'p1', ...args.data }));
+  const prisma = {
+    product: {
+      findUnique: jest.fn().mockResolvedValue(product),
+      update: updateMock,
+    },
+    productStatusLog: { create: jest.fn() },
+  };
+  const service = new ProductsService(
+    prisma as never,
+    {} as never,
+    { capture: jest.fn() } as never,
+    { create: jest.fn() } as never,
+  );
+  return { service, prisma, updateMock };
+}
+
+describe('ProductsService lifecycle transitions', () => {
+  it('withdraw: PENDING_REVIEW → DRAFT', async () => {
+    const { service, updateMock, prisma } = makeLifecycleService({
+      id: 'p1',
+      status: 'PENDING_REVIEW',
+    });
+    await service.withdraw('seller1', 'p1');
+    expect(updateMock.mock.calls[0][0].data.status).toBe('DRAFT');
+    expect(prisma.productStatusLog.create).toHaveBeenCalled();
+  });
+
+  it('withdraw: rejects a non-pending product (400)', async () => {
+    const { service } = makeLifecycleService({ id: 'p1', status: 'ACTIVE' });
+    await expect(service.withdraw('seller1', 'p1')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  it('restore: ARCHIVED → DRAFT', async () => {
+    const { service, updateMock } = makeLifecycleService({
+      id: 'p1',
+      status: 'ARCHIVED',
+    });
+    await service.restore('seller1', 'p1');
+    expect(updateMock.mock.calls[0][0].data.status).toBe('DRAFT');
+  });
+
+  it('restore: rejects a non-archived product (400)', async () => {
+    const { service } = makeLifecycleService({ id: 'p1', status: 'ACTIVE' });
+    await expect(service.restore('seller1', 'p1')).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+});

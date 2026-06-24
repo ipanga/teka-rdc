@@ -310,17 +310,27 @@ modal). Single URL builder: `apps/buyer-web/src/lib/urls.ts`.
 
 ### Product Lifecycle
 
+**Statuses (`ProductStatus`):** `DRAFT → PENDING_REVIEW → ACTIVE → {REJECTED, ARCHIVED, SUSPENDED}`. `DELETED` is the `deletedAt` soft-delete (not a status); **out-of-stock is derived from `quantity ≤ 0`** (not a status) — buyer UX shows "Rupture de stock" + gates add-to-cart. **Buyers only ever see `status = ACTIVE AND deletedAt = null`** (API-enforced in browse + PDP), so DRAFT/PENDING/REJECTED/ARCHIVED/SUSPENDED/deleted are all excluded automatically.
+
 ```
-1. Seller creates product → POST /api/v1/sellers/products
-   - Status: DRAFT (not visible to buyers)
-2. Seller uploads images → POST /api/v1/sellers/products/:id/images
-   - Image sent to Cloudinary, URL stored in ProductImage table
-3. Seller submits for review → PATCH /api/v1/sellers/products/:id/submit
-   - Status: PENDING_REVIEW
-4. Admin reviews → PATCH /api/v1/admin/products/:id/approve (or /reject)
-   - Status: ACTIVE (visible) or REJECTED
-5. Buyer browses → GET /api/v1/browse/products (only ACTIVE products returned)
+1. Seller creates → POST /v1/sellers/products → DRAFT (not visible)
+2. Seller uploads images → POST /v1/sellers/products/:id/images
+3. Seller submits → PATCH /v1/sellers/products/:id/submit → PENDING_REVIEW
+   - withdraw (PATCH /:id/withdraw) → back to DRAFT
+4. Admin → PATCH /v1/admin/products/:id/approve | /reject → ACTIVE | REJECTED
+5. ACTIVE edits (seller PATCH /:id):
+   - price / discount / stock → instant (stays ACTIVE)
+   - content (title/description/category/brand/condition/specs) that ACTUALLY
+     changes → re-enters PENDING_REVIEW (re-review). Value-compared so an
+     unchanged field sent alongside a price edit does NOT re-review.
+6. Seller archive (DELETE /:id → ARCHIVED) · restore (PATCH /:id/restore →
+   DRAFT) · duplicate (POST /:id/duplicate → clone as DRAFT, own shortCode).
+7. Admin: suspend (PATCH /:id/suspend, reason → SUSPENDED, notifies seller) ·
+   restore (SUSPENDED/ARCHIVED → ACTIVE) · archive · soft-delete (DELETE /:id) ·
+   hard-delete (/:id/hard, blocked if order history) · history (/:id/history).
 ```
+
+**Ownership / IDOR:** every seller endpoint scopes by `{ id, sellerId, deletedAt:null }` (404 on mismatch — no leak). **Audit:** every transition writes a `ProductStatusLog` (actor, role, from→to, reason) — admin views it on the product detail. **Search:** seller (`?search=` title/shortCode/id) + admin (`?search=` title/shortCode/id/seller name+email/brand/category). **Notifications:** approve/reject/suspend → seller in-app feed + push (+ email). **Analytics:** `product_created/updated/moderated/archived/restored/duplicated/suspended` (PostHog). Surfaced on admin-web, seller-web + seller-mobile (search + filter + all lifecycle actions). Migration: `2026-06-24_product_lifecycle.sql`.
 
 ### Checkout Flow
 

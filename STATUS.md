@@ -10,13 +10,18 @@
 seller (web+mobile) + buyer: withdraw/restore/duplicate/suspend, admin moderation actions, seller+admin search,
 status audit log, lifecycle notifications/analytics — **extending the existing lifecycle** (DRAFT/PENDING/ACTIVE/
 REJECTED/ARCHIVED + soft-delete + IDOR-safe ownership all already exist). **Tracker: `tasks/product-lifecycle-progress.md`.**
-- **Phase 1 audit ✅ DONE** (3 sweeps). Strong base: 5-status enum, seller create/submit/update(ACTIVE-locked)/
-  archive/hard-delete, admin approve/reject, buyer ACTIVE-only filter, out-of-stock UX (web+mobile), approve/reject
-  notifications. Gaps: withdraw, restore, duplicate, admin suspend/archive/restore, seller+admin search, status
-  audit log, lifecycle analytics, mobile ACTIVE-edit lock, ACTIVE content-edit re-review path.
-- **⏳ AWAITING 3 decisions:** D1 suspend modeling (recommend add `SUSPENDED` enum, keep OUT_OF_STOCK derived);
-  D2 ACTIVE content edits → re-review (recommend yes); D3 skip SKU + add `ProductStatusLog`.
-- **▶ NEXT:** on approval, Phase 2 API (`feat/product-lifecycle-api`). Phased PRs 2→7 (see tracker).
+- **✅ ALL PHASES SHIPPED to develop.** Decisions (locked): +`SUSPENDED` enum (out-of-stock derived; DELETED=
+  `deletedAt`) · ACTIVE content edit → re-review (value-compared) · skip SKU + add `ProductStatusLog`.
+  - **#473 (API):** migration (+SUSPENDED + `product_status_logs`); seller withdraw/restore/duplicate + re-review
+    + search; admin suspend/restore/archive/soft-delete/history + multi-field search; status-log + analytics.
+  - **#474 admin-web** (search + lifecycle actions + history) · **#475 seller-web** (search + withdraw/restore/
+    duplicate + ACTIVE content-unlock w/ re-review banner) · **#476 seller-mobile** (parity). Buyer: no change
+    (SUSPENDED auto-excluded; out-of-stock UX already done).
+  - 163 unit + 116 e2e + mobile tests; all apps build/analyze clean.
+- **Remaining before prod (gated): the migration** `2026-06-24_product_lifecycle.sql` (+SUSPENDED enum value +
+  `product_status_logs`) ships via the Apply-migration action at release. Mobile on the next Play Store AAB.
+  Noted follow-up: seller-mobile inline content-edit of ACTIVE products (full D2 web parity) — mobile keeps
+  archive→edit→resubmit for now.
 
 > **Advanced Search** SHIPPED to prod (release #466, 2026-06-24): synonyms + ranking + logging + autocomplete +
 > filters; migration applied (8 synonym groups; gsm→phones live). Mobile on next AAB. `docs/architecture.md` →
