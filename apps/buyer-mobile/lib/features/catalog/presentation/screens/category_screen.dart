@@ -2,15 +2,27 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/app_states.dart';
 import '../../../../core/widgets/product_skeletons.dart';
 import '../../../city/presentation/providers/city_provider.dart';
 import '../../../wishlist/presentation/providers/wishlist_provider.dart';
+import '../../data/models/category_model.dart';
 import '../providers/catalog_provider.dart';
 import '../widgets/filter_bottom_sheet.dart';
 import '../widgets/product_card.dart';
+
+/// Finds a category node anywhere in the 3-level tree by id (for drill-down).
+CategoryModel? _findCategoryNode(List<CategoryModel> cats, String id) {
+  for (final c in cats) {
+    if (c.id == id) return c;
+    final found = _findCategoryNode(c.subcategories, id);
+    if (found != null) return found;
+  }
+  return null;
+}
 
 class CategoryScreen extends ConsumerStatefulWidget {
   final String categoryId;
@@ -180,8 +192,38 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
       );
     }
 
+    // Drill-down: this category's children (subcategories, or product types
+    // under a subcategory) as quick chips — Category → Subcategory → Product Type.
+    final tree =
+        ref.watch(categoriesProvider).valueOrNull ?? const <CategoryModel>[];
+    final node = _findCategoryNode(tree, widget.categoryId);
+    final children = node?.subcategories ?? const <CategoryModel>[];
+
     return CustomScrollView(
       slivers: [
+        if (children.isNotEmpty)
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: 46,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                itemCount: children.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, i) {
+                  final c = children[i];
+                  return ActionChip(
+                    label: Text(c.name),
+                    onPressed: () => context.push(
+                      '/categories/${c.id}',
+                      extra: {'categoryName': c.name},
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
         SliverToBoxAdapter(child: conditionBar),
         // Results count
         SliverToBoxAdapter(
