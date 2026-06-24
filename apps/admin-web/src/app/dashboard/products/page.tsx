@@ -43,7 +43,7 @@ interface PaginatedResponse {
   };
 }
 
-type StatusFilter = '' | 'PENDING_REVIEW' | 'ACTIVE' | 'REJECTED' | 'ARCHIVED' | 'DRAFT';
+type StatusFilter = '' | 'PENDING_REVIEW' | 'ACTIVE' | 'REJECTED' | 'ARCHIVED' | 'SUSPENDED' | 'DRAFT';
 
 export default function ProductModerationPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -51,7 +51,18 @@ export default function ProductModerationPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Debounce the search box (multi-field: name/id/seller/brand/category).
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [search]);
 
   // Honor a `?status=` deep-link on mount (e.g. the dashboard "produits en
   // attente" alert / notification bell link to ?status=PENDING_REVIEW). Read
@@ -70,8 +81,8 @@ export default function ProductModerationPage() {
     }
   }, []);
 
-  // Rejection modal state
-  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  // Reason modal — shared by "reject" (PENDING) and "suspend" (ACTIVE).
+  const [reasonModal, setReasonModal] = useState<{ id: string; action: 'reject' | 'suspend' } | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -85,6 +96,7 @@ export default function ProductModerationPage() {
     try {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (statusFilter) params.set('status', statusFilter);
+      if (debouncedSearch) params.set('search', debouncedSearch);
       const res = await apiFetch<PaginatedResponse>(`/v1/admin/products?${params}`);
       const rd = res.data;
       if (Array.isArray(rd)) { setProducts(rd); setTotalPages(1); }
@@ -94,7 +106,7 @@ export default function ProductModerationPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, statusFilter]);
+  }, [page, statusFilter, debouncedSearch]);
 
   useEffect(() => {
     fetchProducts();
@@ -110,23 +122,46 @@ export default function ProductModerationPage() {
     }
   };
 
-  const handleReject = async () => {
-    if (!rejectingId || rejectionReason.trim().length < 5) return;
-
+  const handleReasonSubmit = async () => {
+    if (!reasonModal || rejectionReason.trim().length < 5) return;
     setIsSubmitting(true);
     try {
-      await apiFetch(`/v1/admin/products/${rejectingId}/reject`, {
-        method: 'PATCH',
-        body: JSON.stringify({ rejectionReason: rejectionReason.trim() }),
-      });
-      showFeedback('success', "Produit rejeté");
-      setRejectingId(null);
+      if (reasonModal.action === 'reject') {
+        await apiFetch(`/v1/admin/products/${reasonModal.id}/reject`, {
+          method: 'PATCH',
+          body: JSON.stringify({ rejectionReason: rejectionReason.trim() }),
+        });
+        showFeedback('success', 'Produit rejeté');
+      } else {
+        await apiFetch(`/v1/admin/products/${reasonModal.id}/suspend`, {
+          method: 'PATCH',
+          body: JSON.stringify({ reason: rejectionReason.trim() }),
+        });
+        showFeedback('success', 'Produit suspendu');
+      }
+      setReasonModal(null);
       setRejectionReason('');
       fetchProducts();
     } catch {
       showFeedback('error', 'Erreur');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Simple lifecycle actions (no reason): restore / archive / soft-delete.
+  const runAction = async (
+    productId: string,
+    path: string,
+    method: 'PATCH' | 'DELETE',
+    okMsg: string,
+  ) => {
+    try {
+      await apiFetch(`/v1/admin/products/${productId}${path}`, { method });
+      showFeedback('success', okMsg);
+      fetchProducts();
+    } catch {
+      showFeedback('error', 'Erreur');
     }
   };
 
@@ -176,6 +211,17 @@ export default function ProductModerationPage() {
         </div>
       </div>
 
+      {/* Search (name / id / seller / brand / category) */}
+      <div className="mb-4">
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Rechercher : nom, ID, vendeur, marque, catégorie…"
+          className="w-full max-w-md px-3 py-2 text-sm border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+      </div>
+
       <div className="flex gap-2 mb-6 flex-wrap">
         {([
           { value: '', label: "Tous" },
@@ -183,6 +229,7 @@ export default function ProductModerationPage() {
           { value: 'ACTIVE', label: "Actifs" },
           { value: 'REJECTED', label: "Rejetés" },
           { value: 'ARCHIVED', label: "Archivés" },
+          { value: 'SUSPENDED', label: "Suspendus" },
           { value: 'DRAFT', label: "Brouillons" },
         ] as { value: StatusFilter; label: string }[]).map((tab) => (
           <button
@@ -284,28 +331,25 @@ export default function ProductModerationPage() {
                       {new Date(product.createdAt).toLocaleDateString('fr-CD')}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                        product.status === 'ACTIVE'
-                          ? 'bg-success/10 text-success'
-                          : product.status === 'REJECTED'
-                            ? 'bg-destructive/10 text-destructive'
-                            : product.status === 'PENDING_REVIEW'
-                              ? 'bg-warning/10 text-warning'
-                              : 'bg-secondary text-secondary-foreground'
-                      }`}>
-                        {product.status === 'ACTIVE'
-                          ? "Actif"
-                          : product.status === 'REJECTED'
-                            ? "Rejeté"
-                            : product.status === 'PENDING_REVIEW'
-                              ? "En attente"
-                              : product.status === 'ARCHIVED'
-                                ? "Archivé"
-                                : "Brouillon"}
-                      </span>
+                      {(() => {
+                        const m: Record<string, { c: string; l: string }> = {
+                          ACTIVE: { c: 'bg-success/10 text-success', l: 'Actif' },
+                          REJECTED: { c: 'bg-destructive/10 text-destructive', l: 'Rejeté' },
+                          PENDING_REVIEW: { c: 'bg-warning/10 text-warning', l: 'En attente' },
+                          ARCHIVED: { c: 'bg-secondary text-secondary-foreground', l: 'Archivé' },
+                          SUSPENDED: { c: 'bg-destructive/10 text-destructive', l: 'Suspendu' },
+                          DRAFT: { c: 'bg-secondary text-secondary-foreground', l: 'Brouillon' },
+                        };
+                        const s = m[product.status] ?? m.DRAFT;
+                        return (
+                          <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${s.c}`}>
+                            {s.l}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
                         <Link
                           href={`/dashboard/products/${product.id}`}
                           className="px-2.5 py-1 text-xs font-medium bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
@@ -321,16 +365,43 @@ export default function ProductModerationPage() {
                               Approuver
                             </button>
                             <button
-                              onClick={() => {
-                                setRejectingId(product.id);
-                                setRejectionReason('');
-                              }}
+                              onClick={() => { setReasonModal({ id: product.id, action: 'reject' }); setRejectionReason(''); }}
                               className="px-2.5 py-1 text-xs font-medium bg-destructive/10 text-destructive rounded-lg hover:bg-destructive/20 transition-colors"
                             >
                               Rejeter
                             </button>
                           </>
                         )}
+                        {product.status === 'ACTIVE' && (
+                          <button
+                            onClick={() => { setReasonModal({ id: product.id, action: 'suspend' }); setRejectionReason(''); }}
+                            className="px-2.5 py-1 text-xs font-medium bg-warning/10 text-warning rounded-lg hover:bg-warning/20 transition-colors"
+                          >
+                            Suspendre
+                          </button>
+                        )}
+                        {(product.status === 'SUSPENDED' || product.status === 'ARCHIVED') && (
+                          <button
+                            onClick={() => runAction(product.id, '/restore', 'PATCH', 'Produit réactivé')}
+                            className="px-2.5 py-1 text-xs font-medium bg-success/10 text-success rounded-lg hover:bg-success/20 transition-colors"
+                          >
+                            Réactiver
+                          </button>
+                        )}
+                        {product.status !== 'ARCHIVED' && product.status !== 'SUSPENDED' && (
+                          <button
+                            onClick={() => runAction(product.id, '/archive', 'PATCH', 'Produit archivé')}
+                            className="px-2.5 py-1 text-xs font-medium bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
+                          >
+                            Archiver
+                          </button>
+                        )}
+                        <button
+                          onClick={() => { if (confirm('Supprimer ce produit ? (réversible — soft-delete)')) runAction(product.id, '', 'DELETE', 'Produit supprimé'); }}
+                          className="px-2.5 py-1 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                        >
+                          Supprimer
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -364,22 +435,24 @@ export default function ProductModerationPage() {
         </div>
       )}
 
-      {/* Rejection Modal */}
-      {rejectingId && (
+      {/* Reason modal — reject or suspend */}
+      {reasonModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="fixed inset-0 bg-black/50" onClick={() => setRejectingId(null)} />
+          <div className="fixed inset-0 bg-black/50" onClick={() => setReasonModal(null)} />
           <div className="relative bg-white rounded-xl border border-border shadow-xl w-full max-w-md mx-4">
             <div className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">Rejeter</h3>
+              <h3 className="text-lg font-semibold text-foreground mb-4">
+                {reasonModal.action === 'reject' ? 'Rejeter' : 'Suspendre'}
+              </h3>
               <div>
                 <label className="block text-sm font-medium text-foreground mb-1">
-                  Motif du rejet <span className="text-destructive">*</span>
+                  {reasonModal.action === 'reject' ? 'Motif du rejet' : 'Motif de la suspension'} <span className="text-destructive">*</span>
                 </label>
                 <textarea
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
                   rows={4}
-                  placeholder="Décrivez le motif du rejet (minimum 5 caractères)..."
+                  placeholder="Décrivez le motif (minimum 5 caractères)..."
                   className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                 />
                 {rejectionReason.trim().length > 0 && rejectionReason.trim().length < 5 && (
@@ -388,20 +461,17 @@ export default function ProductModerationPage() {
               </div>
               <div className="flex justify-end gap-3 mt-4">
                 <button
-                  onClick={() => {
-                    setRejectingId(null);
-                    setRejectionReason('');
-                  }}
+                  onClick={() => { setReasonModal(null); setRejectionReason(''); }}
                   className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-border rounded-lg hover:bg-muted transition-colors"
                 >
                   Annuler
                 </button>
                 <button
-                  onClick={handleReject}
+                  onClick={handleReasonSubmit}
                   disabled={isSubmitting || rejectionReason.trim().length < 5}
                   className="px-4 py-2 text-sm font-medium text-primary-foreground bg-destructive rounded-lg hover:bg-destructive/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? '...' : "Rejeter"}
+                  {isSubmitting ? '...' : (reasonModal.action === 'reject' ? 'Rejeter' : 'Suspendre')}
                 </button>
               </div>
             </div>

@@ -55,6 +55,16 @@ export default function ProductDetailPage() {
   const productId = params.id as string;
 
   const [product, setProduct] = useState<ProductDetail | null>(null);
+  const [history, setHistory] = useState<
+    {
+      id: string;
+      fromStatus: string | null;
+      toStatus: string;
+      actorRole: string;
+      reason: string | null;
+      createdAt: string;
+    }[]
+  >([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -77,6 +87,10 @@ export default function ProductDetailPage() {
       // Set initial selected image
       const cover = res.data.images?.find((img) => img.isCover);
       setSelectedImage(cover?.url || res.data.images?.[0]?.url || null);
+      // Lifecycle audit trail (full visibility).
+      apiFetch<typeof history>(`/v1/admin/products/${productId}/history`)
+        .then((h) => setHistory(Array.isArray(h.data) ? h.data : []))
+        .catch(() => setHistory([]));
     } catch {
       // Error handled by apiFetch
     } finally {
@@ -198,6 +212,29 @@ export default function ProductDetailPage() {
         </svg>
         Retour à la liste
       </Link>
+
+      {/* Lifecycle history (audit trail) */}
+      {history.length > 0 && (
+        <details className="mb-6 bg-white rounded-xl border border-border">
+          <summary className="px-4 py-3 text-sm font-medium text-foreground cursor-pointer select-none">
+            Historique du cycle de vie ({history.length})
+          </summary>
+          <ul className="px-4 pb-3 space-y-2">
+            {history.map((h) => (
+              <li key={h.id} className="flex items-start gap-2 text-xs text-muted-foreground border-t border-border pt-2">
+                <span className="whitespace-nowrap">
+                  {new Date(h.createdAt).toLocaleString('fr-CD')}
+                </span>
+                <span className="font-medium text-foreground">
+                  {h.fromStatus ? `${h.fromStatus} → ` : ''}{h.toStatus}
+                </span>
+                <span className="px-1.5 rounded bg-secondary text-secondary-foreground">{h.actorRole}</span>
+                {h.reason && <span className="italic">— {h.reason}</span>}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
 
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-foreground">Détail du produit</h1>
