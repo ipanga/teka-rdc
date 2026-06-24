@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, Suspense } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -31,11 +32,21 @@ function SearchContent() {
   const [maxPrice, setMaxPrice] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('popularity');
   const [onPromotion, setOnPromotion] = useState(false);
+  const [popular, setPopular] = useState<string[]>([]);
 
   const filtersRef = useRef({ condition, minPrice, maxPrice, sortBy, onPromotion });
   filtersRef.current = { condition, minPrice, maxPrice, sortBy, onPromotion };
 
   const selectedCity = useCityStore((s) => s.selectedCity);
+
+  // Popular searches for the zero-result recovery path.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (selectedCity) params.set('cityId', selectedCity.id);
+    apiFetch<{ term: string }[]>(`/v1/browse/search/popular?${params.toString()}`)
+      .then((res) => setPopular((res.data ?? []).map((r) => r.term).filter(Boolean)))
+      .catch(() => setPopular([]));
+  }, [selectedCity]);
 
   function buildQuery(cursor?: string, overrides?: Partial<typeof filtersRef.current>) {
     const f = overrides ? { ...filtersRef.current, ...overrides } : filtersRef.current;
@@ -85,6 +96,9 @@ function SearchContent() {
             query,
             result_count: res.data.pagination.total,
           });
+          if (res.data.pagination.total === 0) {
+            track('zero_results', { query });
+          }
         }
       })
       .catch(() => {})
@@ -245,6 +259,26 @@ function SearchContent() {
           {/* Product grid */}
           <div className="flex-1 min-w-0">
             <ProductGrid products={products} isLoading={isLoading} />
+
+            {/* Zero-result recovery: popular searches as a fallback path. */}
+            {!isLoading && query && pagination?.total === 0 && popular.length > 0 && (
+              <div className="mt-6">
+                <p className="text-sm font-medium text-foreground mb-2">
+                  Essayez une recherche populaire :
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {popular.map((t) => (
+                    <Link
+                      key={t}
+                      href={`/recherche?q=${encodeURIComponent(t)}`}
+                      className="px-3 py-1.5 text-sm rounded-full border border-border hover:border-primary hover:text-primary transition-colors"
+                    >
+                      {t}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {pagination?.hasMore && !isLoading && (
               <div className="mt-8 text-center">
