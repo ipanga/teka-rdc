@@ -214,7 +214,9 @@ export default function BuyerProfilePage() {
     );
   }
 
-  const initials = ((user?.firstName?.[0] ?? '') + (user?.lastName?.[0] ?? '')).toUpperCase() || '?';
+  const initials = (
+    (user?.firstName?.[0] ?? '') + (user?.lastName?.[0] ?? '')
+  ).toUpperCase();
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-2xl">
@@ -244,7 +246,11 @@ export default function BuyerProfilePage() {
             />
           ) : (
             <div className="w-20 h-20 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-semibold">
-              {initials}
+              {initials || (
+                <svg className="w-9 h-9" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                  <path d="M12 12a5 5 0 100-10 5 5 0 000 10zm0 2c-4.42 0-8 2.69-8 6v1h16v-1c0-3.31-3.58-6-8-6z" />
+                </svg>
+              )}
             </div>
           )}
           <div>
