@@ -32,7 +32,7 @@ export function RecentlyViewed({
     return (
       <section className="py-8">
         <Container>
-          <SectionHeader title={"Vus récemment"} />
+          <SectionHeader title={"🕒 Vus récemment"} />
           <ProductGrid products={items} />
         </Container>
       </section>
