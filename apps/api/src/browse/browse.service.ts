@@ -326,6 +326,8 @@ export class BrowseService {
       seller: {
         select: { sellerProfile: { select: { businessName: true } } },
       },
+      // Brand label for the product card (shown above the title when present).
+      brand: { select: { name: true } },
     } satisfies Prisma.ProductSelect;
     type ProductRow = Prisma.ProductGetPayload<{
       select: typeof productSelect;
@@ -842,6 +844,8 @@ export class BrowseService {
       seller: {
         select: { sellerProfile: { select: { businessName: true } } },
       },
+      // Brand label for the product card (shown above the title when present).
+      brand: { select: { name: true } },
     } satisfies Prisma.ProductSelect;
     type Row = Prisma.ProductGetPayload<{ select: typeof select }>;
 

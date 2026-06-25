@@ -56,6 +56,8 @@ class BrowseProductModel {
   // Rating social proof — stars render only when totalReviews > 0.
   final double avgRating;
   final int totalReviews;
+  // Brand label, shown above the title on the card when present.
+  final String? brandName;
 
   const BrowseProductModel({
     required this.id,
@@ -77,6 +79,7 @@ class BrowseProductModel {
     this.unitsSold = 0,
     this.avgRating = 0,
     this.totalReviews = 0,
+    this.brandName,
   });
 
   factory BrowseProductModel.fromJson(Map<String, dynamic> json) {
@@ -104,6 +107,7 @@ class BrowseProductModel {
       unitsSold: json['unitsSold'] as int? ?? 0,
       avgRating: (json['avgRating'] as num?)?.toDouble() ?? 0,
       totalReviews: json['totalReviews'] as int? ?? 0,
+      brandName: (json['brand'] as Map<String, dynamic>?)?['name'] as String?,
     );
   }
 
