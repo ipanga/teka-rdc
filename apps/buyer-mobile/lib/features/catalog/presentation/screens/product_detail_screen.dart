@@ -304,7 +304,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                     )
                                   else
                                     Text(
-                                      '${product.quantity} ${"Details du produit".toLowerCase()}',
+                                      "En stock · ${product.quantity} disponible${product.quantity > 1 ? 's' : ''}",
                                       style: const TextStyle(
                                         color: TekaColors.success,
                                         fontSize: 13,
