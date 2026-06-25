@@ -56,6 +56,14 @@ export function ProductCard({ product }: ProductCardProps) {
   const effectiveCDF = hasDiscount
     ? (product.discountPriceCDF as string)
     : product.priceCDF;
+  // Absolute savings (centimes) for "Vous économisez X" — computed from the
+  // exact prices so it always matches the displayed strike-through.
+  const savingsCDF = hasDiscount
+    ? (BigInt(product.priceCDF) - BigInt(effectiveCDF)).toString()
+    : null;
+  const brandName = product.brand?.name?.trim();
+  // "Officiel" badge for the platform-owned seller (no fabricated data).
+  const isOfficial = product.seller?.businessName === 'Teka RDC Officiel';
 
   // Quick-add (Phase D): add a single unit straight from the card. The PDP
   // keeps its own quantity selector for larger orders. addItem() already fires
@@ -120,7 +128,7 @@ export function ProductCard({ product }: ProductCardProps) {
             )}
             {lowStock && (
               <span className="rounded-md bg-warning px-2 py-0.5 text-[11px] font-semibold text-foreground shadow-md">
-                {`Plus que ${product.quantity} en stock`}
+                {`🔥 Plus que ${product.quantity} disponible${product.quantity > 1 ? 's' : ''}`}
               </span>
             )}
           </div>
@@ -128,6 +136,24 @@ export function ProductCard({ product }: ProductCardProps) {
 
         {/* Info */}
         <div className="p-3 space-y-1">
+          {/* Brand (when present) + Officiel badge — subtle line above the title. */}
+          {(brandName || isOfficial) && (
+            <div className="flex items-center gap-1.5 min-h-[1rem]">
+              {brandName && (
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground truncate">
+                  {brandName}
+                </span>
+              )}
+              {isOfficial && (
+                <span className="inline-flex items-center gap-0.5 rounded-sm bg-primary-subtle px-1 py-px text-[9px] font-bold uppercase tracking-wide text-primary shrink-0">
+                  <svg className="w-2.5 h-2.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                    <path fillRule="evenodd" d="M10 1l2.39 1.74 2.96.01.91 2.81 2.4 1.75-.92 2.81.92 2.81-2.4 1.75-.91 2.81-2.96.01L10 19l-2.39-1.69-2.96-.01-.91-2.81-2.4-1.75.92-2.81L1.34 7.3l2.4-1.75.91-2.81 2.96-.01L10 1zm3.7 6.3a1 1 0 00-1.4-1.4L9 9.18l-1.3-1.3a1 1 0 10-1.4 1.42l2 2a1 1 0 001.4 0l3.99-4z" clipRule="evenodd" />
+                  </svg>
+                  Officiel
+                </span>
+              )}
+            </div>
+          )}
           <h3 className="text-sm font-medium text-foreground line-clamp-2 min-h-[2.5rem] leading-snug">
             {title}
           </h3>
@@ -154,6 +180,11 @@ export function ProductCard({ product }: ProductCardProps) {
               </span>
             )}
           </div>
+          {savingsCDF && (
+            <p className="text-[11px] font-semibold text-success">
+              {`Vous économisez ${formatCDF(savingsCDF)}`}
+            </p>
+          )}
           {/* Rating + sold count — social proof. Stars only render once a
               product has at least one review (most are 0 pre-traffic). */}
           {(product.totalReviews ?? 0) > 0 ? (
