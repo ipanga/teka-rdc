@@ -73,7 +73,7 @@ export default function CategoriesPage() {
                   {(cat.name ?? '')}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {`${cat.productCount} produits`}
+                  {`${cat.productCount} ${cat.productCount <= 1 ? 'produit' : 'produits'}`}
                 </p>
 
                 {cat.subcategories && cat.subcategories.length > 0 && (

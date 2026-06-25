@@ -54,6 +54,10 @@ export interface BrowseProduct {
   // Best-seller social proof: total delivered units. Rendered as "X vendus"
   // only when > 0.
   unitsSold?: number | null;
+  // Rating social proof — denormalized on Product. Stars render only when
+  // totalReviews > 0.
+  avgRating?: number | null;
+  totalReviews?: number | null;
 }
 
 /** Specification item */
