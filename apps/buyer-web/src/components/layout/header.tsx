@@ -100,8 +100,11 @@ export function Header() {
         <div className="hidden md:flex items-center gap-3">
           <Link
             href="/categories"
-            className="text-sm text-foreground hover:text-primary transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm text-foreground hover:text-primary transition-colors"
           >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
             {"Catégories"}
           </Link>
           {authLoading ? (
