@@ -19,18 +19,26 @@ interface Product {
   condition: string;
   createdAt: string;
   images: ProductImage[];
+  // Matches the API include: seller.sellerProfile.businessName (+ name fallback).
   seller?: {
     id: string;
-    businessName: string;
-    user?: {
-      firstName?: string | null;
-      lastName?: string | null;
-    };
+    firstName?: string | null;
+    lastName?: string | null;
+    sellerProfile?: { businessName?: string | null } | null;
   };
   category?: {
     id: string;
     name: string;
   };
+  city?: {
+    id: string;
+    name: string;
+  } | null;
+}
+
+interface City {
+  id: string;
+  name: string;
 }
 
 interface PaginatedResponse {
@@ -53,7 +61,21 @@ export default function ProductModerationPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [cities, setCities] = useState<City[]>([]);
+  const [cityFilter, setCityFilter] = useState('');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // Cities for the town filter (public endpoint).
+  useEffect(() => {
+    apiFetch<City[] | { data: City[] }>('/v1/cities')
+      .then((res) => {
+        const list = Array.isArray(res.data)
+          ? res.data
+          : (res.data as { data: City[] }).data || [];
+        setCities(list);
+      })
+      .catch(() => {});
+  }, []);
 
   // Debounce the search box (multi-field: name/id/seller/brand/category).
   useEffect(() => {
@@ -97,6 +119,7 @@ export default function ProductModerationPage() {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (statusFilter) params.set('status', statusFilter);
       if (debouncedSearch) params.set('search', debouncedSearch);
+      if (cityFilter) params.set('cityId', cityFilter);
       const res = await apiFetch<PaginatedResponse>(`/v1/admin/products?${params}`);
       const rd = res.data;
       if (Array.isArray(rd)) { setProducts(rd); setTotalPages(1); }
@@ -106,7 +129,7 @@ export default function ProductModerationPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, statusFilter, debouncedSearch]);
+  }, [page, statusFilter, debouncedSearch, cityFilter]);
 
   useEffect(() => {
     fetchProducts();
@@ -211,15 +234,25 @@ export default function ProductModerationPage() {
         </div>
       </div>
 
-      {/* Search (name / id / seller / brand / category) */}
-      <div className="mb-4">
+      {/* Search (name / id / seller / brand / category) + town filter */}
+      <div className="mb-4 flex flex-wrap gap-2">
         <input
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Rechercher : nom, ID, vendeur, marque, catégorie…"
-          className="w-full max-w-md px-3 py-2 text-sm border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          className="flex-1 min-w-[240px] max-w-md px-3 py-2 text-sm border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
         />
+        <select
+          value={cityFilter}
+          onChange={(e) => { setCityFilter(e.target.value); setPage(1); }}
+          className="px-3 py-2 text-sm border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <option value="">Toutes les villes</option>
+          {cities.map((c) => (
+            <option key={c.id} value={c.id}>{c.name}</option>
+          ))}
+        </select>
       </div>
 
       <div className="flex gap-2 mb-6 flex-wrap">
@@ -263,6 +296,9 @@ export default function ProductModerationPage() {
                 Vendeur
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
+                Ville
+              </th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
                 Prix
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
@@ -279,13 +315,13 @@ export default function ProductModerationPage() {
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
                   Chargement...
                 </td>
               </tr>
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
                   Aucun produit trouvé
                 </td>
               </tr>
@@ -322,7 +358,14 @@ export default function ProductModerationPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-sm text-foreground">
-                      {product.seller?.businessName || '-'}
+                      {product.seller?.sellerProfile?.businessName ||
+                        [product.seller?.firstName, product.seller?.lastName]
+                          .filter(Boolean)
+                          .join(' ') ||
+                        '-'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-foreground whitespace-nowrap">
+                      {product.city?.name || '-'}
                     </td>
                     <td className="px-4 py-3 text-sm text-foreground whitespace-nowrap">
                       {formatPrice(product.priceCDF, product.priceUSD)}
