@@ -35,6 +35,7 @@ export class AdminProductsService {
     limit: number = 20,
     status?: string,
     search?: string,
+    cityId?: string,
   ) {
     page = Math.max(1, page);
     limit = Math.min(Math.max(1, limit), 100);
@@ -48,6 +49,7 @@ export class AdminProductsService {
       ...(status && allowedStatuses.includes(status)
         ? { status: status as ProductStatus }
         : {}),
+      ...(cityId ? { cityId } : {}),
       // Marketplace admin search: product title/shortCode/id, seller
       // name + email, brand name, category name.
       ...(q && {
@@ -82,6 +84,9 @@ export class AdminProductsService {
             take: 1,
           },
           category: {
+            select: { id: true, name: true },
+          },
+          city: {
             select: { id: true, name: true },
           },
           seller: {
