@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
-import { ProductGrid } from '@/components/product/product-grid';
+import { ProductCarousel } from '@/components/product/product-carousel';
 import { RecentlyViewed } from '@/components/product/recently-viewed';
 import { BannerCarousel } from '@/components/home/banner-carousel';
 import { StoreHero } from '@/components/home/store-hero';
@@ -167,7 +167,7 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
                 viewAllHref="/promotions"
                 viewAllLabel={"Voir toutes les promotions"}
               />
-              <ProductGrid products={promoProducts} isLoading={loadingPromo} />
+              <ProductCarousel products={promoProducts} isLoading={loadingPromo} />
             </Container>
           </section>
         )}
@@ -180,7 +180,7 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
         <section className="bg-background">
           <Container className="py-10 md:py-14">
             <SectionHeader title={"Produits populaires"} />
-            <ProductGrid products={popularProducts} isLoading={loadingPopular} />
+            <ProductCarousel products={popularProducts} isLoading={loadingPopular} />
           </Container>
         </section>
 
@@ -188,7 +188,7 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
         <section className="bg-background">
           <Container className="py-10 md:py-14">
             <SectionHeader title={"Nouveautés"} />
-            <ProductGrid products={newestProducts} isLoading={loadingNewest} />
+            <ProductCarousel products={newestProducts} isLoading={loadingNewest} />
           </Container>
         </section>
       </main>
