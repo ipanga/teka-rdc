@@ -406,7 +406,13 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
           </div>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground mb-4">{"Aucun avis pour ce produit"}</p>
+        <div className="mb-4 flex flex-col items-center text-center py-6">
+          <svg className="w-10 h-10 text-border mb-2" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+            <path d="M12 2l2.9 5.88 6.49.94-4.7 4.58 1.11 6.46L12 17.27 6.2 19.86l1.11-6.46-4.7-4.58 6.49-.94L12 2z" />
+          </svg>
+          <p className="text-sm font-medium text-foreground">{"Aucun avis pour ce produit."}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{"Soyez le premier à laisser un avis."}</p>
+        </div>
       )}
 
       {/* Write review button or status */}
