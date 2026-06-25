@@ -48,6 +48,15 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
   const [cartFeedback, setCartFeedback] = useState(false);
   const addItem = useCartStore((s) => s.addItem);
 
+  // Always open a product page at the top. The PDP is a client component that
+  // renders a short loading state at navigation time, so Next.js skips its
+  // scroll-to-top and the previous page's scroll position is preserved (the
+  // PDP would open mid-page on the title/price instead of the image). Reset on
+  // every product change.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [productId]);
+
   useEffect(() => {
     setIsLoading(true);
     setError(false);
