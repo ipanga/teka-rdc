@@ -163,7 +163,7 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
           <section className="bg-background">
             <Container className="py-10 md:py-14">
               <SectionHeader
-                title={"🔥 Promotions"}
+                title={"Promotions"}
                 viewAllHref="/promotions"
                 viewAllLabel={"Voir toutes les promotions"}
               />
@@ -179,7 +179,7 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
         {/* Popular Products Section */}
         <section className="bg-background">
           <Container className="py-10 md:py-14">
-            <SectionHeader title={"⭐ Produits populaires"} />
+            <SectionHeader title={"Produits populaires"} />
             <ProductCarousel products={popularProducts} isLoading={loadingPopular} />
           </Container>
         </section>
@@ -187,7 +187,7 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
         {/* Newest Products Section */}
         <section className="bg-background">
           <Container className="py-10 md:py-14">
-            <SectionHeader title={"🆕 Nouveautés"} />
+            <SectionHeader title={"Nouveautés"} />
             <ProductCarousel products={newestProducts} isLoading={loadingNewest} />
           </Container>
         </section>
