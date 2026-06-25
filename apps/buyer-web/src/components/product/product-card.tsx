@@ -13,6 +13,29 @@ interface ProductCardProps {
   product: BrowseProduct;
 }
 
+/** Compact 5-star rating (amber filled to the nearest half). */
+function StarRating({ value }: { value: number }) {
+  return (
+    <div className="flex items-center" aria-label={`Note ${value.toFixed(1)} sur 5`}>
+      {[0, 1, 2, 3, 4].map((i) => {
+        const fill = Math.max(0, Math.min(1, value - i)); // 0..1 for this star
+        return (
+          <span key={i} className="relative inline-block w-3 h-3 leading-none">
+            <svg viewBox="0 0 20 20" className="absolute inset-0 w-3 h-3 text-border" fill="currentColor">
+              <path d="M10 1.5l2.6 5.27 5.82.85-4.21 4.1.99 5.79L10 14.77l-5.2 2.73.99-5.79-4.21-4.1 5.82-.85z" />
+            </svg>
+            <span className="absolute inset-0 overflow-hidden" style={{ width: `${fill * 100}%` }}>
+              <svg viewBox="0 0 20 20" className="w-3 h-3 text-amber-500" fill="currentColor">
+                <path d="M10 1.5l2.6 5.27 5.82.85-4.21 4.1.99 5.79L10 14.77l-5.2 2.73.99-5.79-4.21-4.1 5.82-.85z" />
+              </svg>
+            </span>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 export function ProductCard({ product }: ProductCardProps) {
   const addItem = useCartStore((s) => s.addItem);
   const [adding, setAdding] = useState(false);
@@ -131,10 +154,30 @@ export function ProductCard({ product }: ProductCardProps) {
               </span>
             )}
           </div>
-          {product.unitsSold != null && product.unitsSold > 0 && (
-            <p className="text-[11px] text-muted-foreground">
-              {product.unitsSold <= 1 ? `${product.unitsSold} vendu` : `${product.unitsSold} vendus`}
-            </p>
+          {/* Rating + sold count — social proof. Stars only render once a
+              product has at least one review (most are 0 pre-traffic). */}
+          {(product.totalReviews ?? 0) > 0 ? (
+            <div className="flex items-center gap-1.5 pt-0.5">
+              <StarRating value={product.avgRating ?? 0} />
+              <span className="text-[11px] font-medium text-foreground">
+                {(product.avgRating ?? 0).toFixed(1)}
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                ({product.totalReviews})
+              </span>
+              {product.unitsSold != null && product.unitsSold > 0 && (
+                <span className="text-[11px] text-muted-foreground">
+                  · {product.unitsSold <= 1 ? `${product.unitsSold} vendu` : `${product.unitsSold} vendus`}
+                </span>
+              )}
+            </div>
+          ) : (
+            product.unitsSold != null &&
+            product.unitsSold > 0 && (
+              <p className="text-[11px] text-muted-foreground">
+                {product.unitsSold <= 1 ? `${product.unitsSold} vendu` : `${product.unitsSold} vendus`}
+              </p>
+            )
           )}
         </div>
       </Link>
