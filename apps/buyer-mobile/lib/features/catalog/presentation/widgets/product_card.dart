@@ -180,7 +180,40 @@ class ProductCard extends ConsumerWidget {
                       ),
                     ),
                   ],
-                  if (product.unitsSold > 0) ...[
+                  // Rating (when reviewed) + sold count — social proof.
+                  if (product.totalReviews > 0) ...[
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        const Icon(Icons.star, size: 12, color: Color(0xFFF59E0B)),
+                        const SizedBox(width: 2),
+                        Text(
+                          product.avgRating.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: TekaColors.foreground,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          "(${product.totalReviews})",
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: TekaColors.mutedForeground,
+                          ),
+                        ),
+                        if (product.unitsSold > 0)
+                          Text(
+                            " · ${product.unitsSold} ${product.unitsSold == 1 ? 'vendu' : 'vendus'}",
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: TekaColors.mutedForeground,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ] else if (product.unitsSold > 0) ...[
                     const SizedBox(height: 2),
                     Text(
                       "${product.unitsSold} ${(product.unitsSold) == 1 ? 'vendu' : 'vendus'}",
