@@ -6,10 +6,19 @@
 
 ## Active initiative
 
-**Product Lifecycle Management** (started 2026-06-24) — marketplace-grade product lifecycle across API + admin +
-seller (web+mobile) + buyer: withdraw/restore/duplicate/suspend, admin moderation actions, seller+admin search,
-status audit log, lifecycle notifications/analytics — **extending the existing lifecycle** (DRAFT/PENDING/ACTIVE/
-REJECTED/ARCHIVED + soft-delete + IDOR-safe ownership all already exist). **Tracker: `tasks/product-lifecycle-progress.md`.**
+**Buyer Web UI/UX Polish** (started 2026-06-25) — elevate buyer-web to modern-marketplace polish (refine, not
+redesign): product cards (brand/savings/stock-emoji/seller-badge/ratings), header ☰, section emojis, hero overlay,
+PDP (savings/COD-trust/seller-card/specs/reviews-CTA), footer. Mirror to buyer-mobile where sensible. **Tracker:
+`tasks/ui-polish-progress.md`.**
+- **Phase 1 audit ✅ DONE. All 4 rounds shipped to develop:** R1 cards #490 (brand/savings/🔥stock/Officiel
+  badge + additive API `brand` field + mobile parity) · R2 chrome #491 (☰ Catégories, section emojis, hero
+  overlay/CTA) · R3 PDP #492 (COD trust block, seller Officiel/Vérifié, reviews CTA, related→carousel + mobile
+  parity) · R4 footer #493 (social icons @tekardc + Google Play badge).
+- **▶ NEXT (gated on user):** (a) confirm the Google Play link (`com.tootiye.teka` published?) — else drop it;
+  (b) release rounds 1–4 to prod (code-only). Optional later: desktop PDP image-zoom-on-hover (deferred).
+
+> **Product Lifecycle Management** SHIPPED to prod (release #478, 2026-06-24) — `+SUSPENDED` + audit log; migration
+> applied. Mobile on next AAB. `docs/architecture.md` → "Product Lifecycle"; `tasks/product-lifecycle-progress.md`.
 - **✅ ALL PHASES SHIPPED to develop.** Decisions (locked): +`SUSPENDED` enum (out-of-stock derived; DELETED=
   `deletedAt`) · ACTIVE content edit → re-review (value-compared) · skip SKU + add `ProductStatusLog`.
   - **#473 (API):** migration (+SUSPENDED + `product_status_logs`); seller withdraw/restore/duplicate + re-review

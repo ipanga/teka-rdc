@@ -304,7 +304,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                     )
                                   else
                                     Text(
-                                      '${product.quantity} ${"Details du produit".toLowerCase()}',
+                                      "En stock · ${product.quantity} disponible${product.quantity > 1 ? 's' : ''}",
                                       style: const TextStyle(
                                         color: TekaColors.success,
                                         fontSize: 13,
@@ -335,14 +335,40 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                         fontSize: 14,
                                       ),
                                     ),
-                                    Expanded(
+                                    Flexible(
                                       child: Text(
                                         product.seller.businessName!,
+                                        overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
                                           color: TekaColors.foreground,
                                           fontWeight: FontWeight.w600,
                                           fontSize: 14,
                                         ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    // Officiel (platform seller) / Vérifié badge.
+                                    Icon(
+                                      Icons.verified,
+                                      size: 15,
+                                      color: product.seller.businessName ==
+                                              'Teka RDC Officiel'
+                                          ? TekaColors.tekaRed
+                                          : TekaColors.success,
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      product.seller.businessName ==
+                                              'Teka RDC Officiel'
+                                          ? "Officiel"
+                                          : "Vérifié",
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: product.seller.businessName ==
+                                                'Teka RDC Officiel'
+                                            ? TekaColors.tekaRed
+                                            : TekaColors.success,
                                       ),
                                     ),
                                   ],
@@ -691,13 +717,29 @@ class _ReviewsSection extends ConsumerWidget {
             ),
         ] else ...[
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text(
-              "Aucun avis pour le moment",
-              style: const TextStyle(
-                color: TekaColors.mutedForeground,
-                fontSize: 13,
-              ),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              children: [
+                const Icon(Icons.star_border_rounded,
+                    size: 36, color: TekaColors.border),
+                const SizedBox(height: 6),
+                const Text(
+                  "Aucun avis pour ce produit.",
+                  style: TextStyle(
+                    color: TekaColors.foreground,
+                    fontWeight: FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  "Soyez le premier à laisser un avis.",
+                  style: const TextStyle(
+                    color: TekaColors.mutedForeground,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

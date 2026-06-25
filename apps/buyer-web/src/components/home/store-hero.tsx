@@ -56,8 +56,10 @@ export function StoreHero({
           sizes="100vw"
           className="object-cover"
         />
-        {/* Legibility scrim — darkest on the left where the copy sits. */}
+        {/* Legibility scrim — darkest on the left where the copy sits, with a
+            soft bottom gradient for depth. Keeps the photo crisp (no blur). */}
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/55 to-black/15" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/35 to-transparent" />
         <Container className="relative h-full flex flex-col justify-center">
           <div className="max-w-xl text-white">
             {badgeLabel && (
@@ -76,9 +78,12 @@ export function StoreHero({
             </p>
             <Link
               href={ctaHref}
-              className={buttonVariants({ variant: 'default', size: 'lg' })}
+              className={`${buttonVariants({ variant: 'default', size: 'lg' })} group/cta gap-2 shadow-lg shadow-primary/30 transition-transform hover:scale-[1.02]`}
             >
               {ctaLabel}
+              <svg className="w-4 h-4 transition-transform group-hover/cta:translate-x-0.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+              </svg>
             </Link>
           </div>
         </Container>

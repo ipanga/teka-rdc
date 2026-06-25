@@ -58,6 +58,8 @@ export interface BrowseProduct {
   // totalReviews > 0.
   avgRating?: number | null;
   totalReviews?: number | null;
+  // Brand label, shown above the title on the card when present.
+  brand?: { name: string } | null;
 }
 
 /** Specification item */

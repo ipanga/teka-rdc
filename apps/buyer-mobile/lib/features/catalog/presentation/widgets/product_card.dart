@@ -18,6 +18,15 @@ class ProductCard extends ConsumerWidget {
     final hasDiscount = product.hasDiscount;
     final price = formatCDF(product.effectivePriceCDF);
     final imageUrl = product.image?.thumbnailUrl ?? product.image?.url;
+    final brandName = product.brandName?.trim();
+    final isOfficial = product.seller.businessName == 'Teka RDC Officiel';
+    final savings = hasDiscount
+        ? formatCDF(
+            (BigInt.parse(product.priceCDF) -
+                    BigInt.parse(product.effectivePriceCDF))
+                .toString(),
+          )
+        : null;
 
     return GestureDetector(
       onTap: () => context.push('/products/${product.id}'),
@@ -93,7 +102,8 @@ class ProductCard extends ConsumerWidget {
                       bottom: 8,
                       left: 8,
                       child: _Pill(
-                        label: "Plus que ${product.quantity} en stock",
+                        label:
+                            "🔥 Plus que ${product.quantity} disponible${product.quantity > 1 ? 's' : ''}",
                         background: TekaColors.warning,
                         foreground: Colors.white,
                       ),
@@ -138,6 +148,43 @@ class ProductCard extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Brand (when present) + Officiel badge — subtle line above title.
+                  if (brandName != null && brandName.isNotEmpty || isOfficial) ...[
+                    Row(
+                      children: [
+                        if (brandName != null && brandName.isNotEmpty)
+                          Flexible(
+                            child: Text(
+                              brandName.toUpperCase(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.3,
+                                color: TekaColors.mutedForeground,
+                              ),
+                            ),
+                          ),
+                        if (isOfficial) ...[
+                          if (brandName != null && brandName.isNotEmpty)
+                            const SizedBox(width: 4),
+                          const Icon(Icons.verified,
+                              size: 11, color: TekaColors.tekaRed),
+                          const SizedBox(width: 2),
+                          const Text(
+                            "Officiel",
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: TekaColors.tekaRed,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                  ],
                   Text(
                     title,
                     maxLines: 2,
@@ -179,8 +226,52 @@ class ProductCard extends ConsumerWidget {
                         decoration: TextDecoration.lineThrough,
                       ),
                     ),
+                    if (savings != null)
+                      Text(
+                        "Vous économisez $savings",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: TekaColors.success,
+                        ),
+                      ),
                   ],
-                  if (product.unitsSold > 0) ...[
+                  // Rating (when reviewed) + sold count — social proof.
+                  if (product.totalReviews > 0) ...[
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        const Icon(Icons.star, size: 12, color: Color(0xFFF59E0B)),
+                        const SizedBox(width: 2),
+                        Text(
+                          product.avgRating.toStringAsFixed(1),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: TekaColors.foreground,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          "(${product.totalReviews})",
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: TekaColors.mutedForeground,
+                          ),
+                        ),
+                        if (product.unitsSold > 0)
+                          Text(
+                            " · ${product.unitsSold} ${product.unitsSold == 1 ? 'vendu' : 'vendus'}",
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: TekaColors.mutedForeground,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ] else if (product.unitsSold > 0) ...[
                     const SizedBox(height: 2),
                     Text(
                       "${product.unitsSold} ${(product.unitsSold) == 1 ? 'vendu' : 'vendus'}",

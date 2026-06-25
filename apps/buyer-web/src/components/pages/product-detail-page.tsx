@@ -411,12 +411,46 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                 </div>
               )}
 
+              {/* Trust signals — reassurance in the buy box. COD-only platform,
+                  local delivery, approved sellers (no fabricated data). */}
+              <ul className="mt-4 space-y-2.5 rounded-lg border border-border bg-surface-muted/40 p-3.5">
+                {[
+                  { d: 'M3 7h11v8H3V7zm11 2h3l3 3v3h-2m-9 0H8m9 0a2 2 0 11-4 0 2 2 0 014 0zm-9 0a2 2 0 11-4 0 2 2 0 014 0z', t: 'Livraison locale rapide' },
+                  { d: 'M2.5 6h19a1 1 0 011 1v10a1 1 0 01-1 1h-19a1 1 0 01-1-1V7a1 1 0 011-1zm9.5 3a3 3 0 100 6 3 3 0 000-6z', t: 'Paiement à la livraison (cash)' },
+                  { d: 'M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3zm-1 11l4-4-1.4-1.4L11 11.2 9.4 9.6 8 11l3 3z', t: 'Vendeur vérifié' },
+                ].map((row) => (
+                  <li key={row.t} className="flex items-center gap-2.5 text-sm text-foreground">
+                    <svg className="w-5 h-5 shrink-0 text-primary" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                      <path d={row.d} />
+                    </svg>
+                    {row.t}
+                  </li>
+                ))}
+              </ul>
+
               {/* Seller card */}
               <Card padding="sm" className="mt-4">
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">{"Vendeur"}</p>
-                <p className="text-sm font-semibold text-foreground mt-0.5">
-                  {product.seller.businessName}
-                </p>
+                <div className="mt-0.5 flex items-center gap-2">
+                  <p className="text-sm font-semibold text-foreground">
+                    {product.seller.businessName}
+                  </p>
+                  {product.seller.businessName === 'Teka RDC Officiel' ? (
+                    <span className="inline-flex items-center gap-0.5 rounded-sm bg-primary-subtle px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
+                      <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                        <path fillRule="evenodd" d="M10 1l2.39 1.74 2.96.01.91 2.81 2.4 1.75-.92 2.81.92 2.81-2.4 1.75-.91 2.81-2.96.01L10 19l-2.39-1.69-2.96-.01-.91-2.81-2.4-1.75.92-2.81L1.34 7.3l2.4-1.75.91-2.81 2.96-.01L10 1zm3.7 6.3a1 1 0 00-1.4-1.4L9 9.18l-1.3-1.3a1 1 0 10-1.4 1.42l2 2a1 1 0 001.4 0l3.99-4z" clipRule="evenodd" />
+                      </svg>
+                      Officiel
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-0.5 rounded-sm bg-success-subtle px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-success">
+                      <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                        <path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 111.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" />
+                      </svg>
+                      Vérifié
+                    </span>
+                  )}
+                </div>
                 {/* Direct buyer↔seller chat retired 2026-05-17. Questions
                     about a product or order now flow through Teka RDC
                     support — single channel, faster moderation, clearer
