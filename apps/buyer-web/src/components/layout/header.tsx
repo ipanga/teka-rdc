@@ -164,6 +164,18 @@ export function Header() {
         </button>
       </div>
 
+      {/* Persistent mobile search bar — always visible (sticky with the header).
+          Search is the #1 marketplace action; keeping it out of the hamburger
+          removes two taps. Desktop has its own inline search above. */}
+      <div className="md:hidden border-t border-border px-4 py-2.5">
+        <SearchAutocomplete
+          cityId={selectedCity?.id}
+          citySlug={selectedCity?.slug}
+          placeholder={"Rechercher des produits..."}
+          categoryLabel={"Catégories"}
+        />
+      </div>
+
       {/* Mobile menu */}
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-border bg-white px-4 py-4 space-y-4">
@@ -187,15 +199,6 @@ export function Header() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
-
-          {/* Mobile search */}
-          <SearchAutocomplete
-            cityId={selectedCity?.id}
-            citySlug={selectedCity?.slug}
-            placeholder={"Rechercher des produits..."}
-            categoryLabel={"Catégories"}
-            onNavigate={() => setMobileMenuOpen(false)}
-          />
 
           {/* Mobile nav links */}
           <nav className="flex flex-col gap-3">

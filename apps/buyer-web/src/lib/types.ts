@@ -348,13 +348,15 @@ export interface WishlistItem {
   createdAt: string;
 }
 
-/** Paginated wishlist response */
+/** Paginated wishlist response. `data` is the array directly; `meta` is a
+ *  top-level sibling of `data` on the envelope (not nested under it). */
 export interface PaginatedWishlist {
   data: WishlistItem[];
   meta: {
     page: number;
     limit: number;
     total: number;
+    totalPages?: number;
   };
 }
 

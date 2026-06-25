@@ -30,16 +30,28 @@ export default function WishlistPage() {
   const fetchWishlist = useCallback(async (p: number) => {
     setIsLoading(true);
     try {
-      const res = await apiFetch<PaginatedWishlist>(
+      // The wishlist envelope is `{ success, data: WishlistItem[], meta }` —
+      // `data` is the array directly and `meta` sits at the top level (unlike
+      // the browse endpoints whose `data` nests `{ data, pagination }`).
+      // apiFetch returns the envelope, so items = res.data and meta = res.meta.
+      const res = await apiFetch<WishlistItem[]>(
         `/v1/wishlist?page=${p}&limit=12`,
       );
-      setItems(res.data.data);
-      setTotalPages(Math.ceil(res.data.meta.total / res.data.meta.limit) || 1);
+      const meta = (res as { meta?: PaginatedWishlist['meta'] }).meta;
+      setItems(res.data ?? []);
+      setTotalPages(
+        meta?.totalPages ??
+          (meta?.total && meta?.limit
+            ? Math.ceil(meta.total / meta.limit) || 1
+            : 1),
+      );
       setIsError(false);
       // Fire wishlist_viewed once, on the first successful load.
       if (p === 1 && !viewedRef.current) {
         viewedRef.current = true;
-        track('wishlist_viewed', { item_count: res.data.meta.total });
+        track('wishlist_viewed', {
+          item_count: meta?.total ?? res.data?.length ?? 0,
+        });
       }
     } catch {
       setItems([]);
