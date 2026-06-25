@@ -26,12 +26,14 @@ export class AdminProductsController {
     @Query('limit') limit?: number,
     @Query('status') status?: string,
     @Query('search') search?: string,
+    @Query('cityId') cityId?: string,
   ) {
     return this.adminProductsService.findProducts(
       page ? Number(page) : undefined,
       limit ? Number(limit) : undefined,
       status,
       search,
+      cityId,
     );
   }
 
