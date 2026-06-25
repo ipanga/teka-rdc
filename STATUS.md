@@ -10,10 +10,12 @@
 redesign): product cards (brand/savings/stock-emoji/seller-badge/ratings), header ☰, section emojis, hero overlay,
 PDP (savings/COD-trust/seller-card/specs/reviews-CTA), footer. Mirror to buyer-mobile where sensible. **Tracker:
 `tasks/ui-polish-progress.md`.**
-- **Phase 1 audit ✅ DONE.** Much already shipped this session (persistent search, carousels, card ratings,
-  compact trust bar, PDP scroll-fix, wishlist fix). API returns ratings + seller name but NOT brand (additive
-  field needed) + no verify flag ("Officiel" detectable via the platform seller).
-- **▶ NEXT:** Round 1 (product cards, the spec's #1) → `feat/web-polish-cards`. Rounds 2 chrome · 3 PDP · 4 footer.
+- **Phase 1 audit ✅ DONE. All 4 rounds shipped to develop:** R1 cards #490 (brand/savings/🔥stock/Officiel
+  badge + additive API `brand` field + mobile parity) · R2 chrome #491 (☰ Catégories, section emojis, hero
+  overlay/CTA) · R3 PDP #492 (COD trust block, seller Officiel/Vérifié, reviews CTA, related→carousel + mobile
+  parity) · R4 footer #493 (social icons @tekardc + Google Play badge).
+- **▶ NEXT (gated on user):** (a) confirm the Google Play link (`com.tootiye.teka` published?) — else drop it;
+  (b) release rounds 1–4 to prod (code-only). Optional later: desktop PDP image-zoom-on-hover (deferred).
 
 > **Product Lifecycle Management** SHIPPED to prod (release #478, 2026-06-24) — `+SUSPENDED` + audit log; migration
 > applied. Mobile on next AAB. `docs/architecture.md` → "Product Lifecycle"; `tasks/product-lifecycle-progress.md`.
