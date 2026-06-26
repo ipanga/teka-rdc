@@ -21,11 +21,50 @@ import 'providers/flash_deal_provider.dart';
 import 'widgets/banner_carousel.dart';
 import 'widgets/flash_deals_section.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  // Drives the scroll-to-top button: attached to the home feed ListView so we
+  // can read the offset (to reveal the button once past the first screenful)
+  // and smoothly animate back to the top on tap.
+  final ScrollController _scrollController = ScrollController();
+  bool _showScrollToTop = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  void _onScroll() {
+    final show = _scrollController.hasClients && _scrollController.offset > 600;
+    if (show != _showScrollToTop) {
+      setState(() => _showScrollToTop = show);
+    }
+  }
+
+  void _scrollToTop() {
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final cityState = ref.watch(cityProvider);
     final cityName = cityState.selectedCity?.name;
     // Town accent — driven by the city's accentColor (data-driven; copper /
@@ -114,6 +153,19 @@ class HomeScreen extends ConsumerWidget {
           const SizedBox(width: 4),
         ],
       ),
+      floatingActionButton: AnimatedScale(
+        scale: _showScrollToTop ? 1 : 0,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        child: FloatingActionButton.small(
+          heroTag: 'home_scroll_to_top',
+          backgroundColor: TekaColors.tekaRed,
+          foregroundColor: Colors.white,
+          tooltip: 'Haut de page',
+          onPressed: _showScrollToTop ? _scrollToTop : null,
+          child: const Icon(Icons.keyboard_arrow_up_rounded),
+        ),
+      ),
       body: RefreshIndicator(
         color: TekaColors.tekaRed,
         onRefresh: () async {
@@ -145,6 +197,7 @@ class HomeScreen extends ConsumerWidget {
           ]);
         },
         child: ListView(
+          controller: _scrollController,
           children: [
             // Prominent search entry — search is an action, not a tab, so it
             // lives at the top of the home feed (taps open the search screen).
