@@ -148,9 +148,24 @@ export function CitySelectorModal() {
               <div className="h-7 w-7 animate-spin rounded-full border-4 border-primary border-t-transparent" />
             </div>
           ) : grouped.length === 0 ? (
-            <p className="px-3 py-10 text-center text-sm text-muted-foreground">
-              {"Aucune ville trouvée"}
-            </p>
+            <div className="px-5 py-10 text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-surface-muted text-muted-foreground">
+                <PinIcon className="h-6 w-6" />
+              </div>
+              <p className="text-sm font-semibold text-foreground">
+                {"Aucune ville disponible pour le moment"}
+              </p>
+              <p className="mx-auto mt-1 max-w-xs text-xs text-muted-foreground">
+                {"Vous pouvez continuer à parcourir Teka RDC et choisir votre ville plus tard."}
+              </p>
+              <button
+                type="button"
+                onClick={closeSelector}
+                className="mt-4 inline-flex rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
+              >
+                {"Continuer"}
+              </button>
+            </div>
           ) : (
             grouped.map(([province, list]) => (
               <div key={province} className="mb-1">

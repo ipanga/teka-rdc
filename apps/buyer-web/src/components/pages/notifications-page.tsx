@@ -96,13 +96,21 @@ export default function NotificationsPage() {
           </div>
 
           {!user && !authLoading ? (
-            <div className="text-center py-16">
-              <p className="text-muted-foreground mb-4">
-                Connectez-vous pour voir vos notifications.
+            <div className="mt-4 rounded-xl border border-border bg-surface p-8 text-center">
+              <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-primary-subtle text-primary">
+                <svg className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a3 3 0 1 1-5.714 0" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-semibold text-foreground tracking-tight">
+                Connectez-vous pour voir vos notifications
+              </h2>
+              <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                Suivez vos commandes, les offres et les messages importants de Teka RDC.
               </p>
               <Link
                 href="/connexion?redirect=/notifications"
-                className="text-primary hover:underline"
+                className="mt-5 inline-flex rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
               >
                 Se connecter
               </Link>
@@ -117,9 +125,19 @@ export default function NotificationsPage() {
               ))}
             </div>
           ) : items.length === 0 ? (
-            <p className="text-muted-foreground text-center py-16">
-              Vous n&apos;avez aucune notification pour le moment.
-            </p>
+            <div className="mt-4 rounded-xl border border-border bg-surface p-8 text-center">
+              <div className="mx-auto mb-4 inline-flex h-16 w-16 items-center justify-center rounded-full bg-surface-muted text-muted-foreground">
+                <svg className="h-8 w-8" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a3 3 0 1 1-5.714 0" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-semibold text-foreground tracking-tight">
+                Aucune notification
+              </h2>
+              <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                Les nouvelles commandes, promotions et informations importantes apparaîtront ici.
+              </p>
+            </div>
           ) : (
             <ul className="mt-4 space-y-2">
               {items.map((n) => (

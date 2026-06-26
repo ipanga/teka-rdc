@@ -1,4 +1,4 @@
-const CACHE_NAME = 'teka-v1';
+const CACHE_NAME = 'teka-v2';
 const OFFLINE_URL = '/offline.html';
 
 // Assets to pre-cache on install

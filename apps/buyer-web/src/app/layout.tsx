@@ -82,13 +82,24 @@ export default async function RootLayout({
         <Clarity />
         <script
           dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                  navigator.serviceWorker.register('/sw.js').catch(() => {});
-                });
-              }
-            `,
+            __html:
+              process.env.NODE_ENV === 'production'
+                ? `
+                  if ('serviceWorker' in navigator) {
+                    window.addEventListener('load', () => {
+                      navigator.serviceWorker.register('/sw.js').catch(() => {});
+                    });
+                  }
+                `
+                : `
+                  if ('serviceWorker' in navigator) {
+                    window.addEventListener('load', () => {
+                      navigator.serviceWorker.getRegistrations()
+                        .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+                        .catch(() => {});
+                    });
+                  }
+                `,
           }}
         />
       </body>
