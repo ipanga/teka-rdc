@@ -48,7 +48,12 @@ class ProductsRepository {
   /// One lightweight call (vs. counting a paginated page client-side).
   Future<ProductStats> getProductStats() async {
     final response = await _dio.get('/v1/sellers/products/stats');
-    final d = (response.data as Map<String, dynamic>?) ?? const {};
+    // The envelope is { success, data: { total, active, ... } }. The Dio chain
+    // does NOT unwrap a plain-object payload (unlike the list endpoints where
+    // `data` is the array), so read the nested `data`. Fall back to the root
+    // for safety if a future interceptor starts unwrapping.
+    final body = (response.data as Map<String, dynamic>?) ?? const {};
+    final d = (body['data'] as Map<String, dynamic>?) ?? body;
     return ProductStats(
       total: d['total'] as int? ?? 0,
       active: d['active'] as int? ?? 0,

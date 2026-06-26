@@ -123,7 +123,7 @@ class CityHero extends ConsumerWidget {
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
                       child: Text(
-                        "Decouvrir les produits",
+                        "Découvrir les produits",
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,

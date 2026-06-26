@@ -93,6 +93,11 @@ export function CartItemRow({ item }: CartItemRowProps) {
               </span>
             )}
           </p>
+          {maxStock > 0 && maxStock <= 5 && (
+            <p className="text-xs font-medium text-warning mt-1">
+              {`Plus que ${maxStock} disponible${maxStock > 1 ? 's' : ''}`}
+            </p>
+          )}
         </div>
 
         {/* Quantity + remove */}
@@ -106,7 +111,7 @@ export function CartItemRow({ item }: CartItemRowProps) {
                 'w-8 h-8 flex items-center justify-center text-foreground',
                 'hover:bg-surface-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors',
               )}
-              aria-label="Decrease quantity"
+              aria-label="Diminuer la quantité"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
@@ -123,7 +128,7 @@ export function CartItemRow({ item }: CartItemRowProps) {
                 'w-8 h-8 flex items-center justify-center text-foreground',
                 'hover:bg-surface-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors',
               )}
-              aria-label="Increase quantity"
+              aria-label="Augmenter la quantité"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

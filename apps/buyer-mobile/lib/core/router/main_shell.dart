@@ -54,8 +54,9 @@ class MainShell extends ConsumerWidget {
           ),
           const NavigationDestination(
             icon: Icon(Icons.grid_view_outlined),
-            selectedIcon: Icon(Icons.grid_view_rounded, color: TekaColors.tekaRed),
-            label: 'Categories',
+            selectedIcon:
+                Icon(Icons.grid_view_rounded, color: TekaColors.tekaRed),
+            label: 'Catégories',
           ),
           const NavigationDestination(
             icon: Icon(Icons.favorite_border),

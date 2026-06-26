@@ -23,27 +23,28 @@ class _CitySelectionScreenState extends ConsumerState<CitySelectionScreen> {
     final locale = Localizations.localeOf(context).languageCode;
 
     return Scaffold(
+      backgroundColor: TekaColors.surfaceMuted,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
             children: [
-              const SizedBox(height: 40),
+              const SizedBox(height: 28),
               // City icon
               Container(
-                width: 72,
-                height: 72,
+                width: 60,
+                height: 60,
                 decoration: BoxDecoration(
                   color: TekaColors.tekaRed.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
                   Icons.location_city_rounded,
-                  size: 36,
+                  size: 30,
                   color: TekaColors.tekaRed,
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
               // Title
               Text(
                 "Choisissez votre ville",
@@ -59,6 +60,7 @@ class _CitySelectionScreenState extends ConsumerState<CitySelectionScreen> {
                 "Pour voir les produits disponibles",
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: TekaColors.mutedForeground,
+                      height: 1.25,
                     ),
                 textAlign: TextAlign.center,
               ),
@@ -72,7 +74,7 @@ class _CitySelectionScreenState extends ConsumerState<CitySelectionScreen> {
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                 ),
               ),
@@ -110,32 +112,54 @@ class _CitySelectionScreenState extends ConsumerState<CitySelectionScreen> {
 
     if (cityState.error != null) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 48,
-              color: TekaColors.mutedForeground,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              cityState.error!,
-              style: TextStyle(color: TekaColors.mutedForeground),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: () {
-                ref.read(cityProvider.notifier).fetchCities();
-              },
-              icon: const Icon(Icons.refresh),
-              label: const Text('Reessayer'),
-              style: FilledButton.styleFrom(
-                backgroundColor: TekaColors.tekaRed,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: TekaColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: TekaColors.border),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 40,
+                color: TekaColors.tekaRed,
               ),
-            ),
-          ],
+              const SizedBox(height: 12),
+              Text(
+                'Impossible de charger les villes.',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      color: TekaColors.foreground,
+                      fontWeight: FontWeight.w700,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Vérifiez votre connexion puis réessayez.',
+                style: const TextStyle(
+                  color: TekaColors.mutedForeground,
+                  fontSize: 13,
+                  height: 1.3,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: () {
+                  ref.read(cityProvider.notifier).fetchCities();
+                },
+                icon: const Icon(Icons.refresh),
+                label: const Text('Réessayer'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: TekaColors.tekaRed,
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }

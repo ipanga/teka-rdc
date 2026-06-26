@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'teka_colors.dart';
 
 /// Mobile theme — mirrors the Tailwind v4 `@theme inline` block on the web
-/// (`apps/buyer-web/src/app/globals.css`). Uses Inter via `google_fonts` so
-/// typography lines up with the web side, plus a global CardTheme and the
-/// Rakuten 485 C brand red. Keep both surfaces in sync when adjusting.
+/// (`apps/buyer-web/src/app/globals.css`). Uses platform typography so the
+/// app remains deterministic offline, plus a global CardTheme and the Rakuten
+/// 485 C brand red. Keep both surfaces in sync when adjusting.
 class AppTheme {
   AppTheme._();
 
@@ -30,7 +29,7 @@ class AppTheme {
     );
 
     return base.copyWith(
-      textTheme: GoogleFonts.interTextTheme(base.textTheme).apply(
+      textTheme: base.textTheme.apply(
         bodyColor: TekaColors.foreground,
         displayColor: TekaColors.foreground,
       ),
@@ -50,7 +49,7 @@ class AppTheme {
           color: TekaColors.foreground,
           fontSize: 18,
           fontWeight: FontWeight.w600,
-          letterSpacing: -0.2,
+          letterSpacing: 0,
         ),
         systemOverlayStyle: SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,
@@ -86,7 +85,7 @@ class AppTheme {
         margin: EdgeInsets.zero,
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(8),
           side: const BorderSide(color: TekaColors.border, width: 1),
         ),
       ),
@@ -99,10 +98,26 @@ class AppTheme {
           shadowColor: Colors.transparent,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          textStyle: const TextStyle(
+          textStyle: base.textTheme.labelLarge?.copyWith(
             fontSize: 15,
             fontWeight: FontWeight.w600,
-            letterSpacing: 0.1,
+            letterSpacing: 0,
+          ),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: TekaColors.tekaRed,
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: TekaColors.tekaRed.withValues(alpha: 0.4),
+          disabledForegroundColor: Colors.white.withValues(alpha: 0.8),
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+          textStyle: base.textTheme.labelLarge?.copyWith(
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0,
           ),
         ),
       ),
@@ -152,7 +167,8 @@ class AppTheme {
         ),
         labelStyle: const TextStyle(color: TekaColors.mutedForeground),
         hintStyle: const TextStyle(color: TekaColors.mutedForeground),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       ),
       dividerTheme: const DividerThemeData(
         color: TekaColors.border,

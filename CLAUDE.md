@@ -179,7 +179,10 @@ history) · `url-and-seo-strategy.md` (city-first URLs/slugs/redirects) · `anal
 `mobile-connectivity.md` (Rule 15) · `mobile-flavors.md` · `mobile-release.md` (Android signing + Play
 Store) · `payouts.md` (seller payouts + settlement) · `push-notifications.md` (FCM) ·
 `session-management.md` (per-surface cookies + token rotation) · `sentry.md` ·
-`deep-linking.md` (App Links / Universal Links + DeepLinkParser).
+`deep-linking.md` (App Links / Universal Links + DeepLinkParser) ·
+`town-architecture-refactor.md` + `town-switcher-ux.md` (data-driven town selection / switcher — see note below) ·
+`buyer-web-redesign.md` + `buyer-mobile-redesign.md` (buyer UI/UX polish initiatives) ·
+`mobile-guest-and-errors.md` (mobile guest-browsing + error-state UX).
 
 ---
 
@@ -271,6 +274,7 @@ route, update both `urls.ts` and `DeepLinkParser` + a test.** Full model: `docs/
 - Every table has createdAt, updatedAt timestamps
 - Translatable fields are stored as plain TEXT (French) — no JSONB shape, no per-locale columns
 - Location hierarchy: Country → Province → Town → Neighborhood (seeded for Haut-Katanga & Lualaba initially)
+  - **Naming caveat (Town Architecture Refactor, Jun 2026):** the *data layer* still uses **`City`** — `model City`, `cityId`, `User.preferredCityId`, `GET /v1/cities`, `CitiesModule`, Flutter `features/city/`, web `useCityStore`. The *UX/URL/copy layer* renamed it to **"town / ville"** — header town selector, first-visit town modal, town-scoped browsing, `/{ville}` SEO landing pages. So a "town" in the UI maps to a `City` row in the DB; don't expect a `Town` model. Towns are **data-driven** (`City.heroImageUrl`/accent color/slug) — no hardcoded Lubumbashi/Kolwezi switches. Full model: `docs/town-architecture-refactor.md` + `docs/town-switcher-ux.md`.
 - Order state machine: Use an enum + transition log table for audit trail
 - Monetary values: Store in smallest unit (centimes for CDF) as BigInt to avoid floating point issues. Always store currency code alongside amount
 - Indexes: On all foreign keys, frequently filtered columns (status, categoryId, sellerId), and full-text search columns

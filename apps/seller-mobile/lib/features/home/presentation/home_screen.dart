@@ -24,6 +24,19 @@ class HomeScreen extends ConsumerWidget {
     final userName = authState.user?['firstName'] as String? ?? '';
     final unread = ref.watch(notificationsProvider.select((s) => s.unread));
 
+    // The products/orders notifiers auto-load in their constructors, which can
+    // fire during an unauthenticated startup attempt (expired session → 401)
+    // and cache an empty result that never refreshes after login. Reload them
+    // the moment auth resolves to authenticated. (Stats self-refresh via their
+    // own auth dependency.)
+    ref.listen(authProvider.select((s) => s.status), (prev, next) {
+      if (next == AuthStatus.authenticated &&
+          prev != AuthStatus.authenticated) {
+        ref.read(sellerProductsProvider.notifier).loadProducts();
+        ref.read(sellerOrdersProvider.notifier).loadOrders();
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Teka Vendeur'),

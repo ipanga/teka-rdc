@@ -238,7 +238,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
             child: Text(
-              '${state.pagination?.total ?? state.products.length} ${"Resultats".toLowerCase()}',
+              '${state.pagination?.total ?? state.products.length} résultats',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: TekaColors.mutedForeground,
                   ),

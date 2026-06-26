@@ -3,7 +3,7 @@ import NotificationsPage from '@/components/pages/notifications-page';
 
 // Private, per-user page — keep it out of the index (no SEO value, user-scoped).
 export const metadata: Metadata = {
-  title: 'Notifications — Teka RDC',
+  title: 'Notifications',
   robots: { index: false, follow: false },
 };
 

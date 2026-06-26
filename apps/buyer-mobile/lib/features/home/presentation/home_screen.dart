@@ -36,8 +36,7 @@ class HomeScreen extends ConsumerWidget {
     final popular = ref.watch(popularProductsProvider);
     final newest = ref.watch(newestProductsProvider);
     // Unread notification badge — only for authenticated buyers.
-    final isAuthed =
-        ref.watch(authProvider).status == AuthStatus.authenticated;
+    final isAuthed = ref.watch(authProvider).status == AuthStatus.authenticated;
     final unreadNotifications = isAuthed
         ? (ref.watch(notificationUnreadCountProvider).valueOrNull ?? 0)
         : 0;
@@ -65,7 +64,7 @@ class HomeScreen extends ConsumerWidget {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Teka RDC"),
+            const Text("Teka RDC"),
             if (cityName != null)
               GestureDetector(
                 onTap: () => context.push('/city-selection'),
@@ -101,8 +100,9 @@ class HomeScreen extends ConsumerWidget {
           IconButton(
             icon: unreadNotifications > 0
                 ? Badge(
-                    label: Text(
-                        unreadNotifications > 9 ? '9+' : '$unreadNotifications'),
+                    label: Text(unreadNotifications > 9
+                        ? '9+'
+                        : '$unreadNotifications'),
                     backgroundColor: TekaColors.tekaRed,
                     textColor: Colors.white,
                     child: const Icon(Icons.notifications_none_rounded),
@@ -127,11 +127,21 @@ class HomeScreen extends ConsumerWidget {
           // Wait for data to reload
           await Future.wait([
             ref.read(bannersProvider.future).catchError((_) => <BannerModel>[]),
-            ref.read(flashDealsProvider.future).catchError((_) => <FlashDealModel>[]),
-            ref.read(categoriesProvider.future).catchError((_) => <CategoryModel>[]),
-            ref.read(popularProductsProvider.future).catchError((_) => <BrowseProductModel>[]),
-            ref.read(newestProductsProvider.future).catchError((_) => <BrowseProductModel>[]),
-            ref.read(promoProductsProvider.future).catchError((_) => <BrowseProductModel>[]),
+            ref
+                .read(flashDealsProvider.future)
+                .catchError((_) => <FlashDealModel>[]),
+            ref
+                .read(categoriesProvider.future)
+                .catchError((_) => <CategoryModel>[]),
+            ref
+                .read(popularProductsProvider.future)
+                .catchError((_) => <BrowseProductModel>[]),
+            ref
+                .read(newestProductsProvider.future)
+                .catchError((_) => <BrowseProductModel>[]),
+            ref
+                .read(promoProductsProvider.future)
+                .catchError((_) => <BrowseProductModel>[]),
           ]);
         },
         child: ListView(
@@ -152,7 +162,7 @@ class HomeScreen extends ConsumerWidget {
 
             // Categories strip
             _SectionHeader(
-              title: "Categories",
+              title: "Catégories",
               onSeeAll: null,
             ),
             const SizedBox(height: 8),
@@ -173,20 +183,13 @@ class HomeScreen extends ConsumerWidget {
               ),
               loading: () => const SizedBox(
                 height: 118,
-                child: Center(
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
+                child: _CategoryStripSkeleton(),
               ),
-              error: (_, __) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  "Une erreur est survenue. Veuillez reessayer.",
-                  style: TextStyle(color: TekaColors.mutedForeground, fontSize: 13),
-                ),
+              error: (_, __) => _InlineFeedState(
+                icon: Icons.grid_view_rounded,
+                title: "Catégories indisponibles",
+                message: "Vérifiez votre connexion puis tirez pour actualiser.",
+                onRetry: () => ref.invalidate(categoriesProvider),
               ),
             ),
 
@@ -232,15 +235,10 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: 8),
             popular.when(
               data: (products) => products.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        "Aucun produit trouve",
-                        style: TextStyle(
-                          color: TekaColors.mutedForeground,
-                          fontSize: 13,
-                        ),
-                      ),
+                  ? const _InlineFeedState(
+                      icon: Icons.inventory_2_outlined,
+                      title: "Aucun produit populaire",
+                      message: "Les produits de votre ville apparaîtront ici.",
                     )
                   : SizedBox(
                       // 160 (square image) + 22 (vertical padding) + ~85
@@ -261,12 +259,11 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ),
               loading: () => const ProductRowSkeleton(),
-              error: (_, __) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Text(
-                  "Une erreur est survenue. Veuillez reessayer.",
-                  style: TextStyle(color: TekaColors.mutedForeground, fontSize: 13),
-                ),
+              error: (_, __) => _InlineFeedState(
+                icon: Icons.wifi_off_rounded,
+                title: "Produits indisponibles",
+                message: "Impossible de charger les produits populaires.",
+                onRetry: () => ref.invalidate(popularProductsProvider),
               ),
             ),
 
@@ -274,23 +271,16 @@ class HomeScreen extends ConsumerWidget {
 
             // Newest products (grid)
             _SectionHeader(
-              title: "Nouveautes",
+              title: "Nouveautés",
               onSeeAll: null,
             ),
             const SizedBox(height: 8),
             newest.when(
               data: (products) => products.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Center(
-                        child: Text(
-                          "Aucun produit trouve",
-                          style: TextStyle(
-                            color: TekaColors.mutedForeground,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
+                  ? const _InlineFeedState(
+                      icon: Icons.new_releases_outlined,
+                      title: "Aucune nouveauté",
+                      message: "Les nouveaux produits apparaîtront ici.",
                     )
                   : Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -314,17 +304,11 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ),
               loading: () => const ProductGridSkeleton(count: 6),
-              error: (_, __) => Padding(
-                padding: const EdgeInsets.all(16),
-                child: Center(
-                  child: Text(
-                    "Une erreur est survenue. Veuillez reessayer.",
-                    style: TextStyle(
-                      color: TekaColors.mutedForeground,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
+              error: (_, __) => _InlineFeedState(
+                icon: Icons.wifi_off_rounded,
+                title: "Nouveautés indisponibles",
+                message: "Impossible de charger les derniers produits.",
+                onRetry: () => ref.invalidate(newestProductsProvider),
               ),
             ),
 
@@ -387,6 +371,119 @@ class _HomeSearchBar extends StatelessWidget {
                   ),
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryStripSkeleton extends StatelessWidget {
+  const _CategoryStripSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+      itemCount: 5,
+      separatorBuilder: (_, __) => const SizedBox(width: 10),
+      itemBuilder: (_, __) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              color: TekaColors.surface,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: TekaColors.border),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: 56,
+            height: 10,
+            decoration: BoxDecoration(
+              color: TekaColors.muted,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineFeedState extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String message;
+  final VoidCallback? onRetry;
+
+  const _InlineFeedState({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: TekaColors.surface,
+          border: Border.all(color: TekaColors.border),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: TekaColors.surfaceMuted,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 22, color: TekaColors.mutedForeground),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: TekaColors.foreground,
+                          ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      message,
+                      style: const TextStyle(
+                        color: TekaColors.mutedForeground,
+                        fontSize: 12.5,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (onRetry != null) ...[
+                const SizedBox(width: 8),
+                IconButton.filledTonal(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh_rounded),
+                  tooltip: 'Réessayer',
+                ),
+              ],
             ],
           ),
         ),

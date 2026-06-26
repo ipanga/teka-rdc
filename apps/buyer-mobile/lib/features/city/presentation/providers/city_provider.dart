@@ -74,8 +74,7 @@ class CityNotifier extends StateNotifier<CityState> {
       // Resolve stored city ID against the fetched list
       final storedId = await _storage.read(key: _cityIdKey);
       if (storedId != null) {
-        final match =
-            activeCities.where((c) => c.id == storedId).toList();
+        final match = activeCities.where((c) => c.id == storedId).toList();
         if (match.isNotEmpty) {
           state = state.copyWith(selectedCity: match.first);
         }
@@ -83,7 +82,7 @@ class CityNotifier extends StateNotifier<CityState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: 'Impossible de charger les villes. Veuillez reessayer.',
+        error: 'Impossible de charger les villes. Veuillez réessayer.',
       );
     }
   }
@@ -117,8 +116,7 @@ class CityNotifier extends StateNotifier<CityState> {
     if (state.hasCity) return;
     if (state.cities.isEmpty) await fetchCities();
     if (state.hasCity) return; // fetchCities may have resolved a local choice
-    final match =
-        state.cities.where((c) => c.id == preferredCityId).toList();
+    final match = state.cities.where((c) => c.id == preferredCityId).toList();
     if (match.isNotEmpty) {
       state = state.copyWith(selectedCity: match.first);
       await _storage.write(key: _cityIdKey, value: match.first.id);

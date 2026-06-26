@@ -45,7 +45,7 @@ export function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-border shadow-sm">
+    <header className="sticky top-0 z-50 bg-white/95 border-b border-border shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90">
       {/* Main header bar */}
       <div className="max-w-7xl mx-auto px-4 h-16 flex items-center gap-4">
         {/* Logo */}
@@ -54,7 +54,7 @@ export function Header() {
           <img
             src="/logo.svg"
             alt="Teka RDC"
-            className="h-8 w-auto"
+            className="h-9 w-auto"
             width={160}
             height={32}
           />
@@ -65,7 +65,7 @@ export function Header() {
             Two-line affordance: a small "Livrer \u00e0" prefix over the town name. */}
         <button
           onClick={openSelector}
-          className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border shrink-0 transition-colors ${
+          className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border shrink-0 transition-colors shadow-xs ${
             selectedCity
               ? `${cityAcc.surface} border-transparent hover:brightness-95`
               : 'border-border text-foreground hover:border-primary/40 hover:bg-muted/50'
@@ -87,7 +87,7 @@ export function Header() {
         </button>
 
         {/* Search bar - desktop */}
-        <div className="hidden md:flex flex-1 max-w-xl">
+        <div className="hidden md:flex flex-1 max-w-2xl">
           <SearchAutocomplete
             cityId={selectedCity?.id}
             citySlug={selectedCity?.slug}
@@ -100,7 +100,7 @@ export function Header() {
         <div className="hidden md:flex items-center gap-3">
           <Link
             href="/categories"
-            className="inline-flex items-center gap-1.5 text-sm text-foreground hover:text-primary transition-colors"
+            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-semibold text-foreground hover:bg-surface-muted hover:text-primary transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
@@ -170,6 +170,37 @@ export function Header() {
       {/* Persistent mobile search bar — always visible (sticky with the header).
           Search is the #1 marketplace action; keeping it out of the hamburger
           removes two taps. Desktop has its own inline search above. */}
+      <nav className="hidden md:block border-t border-border/70 bg-surface-muted/45">
+        <div className="max-w-7xl mx-auto px-4 h-10 flex items-center justify-between gap-6">
+          <div className="flex items-center gap-1">
+            {[
+              { href: '/', label: 'Accueil' },
+              { href: '/lubumbashi', label: 'Lubumbashi' },
+              { href: '/kolwezi', label: 'Kolwezi' },
+              { href: '/promotions', label: 'Promotions' },
+              { href: '/categories', label: 'Toutes les catégories' },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="rounded-md px-3 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-white hover:text-primary"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </div>
+          <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-success" />
+              Paiement à la livraison
+            </span>
+            <Link href="/aide" className="hover:text-primary transition-colors">
+              Aide
+            </Link>
+          </div>
+        </div>
+      </nav>
+
       <div className="md:hidden border-t border-border px-4 py-2.5">
         <SearchAutocomplete
           cityId={selectedCity?.id}
@@ -181,7 +212,7 @@ export function Header() {
 
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-border bg-white px-4 py-4 space-y-4">
+        <div className="md:hidden border-t border-border bg-white px-4 py-4 space-y-4 shadow-lg">
           {/* Mobile city selector */}
           <button
             onClick={() => {
@@ -205,20 +236,22 @@ export function Header() {
 
           {/* Mobile nav links */}
           <nav className="flex flex-col gap-3">
-            <Link
-              href="/"
-              onClick={() => setMobileMenuOpen(false)}
-              className="text-sm text-foreground hover:text-primary transition-colors"
-            >
-              {"Accueil"}
-            </Link>
-            <Link
-              href="/categories"
-              onClick={() => setMobileMenuOpen(false)}
-              className="text-sm text-foreground hover:text-primary transition-colors"
-            >
-              {"Catégories"}
-            </Link>
+            {[
+              { href: '/', label: 'Accueil' },
+              { href: '/categories', label: 'Catégories' },
+              { href: '/promotions', label: 'Promotions' },
+              { href: '/lubumbashi', label: 'Lubumbashi' },
+              { href: '/kolwezi', label: 'Kolwezi' },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg px-3 py-2 text-sm font-semibold text-foreground hover:bg-surface-muted hover:text-primary transition-colors"
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
 
           {/* Mobile auth */}

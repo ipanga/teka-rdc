@@ -66,8 +66,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
           : wishlistState.error != null
               ? AppErrorState(
                   message: wishlistState.error,
-                  onRetry: () =>
-                      ref.read(wishlistProvider.notifier).refresh(),
+                  onRetry: () => ref.read(wishlistProvider.notifier).refresh(),
                 )
               : wishlistState.items.isEmpty
                   ? AppEmptyState(
@@ -98,8 +97,8 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
                           return _WishlistProductCard(
                             item: item,
                             locale: locale,
-                            onRemove: () => _removeItem(
-                                context, ref, item.productId),
+                            onRemove: () =>
+                                _removeItem(context, ref, item.productId),
                             onAddToCart: () =>
                                 _addToCart(context, item.productId),
                             onTap: () =>
@@ -131,7 +130,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Une erreur est survenue. Veuillez reessayer."),
+            content: Text("Une erreur est survenue. Veuillez réessayer."),
             backgroundColor: TekaColors.destructive,
           ),
         );
@@ -163,7 +162,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Une erreur est survenue. Veuillez reessayer."),
+            content: Text("Une erreur est survenue. Veuillez réessayer."),
             backgroundColor: TekaColors.destructive,
           ),
         );
@@ -379,7 +378,9 @@ class _WishlistProductCard extends StatelessWidget {
                           ),
                         ),
                         child: Text(
-                          isOutOfStock ? "Rupture de stock" : "Ajouter au panier",
+                          isOutOfStock
+                              ? "Rupture de stock"
+                              : "Ajouter au panier",
                         ),
                       ),
                     ),

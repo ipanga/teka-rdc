@@ -136,7 +136,13 @@ class _ConnectivityBannerHostState
               ? const SizedBox(width: double.infinity, height: 0)
               : _BannerBar(spec: spec),
         ),
-        Expanded(child: widget.child),
+        Expanded(
+          child: MediaQuery.removePadding(
+            context: context,
+            removeTop: spec != null,
+            child: widget.child,
+          ),
+        ),
       ],
     );
   }
@@ -149,8 +155,8 @@ class _ConnectivityBannerHostState
     if (showRestored && status == ConnectivityStatus.connected) {
       return _BannerSpec(
         text: "Connexion rétablie",
-        background: TekaColors.success,
-        foreground: Colors.white,
+        background: TekaColors.successSubtle,
+        foreground: TekaColors.success,
         icon: Icons.check_circle_outline,
         key: const ValueKey('restored'),
       );
@@ -161,32 +167,32 @@ class _ConnectivityBannerHostState
       case ConnectivityStatus.disconnected:
         return _BannerSpec(
           text: "Pas de connexion internet",
-          background: TekaColors.destructive,
-          foreground: Colors.white,
+          background: TekaColors.destructiveSubtle,
+          foreground: TekaColors.destructive,
           icon: Icons.wifi_off_outlined,
           key: const ValueKey('disconnected'),
         );
       case ConnectivityStatus.noInternet:
         return _BannerSpec(
           text: "Internet limité",
-          background: TekaColors.warning,
-          foreground: Colors.white,
+          background: TekaColors.warningSubtle,
+          foreground: const Color(0xFF92400E),
           icon: Icons.signal_wifi_bad_outlined,
           key: const ValueKey('noInternet'),
         );
       case ConnectivityStatus.unstable:
         return _BannerSpec(
           text: "Connexion instable",
-          background: TekaColors.warning,
-          foreground: Colors.white,
+          background: TekaColors.warningSubtle,
+          foreground: const Color(0xFF92400E),
           icon: Icons.network_check_outlined,
           key: const ValueKey('unstable'),
         );
       case ConnectivityStatus.reconnecting:
         return _BannerSpec(
           text: "Reconnexion...",
-          background: TekaColors.warning,
-          foreground: Colors.white,
+          background: TekaColors.warningSubtle,
+          foreground: const Color(0xFF92400E),
           icon: Icons.sync,
           key: const ValueKey('reconnecting'),
         );
@@ -226,10 +232,7 @@ class _BannerBar extends StatelessWidget {
           child: Container(
             key: spec.key,
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 8,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [

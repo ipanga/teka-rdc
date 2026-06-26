@@ -23,7 +23,7 @@ class CategoryCircle extends StatelessWidget {
         extra: {'categoryName': name},
       ),
       child: SizedBox(
-        width: 78,
+        width: 92,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -62,9 +62,9 @@ class CategoryCircle extends StatelessWidget {
               textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: FontWeight.w600,
-                height: 1.2,
+                height: 1.15,
                 color: TekaColors.foreground,
               ),
             ),

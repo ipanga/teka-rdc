@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/app_states.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/reviews_provider.dart';
 import '../widgets/review_form_dialog.dart';
@@ -36,38 +37,11 @@ class ProductReviewsScreen extends ConsumerWidget {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : reviewsState.error != null
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          size: 48,
-                          color: TekaColors.mutedForeground,
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          reviewsState.error!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: TekaColors.mutedForeground,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        FilledButton(
-                          onPressed: () => ref
-                              .read(reviewsProvider(productId).notifier)
-                              .loadReviews(),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: TekaColors.tekaRed,
-                          ),
-                          child: Text("Reessayer"),
-                        ),
-                      ],
-                    ),
-                  ),
+              ? AppErrorState(
+                  message: reviewsState.error!,
+                  onRetry: () => ref
+                      .read(reviewsProvider(productId).notifier)
+                      .loadReviews(),
                 )
               : RefreshIndicator(
                   color: TekaColors.tekaRed,
@@ -98,8 +72,8 @@ class ProductReviewsScreen extends ConsumerWidget {
                         ReviewTile(
                           review: reviewsState.myReview!,
                           isOwn: true,
-                          onDelete: () =>
-                              _confirmDelete(context, ref, reviewsState.myReview!.id),
+                          onDelete: () => _confirmDelete(
+                              context, ref, reviewsState.myReview!.id),
                         ),
                         const SizedBox(height: 20),
                       ],
@@ -122,8 +96,8 @@ class ProductReviewsScreen extends ConsumerWidget {
                               review: review,
                               isOwn: review.buyerId == currentUserId,
                               onDelete: review.buyerId == currentUserId
-                                  ? () => _confirmDelete(
-                                      context, ref, review.id)
+                                  ? () =>
+                                      _confirmDelete(context, ref, review.id)
                                   : null,
                             ),
                           ),
@@ -136,10 +110,8 @@ class ProductReviewsScreen extends ConsumerWidget {
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               child: TextButton(
                                 onPressed: () => ref
-                                    .read(
-                                        reviewsProvider(productId).notifier)
-                                    .loadReviews(
-                                        page: reviewsState.page + 1),
+                                    .read(reviewsProvider(productId).notifier)
+                                    .loadReviews(page: reviewsState.page + 1),
                                 child: Text(
                                   "Charger plus",
                                   style: const TextStyle(
@@ -179,8 +151,7 @@ class ProductReviewsScreen extends ConsumerWidget {
 
   void _showReviewForm(BuildContext context, WidgetRef ref) {
     final reviewsState = ref.read(reviewsProvider(productId));
-    final orderId =
-        reviewsState.canReviewResult?.orderId ?? '';
+    final orderId = reviewsState.canReviewResult?.orderId ?? '';
 
     showModalBottomSheet(
       context: context,

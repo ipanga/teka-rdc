@@ -255,7 +255,7 @@ class _PaymentPendingScreenState extends ConsumerState<PaymentPendingScreen> {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            child: Text("Reessayer"),
+            child: Text("Réessayer"),
           ),
         ),
         const SizedBox(height: 12),
@@ -290,7 +290,7 @@ class _PaymentPendingScreenState extends ConsumerState<PaymentPendingScreen> {
         ),
         const SizedBox(height: 24),
         Text(
-          "Le delai de paiement a expire",
+          "Le délai de paiement a expiré",
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: TekaColors.foreground,
@@ -299,7 +299,7 @@ class _PaymentPendingScreenState extends ConsumerState<PaymentPendingScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          "Vous pouvez reessayer depuis vos commandes.",
+          "Vous pouvez réessayer depuis vos commandes.",
           style: const TextStyle(
             color: TekaColors.mutedForeground,
             fontSize: 14,

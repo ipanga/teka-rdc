@@ -7,6 +7,7 @@ import '../../../../core/auth/auth_guard.dart';
 import '../../../../core/deep_link/web_links.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
+import '../../../../core/widgets/app_states.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../reviews/presentation/providers/reviews_provider.dart';
 import '../../../reviews/presentation/widgets/review_stats_bar.dart';
@@ -71,7 +72,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Details du produit"),
+        title: const Text("Détails du produit"),
         actions: [
           IconButton(
             icon: const Icon(Icons.share_outlined),
@@ -90,9 +91,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           final description = product.description ?? '';
           final hasDiscount = product.hasDiscount;
           final price = formatCDF(product.effectivePriceCDF);
-          final priceUSD = product.priceUSD != null
-              ? formatUSD(product.priceUSD!)
-              : null;
+          final priceUSD =
+              product.priceUSD != null ? formatUSD(product.priceUSD!) : null;
           final isNew = product.condition.toUpperCase() == 'NEW' ||
               product.condition.toUpperCase() == 'NEUF';
 
@@ -273,9 +273,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                       borderRadius: BorderRadius.circular(4),
                                     ),
                                     child: Text(
-                                      isNew
-                                          ? "Neuf"
-                                          : "Occasion",
+                                      isNew ? "Neuf" : "Occasion",
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 12,
@@ -416,7 +414,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                               // Description
                               if (description.isNotEmpty) ...[
                                 Text(
-                                  "Details du produit",
+                                  "Détails du produit",
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleSmall
@@ -441,7 +439,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                               // Specifications
                               if (product.specifications.isNotEmpty) ...[
                                 Text(
-                                  "Caracteristiques",
+                                  "Caractéristiques",
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleSmall
@@ -535,57 +533,96 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 8,
                       offset: const Offset(0, -2),
                     ),
                   ],
                 ),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: product.isOutOfStock
-                        ? null
-                        : () async {
-                            // Cart requires an account — gate guests to login.
-                            if (!ensureAuthenticated(context, ref)) return;
-                            try {
-                              await ref
-                                  .read(cartProvider.notifier)
-                                  .addItem(product.id);
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text("Ajouter au panier"),
-                                    backgroundColor: TekaColors.success,
-                                    duration: const Duration(seconds: 2),
-                                  ),
-                                );
-                              }
-                            } catch (_) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text("Une erreur est survenue. Veuillez reessayer."),
-                                    backgroundColor: TekaColors.destructive,
-                                    duration: const Duration(seconds: 2),
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                    icon: const Icon(Icons.shopping_cart_outlined),
-                    label: Text("Ajouter au panier"),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: TekaColors.tekaRed,
-                      disabledBackgroundColor: TekaColors.muted,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      textStyle: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        children: const [
+                          Icon(Icons.payments_outlined,
+                              size: 16, color: TekaColors.success),
+                          SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              'Paiement à la livraison',
+                              style: TextStyle(
+                                color: TekaColors.mutedForeground,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Icon(Icons.local_shipping_outlined,
+                              size: 16, color: TekaColors.success),
+                          SizedBox(width: 6),
+                          Text(
+                            'Livraison locale',
+                            style: TextStyle(
+                              color: TekaColors.mutedForeground,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: product.isOutOfStock
+                            ? null
+                            : () async {
+                                // Cart requires an account — gate guests to login.
+                                if (!ensureAuthenticated(context, ref)) return;
+                                try {
+                                  await ref
+                                      .read(cartProvider.notifier)
+                                      .addItem(product.id);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: const Text(
+                                            "Produit ajouté au panier"),
+                                        backgroundColor: TekaColors.success,
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                } catch (_) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: const Text(
+                                          "Une erreur est survenue. Veuillez réessayer.",
+                                        ),
+                                        backgroundColor: TekaColors.destructive,
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                        icon: const Icon(Icons.shopping_cart_outlined),
+                        label: const Text("Ajouter au panier"),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: TekaColors.tekaRed,
+                          disabledBackgroundColor: TekaColors.muted,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          textStyle: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -594,36 +631,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         loading: () => const Center(
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
-        error: (error, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.error_outline,
-                  size: 48,
-                  color: TekaColors.mutedForeground,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  "Une erreur est survenue. Veuillez reessayer.",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: TekaColors.mutedForeground),
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () {
-                    ref.invalidate(productDetailProvider(productId));
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: TekaColors.tekaRed,
-                  ),
-                  child: Text("Reessayer"),
-                ),
-              ],
-            ),
-          ),
+        error: (error, _) => AppErrorState(
+          message: "Une erreur est survenue. Veuillez réessayer.",
+          onRetry: () {
+            ref.invalidate(productDetailProvider(productId));
+          },
         ),
       ),
     );
@@ -676,8 +688,7 @@ class _ReviewsSection extends ConsumerWidget {
             ),
             if (stats.totalReviews > 0)
               TextButton(
-                onPressed: () =>
-                    context.push('/products/$productId/reviews'),
+                onPressed: () => context.push('/products/$productId/reviews'),
                 child: Text(
                   "Voir tous les avis",
                   style: const TextStyle(
@@ -707,8 +718,7 @@ class _ReviewsSection extends ConsumerWidget {
           if (stats.totalReviews > 3)
             Center(
               child: TextButton(
-                onPressed: () =>
-                    context.push('/products/$productId/reviews'),
+                onPressed: () => context.push('/products/$productId/reviews'),
                 child: Text(
                   "Voir tous les avis",
                   style: const TextStyle(color: TekaColors.tekaRed),

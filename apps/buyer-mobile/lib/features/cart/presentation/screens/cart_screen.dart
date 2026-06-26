@@ -34,13 +34,12 @@ class CartScreen extends ConsumerWidget {
               ? AppEmptyState(
                   icon: Icons.shopping_cart_outlined,
                   title: 'Votre panier est vide',
-                  actionLabel: 'Decouvrir nos produits',
+                  actionLabel: 'Découvrir nos produits',
                   onAction: () => context.go('/'),
                 )
               : RefreshIndicator(
                   color: TekaColors.tekaRed,
-                  onRefresh: () =>
-                      ref.read(cartProvider.notifier).fetchCart(),
+                  onRefresh: () => ref.read(cartProvider.notifier).fetchCart(),
                   child: ListView.builder(
                     physics: const AlwaysScrollableScrollPhysics(),
                     itemCount: cartState.items.length,
@@ -80,11 +79,11 @@ class CartScreen extends ConsumerWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Supprimer'),
-        content: const Text('Votre panier est vide'),
+        content: const Text('Supprimer tous les produits du panier ?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Reinitialiser'),
+            child: const Text('Annuler'),
           ),
           FilledButton(
             onPressed: () {
@@ -129,7 +128,7 @@ class _CartBottomBar extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),
