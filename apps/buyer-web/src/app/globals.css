@@ -49,18 +49,18 @@
 
   /* === Neutrals (slate scale, semantic aliases) ========================== */
   --color-background: #FFFFFF;
-  --color-foreground: #1E293B;       /* slate-800 */
+  --color-foreground: #172033;       /* deep neutral, less blue than slate-800 */
   --color-surface: #FFFFFF;
   --color-surface-elevated: #FFFFFF;
-  --color-surface-hover: #F8FAFC;    /* slate-50 */
-  --color-surface-muted: #F1F5F9;    /* slate-100 — page background sections */
-  --color-secondary: #F1F5F9;
-  --color-secondary-foreground: #1E293B;
-  --color-muted: #F1F5F9;
-  --color-muted-foreground: #64748B; /* slate-500 */
-  --color-border: #E2E8F0;           /* slate-200 */
-  --color-border-strong: #CBD5E1;    /* slate-300 — used on hover/focus rings */
-  --color-input: #E2E8F0;
+  --color-surface-hover: #F7F7F8;
+  --color-surface-muted: #F6F7F9;    /* page background sections */
+  --color-secondary: #F6F7F9;
+  --color-secondary-foreground: #172033;
+  --color-muted: #F3F4F6;
+  --color-muted-foreground: #667085;
+  --color-border: #E5E7EB;
+  --color-border-strong: #D1D5DB;
+  --color-input: #D1D5DB;
   --color-ring: var(--color-primary-600);
 
   /* === Semantic status colors =========================================== */
@@ -102,10 +102,9 @@
     @apply bg-background text-foreground;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
-  /* Slightly tighter heading rhythm than the default browser stylesheet,
-   * matching the Rakuten section-header pattern. */
   h1, h2, h3, h4, h5, h6 {
-    @apply tracking-tight;
+    letter-spacing: 0 !important;
   }
 }

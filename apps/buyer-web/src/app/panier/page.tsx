@@ -283,6 +283,21 @@ export default function CartPage() {
                     </div>
                   </div>
 
+                  <div className="mb-5 rounded-lg border border-border bg-surface-muted/50 p-3 space-y-2">
+                    {[
+                      'Paiement à la livraison',
+                      'Livraison locale à votre adresse',
+                      'Vendeurs vérifiés par Teka RDC',
+                    ].map((label) => (
+                      <div key={label} className="flex items-center gap-2 text-xs font-medium text-foreground">
+                        <svg className="w-4 h-4 text-success shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                          <path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.5 7.5a1 1 0 01-1.4 0L3.3 9.7a1 1 0 111.4-1.4L8.5 12l6.8-6.7a1 1 0 011.4 0z" clipRule="evenodd" />
+                        </svg>
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+
                   <Link
                     href={user ? '/paiement' : '/connexion?redirect=/panier'}
                     className={buttonVariants({ variant: 'default', size: 'lg', className: 'w-full' })}

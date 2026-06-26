@@ -63,7 +63,7 @@ export function Footer() {
   const townLinks = cities.filter((c) => c.isActive && c.slug);
 
   return (
-    <footer className="bg-foreground text-white mt-auto">
+    <footer className="bg-[#111827] text-white mt-auto">
       <div className="max-w-7xl mx-auto px-4 py-8">
         {townLinks.length > 0 && (
           <div className="mb-6 pb-6 border-b border-white/10">
@@ -93,7 +93,7 @@ export function Footer() {
             width={140}
             height={28}
           />
-          <nav className="flex flex-wrap justify-center gap-4 text-sm text-white/70">
+          <nav className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-white/72">
             {FOOTER_LINKS.map(({ canonical, label }) => (
               <Link
                 key={canonical}
