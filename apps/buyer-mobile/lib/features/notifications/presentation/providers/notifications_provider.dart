@@ -45,7 +45,7 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
     } catch (_) {
       state = state.copyWith(
         isLoading: false,
-        error: 'Une erreur est survenue. Veuillez reessayer.',
+        error: 'Une erreur est survenue. Veuillez réessayer.',
       );
     }
   }

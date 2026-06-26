@@ -42,8 +42,7 @@ class WishlistButton extends ConsumerWidget {
     return IconButton(
       padding: padding,
       constraints: constraints,
-      visualDensity:
-          constraints != null ? VisualDensity.compact : null,
+      visualDensity: constraints != null ? VisualDensity.compact : null,
       icon: Icon(
         isWishlisted ? Icons.favorite : Icons.favorite_border,
         size: size,
@@ -51,9 +50,7 @@ class WishlistButton extends ConsumerWidget {
             ? (activeColor ?? TekaColors.tekaRed)
             : (inactiveColor ?? TekaColors.mutedForeground),
       ),
-      tooltip: isWishlisted
-          ? "Retirer des favoris"
-          : "Ajoute aux favoris",
+      tooltip: isWishlisted ? "Retirer des favoris" : "Ajoute aux favoris",
       onPressed: () async {
         // Favorites require an account — gate guests to login, then return.
         if (!ensureAuthenticated(context, ref)) return;
@@ -64,9 +61,7 @@ class WishlistButton extends ConsumerWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  isWishlisted
-                      ? "Retire des favoris"
-                      : "Ajoute aux favoris",
+                  isWishlisted ? "Retire des favoris" : "Ajoute aux favoris",
                 ),
                 backgroundColor: TekaColors.success,
                 duration: const Duration(seconds: 2),
@@ -81,7 +76,7 @@ class WishlistButton extends ConsumerWidget {
             // reverts on its own.
             final message = e is DioException
                 ? extractDioErrorMessage(e)
-                : "Une erreur est survenue. Veuillez reessayer.";
+                : "Une erreur est survenue. Veuillez réessayer.";
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(message),

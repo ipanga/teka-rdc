@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/app_states.dart';
 import '../../data/models/category_model.dart';
 import '../providers/catalog_provider.dart';
 import '../widgets/category_circle.dart';
@@ -18,7 +19,7 @@ class CategoriesScreen extends ConsumerWidget {
     final categories = ref.watch(categoriesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Categories')),
+      appBar: AppBar(title: const Text('Catégories')),
       body: categories.when(
         data: (cats) => cats.isEmpty
             ? _CategoriesEmpty(onBrowse: () => context.go('/'))
@@ -33,12 +34,11 @@ class CategoriesScreen extends ConsumerWidget {
                 child: GridView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                   physics: const AlwaysScrollableScrollPhysics(),
-                  gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 3,
-                    childAspectRatio: 0.74,
+                    mainAxisExtent: 132,
                     crossAxisSpacing: 12,
-                    mainAxisSpacing: 16,
+                    mainAxisSpacing: 20,
                   ),
                   itemCount: cats.length,
                   itemBuilder: (context, index) =>
@@ -48,7 +48,8 @@ class CategoriesScreen extends ConsumerWidget {
         loading: () => const Center(
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
-        error: (_, __) => _CategoriesError(
+        error: (_, __) => AppErrorState(
+          message: 'Impossible de charger les catégories.',
           onRetry: () => ref.invalidate(categoriesProvider),
         ),
       ),
@@ -72,7 +73,7 @@ class _CategoriesEmpty extends StatelessWidget {
                 size: 72, color: TekaColors.mutedForeground),
             const SizedBox(height: 16),
             Text(
-              'Aucune categorie disponible',
+              'Aucune catégorie disponible',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     color: TekaColors.mutedForeground,
                     fontWeight: FontWeight.w600,
@@ -82,37 +83,8 @@ class _CategoriesEmpty extends StatelessWidget {
             const SizedBox(height: 24),
             FilledButton(
               onPressed: onBrowse,
-              child: const Text('Retour a l\'accueil'),
+              child: const Text('Retour à l\'accueil'),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CategoriesError extends StatelessWidget {
-  final VoidCallback onRetry;
-  const _CategoriesError({required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline,
-                size: 48, color: TekaColors.mutedForeground),
-            const SizedBox(height: 12),
-            const Text(
-              'Une erreur est survenue. Veuillez reessayer.',
-              style: TextStyle(color: TekaColors.mutedForeground, fontSize: 13),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            FilledButton(onPressed: onRetry, child: const Text('Reessayer')),
           ],
         ),
       ),

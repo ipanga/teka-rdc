@@ -192,7 +192,7 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        error: 'Une erreur est survenue. Veuillez reessayer.',
+        error: 'Une erreur est survenue. Veuillez réessayer.',
       );
     }
   }
@@ -228,7 +228,7 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
     } catch (e) {
       state = state.copyWith(
         isLoadingMore: false,
-        error: 'Une erreur est survenue. Veuillez reessayer.',
+        error: 'Une erreur est survenue. Veuillez réessayer.',
       );
     }
   }
@@ -237,7 +237,6 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
     state = const BrowseProductsState();
     await loadProducts();
   }
-
 }
 
 final browseProductsProvider = StateNotifierProvider.family<
@@ -262,7 +261,8 @@ final productDetailProvider =
 // Home page products (popular + newest)
 // ──────────────────────────────────────────────
 
-final popularProductsProvider = FutureProvider<List<BrowseProductModel>>((ref) async {
+final popularProductsProvider =
+    FutureProvider<List<BrowseProductModel>>((ref) async {
   final repository = ref.read(catalogRepositoryProvider);
   final cityId = ref.watch(cityProvider).selectedCity?.id;
   // Backend enum is `popularity` (see browse-products-query.dto.ts).
@@ -277,7 +277,8 @@ final popularProductsProvider = FutureProvider<List<BrowseProductModel>>((ref) a
   return result.data;
 });
 
-final newestProductsProvider = FutureProvider<List<BrowseProductModel>>((ref) async {
+final newestProductsProvider =
+    FutureProvider<List<BrowseProductModel>>((ref) async {
   final repository = ref.read(catalogRepositoryProvider);
   final cityId = ref.watch(cityProvider).selectedCity?.id;
   final result = await repository.browseProducts(
@@ -289,7 +290,8 @@ final newestProductsProvider = FutureProvider<List<BrowseProductModel>>((ref) as
 });
 
 /// Home "Promotions" strip — products with an active seller-set discount.
-final promoProductsProvider = FutureProvider<List<BrowseProductModel>>((ref) async {
+final promoProductsProvider =
+    FutureProvider<List<BrowseProductModel>>((ref) async {
   final repository = ref.read(catalogRepositoryProvider);
   final cityId = ref.watch(cityProvider).selectedCity?.id;
   final result = await repository.browseProducts(

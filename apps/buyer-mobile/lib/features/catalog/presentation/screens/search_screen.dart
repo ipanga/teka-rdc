@@ -71,8 +71,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   /// Run a search from a tapped chip (recent/popular).
   void _runTerm(String term) {
     _controller.text = term;
-    _controller.selection =
-        TextSelection.collapsed(offset: term.length);
+    _controller.selection = TextSelection.collapsed(offset: term.length);
     _saveRecent(term);
     _applyQuery(term);
   }
@@ -156,7 +155,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           ),
         ),
       ),
-      body: _query.isEmpty ? _buildEmptySearch(context) : _buildResults(context),
+      body:
+          _query.isEmpty ? _buildEmptySearch(context) : _buildResults(context),
     );
   }
 
@@ -169,7 +169,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.search, size: 64, color: TekaColors.mutedForeground),
+              const Icon(Icons.search,
+                  size: 64, color: TekaColors.mutedForeground),
               const SizedBox(height: 16),
               Text(
                 "Rechercher un produit...",
@@ -189,9 +190,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("Recherches recentes",
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600)),
+              Text("Recherches récentes",
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w600)),
               TextButton(
                 onPressed: () async {
                   await _recentStore.clear();
@@ -217,8 +220,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         ],
         if (_popular.isNotEmpty) ...[
           Text("Recherches populaires",
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600)),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -244,8 +249,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       child: Column(
         children: [
           Text("Recherches populaires",
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w600)),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -273,7 +280,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            "Categories",
+            "Catégories",
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: TekaColors.mutedForeground,
                   fontWeight: FontWeight.w600,
@@ -316,7 +323,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       }
       // search_performed: once per completed query (parity with buyer-web).
       // Query routed through scrubAnalyticsText (free-text → strip phones).
-      if (!next.isLoading && _query.isNotEmpty && _lastSearchTracked != _query) {
+      if (!next.isLoading &&
+          _query.isNotEmpty &&
+          _lastSearchTracked != _query) {
         _lastSearchTracked = _query;
         final count = next.pagination?.total ?? next.products.length;
         const PosthogAnalytics().capture('search_performed', properties: {
@@ -350,11 +359,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       return ListView(
         children: [
           const SizedBox(height: 48),
-          const Icon(Icons.search_off, size: 56, color: TekaColors.mutedForeground),
+          const Icon(Icons.search_off,
+              size: 56, color: TekaColors.mutedForeground),
           const SizedBox(height: 12),
           Center(
             child: Text(
-              "Aucun resultat pour \"$_query\"",
+              "Aucun résultat pour \"$_query\"",
               style: Theme.of(context).textTheme.titleSmall,
               textAlign: TextAlign.center,
             ),
@@ -363,8 +373,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           Center(
             child: Text(
               "Essayez un autre mot-cle ou une recherche populaire :",
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TekaColors.mutedForeground),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodySmall
+                  ?.copyWith(color: TekaColors.mutedForeground),
               textAlign: TextAlign.center,
             ),
           ),
@@ -389,7 +401,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: Text(
-                '${state.pagination?.total ?? state.products.length} ${"Resultats".toLowerCase()}',
+                '${state.pagination?.total ?? state.products.length} résultats',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: TekaColors.mutedForeground,
                     ),

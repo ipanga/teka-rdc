@@ -49,14 +49,14 @@ class TekaColors {
 
   // === Neutrals (slate scale) ==========================================
   static const Color background = Color(0xFFFFFFFF);
-  static const Color foreground = Color(0xFF1E293B); // slate-800
+  static const Color foreground = Color(0xFF172033);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceMuted = Color(0xFFF1F5F9); // slate-100
-  static const Color surfaceHover = Color(0xFFF8FAFC); // slate-50
-  static const Color muted = Color(0xFFF1F5F9);
-  static const Color mutedForeground = Color(0xFF64748B); // slate-500
-  static const Color border = Color(0xFFE2E8F0); // slate-200
-  static const Color borderStrong = Color(0xFFCBD5E1); // slate-300
+  static const Color surfaceMuted = Color(0xFFF6F7F9);
+  static const Color surfaceHover = Color(0xFFF7F7F8);
+  static const Color muted = Color(0xFFF3F4F6);
+  static const Color mutedForeground = Color(0xFF667085);
+  static const Color border = Color(0xFFE5E7EB);
+  static const Color borderStrong = Color(0xFFD1D5DB);
 
   // === Semantic status colors ==========================================
   static const Color success = Color(0xFF16A34A);

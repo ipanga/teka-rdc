@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/router/app_router.dart';
+import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/phone.dart';
 import '../providers/auth_provider.dart';
 
@@ -68,44 +69,84 @@ class _OtpRequestScreenState extends ConsumerState<OtpRequestScreen> {
         ),
         title: const Text('Connexion ou inscription'),
       ),
+      backgroundColor: TekaColors.surfaceMuted,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Entrez votre numéro WhatsApp. Vous recevrez un code à 6 chiffres.',
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: TekaColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: TekaColors.border),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: TekaColors.tekaRedSubtle,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.sms_outlined,
+                        color: TekaColors.tekaRed,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Connectez-vous avec WhatsApp',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: TekaColors.foreground,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Entrez votre numéro WhatsApp. Vous recevrez un code à 6 chiffres.',
+                    style: TextStyle(
+                      color: TekaColors.mutedForeground,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  TextField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    maxLength: 10,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(
+                      labelText: 'Numéro WhatsApp',
+                      prefixText: '+243 ',
+                      hintText: '9 chiffres (ex. 990 000 001)',
+                    ),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _error!,
+                      style: const TextStyle(color: TekaColors.destructive),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    onPressed: isLoading ? null : _submit,
+                    child: Text(isLoading ? '...' : 'Recevoir mon code'),
+                  ),
+                  const SizedBox(height: 10),
+                  TextButton(
+                    onPressed: () => context.push('/auth/reclamer-compte'),
+                    child: const Text('Réclamer mon ancien compte'),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                maxLength: 10,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(
-                  labelText: 'Numéro WhatsApp',
-                  prefixText: '+243 ',
-                  hintText: '9 chiffres (ex. 990 000 001)',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 8),
-                Text(_error!, style: const TextStyle(color: Colors.red)),
-              ],
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: isLoading ? null : _submit,
-                child: Text(isLoading ? '...' : 'Recevoir mon code'),
-              ),
-              const SizedBox(height: 12),
-              TextButton(
-                onPressed:
-                    () => context.push('/auth/reclamer-compte'),
-                child: const Text('Réclamer mon ancien compte'),
-              ),
-            ],
+            ),
           ),
         ),
       ),

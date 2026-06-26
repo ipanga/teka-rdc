@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
+import '../../../../core/widgets/app_states.dart';
 import '../../data/models/order_model.dart';
 import '../../data/orders_repository.dart';
 import '../providers/orders_provider.dart';
@@ -33,36 +34,9 @@ class OrderDetailScreen extends ConsumerWidget {
         loading: () => const Center(
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
-        error: (error, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.error_outline,
-                  size: 48,
-                  color: TekaColors.mutedForeground,
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  "Une erreur est survenue. Veuillez reessayer.",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: TekaColors.mutedForeground),
-                ),
-                const SizedBox(height: 16),
-                FilledButton(
-                  onPressed: () {
-                    ref.invalidate(orderDetailProvider(orderId));
-                  },
-                  style: FilledButton.styleFrom(
-                    backgroundColor: TekaColors.tekaRed,
-                  ),
-                  child: const Text("Reessayer"),
-                ),
-              ],
-            ),
-          ),
+        error: (error, _) => AppErrorState(
+          message: 'Impossible de charger cette commande.',
+          onRetry: () => ref.invalidate(orderDetailProvider(orderId)),
         ),
       ),
     );
@@ -129,7 +103,9 @@ class OrderDetailScreen extends ConsumerWidget {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: const Text("Une erreur est survenue. Veuillez reessayer."),
+                      content: const Text(
+                        "Une erreur est survenue. Veuillez réessayer.",
+                      ),
                       backgroundColor: TekaColors.destructive,
                     ),
                   );
@@ -240,8 +216,7 @@ class _OrderDetailBody extends StatelessWidget {
             child: Column(
               children: [
                 for (var i = 0; i < order.items.length; i++) ...[
-                  if (i > 0)
-                    const Divider(height: 1, color: TekaColors.border),
+                  if (i > 0) const Divider(height: 1, color: TekaColors.border),
                   _OrderItemRow(item: order.items[i], locale: locale),
                 ],
               ],
@@ -629,7 +604,7 @@ class _PaymentStatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: chipColor.withOpacity(0.1),
+        color: chipColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Text(

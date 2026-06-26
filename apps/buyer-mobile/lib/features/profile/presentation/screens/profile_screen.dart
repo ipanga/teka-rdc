@@ -271,7 +271,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Gerez vos informations personnelles",
+              "Gérez vos informations personnelles",
               style: const TextStyle(
                 fontSize: 13,
                 color: TekaColors.mutedForeground,
@@ -326,7 +326,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   TextField(
                     controller: _firstNameCtrl,
                     decoration:
-                        InputDecoration(labelText: "Prenom"),
+                        InputDecoration(labelText: "Prénom"),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -340,7 +340,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     keyboardType: TextInputType.emailAddress,
                     decoration: InputDecoration(
                       labelText: "Email",
-                      helperText: "Optionnel — utilise pour les confirmations de commande.",
+                      helperText: "Optionnel — utilisé pour les confirmations de commande.",
                       helperMaxLines: 2,
                     ),
                   ),
@@ -352,8 +352,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         TextEditingController(text: _user?.phone ?? ''),
                     enabled: false,
                     decoration: InputDecoration(
-                      labelText: "Numero WhatsApp",
-                      helperText: "Numero de connexion a votre compte. Contactez le support pour le modifier.",
+                      labelText: "Numéro WhatsApp",
+                      helperText: "Numéro de connexion à votre compte. Contactez le support pour le modifier.",
                       helperMaxLines: 2,
                     ),
                   ),
@@ -378,7 +378,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Choisissez les SMS que vous voulez recevoir. Les codes WhatsApp restent toujours envoyes.",
+                    "Choisissez les notifications que vous voulez recevoir. Les codes WhatsApp restent toujours envoyés.",
                     style: const TextStyle(
                       fontSize: 12,
                       color: TekaColors.mutedForeground,
@@ -387,8 +387,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: 8),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text("Mises a jour de commande"),
-                    subtitle: Text("Confirmation, expedition, livraison, annulation"),
+                    title: Text("Mises à jour de commande"),
+                    subtitle: Text("Confirmation, expédition, livraison, annulation"),
                     value: _notifPrefs?.smsOrderUpdates ?? true,
                     onChanged: _notifSaving
                         ? null
@@ -397,7 +397,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text("Annonces et promotions"),
-                    subtitle: Text("Messages marketing envoyes par l'equipe Teka"),
+                    subtitle: Text("Messages marketing envoyés par l'équipe Teka"),
                     value: _notifPrefs?.smsBroadcasts ?? true,
                     onChanged: _notifSaving
                         ? null
@@ -524,7 +524,7 @@ class _SessionsCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Appareils connectes",
+                      "Appareils connectés",
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -533,7 +533,7 @@ class _SessionsCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "Liste des appareils actuellement connectes a votre compte. Revoquez ceux que vous ne reconnaissez pas.",
+                      "Liste des appareils actuellement connectés à votre compte. Révoquez ceux que vous ne reconnaissez pas.",
                       style: const TextStyle(
                         fontSize: 12,
                         color: TekaColors.mutedForeground,

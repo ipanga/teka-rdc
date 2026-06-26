@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/app_states.dart';
 import '../../data/content_repository.dart';
 import '../../data/models/content_page_model.dart';
 
@@ -78,34 +79,9 @@ class ContentPageScreen extends ConsumerWidget {
         loading: () => const Center(
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
-        error: (error, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.error_outline,
-                  size: 64,
-                  color: TekaColors.mutedForeground,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  "Une erreur est survenue. Veuillez reessayer.",
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: TekaColors.mutedForeground,
-                      ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  onPressed: () => ref.invalidate(contentPageProvider(slug)),
-                  icon: const Icon(Icons.refresh),
-                  label: Text("Reessayer"),
-                ),
-              ],
-            ),
-          ),
+        error: (error, _) => AppErrorState(
+          message: 'Impossible de charger cette page.',
+          onRetry: () => ref.invalidate(contentPageProvider(slug)),
         ),
       ),
     );
