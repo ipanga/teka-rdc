@@ -24,10 +24,38 @@ class PaginatedResponse<T> {
   bool get hasMore => page * limit < total;
 }
 
+/// Dashboard product counts (server-computed in one grouped query).
+class ProductStats {
+  final int total;
+  final int active;
+  final int pendingReview;
+  final int draft;
+
+  const ProductStats({
+    this.total = 0,
+    this.active = 0,
+    this.pendingReview = 0,
+    this.draft = 0,
+  });
+}
+
 class ProductsRepository {
   final Dio _dio;
 
   ProductsRepository(this._dio);
+
+  /// Dashboard counts for the current seller's products, grouped by status.
+  /// One lightweight call (vs. counting a paginated page client-side).
+  Future<ProductStats> getProductStats() async {
+    final response = await _dio.get('/v1/sellers/products/stats');
+    final d = (response.data as Map<String, dynamic>?) ?? const {};
+    return ProductStats(
+      total: d['total'] as int? ?? 0,
+      active: d['active'] as int? ?? 0,
+      pendingReview: d['pendingReview'] as int? ?? 0,
+      draft: d['draft'] as int? ?? 0,
+    );
+  }
 
   Future<PaginatedResponse<SellerProductModel>> getProducts({
     int page = 1,

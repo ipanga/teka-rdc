@@ -213,6 +213,30 @@ export class ProductsService {
   }
 
   /**
+   * Dashboard counts for the seller's products, grouped by status in a single
+   * query (vs. one paginated call per status). Excludes soft-deleted rows.
+   * `total` is the sum across all live statuses.
+   */
+  async getSellerStats(sellerId: string) {
+    const grouped = await this.prisma.product.groupBy({
+      by: ['status'],
+      where: { sellerId, deletedAt: null },
+      _count: { _all: true },
+    });
+    const count = (s: ProductStatus) =>
+      grouped.find((g) => g.status === s)?._count._all ?? 0;
+    return {
+      total: grouped.reduce((sum, g) => sum + g._count._all, 0),
+      active: count(ProductStatus.ACTIVE),
+      pendingReview: count(ProductStatus.PENDING_REVIEW),
+      draft: count(ProductStatus.DRAFT),
+      rejected: count(ProductStatus.REJECTED),
+      suspended: count(ProductStatus.SUSPENDED),
+      archived: count(ProductStatus.ARCHIVED),
+    };
+  }
+
+  /**
    * Returns paginated list of seller's products with optional status filter.
    */
   async findSellerProducts(sellerId: string, query: ProductQueryDto) {
