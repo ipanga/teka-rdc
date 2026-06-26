@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_error_messages.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/product_model.dart';
 import '../../data/products_repository.dart';
 
@@ -179,6 +180,14 @@ final sellerProductsProvider =
 // -- Dashboard stats (server-computed counts; one call) --
 
 final dashboardStatsProvider = FutureProvider<ProductStats>((ref) async {
+  // Tie the fetch to auth status. Without this, a fetch that ran during an
+  // unauthenticated startup attempt (e.g. an expired session → 401) caches the
+  // failure and never refreshes after login — the dashboard stays at 0. Watching
+  // the status re-runs this provider the moment the seller becomes authenticated.
+  final status = ref.watch(authProvider.select((s) => s.status));
+  if (status != AuthStatus.authenticated) {
+    return const ProductStats();
+  }
   return ref.read(productsRepositoryProvider).getProductStats();
 });
 
