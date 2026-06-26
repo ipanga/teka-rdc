@@ -34,19 +34,34 @@ String extractDioErrorMessage(DioException e) {
   }
 
   // Prefer the API's French business message (auth / OTP / validation, 4xx).
+  String? apiMessage;
   final data = e.response?.data;
   if (data is Map) {
     final error = data['error'];
     if (error is Map &&
         error['message'] is String &&
         (error['message'] as String).trim().isNotEmpty) {
-      return (error['message'] as String).trim();
-    }
-    final message = data['message'];
-    if (message is String && message.trim().isNotEmpty) {
-      return message.trim();
+      apiMessage = (error['message'] as String).trim();
+    } else {
+      final message = data['message'];
+      if (message is String && message.trim().isNotEmpty) {
+        apiMessage = message.trim();
+      }
     }
   }
+
+  // The auth guard on a protected endpoint returns the framework's ENGLISH
+  // default ("Unauthorized" / "Forbidden"), not a French business message — map
+  // those to French (Rule 1). Contextual auth errors (wrong OTP / password)
+  // carry their own French message and are preserved.
+  if (status == 401 && (apiMessage == null || apiMessage == 'Unauthorized')) {
+    return 'Votre session a expiré.\n\nVeuillez vous reconnecter.';
+  }
+  if (status == 403 && (apiMessage == null || apiMessage == 'Forbidden')) {
+    return "Vous n'avez pas accès à cette ressource.";
+  }
+
+  if (apiMessage != null) return apiMessage;
 
   return 'Une erreur inattendue est survenue.\n\nVeuillez réessayer.';
 }
