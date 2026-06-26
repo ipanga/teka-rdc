@@ -7,6 +7,7 @@ import '../../auth/presentation/providers/auth_provider.dart';
 import '../../orders/data/models/order_model.dart';
 import '../../orders/presentation/providers/orders_provider.dart';
 import '../../products/data/models/product_model.dart';
+import '../../products/data/products_repository.dart';
 import '../../products/presentation/providers/products_provider.dart';
 import '../../products/presentation/widgets/status_badge.dart';
 import '../../notifications/presentation/providers/notifications_provider.dart';
@@ -17,6 +18,7 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
+    final statsAsync = ref.watch(dashboardStatsProvider);
     final productsState = ref.watch(sellerProductsProvider);
     final ordersState = ref.watch(sellerOrdersProvider);
     final userName = authState.user?['firstName'] as String? ?? '';
@@ -47,8 +49,11 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () =>
-            ref.read(sellerProductsProvider.notifier).loadProducts(),
+        onRefresh: () async {
+          ref.invalidate(dashboardStatsProvider);
+          ref.invalidate(sellerOrdersProvider);
+          await ref.read(sellerProductsProvider.notifier).loadProducts();
+        },
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
@@ -72,7 +77,7 @@ class HomeScreen extends ConsumerWidget {
             const SizedBox(height: 20),
 
             // Stats cards
-            _buildStatsGrid(context, productsState),
+            _buildStatsGrid(context, statsAsync),
             const SizedBox(height: 12),
 
             // Orders card
@@ -191,13 +196,14 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildStatsGrid(
-      BuildContext context, ProductsListState state) {
-    final products = state.products;
-    final total = state.total;
-    final active = products.where((p) => p.status == ProductStatus.active).length;
-    final pending =
-        products.where((p) => p.status == ProductStatus.pendingReview).length;
-    final drafts = products.where((p) => p.status == ProductStatus.draft).length;
+      BuildContext context, AsyncValue<ProductStats> statsAsync) {
+    // Server-computed counts (not derived from a paginated page, which is why
+    // the dashboard previously showed 0). While loading/error, fall back to 0.
+    final stats = statsAsync.valueOrNull ?? const ProductStats();
+    final total = stats.total;
+    final active = stats.active;
+    final pending = stats.pendingReview;
+    final drafts = stats.draft;
 
     return GridView.count(
       crossAxisCount: 2,

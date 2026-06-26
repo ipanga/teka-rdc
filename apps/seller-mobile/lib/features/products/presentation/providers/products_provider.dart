@@ -176,6 +176,12 @@ final sellerProductsProvider =
   return ProductsListNotifier(ref.read(productsRepositoryProvider));
 });
 
+// -- Dashboard stats (server-computed counts; one call) --
+
+final dashboardStatsProvider = FutureProvider<ProductStats>((ref) async {
+  return ref.read(productsRepositoryProvider).getProductStats();
+});
+
 // -- Single product detail --
 
 final productDetailProvider =
