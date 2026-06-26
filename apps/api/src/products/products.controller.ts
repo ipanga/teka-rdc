@@ -37,6 +37,13 @@ export class ProductsController {
     return this.productsService.findSellerProducts(userId, query);
   }
 
+  // Dashboard counts (single grouped query). MUST stay above @Get(':id') so
+  // "stats" isn't captured as a product id.
+  @Get('stats')
+  stats(@CurrentUser('userId') userId: string) {
+    return this.productsService.getSellerStats(userId);
+  }
+
   @Get(':id')
   findById(
     @CurrentUser('userId') userId: string,

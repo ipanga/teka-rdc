@@ -49,18 +49,18 @@ export default function SellerDashboardPage() {
   useEffect(() => {
     async function loadStats() {
       try {
-        const [allRes, activeRes, pendingRes, draftRes] = await Promise.allSettled([
-          apiFetch<{ pagination?: { total?: number } }>('/v1/sellers/products?page=1&limit=1'),
-          apiFetch<{ pagination?: { total?: number } }>('/v1/sellers/products?page=1&limit=1&status=ACTIVE'),
-          apiFetch<{ pagination?: { total?: number } }>('/v1/sellers/products?page=1&limit=1&status=PENDING_REVIEW'),
-          apiFetch<{ pagination?: { total?: number } }>('/v1/sellers/products?page=1&limit=1&status=DRAFT'),
-        ]);
-
+        // Single server-computed grouped count (replaces 4 paginated calls).
+        const res = await apiFetch<{
+          total: number;
+          active: number;
+          pendingReview: number;
+          draft: number;
+        }>('/v1/sellers/products/stats');
         setStats({
-          total: allRes.status === 'fulfilled' ? (allRes.value.data.pagination?.total ?? 0) : 0,
-          active: activeRes.status === 'fulfilled' ? (activeRes.value.data.pagination?.total ?? 0) : 0,
-          pending: pendingRes.status === 'fulfilled' ? (pendingRes.value.data.pagination?.total ?? 0) : 0,
-          draft: draftRes.status === 'fulfilled' ? (draftRes.value.data.pagination?.total ?? 0) : 0,
+          total: res.data.total ?? 0,
+          active: res.data.active ?? 0,
+          pending: res.data.pendingReview ?? 0,
+          draft: res.data.draft ?? 0,
         });
       } catch {
         // Stats stay at 0
