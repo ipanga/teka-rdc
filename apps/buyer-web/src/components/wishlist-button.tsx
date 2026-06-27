@@ -43,7 +43,7 @@ export function WishlistButton({
     if (isLoading || authLoading) return;
 
     // Genuine guest (auth resolved, no user): stash the intended add and send
-    // to login. WishlistBadge completes it once auth resolves back on this page
+    // to login. WishlistSync completes it once auth resolves back on this page
     // (continue-after-login). Never reached while auth is still loading.
     if (!user) {
       setPendingWishlistAdd(productId);

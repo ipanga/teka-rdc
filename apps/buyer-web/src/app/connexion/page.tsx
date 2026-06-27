@@ -123,7 +123,7 @@ function ConnexionInner() {
       }
       // Continue-after-login: return to where the user came from (e.g. the
       // product page they tapped the wishlist heart on). A pending wishlist
-      // add stashed in localStorage is completed by WishlistBadge once auth
+      // add stashed in localStorage is completed by WishlistSync once auth
       // resolves on that page.
       router.push(redirectTo);
     } catch (err) {

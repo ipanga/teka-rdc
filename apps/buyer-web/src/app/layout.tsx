@@ -6,6 +6,7 @@ import { AuthProvider } from '@/components/providers/auth-provider';
 import { PostHogPageview } from '@/components/providers/posthog-pageview';
 import { PostHogProvider } from '@/components/providers/posthog-provider';
 import { CitySelectorModal } from '@/components/city/city-selector-modal';
+import { WishlistSync } from '@/components/wishlist/wishlist-sync';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-inter' });
@@ -74,6 +75,10 @@ export default async function RootLayout({
                 button opens it on EVERY page (not just the homepage). Renders
                 null until opened → no SSR/SEO footprint. */}
             <CitySelectorModal />
+            {/* Headless wishlist ↔ auth sync — keeps product-card heart state
+                working app-wide now that the header no longer renders the
+                wishlist badge. Renders null → no SSR/SEO footprint. */}
+            <WishlistSync />
             <Suspense fallback={null}>
               <PostHogPageview />
             </Suspense>

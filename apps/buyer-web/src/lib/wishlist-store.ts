@@ -5,7 +5,7 @@ import { track } from './analytics';
 /**
  * A wishlist add a guest attempted before logging in. Stashed in localStorage
  * so it survives the round-trip to /connexion and is completed by
- * WishlistBadge once auth resolves on the original page.
+ * WishlistSync once auth resolves on the original page.
  */
 const PENDING_WISHLIST_KEY = 'teka_pending_wishlist';
 
@@ -37,7 +37,7 @@ export function takePendingWishlistAdd(): string | null {
  * updates every heart for that product. Grids batch-hydrate visible ids via
  * `/v1/wishlist/check` (one request per page of cards — no per-card N+1).
  *
- * Mirrors the cart-store ↔ auth wiring: `WishlistBadge` syncs auth → store
+ * Mirrors the cart-store ↔ auth wiring: `WishlistSync` syncs auth → store
  * (hydrate/reset on login/logout). Analytics (`wishlist_added`/`removed`)
  * fire here so they're emitted once regardless of which surface toggled.
  */
