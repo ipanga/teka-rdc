@@ -123,34 +123,51 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         titleSpacing: 0,
         title: Padding(
           padding: const EdgeInsets.only(right: 16),
-          child: TextField(
-            controller: _controller,
-            autofocus: true,
-            onChanged: _onSearchChanged,
-            textInputAction: TextInputAction.search,
-            onSubmitted: (v) {
-              _saveRecent(v);
-              _applyQuery(v);
-            },
-            decoration: InputDecoration(
-              hintText: "Rechercher un produit...",
-              hintStyle: const TextStyle(
-                color: TekaColors.mutedForeground,
-                fontSize: 15,
+          child: Container(
+            height: 44,
+            decoration: BoxDecoration(
+              color: TekaColors.surfaceMuted,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: TekaColors.border),
+            ),
+            child: TextField(
+              controller: _controller,
+              autofocus: true,
+              onChanged: _onSearchChanged,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (v) {
+                _saveRecent(v);
+                _applyQuery(v);
+              },
+              decoration: InputDecoration(
+                filled: false,
+                hintText: "Rechercher un produit...",
+                hintStyle: const TextStyle(
+                  color: TekaColors.mutedForeground,
+                  fontSize: 15,
+                ),
+                prefixIcon: const Icon(
+                  Icons.search_rounded,
+                  color: TekaColors.tekaRed,
+                ),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 0, vertical: 11),
+                suffixIcon: _controller.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 20),
+                        onPressed: () {
+                          _controller.clear();
+                          setState(() {
+                            _query = '';
+                            _categories = const [];
+                          });
+                        },
+                      )
+                    : null,
               ),
-              border: InputBorder.none,
-              suffixIcon: _controller.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, size: 20),
-                      onPressed: () {
-                        _controller.clear();
-                        setState(() {
-                          _query = '';
-                          _categories = const [];
-                        });
-                      },
-                    )
-                  : null,
             ),
           ),
         ),

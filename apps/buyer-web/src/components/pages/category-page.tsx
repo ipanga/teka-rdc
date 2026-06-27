@@ -318,11 +318,6 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
           <div className="flex items-center justify-between gap-3 mb-6">
             <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
               {categoryName || "Catégories"}
-              {pagination && (
-                <span className="text-base font-normal text-muted-foreground ml-2">
-                  ({`${pagination.total} résultat(s)`})
-                </span>
-              )}
             </h1>
             <Button
               variant="outline"

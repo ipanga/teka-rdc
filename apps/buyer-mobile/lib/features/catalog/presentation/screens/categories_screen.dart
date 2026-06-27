@@ -96,29 +96,14 @@ class _CategoryOverviewCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            category.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w800),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${category.productCount}',
-                          style:
-                              Theme.of(context).textTheme.labelMedium?.copyWith(
-                                    color: TekaColors.mutedForeground,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                        ),
-                      ],
+                    Text(
+                      category.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 8),
                     if (subcategories.isEmpty)

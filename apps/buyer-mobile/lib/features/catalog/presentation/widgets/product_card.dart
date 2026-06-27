@@ -147,148 +147,149 @@ class ProductCard extends ConsumerWidget {
                     ],
                   ),
                 ),
-                // Product info
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Brand (when present) + Officiel badge — subtle line above title.
-                      if (brandName != null && brandName.isNotEmpty ||
-                          isOfficial) ...[
-                        Row(
-                          children: [
-                            if (brandName != null && brandName.isNotEmpty)
-                              Flexible(
-                                child: Text(
-                                  brandName.toUpperCase(),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.3,
-                                    color: TekaColors.mutedForeground,
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Brand (when present) + Officiel badge — subtle line above title.
+                        if (brandName != null && brandName.isNotEmpty ||
+                            isOfficial) ...[
+                          Row(
+                            children: [
+                              if (brandName != null && brandName.isNotEmpty)
+                                Flexible(
+                                  child: Text(
+                                    brandName.toUpperCase(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.3,
+                                      color: TekaColors.mutedForeground,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            if (isOfficial) ...[
-                              if (brandName != null && brandName.isNotEmpty)
-                                const SizedBox(width: 4),
-                              const Icon(Icons.verified,
-                                  size: 11, color: TekaColors.tekaRed),
-                              const SizedBox(width: 2),
-                              const Text(
-                                "Officiel",
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: TekaColors.tekaRed,
+                              if (isOfficial) ...[
+                                if (brandName != null && brandName.isNotEmpty)
+                                  const SizedBox(width: 4),
+                                const Icon(Icons.verified,
+                                    size: 11, color: TekaColors.tekaRed),
+                                const SizedBox(width: 2),
+                                const Text(
+                                  "Officiel",
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w700,
+                                    color: TekaColors.tekaRed,
+                                  ),
                                 ),
-                              ),
+                              ],
                             ],
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                      ],
-                      Text(
-                        title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          height: 1.35,
-                          color: TekaColors.foreground,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      // Effective price on its own full-width line — scales down
-                      // (never truncates) so even multi-million CDF values stay
-                      // fully readable. The original price is struck through below
-                      // when discounted, so neither steals width from the other.
-                      FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: Alignment.centerLeft,
-                        child: Text(
-                          price,
-                          maxLines: 1,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: TekaColors.tekaRed,
-                            letterSpacing: -0.2,
                           ),
-                        ),
-                      ),
-                      if (hasDiscount) ...[
-                        const SizedBox(height: 1),
+                          const SizedBox(height: 2),
+                        ],
                         Text(
-                          formatCDF(product.priceCDF),
-                          maxLines: 1,
+                          title,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 11,
-                            color: TekaColors.mutedForeground,
-                            decoration: TextDecoration.lineThrough,
+                            fontSize: 13,
+                            height: 1.35,
+                            color: TekaColors.foreground,
                           ),
                         ),
-                        if (savings != null && !isCompact)
+                        const Spacer(),
+                        // Effective price on its own full-width line — scales down
+                        // (never truncates) so even multi-million CDF values stay
+                        // fully readable. The original price is struck through below
+                        // when discounted, so neither steals width from the other.
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            price,
+                            maxLines: 1,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: TekaColors.tekaRed,
+                              letterSpacing: -0.2,
+                            ),
+                          ),
+                        ),
+                        if (hasDiscount) ...[
+                          const SizedBox(height: 1),
                           Text(
-                            "Vous économisez $savings",
+                            formatCDF(product.priceCDF),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: TekaColors.success,
+                              fontSize: 11,
+                              color: TekaColors.mutedForeground,
+                              decoration: TextDecoration.lineThrough,
                             ),
                           ),
-                      ],
-                      // Rating (when reviewed) + sold count — social proof.
-                      if (product.totalReviews > 0) ...[
-                        const SizedBox(height: 3),
-                        Row(
-                          children: [
-                            const Icon(Icons.star,
-                                size: 12, color: Color(0xFFF59E0B)),
-                            const SizedBox(width: 2),
+                          if (savings != null && !isCompact)
                             Text(
-                              product.avgRating.toStringAsFixed(1),
+                              "Vous économisez $savings",
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 11,
+                                fontSize: 10,
                                 fontWeight: FontWeight.w600,
-                                color: TekaColors.foreground,
+                                color: TekaColors.success,
                               ),
                             ),
-                            const SizedBox(width: 2),
-                            Text(
-                              "(${product.totalReviews})",
-                              style: const TextStyle(
-                                fontSize: 11,
-                                color: TekaColors.mutedForeground,
-                              ),
-                            ),
-                            if (product.unitsSold > 0)
+                        ],
+                        // Rating (when reviewed) + sold count — social proof.
+                        if (product.totalReviews > 0) ...[
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              const Icon(Icons.star,
+                                  size: 12, color: Color(0xFFF59E0B)),
+                              const SizedBox(width: 2),
                               Text(
-                                " · ${product.unitsSold} ${product.unitsSold == 1 ? 'vendu' : 'vendus'}",
+                                product.avgRating.toStringAsFixed(1),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: TekaColors.foreground,
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                "(${product.totalReviews})",
                                 style: const TextStyle(
                                   fontSize: 11,
                                   color: TekaColors.mutedForeground,
                                 ),
                               ),
-                          ],
-                        ),
-                      ] else if (product.unitsSold > 0) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          "${product.unitsSold} ${(product.unitsSold) == 1 ? 'vendu' : 'vendus'}",
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: TekaColors.mutedForeground,
+                              if (product.unitsSold > 0)
+                                Text(
+                                  " · ${product.unitsSold} ${product.unitsSold == 1 ? 'vendu' : 'vendus'}",
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: TekaColors.mutedForeground,
+                                  ),
+                                ),
+                            ],
                           ),
-                        ),
+                        ] else if (product.unitsSold > 0) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            "${product.unitsSold} ${(product.unitsSold) == 1 ? 'vendu' : 'vendus'}",
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: TekaColors.mutedForeground,
+                            ),
+                          ),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ],

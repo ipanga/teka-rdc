@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/app_bar_actions.dart';
 import '../providers/notifications_provider.dart';
 
 /// Notification Center opened from the home AppBar bell. Lists the buyer's
@@ -30,13 +31,14 @@ class NotificationsScreen extends ConsumerWidget {
         title: const Text('Notifications'),
         actions: [
           if (state.unreadCount > 0)
-            TextButton(
+            TekaAppBarTextAction(
+              label: 'Tout lire',
               onPressed: () {
                 notifier.markAllRead();
                 ref.invalidate(notificationUnreadCountProvider);
               },
-              child: const Text('Tout lire'),
             ),
+          const SizedBox(width: 12),
         ],
       ),
       body: RefreshIndicator(

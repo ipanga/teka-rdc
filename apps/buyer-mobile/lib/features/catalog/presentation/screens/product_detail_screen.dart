@@ -7,6 +7,7 @@ import '../../../../core/auth/auth_guard.dart';
 import '../../../../core/deep_link/web_links.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
+import '../../../../core/widgets/app_bar_actions.dart';
 import '../../../../core/widgets/app_states.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../reviews/presentation/providers/reviews_provider.dart';
@@ -74,8 +75,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       appBar: AppBar(
         title: const Text("Détails du produit"),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.share_outlined),
+          TekaAppBarIconButton(
+            icon: Icons.share_outlined,
             tooltip: 'Partager',
             onPressed: () {
               final product = productAsync.valueOrNull;
@@ -83,6 +84,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             },
           ),
           WishlistButton(productId: productId),
+          const SizedBox(width: 8),
         ],
       ),
       body: productAsync.when(

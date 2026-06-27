@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/app_bar_actions.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/profile_repository.dart';
 
@@ -238,7 +239,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     if (_loading) {
       return Scaffold(
-        appBar: AppBar(title: Text("Mon profil")),
+        appBar: AppBar(title: Text("Compte")),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -247,14 +248,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 : '') +
             (_user?.lastName?.isNotEmpty == true ? _user!.lastName![0] : ''))
         .toUpperCase();
+    final fullName = [
+      _user?.firstName?.trim(),
+      _user?.lastName?.trim(),
+    ].where((part) => part != null && part.isNotEmpty).join(' ');
+    final displayName = fullName.isEmpty ? "Compte Teka" : fullName;
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Mon profil"),
+        title: Text("Compte"),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
+          TekaAppBarIconButton(
+            icon: Icons.logout,
             tooltip: "Se déconnecter",
+            destructive: true,
             onPressed: () async {
               await ref.read(authProvider.notifier).logout();
               // Land on the guest home (browsing stays open after logout);
@@ -262,6 +269,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               if (context.mounted) context.go('/');
             },
           ),
+          const SizedBox(width: 12),
         ],
       ),
       body: SingleChildScrollView(
@@ -269,72 +277,48 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              "Gérez vos informations personnelles",
-              style: const TextStyle(
-                fontSize: 13,
-                color: TekaColors.mutedForeground,
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Avatar
-            _Section(
-              title: "Photo de profil",
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor: TekaColors.tekaRed,
-                    backgroundImage:
-                        _user?.avatar != null && _user!.avatar!.isNotEmpty
-                            ? NetworkImage(_user!.avatar!)
-                            : null,
-                    child: (_user?.avatar == null || _user!.avatar!.isEmpty)
-                        ? Text(
-                            initials.isEmpty ? '?' : initials,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _uploading ? null : _pickAvatar,
-                      icon: const Icon(Icons.upload_outlined),
-                      label: Text(
-                        _uploading ? "Envoi en cours..." : "Changer la photo",
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            _AccountSummaryCard(
+              displayName: displayName,
+              phone: _user?.phone,
+              avatarUrl: _user?.avatar,
+              initials: initials.isEmpty ? 'T' : initials,
+              uploading: _uploading,
+              onChangePhoto: _pickAvatar,
             ),
 
             // Personal
             _Section(
               title: "Informations personnelles",
+              subtitle:
+                  "Gardez vos coordonnées à jour pour faciliter le suivi de vos commandes.",
+              icon: Icons.badge_outlined,
               child: Column(
                 children: [
                   TextField(
                     controller: _firstNameCtrl,
-                    decoration: InputDecoration(labelText: "Prénom"),
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      labelText: "Prénom",
+                      prefixIcon: const Icon(Icons.person_outline),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _lastNameCtrl,
-                    decoration: InputDecoration(labelText: "Nom"),
+                    textInputAction: TextInputAction.next,
+                    decoration: InputDecoration(
+                      labelText: "Nom",
+                      prefixIcon: const Icon(Icons.person_outline),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _emailCtrl,
                     keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.done,
                     decoration: InputDecoration(
                       labelText: "Email",
+                      prefixIcon: const Icon(Icons.alternate_email),
                       helperText:
                           "Optionnel — utilisé pour les confirmations de commande.",
                       helperMaxLines: 2,
@@ -345,9 +329,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   // from the app. Read-only with hint pointing to support.
                   TextField(
                     controller: TextEditingController(text: _user?.phone ?? ''),
-                    enabled: false,
+                    readOnly: true,
+                    enableInteractiveSelection: false,
                     decoration: InputDecoration(
                       labelText: "Numéro WhatsApp",
+                      prefixIcon: const Icon(Icons.phone_outlined),
+                      suffixIcon: const Icon(Icons.lock_outline),
                       helperText:
                           "Numéro de connexion à votre compte. Contactez le support pour le modifier.",
                       helperMaxLines: 2,
@@ -356,9 +343,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: 16),
                   SizedBox(
                     width: double.infinity,
-                    child: ElevatedButton(
+                    child: ElevatedButton.icon(
                       onPressed: _saving ? null : _save,
-                      child: Text(
+                      icon: _saving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(Icons.check_rounded),
+                      label: Text(
                         _saving ? "Enregistrement..." : "Enregistrer",
                       ),
                     ),
@@ -370,19 +367,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             // Notifications
             _Section(
               title: "Notifications",
+              subtitle:
+                  "Choisissez les alertes utiles. Les codes WhatsApp restent toujours envoyés.",
+              icon: Icons.notifications_none_rounded,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    "Choisissez les notifications que vous voulez recevoir. Les codes WhatsApp restent toujours envoyés.",
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: TekaColors.mutedForeground,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
                   SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    tileColor: TekaColors.surfaceMuted,
                     title: Text("Mises à jour de commande"),
                     subtitle:
                         Text("Confirmation, expédition, livraison, annulation"),
@@ -391,8 +388,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ? null
                         : (v) => _updateNotifPref(smsOrderUpdates: v),
                   ),
+                  const SizedBox(height: 8),
                   SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    tileColor: TekaColors.surfaceMuted,
                     title: Text("Annonces et promotions"),
                     subtitle:
                         Text("Messages marketing envoyés par l'équipe Teka"),
@@ -417,22 +420,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             // Quick links — Orders lives under the account (it is not a
             // bottom-nav tab). Favorites moved to its own tab.
             _Section(
-              title: '',
+              title: 'Raccourcis',
+              icon: Icons.apps_rounded,
               child: Column(
                 children: [
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.receipt_long_outlined),
-                    title: const Text("Mes commandes"),
-                    trailing: const Icon(Icons.chevron_right),
+                  _QuickLinkTile(
+                    icon: Icons.receipt_long_outlined,
+                    title: "Mes commandes",
                     onTap: () => context.push('/orders'),
                   ),
                   const Divider(height: 1),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.notifications_none_rounded),
-                    title: const Text("Notifications"),
-                    trailing: const Icon(Icons.chevron_right),
+                  _QuickLinkTile(
+                    icon: Icons.notifications_none_rounded,
+                    title: "Notifications",
                     onTap: () => context.push('/notifications'),
                   ),
                 ],
@@ -447,8 +447,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
 class _Section extends StatelessWidget {
   final String title;
+  final String? subtitle;
+  final IconData? icon;
   final Widget child;
-  const _Section({required this.title, required this.child});
+  const _Section({
+    required this.title,
+    this.subtitle,
+    this.icon,
+    required this.child,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -457,26 +464,252 @@ class _Section extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: TekaColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (title.isNotEmpty) ...[
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: TekaColors.foreground,
-              ),
+            Row(
+              children: [
+                if (icon != null) ...[
+                  _IconBadge(icon: icon!),
+                  const SizedBox(width: 10),
+                ],
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: TekaColors.foreground,
+                    ),
+                  ),
+                ),
+              ],
             ),
+            if (subtitle != null && subtitle!.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                subtitle!,
+                style: const TextStyle(
+                  fontSize: 12,
+                  height: 1.35,
+                  color: TekaColors.mutedForeground,
+                ),
+              ),
+            ],
             const SizedBox(height: 16),
           ],
           child,
         ],
       ),
+    );
+  }
+}
+
+class _AccountSummaryCard extends StatelessWidget {
+  final String displayName;
+  final String? phone;
+  final String? avatarUrl;
+  final String initials;
+  final bool uploading;
+  final VoidCallback onChangePhoto;
+
+  const _AccountSummaryCard({
+    required this.displayName,
+    required this.phone,
+    required this.avatarUrl,
+    required this.initials,
+    required this.uploading,
+    required this.onChangePhoto,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasAvatar = avatarUrl != null && avatarUrl!.isNotEmpty;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: TekaColors.foreground,
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: TekaColors.foreground.withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              CircleAvatar(
+                radius: 34,
+                backgroundColor: TekaColors.tekaRedSubtle,
+                backgroundImage: hasAvatar ? NetworkImage(avatarUrl!) : null,
+                child: hasAvatar
+                    ? null
+                    : Text(
+                        initials,
+                        style: const TextStyle(
+                          color: TekaColors.tekaRed,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+              ),
+              Positioned(
+                right: -2,
+                bottom: -2,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(999),
+                  onTap: uploading ? null : onChangePhoto,
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: TekaColors.border),
+                    ),
+                    child: uploading
+                        ? const Padding(
+                            padding: EdgeInsets.all(7),
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(
+                            Icons.photo_camera_outlined,
+                            size: 15,
+                            color: TekaColors.foreground,
+                          ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  phone == null || phone!.isEmpty
+                      ? "Numéro WhatsApp vérifié"
+                      : phone!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.72),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.14),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.verified_user_outlined,
+                        size: 14,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        "Compte acheteur sécurisé",
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.90),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickLinkTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+
+  const _QuickLinkTile({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: _IconBadge(icon: icon),
+      title: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          color: TekaColors.foreground,
+        ),
+      ),
+      trailing: const Icon(
+        Icons.chevron_right_rounded,
+        color: TekaColors.mutedForeground,
+      ),
+      onTap: onTap,
+    );
+  }
+}
+
+class _IconBadge extends StatelessWidget {
+  final IconData icon;
+
+  const _IconBadge({required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        color: TekaColors.tekaRedSubtle,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Icon(icon, size: 18, color: TekaColors.tekaRed),
     );
   }
 }
@@ -508,7 +741,7 @@ class _SessionsCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: TekaColors.border),
       ),
       child: Column(
@@ -521,19 +754,28 @@ class _SessionsCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "Appareils connectés",
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: TekaColors.foreground,
-                      ),
+                    const Row(
+                      children: [
+                        _IconBadge(icon: Icons.devices_other_outlined),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            "Appareils connectés",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: TekaColors.foreground,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
                     Text(
                       "Liste des appareils actuellement connectés à votre compte. Révoquez ceux que vous ne reconnaissez pas.",
                       style: const TextStyle(
                         fontSize: 12,
+                        height: 1.35,
                         color: TekaColors.mutedForeground,
                       ),
                     ),
@@ -550,8 +792,8 @@ class _SessionsCard extends StatelessWidget {
                   ),
                   child: Text(
                     action == 'all'
-                        ? "Deconnexion..."
-                        : "Deconnecter les autres appareils",
+                        ? "Déconnexion..."
+                        : "Déconnecter les autres appareils",
                     style: const TextStyle(fontSize: 12),
                   ),
                 ),
@@ -573,7 +815,7 @@ class _SessionsCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
-                "Aucun autre appareil connecte",
+                "Aucun autre appareil connecté",
                 style: const TextStyle(
                   fontSize: 13,
                   color: TekaColors.mutedForeground,
@@ -635,7 +877,7 @@ class _SessionsCard extends StatelessWidget {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                "Connecte le $dateLabel",
+                                "Connecté le $dateLabel",
                                 style: const TextStyle(
                                   fontSize: 11,
                                   color: TekaColors.mutedForeground,
@@ -654,7 +896,7 @@ class _SessionsCard extends StatelessWidget {
                               minimumSize: const Size(0, 32),
                             ),
                             child: Text(
-                              action == s.id ? "Deconnexion..." : "Deconnecter",
+                              action == s.id ? "Déconnexion..." : "Déconnecter",
                               style: const TextStyle(fontSize: 12),
                             ),
                           ),
