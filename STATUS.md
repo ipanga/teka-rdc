@@ -10,6 +10,15 @@
 redesign): product cards (brand/savings/stock-emoji/seller-badge/ratings), header ☰, section emojis, hero overlay,
 PDP (savings/COD-trust/seller-card/specs/reviews-CTA), footer. Mirror to buyer-mobile where sensible. **Tracker:
 `tasks/ui-polish-progress.md`.**
+- **2026-06-27 follow-up audit in progress:** marketplace taxonomy navigation + buyer-web/mobile category discoverability,
+  plus cart/profile/notifications/mobile-copy polish. Tracker: `tasks/buyer-ui-ux-progress.md`. Completed: web type-check/build,
+  local browser verification, and Android production-flavor guest smoke against `https://api.teka.cd`. NEXT: checkout, PDP,
+  authenticated account/order states, and deeper mobile authenticated flows.
+- **2026-06-27 seller follow-up audit in progress:** seller-web responsive dashboard shell/cards + seller-mobile shell/copy polish.
+  Tracker: `tasks/seller-ui-ux-progress.md`. Completed: seller-web type-check/build and local mobile auth-route smoke;
+  live authenticated seller-web audit with provided seller credentials; reviews/promotions product response compatibility and earnings
+  error copy fixed. Seller-mobile production APK builds but emulator install is blocked by insufficient storage. NEXT: seller-mobile launch
+  on a clean/free-space emulator and authenticated mobile flow review.
 - **Phase 1 audit ✅ DONE. All 4 rounds shipped to develop:** R1 cards #490 (brand/savings/🔥stock/Officiel
   badge + additive API `brand` field + mobile parity) · R2 chrome #491 (☰ Catégories, section emojis, hero
   overlay/CTA) · R3 PDP #492 (COD trust block, seller Officiel/Vérifié, reviews CTA, related→carousel + mobile

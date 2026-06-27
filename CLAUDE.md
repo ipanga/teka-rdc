@@ -285,7 +285,7 @@ route, update both `urls.ts` and `DeepLinkParser` + a test.** Full model: `docs/
 
 - RESTful with consistent naming: `GET /api/v1/products`, `POST /api/v1/orders`
 - API versioning from day one (`/api/v1/`)
-- Standard response envelope: `{ success: boolean, data: T, meta?: { page, limit, total }, error?: { code, message } }`
+- Standard response envelope (as actually emitted): success → `{ success: true, data: T }`; error → `{ success: false, error: { status, message, errors?: [{ field, message }] } }`. `ResponseInterceptor` wraps any return value lacking a `success` key (so a controller returning `{ data, meta }` passes through with `meta` intact — there is no global meta-hoisting); `HttpExceptionFilter` builds the error shape. Note `error.status` (HTTP code), not `error.code`.
 - Pagination: cursor-based for feeds, offset for admin tables
 - Rate limiting: Per IP and per user, stricter on auth endpoints (login + password-reset flood protection)
 - Input validation: Use class-validator + class-transformer in NestJS, Zod schemas in shared/
