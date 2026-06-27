@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
@@ -15,11 +15,18 @@ import { apiFetch } from '@/lib/api-client';
 import { categoryHref } from '@/lib/urls';
 import type { BrowseCategory } from '@/lib/types';
 
-// Location pin — small filled marker for the city selector.
 function PinIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
       <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1112 6a2.5 2.5 0 010 5.5z" />
+    </svg>
+  );
+}
+
+function UserIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 7.5a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a7.5 7.5 0 0115 0" />
     </svg>
   );
 }
@@ -32,20 +39,15 @@ export function Header() {
   const { selectedCity, openSelector } = useCityStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [categories, setCategories] = useState<BrowseCategory[]>([]);
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
 
-  // Town accent for the city selector — driven by the city record's accentColor
-  // (data-driven; copper / cobalt / brand-red default).
   const cityAcc = cityAccentClasses(selectedCity);
 
-  // Direct buyer↔seller messaging removed on 2026-05-17 — buyers now
-  // contact Teka RDC support instead of the seller (see /contact). The
-  // header messages icon + unread-count polling were removed with the
-  // feature; the API endpoint returns 410 GONE if any old client still
-  // calls /v1/messages/unread-count.
-
   function handleLogout() {
+    setAccountMenuOpen(false);
     logout();
     router.push('/');
   }
@@ -59,179 +61,236 @@ export function Header() {
       .catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+
+    function handlePointerDown(event: MouseEvent | TouchEvent) {
+      if (
+        accountMenuRef.current &&
+        event.target instanceof Node &&
+        !accountMenuRef.current.contains(event.target)
+      ) {
+        setAccountMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setAccountMenuOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('touchstart', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('touchstart', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [accountMenuOpen]);
+
   const activeCategory = useMemo(
     () => categories.find((cat) => cat.id === activeCategoryId) ?? categories[0],
     [activeCategoryId, categories],
   );
 
   const citySlug = selectedCity?.slug;
+  const accountName = user?.firstName?.trim() || 'Mon compte';
   const closeMenus = () => {
     setMobileMenuOpen(false);
     setCategoryMenuOpen(false);
+    setAccountMenuOpen(false);
   };
 
+  const accountLinks = [
+    { href: '/profil', label: 'Mon compte' },
+    { href: '/commandes', label: 'Mes commandes' },
+    { href: '/favoris', label: 'Mes favoris' },
+    { href: '/notifications', label: 'Notifications' },
+  ];
+
   return (
-    <header className="sticky top-0 z-50 bg-white/95 border-b border-border shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90">
-      {/* Main header bar */}
-      <div className="max-w-7xl mx-auto px-4 h-16 flex items-center gap-4">
-        {/* Logo */}
-        <Link href="/" className="shrink-0" aria-label="Teka RDC — Accueil">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo.svg"
-            alt="Teka RDC"
-            className="h-9 w-auto"
-            width={160}
-            height={32}
-          />
-        </Link>
+    <header className="sticky top-0 z-50 border-b border-border bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5">
+        <div className="flex h-14 md:h-[68px] items-center gap-2 lg:gap-3">
+          <Link href="/" className="shrink-0" aria-label="Teka RDC — Accueil">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo.svg"
+              alt="Teka RDC"
+              className="h-7 w-auto md:h-8"
+              width={132}
+              height={28}
+            />
+          </Link>
 
-        {/* Town selector \u2014 Amazon-style "Livrer \u00e0 {ville}" delivery-location
-            picker. Always present so no-town visitors keep an entry point.
-            Two-line affordance: a small "Livrer \u00e0" prefix over the town name. */}
-        <button
-          onClick={openSelector}
-          className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border shrink-0 transition-colors shadow-xs ${
-            selectedCity
-              ? `${cityAcc.surface} border-transparent hover:brightness-95`
-              : 'border-border text-foreground hover:border-primary/40 hover:bg-muted/50'
-          }`}
-          title={selectedCity ? "Changer de ville" : "Choisissez votre ville"}
-        >
-          <PinIcon className="w-4 h-4 shrink-0" />
-          <span className="flex flex-col items-start leading-tight text-left">
-            <span className="text-[10px] font-medium opacity-80">
-              {"Livrer à"}
-            </span>
-            <span className="text-sm font-bold -mt-0.5">
-              {selectedCity ? selectedCity.name : "Choisir une ville"}
-            </span>
-          </span>
-          <svg className="w-3 h-3 opacity-70 self-end mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-
-        {/* Search bar - desktop */}
-        <div className="hidden md:flex flex-1 max-w-2xl">
-          <SearchAutocomplete
-            cityId={selectedCity?.id}
-            citySlug={selectedCity?.slug}
-            placeholder={"Rechercher des produits..."}
-            categoryLabel={"Catégories"}
-          />
-        </div>
-
-        {/* Right side - desktop */}
-        <div className="hidden md:flex items-center gap-3">
           <button
-            type="button"
-            onClick={() => setCategoryMenuOpen((open) => !open)}
-            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-semibold text-foreground hover:bg-surface-muted hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            aria-expanded={categoryMenuOpen}
-            aria-controls="desktop-category-menu"
+            onClick={openSelector}
+            className={`hidden md:flex min-w-[150px] shrink-0 items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-left shadow-xs transition-colors ${
+              selectedCity
+                ? `${cityAcc.surface} border-transparent hover:brightness-95`
+                : 'border-border text-foreground hover:border-primary/40 hover:bg-muted/50'
+            }`}
+            title={selectedCity ? 'Changer de ville' : 'Choisissez votre ville'}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-            {"Catégories"}
-            <svg className={`w-3.5 h-3.5 transition-transform ${categoryMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+            <PinIcon className="h-4 w-4 shrink-0" />
+            <span className="min-w-0 flex flex-col items-start leading-tight">
+              <span className="text-[10px] font-medium opacity-80">{"Livrer à"}</span>
+              <span className="max-w-[110px] truncate text-sm font-bold -mt-0.5">
+                {selectedCity ? selectedCity.name : 'Choisir une ville'}
+              </span>
+            </span>
+            <svg className="ml-auto h-3 w-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
-          {authLoading ? (
-            // Auth resolving — render nothing rather than the login button, so
-            // a logged-in user on a slow connection can't click "connexion"
-            // and get bounced home by the middleware (it still sees the cookie).
-            <div className="w-px" aria-hidden />
-          ) : user ? (
-            <div className="flex items-center gap-3">
-              <NotificationBell />
-              <WishlistBadge />
-              <Link
-                href="/profil"
-                className="text-sm text-foreground hover:text-primary transition-colors"
-              >
-                {user.firstName || "Mon compte"}
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {"Se déconnecter"}
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
+
+          <div className="hidden md:flex min-w-[300px] flex-1 xl:flex-[1_1_620px]">
+            <SearchAutocomplete
+              cityId={selectedCity?.id}
+              citySlug={selectedCity?.slug}
+              placeholder="Rechercher des produits..."
+              categoryLabel="Catégories"
+            />
+          </div>
+
+          <div className="hidden md:flex shrink-0 items-center gap-1.5 lg:gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setAccountMenuOpen(false);
+                setCategoryMenuOpen((open) => !open);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              aria-expanded={categoryMenuOpen}
+              aria-controls="desktop-category-menu"
+              aria-haspopup="true"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+              <span className="hidden lg:inline">{"Catégories"}</span>
+              <svg className={`h-3.5 w-3.5 transition-transform ${categoryMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            <Link
+              href="/promotions"
+              className="hidden xl:inline-flex rounded-xl px-2.5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted hover:text-primary"
+            >
+              {"Promotions"}
+            </Link>
+
+            {authLoading ? (
+              <div className="w-px" aria-hidden />
+            ) : user ? (
+              <>
+                <NotificationBell />
+                <WishlistBadge />
+                <div className="relative" ref={accountMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCategoryMenuOpen(false);
+                      setAccountMenuOpen((open) => !open);
+                    }}
+                    className="inline-flex items-center gap-2 rounded-xl border border-border bg-white px-2 py-1.5 text-left shadow-xs transition-colors hover:border-primary/30 hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    aria-expanded={accountMenuOpen}
+                    aria-haspopup="menu"
+                    aria-controls="buyer-account-menu"
+                  >
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-primary-subtle text-primary">
+                      <UserIcon className="h-4.5 w-4.5" />
+                    </span>
+                    <span className="hidden xl:flex min-w-0 flex-col leading-tight">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {"Compte"}
+                      </span>
+                      <span className="max-w-[96px] truncate text-sm font-bold text-foreground">
+                        {accountName}
+                      </span>
+                    </span>
+                    <svg className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${accountMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {accountMenuOpen && (
+                    <div
+                      id="buyer-account-menu"
+                      role="menu"
+                      className="absolute right-0 mt-3 w-64 origin-top-right rounded-2xl border border-border bg-white p-2 shadow-xl ring-1 ring-black/5"
+                    >
+                      <div className="border-b border-border px-3 py-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          {"Connecté"}
+                        </p>
+                        <p className="mt-0.5 truncate text-sm font-bold text-foreground">
+                          {accountName}
+                        </p>
+                      </div>
+                      <div className="py-2">
+                        {accountLinks.map((item) => (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            role="menuitem"
+                            onClick={() => setAccountMenuOpen(false)}
+                            className="block rounded-xl px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted hover:text-primary"
+                          >
+                            {item.label}
+                          </Link>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        onClick={handleLogout}
+                        className="w-full rounded-xl border-t border-border px-3 py-2 text-left text-sm font-semibold text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
+                      >
+                        {"Se déconnecter"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
               <Link
                 href="/connexion"
                 className={buttonVariants({ variant: 'default', size: 'md' })}
               >
                 {"Se connecter"}
               </Link>
-            </div>
-          )}
-          <CartBadge />
-        </div>
+            )}
+            <CartBadge />
+          </div>
 
-        {/* Mobile icons (always visible) */}
-        <div className="md:hidden ml-auto flex items-center gap-1">
-          <NotificationBell compact />
-          <WishlistBadge compact />
-          <CartBadge />
-        </div>
+          <div className="md:hidden ml-auto flex items-center gap-1">
+            <NotificationBell compact />
+            <WishlistBadge compact />
+            <CartBadge />
+          </div>
 
-        {/* Hamburger - mobile */}
-        <button
-          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="md:hidden p-2 text-foreground"
-          aria-label={"Menu"}
-        >
-          {mobileMenuOpen ? (
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          ) : (
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          )}
-        </button>
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden rounded-lg p-2 text-foreground hover:bg-surface-muted"
+            aria-label="Menu"
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? (
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
+        </div>
       </div>
-
-      {/* Persistent mobile search bar — always visible (sticky with the header).
-          Search is the #1 marketplace action; keeping it out of the hamburger
-          removes two taps. Desktop has its own inline search above. */}
-      <nav className="hidden md:block border-t border-border/70 bg-surface-muted/45">
-        <div className="max-w-7xl mx-auto px-4 h-10 flex items-center justify-between gap-6">
-          <div className="flex items-center gap-1">
-            {[
-              { href: '/', label: 'Accueil' },
-              { href: '/lubumbashi', label: 'Lubumbashi' },
-              { href: '/kolwezi', label: 'Kolwezi' },
-              { href: '/promotions', label: 'Promotions' },
-              { href: '/categories', label: 'Toutes les catégories' },
-            ].map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="rounded-md px-3 py-2 text-sm font-medium text-foreground/80 transition-colors hover:bg-white hover:text-primary"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </div>
-          <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-success" />
-              Paiement à la livraison
-            </span>
-            <Link href="/aide" className="hover:text-primary transition-colors">
-              Aide
-            </Link>
-          </div>
-        </div>
-      </nav>
 
       {categoryMenuOpen && (
         <div
@@ -244,7 +303,7 @@ export function Header() {
                 <Link
                   href="/categories"
                   onClick={() => setCategoryMenuOpen(false)}
-                  className="mb-2 flex items-center justify-between rounded-lg px-3 py-2 text-sm font-bold text-foreground hover:bg-white hover:text-primary transition-colors"
+                  className="mb-2 flex items-center justify-between rounded-lg px-3 py-2 text-sm font-bold text-foreground transition-colors hover:bg-white hover:text-primary"
                 >
                   {"Toutes les catégories"}
                   <span className="text-lg leading-none" aria-hidden>›</span>
@@ -262,12 +321,7 @@ export function Header() {
                           : 'text-foreground hover:bg-white'
                       }`}
                     >
-                      <span className="flex items-center justify-between gap-2">
-                        <span className="truncate">{cat.name}</span>
-                        <span className="text-xs font-medium text-muted-foreground">
-                          {cat.productCount}
-                        </span>
-                      </span>
+                      <span className="block truncate">{cat.name}</span>
                     </button>
                   ))}
                 </div>
@@ -291,19 +345,19 @@ export function Header() {
                       <Link
                         href={categoryHref(citySlug, activeCategory)}
                         onClick={() => setCategoryMenuOpen(false)}
-                        className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                        className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
                       >
                         {"Voir tout"}
                       </Link>
                     </div>
                     {activeCategory.subcategories.length > 0 ? (
-                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-5 lg:grid-cols-3">
                         {activeCategory.subcategories.slice(0, 9).map((sub) => (
                           <div key={sub.id} className="min-w-0">
                             <Link
                               href={categoryHref(citySlug, sub)}
                               onClick={() => setCategoryMenuOpen(false)}
-                              className="block truncate text-sm font-bold text-foreground hover:text-primary transition-colors"
+                              className="block truncate text-sm font-bold text-foreground transition-colors hover:text-primary"
                             >
                               {sub.name}
                             </Link>
@@ -314,7 +368,7 @@ export function Header() {
                                     key={type.id}
                                     href={categoryHref(citySlug, type)}
                                     onClick={() => setCategoryMenuOpen(false)}
-                                    className="block truncate text-sm text-muted-foreground hover:text-primary transition-colors"
+                                    className="block truncate text-sm text-muted-foreground transition-colors hover:text-primary"
                                   >
                                     {type.name}
                                   </Link>
@@ -341,41 +395,38 @@ export function Header() {
         </div>
       )}
 
-      <div className="md:hidden border-t border-border px-4 py-2.5">
+      <div className="border-t border-border px-3 py-2.5 md:hidden">
         <SearchAutocomplete
           cityId={selectedCity?.id}
           citySlug={selectedCity?.slug}
-          placeholder={"Rechercher des produits..."}
-          categoryLabel={"Catégories"}
+          placeholder="Rechercher des produits..."
+          categoryLabel="Catégories"
         />
       </div>
 
-      {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-border bg-white px-4 py-4 space-y-4 shadow-lg">
-          {/* Mobile city selector */}
+        <div className="space-y-4 border-t border-border bg-white px-4 py-4 shadow-lg md:hidden">
           <button
             onClick={() => {
               openSelector();
-              setMobileMenuOpen(false);
+              closeMenus();
             }}
-            className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm transition-colors ${
+            className={`flex w-full items-center gap-2 rounded-xl border px-3 py-2.5 text-sm transition-colors ${
               selectedCity
                 ? `${cityAcc.surface} border-transparent`
                 : 'border-border text-muted-foreground hover:border-primary/40 hover:bg-muted/50'
             }`}
           >
-            <PinIcon className="w-4 h-4" />
+            <PinIcon className="h-4 w-4" />
             <span className="font-semibold">
-              {selectedCity ? selectedCity.name : "Choisissez votre ville"}
+              {selectedCity ? selectedCity.name : 'Choisissez votre ville'}
             </span>
-            <svg className="w-3 h-3 opacity-70 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="ml-auto h-3 w-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
 
-          {/* Mobile nav links */}
-          <nav className="flex flex-col gap-3">
+          <nav className="grid gap-1">
             {[
               { href: '/', label: 'Accueil' },
               { href: '/categories', label: 'Catégories' },
@@ -387,7 +438,7 @@ export function Header() {
                 key={item.href}
                 href={item.href}
                 onClick={closeMenus}
-                className="rounded-lg px-3 py-2 text-sm font-semibold text-foreground hover:bg-surface-muted hover:text-primary transition-colors"
+                className="rounded-xl px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted hover:text-primary"
               >
                 {item.label}
               </Link>
@@ -446,33 +497,31 @@ export function Header() {
             </div>
           )}
 
-          {/* Mobile auth */}
-          <div className="flex flex-col gap-2 pt-2 border-t border-border">
+          <div className="flex flex-col gap-1 border-t border-border pt-3">
             {authLoading ? null : user ? (
               <>
-                <Link
-                  href="/profil"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-sm text-foreground hover:text-primary transition-colors"
-                >
-                  {user.firstName || "Mon compte"}
-                </Link>
-                <Link
-                  href="/favoris"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
-                  </svg>
-                  {"Liste de souhaits"}
-                </Link>
+                <div className="rounded-xl bg-surface-muted px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {"Compte"}
+                  </p>
+                  <p className="truncate text-sm font-bold text-foreground">{accountName}</p>
+                </div>
+                {accountLinks.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={closeMenus}
+                    className="rounded-xl px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted hover:text-primary"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
                 <button
                   onClick={() => {
                     handleLogout();
-                    setMobileMenuOpen(false);
+                    closeMenus();
                   }}
-                  className="text-sm text-left text-muted-foreground hover:text-foreground transition-colors"
+                  className="rounded-xl px-3 py-2 text-left text-sm font-semibold text-muted-foreground transition-colors hover:bg-surface-muted hover:text-foreground"
                 >
                   {"Se déconnecter"}
                 </button>
@@ -481,14 +530,14 @@ export function Header() {
               <div className="flex flex-col gap-2">
                 <Link
                   href="/connexion"
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={closeMenus}
                   className={buttonVariants({ variant: 'default', size: 'md' })}
                 >
                   {"Se connecter"}
                 </Link>
                 <Link
                   href="/reclamer-compte"
-                  onClick={() => setMobileMenuOpen(false)}
+                  onClick={closeMenus}
                   className={buttonVariants({ variant: 'outline', size: 'md' })}
                 >
                   {"Ancien compte ?"}

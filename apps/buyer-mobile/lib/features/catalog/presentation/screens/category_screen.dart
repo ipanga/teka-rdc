@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/app_bar_actions.dart';
 import '../../../../core/widgets/app_states.dart';
 import '../../../../core/widgets/product_skeletons.dart';
 import '../../../city/presentation/providers/city_provider.dart';
@@ -98,14 +99,10 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
       appBar: AppBar(
         title: Text(widget.categoryName ?? "Categories"),
         actions: [
-          IconButton(
-            icon: Badge(
-              isLabelVisible: _filters.activeCount > 0,
-              label: Text('${_filters.activeCount}'),
-              backgroundColor: TekaColors.tekaRed,
-              child: const Icon(Icons.tune),
-            ),
+          TekaAppBarIconButton(
+            icon: Icons.tune,
             tooltip: "Trier et filtrer",
+            badgeCount: _filters.activeCount,
             onPressed: () async {
               final result = await FilterBottomSheet.show(
                 context,
@@ -117,6 +114,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
               }
             },
           ),
+          const SizedBox(width: 12),
         ],
       ),
       body: RefreshIndicator(
@@ -233,18 +231,6 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
             ),
           ),
         SliverToBoxAdapter(child: conditionBar),
-        // Results count
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Text(
-              '${state.pagination?.total ?? state.products.length} résultats',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: TekaColors.mutedForeground,
-                  ),
-            ),
-          ),
-        ),
         // Product grid
         SliverPadding(
           padding: const EdgeInsets.all(16),

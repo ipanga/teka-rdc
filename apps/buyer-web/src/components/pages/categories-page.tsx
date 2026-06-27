@@ -103,9 +103,6 @@ export default function CategoriesPage() {
                     >
                       {(cat.name ?? '')}
                     </Link>
-                    <p className="mt-1 text-xs font-medium text-muted-foreground">
-                      {`${cat.productCount} ${cat.productCount <= 1 ? 'produit' : 'produits'}`}
-                    </p>
                   </div>
                 </div>
 

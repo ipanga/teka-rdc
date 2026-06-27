@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/widgets/app_states.dart';
+import '../../../../core/widgets/app_bar_actions.dart';
 import '../providers/cart_provider.dart';
 import '../widgets/cart_item_tile.dart';
 
@@ -19,11 +20,13 @@ class CartScreen extends ConsumerWidget {
         title: const Text('Panier'),
         actions: [
           if (cartState.items.isNotEmpty)
-            IconButton(
-              icon: const Icon(Icons.delete_sweep_outlined),
+            TekaAppBarIconButton(
+              icon: Icons.delete_sweep_outlined,
               tooltip: 'Supprimer',
+              destructive: true,
               onPressed: () => _confirmClearCart(context, ref),
             ),
+          const SizedBox(width: 12),
         ],
       ),
       body: cartState.isLoading

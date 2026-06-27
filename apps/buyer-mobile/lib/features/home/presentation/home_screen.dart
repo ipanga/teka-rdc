@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/teka_colors.dart';
+import '../../../core/widgets/app_bar_actions.dart';
 import '../../../core/widgets/product_skeletons.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../../catalog/data/models/category_model.dart';
@@ -100,7 +101,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 74,
+        toolbarHeight: 72,
         title: _HomeAppBarTitle(
           cityName: cityName,
           cityAccent: cityAccent,
@@ -365,15 +366,19 @@ class _HomeAppBarTitle extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Image.asset(
-            'assets/brand/logo_teka_cd.png',
-            height: 22,
-            width: 112,
-            fit: BoxFit.contain,
-            filterQuality: FilterQuality.high,
+          Container(
+            height: 28,
+            alignment: Alignment.centerLeft,
+            child: Image.asset(
+              'assets/brand/logo_teka_cd.png',
+              height: 25,
+              width: 126,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+            ),
           ),
           if (cityName != null) ...[
-            const SizedBox(height: 5),
+            const SizedBox(height: 4),
             _CitySwitcherChip(
               cityName: cityName!,
               cityAccent: cityAccent,
@@ -400,13 +405,16 @@ class _CitySwitcherChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: cityAccent.withValues(alpha: 0.10),
+      color: Colors.white,
       borderRadius: BorderRadius.circular(999),
+      shape: StadiumBorder(
+        side: BorderSide(color: cityAccent.withValues(alpha: 0.26)),
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(999),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -421,7 +429,7 @@ class _CitySwitcherChip extends StatelessWidget {
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                       color: cityAccent,
                       fontSize: 11,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                       letterSpacing: 0.1,
                     ),
               ),
@@ -450,19 +458,10 @@ class _HomeNotificationAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icon = IconButton(
-      icon: const Icon(Icons.notifications_none_rounded, size: 23),
+    final icon = TekaAppBarIconButton(
+      icon: Icons.notifications_none_rounded,
       tooltip: "Notifications",
       onPressed: onPressed,
-      style: IconButton.styleFrom(
-        backgroundColor: TekaColors.surfaceMuted,
-        foregroundColor: TekaColors.foreground,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: TekaColors.border),
-        ),
-        fixedSize: const Size(42, 42),
-      ),
     );
 
     if (unreadCount <= 0) return icon;
