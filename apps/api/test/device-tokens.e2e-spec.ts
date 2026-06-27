@@ -26,7 +26,8 @@ describe('DeviceTokens (e2e) — auth-protection contract', () => {
     return request(app.getHttpServer())
       .post('/api/v1/users/device-tokens')
       .send({
-        token: 'fake-fcm-token-with-enough-length-to-satisfy-minlength-validator-xxxxxxxxx',
+        token:
+          'fake-fcm-token-with-enough-length-to-satisfy-minlength-validator-xxxxxxxxx',
         platform: 'android',
       })
       .expect(401);

@@ -54,9 +54,7 @@ if (process.env.SENTRY_DSN) {
     // separate them in the Sentry UI. Falls back to NODE_ENV for
     // backwards compatibility.
     environment:
-      process.env.SENTRY_ENVIRONMENT ??
-      process.env.NODE_ENV ??
-      'development',
+      process.env.SENTRY_ENVIRONMENT ?? process.env.NODE_ENV ?? 'development',
     release: process.env.SENTRY_RELEASE,
     tracesSampleRate: 0,
     // Sample 100% of errors. The DRC traffic volume is low enough that

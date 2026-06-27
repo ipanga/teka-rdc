@@ -136,7 +136,10 @@ export class PushService implements OnModuleInit {
    * delivery summary for observability. Callers in notification flows
    * never need a try/catch around this.
    */
-  async sendToUser(userId: string, payload: PushPayload): Promise<{
+  async sendToUser(
+    userId: string,
+    payload: PushPayload,
+  ): Promise<{
     enabled: boolean;
     tokens: number;
     succeeded: number;
@@ -172,7 +175,11 @@ export class PushService implements OnModuleInit {
 
       const invalidIds: string[] = [];
       response.responses.forEach((r, i) => {
-        if (!r.success && r.error && INVALID_TOKEN_ERROR_CODES.has(r.error.code)) {
+        if (
+          !r.success &&
+          r.error &&
+          INVALID_TOKEN_ERROR_CODES.has(r.error.code)
+        ) {
           invalidIds.push(rows[i].id);
         }
       });
