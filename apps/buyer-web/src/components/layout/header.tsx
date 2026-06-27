@@ -136,9 +136,9 @@ export function Header() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90">
+    <header className="sticky top-0 z-50 border-b border-border/80 bg-white/95 shadow-[0_1px_0_rgba(15,23,42,0.03)] backdrop-blur supports-[backdrop-filter]:bg-white/90">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5">
-        <div className="flex h-14 md:h-[68px] items-center gap-2 lg:gap-3">
+        <div className="flex h-14 md:h-16 items-center gap-2 lg:gap-3">
           <Link href="/" className="shrink-0" aria-label="Teka RDC — Accueil">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -152,10 +152,10 @@ export function Header() {
 
           <button
             onClick={openSelector}
-            className={`hidden md:flex min-w-[150px] shrink-0 items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-left shadow-xs transition-colors ${
+            className={`hidden md:flex h-10 min-w-[154px] shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-left shadow-xs transition-all ${
               selectedCity
                 ? `${cityAcc.surface} border-transparent hover:brightness-95`
-                : 'border-border text-foreground hover:border-primary/40 hover:bg-muted/50'
+                : 'border-border bg-white text-foreground hover:border-primary/35 hover:bg-surface-muted'
             }`}
             title={selectedCity ? 'Changer de ville' : 'Choisissez votre ville'}
           >
@@ -180,7 +180,7 @@ export function Header() {
               setAccountMenuOpen(false);
               setCategoryMenuOpen((open) => !open);
             }}
-            className="hidden md:inline-flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="hidden md:inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-transparent px-2.5 text-sm font-semibold text-foreground transition-all hover:border-border hover:bg-surface-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             aria-expanded={categoryMenuOpen}
             aria-controls="desktop-category-menu"
             aria-haspopup="true"
@@ -217,12 +217,12 @@ export function Header() {
                       setCategoryMenuOpen(false);
                       setAccountMenuOpen((open) => !open);
                     }}
-                    className="inline-flex items-center gap-2 rounded-xl border border-border bg-white px-2 py-1.5 text-left shadow-xs transition-colors hover:border-primary/30 hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-white px-2 text-left shadow-xs transition-all hover:border-primary/30 hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     aria-expanded={accountMenuOpen}
                     aria-haspopup="menu"
                     aria-controls="buyer-account-menu"
                   >
-                    <span className="relative grid h-8 w-8 place-items-center rounded-full bg-primary-subtle text-primary">
+                    <span className="relative grid h-7.5 w-7.5 place-items-center rounded-full bg-primary-subtle text-primary">
                       <UserIcon className="h-4.5 w-4.5" />
                       {unreadCount > 0 && (
                         <span
