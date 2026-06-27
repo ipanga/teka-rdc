@@ -24,6 +24,7 @@ import '../../features/promotions/presentation/screens/create_promotion_screen.d
 import '../../features/promotions/presentation/screens/promotions_list_screen.dart';
 import '../../features/reviews/presentation/screens/seller_reviews_screen.dart';
 import '../../features/seller_application/presentation/screens/seller_application_screen.dart';
+import 'seller_main_shell.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   // Build GoRouter exactly once. Auth state changes trigger redirect
@@ -81,9 +82,55 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/',
-        builder: (context, state) => const HomeScreen(),
+      // Main tabbed destinations share a persistent bottom navigation bar via
+      // a StatefulShellRoute (one navigator per branch → each tab keeps its own
+      // back-stack + scroll). Mirrors buyer-mobile. All other routes below live
+      // OUTSIDE the shell and cover the bar with their own back button.
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            SellerMainShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/',
+                builder: (context, state) => const HomeScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/orders',
+                builder: (context, state) => const OrdersListScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/products',
+                builder: (context, state) => const ProductsListScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/earnings',
+                builder: (context, state) => const EarningsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/profile',
+                builder: (context, state) => const ProfileScreen(),
+              ),
+            ],
+          ),
+        ],
       ),
 
       // Auth routes
@@ -120,21 +167,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const WrongRoleScreen(),
       ),
 
-      // Earnings routes
-      GoRoute(
-        path: '/earnings',
-        builder: (context, state) => const EarningsScreen(),
-      ),
+      // Earnings sub-routes (the /earnings tab itself lives in the shell above)
       GoRoute(
         path: '/earnings/request-payout',
         builder: (context, state) => const RequestPayoutScreen(),
       ),
 
-      // Order routes
-      GoRoute(
-        path: '/orders',
-        builder: (context, state) => const OrdersListScreen(),
-      ),
+      // Order sub-routes (the /orders tab itself lives in the shell above)
       GoRoute(
         path: '/orders/:id',
         builder: (context, state) {
@@ -143,11 +182,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // Product routes
-      GoRoute(
-        path: '/products',
-        builder: (context, state) => const ProductsListScreen(),
-      ),
+      // Product sub-routes (the /products tab itself lives in the shell above)
       GoRoute(
         path: '/products/new',
         builder: (context, state) => const ProductFormScreen(),
@@ -202,11 +237,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const NotificationsScreen(),
       ),
 
-      // Profile
-      GoRoute(
-        path: '/profile',
-        builder: (context, state) => const ProfileScreen(),
-      ),
+      // (The /profile tab lives in the shell above.)
 
       // /messages and /messages/:id retired 2026-05-17 — direct buyer↔
       // seller messaging removed in favour of "Contacter le support".

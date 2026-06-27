@@ -157,7 +157,7 @@ GitHub Actions handles CI/CD with **zero-downtime** deploys (lint → type-check
 | buyer-mobile | Consumer-facing app. Primary user interface for most customers |
 | seller-mobile | Seller dashboard: manage products, orders, earnings |
 
-Android is the shipping target for both apps (APK distribution + Play Store). iOS is early/in-progress: buyer-mobile has a native iOS project scaffold under `apps/buyer-mobile/ios/` (Runner workspace + Podfile), currently untracked and not yet wired into CI or flavors; seller-mobile has no `ios/` directory yet. Treat iOS as not-yet-released — don't assume parity with the Android flavor/release tooling.
+Android is the shipping target for both apps (APK distribution + Play Store). iOS is early/in-progress: **both** buyer-mobile and seller-mobile have a native iOS project scaffold under `apps/{buyer,seller}-mobile/ios/` (Runner workspace + Podfile) **now tracked in git** (the canonical Flutter iOS-project set; `Pods/`, `Flutter/Generated.xcconfig`, and `Runner/GoogleService-Info.plist` stay gitignored), but neither is wired into CI or the Android product flavors yet. Treat iOS as not-yet-released — don't assume parity with the Android flavor/release tooling.
 
 ### Repository Layout
 

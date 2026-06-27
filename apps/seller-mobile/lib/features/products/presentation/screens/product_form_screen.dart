@@ -147,6 +147,39 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // Published-product edit notice (parity with seller-web): pricing &
+            // stock apply instantly, content edits are sent back to review.
+            if (_isEditing &&
+                widget.product?.status == ProductStatus.active) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: TekaColors.tekaRed.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color: TekaColors.tekaRed.withValues(alpha: 0.25)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.info_outline,
+                        size: 18, color: TekaColors.tekaRed),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "Produit publié : le prix, le prix promotionnel et le "
+                        "stock sont mis à jour instantanément. Toute "
+                        "modification du contenu (titre, description, "
+                        "catégorie…) sera renvoyée en révision.",
+                        style: const TextStyle(fontSize: 12.5, height: 1.4),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
             // Category
             CategorySelector(
               selectedCategoryId: _selectedCategoryId,
@@ -188,10 +221,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             TextFormField(
               controller: _titleFrController,
               decoration: InputDecoration(
-                labelText: "Titre (francais)",
+                labelText: "Titre (français)",
               ),
               validator: (v) =>
-                  v == null || v.trim().isEmpty ? "Titre (francais)" : null,
+                  v == null || v.trim().isEmpty ? "Titre requis" : null,
               textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 16),
@@ -200,7 +233,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             TextFormField(
               controller: _descriptionFrController,
               decoration: InputDecoration(
-                labelText: "Description (francais)",
+                labelText: "Description (français)",
                 alignLabelWithHint: true,
               ),
               maxLines: 4,
@@ -223,11 +256,11 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                     onChanged: (_) => setState(() {}),
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
-                        return "Prix CDF";
+                        return "Prix CDF requis";
                       }
                       final amount = int.tryParse(v);
                       if (amount == null || amount <= 0) {
-                        return "Prix CDF";
+                        return "Prix CDF invalide";
                       }
                       return null;
                     },
@@ -281,17 +314,17 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             TextFormField(
               controller: _quantityController,
               decoration: InputDecoration(
-                labelText: "Quantite",
+                labelText: "Quantité",
               ),
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               validator: (v) {
                 if (v == null || v.trim().isEmpty) {
-                  return "Quantite";
+                  return "Quantité requise";
                 }
                 final qty = int.tryParse(v);
                 if (qty == null || qty < 0) {
-                  return "Quantite";
+                  return "Quantité invalide";
                 }
                 return null;
               },
@@ -301,7 +334,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
 
             // Condition
             Text(
-              "Etat",
+              "État",
               style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     color: TekaColors.mutedForeground,
                   ),
@@ -417,7 +450,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   Future<void> _handleSave() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedCategoryId == null) {
-      _showSnackBar("Selectionner une categorie");
+      _showSnackBar("Sélectionner une catégorie");
       return;
     }
 
@@ -477,10 +510,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       SellerProductModel result;
       if (_isEditing) {
         result = await repository.updateProduct(widget.product!.id, data);
-        if (mounted) _showSnackBar("Produit mis a jour");
+        if (mounted) _showSnackBar("Produit mis à jour");
       } else {
         result = await repository.createProduct(data);
-        if (mounted) _showSnackBar("Produit cree avec succes");
+        if (mounted) _showSnackBar("Produit créé avec succès");
       }
 
       // Refresh products list

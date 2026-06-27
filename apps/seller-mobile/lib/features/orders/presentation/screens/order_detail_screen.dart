@@ -123,7 +123,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                     ),
                     const SizedBox(height: 4),
                     _buildInfoRow(
-                      "Telephone",
+                      "Téléphone",
                       order.buyer!.phone,
                     ),
                   ],
@@ -489,7 +489,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Quantite: ${item.quantity} x ${priceFormat.format(item.unitPriceCDFDisplay)} CDF',
+                  'Quantité: ${item.quantity} x ${priceFormat.format(item.unitPriceCDFDisplay)} CDF',
                   style: const TextStyle(
                     fontSize: 11,
                     color: TekaColors.mutedForeground,

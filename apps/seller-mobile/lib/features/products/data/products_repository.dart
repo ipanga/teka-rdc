@@ -83,9 +83,18 @@ class ProductsRepository {
       '/v1/sellers/products',
       queryParameters: queryParams,
     );
-    final data = response.data;
-    final itemsRaw = data['data'] as List<dynamic>? ?? [];
-    final meta = data['pagination'] as Map<String, dynamic>? ?? {};
+    final body = (response.data as Map<String, dynamic>?) ?? const {};
+    final payload = body['data'];
+    final itemsRaw = payload is List<dynamic>
+        ? payload
+        : payload is Map<String, dynamic>
+            ? payload['data'] as List<dynamic>? ?? const []
+            : const [];
+    final meta = payload is Map<String, dynamic>
+        ? payload['pagination'] as Map<String, dynamic>? ?? const {}
+        : body['pagination'] as Map<String, dynamic>? ??
+            body['meta'] as Map<String, dynamic>? ??
+            const {};
 
     final items = itemsRaw
         .map((e) => SellerProductModel.fromJson(e as Map<String, dynamic>))
@@ -105,8 +114,7 @@ class ProductsRepository {
         response.data['data'] as Map<String, dynamic>);
   }
 
-  Future<SellerProductModel> createProduct(
-      Map<String, dynamic> data) async {
+  Future<SellerProductModel> createProduct(Map<String, dynamic> data) async {
     final response = await _dio.post(
       '/v1/sellers/products',
       data: data,
@@ -189,7 +197,8 @@ class ProductsRepository {
   }
 
   Future<List<AttributeModel>> getCategoryAttributes(String categoryId) async {
-    final response = await _dio.get('/v1/browse/categories/$categoryId/attributes');
+    final response =
+        await _dio.get('/v1/browse/categories/$categoryId/attributes');
     final data = response.data['data'] as List<dynamic>? ?? [];
     final attrs = data
         .map((e) => AttributeModel.fromJson(e as Map<String, dynamic>))

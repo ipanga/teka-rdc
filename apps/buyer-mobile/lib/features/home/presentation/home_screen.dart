@@ -100,57 +100,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Teka RDC"),
-            if (cityName != null)
-              GestureDetector(
-                onTap: () => context.push('/city-selection'),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.location_on,
-                      size: 12,
-                      color: cityAccent,
-                    ),
-                    const SizedBox(width: 2),
-                    Text(
-                      cityName,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: cityAccent,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                    const SizedBox(width: 2),
-                    Icon(
-                      Icons.keyboard_arrow_down,
-                      size: 14,
-                      color: TekaColors.mutedForeground,
-                    ),
-                  ],
-                ),
-              ),
-          ],
+        toolbarHeight: 74,
+        title: _HomeAppBarTitle(
+          cityName: cityName,
+          cityAccent: cityAccent,
+          onCityTap: () => context.push('/city-selection'),
         ),
         actions: [
-          IconButton(
-            icon: unreadNotifications > 0
-                ? Badge(
-                    label: Text(unreadNotifications > 9
-                        ? '9+'
-                        : '$unreadNotifications'),
-                    backgroundColor: TekaColors.tekaRed,
-                    textColor: Colors.white,
-                    child: const Icon(Icons.notifications_none_rounded),
-                  )
-                : const Icon(Icons.notifications_none_rounded),
-            tooltip: "Notifications",
+          _HomeNotificationAction(
+            unreadCount: unreadNotifications,
             onPressed: () => context.push('/notifications'),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 12),
         ],
       ),
       floatingActionButton: AnimatedScale(
@@ -381,6 +342,136 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _HomeAppBarTitle extends StatelessWidget {
+  final String? cityName;
+  final Color cityAccent;
+  final VoidCallback onCityTap;
+
+  const _HomeAppBarTitle({
+    required this.cityName,
+    required this.cityAccent,
+    required this.onCityTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Teka CD',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Image.asset(
+            'assets/brand/logo_teka_cd.png',
+            height: 22,
+            width: 112,
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
+          ),
+          if (cityName != null) ...[
+            const SizedBox(height: 5),
+            _CitySwitcherChip(
+              cityName: cityName!,
+              cityAccent: cityAccent,
+              onTap: onCityTap,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CitySwitcherChip extends StatelessWidget {
+  final String cityName;
+  final Color cityAccent;
+  final VoidCallback onTap;
+
+  const _CitySwitcherChip({
+    required this.cityName,
+    required this.cityAccent,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: cityAccent.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.location_on_rounded,
+                size: 13,
+                color: cityAccent,
+              ),
+              const SizedBox(width: 3),
+              Text(
+                cityName,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: cityAccent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.1,
+                    ),
+              ),
+              const SizedBox(width: 1),
+              Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 14,
+                color: cityAccent,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HomeNotificationAction extends StatelessWidget {
+  final int unreadCount;
+  final VoidCallback onPressed;
+
+  const _HomeNotificationAction({
+    required this.unreadCount,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = IconButton(
+      icon: const Icon(Icons.notifications_none_rounded, size: 23),
+      tooltip: "Notifications",
+      onPressed: onPressed,
+      style: IconButton.styleFrom(
+        backgroundColor: TekaColors.surfaceMuted,
+        foregroundColor: TekaColors.foreground,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: TekaColors.border),
+        ),
+        fixedSize: const Size(42, 42),
+      ),
+    );
+
+    if (unreadCount <= 0) return icon;
+
+    return Badge(
+      label: Text(unreadCount > 9 ? '9+' : '$unreadCount'),
+      backgroundColor: TekaColors.tekaRed,
+      textColor: Colors.white,
+      child: icon,
     );
   }
 }

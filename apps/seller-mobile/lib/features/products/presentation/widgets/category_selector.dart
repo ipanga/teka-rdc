@@ -20,7 +20,7 @@ class CategorySelector extends ConsumerWidget {
       onTap: () => _showCategorySheet(context, ref),
       child: InputDecorator(
         decoration: InputDecoration(
-          labelText: "Categorie",
+          labelText: "Catégorie",
           suffixIcon: const Icon(Icons.arrow_drop_down),
         ),
         child: Text(
