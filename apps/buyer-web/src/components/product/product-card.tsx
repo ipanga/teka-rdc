@@ -83,7 +83,7 @@ export function ProductCard({ product }: ProductCardProps) {
   return (
     // The wishlist heart is a sibling overlay (not nested in the <Link>) so it
     // stays valid HTML and a tap on the heart never navigates to the PDP.
-    <div className="group relative flex flex-col bg-surface rounded-xl border border-border overflow-hidden shadow-xs hover:shadow-lg hover:border-border-strong transition-all duration-200 hover:-translate-y-0.5">
+    <div className="group relative flex h-full flex-col bg-surface rounded-xl border border-border overflow-hidden shadow-xs hover:shadow-lg hover:border-border-strong transition-all duration-200 hover:-translate-y-0.5">
       <Link
         href={productHref(product)}
         className="block flex-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
@@ -223,7 +223,7 @@ export function ProductCard({ product }: ProductCardProps) {
       {/* Quick-add — outside the <Link> (no nested interactive), so a tap adds
           to cart without navigating. Hidden when out of stock. */}
       {!outOfStock && (
-        <div className="px-3 pb-3 pt-0">
+        <div className="mt-auto px-3 pb-3 pt-0">
           <button
             type="button"
             onClick={handleQuickAdd}

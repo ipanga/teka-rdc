@@ -35,7 +35,7 @@ class CartScreen extends ConsumerWidget {
                   icon: Icons.shopping_cart_outlined,
                   title: 'Votre panier est vide',
                   actionLabel: 'Découvrir nos produits',
-                  onAction: () => context.go('/'),
+                  onAction: () => context.go('/categories'),
                 )
               : RefreshIndicator(
                   color: TekaColors.tekaRed,

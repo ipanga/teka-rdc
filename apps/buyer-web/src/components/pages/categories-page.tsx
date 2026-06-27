@@ -8,6 +8,7 @@ import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
 import { categoryHref } from '@/lib/urls';
 import { CategoryIcon } from '@/components/category/category-icon';
+import { Container } from '@/components/ui';
 import type { BrowseCategory } from '@/lib/types';
 
 export default function CategoriesPage() {
@@ -23,21 +24,43 @@ export default function CategoriesPage() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-surface-muted">
       <Header />
 
-      <main className="flex-1 max-w-7xl mx-auto px-4 py-8 w-full">
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-8">
-          {"Toutes les catégories"}
-        </h1>
+      <main className="flex-1">
+        <Container className="py-8 md:py-10">
+          <div className="mb-6 rounded-2xl border border-border bg-surface px-5 py-6 md:px-7">
+            <p className="text-xs font-bold uppercase text-primary">
+              {"Catalogue Teka RDC"}
+            </p>
+            <div className="mt-2 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
+                  {"Toutes les catégories"}
+                </h1>
+                <p className="mt-2 max-w-2xl text-sm md:text-base text-muted-foreground">
+                  {"Trouvez rapidement une catégorie, une sous-catégorie ou un type de produit disponible à Lubumbashi et Kolwezi."}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground">
+                <span className="rounded-full bg-success-subtle px-3 py-1 text-success">
+                  {"Paiement à la livraison"}
+                </span>
+                <span className="rounded-full bg-primary-subtle px-3 py-1 text-primary">
+                  {"Liens SEO directs"}
+                </span>
+              </div>
+            </div>
+          </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-lg border border-border p-6 animate-pulse">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-xl border border-border p-5 animate-pulse">
                 <div className="w-14 h-14 bg-muted rounded-full mx-auto mb-4" />
-                <div className="h-4 bg-muted rounded w-3/4 mx-auto mb-2" />
-                <div className="h-3 bg-muted rounded w-1/2 mx-auto" />
+                <div className="h-4 bg-muted rounded w-3/4 mb-3" />
+                <div className="h-3 bg-muted rounded w-full mb-2" />
+                <div className="h-3 bg-muted rounded w-2/3" />
               </div>
             ))}
           </div>
@@ -59,41 +82,65 @@ export default function CategoriesPage() {
             <p className="text-muted-foreground">{"Aucune catégorie disponible pour le moment."}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {categories.map((cat) => (
-              <Link
+              <div
                 key={cat.id}
-                href={categoryHref(selectedCity?.slug, cat)}
-                className="group bg-white rounded-lg border border-border p-6 text-center hover:shadow-lg hover:border-primary/30 transition-all"
+                className="group flex flex-col rounded-xl border border-border bg-surface p-5 shadow-xs transition-all hover:border-primary/30 hover:shadow-md"
               >
-                <div className="flex justify-center mb-3">
-                  <CategoryIcon slug={cat.slug} emoji={cat.emoji} size="lg" />
+                <div className="flex items-start gap-3">
+                  <Link
+                    href={categoryHref(selectedCity?.slug, cat)}
+                    className="shrink-0"
+                    aria-label={cat.name}
+                  >
+                    <CategoryIcon slug={cat.slug} emoji={cat.emoji} size="lg" />
+                  </Link>
+                  <div className="min-w-0 flex-1">
+                    <Link
+                      href={categoryHref(selectedCity?.slug, cat)}
+                      className="text-base font-bold text-foreground transition-colors group-hover:text-primary"
+                    >
+                      {(cat.name ?? '')}
+                    </Link>
+                    <p className="mt-1 text-xs font-medium text-muted-foreground">
+                      {`${cat.productCount} ${cat.productCount <= 1 ? 'produit' : 'produits'}`}
+                    </p>
+                  </div>
                 </div>
-                <h2 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
-                  {(cat.name ?? '')}
-                </h2>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {`${cat.productCount} ${cat.productCount <= 1 ? 'produit' : 'produits'}`}
-                </p>
 
                 {cat.subcategories && cat.subcategories.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-border">
-                    {cat.subcategories.slice(0, 3).map((sub) => (
-                      <p key={sub.id} className="text-xs text-muted-foreground truncate">
-                        {(sub.name ?? '')}
-                      </p>
+                  <div className="mt-4 grid gap-2 border-t border-border pt-4">
+                    {cat.subcategories.slice(0, 5).map((sub) => (
+                      <div key={sub.id} className="min-w-0">
+                        <Link
+                          href={categoryHref(selectedCity?.slug, sub)}
+                          className="block truncate text-sm font-semibold text-foreground hover:text-primary"
+                        >
+                          {(sub.name ?? '')}
+                        </Link>
+                        {sub.subcategories.length > 0 && (
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                            {sub.subcategories.slice(0, 3).map((type) => type.name).join(' · ')}
+                          </p>
+                        )}
+                      </div>
                     ))}
-                    {cat.subcategories.length > 3 && (
-                      <p className="text-xs text-primary mt-1">
-                        +{cat.subcategories.length - 3}
-                      </p>
+                    {cat.subcategories.length > 5 && (
+                      <Link
+                        href={categoryHref(selectedCity?.slug, cat)}
+                        className="text-xs font-semibold text-primary"
+                      >
+                        {`+${cat.subcategories.length - 5} autres sous-catégories`}
+                      </Link>
                     )}
                   </div>
                 )}
-              </Link>
+              </div>
             ))}
           </div>
         )}
+        </Container>
       </main>
 
       <Footer />

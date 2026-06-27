@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { useAuthStore } from '@/lib/auth-store';
+import { Header } from '@/components/layout/header';
+import { Footer } from '@/components/layout/footer';
+import { Container } from '@/components/ui';
 
 interface MeResponse {
   id: string;
@@ -90,7 +93,6 @@ export default function BuyerProfilePage() {
     } finally {
       setSessionsLoading(false);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -207,9 +209,15 @@ export default function BuyerProfilePage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
-        <div className="h-8 w-48 bg-muted rounded animate-pulse mb-4" />
-        <div className="h-64 bg-muted rounded animate-pulse" />
+      <div className="min-h-screen flex flex-col bg-surface-muted">
+        <Header />
+        <main className="flex-1">
+          <Container className="py-8 max-w-2xl">
+            <div className="h-8 w-48 bg-muted rounded animate-pulse mb-4" />
+            <div className="h-64 bg-muted rounded-xl animate-pulse" />
+          </Container>
+        </main>
+        <Footer />
       </div>
     );
   }
@@ -219,19 +227,26 @@ export default function BuyerProfilePage() {
   ).toUpperCase();
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{"Mon profil"}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{"Gérez vos informations personnelles"}</p>
-      </div>
+    <div className="min-h-screen flex flex-col bg-surface-muted">
+      <Header />
+      <main className="flex-1">
+        <Container className="py-8 max-w-2xl">
+          <div className="mb-6">
+            <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
+              {"Mon profil"}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {"Gérez vos informations personnelles, notifications et appareils connectés."}
+            </p>
+          </div>
 
-      {feedback && (
-        <div className={`mb-4 px-4 py-3 rounded-lg text-sm font-medium ${
-          feedback.type === 'success' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
-        }`}>
-          {feedback.msg}
-        </div>
-      )}
+          {feedback && (
+            <div className={`mb-4 px-4 py-3 rounded-lg text-sm font-medium ${
+              feedback.type === 'success' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'
+            }`}>
+              {feedback.msg}
+            </div>
+          )}
 
       {/* Avatar */}
       <section className="mb-6 bg-white rounded-xl border border-border p-6">
@@ -409,22 +424,25 @@ export default function BuyerProfilePage() {
       </section>
 
       {/* Quick links */}
-      <section className="bg-white rounded-xl border border-border p-6">
-        <div className="flex flex-col gap-3">
-          <Link
-            href="/commandes"
-            className="text-sm font-medium text-primary hover:underline"
-          >
-            {"Voir mes commandes"}
-          </Link>
-          <Link
-            href="/favoris"
-            className="text-sm font-medium text-primary hover:underline"
-          >
-            {"Voir ma liste de souhaits"}
-          </Link>
-        </div>
-      </section>
+          <section className="bg-white rounded-xl border border-border p-6">
+            <div className="flex flex-col gap-3">
+              <Link
+                href="/commandes"
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                {"Voir mes commandes"}
+              </Link>
+              <Link
+                href="/favoris"
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                {"Voir ma liste de souhaits"}
+              </Link>
+            </div>
+          </section>
+        </Container>
+      </main>
+      <Footer />
     </div>
   );
 }

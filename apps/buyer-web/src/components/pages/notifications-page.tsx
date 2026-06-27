@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
-import { Container, SectionHeader } from '@/components/ui';
+import { Container } from '@/components/ui';
 import { apiFetch } from '@/lib/api-client';
 import { useAuthStore } from '@/lib/auth-store';
 import { track } from '@/lib/analytics';
@@ -82,8 +82,15 @@ export default function NotificationsPage() {
       <Header />
       <main className="flex-1">
         <Container className="py-8 md:py-12 max-w-3xl">
-          <div className="flex items-center justify-between">
-            <SectionHeader title={"Notifications"} />
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-foreground tracking-tight">
+                {"Notifications"}
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {"Suivez vos commandes, offres et informations importantes."}
+              </p>
+            </div>
             {hasUnread && (
               <button
                 type="button"

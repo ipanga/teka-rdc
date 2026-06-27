@@ -13,7 +13,7 @@ class NotificationsScreen extends ConsumerWidget {
 
   String _timeAgo(DateTime d) {
     final min = DateTime.now().difference(d).inMinutes;
-    if (min < 1) return "a l'instant";
+    if (min < 1) return "à l'instant";
     if (min < 60) return 'il y a $min min';
     final h = min ~/ 60;
     if (h < 24) return 'il y a $h h';
@@ -77,7 +77,7 @@ class NotificationsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  'Vous recevrez ici les mises a jour de vos commandes, '
+                  'Vous recevrez ici les mises à jour de vos commandes, '
                   'les promotions et les annonces de Teka RDC.',
                   style: TextStyle(
                       color: TekaColors.mutedForeground, fontSize: 13),

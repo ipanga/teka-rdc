@@ -3,14 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/app_states.dart';
+import '../../data/category_images.dart';
 import '../../data/models/category_model.dart';
 import '../providers/catalog_provider.dart';
-import '../widgets/category_circle.dart';
 
-/// "Categories" bottom-nav tab — a browse-all grid of the top-level catalog
-/// categories. Tapping a tile opens the city-scoped listing (`/categories/:id`,
-/// a full-screen route with its own back button). Reuses [categoriesProvider]
-/// (same data as the home strip) and [CategoryCircle] (same tile + nav).
+/// "Categories" bottom-nav tab — a browse-all list of the top-level catalog
+/// categories with subcategory previews. Tapping a row opens the listing
+/// (`/categories/:id`) as a full-screen route with its own back button.
 class CategoriesScreen extends ConsumerWidget {
   const CategoriesScreen({super.key});
 
@@ -31,18 +30,13 @@ class CategoriesScreen extends ConsumerWidget {
                       .read(categoriesProvider.future)
                       .catchError((_) => <CategoryModel>[]);
                 },
-                child: GridView.builder(
+                child: ListView.separated(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
                   physics: const AlwaysScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    mainAxisExtent: 132,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 20,
-                  ),
                   itemCount: cats.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
                   itemBuilder: (context, index) =>
-                      CategoryCircle(category: cats[index]),
+                      _CategoryOverviewCard(category: cats[index]),
                 ),
               ),
         loading: () => const Center(
@@ -51,6 +45,150 @@ class CategoriesScreen extends ConsumerWidget {
         error: (_, __) => AppErrorState(
           message: 'Impossible de charger les catégories.',
           onRetry: () => ref.invalidate(categoriesProvider),
+        ),
+      ),
+    );
+  }
+}
+
+class _CategoryOverviewCard extends StatelessWidget {
+  final CategoryModel category;
+  const _CategoryOverviewCard({required this.category});
+
+  @override
+  Widget build(BuildContext context) {
+    final asset = categoryImageAsset(category.slug);
+    final subcategories = category.subcategories.take(4).toList();
+
+    return Card(
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => context.push(
+          '/categories/${category.id}',
+          extra: {'categoryName': category.name},
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  color: TekaColors.surfaceMuted,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                clipBehavior: Clip.antiAlias,
+                alignment: Alignment.center,
+                child: asset != null
+                    ? Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Image.asset(asset, fit: BoxFit.contain),
+                      )
+                    : Text(
+                        category.emoji ?? '📦',
+                        style: const TextStyle(fontSize: 30),
+                      ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            category.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${category.productCount}',
+                          style:
+                              Theme.of(context).textTheme.labelMedium?.copyWith(
+                                    color: TekaColors.mutedForeground,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    if (subcategories.isEmpty)
+                      const Text(
+                        'Voir les produits',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: TekaColors.mutedForeground,
+                          fontSize: 12,
+                        ),
+                      )
+                    else
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: subcategories
+                            .map(
+                              (sub) => _SubcategoryChip(
+                                label: sub.name,
+                                onTap: () => context.push(
+                                  '/categories/${sub.id}',
+                                  extra: {'categoryName': sub.name},
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right,
+                color: TekaColors.mutedForeground,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SubcategoryChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _SubcategoryChip({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 130),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          color: TekaColors.tekaRedSubtle,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: TekaColors.tekaRed,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );
