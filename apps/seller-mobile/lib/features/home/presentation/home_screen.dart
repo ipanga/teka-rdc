@@ -141,54 +141,6 @@ class HomeScreen extends ConsumerWidget {
           ],
         ),
       ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: 0,
-        onDestinationSelected: (index) {
-          switch (index) {
-            case 0:
-              break; // Already on home
-            case 1:
-              context.go('/orders');
-              break;
-            case 2:
-              context.go('/products');
-              break;
-            case 3:
-              context.go('/earnings');
-              break;
-            case 4:
-              context.go('/profile');
-              break;
-          }
-        },
-        destinations: [
-          NavigationDestination(
-            icon: const Icon(Icons.home_outlined),
-            selectedIcon: const Icon(Icons.home),
-            label: "Accueil",
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.receipt_long_outlined),
-            selectedIcon: const Icon(Icons.receipt_long),
-            label: "Commandes",
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.inventory_2_outlined),
-            selectedIcon: const Icon(Icons.inventory_2),
-            label: "Produits",
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: const Icon(Icons.account_balance_wallet),
-            label: "Revenus",
-          ),
-          NavigationDestination(
-            icon: const Icon(Icons.person_outline),
-            selectedIcon: const Icon(Icons.person),
-            label: "Profil",
-          ),
-        ],
-      ),
     );
   }
 
@@ -243,7 +195,7 @@ class HomeScreen extends ConsumerWidget {
         ordersState.orders.where((o) => o.status == OrderStatus.pending).length;
 
     return InkWell(
-      onTap: () => context.push('/orders'),
+      onTap: () => context.go('/orders'),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(14),
@@ -296,7 +248,7 @@ class HomeScreen extends ConsumerWidget {
 
   Widget _buildEarningsCard(BuildContext context) {
     return InkWell(
-      onTap: () => context.push('/earnings'),
+      onTap: () => context.go('/earnings'),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(14),

@@ -90,7 +90,7 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen>
                 ),
                 const SizedBox(height: 12),
                 WalletCard(
-                  label: "Commission prelevee",
+                  label: "Commission prélevée",
                   amountCDF: wallet?.totalCommissionCDFDisplay ?? 0,
                   icon: Icons.percent,
                   color: TekaColors.warning,

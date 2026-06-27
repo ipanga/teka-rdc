@@ -139,7 +139,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: TextButton(
                     onPressed: () => context.push('/auth/forgot-password'),
                     child: Text(
-                      'Mot de passe oublie ?',
+                      'Mot de passe oublié ?',
                       style: TextStyle(color: TekaColors.tekaRed),
                     ),
                   ),

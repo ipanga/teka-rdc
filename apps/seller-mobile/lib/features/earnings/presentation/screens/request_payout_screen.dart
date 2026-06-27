@@ -73,7 +73,7 @@ class _RequestPayoutScreenState extends ConsumerState<RequestPayoutScreen> {
     setState(() => _submitting = false);
     if (errorMessage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Demande envoyee avec succes")),
+        const SnackBar(content: Text("Demande envoyée avec succès")),
       );
       context.pop();
     } else {
@@ -139,7 +139,7 @@ class _RequestPayoutScreenState extends ConsumerState<RequestPayoutScreen> {
             ),
             const SizedBox(height: 16),
             const Text(
-              "Numero de reception",
+              "Numéro de réception",
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),

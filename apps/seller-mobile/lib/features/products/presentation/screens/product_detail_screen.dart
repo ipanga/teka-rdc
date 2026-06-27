@@ -167,7 +167,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 size: 16, color: TekaColors.mutedForeground),
             const SizedBox(width: 4),
             Text(
-              'Quantite: ${product.quantity}',
+              'Quantité: ${product.quantity}',
               style: const TextStyle(
                   fontSize: 13, color: TekaColors.mutedForeground),
             ),
@@ -291,7 +291,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           const Divider(),
           const SizedBox(height: 8),
           Text(
-            "Specifications",
+            "Spécifications",
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -350,7 +350,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                             strokeWidth: 2, color: Colors.white),
                       )
                     : const Icon(Icons.send),
-                label: Text("Soumettre pour revision"),
+                label: Text("Soumettre pour révision"),
               ),
             ),
             const SizedBox(height: 8),
@@ -378,6 +378,19 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       case ProductStatus.active:
         return Column(
           children: [
+            // Published products stay editable (parity with seller-web): price,
+            // discount and stock update instantly; content edits go back to
+            // review. The form shows that notice; the server value-compares.
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => context.push('/products/${product.id}/edit',
+                    extra: product),
+                icon: const Icon(Icons.edit),
+                label: Text("Modifier le produit"),
+              ),
+            ),
+            const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
@@ -410,7 +423,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               child: OutlinedButton.icon(
                 onPressed: _busy ? null : () => _withdraw(product),
                 icon: const Icon(Icons.undo),
-                label: Text("Retirer de la revision"),
+                label: Text("Retirer de la révision"),
               ),
             ),
             const SizedBox(height: 8),
@@ -500,9 +513,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text("Soumettre pour revision"),
+        title: Text("Soumettre pour révision"),
         content: Text(
-            "Voulez-vous soumettre ce produit pour revision ? Il sera examine par notre equipe."),
+            "Voulez-vous soumettre ce produit pour révision ? Il sera examiné par notre équipe."),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -510,7 +523,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text("Soumettre pour revision"),
+            child: Text("Soumettre pour révision"),
           ),
         ],
       ),
@@ -525,7 +538,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Produit soumis pour revision"),
+            content: Text("Produit soumis pour révision"),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -576,7 +589,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Produit archive"),
+            content: Text("Produit archivé"),
             behavior: SnackBarBehavior.floating,
           ),
         );

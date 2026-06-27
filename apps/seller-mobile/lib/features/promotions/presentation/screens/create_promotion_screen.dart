@@ -447,7 +447,7 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
       setState(() => _isSaving = false);
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Promotion creee avec succes")),
+          const SnackBar(content: Text("Promotion créée avec succès")),
         );
         context.pop();
       } else {

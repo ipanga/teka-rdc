@@ -47,7 +47,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mot de passe oublie'),
+        title: const Text('Mot de passe oublié'),
         backgroundColor: Colors.transparent,
         foregroundColor: TekaColors.foreground,
         elevation: 0,

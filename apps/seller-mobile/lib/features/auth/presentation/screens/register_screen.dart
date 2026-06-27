@@ -93,11 +93,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     Expanded(
                       child: TextFormField(
                         controller: _firstNameController,
-                        decoration: const InputDecoration(labelText: 'Prenom'),
+                        decoration: const InputDecoration(labelText: 'Prénom'),
                         textCapitalization: TextCapitalization.words,
                         validator: (v) {
                           if (v == null || v.trim().length < 2) {
-                            return 'Prenom requis';
+                            return 'Prénom requis';
                           }
                           return null;
                         },

@@ -114,7 +114,7 @@ class EarningTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const Text(
-                    "Commission prelevee",
+                    "Commission prélevée",
                     style: TextStyle(
                       fontSize: 11,
                       color: TekaColors.mutedForeground,

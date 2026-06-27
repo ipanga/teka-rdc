@@ -138,7 +138,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(
         () => _sessions = _sessions?.where((s) => s.id != id).toList(),
       );
-      _toast("Appareil deconnecte");
+      _toast("Appareil déconnecté");
     } catch (_) {
       if (!mounted) return;
       _toast("Impossible de déconnecter cet appareil", error: true);
@@ -155,7 +155,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(
         () => _sessions = _sessions?.where((s) => s.current).toList(),
       );
-      _toast("Appareil deconnecte");
+      _toast("Appareil déconnecté");
     } catch (_) {
       if (!mounted) return;
       _toast("Impossible de déconnecter cet appareil", error: true);
@@ -321,7 +321,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _newPasswordCtrl.clear();
       _confirmPasswordCtrl.clear();
       _toast(
-          "Mot de passe modifie avec succes. Les autres appareils ont ete deconnectes.");
+          "Mot de passe modifié avec succès. Les autres appareils ont été déconnectés.");
     } catch (_) {
       _toast("Erreur lors de la modification du mot de passe", error: true);
     } finally {
@@ -365,7 +365,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Gerez vos informations personnelles et celles de votre boutique",
+              "Gérez vos informations personnelles et celles de votre boutique",
               style: const TextStyle(
                 fontSize: 13,
                 color: TekaColors.mutedForeground,
@@ -417,7 +417,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 children: [
                   TextField(
                     controller: _firstNameCtrl,
-                    decoration: InputDecoration(labelText: "Prenom"),
+                    decoration: InputDecoration(labelText: "Prénom"),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -431,7 +431,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     decoration: InputDecoration(
                       labelText: "Email",
                       helperText:
-                          "Modifier votre email vous demandera de le re-verifier.",
+                          "Modifier votre email vous demandera de le re-vérifier.",
                       helperMaxLines: 2,
                     ),
                   ),
@@ -464,7 +464,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   if (appStatus == 'REJECTED')
                     _Banner(
                       text:
-                          "Votre demande a ete rejetee. Contactez le support pour en savoir plus.",
+                          "Votre demande a été rejetée. Contactez le support pour en savoir plus.",
                       color: TekaColors.destructive,
                     ),
                   TextField(
@@ -479,9 +479,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     enabled: businessEditable,
                     keyboardType: TextInputType.phone,
                     decoration: InputDecoration(
-                      labelText: "Telephone (livraison)",
+                      labelText: "Téléphone (livraison)",
                       helperText:
-                          "Utilise pour la communication avec les livreurs.",
+                          "Utilisé pour la communication avec les livreurs.",
                       helperMaxLines: 2,
                     ),
                   ),
@@ -551,7 +551,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Choisissez les SMS que vous voulez recevoir. Les codes de verification restent toujours envoyes.",
+                    "Choisissez les notifications que vous voulez recevoir.",
                     style: const TextStyle(
                       fontSize: 12,
                       color: TekaColors.mutedForeground,
@@ -560,9 +560,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   const SizedBox(height: 8),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text("Mises a jour de commande"),
+                    title: Text("Mises à jour de commande"),
                     subtitle:
-                        Text("Confirmation, expedition, livraison, annulation"),
+                        Text("Confirmation, expédition, livraison, annulation"),
                     value: _notifPrefs?.smsOrderUpdates ?? true,
                     onChanged: _notifSaving
                         ? null
@@ -572,7 +572,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     contentPadding: EdgeInsets.zero,
                     title: Text("Annonces et promotions"),
                     subtitle:
-                        Text("Messages marketing envoyes par l'equipe Teka"),
+                        Text("Messages marketing envoyés par l'équipe Teka"),
                     value: _notifPrefs?.smsBroadcasts ?? true,
                     onChanged: _notifSaving
                         ? null
