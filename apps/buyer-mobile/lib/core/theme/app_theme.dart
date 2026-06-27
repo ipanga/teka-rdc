@@ -33,23 +33,32 @@ class AppTheme {
         bodyColor: TekaColors.foreground,
         displayColor: TekaColors.foreground,
       ),
-      // Clean white AppBar (2026-06-22 redesign) — red is reserved for CTAs,
-      // badges and accents, not a full-width header block. Dark status-bar
-      // icons since the bar is now light.
+      // Clean white AppBar — red is reserved for CTAs, badges and accents,
+      // not a full-width header block. A subtle bottom border gives every
+      // screen a stable, trustworthy top-bar edge without visual heaviness.
       appBarTheme: const AppBarTheme(
         backgroundColor: TekaColors.surface,
         foregroundColor: TekaColors.foreground,
         elevation: 0,
-        scrolledUnderElevation: 0.5,
+        scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         shadowColor: TekaColors.border,
         centerTitle: false,
+        toolbarHeight: 60,
+        titleSpacing: 20,
         iconTheme: IconThemeData(color: TekaColors.foreground),
+        actionsIconTheme: IconThemeData(color: TekaColors.foreground),
         titleTextStyle: TextStyle(
           color: TekaColors.foreground,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0,
+          fontSize: 19,
+          fontWeight: FontWeight.w700,
+          letterSpacing: -0.2,
+        ),
+        shape: Border(
+          bottom: BorderSide(
+            color: TekaColors.border,
+            width: 1,
+          ),
         ),
         systemOverlayStyle: SystemUiOverlayStyle(
           statusBarColor: Colors.transparent,

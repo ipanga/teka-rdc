@@ -57,11 +57,13 @@ class WishlistProductModel {
     if (json['image'] is String) {
       imageUrl = json['image'] as String;
     } else if (json['image'] is Map) {
-      imageUrl = (json['image'] as Map)['url'] as String?;
+      final image = json['image'] as Map;
+      imageUrl = image['url'] as String? ?? image['thumbnailUrl'] as String?;
     } else if (json['images'] is List && (json['images'] as List).isNotEmpty) {
       final firstImage = (json['images'] as List).first;
       if (firstImage is Map) {
-        imageUrl = firstImage['url'] as String?;
+        imageUrl = firstImage['url'] as String? ??
+            firstImage['thumbnailUrl'] as String?;
       } else if (firstImage is String) {
         imageUrl = firstImage;
       }
@@ -77,8 +79,7 @@ class WishlistProductModel {
       quantity: json['quantity'] as int? ?? 0,
       image: imageUrl,
       seller: json['seller'] != null
-          ? WishlistSellerModel.fromJson(
-              json['seller'] as Map<String, dynamic>)
+          ? WishlistSellerModel.fromJson(json['seller'] as Map<String, dynamic>)
           : null,
       avgRating: json['avgRating'] is num
           ? (json['avgRating'] as num).toDouble()
@@ -111,8 +112,12 @@ class WishlistSellerModel {
   const WishlistSellerModel({this.businessName});
 
   factory WishlistSellerModel.fromJson(Map<String, dynamic> json) {
+    final sellerProfile = json['sellerProfile'];
     return WishlistSellerModel(
-      businessName: json['businessName'] as String?,
+      businessName: json['businessName'] as String? ??
+          (sellerProfile is Map
+              ? sellerProfile['businessName'] as String?
+              : null),
     );
   }
 }
