@@ -1,0 +1,58 @@
+# TEMPORARY diagnostic workflow — queries the Sentry API for recent production
+# errors on the teka-api project and prints stack traces to the run log, to
+# root-cause the /v1/sellers/* 500s. Read-only (GETs against Sentry). Delete
+# after the investigation.
+name: Sentry diagnose
+
+on:
+  workflow_dispatch:
+    inputs:
+      filter:
+        description: "Regex to match issues (title/culprit/value)"
+        required: false
+        default: "sellers|earning|payout|wallet|prisma|column|relation|PrismaClient"
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Query Sentry for recent prod API errors
+        env:
+          SENTRY_READ_TOKEN: ${{ secrets.SENTRY_READ_TOKEN }}
+          FILTER: ${{ github.event.inputs.filter }}
+        run: |
+          set -uo pipefail
+          API="https://de.sentry.io/api/0"
+          ORG="teka-rdc"; PROJ="teka-api"
+          AUTH="Authorization: Bearer ${SENTRY_READ_TOKEN}"
+
+          echo "::group::Recent unresolved production issues (last 24h)"
+          code=$(curl -sS -o issues.json -w '%{http_code}' -H "$AUTH" \
+            "$API/projects/$ORG/$PROJ/issues/?query=is:unresolved&environment=production&statsPeriod=24h&limit=25")
+          echo "HTTP $code"
+          if ! jq -e 'type=="array"' issues.json >/dev/null 2>&1; then
+            echo "Non-array response (auth/scope/region issue):"; cat issues.json; echo
+            echo "::endgroup::"; exit 0
+          fi
+          jq -r '.[] | "[\(.id)] count=\(.count) lastSeen=\(.lastSeen)\n  title:   \(.title)\n  culprit: \(.culprit)\n  value:   \(.metadata.value // "")"' issues.json
+          echo "::endgroup::"
+
+          echo "::group::Matching issues -> latest event"
+          ids=$(jq -r --arg re "$FILTER" '.[] | select(((.title//"")+" "+(.culprit//"")+" "+(.metadata.value//"")) | ascii_downcase | test($re;"i")) | .id' issues.json | head -5)
+          [ -z "$ids" ] && { echo "No issues matched /$FILTER/. Using the most recent issue."; ids=$(jq -r '.[0].id // empty' issues.json); }
+          for id in $ids; do
+            echo "================ ISSUE $id ================"
+            curl -sS -H "$AUTH" "$API/issues/$id/events/latest/" -o ev.json
+            jq -r '
+              "TITLE:   " + (.title // ""),
+              "CULPRIT: " + (.culprit // ""),
+              "TAGS:    " + ([(.tags//[])[] | "\(.key)=\(.value)"] | join(", ")),
+              "---- EXCEPTION (outermost last) ----",
+              ([ (.entries//[])[] | select(.type=="exception") | (.data.values//[])[]
+                 | "TYPE:  \(.type)\nVALUE: \(.value)\nFRAMES (top last):\n" +
+                   ([ (.stacktrace.frames//[])[] | "    \(.filename // .module // "?"):\(.lineNo // "?")  \(.function // "")" ] | reverse | .[0:14] | join("\n"))
+               ] | join("\n\n"))
+            ' ev.json 2>/dev/null || { echo "Parse failed; raw head:"; head -c 3000 ev.json; }
+            echo
+          done
+          echo "::endgroup::"
