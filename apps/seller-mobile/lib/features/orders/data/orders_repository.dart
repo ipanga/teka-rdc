@@ -41,9 +41,18 @@ class SellerOrdersRepository {
       '/v1/sellers/orders',
       queryParameters: queryParams,
     );
-    final data = response.data;
-    final itemsRaw = data['data'] as List<dynamic>? ?? [];
-    final meta = data['pagination'] as Map<String, dynamic>? ?? {};
+    final body = (response.data as Map<String, dynamic>?) ?? const {};
+    final payload = body['data'];
+    final itemsRaw = payload is List<dynamic>
+        ? payload
+        : payload is Map<String, dynamic>
+            ? payload['data'] as List<dynamic>? ?? const []
+            : const [];
+    final meta = payload is Map<String, dynamic>
+        ? payload['pagination'] as Map<String, dynamic>? ?? const {}
+        : body['pagination'] as Map<String, dynamic>? ??
+            body['meta'] as Map<String, dynamic>? ??
+            const {};
 
     final items = itemsRaw
         .map((e) => SellerOrderModel.fromJson(e as Map<String, dynamic>))
@@ -104,7 +113,6 @@ class SellerOrdersRepository {
   }
 }
 
-final sellerOrdersRepositoryProvider =
-    Provider<SellerOrdersRepository>((ref) {
+final sellerOrdersRepositoryProvider = Provider<SellerOrdersRepository>((ref) {
   return SellerOrdersRepository(ref.read(dioProvider));
 });
