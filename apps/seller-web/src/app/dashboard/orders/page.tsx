@@ -366,8 +366,59 @@ export default function OrdersListPage() {
         </div>
       ) : (
         <>
+          {/* Mobile order cards */}
+          <div className="md:hidden space-y-3">
+            {orders.map((order) => {
+              const paymentBadge = getPaymentStatusBadge(order.paymentStatus);
+              return (
+                <article key={order.id} className="bg-white rounded-xl border border-border p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <Link
+                        href={`/dashboard/orders/${order.id}`}
+                        className="font-semibold text-primary hover:underline"
+                      >
+                        {order.orderNumber}
+                      </Link>
+                      <p className="mt-1 text-xs text-muted-foreground">{formatDate(order.createdAt)}</p>
+                    </div>
+                    <OrderStatusBadge status={order.status} />
+                  </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Acheteur</p>
+                      <p className="font-medium text-foreground truncate">
+                        {order.buyer?.firstName} {order.buyer?.lastName}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Total</p>
+                      <p className="font-bold text-foreground">{formatPrice(order.totalCDF)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Articles</p>
+                      <p className="font-medium text-foreground">{order.itemsCount ?? order.items?.length ?? 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Paiement</p>
+                      <span className={`inline-flex mt-1 items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${paymentBadge.style}`}>
+                        {paymentBadge.label}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    {getPaymentMethodLabel(order.paymentMethod)}
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {renderActions(order)}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
           {/* Orders table */}
-          <div className="bg-white rounded-xl border border-border overflow-hidden">
+          <div className="hidden md:block bg-white rounded-xl border border-border overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>

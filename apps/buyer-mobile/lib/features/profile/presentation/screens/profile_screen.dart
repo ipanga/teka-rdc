@@ -85,8 +85,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (!mounted) return;
     setState(() => _sessionsLoading = true);
     try {
-      final list =
-          await ref.read(profileRepositoryProvider).listSessions();
+      final list = await ref.read(profileRepositoryProvider).listSessions();
       if (!mounted) return;
       setState(() => _sessions = list);
     } catch (_) {
@@ -106,10 +105,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(
         () => _sessions = _sessions?.where((s) => s.id != id).toList(),
       );
-      _toast("Appareil deconnecte");
+      _toast("Appareil déconnecté");
     } catch (_) {
       if (!mounted) return;
-      _toast("Impossible de deconnecter cet appareil", error: true);
+      _toast("Impossible de déconnecter cet appareil", error: true);
     } finally {
       if (mounted) setState(() => _sessionAction = null);
     }
@@ -123,10 +122,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(
         () => _sessions = _sessions?.where((s) => s.current).toList(),
       );
-      _toast("Appareil deconnecte");
+      _toast("Appareil déconnecté");
     } catch (_) {
       if (!mounted) return;
-      _toast("Impossible de deconnecter cet appareil", error: true);
+      _toast("Impossible de déconnecter cet appareil", error: true);
     } finally {
       if (mounted) setState(() => _sessionAction = null);
     }
@@ -145,18 +144,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _notifSaving = true;
     });
     try {
-      final next = await ref
-          .read(profileRepositoryProvider)
-          .updateNotificationPrefs(
-            smsOrderUpdates: smsOrderUpdates,
-            smsBroadcasts: smsBroadcasts,
-          );
+      final next =
+          await ref.read(profileRepositoryProvider).updateNotificationPrefs(
+                smsOrderUpdates: smsOrderUpdates,
+                smsBroadcasts: smsBroadcasts,
+              );
       if (!mounted) return;
       setState(() => _notifPrefs = next);
     } catch (_) {
       if (!mounted) return;
       setState(() => _notifPrefs = previous);
-      _toast("Erreur lors de la mise a jour", error: true);
+      _toast("Erreur lors de la mise à jour", error: true);
     } finally {
       if (mounted) setState(() => _notifSaving = false);
     }
@@ -200,7 +198,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           role: _user!.role,
         );
       });
-      _toast("Profil mis a jour");
+      _toast("Profil mis à jour");
     } catch (_) {
       if (!mounted) return;
       setState(() => _uploading = false);
@@ -228,7 +226,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             email: body['email'],
           );
       await _load();
-      _toast("Profil mis a jour");
+      _toast("Profil mis à jour");
     } catch (_) {
       _toast("Erreur lors de l'enregistrement", error: true);
     } finally {
@@ -244,10 +242,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         body: const Center(child: CircularProgressIndicator()),
       );
     }
-    final initials =
-        ((_user?.firstName?.isNotEmpty == true ? _user!.firstName![0] : '') +
-                (_user?.lastName?.isNotEmpty == true ? _user!.lastName![0] : ''))
-            .toUpperCase();
+    final initials = ((_user?.firstName?.isNotEmpty == true
+                ? _user!.firstName![0]
+                : '') +
+            (_user?.lastName?.isNotEmpty == true ? _user!.lastName![0] : ''))
+        .toUpperCase();
 
     return Scaffold(
       appBar: AppBar(
@@ -255,7 +254,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: "Se deconnecter",
+            tooltip: "Se déconnecter",
             onPressed: () async {
               await ref.read(authProvider.notifier).logout();
               // Land on the guest home (browsing stays open after logout);
@@ -308,9 +307,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       onPressed: _uploading ? null : _pickAvatar,
                       icon: const Icon(Icons.upload_outlined),
                       label: Text(
-                        _uploading
-                            ? "Envoi en cours..."
-                            : "Changer la photo",
+                        _uploading ? "Envoi en cours..." : "Changer la photo",
                       ),
                     ),
                   ),
@@ -325,14 +322,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 children: [
                   TextField(
                     controller: _firstNameCtrl,
-                    decoration:
-                        InputDecoration(labelText: "Prénom"),
+                    decoration: InputDecoration(labelText: "Prénom"),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _lastNameCtrl,
-                    decoration:
-                        InputDecoration(labelText: "Nom"),
+                    decoration: InputDecoration(labelText: "Nom"),
                   ),
                   const SizedBox(height: 12),
                   TextField(
@@ -340,7 +335,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     keyboardType: TextInputType.emailAddress,
                     decoration: InputDecoration(
                       labelText: "Email",
-                      helperText: "Optionnel — utilisé pour les confirmations de commande.",
+                      helperText:
+                          "Optionnel — utilisé pour les confirmations de commande.",
                       helperMaxLines: 2,
                     ),
                   ),
@@ -348,12 +344,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   // Phone is the WhatsApp OTP auth identifier — not editable
                   // from the app. Read-only with hint pointing to support.
                   TextField(
-                    controller:
-                        TextEditingController(text: _user?.phone ?? ''),
+                    controller: TextEditingController(text: _user?.phone ?? ''),
                     enabled: false,
                     decoration: InputDecoration(
                       labelText: "Numéro WhatsApp",
-                      helperText: "Numéro de connexion à votre compte. Contactez le support pour le modifier.",
+                      helperText:
+                          "Numéro de connexion à votre compte. Contactez le support pour le modifier.",
                       helperMaxLines: 2,
                     ),
                   ),
@@ -388,7 +384,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text("Mises à jour de commande"),
-                    subtitle: Text("Confirmation, expédition, livraison, annulation"),
+                    subtitle:
+                        Text("Confirmation, expédition, livraison, annulation"),
                     value: _notifPrefs?.smsOrderUpdates ?? true,
                     onChanged: _notifSaving
                         ? null
@@ -397,7 +394,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text("Annonces et promotions"),
-                    subtitle: Text("Messages marketing envoyés par l'équipe Teka"),
+                    subtitle:
+                        Text("Messages marketing envoyés par l'équipe Teka"),
                     value: _notifPrefs?.smsBroadcasts ?? true,
                     onChanged: _notifSaving
                         ? null
@@ -588,8 +586,7 @@ class _SessionsCard extends StatelessWidget {
               final dateLabel = _formatDate(s.createdAt);
               return Column(
                 children: [
-                  if (i > 0)
-                    const Divider(height: 1, color: TekaColors.border),
+                  if (i > 0) const Divider(height: 1, color: TekaColors.border),
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     child: Row(
@@ -657,9 +654,7 @@ class _SessionsCard extends StatelessWidget {
                               minimumSize: const Size(0, 32),
                             ),
                             child: Text(
-                              action == s.id
-                                  ? "Deconnexion..."
-                                  : "Deconnecter",
+                              action == s.id ? "Deconnexion..." : "Deconnecter",
                               style: const TextStyle(fontSize: 12),
                             ),
                           ),

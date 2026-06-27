@@ -42,12 +42,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 const Icon(Icons.error_outline,
                     size: 48, color: TekaColors.destructive),
                 const SizedBox(height: 12),
-                Text("Une erreur est survenue. Veuillez reessayer."),
+                Text("Une erreur est survenue. Veuillez réessayer."),
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () =>
                       ref.invalidate(productDetailProvider(widget.productId)),
-                  child: Text("Reessayer"),
+                  child: Text("Réessayer"),
                 ),
               ],
             ),
@@ -58,8 +58,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     );
   }
 
-  Widget _buildContent(
-      BuildContext context, SellerProductModel product) {
+  Widget _buildContent(BuildContext context, SellerProductModel product) {
     final priceFormat = NumberFormat('#,###', 'fr');
     final locale = 'fr';
 
@@ -118,8 +117,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             StatusBadge(status: product.status),
             const Spacer(),
             Text(
-              DateFormat('dd/MM/yyyy HH:mm', locale)
-                  .format(product.createdAt),
+              DateFormat('dd/MM/yyyy HH:mm', locale).format(product.createdAt),
               style: const TextStyle(
                   fontSize: 12, color: TekaColors.mutedForeground),
             ),
@@ -236,8 +234,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             if (product.status == ProductStatus.draft ||
                 product.status == ProductStatus.rejected)
               TextButton.icon(
-                onPressed: () =>
-                    context.push('/products/${product.id}/images'),
+                onPressed: () => context.push('/products/${product.id}/images'),
                 icon: const Icon(Icons.edit, size: 16),
                 label: Text("Ajouter"),
                 style: TextButton.styleFrom(
@@ -334,8 +331,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     );
   }
 
-  Widget _buildActions(
-      BuildContext context, SellerProductModel product) {
+  Widget _buildActions(BuildContext context, SellerProductModel product) {
     switch (product.status) {
       case ProductStatus.draft:
         return Column(
@@ -361,8 +357,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: () =>
-                    context.push('/products/${product.id}/edit', extra: product),
+                onPressed: () => context.push('/products/${product.id}/edit',
+                    extra: product),
                 icon: const Icon(Icons.edit),
                 label: Text("Modifier le produit"),
               ),
@@ -454,12 +450,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   Future<void> _withdraw(SellerProductModel product) async {
     setState(() => _busy = true);
-    final p = await ref.read(sellerProductsProvider.notifier).withdraw(product.id);
+    final p =
+        await ref.read(sellerProductsProvider.notifier).withdraw(product.id);
     ref.invalidate(productDetailProvider(widget.productId));
     if (mounted) {
       setState(() => _busy = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(p != null ? "Produit retiré" : "Une erreur est survenue."),
+        content:
+            Text(p != null ? "Produit retiré" : "Une erreur est survenue."),
         behavior: SnackBarBehavior.floating,
       ));
     }
@@ -467,12 +465,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   Future<void> _restore(SellerProductModel product) async {
     setState(() => _busy = true);
-    final p = await ref.read(sellerProductsProvider.notifier).restore(product.id);
+    final p =
+        await ref.read(sellerProductsProvider.notifier).restore(product.id);
     ref.invalidate(productDetailProvider(widget.productId));
     if (mounted) {
       setState(() => _busy = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(p != null ? "Produit restauré" : "Une erreur est survenue."),
+        content:
+            Text(p != null ? "Produit restauré" : "Une erreur est survenue."),
         behavior: SnackBarBehavior.floating,
       ));
     }
@@ -480,7 +480,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   Future<void> _duplicate(SellerProductModel product) async {
     setState(() => _busy = true);
-    final p = await ref.read(sellerProductsProvider.notifier).duplicate(product.id);
+    final p =
+        await ref.read(sellerProductsProvider.notifier).duplicate(product.id);
     if (mounted) {
       setState(() => _busy = false);
       if (p != null) {
@@ -500,7 +501,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text("Soumettre pour revision"),
-        content: Text("Voulez-vous soumettre ce produit pour revision ? Il sera examine par notre equipe."),
+        content: Text(
+            "Voulez-vous soumettre ce produit pour revision ? Il sera examine par notre equipe."),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -532,7 +534,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Une erreur est survenue. Veuillez reessayer."),
+            content: Text("Une erreur est survenue. Veuillez réessayer."),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -548,7 +550,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text("Archiver"),
-        content: Text("Voulez-vous archiver ce produit ? Il ne sera plus visible par les acheteurs."),
+        content: Text(
+            "Voulez-vous archiver ce produit ? Il ne sera plus visible par les acheteurs."),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -583,7 +586,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Une erreur est survenue. Veuillez reessayer."),
+            content: Text("Une erreur est survenue. Veuillez réessayer."),
             behavior: SnackBarBehavior.floating,
           ),
         );

@@ -114,7 +114,8 @@ class CategorySelector extends ConsumerWidget {
                               children: [
                                 const Icon(Icons.error_outline, size: 48),
                                 const SizedBox(height: 8),
-                                Text("Une erreur est survenue. Veuillez reessayer."),
+                                Text(
+                                    "Une erreur est survenue. Veuillez réessayer."),
                               ],
                             ),
                           ),
@@ -204,6 +205,7 @@ class _CategoryListState extends State<_CategoryList> {
         walk(child, childPath);
       }
     }
+
     for (final cat in widget.categories) {
       walk(cat, null);
     }
@@ -240,9 +242,7 @@ class _CategoryListState extends State<_CategoryList> {
         ),
         const Divider(height: 1),
         Expanded(
-          child: searching
-              ? _buildSearchResults()
-              : _buildTree(),
+          child: searching ? _buildSearchResults() : _buildTree(),
         ),
       ],
     );

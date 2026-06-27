@@ -118,8 +118,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (!mounted) return;
     setState(() => _sessionsLoading = true);
     try {
-      final list =
-          await ref.read(profileRepositoryProvider).listSessions();
+      final list = await ref.read(profileRepositoryProvider).listSessions();
       if (!mounted) return;
       setState(() => _sessions = list);
     } catch (_) {
@@ -142,7 +141,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _toast("Appareil deconnecte");
     } catch (_) {
       if (!mounted) return;
-      _toast("Impossible de deconnecter cet appareil", error: true);
+      _toast("Impossible de déconnecter cet appareil", error: true);
     } finally {
       if (mounted) setState(() => _sessionAction = null);
     }
@@ -159,7 +158,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _toast("Appareil deconnecte");
     } catch (_) {
       if (!mounted) return;
-      _toast("Impossible de deconnecter cet appareil", error: true);
+      _toast("Impossible de déconnecter cet appareil", error: true);
     } finally {
       if (mounted) setState(() => _sessionAction = null);
     }
@@ -179,10 +178,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _notifSaving = true;
     });
     try {
-      final next = await ref.read(profileRepositoryProvider).updateNotificationPrefs(
-            smsOrderUpdates: smsOrderUpdates,
-            smsBroadcasts: smsBroadcasts,
-          );
+      final next =
+          await ref.read(profileRepositoryProvider).updateNotificationPrefs(
+                smsOrderUpdates: smsOrderUpdates,
+                smsBroadcasts: smsBroadcasts,
+              );
       if (!mounted) return;
       setState(() => _notifPrefs = next);
     } catch (_) {
@@ -320,7 +320,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       _currentPasswordCtrl.clear();
       _newPasswordCtrl.clear();
       _confirmPasswordCtrl.clear();
-      _toast("Mot de passe modifie avec succes. Les autres appareils ont ete deconnectes.");
+      _toast(
+          "Mot de passe modifie avec succes. Les autres appareils ont ete deconnectes.");
     } catch (_) {
       _toast("Erreur lors de la modification du mot de passe", error: true);
     } finally {
@@ -338,10 +339,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
     final appStatus = _user?.sellerProfile?.applicationStatus;
     final businessEditable = appStatus == 'APPROVED';
-    final initials =
-        ((_user?.firstName?.isNotEmpty == true ? _user!.firstName![0] : '') +
-                (_user?.lastName?.isNotEmpty == true ? _user!.lastName![0] : ''))
-            .toUpperCase();
+    final initials = ((_user?.firstName?.isNotEmpty == true
+                ? _user!.firstName![0]
+                : '') +
+            (_user?.lastName?.isNotEmpty == true ? _user!.lastName![0] : ''))
+        .toUpperCase();
 
     return Scaffold(
       appBar: AppBar(
@@ -349,7 +351,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: "Se deconnecter",
+            tooltip: "Se déconnecter",
             onPressed: () async {
               await ref.read(authProvider.notifier).logout();
               if (context.mounted) context.go('/auth/login');
@@ -400,9 +402,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       onPressed: _uploading ? null : _pickAvatar,
                       icon: const Icon(Icons.upload_outlined),
                       label: Text(
-                        _uploading
-                            ? "Envoi en cours..."
-                            : "Changer la photo",
+                        _uploading ? "Envoi en cours..." : "Changer la photo",
                       ),
                     ),
                   ),
@@ -430,7 +430,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     keyboardType: TextInputType.emailAddress,
                     decoration: InputDecoration(
                       labelText: "Email",
-                      helperText: "Modifier votre email vous demandera de le re-verifier.",
+                      helperText:
+                          "Modifier votre email vous demandera de le re-verifier.",
                       helperMaxLines: 2,
                     ),
                   ),
@@ -440,9 +441,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     child: ElevatedButton(
                       onPressed: _savingPersonal ? null : _savePersonal,
                       child: Text(
-                        _savingPersonal
-                            ? "Enregistrement..."
-                            : "Enregistrer",
+                        _savingPersonal ? "Enregistrement..." : "Enregistrer",
                       ),
                     ),
                   ),
@@ -458,12 +457,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 children: [
                   if (appStatus == 'PENDING')
                     _Banner(
-                      text: "Votre demande d'inscription est en cours de revision. Vous pourrez modifier les informations de la boutique une fois la demande approuvee.",
+                      text:
+                          "Votre demande d'inscription est en cours de revision. Vous pourrez modifier les informations de la boutique une fois la demande approuvee.",
                       color: TekaColors.warning,
                     ),
                   if (appStatus == 'REJECTED')
                     _Banner(
-                      text: "Votre demande a ete rejetee. Contactez le support pour en savoir plus.",
+                      text:
+                          "Votre demande a ete rejetee. Contactez le support pour en savoir plus.",
                       color: TekaColors.destructive,
                     ),
                   TextField(
@@ -479,7 +480,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     keyboardType: TextInputType.phone,
                     decoration: InputDecoration(
                       labelText: "Telephone (livraison)",
-                      helperText: "Utilise pour la communication avec les livreurs.",
+                      helperText:
+                          "Utilise pour la communication avec les livreurs.",
                       helperMaxLines: 2,
                     ),
                   ),
@@ -489,8 +491,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ? _selectedCityId
                         : null,
                     isExpanded: true,
-                    decoration:
-                        InputDecoration(labelText: "Ville"),
+                    decoration: InputDecoration(labelText: "Ville"),
                     hint: Text("Sélectionnez votre ville"),
                     items: _cities
                         .map((c) => DropdownMenuItem<String>(
@@ -511,7 +512,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     enabled: businessEditable,
                     decoration: InputDecoration(
                       labelText: "Adresse / quartier",
-                      helperText: "Détail de l'adresse (rue, quartier) en complément de la ville.",
+                      helperText:
+                          "Détail de l'adresse (rue, quartier) en complément de la ville.",
                       helperMaxLines: 2,
                     ),
                   ),
@@ -522,7 +524,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     maxLines: 4,
                     decoration: InputDecoration(
                       labelText: "Description",
-                      hintText: "Decrivez votre boutique en quelques phrases...",
+                      hintText:
+                          "Decrivez votre boutique en quelques phrases...",
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -533,9 +536,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ? null
                           : _saveBusiness,
                       child: Text(
-                        _savingBusiness
-                            ? "Enregistrement..."
-                            : "Enregistrer",
+                        _savingBusiness ? "Enregistrement..." : "Enregistrer",
                       ),
                     ),
                   ),
@@ -560,7 +561,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text("Mises a jour de commande"),
-                    subtitle: Text("Confirmation, expedition, livraison, annulation"),
+                    subtitle:
+                        Text("Confirmation, expedition, livraison, annulation"),
                     value: _notifPrefs?.smsOrderUpdates ?? true,
                     onChanged: _notifSaving
                         ? null
@@ -569,7 +571,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text("Annonces et promotions"),
-                    subtitle: Text("Messages marketing envoyes par l'equipe Teka"),
+                    subtitle:
+                        Text("Messages marketing envoyes par l'equipe Teka"),
                     value: _notifPrefs?.smsBroadcasts ?? true,
                     onChanged: _notifSaving
                         ? null
@@ -586,7 +589,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Modifier votre mot de passe vous deconnectera de tous vos autres appareils.",
+                    "Modifier votre mot de passe vous déconnectera de tous vos autres appareils.",
                     style: const TextStyle(
                       fontSize: 12,
                       color: TekaColors.mutedForeground,
@@ -606,7 +609,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     obscureText: true,
                     decoration: InputDecoration(
                       labelText: "Nouveau mot de passe",
-                      helperText: "Au moins 8 caracteres, avec lettres et chiffres.",
+                      helperText:
+                          "Au moins 8 caracteres, avec lettres et chiffres.",
                       helperMaxLines: 2,
                     ),
                   ),
@@ -812,8 +816,7 @@ class _SessionsCard extends StatelessWidget {
               final dateLabel = _formatDate(s.createdAt);
               return Column(
                 children: [
-                  if (i > 0)
-                    const Divider(height: 1, color: TekaColors.border),
+                  if (i > 0) const Divider(height: 1, color: TekaColors.border),
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     child: Row(
@@ -886,9 +889,7 @@ class _SessionsCard extends StatelessWidget {
                               minimumSize: const Size(0, 32),
                             ),
                             child: Text(
-                              action == s.id
-                                  ? "Deconnexion..."
-                                  : "Deconnecter",
+                              action == s.id ? "Deconnexion..." : "Deconnecter",
                               style: const TextStyle(fontSize: 12),
                             ),
                           ),

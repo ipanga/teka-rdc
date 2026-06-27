@@ -15,7 +15,8 @@ interface PromotionsResponse {
 }
 
 interface ProductsResponse {
-  products: SellerProduct[];
+  products?: SellerProduct[];
+  data?: SellerProduct[];
   meta?: {
     total: number;
     page: number;
@@ -158,7 +159,7 @@ export default function PromotionsPage() {
     setProductsLoading(true);
     try {
       const res = await apiFetch<ProductsResponse>('/v1/sellers/products?page=1&limit=100&status=ACTIVE');
-      setProducts(res.data.products || []);
+      setProducts(res.data.products ?? res.data.data ?? []);
     } catch {
       // silently ignore
     } finally {

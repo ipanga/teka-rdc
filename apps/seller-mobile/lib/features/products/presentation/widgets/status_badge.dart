@@ -68,13 +68,13 @@ class StatusBadge extends StatelessWidget {
         return _StatusConfig(
           color: TekaColors.destructive,
           icon: Icons.cancel_outlined,
-          label: "Rejete",
+          label: "Rejeté",
         );
       case ProductStatus.archived:
         return _StatusConfig(
           color: const Color(0xFF9CA3AF),
           icon: Icons.archive_outlined,
-          label: "Archive",
+          label: "Archivé",
         );
       case ProductStatus.suspended:
         return _StatusConfig(

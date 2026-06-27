@@ -29,6 +29,7 @@ export function CartItemRow({ item }: CartItemRowProps) {
     ? (product.discountPriceCDF as string)
     : product.priceCDF;
   const subtotalCentimes = BigInt(effectiveCDF) * BigInt(quantity);
+  const productUrl = `/recherche?q=${encodeURIComponent(title)}`;
 
   async function handleQuantityChange(newQty: number) {
     if (newQty < 1 || newQty > maxStock || isUpdating) return;
@@ -48,7 +49,7 @@ export function CartItemRow({ item }: CartItemRowProps) {
     <div className="flex gap-3 md:gap-4 py-4 border-b border-border last:border-0">
       {/* Product image */}
       <Link
-        href={`/${item.productId}`}
+        href={productUrl}
         className="relative w-20 h-20 md:w-28 md:h-28 bg-surface-muted rounded-lg overflow-hidden shrink-0 border border-border"
       >
         {thumbnailUrl ? (
@@ -77,7 +78,7 @@ export function CartItemRow({ item }: CartItemRowProps) {
       <div className="flex-1 min-w-0 flex flex-col justify-between">
         <div>
           <Link
-            href={`/${item.productId}`}
+            href={productUrl}
             className="text-sm md:text-base font-medium text-foreground hover:text-primary transition-colors line-clamp-2 leading-snug"
           >
             {title}

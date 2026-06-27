@@ -158,12 +158,12 @@ class _EarningsTab extends ConsumerWidget {
               const Icon(Icons.error_outline,
                   size: 48, color: TekaColors.destructive),
               const SizedBox(height: 12),
-              const Text("Une erreur est survenue. Veuillez reessayer."),
+              const Text("Une erreur est survenue. Veuillez réessayer."),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () =>
                     ref.read(earningsProvider.notifier).loadEarnings(),
-                child: const Text("Reessayer"),
+                child: const Text("Réessayer"),
               ),
             ],
           ),
@@ -238,12 +238,12 @@ class _PayoutsTab extends ConsumerWidget {
               const Icon(Icons.error_outline,
                   size: 48, color: TekaColors.destructive),
               const SizedBox(height: 12),
-              const Text("Une erreur est survenue. Veuillez reessayer."),
+              const Text("Une erreur est survenue. Veuillez réessayer."),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () =>
                     ref.read(earningsProvider.notifier).loadPayouts(),
-                child: const Text("Reessayer"),
+                child: const Text("Réessayer"),
               ),
             ],
           ),
@@ -340,7 +340,7 @@ class _PayoutRequestAction extends StatelessWidget {
         ] else if (hasPendingPayout) ...[
           const SizedBox(height: 6),
           const Text(
-            "Vous avez deja une demande de virement en cours. Vous pourrez en faire une nouvelle une fois celle-ci traitee.",
+            "Vous avez déjà une demande de virement en cours. Vous pourrez en faire une nouvelle une fois celle-ci traitée.",
             style: TextStyle(
               fontSize: 12,
               color: TekaColors.mutedForeground,

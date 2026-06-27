@@ -372,7 +372,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           const SizedBox(height: 6),
           Center(
             child: Text(
-              "Essayez un autre mot-cle ou une recherche populaire :",
+              "Essayez un autre mot-clé ou une recherche populaire :",
               style: Theme.of(context)
                   .textTheme
                   .bodySmall

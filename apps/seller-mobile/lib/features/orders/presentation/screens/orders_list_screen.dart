@@ -63,11 +63,11 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
     final filters = <_FilterItem>[
       _FilterItem(null, "Toutes"),
       _FilterItem(OrderStatus.pending, "En attente"),
-      _FilterItem(OrderStatus.confirmed, "Confirmees"),
-      _FilterItem(OrderStatus.processing, "En preparation"),
-      _FilterItem(OrderStatus.shipped, "Expediees"),
-      _FilterItem(OrderStatus.delivered, "Livrees"),
-      _FilterItem(OrderStatus.cancelled, "Annulees"),
+      _FilterItem(OrderStatus.confirmed, "Confirmées"),
+      _FilterItem(OrderStatus.processing, "En préparation"),
+      _FilterItem(OrderStatus.shipped, "Expédiées"),
+      _FilterItem(OrderStatus.delivered, "Livrées"),
+      _FilterItem(OrderStatus.cancelled, "Annulées"),
     ];
 
     return SizedBox(
@@ -107,7 +107,7 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
                 size: 48, color: TekaColors.destructive),
             const SizedBox(height: 12),
             Text(
-              "Une erreur est survenue. Veuillez reessayer.",
+              "Une erreur est survenue. Veuillez réessayer.",
               textAlign: TextAlign.center,
               style: const TextStyle(color: TekaColors.mutedForeground),
             ),
@@ -116,7 +116,7 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
               onPressed: () =>
                   ref.read(sellerOrdersProvider.notifier).loadOrders(),
               icon: const Icon(Icons.refresh),
-              label: Text("Reessayer"),
+              label: Text("Réessayer"),
             ),
           ],
         ),

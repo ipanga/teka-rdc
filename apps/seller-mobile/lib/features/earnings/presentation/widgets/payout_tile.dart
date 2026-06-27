@@ -41,7 +41,8 @@ class PayoutTile extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
-              Icon(Icons.phone_android, size: 13, color: TekaColors.mutedForeground),
+              Icon(Icons.phone_android,
+                  size: 13, color: TekaColors.mutedForeground),
               const SizedBox(width: 4),
               Text(
                 _formatMethod(payout.payoutMethod),
@@ -137,7 +138,7 @@ class PayoutTile extends StatelessWidget {
         break;
       case 'REJECTED':
         color = TekaColors.destructive;
-        label = "Rejete";
+        label = "Rejeté";
         break;
       default:
         color = TekaColors.mutedForeground;

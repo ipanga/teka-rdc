@@ -73,7 +73,10 @@ export class DeviceTokensService {
    * means a re-register can flip the same row back to active without
    * a fresh INSERT.
    */
-  async unregister(userId: string, token: string): Promise<{ removed: number }> {
+  async unregister(
+    userId: string,
+    token: string,
+  ): Promise<{ removed: number }> {
     const result = await this.prisma.deviceToken.updateMany({
       where: { userId, token, isActive: true },
       data: { isActive: false },

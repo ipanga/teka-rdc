@@ -32,12 +32,12 @@ class OrderDetailScreen extends ConsumerWidget {
                 const Icon(Icons.error_outline,
                     size: 48, color: TekaColors.destructive),
                 const SizedBox(height: 12),
-                Text("Une erreur est survenue. Veuillez reessayer."),
+                Text("Une erreur est survenue. Veuillez réessayer."),
                 const SizedBox(height: 16),
                 ElevatedButton(
                   onPressed: () =>
                       ref.invalidate(sellerOrderDetailProvider(orderId)),
-                  child: Text("Reessayer"),
+                  child: Text("Réessayer"),
                 ),
               ],
             ),
@@ -137,8 +137,8 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                 title: "${order.items.length} article(s)",
                 icon: Icons.shopping_bag_outlined,
                 children: [
-                  ...order.items.map(
-                      (item) => _buildOrderItem(context, item, locale)),
+                  ...order.items
+                      .map((item) => _buildOrderItem(context, item, locale)),
                 ],
               ),
               const SizedBox(height: 12),
@@ -250,8 +250,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                 ),
 
               // Buyer note
-              if (order.buyerNote != null &&
-                  order.buyerNote!.isNotEmpty) ...[
+              if (order.buyerNote != null && order.buyerNote!.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 _buildSectionCard(
                   context,
@@ -648,7 +647,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
       case 'CONFIRMED':
         return "Confirmee";
       case 'PROCESSING':
-        return "En preparation";
+        return "En préparation";
       case 'SHIPPED':
         return "Expediee";
       case 'OUT_FOR_DELIVERY':
@@ -709,7 +708,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Une erreur est survenue. Veuillez reessayer."),
+            content: Text("Une erreur est survenue. Veuillez réessayer."),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -788,7 +787,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Une erreur est survenue. Veuillez reessayer."),
+            content: Text("Une erreur est survenue. Veuillez réessayer."),
             behavior: SnackBarBehavior.floating,
           ),
         );

@@ -221,9 +221,9 @@ class EarningsNotifier extends StateNotifier<EarningsState> {
         }
         if (data['message'] != null) return data['message'].toString();
       }
-      return 'Une erreur est survenue. Veuillez reessayer.';
+      return 'Une erreur est survenue. Veuillez réessayer.';
     } catch (_) {
-      return 'Une erreur est survenue. Veuillez reessayer.';
+      return 'Une erreur est survenue. Veuillez réessayer.';
     }
   }
 

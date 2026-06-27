@@ -60,7 +60,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 60),
-                Icon(Icons.storefront_rounded, size: 80, color: TekaColors.tekaRed),
+                Icon(Icons.storefront_rounded,
+                    size: 80, color: TekaColors.tekaRed),
                 const SizedBox(height: 16),
                 Text(
                   'Teka RDC',
@@ -120,7 +121,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       icon: Icon(_obscurePassword
                           ? Icons.visibility_outlined
                           : Icons.visibility_off_outlined),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
                   ),
                   validator: (value) {
@@ -196,7 +198,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     GestureDetector(
                       onTap: () => context.push('/auth/register'),
                       child: Text(
-                        'Creer un compte',
+                        'Créer un compte',
                         style: TextStyle(
                           color: TekaColors.tekaRed,
                           fontWeight: FontWeight.w600,

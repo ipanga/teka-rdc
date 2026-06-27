@@ -134,29 +134,65 @@ export default function SellerDashboardPage() {
     { label: "Brouillons", value: stats.draft, color: 'text-muted-foreground' },
   ];
 
+  const pendingOrdersLabel = stats.pending > 0
+    ? `${stats.pending} produit${stats.pending > 1 ? 's' : ''} en validation`
+    : 'Catalogue prêt à vendre';
+
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-foreground mb-6">Bienvenue sur votre tableau de bord</h1>
+    <div className="space-y-6">
+      <section className="rounded-2xl border border-primary/15 bg-gradient-to-br from-primary to-[#8f0b21] p-5 sm:p-6 text-white shadow-sm">
+        <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
+          <div>
+            <p className="text-sm font-medium text-white/75">{"Espace Vendeur"}</p>
+            <h1 className="mt-2 text-2xl sm:text-3xl font-bold">
+              {"Pilotez vos ventes Teka RDC"}
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm sm:text-base text-white/80">
+              {"Suivez vos produits, commandes, revenus et avis depuis un tableau de bord unique."}
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Link
+              href="/dashboard/products/new"
+              className="inline-flex items-center justify-center px-4 py-2.5 bg-white text-primary rounded-lg font-semibold text-sm hover:bg-white/90 transition-colors"
+            >
+              + Nouveau produit
+            </Link>
+            <Link
+              href="/dashboard/orders"
+              className="inline-flex items-center justify-center px-4 py-2.5 bg-white/10 text-white ring-1 ring-white/30 rounded-lg font-semibold text-sm hover:bg-white/15 transition-colors"
+            >
+              Voir les commandes
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {/* Wallet balance card */}
-      <div className="mb-6">
+      <div>
         <Link
           href="/dashboard/earnings"
           className="block bg-white rounded-xl border border-border p-5 hover:shadow-sm transition-shadow"
         >
-          <h3 className="text-sm font-medium text-muted-foreground">Solde disponible</h3>
-          <p className="text-3xl font-bold mt-2 text-primary">
-            {walletLoading ? (
-              <span className="inline-block w-24 h-8 bg-muted rounded animate-pulse" />
-            ) : (
-              formatPrice(wallet?.balanceCDF ?? '0')
-            )}
-          </p>
-          <p className="text-xs text-muted-foreground mt-1">Revenus</p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-medium text-muted-foreground">Solde disponible</h3>
+              <p className="text-3xl font-bold mt-2 text-primary">
+                {walletLoading ? (
+                  <span className="inline-block w-24 h-8 bg-muted rounded animate-pulse" />
+                ) : (
+                  formatPrice(wallet?.balanceCDF ?? '0')
+                )}
+              </p>
+            </div>
+            <div className="inline-flex w-fit items-center rounded-full bg-success/10 px-3 py-1 text-xs font-medium text-success">
+              {pendingOrdersLabel}
+            </div>
+          </div>
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {statCards.map((card) => (
           <div key={card.label} className="bg-white rounded-xl border border-border p-5">
             <h3 className="text-sm font-medium text-muted-foreground">{card.label}</h3>
@@ -172,7 +208,7 @@ export default function SellerDashboardPage() {
       </div>
 
       {/* Reviews stats */}
-      <div className="mb-8">
+      <div>
         <Link
           href="/dashboard/reviews"
           className="block bg-white rounded-xl border border-border p-5 hover:shadow-sm transition-shadow"

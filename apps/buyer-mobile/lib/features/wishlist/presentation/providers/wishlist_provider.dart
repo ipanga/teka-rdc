@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/network/dio_error_messages.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/wishlist_model.dart';
 import '../../data/wishlist_repository.dart';
 
@@ -203,9 +204,33 @@ class WishlistNotifier extends StateNotifier<WishlistState> {
     await loadCount();
   }
 
+  /// Clear all wishlist state. Called on logout so a subsequent guest — or a
+  /// different user on a shared device — never sees the previous session's
+  /// items, ids or a stale error.
+  void reset() {
+    state = const WishlistState();
+  }
+
 }
 
 final wishlistProvider =
     StateNotifierProvider<WishlistNotifier, WishlistState>((ref) {
-  return WishlistNotifier(ref.read(wishlistRepositoryProvider));
+  final notifier = WishlistNotifier(ref.read(wishlistRepositoryProvider));
+  // The notifier is created lazily by whoever reads it first — often the
+  // guest-accessible home screen reading `wishlistedIds` for product heart
+  // icons. When that happens before login, the constructor's loadWishlist()
+  // hits a 401 and caches the error, which the wishlist screen would then keep
+  // showing even after the user logs in. Reload on the login transition (the
+  // token is now present) and clear on logout. Mirrors the auth-reactivity in
+  // city_provider.
+  ref.listen<AuthState>(authProvider, (prev, next) {
+    final wasAuthed = prev?.status == AuthStatus.authenticated;
+    final isAuthed = next.status == AuthStatus.authenticated;
+    if (isAuthed && !wasAuthed) {
+      notifier.refresh();
+    } else if (!isAuthed && wasAuthed) {
+      notifier.reset();
+    }
+  });
+  return notifier;
 });

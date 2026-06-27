@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
@@ -11,6 +11,9 @@ import { NotificationBell } from '@/components/notifications/notification-bell';
 import { SearchAutocomplete } from './search-autocomplete';
 import { buttonVariants } from '@/components/ui';
 import { cityAccentClasses } from '@/lib/city-accent';
+import { apiFetch } from '@/lib/api-client';
+import { categoryHref } from '@/lib/urls';
+import type { BrowseCategory } from '@/lib/types';
 
 // Location pin — small filled marker for the city selector.
 function PinIcon({ className }: { className?: string }) {
@@ -28,6 +31,9 @@ export function Header() {
   const logout = useAuthStore((s) => s.logout);
   const { selectedCity, openSelector } = useCityStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const [categories, setCategories] = useState<BrowseCategory[]>([]);
+  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
 
   // Town accent for the city selector — driven by the city record's accentColor
   // (data-driven; copper / cobalt / brand-red default).
@@ -43,6 +49,26 @@ export function Header() {
     logout();
     router.push('/');
   }
+
+  useEffect(() => {
+    apiFetch<BrowseCategory[]>('/v1/browse/categories')
+      .then((res) => {
+        setCategories(res.data);
+        setActiveCategoryId((current) => current ?? res.data[0]?.id ?? null);
+      })
+      .catch(() => {});
+  }, []);
+
+  const activeCategory = useMemo(
+    () => categories.find((cat) => cat.id === activeCategoryId) ?? categories[0],
+    [activeCategoryId, categories],
+  );
+
+  const citySlug = selectedCity?.slug;
+  const closeMenus = () => {
+    setMobileMenuOpen(false);
+    setCategoryMenuOpen(false);
+  };
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 border-b border-border shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90">
@@ -98,15 +124,21 @@ export function Header() {
 
         {/* Right side - desktop */}
         <div className="hidden md:flex items-center gap-3">
-          <Link
-            href="/categories"
-            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-semibold text-foreground hover:bg-surface-muted hover:text-primary transition-colors"
+          <button
+            type="button"
+            onClick={() => setCategoryMenuOpen((open) => !open)}
+            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-semibold text-foreground hover:bg-surface-muted hover:text-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            aria-expanded={categoryMenuOpen}
+            aria-controls="desktop-category-menu"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
             {"Catégories"}
-          </Link>
+            <svg className={`w-3.5 h-3.5 transition-transform ${categoryMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
           {authLoading ? (
             // Auth resolving — render nothing rather than the login button, so
             // a logged-in user on a slow connection can't click "connexion"
@@ -201,6 +233,114 @@ export function Header() {
         </div>
       </nav>
 
+      {categoryMenuOpen && (
+        <div
+          id="desktop-category-menu"
+          className="hidden md:block absolute left-0 right-0 top-full border-b border-border bg-white shadow-xl"
+        >
+          <div className="max-w-7xl mx-auto px-4 py-5">
+            <div className="grid grid-cols-[260px_1fr] gap-5">
+              <div className="rounded-xl border border-border bg-surface-muted/70 p-2">
+                <Link
+                  href="/categories"
+                  onClick={() => setCategoryMenuOpen(false)}
+                  className="mb-2 flex items-center justify-between rounded-lg px-3 py-2 text-sm font-bold text-foreground hover:bg-white hover:text-primary transition-colors"
+                >
+                  {"Toutes les catégories"}
+                  <span className="text-lg leading-none" aria-hidden>›</span>
+                </Link>
+                <div className="max-h-[420px] overflow-y-auto pr-1">
+                  {categories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onMouseEnter={() => setActiveCategoryId(cat.id)}
+                      onFocus={() => setActiveCategoryId(cat.id)}
+                      className={`w-full rounded-lg px-3 py-2 text-left text-sm font-semibold transition-colors ${
+                        activeCategory?.id === cat.id
+                          ? 'bg-white text-primary shadow-xs'
+                          : 'text-foreground hover:bg-white'
+                      }`}
+                    >
+                      <span className="flex items-center justify-between gap-2">
+                        <span className="truncate">{cat.name}</span>
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {cat.productCount}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="min-h-[320px] rounded-xl border border-border bg-surface p-5">
+                {activeCategory ? (
+                  <>
+                    <div className="mb-4 flex items-start justify-between gap-4 border-b border-border pb-4">
+                      <div>
+                        <p className="text-xs font-semibold uppercase text-muted-foreground">
+                          {"Catégorie"}
+                        </p>
+                        <h2 className="mt-1 text-xl font-bold text-foreground">
+                          {activeCategory.name}
+                        </h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          {"Parcourez les sous-catégories et types de produits disponibles."}
+                        </p>
+                      </div>
+                      <Link
+                        href={categoryHref(citySlug, activeCategory)}
+                        onClick={() => setCategoryMenuOpen(false)}
+                        className="shrink-0 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+                      >
+                        {"Voir tout"}
+                      </Link>
+                    </div>
+                    {activeCategory.subcategories.length > 0 ? (
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
+                        {activeCategory.subcategories.slice(0, 9).map((sub) => (
+                          <div key={sub.id} className="min-w-0">
+                            <Link
+                              href={categoryHref(citySlug, sub)}
+                              onClick={() => setCategoryMenuOpen(false)}
+                              className="block truncate text-sm font-bold text-foreground hover:text-primary transition-colors"
+                            >
+                              {sub.name}
+                            </Link>
+                            {sub.subcategories.length > 0 && (
+                              <div className="mt-2 space-y-1">
+                                {sub.subcategories.slice(0, 5).map((type) => (
+                                  <Link
+                                    key={type.id}
+                                    href={categoryHref(citySlug, type)}
+                                    onClick={() => setCategoryMenuOpen(false)}
+                                    className="block truncate text-sm text-muted-foreground hover:text-primary transition-colors"
+                                  >
+                                    {type.name}
+                                  </Link>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="rounded-xl bg-surface-muted p-6 text-sm text-muted-foreground">
+                        {"Cette catégorie n'a pas encore de sous-catégories publiées."}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="rounded-xl bg-surface-muted p-6 text-sm text-muted-foreground">
+                    {"Chargement des catégories..."}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="md:hidden border-t border-border px-4 py-2.5">
         <SearchAutocomplete
           cityId={selectedCity?.id}
@@ -246,13 +386,65 @@ export function Header() {
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={closeMenus}
                 className="rounded-lg px-3 py-2 text-sm font-semibold text-foreground hover:bg-surface-muted hover:text-primary transition-colors"
               >
                 {item.label}
               </Link>
             ))}
           </nav>
+
+          {categories.length > 0 && (
+            <div className="rounded-xl border border-border bg-surface-muted/60 p-3">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <p className="text-sm font-bold text-foreground">
+                  {"Explorer par catégorie"}
+                </p>
+                <Link
+                  href="/categories"
+                  onClick={closeMenus}
+                  className="text-xs font-semibold text-primary"
+                >
+                  {"Voir tout"}
+                </Link>
+              </div>
+              <div className="space-y-1">
+                {categories.slice(0, 7).map((cat) => (
+                  <details key={cat.id} className="group rounded-lg bg-white">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2 text-sm font-semibold text-foreground">
+                      <span className="truncate">{cat.name}</span>
+                      {cat.subcategories.length > 0 && (
+                        <span className="text-muted-foreground transition-transform group-open:rotate-90" aria-hidden>
+                          ›
+                        </span>
+                      )}
+                    </summary>
+                    {(cat.subcategories.length > 0 || cat.slug) && (
+                      <div className="grid grid-cols-1 gap-1 border-t border-border px-3 py-2">
+                        <Link
+                          href={categoryHref(citySlug, cat)}
+                          onClick={closeMenus}
+                          className="truncate rounded-md px-2 py-1.5 text-sm font-semibold text-primary hover:bg-primary-subtle"
+                        >
+                          {"Voir toute la catégorie"}
+                        </Link>
+                        {cat.subcategories.slice(0, 5).map((sub) => (
+                          <Link
+                            key={sub.id}
+                            href={categoryHref(citySlug, sub)}
+                            onClick={closeMenus}
+                            className="truncate rounded-md px-2 py-1.5 text-sm text-muted-foreground hover:bg-surface-muted hover:text-primary"
+                          >
+                            {sub.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </details>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Mobile auth */}
           <div className="flex flex-col gap-2 pt-2 border-t border-border">

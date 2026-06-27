@@ -62,7 +62,7 @@ class OrderStatusBadge extends StatelessWidget {
         return _OrderStatusConfig(
           color: const Color(0xFF6366F1),
           icon: Icons.settings_outlined,
-          label: "En preparation",
+          label: "En préparation",
         );
       case OrderStatus.shipped:
         return _OrderStatusConfig(

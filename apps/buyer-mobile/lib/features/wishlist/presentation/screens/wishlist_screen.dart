@@ -73,9 +73,9 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
                       icon: Icons.favorite_border,
                       title: "Aucun favori",
                       message:
-                          "Ajoutez des produits a vos favoris pour les retrouver facilement",
-                      actionLabel: "Decouvrir les produits",
-                      onAction: () => context.go('/'),
+                          "Ajoutez des produits à vos favoris pour les retrouver facilement",
+                      actionLabel: "Découvrir les produits",
+                      onAction: () => context.go('/categories'),
                     )
                   : RefreshIndicator(
                       color: TekaColors.tekaRed,
@@ -120,7 +120,7 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Retire des favoris"),
+            content: Text("Retiré des favoris"),
             backgroundColor: TekaColors.success,
             duration: const Duration(seconds: 2),
           ),

@@ -42,7 +42,8 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
   Future<void> _loadProducts() async {
     try {
       final repo = ref.read(productsRepositoryProvider);
-      final result = await repo.getProducts(page: 1, limit: 100, status: 'ACTIVE');
+      final result =
+          await repo.getProducts(page: 1, limit: 100, status: 'ACTIVE');
       if (mounted) {
         setState(() {
           _products = result.items;
@@ -70,7 +71,7 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Creer une promotion"),
+        title: const Text("Créer une promotion"),
       ),
       body: _isLoadingProducts
           ? const Center(child: CircularProgressIndicator())
@@ -367,9 +368,8 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
 
   Future<void> _pickDate({required bool isStart}) async {
     final now = DateTime.now();
-    final initialDate = isStart
-        ? (_startDate ?? now)
-        : (_endDate ?? _startDate ?? now);
+    final initialDate =
+        isStart ? (_startDate ?? now) : (_endDate ?? _startDate ?? now);
     final firstDate = isStart ? now : (_startDate ?? now);
 
     final picked = await showDatePicker(
@@ -440,9 +440,8 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
       data['discountCDF'] = (discountValue * 100).toString();
     }
 
-    final success = await ref
-        .read(sellerPromotionsProvider.notifier)
-        .createPromotion(data);
+    final success =
+        await ref.read(sellerPromotionsProvider.notifier).createPromotion(data);
 
     if (mounted) {
       setState(() => _isSaving = false);
@@ -454,7 +453,7 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text("Une erreur est survenue. Veuillez reessayer.")),
+              content: Text("Une erreur est survenue. Veuillez réessayer.")),
         );
       }
     }

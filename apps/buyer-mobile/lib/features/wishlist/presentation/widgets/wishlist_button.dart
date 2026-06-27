@@ -50,7 +50,7 @@ class WishlistButton extends ConsumerWidget {
             ? (activeColor ?? TekaColors.tekaRed)
             : (inactiveColor ?? TekaColors.mutedForeground),
       ),
-      tooltip: isWishlisted ? "Retirer des favoris" : "Ajoute aux favoris",
+      tooltip: isWishlisted ? "Retirer des favoris" : "Ajouter aux favoris",
       onPressed: () async {
         // Favorites require an account — gate guests to login, then return.
         if (!ensureAuthenticated(context, ref)) return;
@@ -61,7 +61,7 @@ class WishlistButton extends ConsumerWidget {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  isWishlisted ? "Retire des favoris" : "Ajoute aux favoris",
+                  isWishlisted ? "Retiré des favoris" : "Ajouté aux favoris",
                 ),
                 backgroundColor: TekaColors.success,
                 duration: const Duration(seconds: 2),

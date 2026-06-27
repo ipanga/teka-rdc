@@ -273,8 +273,102 @@ export default function ProductsListPage() {
         </div>
       ) : (
         <>
+          {/* Mobile product cards */}
+          <div className="md:hidden space-y-3">
+            {products.map((product) => {
+              const thumbUrl = getThumbUrl(product);
+              const isEditable = product.status === 'DRAFT' || product.status === 'REJECTED';
+              const isSubmittable = product.status === 'DRAFT';
+              const isArchivable = product.status !== 'ARCHIVED' && product.status !== 'SUSPENDED';
+              const isWithdrawable = product.status === 'PENDING_REVIEW';
+              const isRestorable = product.status === 'ARCHIVED';
+              const isDuplicable = product.status !== 'SUSPENDED';
+
+              return (
+                <article key={product.id} className="bg-white rounded-xl border border-border p-4 shadow-sm">
+                  <div className="flex gap-3">
+                    {thumbUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={thumbUrl}
+                        alt=""
+                        className="w-16 h-16 rounded-lg object-cover bg-muted shrink-0"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center text-muted-foreground text-xs shrink-0">
+                        --
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <h2 className="font-semibold text-foreground line-clamp-2">{getProductTitle(product)}</h2>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <ProductStatusBadge status={product.status} />
+                        <span className="text-xs text-muted-foreground">{formatDate(product.createdAt)}</span>
+                      </div>
+                      <p className="mt-2 text-sm font-bold text-primary">{formatPrice(product.priceCDF)}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Link
+                      href={`/dashboard/products/${product.id}`}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-foreground hover:bg-muted transition-colors"
+                    >
+                      {isEditable ? 'Modifier' : 'Voir'}
+                    </Link>
+                    {isSubmittable && (
+                      <button
+                        onClick={() => handleSubmit(product.id)}
+                        disabled={submittingId === product.id}
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                      >
+                        {submittingId === product.id ? '...' : 'Soumettre'}
+                      </button>
+                    )}
+                    {isWithdrawable && (
+                      <button
+                        onClick={() => handleWithdraw(product.id)}
+                        disabled={busyId === product.id}
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-50 transition-colors"
+                      >
+                        {busyId === product.id ? '...' : 'Retirer'}
+                      </button>
+                    )}
+                    {isRestorable && (
+                      <button
+                        onClick={() => handleRestore(product.id)}
+                        disabled={busyId === product.id}
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                      >
+                        {busyId === product.id ? '...' : 'Restaurer'}
+                      </button>
+                    )}
+                    {isDuplicable && (
+                      <button
+                        onClick={() => handleDuplicate(product.id)}
+                        disabled={busyId === product.id}
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-border text-foreground hover:bg-muted disabled:opacity-50 transition-colors"
+                      >
+                        {busyId === product.id ? '...' : 'Dupliquer'}
+                      </button>
+                    )}
+                    {isArchivable && (
+                      <button
+                        onClick={() => handleArchive(product.id)}
+                        disabled={archivingId === product.id}
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/10 disabled:opacity-50 transition-colors"
+                      >
+                        {archivingId === product.id ? '...' : 'Archiver'}
+                      </button>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+
           {/* Product table */}
-          <div className="bg-white rounded-xl border border-border overflow-hidden">
+          <div className="hidden md:block bg-white rounded-xl border border-border overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
