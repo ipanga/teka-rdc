@@ -62,7 +62,7 @@ export class SellerPayoutsController {
   @Post('payouts')
   @Roles('SELLER')
   async requestPayout(
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('userId') userId: string,
     @Body() dto: RequestPayoutDto,
   ) {
     const sellerProfileId = await resolveSellerProfileId(this.prisma, userId);
@@ -80,7 +80,7 @@ export class SellerPayoutsController {
   @Get('payouts')
   @Roles('SELLER')
   async listSellerPayouts(
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('userId') userId: string,
     @Query() query: PayoutQueryDto,
   ) {
     const sellerProfileId = await resolveSellerProfileId(this.prisma, userId);
@@ -97,7 +97,7 @@ export class SellerPayoutsController {
    */
   @Get('payout-method')
   @Roles('SELLER')
-  async getPayoutMethod(@CurrentUser('sub') userId: string) {
+  async getPayoutMethod(@CurrentUser('userId') userId: string) {
     const sellerProfileId = await resolveSellerProfileId(this.prisma, userId);
     const data = await this.payoutsService.getPayoutMethod(sellerProfileId);
     return { success: true, data };
@@ -110,7 +110,7 @@ export class SellerPayoutsController {
   @Patch('payout-method')
   @Roles('SELLER')
   async updatePayoutMethod(
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('userId') userId: string,
     @Body() dto: UpdatePayoutMethodDto,
   ) {
     const sellerProfileId = await resolveSellerProfileId(this.prisma, userId);
@@ -127,7 +127,7 @@ export class SellerPayoutsController {
    */
   @Get('wallet')
   @Roles('SELLER')
-  async getSellerWallet(@CurrentUser('sub') userId: string) {
+  async getSellerWallet(@CurrentUser('userId') userId: string) {
     const sellerProfileId = await resolveSellerProfileId(this.prisma, userId);
     const wallet = await this.earningsService.getSellerWallet(sellerProfileId);
     return { success: true, data: wallet };
@@ -140,7 +140,7 @@ export class SellerPayoutsController {
   @Get('earnings')
   @Roles('SELLER')
   async listSellerEarnings(
-    @CurrentUser('sub') userId: string,
+    @CurrentUser('userId') userId: string,
     @Query() query: PayoutQueryDto,
   ) {
     const sellerProfileId = await resolveSellerProfileId(this.prisma, userId);
@@ -192,7 +192,7 @@ export class AdminPayoutsController {
   @Roles('ADMIN')
   async approvePayout(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser('sub') adminId: string,
+    @CurrentUser('userId') adminId: string,
   ) {
     const payout = await this.payoutsService.approvePayout(id, adminId);
     return { success: true, data: payout };
@@ -206,7 +206,7 @@ export class AdminPayoutsController {
   @Roles('ADMIN')
   async rejectPayout(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser('sub') adminId: string,
+    @CurrentUser('userId') adminId: string,
     @Body() dto: RejectPayoutDto,
   ) {
     const payout = await this.payoutsService.rejectPayout(
@@ -225,7 +225,7 @@ export class AdminPayoutsController {
   @Roles('ADMIN')
   async processPayout(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser('sub') adminId: string,
+    @CurrentUser('userId') adminId: string,
   ) {
     const payout = await this.payoutsService.processPayout(id, adminId);
     return { success: true, data: payout };
@@ -239,7 +239,7 @@ export class AdminPayoutsController {
   @Roles('ADMIN')
   async completePayout(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser('sub') adminId: string,
+    @CurrentUser('userId') adminId: string,
     @Body() dto: CompletePayoutDto,
   ) {
     const payout = await this.payoutsService.completePayout(
