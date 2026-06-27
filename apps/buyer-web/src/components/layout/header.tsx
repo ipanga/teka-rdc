@@ -5,11 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { useCityStore } from '@/lib/city-store';
+import { useWishlistStore } from '@/lib/wishlist-store';
 import { CartBadge } from '@/components/cart/cart-badge';
-import { WishlistBadge } from '@/components/wishlist/wishlist-badge';
-import { NotificationBell } from '@/components/notifications/notification-bell';
 import { SearchAutocomplete } from './search-autocomplete';
-import { buttonVariants } from '@/components/ui';
+import { Badge, buttonVariants } from '@/components/ui';
 import { cityAccentClasses } from '@/lib/city-accent';
 import { apiFetch } from '@/lib/api-client';
 import { categoryHref } from '@/lib/urls';
@@ -37,6 +36,8 @@ export function Header() {
   const authLoading = useAuthStore((s) => s.isLoading);
   const logout = useAuthStore((s) => s.logout);
   const { selectedCity, openSelector } = useCityStore();
+  const wishlistCount = useWishlistStore((s) => s.count);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -60,6 +61,29 @@ export function Header() {
       })
       .catch(() => {});
   }, []);
+
+  // Unread-notification count for the account button + dropdown. Replaces the
+  // standalone bell's signal; polls the cheap unread endpoint every 60s while
+  // logged in (same cadence/endpoint the bell used — no extra request volume).
+  useEffect(() => {
+    if (!user) {
+      setUnreadCount(0);
+      return;
+    }
+    let active = true;
+    const load = () =>
+      apiFetch<{ unread: number }>('/v1/notifications/unread-count')
+        .then((r) => {
+          if (active) setUnreadCount(r.data.unread);
+        })
+        .catch(() => {});
+    void load();
+    const id = setInterval(load, 60000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!accountMenuOpen) return;
@@ -96,7 +120,8 @@ export function Header() {
   );
 
   const citySlug = selectedCity?.slug;
-  const accountName = user?.firstName?.trim() || 'Mon compte';
+  const firstName = user?.firstName?.trim();
+  const accountName = firstName || 'Mon compte';
   const closeMenus = () => {
     setMobileMenuOpen(false);
     setCategoryMenuOpen(false);
@@ -104,10 +129,10 @@ export function Header() {
   };
 
   const accountLinks = [
-    { href: '/profil', label: 'Mon compte' },
-    { href: '/commandes', label: 'Mes commandes' },
-    { href: '/favoris', label: 'Mes favoris' },
-    { href: '/notifications', label: 'Notifications' },
+    { href: '/profil', label: 'Mon compte', count: 0 },
+    { href: '/commandes', label: 'Mes commandes', count: 0 },
+    { href: '/favoris', label: 'Mes favoris', count: wishlistCount },
+    { href: '/notifications', label: 'Notifications', count: unreadCount },
   ];
 
   return (
@@ -146,7 +171,32 @@ export function Header() {
             </svg>
           </button>
 
-          <div className="hidden md:flex min-w-[300px] flex-1 xl:flex-[1_1_620px]">
+          {/* Catégories — placed to the LEFT of the search bar so it reads as
+              a "scope your search" control (Amazon / Jumia pattern), freeing the
+              right cluster for just Account + Cart. */}
+          <button
+            type="button"
+            onClick={() => {
+              setAccountMenuOpen(false);
+              setCategoryMenuOpen((open) => !open);
+            }}
+            className="hidden md:inline-flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            aria-expanded={categoryMenuOpen}
+            aria-controls="desktop-category-menu"
+            aria-haspopup="true"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            <span className="hidden lg:inline">{"Catégories"}</span>
+            <svg className={`h-3.5 w-3.5 transition-transform ${categoryMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {/* Search — primary element; uncapped so it absorbs the space freed
+              by removing the bell, wishlist and promotions chrome. */}
+          <div className="hidden md:flex min-w-[260px] flex-1">
             <SearchAutocomplete
               cityId={selectedCity?.id}
               citySlug={selectedCity?.slug}
@@ -156,39 +206,10 @@ export function Header() {
           </div>
 
           <div className="hidden md:flex shrink-0 items-center gap-1.5 lg:gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setAccountMenuOpen(false);
-                setCategoryMenuOpen((open) => !open);
-              }}
-              className="inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              aria-expanded={categoryMenuOpen}
-              aria-controls="desktop-category-menu"
-              aria-haspopup="true"
-            >
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-              <span className="hidden lg:inline">{"Catégories"}</span>
-              <svg className={`h-3.5 w-3.5 transition-transform ${categoryMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            <Link
-              href="/promotions"
-              className="hidden xl:inline-flex rounded-xl px-2.5 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted hover:text-primary"
-            >
-              {"Promotions"}
-            </Link>
-
             {authLoading ? (
               <div className="w-px" aria-hidden />
             ) : user ? (
               <>
-                <NotificationBell />
-                <WishlistBadge />
                 <div className="relative" ref={accountMenuRef}>
                   <button
                     type="button"
@@ -201,14 +222,20 @@ export function Header() {
                     aria-haspopup="menu"
                     aria-controls="buyer-account-menu"
                   >
-                    <span className="grid h-8 w-8 place-items-center rounded-full bg-primary-subtle text-primary">
+                    <span className="relative grid h-8 w-8 place-items-center rounded-full bg-primary-subtle text-primary">
                       <UserIcon className="h-4.5 w-4.5" />
+                      {unreadCount > 0 && (
+                        <span
+                          className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-white"
+                          aria-hidden
+                        />
+                      )}
                     </span>
-                    <span className="hidden xl:flex min-w-0 flex-col leading-tight">
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                        {"Compte"}
+                    <span className="hidden lg:flex min-w-0 flex-col leading-tight">
+                      <span className="text-[10px] font-medium text-muted-foreground">
+                        {firstName ? 'Bonjour,' : 'Bienvenue'}
                       </span>
-                      <span className="max-w-[96px] truncate text-sm font-bold text-foreground">
+                      <span className="max-w-[120px] truncate text-sm font-bold text-foreground">
                         {accountName}
                       </span>
                     </span>
@@ -224,10 +251,10 @@ export function Header() {
                       className="absolute right-0 mt-3 w-64 origin-top-right rounded-2xl border border-border bg-white p-2 shadow-xl ring-1 ring-black/5"
                     >
                       <div className="border-b border-border px-3 py-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          {"Connecté"}
+                        <p className="text-xs font-medium text-muted-foreground">
+                          {firstName ? 'Bonjour,' : 'Bienvenue'}
                         </p>
-                        <p className="mt-0.5 truncate text-sm font-bold text-foreground">
+                        <p className="mt-0.5 truncate text-base font-bold text-foreground">
                           {accountName}
                         </p>
                       </div>
@@ -238,9 +265,18 @@ export function Header() {
                             href={item.href}
                             role="menuitem"
                             onClick={() => setAccountMenuOpen(false)}
-                            className="block rounded-xl px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted hover:text-primary"
+                            className="flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted hover:text-primary"
                           >
-                            {item.label}
+                            <span>{item.label}</span>
+                            {item.count > 0 && (
+                              <Badge
+                                variant="discount"
+                                size="sm"
+                                className="min-w-5 justify-center px-1.5"
+                              >
+                                {item.count > 99 ? '99+' : item.count}
+                              </Badge>
+                            )}
                           </Link>
                         ))}
                       </div>
@@ -268,8 +304,6 @@ export function Header() {
           </div>
 
           <div className="md:hidden ml-auto flex items-center gap-1">
-            <NotificationBell compact />
-            <WishlistBadge compact />
             <CartBadge />
           </div>
 
@@ -300,6 +334,16 @@ export function Header() {
           <div className="max-w-7xl mx-auto px-4 py-5">
             <div className="grid grid-cols-[260px_1fr] gap-5">
               <div className="rounded-xl border border-border bg-surface-muted/70 p-2">
+                {/* Promotions relocated here from the top bar — kept discoverable
+                    as a highlighted entry point above the category list. */}
+                <Link
+                  href="/promotions"
+                  onClick={() => setCategoryMenuOpen(false)}
+                  className="mb-2 flex items-center gap-2 rounded-lg bg-primary-subtle px-3 py-2 text-sm font-bold text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+                >
+                  <span aria-hidden>🔥</span>
+                  {"Promotions"}
+                </Link>
                 <Link
                   href="/categories"
                   onClick={() => setCategoryMenuOpen(false)}
@@ -501,19 +545,28 @@ export function Header() {
             {authLoading ? null : user ? (
               <>
                 <div className="rounded-xl bg-surface-muted px-3 py-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {"Compte"}
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {firstName ? 'Bonjour,' : 'Bienvenue'}
                   </p>
-                  <p className="truncate text-sm font-bold text-foreground">{accountName}</p>
+                  <p className="truncate text-base font-bold text-foreground">{accountName}</p>
                 </div>
                 {accountLinks.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}
                     onClick={closeMenus}
-                    className="rounded-xl px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted hover:text-primary"
+                    className="flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-foreground transition-colors hover:bg-surface-muted hover:text-primary"
                   >
-                    {item.label}
+                    <span>{item.label}</span>
+                    {item.count > 0 && (
+                      <Badge
+                        variant="discount"
+                        size="sm"
+                        className="min-w-5 justify-center px-1.5"
+                      >
+                        {item.count > 99 ? '99+' : item.count}
+                      </Badge>
+                    )}
                   </Link>
                 ))}
                 <button

@@ -11,7 +11,7 @@ import { track } from '@/lib/analytics';
 import {
   hrefForNotification,
   type BuyerNotification,
-} from '@/components/notifications/notification-bell';
+} from '@/components/notifications/notification-types';
 
 function timeAgoFr(iso: string): string {
   const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
