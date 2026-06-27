@@ -45,7 +45,7 @@ class WrongRoleScreen extends ConsumerWidget {
                 child: ElevatedButton(
                   onPressed: () => context.go('/auth/register'),
                   child: const Text(
-                    'Creer un compte vendeur',
+                    'Créer un compte vendeur',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -62,7 +62,7 @@ class WrongRoleScreen extends ConsumerWidget {
                     if (context.mounted) context.go('/auth/login');
                   },
                   child: const Text(
-                    'Se deconnecter',
+                    'Se déconnecter',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,

@@ -5,7 +5,8 @@ import { apiFetch, ApiError } from '@/lib/api-client';
 import type { Review, ReviewStats, SellerProduct } from '@/lib/types';
 
 interface ProductsResponse {
-  products: SellerProduct[];
+  products?: SellerProduct[];
+  data?: SellerProduct[];
   meta?: {
     total: number;
     page: number;
@@ -62,7 +63,7 @@ export default function ReviewsPage() {
     setProductsLoading(true);
     try {
       const res = await apiFetch<ProductsResponse>('/v1/sellers/products?page=1&limit=100&status=ACTIVE');
-      const prods = res.data.products || [];
+      const prods = res.data.products ?? res.data.data ?? [];
       setProducts(prods);
 
       // Calculate aggregate stats from products

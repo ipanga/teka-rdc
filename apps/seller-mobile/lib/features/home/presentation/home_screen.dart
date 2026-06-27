@@ -53,7 +53,7 @@ class HomeScreen extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: "Se deconnecter",
+            tooltip: "Se déconnecter",
             onPressed: () async {
               await ref.read(authProvider.notifier).logout();
               if (context.mounted) context.go('/auth/login');
@@ -70,23 +70,7 @@ class HomeScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Welcome
-            Text(
-              userName.isNotEmpty
-                  ? 'Bonjour, $userName !'
-                  : "Bienvenue sur Teka RDC",
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: TekaColors.foreground,
-                  ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              "Espace Vendeur",
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: TekaColors.mutedForeground,
-                  ),
-            ),
+            _SellerHero(userName: userName),
             const SizedBox(height: 20),
 
             // Stats cards
@@ -254,11 +238,9 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildOrdersCard(
-      BuildContext context, SellerOrdersState ordersState) {
-    final pendingCount = ordersState.orders
-        .where((o) => o.status == OrderStatus.pending)
-        .length;
+  Widget _buildOrdersCard(BuildContext context, SellerOrdersState ordersState) {
+    final pendingCount =
+        ordersState.orders.where((o) => o.status == OrderStatus.pending).length;
 
     return InkWell(
       onTap: () => context.push('/orders'),
@@ -305,8 +287,7 @@ class HomeScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right,
-                color: TekaColors.mutedForeground),
+            const Icon(Icons.chevron_right, color: TekaColors.mutedForeground),
           ],
         ),
       ),
@@ -357,8 +338,7 @@ class HomeScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right,
-                color: TekaColors.mutedForeground),
+            const Icon(Icons.chevron_right, color: TekaColors.mutedForeground),
           ],
         ),
       ),
@@ -400,7 +380,7 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ),
                   Text(
-                    "Avis recents",
+                    "Avis récents",
                     style: TextStyle(
                       fontSize: 12,
                       color: TekaColors.mutedForeground,
@@ -409,8 +389,7 @@ class HomeScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right,
-                color: TekaColors.mutedForeground),
+            const Icon(Icons.chevron_right, color: TekaColors.mutedForeground),
           ],
         ),
       ),
@@ -426,8 +405,7 @@ class HomeScreen extends ConsumerWidget {
         decoration: BoxDecoration(
           color: Colors.deepPurple.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
-          border:
-              Border.all(color: Colors.deepPurple.withValues(alpha: 0.2)),
+          border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.2)),
         ),
         child: Row(
           children: [
@@ -453,7 +431,7 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ),
                   Text(
-                    "Creer une promotion",
+                    "Créer une promotion",
                     style: TextStyle(
                       fontSize: 12,
                       color: TekaColors.mutedForeground,
@@ -462,8 +440,7 @@ class HomeScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right,
-                color: TekaColors.mutedForeground),
+            const Icon(Icons.chevron_right, color: TekaColors.mutedForeground),
           ],
         ),
       ),
@@ -487,6 +464,100 @@ class HomeScreen extends ConsumerWidget {
           Text(
             "Aucun produit pour le moment",
             style: const TextStyle(color: TekaColors.mutedForeground),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SellerHero extends StatelessWidget {
+  final String userName;
+
+  const _SellerHero({required this.userName});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [TekaColors.tekaRed, Color(0xFF8F0B21)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: TekaColors.tekaRed.withValues(alpha: 0.18),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            userName.isNotEmpty ? 'Bonjour, $userName !' : "Bienvenue",
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            "Gérez vos produits, commandes et revenus depuis votre espace vendeur.",
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.82),
+                  height: 1.35,
+                ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: const [
+              _HeroChip(icon: Icons.inventory_2_outlined, label: "Catalogue"),
+              _HeroChip(icon: Icons.receipt_long_outlined, label: "Commandes"),
+              _HeroChip(
+                  icon: Icons.account_balance_wallet_outlined,
+                  label: "Revenus"),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _HeroChip({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: Colors.white),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+              fontSize: 12,
+            ),
           ),
         ],
       ),

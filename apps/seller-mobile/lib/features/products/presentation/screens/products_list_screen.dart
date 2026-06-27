@@ -12,8 +12,7 @@ class ProductsListScreen extends ConsumerStatefulWidget {
   const ProductsListScreen({super.key});
 
   @override
-  ConsumerState<ProductsListScreen> createState() =>
-      _ProductsListScreenState();
+  ConsumerState<ProductsListScreen> createState() => _ProductsListScreenState();
 }
 
 class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
@@ -70,15 +69,14 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
     );
   }
 
-  Widget _buildFilterChips(
-      BuildContext context, ProductsListState state) {
+  Widget _buildFilterChips(BuildContext context, ProductsListState state) {
     final filters = <_FilterItem>[
       _FilterItem(null, "Tous"),
       _FilterItem(ProductStatus.draft, "Brouillon"),
       _FilterItem(ProductStatus.pendingReview, "En attente"),
       _FilterItem(ProductStatus.active, "Actif"),
-      _FilterItem(ProductStatus.rejected, "Rejete"),
-      _FilterItem(ProductStatus.archived, "Archive"),
+      _FilterItem(ProductStatus.rejected, "Rejeté"),
+      _FilterItem(ProductStatus.archived, "Archivé"),
       _FilterItem(ProductStatus.suspended, "Suspendu"),
     ];
 
@@ -108,8 +106,7 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
     );
   }
 
-  Widget _buildErrorState(
-      BuildContext context, String error) {
+  Widget _buildErrorState(BuildContext context, String error) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -120,7 +117,7 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
                 size: 48, color: TekaColors.destructive),
             const SizedBox(height: 12),
             Text(
-              "Une erreur est survenue. Veuillez reessayer.",
+              "Une erreur est survenue. Veuillez réessayer.",
               textAlign: TextAlign.center,
               style: const TextStyle(color: TekaColors.mutedForeground),
             ),
@@ -129,7 +126,7 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
               onPressed: () =>
                   ref.read(sellerProductsProvider.notifier).loadProducts(),
               icon: const Icon(Icons.refresh),
-              label: Text("Reessayer"),
+              label: Text("Réessayer"),
             ),
           ],
         ),
@@ -145,7 +142,8 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.inventory_2_outlined,
-                size: 64, color: TekaColors.mutedForeground.withValues(alpha: 0.5)),
+                size: 64,
+                color: TekaColors.mutedForeground.withValues(alpha: 0.5)),
             const SizedBox(height: 16),
             Text(
               "Aucun produit pour le moment",
@@ -165,11 +163,9 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
     );
   }
 
-  Widget _buildProductsList(
-      BuildContext context, ProductsListState state) {
+  Widget _buildProductsList(BuildContext context, ProductsListState state) {
     return RefreshIndicator(
-      onRefresh: () =>
-          ref.read(sellerProductsProvider.notifier).loadProducts(),
+      onRefresh: () => ref.read(sellerProductsProvider.notifier).loadProducts(),
       child: ListView.builder(
         controller: _scrollController,
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -259,8 +255,7 @@ class _ProductListItem extends StatelessWidget {
                     const SizedBox(height: 6),
                     Row(
                       children: [
-                        StatusBadge(
-                            status: product.status, compact: true),
+                        StatusBadge(status: product.status, compact: true),
                         const Spacer(),
                         Text(
                           dateFormat.format(product.createdAt),

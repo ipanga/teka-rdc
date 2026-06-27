@@ -498,7 +498,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       }
     } catch (e) {
       if (mounted) {
-        _showSnackBar("Une erreur est survenue. Veuillez reessayer.");
+        _showSnackBar("Une erreur est survenue. Veuillez réessayer.");
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);
@@ -548,7 +548,8 @@ class _ConditionOption extends StatelessWidget {
             Icon(
               icon,
               size: 20,
-              color: isSelected ? TekaColors.tekaRed : TekaColors.mutedForeground,
+              color:
+                  isSelected ? TekaColors.tekaRed : TekaColors.mutedForeground,
             ),
             const SizedBox(width: 8),
             Text(

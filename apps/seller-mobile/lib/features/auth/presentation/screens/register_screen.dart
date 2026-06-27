@@ -62,7 +62,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Creer un compte'),
+        title: const Text('Créer un compte'),
         backgroundColor: Colors.transparent,
         foregroundColor: TekaColors.foreground,
         elevation: 0,
@@ -77,7 +77,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               children: [
                 const SizedBox(height: 16),
                 Text(
-                  'Creer votre compte',
+                  'Créer votre compte',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -141,7 +141,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   autofillHints: const [AutofillHints.newPassword],
                   decoration: InputDecoration(
                     labelText: 'Mot de passe',
-                    helperText: 'Au moins 8 caracteres, avec lettres et chiffres',
+                    helperText:
+                        'Au moins 8 caracteres, avec lettres et chiffres',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(_obscurePassword
@@ -191,8 +192,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                             ),
                           )
                         : const Text(
-                            'Creer mon compte',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                            'Créer mon compte',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w600),
                           ),
                   ),
                 ),

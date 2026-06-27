@@ -41,12 +41,12 @@ class _ProductImagesScreenState extends ConsumerState<ProductImagesScreen> {
               const Icon(Icons.error_outline,
                   size: 48, color: TekaColors.destructive),
               const SizedBox(height: 12),
-              Text("Une erreur est survenue. Veuillez reessayer."),
+              Text("Une erreur est survenue. Veuillez réessayer."),
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () =>
                     ref.invalidate(productDetailProvider(widget.productId)),
-                child: Text("Reessayer"),
+                child: Text("Réessayer"),
               ),
             ],
           ),
@@ -56,8 +56,7 @@ class _ProductImagesScreenState extends ConsumerState<ProductImagesScreen> {
     );
   }
 
-  Widget _buildContent(
-      BuildContext context, SellerProductModel product) {
+  Widget _buildContent(BuildContext context, SellerProductModel product) {
     final images = product.images;
     final canAdd = images.length < _maxImages;
 
@@ -113,8 +112,8 @@ class _ProductImagesScreenState extends ConsumerState<ProductImagesScreen> {
                 final image = images[index];
                 return ImageUploadTile(
                   image: image,
-                  onDelete: () => _confirmDeleteImage(
-                      context, product.id, image),
+                  onDelete: () =>
+                      _confirmDeleteImage(context, product.id, image),
                 );
               }
               // Add tile
@@ -160,7 +159,7 @@ class _ProductImagesScreenState extends ConsumerState<ProductImagesScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Une erreur est survenue. Veuillez reessayer."),
+            content: Text("Une erreur est survenue. Veuillez réessayer."),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -170,8 +169,8 @@ class _ProductImagesScreenState extends ConsumerState<ProductImagesScreen> {
     }
   }
 
-  Future<void> _confirmDeleteImage(BuildContext context,
-      String productId, ProductImageModel image) async {
+  Future<void> _confirmDeleteImage(
+      BuildContext context, String productId, ProductImageModel image) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -214,7 +213,7 @@ class _ProductImagesScreenState extends ConsumerState<ProductImagesScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Une erreur est survenue. Veuillez reessayer."),
+            content: Text("Une erreur est survenue. Veuillez réessayer."),
             behavior: SnackBarBehavior.floating,
           ),
         );

@@ -58,7 +58,7 @@ class SellerReviewsScreen extends ConsumerWidget {
 
           // Reviews header
           Text(
-            "Avis recents",
+            "Avis récents",
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
                   fontWeight: FontWeight.w600,
                 ),
@@ -172,9 +172,8 @@ class SellerReviewsScreen extends ConsumerWidget {
               children: List.generate(5, (index) {
                 final starNum = 5 - index;
                 final count = stats.distribution[starNum] ?? 0;
-                final percentage = stats.totalReviews > 0
-                    ? count / stats.totalReviews
-                    : 0.0;
+                final percentage =
+                    stats.totalReviews > 0 ? count / stats.totalReviews : 0.0;
 
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 2),
@@ -277,8 +276,7 @@ class SellerReviewsScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildError(
-      BuildContext context, WidgetRef ref) {
+  Widget _buildError(BuildContext context, WidgetRef ref) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -288,12 +286,12 @@ class SellerReviewsScreen extends ConsumerWidget {
             const Icon(Icons.error_outline,
                 size: 48, color: TekaColors.destructive),
             const SizedBox(height: 12),
-            Text("Une erreur est survenue. Veuillez reessayer."),
+            Text("Une erreur est survenue. Veuillez réessayer."),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () =>
                   ref.read(sellerReviewsProvider.notifier).loadReviews(),
-              child: Text("Reessayer"),
+              child: Text("Réessayer"),
             ),
           ],
         ),

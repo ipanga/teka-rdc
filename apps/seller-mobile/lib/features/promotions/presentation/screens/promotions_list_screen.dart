@@ -19,7 +19,7 @@ class PromotionsListScreen extends ConsumerWidget {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => context.push('/promotions/create'),
         icon: const Icon(Icons.add),
-        label: const Text("Creer une promotion"),
+        label: const Text("Créer une promotion"),
       ),
       body: RefreshIndicator(
         onRefresh: () =>
@@ -123,12 +123,12 @@ class PromotionsListScreen extends ConsumerWidget {
             const Icon(Icons.error_outline,
                 size: 48, color: TekaColors.destructive),
             const SizedBox(height: 12),
-            const Text("Une erreur est survenue. Veuillez reessayer."),
+            const Text("Une erreur est survenue. Veuillez réessayer."),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () =>
                   ref.read(sellerPromotionsProvider.notifier).loadPromotions(),
-              child: const Text("Reessayer"),
+              child: const Text("Réessayer"),
             ),
           ],
         ),
@@ -145,7 +145,8 @@ class PromotionsListScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text("Annuler la promotion"),
-        content: const Text("Etes-vous sur de vouloir annuler cette promotion ?"),
+        content:
+            const Text("Etes-vous sur de vouloir annuler cette promotion ?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
@@ -165,7 +166,7 @@ class PromotionsListScreen extends ConsumerWidget {
                   SnackBar(
                     content: Text(success
                         ? "Annulee"
-                        : "Une erreur est survenue. Veuillez reessayer."),
+                        : "Une erreur est survenue. Veuillez réessayer."),
                   ),
                 );
               }

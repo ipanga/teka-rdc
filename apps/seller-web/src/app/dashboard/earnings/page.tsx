@@ -35,6 +35,16 @@ const PAYOUT_STATUS_LABELS: Record<string, string> = {
   REJECTED: 'Rejeté',
 };
 
+const getSellerFriendlyError = (err: unknown) => {
+  if (err instanceof ApiError) {
+    if (err.status >= 500 || err.message.toLowerCase().includes('interne')) {
+      return "Impossible de charger ces données pour le moment. Réessayez plus tard.";
+    }
+    return err.message;
+  }
+  return "Impossible de charger ces données pour le moment. Réessayez plus tard.";
+};
+
 export default function EarningsPage() {
 
   // Wallet state
@@ -122,9 +132,7 @@ export default function EarningsPage() {
       setEarnings(res.data ?? []);
       setEarningsTotalPages(res.meta?.totalPages ?? 1);
     } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      }
+      setError(getSellerFriendlyError(err));
     } finally {
       setEarningsLoading(false);
     }
@@ -145,9 +153,7 @@ export default function EarningsPage() {
       setPayouts(res.data ?? []);
       setPayoutsTotalPages(res.meta?.totalPages ?? 1);
     } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      }
+      setError(getSellerFriendlyError(err));
     } finally {
       setPayoutsLoading(false);
     }
@@ -230,11 +236,7 @@ export default function EarningsPage() {
       await Promise.all([loadWallet(), loadPayouts()]);
       setActiveTab('payouts');
     } catch (err) {
-      if (err instanceof ApiError) {
-        setRequestError(err.message);
-      } else {
-        setRequestError("Demande de virement envoyée avec succès");
-      }
+      setRequestError(getSellerFriendlyError(err));
     } finally {
       setSubmitting(false);
     }
