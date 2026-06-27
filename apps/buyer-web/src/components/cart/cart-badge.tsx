@@ -31,11 +31,11 @@ export function CartBadge() {
   return (
     <Link
       href="/panier"
-      className="relative p-2 text-foreground hover:text-primary transition-colors"
+      className="relative inline-flex h-10 w-10 items-center justify-center rounded-lg border border-border bg-white text-foreground shadow-xs transition-all hover:border-primary/30 hover:bg-surface-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       aria-label="Cart"
     >
       <svg
-        className="w-6 h-6"
+        className="h-5 w-5"
         fill="none"
         stroke="currentColor"
         strokeWidth={1.5}

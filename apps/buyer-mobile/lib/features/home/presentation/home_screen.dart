@@ -360,32 +360,62 @@ class _HomeAppBarTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final label = cityName ?? 'Choisir une ville';
+
     return Semantics(
-      label: 'Teka CD',
+      label: 'Teka CD, livraison à $label',
+      textDirection: TextDirection.ltr,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            height: 28,
-            alignment: Alignment.centerLeft,
-            child: Image.asset(
-              'assets/brand/logo_teka_cd.png',
-              height: 25,
-              width: 126,
-              fit: BoxFit.contain,
-              filterQuality: FilterQuality.high,
-            ),
+          const _HomeBrandMark(),
+          const SizedBox(height: 4),
+          _CitySwitcherChip(
+            cityName: label,
+            cityAccent: cityAccent,
+            onTap: onCityTap,
           ),
-          if (cityName != null) ...[
-            const SizedBox(height: 4),
-            _CitySwitcherChip(
-              cityName: cityName!,
-              cityAccent: cityAccent,
-              onTap: onCityTap,
+        ],
+      ),
+    );
+  }
+}
+
+class _HomeBrandMark extends StatelessWidget {
+  const _HomeBrandMark();
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: RichText(
+        maxLines: 1,
+        overflow: TextOverflow.clip,
+        textDirection: TextDirection.ltr,
+        text: const TextSpan(
+          children: [
+            TextSpan(
+              text: 'TEKA',
+              style: TextStyle(
+                color: TekaColors.foreground,
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0,
+                height: 1,
+              ),
+            ),
+            TextSpan(
+              text: '.CD',
+              style: TextStyle(
+                color: TekaColors.tekaRed,
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0,
+                height: 1,
+              ),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -404,42 +434,49 @@ class _CitySwitcherChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(999),
-      shape: StadiumBorder(
-        side: BorderSide(color: cityAccent.withValues(alpha: 0.26)),
-      ),
-      child: InkWell(
-        onTap: onTap,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 190),
+      child: Material(
+        color: Colors.white,
         borderRadius: BorderRadius.circular(999),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.location_on_rounded,
-                size: 13,
-                color: cityAccent,
-              ),
-              const SizedBox(width: 3),
-              Text(
-                cityName,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: cityAccent,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.1,
-                    ),
-              ),
-              const SizedBox(width: 1),
-              Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 14,
-                color: cityAccent,
-              ),
-            ],
+        shape: StadiumBorder(
+          side: BorderSide(color: cityAccent.withValues(alpha: 0.26)),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.location_on_rounded,
+                  size: 13,
+                  color: cityAccent,
+                ),
+                const SizedBox(width: 3),
+                Flexible(
+                  child: Text(
+                    cityName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: cityAccent,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0,
+                        ),
+                  ),
+                ),
+                const SizedBox(width: 1),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 14,
+                  color: cityAccent,
+                ),
+              ],
+            ),
           ),
         ),
       ),
