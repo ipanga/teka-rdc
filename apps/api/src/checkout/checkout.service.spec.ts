@@ -11,7 +11,7 @@ function makeService(overrides?: {
   estimate?: (
     from: string,
     to: string,
-  ) => { feeCDF: string; feeUSD: string | null };
+  ) => { feeCDF: string | null; feeUSD: string | null; found: boolean };
 }) {
   const sellerCityByUser = overrides?.sellerCityByUser ?? {};
   const cartService = {
@@ -34,14 +34,15 @@ function makeService(overrides?: {
   const estimate =
     overrides?.estimate ??
     ((from: string, to: string) => {
-      if (from === to) return { feeCDF: '300000', feeUSD: '120' };
+      if (from === to)
+        return { feeCDF: '300000', feeUSD: '120', found: true };
       if (from === 'Kolwezi' && to === 'Lubumbashi')
-        return { feeCDF: '1500000', feeUSD: '600' };
-      return { feeCDF: '500000', feeUSD: '200' };
+        return { feeCDF: '1500000', feeUSD: '600', found: true };
+      return { feeCDF: '500000', feeUSD: '200', found: true };
     });
   const deliveryZones = {
     estimateFee: jest.fn((from: string, to: string) =>
-      Promise.resolve({ data: { ...estimate(from, to), isDefault: false } }),
+      Promise.resolve({ data: estimate(from, to) }),
     ),
   };
   const service = new CheckoutService(
@@ -157,5 +158,42 @@ describe('CheckoutService.quote', () => {
       'Kolwezi',
     );
     expect(data.deliveryFeeCDF).toBe('500000'); // default route
+  });
+
+  it('resolves the destination from the address CITY (not the free-form town)', async () => {
+    const { service, deliveryZones } = makeService({
+      // Commune-level town, but cityId resolves to the city name.
+      address: { town: 'Ruashi', city: { name: 'Lubumbashi' } },
+      sellerCityByUser: { sX: 'Lubumbashi' },
+      cartSummary: {
+        items: [{}],
+        sellerGroups: [
+          { sellerId: 'sX', sellerName: 'X', items: [{ quantity: 1 }], subtotalCDF: 500000n },
+        ],
+      },
+    });
+    await service.quote('u1', 'addr1');
+    // Matched as Lubumbashi→Lubumbashi (city), NOT Lubumbashi→Ruashi.
+    expect(deliveryZones.estimateFee).toHaveBeenCalledWith(
+      'Lubumbashi',
+      'Lubumbashi',
+    );
+  });
+
+  it('flags delivery as unavailable (no silent free) when no zone covers the route', async () => {
+    const { service } = makeService({
+      address: { town: 'Bukavu' },
+      estimate: () => ({ feeCDF: null, feeUSD: null, found: false }),
+      cartSummary: {
+        items: [{}],
+        sellerGroups: [
+          { sellerId: 'sX', sellerName: 'X', items: [{ quantity: 1 }], subtotalCDF: 500000n },
+        ],
+      },
+    });
+    const { data } = await service.quote('u1', 'addr1');
+    expect(data.deliveryAvailable).toBe(false);
+    expect(data.sellerQuotes[0].deliveryAvailable).toBe(false);
+    expect(data.sellerQuotes[0].deliveryFeeCDF).toBeNull();
   });
 });
