@@ -78,8 +78,8 @@ export default function DeliveryZonesPage() {
     setEditingZone(zone);
     setFormFromTown(zone.fromTown);
     setFormToTown(zone.toTown);
-    setFormFeeCDF(zone.feeCDF);
-    setFormFeeUSD(zone.feeUSD || '');
+    setFormFeeCDF(minorToMajor(zone.feeCDF, 0));
+    setFormFeeUSD(minorToMajor(zone.feeUSD, 2));
     setFormIsActive(zone.isActive);
     setShowModal(true);
   };
@@ -98,8 +98,8 @@ export default function DeliveryZonesPage() {
       const body: DeliveryZoneFormData = {
         fromTown: formFromTown.trim(),
         toTown: formToTown.trim(),
-        feeCDF: formFeeCDF.trim(),
-        feeUSD: formFeeUSD.trim() || undefined,
+        feeCDF: majorToMinor(formFeeCDF.trim()),
+        feeUSD: formFeeUSD.trim() ? majorToMinor(formFeeUSD.trim()) : undefined,
         isActive: formIsActive,
       };
 
@@ -155,13 +155,21 @@ export default function DeliveryZonesPage() {
     }
   };
 
-  const formatCDF = (centimes: string) => {
-    return new Intl.NumberFormat('fr-CD', {
-      style: 'currency',
-      currency: 'CDF',
-      maximumFractionDigits: 0,
-    }).format(Number(centimes) / 100);
+  // Money is stored in MINOR units (CDF centimes / USD cents = major × 100). The
+  // form shows & accepts MAJOR units (whole FC, USD with 2 decimals) — matching
+  // the seller product form — and converts on load/save, so a fee typed as
+  // "3000" stores 300000 centimes (not 100× too small, the old bug).
+  const minorToMajor = (minor: string | null | undefined, decimals: number) => {
+    if (minor == null || minor === '') return '';
+    const major = Number(minor) / 100;
+    return decimals > 0 ? major.toFixed(decimals) : String(major);
   };
+  const majorToMinor = (major: string) => String(Math.round(Number(major) * 100));
+
+  const formatFC = (centimes: string) =>
+    `${new Intl.NumberFormat('fr-CD', { maximumFractionDigits: 0 }).format(
+      Number(centimes) / 100,
+    )} FC`;
 
   const formatUSD = (centimes: string) => {
     return new Intl.NumberFormat('fr-CD', {
@@ -209,7 +217,7 @@ export default function DeliveryZonesPage() {
                 Ville d&apos;arrivée
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
-                Frais (CDF)
+                Frais (FC)
               </th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
                 Frais (USD)
@@ -245,7 +253,7 @@ export default function DeliveryZonesPage() {
                     {zone.toTown}
                   </td>
                   <td className="px-4 py-3 text-sm text-foreground whitespace-nowrap">
-                    {formatCDF(zone.feeCDF)}
+                    {formatFC(zone.feeCDF)}
                   </td>
                   <td className="px-4 py-3 text-sm text-foreground whitespace-nowrap">
                     {zone.feeUSD ? formatUSD(zone.feeUSD) : '-'}
@@ -336,7 +344,7 @@ export default function DeliveryZonesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-1">
-                    Frais (CDF) <span className="text-destructive">*</span>
+                    Frais (FC) <span className="text-destructive">*</span>
                   </label>
                   <input
                     type="number"
@@ -344,7 +352,8 @@ export default function DeliveryZonesPage() {
                     onChange={(e) => setFormFeeCDF(e.target.value)}
                     required
                     min="0"
-                    placeholder="Montant en centimes"
+                    step="1"
+                    placeholder="Ex : 3000"
                     className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
@@ -358,7 +367,8 @@ export default function DeliveryZonesPage() {
                     value={formFeeUSD}
                     onChange={(e) => setFormFeeUSD(e.target.value)}
                     min="0"
-                    placeholder="Montant en centimes"
+                    step="0.01"
+                    placeholder="Ex : 1.20"
                     className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                   />
                 </div>
