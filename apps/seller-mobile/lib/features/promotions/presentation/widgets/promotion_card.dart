@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:seller_mobile/core/utils/price_formatter.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../data/models/promotion_model.dart';
 import 'promotion_status_badge.dart';
@@ -17,7 +18,6 @@ class PromotionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('dd/MM/yyyy', 'fr');
-    final priceFormat = NumberFormat('#,###', 'fr');
 
     final productTitle = promotion.product?.title ??
         promotion.title;
@@ -127,7 +127,7 @@ class PromotionCard extends StatelessWidget {
                   )
                 else if (promotion.discountCDFDisplay != null)
                   Text(
-                    '-${priceFormat.format(promotion.discountCDFDisplay)} FC',
+                    '-${formatFcNumber(promotion.discountCDFDisplay)} FC',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:seller_mobile/core/utils/price_formatter.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../data/models/earning_model.dart';
 
@@ -10,7 +11,6 @@ class EarningTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final priceFormat = NumberFormat('#,###', 'fr');
     final dateFormat = DateFormat('dd/MM/yyyy', 'fr');
 
     return Container(
@@ -102,7 +102,7 @@ class EarningTile extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '${priceFormat.format(earning.grossAmountCDFDisplay)} FC',
+                    '${formatFcNumber(earning.grossAmountCDFDisplay)} FC',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -121,7 +121,7 @@ class EarningTile extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '-${priceFormat.format(earning.commissionCDFDisplay)} FC',
+                    '-${formatFcNumber(earning.commissionCDFDisplay)} FC',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -141,7 +141,7 @@ class EarningTile extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '${priceFormat.format(earning.netAmountCDFDisplay)} FC',
+                    '${formatFcNumber(earning.netAmountCDFDisplay)} FC',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:seller_mobile/core/utils/price_formatter.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../data/models/order_model.dart';
 import 'order_status_badge.dart';
@@ -13,7 +14,6 @@ class OrderCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm', 'fr');
-    final priceFormat = NumberFormat('#,###', 'fr');
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -98,7 +98,7 @@ class OrderCard extends StatelessWidget {
                   ),
                   const Spacer(),
                   Text(
-                    '${priceFormat.format(order.totalCDFDisplay)} FC',
+                    '${formatFcNumber(order.totalCDFDisplay)} FC',
                     style: TextStyle(
                       color: TekaColors.tekaRed,
                       fontWeight: FontWeight.w700,

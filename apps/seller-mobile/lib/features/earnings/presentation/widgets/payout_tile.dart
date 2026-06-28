@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:seller_mobile/core/utils/price_formatter.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../data/models/earning_model.dart';
 
@@ -10,7 +11,6 @@ class PayoutTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final priceFormat = NumberFormat('#,###', 'fr');
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm', 'fr');
 
     return Container(
@@ -28,7 +28,7 @@ class PayoutTile extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  '${priceFormat.format(payout.amountCDFDisplay)} FC',
+                  '${formatFcNumber(payout.amountCDFDisplay)} FC',
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,

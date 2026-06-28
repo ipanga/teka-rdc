@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:seller_mobile/core/utils/price_formatter.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../data/models/product_model.dart';
 import '../../data/products_repository.dart';
@@ -59,7 +60,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   }
 
   Widget _buildContent(BuildContext context, SellerProductModel product) {
-    final priceFormat = NumberFormat('#,###', 'fr');
     final locale = 'fr';
 
     return ListView(
@@ -138,7 +138,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         Row(
           children: [
             Text(
-              '${priceFormat.format(product.priceCDFDisplay)} FC',
+              '${formatFcNumber(product.priceCDFDisplay)} FC',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
