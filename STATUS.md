@@ -6,16 +6,21 @@
 
 ## Active initiative
 
-**Delivery-Fee Correctness + Currency CDF→FC** (started 2026-06-28) — **CODE-COMPLETE on `develop`, all 6 phases
-done; awaiting user review → push/merge/deploy.** Fixed checkout "Gratuit" (backend now BLOCKS on no-zone instead
-of a silent default; buyer-web/mobile surface the block, no swallowed `catch{}→free`); fixed admin delivery-zone
-×100/÷100 scaling; standardized user-facing **CDF→FC** across API messages + web + mobile + emails (kept `*CDF`
-field names + ISO `'CDF'` + JSON-LD). City-based zone matching (trim/case-insensitive). **Tracker:
-`tasks/delivery-fee-and-fc-progress.md`** (supersedes the never-closed `delivery-fee-quickwin-progress.md`); model
-in `docs/delivery-fees-and-currency.md`. **6 commits stacked on develop, UNPUSHED.** Tests: api 165 unit + 116 e2e,
-buyer-mobile 116, all web build. **Decisions locked**: D1 = block on no-zone; D2 = city-based match.
-**Follow-ups (user)**: prod zone-data audit (100×-off / coverage) · confirm original "Gratuit" cause on prod as a
-real BUYER · click-test admin/seller UIs (login-gated locally).
+**Mobile Image Preview + Dot-Separator Price Formatting** (started 2026-06-28) — IN PROGRESS on `develop`.
+(1) buyer-mobile full-screen product-image viewer needs a clear top-right close button (safe-area, preserve
+zoom/swipe). (2) Standardize FC display with **`.` thousand separators** (52.957 FC) + USD `1.250,75 $US` via a
+SHARED formatter across all 6 surfaces (display-only). **Tracker: `tasks/image-preview-and-dot-formatting-progress.md`.**
+- **Phase 1 ✅** shared `@teka/shared` `formatFC`/`formatUSD` (dot/comma, null-safe) + `groupThousands`.
+- **Phase 2 ✅** buyer-web `format.ts` delegates → **live-verified** dot separators on /promotions.
+- **NEXT (Phase 3+)**: admin-web + seller-web formatters; buyer-mobile formatter + **image-preview close button**;
+  seller-mobile; emails/docs. Image-preview impl mapped: `features/catalog/.../widgets/image_gallery.dart`
+  `_FullScreenGallery` (AppBar back only, no X; has PageView swipe + InteractiveViewer zoom; black bg; no SafeArea).
+- Phase-by-phase, pausing for review.
+
+> **SHIPPED 2026-06-28** — Delivery-Fee Correctness + CDF→FC (prod, releases #509 + hotfix #510). Backend BLOCKS on
+> no-zone (city-based match); admin zone ×100/÷100 scaling fixed; CDF→FC everywhere. **Checkout double-wrap hotfix**
+> (`quote()` returned `{data}` → double-wrapped → clients threw "Gratuit"/"Impossible") fixed + deployed. Model:
+> `docs/delivery-fees-and-currency.md`. Follow-ups (user): prod zone-data audit · re-test checkout shows 4.000 FC.
 
 ---
 
