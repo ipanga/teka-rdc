@@ -627,7 +627,7 @@ export class PromotionsService {
   private validateDiscount(discountPercent?: number, discountCDF?: number) {
     if (!discountPercent && !discountCDF) {
       throw new BadRequestException(
-        'Au moins un type de réduction est requis (pourcentage ou montant CDF)',
+        'Au moins un type de réduction est requis (pourcentage ou montant FC)',
       );
     }
   }

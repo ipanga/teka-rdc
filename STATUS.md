@@ -6,13 +6,16 @@
 
 ## Active initiative
 
-**Delivery-Fee Correctness + Currency CDF→FC** (started 2026-06-28) — fix checkout "Frais de livraison: Gratuit"
-(server calc is correct & always ≥ 5000 default → buyer-web's `/v1/checkout/quote` call fails and is swallowed by
-`catch{}→free`); fix admin delivery-zone amount scaling (form missing ×100/÷100 unit conversion the product form
-has); standardize user-facing currency label **CDF→FC** across web + mobile + emails (keep `*CDF` field names + ISO
-`'CDF'`). Investigation complete (4 Explore agents + direct reads). **Tracker: `tasks/delivery-fee-and-fc-progress.md`**
-(supersedes the never-closed `tasks/delivery-fee-quickwin-progress.md`). NEXT: Phase 0 reproduce the quote failure;
-**gated on D1 (no-zone behavior) decision.**
+**Delivery-Fee Correctness + Currency CDF→FC** (started 2026-06-28) — **CODE-COMPLETE on `develop`, all 6 phases
+done; awaiting user review → push/merge/deploy.** Fixed checkout "Gratuit" (backend now BLOCKS on no-zone instead
+of a silent default; buyer-web/mobile surface the block, no swallowed `catch{}→free`); fixed admin delivery-zone
+×100/÷100 scaling; standardized user-facing **CDF→FC** across API messages + web + mobile + emails (kept `*CDF`
+field names + ISO `'CDF'` + JSON-LD). City-based zone matching (trim/case-insensitive). **Tracker:
+`tasks/delivery-fee-and-fc-progress.md`** (supersedes the never-closed `delivery-fee-quickwin-progress.md`); model
+in `docs/delivery-fees-and-currency.md`. **6 commits stacked on develop, UNPUSHED.** Tests: api 165 unit + 116 e2e,
+buyer-mobile 116, all web build. **Decisions locked**: D1 = block on no-zone; D2 = city-based match.
+**Follow-ups (user)**: prod zone-data audit (100×-off / coverage) · confirm original "Gratuit" cause on prod as a
+real BUYER · click-test admin/seller UIs (login-gated locally).
 
 ---
 

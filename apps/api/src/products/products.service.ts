@@ -735,7 +735,7 @@ export class ProductsService {
     }
 
     if (product.priceCDF <= BigInt(0)) {
-      throw new BadRequestException('Le prix CDF doit être supérieur à zéro');
+      throw new BadRequestException('Le prix FC doit être supérieur à zéro');
     }
 
     const submitted = await this.prisma.product.update({

@@ -21,11 +21,11 @@ export class CreateDeliveryZoneDto {
 
   @IsString({
     message:
-      'Les frais en CDF doivent être une chaîne de caractères (nombre entier)',
+      'Les frais en FC doivent être une chaîne de caractères (nombre entier)',
   })
-  @IsNotEmpty({ message: 'Les frais en CDF sont requis' })
+  @IsNotEmpty({ message: 'Les frais en FC sont requis' })
   @Matches(/^\d+$/, {
-    message: 'Les frais en CDF doivent contenir uniquement des chiffres',
+    message: 'Les frais en FC doivent contenir uniquement des chiffres',
   })
   feeCDF: string;
 
