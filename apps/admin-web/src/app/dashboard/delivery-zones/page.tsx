@@ -1,5 +1,6 @@
 'use client';
 
+import { formatFC, formatUSD } from '@teka/shared';
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/lib/api-client';
 
@@ -166,19 +167,6 @@ export default function DeliveryZonesPage() {
   };
   const majorToMinor = (major: string) => String(Math.round(Number(major) * 100));
 
-  const formatFC = (centimes: string) =>
-    `${new Intl.NumberFormat('fr-CD', { maximumFractionDigits: 0 }).format(
-      Number(centimes) / 100,
-    )} FC`;
-
-  const formatUSD = (centimes: string) => {
-    return new Intl.NumberFormat('fr-CD', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(Number(centimes) / 100);
-  };
 
   return (
     <div className="p-8">

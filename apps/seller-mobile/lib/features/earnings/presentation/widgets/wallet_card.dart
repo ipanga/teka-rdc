@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:seller_mobile/core/utils/price_formatter.dart';
 
 class WalletCard extends StatelessWidget {
   final String label;
@@ -17,7 +17,6 @@ class WalletCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final priceFormat = NumberFormat('#,###', 'fr');
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -38,7 +37,7 @@ class WalletCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '${priceFormat.format(amountCDF)} FC',
+            '${formatFcNumber(amountCDF)} FC',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,

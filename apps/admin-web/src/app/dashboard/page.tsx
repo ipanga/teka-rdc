@@ -1,5 +1,6 @@
 'use client';
 
+import { formatFC } from '@teka/shared';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
@@ -49,9 +50,7 @@ function formatDateLabel(dateStr: unknown): string {
 }
 
 function formatCDFValue(centimes: number): string {
-  return `${new Intl.NumberFormat('fr-CD', {
-    maximumFractionDigits: 0,
-  }).format(centimes / 100)} FC`;
+  return formatFC(centimes);
 }
 
 function formatNumber(val: number): string {
@@ -99,11 +98,7 @@ export default function AdminDashboardPage() {
     fetchTrends();
   }, [fetchTrends]);
 
-  const formatCDF = (centimes: string) => {
-    return `${new Intl.NumberFormat('fr-CD', {
-      maximumFractionDigits: 0,
-    }).format(Number(centimes) / 100)} FC`;
-  };
+  const formatCDF = (centimes: string) => formatFC(centimes);
 
   const periodKey = (p: Period) => {
     switch (p) {

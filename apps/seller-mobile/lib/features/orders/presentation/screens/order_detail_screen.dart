@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:seller_mobile/core/utils/price_formatter.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../data/models/order_model.dart';
 import '../../data/orders_repository.dart';
@@ -70,7 +71,6 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
   Widget build(BuildContext context) {
     final locale = 'fr';
     final dateFormat = DateFormat('dd/MM/yyyy HH:mm', locale);
-    final priceFormat = NumberFormat('#,###', 'fr');
     final order = widget.order;
 
     return Column(
@@ -151,17 +151,17 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                 children: [
                   _buildPriceRow(
                     "Sous-total",
-                    '${priceFormat.format(order.subtotalCDFDisplay)} FC',
+                    '${formatFcNumber(order.subtotalCDFDisplay)} FC',
                   ),
                   const SizedBox(height: 4),
                   _buildPriceRow(
                     "Frais de livraison",
-                    '${priceFormat.format(order.deliveryFeeCDFDisplay)} FC',
+                    '${formatFcNumber(order.deliveryFeeCDFDisplay)} FC',
                   ),
                   const Divider(height: 16),
                   _buildPriceRow(
                     "Total",
-                    '${priceFormat.format(order.totalCDFDisplay)} FC',
+                    '${formatFcNumber(order.totalCDFDisplay)} FC',
                     isBold: true,
                     color: TekaColors.tekaRed,
                   ),
@@ -445,7 +445,6 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
 
   Widget _buildOrderItem(
       BuildContext context, OrderItemModel item, String locale) {
-    final priceFormat = NumberFormat('#,###', 'fr');
     final title = item.productTitle;
 
     return Padding(
@@ -489,7 +488,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Quantité: ${item.quantity} x ${priceFormat.format(item.unitPriceCDFDisplay)} FC',
+                  'Quantité: ${item.quantity} x ${formatFcNumber(item.unitPriceCDFDisplay)} FC',
                   style: const TextStyle(
                     fontSize: 11,
                     color: TekaColors.mutedForeground,
@@ -500,7 +499,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
           ),
           const SizedBox(width: 8),
           Text(
-            '${priceFormat.format(item.totalCDFDisplay)} FC',
+            '${formatFcNumber(item.totalCDFDisplay)} FC',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,

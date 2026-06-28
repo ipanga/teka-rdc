@@ -19,12 +19,21 @@ DRC users call the Congolese Franc **FC**. The **user-facing label is "FC"** eve
 emails + notifications). The ISO code `'CDF'` and all `*CDF` field/column names are **kept unchanged** in
 code and the database.
 
-- `Intl.NumberFormat({ style: 'currency', currency: 'CDF' })` *renders the literal "CDF"*, so formatters were
-  changed to output a plain number + `" FC"` (web `formatCDF`, mobile `price_formatter.dart` `symbol:'FC'`).
-- USD keeps its existing display (`"$US"`), e.g. `1,20 $US`.
-- JSON-LD `priceCurrency: 'CDF'` (buyer-web product pages) **stays ISO** — required for valid structured data
-  / SEO.
-- Example formatting: `30 000 FC`, `90 000 FC`, `1,20 $US`.
+**Format (DRC convention): `.` thousand separators, no decimals for FC; `,` decimals for USD.**
+Examples: `950 FC` · `1.200 FC` · `52.957 FC` · `1.250.000 FC` · `1,20 $US` · `1.250,75 $US`.
+
+### Shared formatter (single source of truth)
+- **Web** — `packages/shared/src/constants/currencies.ts`: `formatFC(centimes)` (dot thousands + " FC", null→`—`),
+  `formatUSD(cents)` (dot thousands, comma decimals, " $US", null→``), `groupThousands(intDigits)`, plus the
+  `formatCDF` alias. **All web apps delegate to it**: buyer-web `src/lib/format.ts`; admin-web + seller-web inline
+  formatters; the API notification/payout formatters (`order-notification` uses `groupThousands`,
+  `seller-notification` + `payouts` use `formatFC`). `Intl.NumberFormat` is NOT used for currency (it can't render
+  "FC" and uses space separators).
+- **Mobile** — `apps/buyer-mobile/lib/core/utils/price_formatter.dart` and
+  `apps/seller-mobile/lib/core/utils/price_formatter.dart` mirror the web helper (`formatCDF`/`formatUSD` +
+  `formatFcNumber` for major-unit values). Output is byte-identical to the web.
+- USD keeps the `"$US"` label. JSON-LD `priceCurrency: 'CDF'` (buyer-web product pages) **stays ISO** — required
+  for valid structured data / SEO.
 
 ## Delivery-fee calculation rule
 

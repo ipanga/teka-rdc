@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
+import 'package:seller_mobile/core/utils/price_formatter.dart';
 import '../../../core/theme/teka_colors.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../../orders/data/models/order_model.dart';
@@ -581,7 +581,6 @@ class _RecentProductItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final priceFormat = NumberFormat('#,###', 'fr');
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -614,7 +613,7 @@ class _RecentProductItem extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
-          '${priceFormat.format(product.priceCDFDisplay)} FC',
+          '${formatFcNumber(product.priceCDFDisplay)} FC',
           style: TextStyle(
             color: TekaColors.tekaRed,
             fontWeight: FontWeight.w600,

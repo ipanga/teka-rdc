@@ -1,5 +1,6 @@
 'use client';
 
+import { formatFC } from '@teka/shared';
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -267,13 +268,7 @@ export default function ProductDetailPage() {
     }
   };
 
-  const formatPrice = (centimes: string) => {
-    const amount = Number(centimes) / 100;
-    return `${new Intl.NumberFormat('fr-CD', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)} FC`;
-  };
+  const formatPrice = (centimes: string) => formatFC(centimes);
 
   if (isLoading) {
     return (

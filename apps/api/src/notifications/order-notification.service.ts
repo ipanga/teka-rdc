@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { groupThousands } from '@teka/shared';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationPrefsService } from '../users/notification-prefs.service';
@@ -416,6 +417,8 @@ export class OrderNotificationService {
     if (value === null || value === undefined) return '0';
     const numeric = typeof value === 'bigint' ? Number(value) : value;
     const francs = Math.round(numeric / 100);
-    return francs.toLocaleString('fr-FR');
+    // '.' thousand separators (DRC convention), matching web + mobile.
+    const sign = francs < 0 ? '-' : '';
+    return `${sign}${groupThousands(Math.abs(francs).toString())}`;
   }
 }

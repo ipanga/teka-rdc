@@ -5,6 +5,7 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
+import { formatFC } from '@teka/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { RequestPayoutDto } from './dto/request-payout.dto';
 import { UpdatePayoutMethodDto } from './dto/update-payout-method.dto';
@@ -46,7 +47,7 @@ export class PayoutsService {
 
     if (sellerProfile.walletBalanceCDF < MIN_PAYOUT_AMOUNT_CDF) {
       throw new BadRequestException(
-        `Le solde minimum pour un retrait est de 5 000 FC. Votre solde actuel est de ${Number(sellerProfile.walletBalanceCDF) / 100} FC`,
+        `Le solde minimum pour un retrait est de ${formatFC(Number(MIN_PAYOUT_AMOUNT_CDF))}. Votre solde actuel est de ${formatFC(Number(sellerProfile.walletBalanceCDF))}.`,
       );
     }
 

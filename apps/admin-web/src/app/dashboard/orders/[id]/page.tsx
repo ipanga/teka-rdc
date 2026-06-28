@@ -1,5 +1,6 @@
 'use client';
 
+import { formatFC, formatUSD } from '@teka/shared';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -126,20 +127,8 @@ export default function OrderDetailPage() {
     fetchOrder();
   }, [fetchOrder]);
 
-  const formatCDF = (centimes: string) => {
-    return `${new Intl.NumberFormat('fr-CD', {
-      maximumFractionDigits: 0,
-    }).format(Number(centimes) / 100)} FC`;
-  };
+  const formatCDF = (centimes: string) => formatFC(centimes);
 
-  const formatUSD = (centimes: string) => {
-    return new Intl.NumberFormat('fr-CD', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(Number(centimes) / 100);
-  };
 
   const handleForceStatus = async () => {
     if (!order || !newStatus) return;

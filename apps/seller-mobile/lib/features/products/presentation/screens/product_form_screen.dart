@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:seller_mobile/core/utils/price_formatter.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../data/models/attribute_model.dart';
@@ -444,7 +445,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     final d = int.tryParse(_discountPriceCDFController.text.trim());
     if (p == null || d == null || d <= 0 || d >= p) return null;
     final pct = ((p - d) / p * 100).round();
-    return "-$pct% · Vous économisez ${p - d} FC";
+    return "-$pct% · Vous économisez ${formatFcNumber(p - d)} FC";
   }
 
   Future<void> _handleSave() async {

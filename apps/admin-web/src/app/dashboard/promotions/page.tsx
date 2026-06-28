@@ -1,5 +1,6 @@
 'use client';
 
+import { formatFC } from '@teka/shared';
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/lib/api-client';
 
@@ -243,9 +244,7 @@ export default function PromotionsPage() {
   const formatDiscount = (promo: Promotion) => {
     if (promo.discountPercent) return `${promo.discountPercent}%`;
     if (promo.discountAmountCDF) {
-      return `${new Intl.NumberFormat('fr-CD', {
-        maximumFractionDigits: 0,
-      }).format(promo.discountAmountCDF / 100)} FC`;
+      return formatFC(promo.discountAmountCDF);
     }
     return '-';
   };
