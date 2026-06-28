@@ -442,7 +442,7 @@ export class SellerNotificationService {
 
   /** Format BigInt centimes as a French CDF label, e.g. "63 000 CDF". */
   private formatCdf(centimes: bigint): string {
-    return `${(Number(centimes) / 100).toLocaleString('fr-FR')} CDF`;
+    return `${(Number(centimes) / 100).toLocaleString('fr-FR')} FC`;
   }
 
   /**

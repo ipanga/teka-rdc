@@ -28,7 +28,7 @@ class PayoutTile extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  '${priceFormat.format(payout.amountCDFDisplay)} CDF',
+                  '${priceFormat.format(payout.amountCDFDisplay)} FC',
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,

@@ -52,7 +52,7 @@ export class CreateProductDto {
   })
   brandId?: string | null;
 
-  @IsString({ message: 'Le prix CDF est requis' })
+  @IsString({ message: 'Le prix FC est requis' })
   priceCDF: string; // BigInt as string
 
   @IsOptional()
@@ -63,7 +63,7 @@ export class CreateProductDto {
   // > 0 and strictly < priceCDF — enforced in the service (cross-field). Send
   // null to clear the discount. The % is derived on display, never sent.
   @IsOptional()
-  @Matches(/^\d+$/, { message: 'Prix promotionnel CDF invalide' })
+  @Matches(/^\d+$/, { message: 'Prix promotionnel FC invalide' })
   discountPriceCDF?: string | null;
 
   @IsOptional()

@@ -7,24 +7,25 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateDeliveryZoneDto } from './dto/create-delivery-zone.dto';
 import { UpdateDeliveryZoneDto } from './dto/update-delivery-zone.dto';
 
-/** Default delivery fee when no zone is configured (5000 CDF = 500000 centimes) */
-const DEFAULT_FEE_CDF = BigInt(500000);
-/** Default delivery fee in USD (200 cents = $2.00) */
-const DEFAULT_FEE_USD = BigInt(200);
-
 @Injectable()
 export class DeliveryZonesService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Estimates the delivery fee between two towns.
-   * Returns a default fee if no zone is configured.
+   * Estimates the delivery fee between two towns/cities.
+   *
+   * Matching is **trim + case-insensitive** so a configured zone (e.g.
+   * "Lubumbashi") still matches regardless of input casing/whitespace.
+   * When NO active zone covers the route we return `found: false` with null
+   * fees — we deliberately do NOT charge a silent default. The caller
+   * (`CheckoutService`) blocks checkout with a clear message, so an
+   * unconfigured route can never silently undercharge or show "Gratuit".
    */
   async estimateFee(fromTown: string, toTown: string) {
     const zone = await this.prisma.deliveryZone.findFirst({
       where: {
-        fromTown,
-        toTown,
+        fromTown: { equals: (fromTown ?? '').trim(), mode: 'insensitive' },
+        toTown: { equals: (toTown ?? '').trim(), mode: 'insensitive' },
         isActive: true,
       },
     });
@@ -34,17 +35,17 @@ export class DeliveryZonesService {
         data: {
           feeCDF: zone.feeCDF.toString(),
           feeUSD: zone.feeUSD?.toString() ?? null,
-          isDefault: false,
+          found: true,
         },
       };
     }
 
-    // Return default fee when no zone is configured
+    // No active zone for this route — signal "not found" (no default charge).
     return {
       data: {
-        feeCDF: DEFAULT_FEE_CDF.toString(),
-        feeUSD: DEFAULT_FEE_USD.toString(),
-        isDefault: true,
+        feeCDF: null as string | null,
+        feeUSD: null as string | null,
+        found: false,
       },
     };
   }

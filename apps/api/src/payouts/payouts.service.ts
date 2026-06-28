@@ -46,7 +46,7 @@ export class PayoutsService {
 
     if (sellerProfile.walletBalanceCDF < MIN_PAYOUT_AMOUNT_CDF) {
       throw new BadRequestException(
-        `Le solde minimum pour un retrait est de 5 000 CDF. Votre solde actuel est de ${Number(sellerProfile.walletBalanceCDF) / 100} CDF`,
+        `Le solde minimum pour un retrait est de 5 000 FC. Votre solde actuel est de ${Number(sellerProfile.walletBalanceCDF) / 100} FC`,
       );
     }
 

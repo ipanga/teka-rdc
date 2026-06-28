@@ -269,12 +269,10 @@ export default function ProductDetailPage() {
 
   const formatPrice = (centimes: string) => {
     const amount = Number(centimes) / 100;
-    return new Intl.NumberFormat('fr-CD', {
-      style: 'currency',
-      currency: 'CDF',
+    return `${new Intl.NumberFormat('fr-CD', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(amount);
+    }).format(amount)} FC`;
   };
 
   if (isLoading) {
@@ -508,7 +506,7 @@ export default function ProductDetailPage() {
               {/* Price CDF */}
               <div>
                 <label htmlFor="priceCDF" className="block text-sm font-medium text-foreground mb-1">
-                  Prix en CDF *
+                  Prix en FC *
                 </label>
                 {pricingEditable ? (
                   <div className="relative">
@@ -523,7 +521,7 @@ export default function ProductDetailPage() {
                         fieldErrors.priceCDF ? 'border-destructive' : 'border-input'
                       }`}
                     />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">CDF</span>
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">FC</span>
                   </div>
                 ) : (
                   <p className="px-3 py-2 bg-muted rounded-lg text-foreground text-sm">
@@ -568,7 +566,7 @@ export default function ProductDetailPage() {
               {/* Promotional price (optional) */}
               <div>
                 <label htmlFor="discountPriceCDF" className="block text-sm font-medium text-foreground mb-1">
-                  Prix promotionnel en CDF (optionnel)
+                  Prix promotionnel en FC (optionnel)
                 </label>
                 {pricingEditable ? (
                   <>
@@ -584,7 +582,7 @@ export default function ProductDetailPage() {
                           fieldErrors.discountPriceCDF ? 'border-destructive' : 'border-input'
                         }`}
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">CDF</span>
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">FC</span>
                     </div>
                     {!fieldErrors.discountPriceCDF &&
                       priceCDF &&

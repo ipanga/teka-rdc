@@ -248,19 +248,19 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                   child: TextFormField(
                     controller: _priceCDFController,
                     decoration: InputDecoration(
-                      labelText: "Prix CDF",
-                      suffixText: 'CDF',
+                      labelText: "Prix FC",
+                      suffixText: 'FC',
                     ),
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     onChanged: (_) => setState(() {}),
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
-                        return "Prix CDF requis";
+                        return "Prix FC requis";
                       }
                       final amount = int.tryParse(v);
                       if (amount == null || amount <= 0) {
-                        return "Prix CDF invalide";
+                        return "Prix FC invalide";
                       }
                       return null;
                     },
@@ -288,8 +288,8 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             TextFormField(
               controller: _discountPriceCDFController,
               decoration: InputDecoration(
-                labelText: "Prix promotionnel CDF (optionnel)",
-                suffixText: 'CDF',
+                labelText: "Prix promotionnel FC (optionnel)",
+                suffixText: 'FC',
                 helperText: _discountPreview(),
                 helperStyle: const TextStyle(color: TekaColors.success),
               ),
@@ -438,13 +438,13 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     );
   }
 
-  /// Live "-X% · Vous économisez Y CDF" helper text under the promo field.
+  /// Live "-X% · Vous économisez Y FC" helper text under the promo field.
   String? _discountPreview() {
     final p = int.tryParse(_priceCDFController.text.trim());
     final d = int.tryParse(_discountPriceCDFController.text.trim());
     if (p == null || d == null || d <= 0 || d >= p) return null;
     final pct = ((p - d) / p * 100).round();
-    return "-$pct% · Vous économisez ${p - d} CDF";
+    return "-$pct% · Vous économisez ${p - d} FC";
   }
 
   Future<void> _handleSave() async {

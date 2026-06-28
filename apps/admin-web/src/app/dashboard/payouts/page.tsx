@@ -177,11 +177,9 @@ export default function PayoutsPage() {
   };
 
   const formatCDF = (centimes: string) => {
-    return new Intl.NumberFormat('fr-CD', {
-      style: 'currency',
-      currency: 'CDF',
+    return `${new Intl.NumberFormat('fr-CD', {
       maximumFractionDigits: 0,
-    }).format(Number(centimes) / 100);
+    }).format(Number(centimes) / 100)} FC`;
   };
 
   return (

@@ -25,6 +25,9 @@ class CheckoutState {
   // the quote resolves. Equals what the order is charged (same server calc).
   final String? deliveryFeeCDF;
   final bool isLoadingQuote;
+  // Whether an active delivery zone covers the selected address. null = not yet
+  // resolved; false = blocked (no zone / quote failed) — never silently free.
+  final bool? deliveryAvailable;
 
   const CheckoutState({
     this.step = CheckoutStep.address,
@@ -40,6 +43,7 @@ class CheckoutState {
     this.isLoadingAddresses = false,
     this.deliveryFeeCDF,
     this.isLoadingQuote = false,
+    this.deliveryAvailable,
   });
 
   CheckoutState copyWith({
@@ -56,6 +60,7 @@ class CheckoutState {
     bool? isLoadingAddresses,
     String? deliveryFeeCDF,
     bool? isLoadingQuote,
+    bool? deliveryAvailable,
     bool clearError = false,
     bool clearAddress = false,
     bool clearDeliveryFee = false,
@@ -76,6 +81,8 @@ class CheckoutState {
       deliveryFeeCDF:
           clearDeliveryFee ? null : (deliveryFeeCDF ?? this.deliveryFeeCDF),
       isLoadingQuote: isLoadingQuote ?? this.isLoadingQuote,
+      deliveryAvailable:
+          clearDeliveryFee ? null : (deliveryAvailable ?? this.deliveryAvailable),
     );
   }
 
@@ -83,8 +90,10 @@ class CheckoutState {
 
   bool get canProceedToReview => selectedAddress != null;
 
+  // Block when delivery isn't available for the address — the server also
+  // rejects such an order, but we gate the button so the buyer isn't surprised.
   bool get canPlaceOrder =>
-      selectedAddress != null && !isProcessing;
+      selectedAddress != null && !isProcessing && deliveryAvailable == true;
 }
 
 class CheckoutNotifier extends StateNotifier<CheckoutState> {
@@ -129,9 +138,10 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     _fetchQuote();
   }
 
-  /// Fetch the delivery-fee preview for the selected address. Non-critical:
-  /// on failure the fee is left unknown (UI shows a dash) rather than blocking
-  /// checkout. A stale response (address changed mid-flight) is discarded.
+  /// Fetch the delivery-fee preview for the selected address. On failure the
+  /// fee is left unknown and delivery is marked UNAVAILABLE (never silently
+  /// free) — checkout is blocked until a valid fee resolves. A stale response
+  /// (address changed mid-flight) is discarded.
   Future<void> _fetchQuote() async {
     final address = state.selectedAddress;
     if (address == null) return;
@@ -141,13 +151,14 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       if (!mounted) return;
       if (state.selectedAddress?.id != address.id) return;
       state = state.copyWith(
-        deliveryFeeCDF: quote.deliveryFeeCDF,
+        deliveryFeeCDF: quote.deliveryAvailable ? quote.deliveryFeeCDF : null,
+        deliveryAvailable: quote.deliveryAvailable,
         isLoadingQuote: false,
       );
     } catch (_) {
       if (!mounted) return;
       if (state.selectedAddress?.id != address.id) return;
-      state = state.copyWith(isLoadingQuote: false);
+      state = state.copyWith(isLoadingQuote: false, deliveryAvailable: false);
     }
   }
 

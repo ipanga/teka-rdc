@@ -614,7 +614,7 @@ class _RecentProductItem extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         ),
         subtitle: Text(
-          '${priceFormat.format(product.priceCDFDisplay)} CDF',
+          '${priceFormat.format(product.priceCDFDisplay)} FC',
           style: TextStyle(
             color: TekaColors.tekaRed,
             fontWeight: FontWeight.w600,

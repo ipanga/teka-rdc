@@ -75,12 +75,10 @@ export default function PromotionsPage() {
 
   const formatPrice = (centimes: string) => {
     const amount = Number(centimes) / 100;
-    return new Intl.NumberFormat('fr-CD', {
-      style: 'currency',
-      currency: 'CDF',
+    return `${new Intl.NumberFormat('fr-CD', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(amount);
+    }).format(amount)} FC`;
   };
 
   const getStatusStyle = (status: string) => {
@@ -452,7 +450,7 @@ export default function PromotionsPage() {
                       }}
                       className="accent-primary"
                     />
-                    <span className="text-sm text-foreground">Montant fixe (CDF)</span>
+                    <span className="text-sm text-foreground">Montant fixe (FC)</span>
                   </label>
                 </div>
                 <input
@@ -468,7 +466,7 @@ export default function PromotionsPage() {
                   <p className="text-xs text-muted-foreground mt-1">%</p>
                 )}
                 {formDiscountMode === 'fixed' && (
-                  <p className="text-xs text-muted-foreground mt-1">CDF</p>
+                  <p className="text-xs text-muted-foreground mt-1">FC</p>
                 )}
               </div>
 

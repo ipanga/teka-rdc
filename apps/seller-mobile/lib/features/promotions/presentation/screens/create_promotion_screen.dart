@@ -208,7 +208,7 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                       ),
                       ButtonSegment<bool>(
                         value: false,
-                        label: Text("Montant fixe (CDF)"),
+                        label: Text("Montant fixe (FC)"),
                         icon: Icon(Icons.payments_outlined, size: 18),
                       ),
                     ],
@@ -228,8 +228,8 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                     decoration: InputDecoration(
                       labelText: _isPercentage
                           ? "Pourcentage de reduction"
-                          : "Montant fixe (CDF)",
-                      suffixText: _isPercentage ? '%' : 'CDF',
+                          : "Montant fixe (FC)",
+                      suffixText: _isPercentage ? '%' : 'FC',
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -240,13 +240,13 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
                       if (value == null || value.trim().isEmpty) {
                         return _isPercentage
                             ? "Pourcentage de reduction"
-                            : "Montant fixe (CDF)";
+                            : "Montant fixe (FC)";
                       }
                       final num = int.tryParse(value);
                       if (num == null || num <= 0) {
                         return _isPercentage
                             ? "Pourcentage de reduction"
-                            : "Montant fixe (CDF)";
+                            : "Montant fixe (FC)";
                       }
                       if (_isPercentage && num > 100) {
                         return "Pourcentage de reduction";

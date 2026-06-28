@@ -245,7 +245,7 @@ class _ProductListItem extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '${priceFormat.format(product.priceCDFDisplay)} CDF',
+                      '${priceFormat.format(product.priceCDFDisplay)} FC',
                       style: TextStyle(
                         color: TekaColors.tekaRed,
                         fontWeight: FontWeight.w700,

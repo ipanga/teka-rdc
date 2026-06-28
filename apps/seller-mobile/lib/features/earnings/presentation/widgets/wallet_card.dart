@@ -38,7 +38,7 @@ class WalletCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            '${priceFormat.format(amountCDF)} CDF',
+            '${priceFormat.format(amountCDF)} FC',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,

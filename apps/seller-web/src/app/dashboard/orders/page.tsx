@@ -151,12 +151,10 @@ export default function OrdersListPage() {
 
   const formatPrice = (centimes: string) => {
     const amount = Number(centimes) / 100;
-    return new Intl.NumberFormat('fr-CD', {
-      style: 'currency',
-      currency: 'CDF',
+    return `${new Intl.NumberFormat('fr-CD', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
-    }).format(amount);
+    }).format(amount)} FC`;
   };
 
   const formatDate = (dateStr: string) => {

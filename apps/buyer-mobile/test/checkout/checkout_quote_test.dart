@@ -42,5 +42,14 @@ void main() {
       expect(q.deliveryFeeCDF, '0');
       expect(q.totalCDF, '0');
     });
+
+    test('deliveryAvailable: parses false, defaults true when absent', () {
+      final blocked = CheckoutQuote.fromJson(decode(
+          '{"subtotalCDF":"3000000","deliveryFeeCDF":"0","totalCDF":"3000000","deliveryAvailable":false}'));
+      expect(blocked.deliveryAvailable, isFalse);
+      // Older API responses omit the flag — default to available (no false-block).
+      final legacy = CheckoutQuote.fromJson(decode('{}'));
+      expect(legacy.deliveryAvailable, isTrue);
+    });
   });
 }

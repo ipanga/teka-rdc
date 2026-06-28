@@ -148,9 +148,9 @@ export default function ProductDetailPage() {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }).format(usd / 100);
-      return `${cdfFormatted} CDF / ${usdFormatted} USD`;
+      return `${cdfFormatted} FC / ${usdFormatted} USD`;
     }
-    return `${cdfFormatted} CDF`;
+    return `${cdfFormatted} FC`;
   };
 
   const getOptimizedUrl = (url: string, width: number) => {

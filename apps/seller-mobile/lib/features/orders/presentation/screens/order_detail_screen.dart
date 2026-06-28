@@ -151,17 +151,17 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                 children: [
                   _buildPriceRow(
                     "Sous-total",
-                    '${priceFormat.format(order.subtotalCDFDisplay)} CDF',
+                    '${priceFormat.format(order.subtotalCDFDisplay)} FC',
                   ),
                   const SizedBox(height: 4),
                   _buildPriceRow(
                     "Frais de livraison",
-                    '${priceFormat.format(order.deliveryFeeCDFDisplay)} CDF',
+                    '${priceFormat.format(order.deliveryFeeCDFDisplay)} FC',
                   ),
                   const Divider(height: 16),
                   _buildPriceRow(
                     "Total",
-                    '${priceFormat.format(order.totalCDFDisplay)} CDF',
+                    '${priceFormat.format(order.totalCDFDisplay)} FC',
                     isBold: true,
                     color: TekaColors.tekaRed,
                   ),
@@ -489,7 +489,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Quantité: ${item.quantity} x ${priceFormat.format(item.unitPriceCDFDisplay)} CDF',
+                  'Quantité: ${item.quantity} x ${priceFormat.format(item.unitPriceCDFDisplay)} FC',
                   style: const TextStyle(
                     fontSize: 11,
                     color: TekaColors.mutedForeground,
@@ -500,7 +500,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
           ),
           const SizedBox(width: 8),
           Text(
-            '${priceFormat.format(item.totalCDFDisplay)} CDF',
+            '${priceFormat.format(item.totalCDFDisplay)} FC',
             style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,

@@ -917,16 +917,41 @@ class _ReviewStep extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    checkoutState.deliveryFeeCDF != null
-                        ? formatCDF(checkoutState.deliveryFeeCDF!)
-                        : (checkoutState.isLoadingQuote ? '…' : '--'),
-                    style: const TextStyle(
-                      color: TekaColors.foreground,
+                    checkoutState.deliveryAvailable == false
+                        ? "Non disponible"
+                        : checkoutState.deliveryFeeCDF != null
+                            ? formatCDF(checkoutState.deliveryFeeCDF!)
+                            : (checkoutState.isLoadingQuote ? '…' : '--'),
+                    style: TextStyle(
+                      color: checkoutState.deliveryAvailable == false
+                          ? TekaColors.tekaRed
+                          : TekaColors.foreground,
                       fontSize: 14,
+                      fontWeight: checkoutState.deliveryAvailable == false
+                          ? FontWeight.w600
+                          : FontWeight.normal,
                     ),
                   ),
                 ],
               ),
+              if (checkoutState.deliveryAvailable == false) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: TekaColors.tekaRed.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    "Aucune zone de livraison disponible pour cette adresse. Veuillez vérifier votre ville de livraison.",
+                    style: const TextStyle(
+                      color: TekaColors.tekaRed,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 8),
               const Divider(color: TekaColors.border),
               const SizedBox(height: 8),

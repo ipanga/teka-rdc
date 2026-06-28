@@ -83,11 +83,17 @@ export class CheckoutService {
         userId,
         deletedAt: null,
       },
+      include: { city: { select: { name: true } } },
     });
 
     if (!address) {
       throw new NotFoundException('Adresse de livraison non trouvée');
     }
+
+    // Resolve the delivery destination to a CITY name (zones are keyed by city).
+    // Fall back to the free-form town so legacy addresses without a cityId still
+    // resolve. A commune-level town ("Ruashi") thus maps to its city.
+    const buyerTown = address.city?.name ?? address.town;
 
     // 4. Generate a checkout group ID
     const checkoutGroupId = crypto.randomUUID();
@@ -138,9 +144,18 @@ export class CheckoutService {
           }
 
           // Delivery fee — SINGLE source of truth, shared with quote() so the
-          // previewed fee always equals the charged fee.
-          const { cdf: deliveryFeeCDF, usd: deliveryFeeUSD } =
-            await this.resolveDeliveryFee(group.sellerId, address.town, tx);
+          // previewed fee always equals the charged fee. If no active zone
+          // covers the route we BLOCK the order rather than undercharge.
+          const {
+            cdf: deliveryFeeCDF,
+            usd: deliveryFeeUSD,
+            found: deliveryAvailable,
+          } = await this.resolveDeliveryFee(group.sellerId, buyerTown, tx);
+          if (!deliveryAvailable) {
+            throw new BadRequestException(
+              'Aucune zone de livraison disponible pour cette adresse. Veuillez vérifier votre ville de livraison.',
+            );
+          }
 
           // Calculate subtotals
           let subtotalCDF = BigInt(0);
@@ -343,7 +358,7 @@ export class CheckoutService {
     sellerId: string,
     toTown: string,
     db: TxClient = this.prisma,
-  ): Promise<{ cdf: bigint; usd: bigint | null }> {
+  ): Promise<{ cdf: bigint; usd: bigint | null; found: boolean }> {
     const sellerProfile = await db.sellerProfile.findFirst({
       where: { userId: sellerId },
       select: { location: true, city: { select: { name: true } } },
@@ -355,8 +370,9 @@ export class CheckoutService {
       toTown,
     );
     return {
-      cdf: BigInt(estimate.data.feeCDF),
+      cdf: estimate.data.found ? BigInt(estimate.data.feeCDF!) : BigInt(0),
       usd: estimate.data.feeUSD ? BigInt(estimate.data.feeUSD) : null,
+      found: estimate.data.found,
     };
   }
 
@@ -375,25 +391,30 @@ export class CheckoutService {
 
     const address = await this.prisma.address.findFirst({
       where: { id: deliveryAddressId, userId, deletedAt: null },
+      include: { city: { select: { name: true } } },
     });
     if (!address) {
       throw new NotFoundException('Adresse de livraison non trouvée');
     }
+    const buyerTown = address.city?.name ?? address.town;
 
     let subtotalCDF = BigInt(0);
     let deliveryFeeCDF = BigInt(0);
     const sellerQuotes = [];
 
     for (const group of cartSummary.sellerGroups) {
-      const fee = await this.resolveDeliveryFee(group.sellerId, address.town);
+      const fee = await this.resolveDeliveryFee(group.sellerId, buyerTown);
+      // No zone → this seller can't be delivered to this address. Surface it so
+      // buyer-web can block checkout instead of showing a misleading "Gratuit".
       const sellerTotal = group.subtotalCDF + fee.cdf;
       sellerQuotes.push({
         sellerId: group.sellerId,
         sellerName: group.sellerName,
         itemCount: group.items.reduce((n, i) => n + i.quantity, 0),
         subtotalCDF: group.subtotalCDF.toString(),
-        deliveryFeeCDF: fee.cdf.toString(),
-        deliveryFeeUSD: fee.usd?.toString() ?? null,
+        deliveryFeeCDF: fee.found ? fee.cdf.toString() : null,
+        deliveryFeeUSD: fee.found ? (fee.usd?.toString() ?? null) : null,
+        deliveryAvailable: fee.found,
         totalCDF: sellerTotal.toString(),
       });
       subtotalCDF += group.subtotalCDF;
@@ -406,6 +427,8 @@ export class CheckoutService {
         subtotalCDF: subtotalCDF.toString(),
         deliveryFeeCDF: deliveryFeeCDF.toString(),
         totalCDF: (subtotalCDF + deliveryFeeCDF).toString(),
+        // Overall gate for the buyer-web "Confirmer la commande" button.
+        deliveryAvailable: sellerQuotes.every((q) => q.deliveryAvailable),
         sellerQuotes,
       },
     };

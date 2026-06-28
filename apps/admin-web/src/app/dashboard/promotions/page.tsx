@@ -243,11 +243,9 @@ export default function PromotionsPage() {
   const formatDiscount = (promo: Promotion) => {
     if (promo.discountPercent) return `${promo.discountPercent}%`;
     if (promo.discountAmountCDF) {
-      return new Intl.NumberFormat('fr-CD', {
-        style: 'currency',
-        currency: 'CDF',
+      return `${new Intl.NumberFormat('fr-CD', {
         maximumFractionDigits: 0,
-      }).format(promo.discountAmountCDF / 100);
+      }).format(promo.discountAmountCDF / 100)} FC`;
     }
     return '-';
   };

@@ -1,14 +1,13 @@
 /**
- * Format a BigInt string (centimes) as CDF currency.
- * Example: "150000" (1500 centimes) -> "1 500 CDF"
+ * Format a BigInt string (centimes) as Congolese-Franc currency.
+ * The user-facing label is **FC** (how DRC users refer to the franc), not the
+ * ISO "CDF". Example: "150000" (1500 centimes) -> "1 500 FC".
  */
 export function formatCDF(centimes: string): string {
   const amount = Number(centimes) / 100;
-  return new Intl.NumberFormat('fr-CD', {
-    style: 'currency',
-    currency: 'CDF',
+  return `${new Intl.NumberFormat('fr-CD', {
     maximumFractionDigits: 0,
-  }).format(amount);
+  }).format(amount)} FC`;
 }
 
 /**

@@ -32,8 +32,8 @@ export class CreatePromotionDto {
   discountPercent?: number;
 
   @IsOptional()
-  @IsInt({ message: 'La réduction en CDF doit être un entier positif' })
-  @Min(1, { message: 'La réduction en CDF doit être au minimum 1' })
+  @IsInt({ message: 'La réduction en FC doit être un entier positif' })
+  @Min(1, { message: 'La réduction en FC doit être au minimum 1' })
   discountCDF?: number;
 
   @IsDateString({}, { message: 'La date de début doit être au format ISO' })

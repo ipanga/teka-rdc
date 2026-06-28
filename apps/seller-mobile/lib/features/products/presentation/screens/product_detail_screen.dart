@@ -138,7 +138,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         Row(
           children: [
             Text(
-              '${priceFormat.format(product.priceCDFDisplay)} CDF',
+              '${priceFormat.format(product.priceCDFDisplay)} FC',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,

@@ -127,11 +127,9 @@ export default function OrderDetailPage() {
   }, [fetchOrder]);
 
   const formatCDF = (centimes: string) => {
-    return new Intl.NumberFormat('fr-CD', {
-      style: 'currency',
-      currency: 'CDF',
+    return `${new Intl.NumberFormat('fr-CD', {
       maximumFractionDigits: 0,
-    }).format(Number(centimes) / 100);
+    }).format(Number(centimes) / 100)} FC`;
   };
 
   const formatUSD = (centimes: string) => {
