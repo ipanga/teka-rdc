@@ -127,7 +127,7 @@ export function ProductFilters({
       {/* Price range */}
       <div>
         <label className="block text-sm font-medium text-foreground mb-1.5">
-          {"Fourchette de prix"} (CDF)
+          {"Fourchette de prix"} (FC)
         </label>
         <div className="flex items-center gap-2">
           <input

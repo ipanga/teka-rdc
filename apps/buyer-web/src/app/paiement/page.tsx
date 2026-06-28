@@ -40,6 +40,11 @@ export default function CheckoutPage() {
   const [isPlacing, setIsPlacing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [deliveryFees, setDeliveryFees] = useState<Record<string, string>>({});
+  // Delivery availability from the checkout quote. `null` = not yet loaded.
+  // `false` = no active delivery zone covers this address (block — never show a
+  // misleading "Gratuit"). `quoteError` = the quote request itself failed.
+  const [deliveryAvailable, setDeliveryAvailable] = useState<boolean | null>(null);
+  const [quoteError, setQuoteError] = useState(false);
 
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [cities, setCities] = useState<City[]>([]);
@@ -236,10 +241,18 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (!selectedAddressId) return;
     let cancelled = false;
+    // Reset to the loading state while the new address is priced.
+    setDeliveryAvailable(null);
+    setQuoteError(false);
     const fetchQuote = async () => {
       try {
         const res = await apiFetch<{
-          sellerQuotes: { sellerId: string; deliveryFeeCDF: string }[];
+          deliveryAvailable: boolean;
+          sellerQuotes: {
+            sellerId: string;
+            deliveryFeeCDF: string | null;
+            deliveryAvailable: boolean;
+          }[];
         }>('/v1/checkout/quote', {
           method: 'POST',
           body: JSON.stringify({ deliveryAddressId: selectedAddressId }),
@@ -247,11 +260,21 @@ export default function CheckoutPage() {
         if (cancelled) return;
         const fees: Record<string, string> = {};
         for (const sq of res.data.sellerQuotes) {
-          fees[sq.sellerId] = sq.deliveryFeeCDF;
+          if (sq.deliveryAvailable && sq.deliveryFeeCDF != null) {
+            fees[sq.sellerId] = sq.deliveryFeeCDF;
+          }
         }
         setDeliveryFees(fees);
+        setDeliveryAvailable(res.data.deliveryAvailable);
+        setQuoteError(false);
       } catch {
-        if (!cancelled) setDeliveryFees({});
+        // Do NOT fall back to free delivery — surface the failure so the buyer
+        // can't be silently undercharged. Block placing the order.
+        if (!cancelled) {
+          setDeliveryFees({});
+          setDeliveryAvailable(false);
+          setQuoteError(true);
+        }
       }
     };
     fetchQuote();
@@ -262,6 +285,9 @@ export default function CheckoutPage() {
 
   async function handlePlaceOrder() {
     if (!selectedAddressId || isPlacing) return;
+    // Defense in depth — the button is already disabled when delivery isn't
+    // available; the API also rejects such an order. Never place without a fee.
+    if (deliveryAvailable !== true) return;
 
     setIsPlacing(true);
     setError(null);
@@ -755,6 +781,7 @@ export default function CheckoutPage() {
                   {"Récapitulatif"}
                 </h3>
                 {Object.entries(itemsBySeller).map(([sellerId, group]) => {
+                  const hasFee = sellerId in deliveryFees;
                   const sellerFee = deliveryFees[sellerId] || '0';
 
                   return (
@@ -826,7 +853,13 @@ export default function CheckoutPage() {
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">{"Frais de livraison"}</span>
                           <span className="text-foreground">
-                            {BigInt(sellerFee) > BigInt(0) ? formatCDF(sellerFee) : 'Gratuit'}
+                            {deliveryAvailable === null ? (
+                              <span className="text-muted-foreground">…</span>
+                            ) : hasFee ? (
+                              formatCDF(sellerFee)
+                            ) : (
+                              <span className="text-destructive">{"Non disponible"}</span>
+                            )}
                           </span>
                         </div>
                       </div>
@@ -845,9 +878,13 @@ export default function CheckoutPage() {
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">{"Frais de livraison"}</span>
                     <span className="text-foreground">
-                      {totalDeliveryFeeCDF > BigInt(0)
-                        ? formatCDF(totalDeliveryFeeCDF.toString())
-                        : 'Gratuit'}
+                      {deliveryAvailable === null ? (
+                        <span className="text-muted-foreground">…</span>
+                      ) : deliveryAvailable ? (
+                        formatCDF(totalDeliveryFeeCDF.toString())
+                      ) : (
+                        <span className="text-destructive">{"Non disponible"}</span>
+                      )}
                     </span>
                   </div>
                   <div className="flex justify-between items-baseline border-t border-border pt-3 mt-2">
@@ -858,6 +895,15 @@ export default function CheckoutPage() {
                   </div>
                 </div>
               </Card>
+
+              {/* Delivery unavailable / quote failure — block, never silently free */}
+              {deliveryAvailable === false && (
+                <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+                  {quoteError
+                    ? "Impossible de calculer les frais de livraison. Veuillez réessayer."
+                    : "Aucune zone de livraison disponible pour cette adresse. Veuillez vérifier votre ville de livraison."}
+                </div>
+              )}
 
               {/* Place order */}
               <div className="flex justify-between items-center pt-2 gap-3">
@@ -871,7 +917,7 @@ export default function CheckoutPage() {
                   variant="default"
                   size="lg"
                   onClick={handlePlaceOrder}
-                  disabled={isPlacing}
+                  disabled={isPlacing || deliveryAvailable !== true}
                   className="font-bold"
                 >
                   {isPlacing ? (
