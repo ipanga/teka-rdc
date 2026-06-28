@@ -99,7 +99,13 @@ describe('CheckoutService.quote', () => {
       },
     });
 
-    const { data } = await service.quote('u1', 'addr1');
+    const data = await service.quote('u1', 'addr1');
+
+    // Regression guard: quote() must return the RAW payload (no nested `data`),
+    // so the ResponseInterceptor wraps it ONCE. A nested `data` here would
+    // double-wrap the HTTP response and break every client (the checkout bug).
+    expect((data as Record<string, unknown>).data).toBeUndefined();
+    expect(data.sellerQuotes).toBeDefined();
 
     // sellerA: Lubumbashi→Lubumbashi = intra-city 3,000 CDF (300000 centimes)
     // sellerB: Kolwezi→Lubumbashi   = inter-city 15,000 CDF (1500000)
@@ -152,7 +158,7 @@ describe('CheckoutService.quote', () => {
         ],
       },
     });
-    const { data } = await service.quote('u1', 'addr1');
+    const data = await service.quote('u1', 'addr1');
     expect(deliveryZones.estimateFee).toHaveBeenCalledWith(
       'Lubumbashi',
       'Kolwezi',
@@ -191,7 +197,7 @@ describe('CheckoutService.quote', () => {
         ],
       },
     });
-    const { data } = await service.quote('u1', 'addr1');
+    const data = await service.quote('u1', 'addr1');
     expect(data.deliveryAvailable).toBe(false);
     expect(data.sellerQuotes[0].deliveryAvailable).toBe(false);
     expect(data.sellerQuotes[0].deliveryFeeCDF).toBeNull();

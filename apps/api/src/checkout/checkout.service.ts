@@ -421,16 +421,19 @@ export class CheckoutService {
       deliveryFeeCDF += fee.cdf;
     }
 
+    // Return the RAW payload — the global ResponseInterceptor wraps it once as
+    // `{ success, data }`. (Returning `{ data: … }` here double-wrapped the
+    // response to `data.data`, so clients reading `res.data.sellerQuotes` got
+    // undefined and threw — the real cause of the "Gratuit"/"Impossible de
+    // calculer" checkout bug.)
     return {
-      data: {
-        deliveryAddressId,
-        subtotalCDF: subtotalCDF.toString(),
-        deliveryFeeCDF: deliveryFeeCDF.toString(),
-        totalCDF: (subtotalCDF + deliveryFeeCDF).toString(),
-        // Overall gate for the buyer-web "Confirmer la commande" button.
-        deliveryAvailable: sellerQuotes.every((q) => q.deliveryAvailable),
-        sellerQuotes,
-      },
+      deliveryAddressId,
+      subtotalCDF: subtotalCDF.toString(),
+      deliveryFeeCDF: deliveryFeeCDF.toString(),
+      totalCDF: (subtotalCDF + deliveryFeeCDF).toString(),
+      // Overall gate for the buyer-web "Confirmer la commande" button.
+      deliveryAvailable: sellerQuotes.every((q) => q.deliveryAvailable),
+      sellerQuotes,
     };
   }
 
