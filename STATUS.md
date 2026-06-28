@@ -10,12 +10,15 @@
 (1) buyer-mobile full-screen product-image viewer needs a clear top-right close button (safe-area, preserve
 zoom/swipe). (2) Standardize FC display with **`.` thousand separators** (52.957 FC) + USD `1.250,75 $US` via a
 SHARED formatter across all 6 surfaces (display-only). **Tracker: `tasks/image-preview-and-dot-formatting-progress.md`.**
-- **Phase 1 ✅** shared `@teka/shared` `formatFC`/`formatUSD` (dot/comma, null-safe) + `groupThousands`.
-- **Phase 2 ✅** buyer-web `format.ts` delegates → **live-verified** dot separators on /promotions.
-- **NEXT (Phase 3+)**: admin-web + seller-web formatters; buyer-mobile formatter + **image-preview close button**;
-  seller-mobile; emails/docs. Image-preview impl mapped: `features/catalog/.../widgets/image_gallery.dart`
-  `_FullScreenGallery` (AppBar back only, no X; has PageView swipe + InteractiveViewer zoom; black bg; no SafeArea).
-- Phase-by-phase, pausing for review.
+- **Phase 1 ✅** shared `@teka/shared` `formatFC`/`formatUSD` + `groupThousands`. **Phase 2 ✅** buyer-web
+  (live-verified). **Phase 3 ✅** admin-web + seller-web (16 files delegate to shared). **Phase 4 ✅** buyer-mobile
+  dot formatter + **image-preview close button** (emulator-verified open/close + dot prices). **Phase 5 ✅**
+  seller-mobile (shared `price_formatter.dart`). **NEXT: Phase 6** — emails/notifications dot separators + docs +
+  final verify + ship.
+- Phase-by-phase, pausing for review. Commits stacked on develop (unpushed).
+- **DEFERRED FOLLOW-UP (user-approved, do AFTER this initiative):** buyer-mobile HOME header shows a debug
+  `BOTTOM OVERFLOWED BY 99979 PIXELS` overlay (`features/home/presentation/home_screen.dart` header area; pre-existing,
+  likely from the top-bar-logo fix). PDP header is fine. Fix as a separate change.
 
 > **SHIPPED 2026-06-28** — Delivery-Fee Correctness + CDF→FC (prod, releases #509 + hotfix #510). Backend BLOCKS on
 > no-zone (city-based match); admin zone ×100/÷100 scaling fixed; CDF→FC everywhere. **Checkout double-wrap hotfix**
