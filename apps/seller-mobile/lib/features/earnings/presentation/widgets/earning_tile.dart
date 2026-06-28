@@ -102,7 +102,7 @@ class EarningTile extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '${priceFormat.format(earning.grossAmountCDFDisplay)} CDF',
+                    '${priceFormat.format(earning.grossAmountCDFDisplay)} FC',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -121,7 +121,7 @@ class EarningTile extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '-${priceFormat.format(earning.commissionCDFDisplay)} CDF',
+                    '-${priceFormat.format(earning.commissionCDFDisplay)} FC',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
@@ -141,7 +141,7 @@ class EarningTile extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '${priceFormat.format(earning.netAmountCDFDisplay)} CDF',
+                    '${priceFormat.format(earning.netAmountCDFDisplay)} FC',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,

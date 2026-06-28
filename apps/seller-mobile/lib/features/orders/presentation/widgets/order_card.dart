@@ -98,7 +98,7 @@ class OrderCard extends StatelessWidget {
                   ),
                   const Spacer(),
                   Text(
-                    '${priceFormat.format(order.totalCDFDisplay)} CDF',
+                    '${priceFormat.format(order.totalCDFDisplay)} FC',
                     style: TextStyle(
                       color: TekaColors.tekaRed,
                       fontWeight: FontWeight.w700,

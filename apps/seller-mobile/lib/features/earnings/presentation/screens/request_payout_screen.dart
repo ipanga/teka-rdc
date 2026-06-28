@@ -94,7 +94,7 @@ class _RequestPayoutScreenState extends ConsumerState<RequestPayoutScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Solde actuel : $balance CDF',
+              'Solde actuel : $balance FC',
               style: const TextStyle(
                 fontSize: 14,
                 color: TekaColors.mutedForeground,

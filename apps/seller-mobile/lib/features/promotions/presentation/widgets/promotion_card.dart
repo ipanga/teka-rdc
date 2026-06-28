@@ -127,7 +127,7 @@ class PromotionCard extends StatelessWidget {
                   )
                 else if (promotion.discountCDFDisplay != null)
                   Text(
-                    '-${priceFormat.format(promotion.discountCDFDisplay)} CDF',
+                    '-${priceFormat.format(promotion.discountCDFDisplay)} FC',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,

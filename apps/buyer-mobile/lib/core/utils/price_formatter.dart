@@ -1,13 +1,14 @@
 import 'package:intl/intl.dart';
 
-/// Format a price in centimes (string) to a human-readable CDF string.
-/// Example: "150000" (centimes) -> "1 500 CDF"
+/// Format a price in centimes (string) to a human-readable franc string.
+/// The user-facing label is **FC** (how DRC users refer to the franc), not the
+/// ISO "CDF". Example: "150000" (centimes) -> "1 500 FC".
 String formatCDF(String centimes) {
   final amount = int.tryParse(centimes) ?? 0;
   final cdf = amount / 100;
   final formatter = NumberFormat.currency(
     locale: 'fr_CD',
-    symbol: 'CDF',
+    symbol: 'FC',
     decimalDigits: 0,
   );
   return formatter.format(cdf);

@@ -331,7 +331,7 @@ class _PayoutRequestAction extends StatelessWidget {
         if (walletLoaded && belowMin) ...[
           const SizedBox(height: 6),
           const Text(
-            "Solde minimum: 5 000 CDF",
+            "Solde minimum: 5 000 FC",
             style: TextStyle(
               fontSize: 12,
               color: TekaColors.mutedForeground,

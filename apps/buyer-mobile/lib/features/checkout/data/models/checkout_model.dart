@@ -162,10 +162,16 @@ class CheckoutQuote {
   final String deliveryFeeCDF;
   final String totalCDF;
 
+  /// False when no active delivery zone covers the address (checkout is then
+  /// blocked — never charged a silent/free fee). Defaults true for backward
+  /// compatibility with older API responses that omit the flag.
+  final bool deliveryAvailable;
+
   const CheckoutQuote({
     required this.subtotalCDF,
     required this.deliveryFeeCDF,
     required this.totalCDF,
+    this.deliveryAvailable = true,
   });
 
   factory CheckoutQuote.fromJson(Map<String, dynamic> json) {
@@ -173,6 +179,7 @@ class CheckoutQuote {
       subtotalCDF: json['subtotalCDF']?.toString() ?? '0',
       deliveryFeeCDF: json['deliveryFeeCDF']?.toString() ?? '0',
       totalCDF: json['totalCDF']?.toString() ?? '0',
+      deliveryAvailable: json['deliveryAvailable'] as bool? ?? true,
     );
   }
 }
