@@ -49,11 +49,9 @@ function formatDateLabel(dateStr: unknown): string {
 }
 
 function formatCDFValue(centimes: number): string {
-  return new Intl.NumberFormat('fr-CD', {
-    style: 'currency',
-    currency: 'CDF',
+  return `${new Intl.NumberFormat('fr-CD', {
     maximumFractionDigits: 0,
-  }).format(centimes / 100);
+  }).format(centimes / 100)} FC`;
 }
 
 function formatNumber(val: number): string {
@@ -102,11 +100,9 @@ export default function AdminDashboardPage() {
   }, [fetchTrends]);
 
   const formatCDF = (centimes: string) => {
-    return new Intl.NumberFormat('fr-CD', {
-      style: 'currency',
-      currency: 'CDF',
+    return `${new Intl.NumberFormat('fr-CD', {
       maximumFractionDigits: 0,
-    }).format(Number(centimes) / 100);
+    }).format(Number(centimes) / 100)} FC`;
   };
 
   const periodKey = (p: Period) => {
@@ -219,7 +215,7 @@ export default function AdminDashboardPage() {
             <div className="h-9 mt-2 bg-muted rounded animate-pulse" />
           ) : (
             <p className="text-3xl font-bold text-foreground mt-2">
-              {stats?.totalRevenueCDF ? formatCDF(stats.totalRevenueCDF) : '-- CDF'}
+              {stats?.totalRevenueCDF ? formatCDF(stats.totalRevenueCDF) : '-- FC'}
             </p>
           )}
         </div>

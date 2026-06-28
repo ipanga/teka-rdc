@@ -282,7 +282,7 @@ export default function NewProductPage() {
             {/* Price CDF */}
             <div>
               <label htmlFor="priceCDF" className="block text-sm font-medium text-foreground mb-1">
-                Prix en CDF *
+                Prix en FC *
               </label>
               <div className="relative">
                 <input
@@ -297,7 +297,7 @@ export default function NewProductPage() {
                   }`}
                   placeholder="5000"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">CDF</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">FC</span>
               </div>
               {fieldErrors.priceCDF && (
                 <p className="text-xs text-destructive mt-1">{fieldErrors.priceCDF}</p>
@@ -307,7 +307,7 @@ export default function NewProductPage() {
             {/* Promotional price (optional) */}
             <div>
               <label htmlFor="discountPriceCDF" className="block text-sm font-medium text-foreground mb-1">
-                Prix promotionnel en CDF (optionnel)
+                Prix promotionnel en FC (optionnel)
               </label>
               <div className="relative">
                 <input
@@ -322,7 +322,7 @@ export default function NewProductPage() {
                   }`}
                   placeholder="4000"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">CDF</span>
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">FC</span>
               </div>
               {fieldErrors.discountPriceCDF ? (
                 <p className="text-xs text-destructive mt-1">{fieldErrors.discountPriceCDF}</p>
