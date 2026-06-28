@@ -200,10 +200,19 @@ export function SearchAutocomplete({
 
   return (
     <div ref={boxRef} className="relative w-full">
-      <form onSubmit={goToSearch}>
-        <div className="relative">
+      <form
+        onSubmit={goToSearch}
+        className="flex h-11 overflow-hidden rounded-xl border border-border bg-white shadow-xs transition-all focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15 md:h-12"
+      >
+        <div className="hidden shrink-0 items-center gap-1 border-r border-border bg-surface-muted px-3 text-sm font-semibold text-foreground md:flex">
+          <span>{categoryLabel}</span>
+          <svg className="h-3.5 w-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </div>
+        <div className="relative min-w-0 flex-1">
           <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none"
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground md:left-4 md:h-5 md:w-5"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -225,9 +234,18 @@ export function SearchAutocomplete({
             }}
             placeholder={placeholder}
             autoComplete="off"
-            className="w-full pl-10 pr-4 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+            className="h-full w-full border-0 bg-transparent pl-10 pr-3 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none md:pl-12 md:text-base"
           />
         </div>
+        <button
+          type="submit"
+          className="inline-flex w-12 shrink-0 items-center justify-center bg-primary text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none md:w-14"
+          aria-label="Rechercher"
+        >
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" aria-hidden>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.2-5.2m1.7-5.3a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </button>
       </form>
 
       {/* Discovery dropdown (empty box): recent + popular searches. */}

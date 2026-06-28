@@ -369,7 +369,7 @@ class _HomeAppBarTitle extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _HomeBrandMark(),
+          const _HomeBrandLogo(),
           const SizedBox(height: 4),
           _CitySwitcherChip(
             cityName: label,
@@ -382,39 +382,49 @@ class _HomeAppBarTitle extends StatelessWidget {
   }
 }
 
-class _HomeBrandMark extends StatelessWidget {
-  const _HomeBrandMark();
+class _HomeBrandLogo extends StatelessWidget {
+  const _HomeBrandLogo();
 
   @override
   Widget build(BuildContext context) {
     return ExcludeSemantics(
-      child: RichText(
-        maxLines: 1,
-        overflow: TextOverflow.clip,
-        textDirection: TextDirection.ltr,
-        text: const TextSpan(
-          children: [
-            TextSpan(
-              text: 'TEKA',
-              style: TextStyle(
-                color: TekaColors.foreground,
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0,
-                height: 1,
-              ),
+      child: SizedBox(
+        height: 27,
+        width: 135,
+        child: Image.asset(
+          'assets/brand/logo_teka_cd.png',
+          alignment: Alignment.centerLeft,
+          fit: BoxFit.contain,
+          filterQuality: FilterQuality.high,
+          errorBuilder: (_, __, ___) => RichText(
+            maxLines: 1,
+            overflow: TextOverflow.clip,
+            textDirection: TextDirection.ltr,
+            text: const TextSpan(
+              children: [
+                TextSpan(
+                  text: 'TEKA',
+                  style: TextStyle(
+                    color: TekaColors.foreground,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                    height: 1,
+                  ),
+                ),
+                TextSpan(
+                  text: '.CD',
+                  style: TextStyle(
+                    color: TekaColors.tekaRed,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                    height: 1,
+                  ),
+                ),
+              ],
             ),
-            TextSpan(
-              text: '.CD',
-              style: TextStyle(
-                color: TekaColors.tekaRed,
-                fontSize: 24,
-                fontWeight: FontWeight.w900,
-                letterSpacing: 0,
-                height: 1,
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
