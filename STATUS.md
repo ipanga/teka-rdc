@@ -1,4 +1,4 @@
-# Status — 2026-06-27
+# Status — 2026-06-28
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,7 +6,17 @@
 
 ## Active initiative
 
-**Buyer Web UI/UX Polish** (started 2026-06-25) — elevate buyer-web to modern-marketplace polish (refine, not
+**Delivery-Fee Correctness + Currency CDF→FC** (started 2026-06-28) — fix checkout "Frais de livraison: Gratuit"
+(server calc is correct & always ≥ 5000 default → buyer-web's `/v1/checkout/quote` call fails and is swallowed by
+`catch{}→free`); fix admin delivery-zone amount scaling (form missing ×100/÷100 unit conversion the product form
+has); standardize user-facing currency label **CDF→FC** across web + mobile + emails (keep `*CDF` field names + ISO
+`'CDF'`). Investigation complete (4 Explore agents + direct reads). **Tracker: `tasks/delivery-fee-and-fc-progress.md`**
+(supersedes the never-closed `tasks/delivery-fee-quickwin-progress.md`). NEXT: Phase 0 reproduce the quote failure;
+**gated on D1 (no-zone behavior) decision.**
+
+---
+
+### Prior initiative (paused) — **Buyer Web UI/UX Polish** (started 2026-06-25) — elevate buyer-web to modern-marketplace polish (refine, not
 redesign): product cards (brand/savings/stock-emoji/seller-badge/ratings), header ☰, section emojis, hero overlay,
 PDP (savings/COD-trust/seller-card/specs/reviews-CTA), footer. Mirror to buyer-mobile where sensible. **Tracker:
 `tasks/ui-polish-progress.md`.**
