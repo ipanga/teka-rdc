@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { formatFC } from '@teka/shared';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationPrefsService } from '../users/notification-prefs.service';
 import { PushService, PushPayload } from '../push/push.service';
@@ -440,9 +441,9 @@ export class SellerNotificationService {
     return user ?? null;
   }
 
-  /** Format BigInt centimes as a French CDF label, e.g. "63 000 CDF". */
+  /** Format BigInt centimes as the FC label with '.' thousands, e.g. "63.000 FC". */
   private formatCdf(centimes: bigint): string {
-    return `${(Number(centimes) / 100).toLocaleString('fr-FR')} FC`;
+    return formatFC(Number(centimes));
   }
 
   /**
