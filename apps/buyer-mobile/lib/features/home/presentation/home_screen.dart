@@ -365,18 +365,22 @@ class _HomeAppBarTitle extends StatelessWidget {
     return Semantics(
       label: 'Teka CD, livraison à $label',
       textDirection: TextDirection.ltr,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _HomeBrandLogo(),
-          const SizedBox(height: 4),
-          _CitySwitcherChip(
-            cityName: label,
-            cityAccent: cityAccent,
-            onTap: onCityTap,
-          ),
-        ],
+      child: SizedBox(
+        width: 210,
+        height: 52,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const _HomeBrandLogo(),
+            const SizedBox(height: 4),
+            _CitySwitcherChip(
+              cityName: label,
+              cityAccent: cityAccent,
+              onTap: onCityTap,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -466,7 +470,8 @@ class _CitySwitcherChip extends StatelessWidget {
                   color: cityAccent,
                 ),
                 const SizedBox(width: 3),
-                Flexible(
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 150),
                   child: Text(
                     cityName,
                     maxLines: 1,

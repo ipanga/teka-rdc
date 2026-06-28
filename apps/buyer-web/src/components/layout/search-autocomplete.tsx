@@ -202,17 +202,11 @@ export function SearchAutocomplete({
     <div ref={boxRef} className="relative w-full">
       <form
         onSubmit={goToSearch}
-        className="flex h-11 overflow-hidden rounded-xl border border-border bg-white shadow-xs transition-all focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15 md:h-12"
+        className="flex h-11 items-center overflow-hidden rounded-full bg-surface-muted p-1 ring-1 ring-transparent transition-all focus-within:bg-white focus-within:ring-primary/35 md:h-12"
       >
-        <div className="hidden shrink-0 items-center gap-1 border-r border-border bg-surface-muted px-3 text-sm font-semibold text-foreground md:flex">
-          <span>{categoryLabel}</span>
-          <svg className="h-3.5 w-3.5 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </div>
-        <div className="relative min-w-0 flex-1">
+        <div className="relative h-full min-w-0 flex-1">
           <svg
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground md:left-4 md:h-5 md:w-5"
+            className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-foreground/80"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -234,15 +228,16 @@ export function SearchAutocomplete({
             }}
             placeholder={placeholder}
             autoComplete="off"
-            className="h-full w-full border-0 bg-transparent pl-10 pr-3 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:outline-none md:pl-12 md:text-base"
+            className="h-full w-full border-0 bg-transparent pl-12 pr-4 text-sm font-semibold text-foreground placeholder:text-muted-foreground focus:outline-none md:text-base"
           />
         </div>
         <button
           type="submit"
-          className="inline-flex w-12 shrink-0 items-center justify-center bg-primary text-primary-foreground transition-colors hover:bg-primary-hover focus-visible:outline-none md:w-14"
+          className="inline-flex h-full shrink-0 items-center justify-center rounded-full bg-primary px-4 text-sm font-bold text-primary-foreground shadow-xs transition-colors hover:bg-primary-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:px-6 md:text-base"
           aria-label="Rechercher"
         >
-          <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" aria-hidden>
+          <span className="hidden md:inline">Rechercher</span>
+          <svg className="h-5 w-5 md:hidden" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" aria-hidden>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.2-5.2m1.7-5.3a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </button>
