@@ -136,9 +136,9 @@ export function Header() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/80 bg-white/95 shadow-[0_1px_0_rgba(15,23,42,0.03)] backdrop-blur supports-[backdrop-filter]:bg-white/90">
+    <header className="sticky top-0 z-50 border-b border-border/80 bg-white shadow-[0_1px_0_rgba(15,23,42,0.03)]">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5">
-        <div className="flex h-14 md:h-16 items-center gap-2 lg:gap-3">
+        <div className="flex h-14 md:h-[70px] items-center gap-2 lg:gap-3">
           <Link href="/" className="shrink-0" aria-label="Teka RDC — Accueil">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -167,29 +167,6 @@ export function Header() {
               </span>
             </span>
             <svg className="ml-auto h-3 w-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-
-          {/* Catégories — placed to the LEFT of the search bar so it reads as
-              a "scope your search" control (Amazon / Jumia pattern), freeing the
-              right cluster for just Account + Cart. */}
-          <button
-            type="button"
-            onClick={() => {
-              setAccountMenuOpen(false);
-              setCategoryMenuOpen((open) => !open);
-            }}
-            className="hidden md:inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg border border-transparent px-2.5 text-sm font-semibold text-foreground transition-all hover:border-border hover:bg-surface-muted hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            aria-expanded={categoryMenuOpen}
-            aria-controls="desktop-category-menu"
-            aria-haspopup="true"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-            <span className="hidden lg:inline">{"Catégories"}</span>
-            <svg className={`h-3.5 w-3.5 transition-transform ${categoryMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
@@ -323,6 +300,52 @@ export function Header() {
               </svg>
             )}
           </button>
+        </div>
+      </div>
+
+      <div className="hidden border-t border-border/70 bg-[#17202A] text-white md:block">
+        <div className="max-w-7xl mx-auto flex h-10 items-center gap-1 px-4 lg:px-5">
+          <button
+            type="button"
+            onClick={() => {
+              setAccountMenuOpen(false);
+              setCategoryMenuOpen((open) => !open);
+            }}
+            className="inline-flex h-8 shrink-0 items-center gap-2 rounded-md px-2.5 text-sm font-bold transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+            aria-expanded={categoryMenuOpen}
+            aria-controls="desktop-category-menu"
+            aria-haspopup="true"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            {"Toutes les catégories"}
+          </button>
+
+          <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-sm font-semibold">
+            {[
+              { href: '/promotions', label: 'Promotions' },
+              { href: '/categories', label: 'Catégories' },
+              { href: '/lubumbashi', label: 'Lubumbashi' },
+              { href: '/kolwezi', label: 'Kolwezi' },
+              { href: '/commandes', label: 'Commandes' },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="shrink-0 rounded-md px-3 py-1.5 text-white/90 transition-colors hover:bg-white/10 hover:text-white"
+              >
+                {item.label}
+              </Link>
+            ))}
+          </nav>
+
+          <Link
+            href="/reclamer-compte"
+            className="hidden shrink-0 rounded-md px-3 py-1.5 text-sm font-bold text-white transition-colors hover:bg-white/10 xl:inline-flex"
+          >
+            {"Ancien compte vendeur ?"}
+          </Link>
         </div>
       </div>
 
