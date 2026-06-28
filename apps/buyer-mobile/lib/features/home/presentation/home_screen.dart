@@ -367,10 +367,11 @@ class _HomeAppBarTitle extends StatelessWidget {
       textDirection: TextDirection.ltr,
       child: SizedBox(
         width: 210,
-        height: 52,
+        height: 56,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             const _HomeBrandLogo(),
             const SizedBox(height: 4),
@@ -451,14 +452,16 @@ class _CitySwitcherChip extends StatelessWidget {
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 190),
       child: Material(
+        // NOTE: Material forbids passing both `borderRadius` and `shape` (it
+        // asserts in debug → error box + "99979px overflow"). The StadiumBorder
+        // already gives a fully-rounded pill, so no borderRadius here.
         color: Colors.white,
-        borderRadius: BorderRadius.circular(999),
         shape: StadiumBorder(
           side: BorderSide(color: cityAccent.withValues(alpha: 0.26)),
         ),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(999),
+          customBorder: const StadiumBorder(),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             child: Row(

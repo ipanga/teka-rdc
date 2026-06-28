@@ -14,9 +14,9 @@ SHARED formatter across all 6 surfaces (display-only). **Tracker: `tasks/image-p
   `@teka/shared` formatter · P2 buyer-web (live-verified) · P3 admin-web + seller-web (16 files) · P4 buyer-mobile
   dot formatter + **image-preview close button** (emulator-verified) · P5 seller-mobile · P6 API notification/payout
   formatters + docs. Tests: api 165 unit + 116 e2e, buyer-mobile 120, all web build, both mobile analyze.
-- **DEFERRED FOLLOW-UP (user-approved, do AFTER this initiative):** buyer-mobile HOME header shows a debug
-  `BOTTOM OVERFLOWED BY 99979 PIXELS` overlay (`features/home/presentation/home_screen.dart` header area; pre-existing,
-  likely from the top-bar-logo fix). PDP header is fine. Fix as a separate change.
+- **FOLLOW-UP ✅ FIXED (commit 175adb2, on develop unpushed):** buyer-mobile HOME header overflow — root cause was
+  the city-switcher chip's Material getting both `borderRadius` + `shape` (debug assert → error box →
+  "99979px overflow"). Dropped the redundant borderRadius + bumped the title box 52→56. Emulator-verified clean.
 
 > **SHIPPED 2026-06-28** — Delivery-Fee Correctness + CDF→FC (prod, releases #509 + hotfix #510). Backend BLOCKS on
 > no-zone (city-based match); admin zone ×100/÷100 scaling fixed; CDF→FC everywhere. **Checkout double-wrap hotfix**
