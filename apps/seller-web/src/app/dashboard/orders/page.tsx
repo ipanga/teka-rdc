@@ -1,5 +1,6 @@
 'use client';
 
+import { formatFC } from '@teka/shared';
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
@@ -149,13 +150,7 @@ export default function OrdersListPage() {
     handleAction(orderId, 'deliver');
   };
 
-  const formatPrice = (centimes: string) => {
-    const amount = Number(centimes) / 100;
-    return `${new Intl.NumberFormat('fr-CD', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)} FC`;
-  };
+  const formatPrice = (centimes: string) => formatFC(centimes);
 
   const formatDate = (dateStr: string) => {
     return new Intl.DateTimeFormat('fr-CD', {

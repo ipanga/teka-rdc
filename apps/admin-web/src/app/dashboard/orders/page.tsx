@@ -1,5 +1,6 @@
 'use client';
 
+import { formatFC } from '@teka/shared';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
@@ -100,11 +101,7 @@ export default function OrdersPage() {
     fetchOrders();
   };
 
-  const formatCDF = (centimes: string) => {
-    return `${new Intl.NumberFormat('fr-CD', {
-      maximumFractionDigits: 0,
-    }).format(Number(centimes) / 100)} FC`;
-  };
+  const formatCDF = (centimes: string) => formatFC(centimes);
 
   return (
     <div className="p-8">

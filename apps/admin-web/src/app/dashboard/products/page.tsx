@@ -1,5 +1,6 @@
 'use client';
 
+import { formatFC, formatUSD } from '@teka/shared';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
@@ -196,21 +197,8 @@ export default function ProductModerationPage() {
     return url.replace('/upload/', '/upload/w_80,h_80,c_fill,f_auto/');
   };
 
-  const formatPrice = (cdf: number, usd?: number | null) => {
-    const cdfFormatted = new Intl.NumberFormat('fr-CD', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(cdf / 100);
-
-    if (usd) {
-      const usdFormatted = new Intl.NumberFormat('fr-CD', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(usd / 100);
-      return `${cdfFormatted} FC / ${usdFormatted} USD`;
-    }
-    return `${cdfFormatted} FC`;
-  };
+  const formatPrice = (cdf: number, usd?: number | null) =>
+    usd ? `${formatFC(cdf)} / ${formatUSD(usd)}` : formatFC(cdf);
 
   return (
     <div className="p-8">

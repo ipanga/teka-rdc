@@ -1,5 +1,6 @@
 'use client';
 
+import { formatFC } from '@teka/shared';
 import { useEffect, useState, useCallback } from 'react';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import type { Promotion, PromotionType, SellerProduct } from '@/lib/types';
@@ -73,13 +74,7 @@ export default function PromotionsPage() {
     }).format(new Date(dateStr));
   };
 
-  const formatPrice = (centimes: string) => {
-    const amount = Number(centimes) / 100;
-    return `${new Intl.NumberFormat('fr-CD', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)} FC`;
-  };
+  const formatPrice = (centimes: string) => formatFC(centimes);
 
   const getStatusStyle = (status: string) => {
     switch (status) {

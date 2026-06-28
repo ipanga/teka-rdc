@@ -1,5 +1,6 @@
 'use client';
 
+import { formatFC } from '@teka/shared';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
@@ -36,13 +37,7 @@ export default function SellerDashboardPage() {
   });
   const [reviewStatsLoading, setReviewStatsLoading] = useState(true);
 
-  const formatPrice = (centimes: string) => {
-    const amount = Number(centimes) / 100;
-    return `${new Intl.NumberFormat('fr-CD', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount)} FC`;
-  };
+  const formatPrice = (centimes: string) => formatFC(centimes);
 
   useEffect(() => {
     async function loadStats() {

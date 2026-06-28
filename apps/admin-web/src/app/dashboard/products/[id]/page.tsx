@@ -1,5 +1,6 @@
 'use client';
 
+import { formatFC, formatUSD } from '@teka/shared';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -137,21 +138,8 @@ export default function ProductDetailPage() {
     }
   };
 
-  const formatPrice = (cdf: number, usd?: number | null) => {
-    const cdfFormatted = new Intl.NumberFormat('fr-CD', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(cdf / 100);
-
-    if (usd) {
-      const usdFormatted = new Intl.NumberFormat('fr-CD', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(usd / 100);
-      return `${cdfFormatted} FC / ${usdFormatted} USD`;
-    }
-    return `${cdfFormatted} FC`;
-  };
+  const formatPrice = (cdf: number, usd?: number | null) =>
+    usd ? `${formatFC(cdf)} / ${formatUSD(usd)}` : formatFC(cdf);
 
   const getOptimizedUrl = (url: string, width: number) => {
     return url.replace('/upload/', `/upload/w_${width},c_limit,f_auto/`);
