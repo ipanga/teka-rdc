@@ -1,13 +1,13 @@
+import { formatFC, groupThousands } from '@teka/shared';
+
 /**
  * Format a BigInt string (centimes) as Congolese-Franc currency.
- * The user-facing label is **FC** (how DRC users refer to the franc), not the
- * ISO "CDF". Example: "150000" (1500 centimes) -> "1 500 FC".
+ * The user-facing label is **FC** with '.' thousand separators (DRC
+ * convention): "150000" (centimes) -> "1.500 FC". Delegates to the shared
+ * formatter so web + mobile stay identical.
  */
 export function formatCDF(centimes: string): string {
-  const amount = Number(centimes) / 100;
-  return `${new Intl.NumberFormat('fr-CD', {
-    maximumFractionDigits: 0,
-  }).format(amount)} FC`;
+  return formatFC(centimes);
 }
 
 /**
@@ -41,12 +41,13 @@ export function effectiveCentimes(p: {
 }
 
 /**
- * Format a number as USD currency.
+ * Format a USD amount (already in dollars) French-style: '.' thousands,
+ * ',' decimals, " $US" — e.g. 1250.75 -> "1.250,75 $US". (Input unit
+ * unchanged from before; only the separators changed.)
  */
 export function formatUSD(amount: number): string {
-  return new Intl.NumberFormat('fr-CD', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 2,
-  }).format(amount);
+  if (!Number.isFinite(amount)) return '';
+  const sign = amount < 0 ? '-' : '';
+  const [int, dec] = Math.abs(amount).toFixed(2).split('.');
+  return `${sign}${groupThousands(int)},${dec} $US`;
 }

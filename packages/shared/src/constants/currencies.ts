@@ -7,7 +7,7 @@ export type SupportedCurrency = (typeof SUPPORTED_CURRENCIES)[number];
  * convention for francs (1250000 → "1.250.000"). Input is the absolute
  * integer part as a digit string.
  */
-function groupThousands(intDigits: string): string {
+export function groupThousands(intDigits: string): string {
   return intDigits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
