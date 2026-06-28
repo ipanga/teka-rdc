@@ -22,14 +22,6 @@ function PinIcon({ className }: { className?: string }) {
   );
 }
 
-function UserIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 7.5a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a7.5 7.5 0 0115 0" />
-    </svg>
-  );
-}
-
 export function Header() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
@@ -136,15 +128,32 @@ export function Header() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/80 bg-white shadow-[0_1px_0_rgba(15,23,42,0.03)]">
+    <header className="sticky top-0 z-50 border-b border-border/80 bg-white shadow-sm">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5">
-        <div className="flex h-14 md:h-[70px] items-center gap-2 lg:gap-3">
+        <div className="flex h-14 items-center gap-2 md:h-[72px] md:gap-3 lg:gap-4">
+          <button
+            type="button"
+            onClick={() => {
+              setAccountMenuOpen(false);
+              setCategoryMenuOpen((open) => !open);
+            }}
+            className="hidden h-10 w-10 shrink-0 items-center justify-center rounded-full text-foreground transition-colors hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:inline-flex"
+            aria-label="Toutes les catégories"
+            aria-expanded={categoryMenuOpen}
+            aria-controls="desktop-category-menu"
+            aria-haspopup="true"
+          >
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
           <Link href="/" className="shrink-0" aria-label="Teka RDC — Accueil">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/logo.svg"
               alt="Teka RDC"
-              className="h-7 w-auto md:h-8"
+              className="h-7 w-auto md:h-8 lg:h-9"
               width={132}
               height={28}
             />
@@ -152,17 +161,16 @@ export function Header() {
 
           <button
             onClick={openSelector}
-            className={`hidden md:flex h-10 min-w-[154px] shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-left shadow-xs transition-all ${
+            className={`hidden h-10 shrink-0 items-center gap-1.5 rounded-full px-3 text-left transition-colors xl:flex ${
               selectedCity
-                ? `${cityAcc.surface} border-transparent hover:brightness-95`
-                : 'border-border bg-white text-foreground hover:border-primary/35 hover:bg-surface-muted'
+                ? `${cityAcc.surface} hover:brightness-95`
+                : 'text-foreground hover:bg-surface-muted'
             }`}
             title={selectedCity ? 'Changer de ville' : 'Choisissez votre ville'}
           >
             <PinIcon className="h-4 w-4 shrink-0" />
-            <span className="min-w-0 flex flex-col items-start leading-tight">
-              <span className="text-[10px] font-medium opacity-80">{"Livrer à"}</span>
-              <span className="max-w-[110px] truncate text-sm font-bold -mt-0.5">
+            <span className="min-w-0 leading-tight">
+              <span className="block max-w-[120px] truncate text-sm font-bold">
                 {selectedCity ? selectedCity.name : 'Choisir une ville'}
               </span>
             </span>
@@ -171,8 +179,6 @@ export function Header() {
             </svg>
           </button>
 
-          {/* Search — primary element; uncapped so it absorbs the space freed
-              by removing the bell, wishlist and promotions chrome. */}
           <div className="hidden md:flex min-w-[260px] flex-1">
             <SearchAutocomplete
               cityId={selectedCity?.id}
@@ -194,28 +200,23 @@ export function Header() {
                       setCategoryMenuOpen(false);
                       setAccountMenuOpen((open) => !open);
                     }}
-                    className="inline-flex h-10 items-center gap-2 rounded-lg border border-border bg-white px-2 text-left shadow-xs transition-all hover:border-primary/30 hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="inline-flex h-10 items-center gap-1.5 rounded-full border border-border bg-white px-3 text-left text-sm font-bold text-foreground shadow-xs transition-all hover:border-primary/35 hover:bg-primary-subtle hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     aria-expanded={accountMenuOpen}
                     aria-haspopup="menu"
                     aria-controls="buyer-account-menu"
                   >
-                    <span className="relative grid h-7.5 w-7.5 place-items-center rounded-full bg-primary-subtle text-primary">
-                      <UserIcon className="h-4.5 w-4.5" />
-                      {unreadCount > 0 && (
-                        <span
-                          className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-primary ring-2 ring-white"
-                          aria-hidden
-                        />
-                      )}
+                    <span className="max-w-[112px] truncate lg:max-w-[150px]">
+                      {firstName ? `Bonjour, ${firstName}` : accountName}
                     </span>
-                    <span className="hidden lg:flex min-w-0 flex-col leading-tight">
-                      <span className="text-[10px] font-medium text-muted-foreground">
-                        {firstName ? 'Bonjour,' : 'Bienvenue'}
-                      </span>
-                      <span className="max-w-[120px] truncate text-sm font-bold text-foreground">
-                        {accountName}
-                      </span>
-                    </span>
+                    {unreadCount > 0 && (
+                      <Badge
+                        variant="discount"
+                        size="sm"
+                        className="min-w-5 justify-center px-1.5"
+                      >
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </Badge>
+                    )}
                     <svg className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${accountMenuOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
@@ -272,7 +273,7 @@ export function Header() {
             ) : (
               <Link
                 href="/connexion"
-                className={buttonVariants({ variant: 'default', size: 'md' })}
+                className="inline-flex h-10 items-center justify-center rounded-full border border-border bg-white px-4 text-sm font-bold text-foreground shadow-xs transition-all hover:border-primary/35 hover:bg-primary-subtle hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               >
                 {"Se connecter"}
               </Link>
@@ -300,52 +301,6 @@ export function Header() {
               </svg>
             )}
           </button>
-        </div>
-      </div>
-
-      <div className="hidden border-t border-border/70 bg-[#17202A] text-white md:block">
-        <div className="max-w-7xl mx-auto flex h-10 items-center gap-1 px-4 lg:px-5">
-          <button
-            type="button"
-            onClick={() => {
-              setAccountMenuOpen(false);
-              setCategoryMenuOpen((open) => !open);
-            }}
-            className="inline-flex h-8 shrink-0 items-center gap-2 rounded-md px-2.5 text-sm font-bold transition-colors hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
-            aria-expanded={categoryMenuOpen}
-            aria-controls="desktop-category-menu"
-            aria-haspopup="true"
-          >
-            <svg className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24" aria-hidden>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-            {"Toutes les catégories"}
-          </button>
-
-          <nav className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden text-sm font-semibold">
-            {[
-              { href: '/promotions', label: 'Promotions' },
-              { href: '/categories', label: 'Catégories' },
-              { href: '/lubumbashi', label: 'Lubumbashi' },
-              { href: '/kolwezi', label: 'Kolwezi' },
-              { href: '/commandes', label: 'Commandes' },
-            ].map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="shrink-0 rounded-md px-3 py-1.5 text-white/90 transition-colors hover:bg-white/10 hover:text-white"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          <Link
-            href="/reclamer-compte"
-            className="hidden shrink-0 rounded-md px-3 py-1.5 text-sm font-bold text-white transition-colors hover:bg-white/10 xl:inline-flex"
-          >
-            {"Ancien compte vendeur ?"}
-          </Link>
         </div>
       </div>
 
