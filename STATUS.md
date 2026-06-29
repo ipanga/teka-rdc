@@ -6,17 +6,20 @@
 
 ## Active initiative
 
-**Mobile Image Preview + Dot-Separator Price Formatting** (started 2026-06-28) — IN PROGRESS on `develop`.
-(1) buyer-mobile full-screen product-image viewer needs a clear top-right close button (safe-area, preserve
-zoom/swipe). (2) Standardize FC display with **`.` thousand separators** (52.957 FC) + USD `1.250,75 $US` via a
-SHARED formatter across all 6 surfaces (display-only). **Tracker: `tasks/image-preview-and-dot-formatting-progress.md`.**
-- **ALL 6 PHASES ✅ CODE-COMPLETE on develop (unpushed) — awaiting user go to push/merge/deploy.** P1 shared
-  `@teka/shared` formatter · P2 buyer-web (live-verified) · P3 admin-web + seller-web (16 files) · P4 buyer-mobile
-  dot formatter + **image-preview close button** (emulator-verified) · P5 seller-mobile · P6 API notification/payout
-  formatters + docs. Tests: api 165 unit + 116 e2e, buyer-mobile 120, all web build, both mobile analyze.
-- **FOLLOW-UP ✅ FIXED (commit 175adb2, on develop unpushed):** buyer-mobile HOME header overflow — root cause was
-  the city-switcher chip's Material getting both `borderRadius` + `shape` (debug assert → error box →
-  "99979px overflow"). Dropped the redundant borderRadius + bumped the title box 52→56. Emulator-verified clean.
+**Order Management Workflow — Review & Implementation** (started 2026-06-29) — IN PROGRESS on `develop`.
+Reported bug: a confirmed buyer order doesn't appear on buyer `/commandes`, seller dashboard, or (possibly) admin.
+**Tracker: `tasks/order-management-progress.md`.** Phase-by-phase (pause after each).
+- **Phase 1 (audit + root cause) ✅ DONE.** ROOT CAUSE = **order-list response-shape mismatch** (NOT order
+  creation — prod DB proves the order exists, correct buyerId/sellerId/PENDING/delivery-fee). Order-list endpoints
+  emit `{ success, data: { data: Order[], pagination } }`; correct read is `res.data.data` + `res.data.pagination`.
+  buyer-web reads `res.data.meta` (throws), seller-web reads `res.data.orders` (empty), buyer-mobile casts the
+  wrapper Map `as List` (throws); admin-web works (defensive); **seller-mobile is the only correct reference**.
+  Detail pages + checkout result are fine. **NEXT: Phase 2** — restore visibility by aligning the 4 broken clients
+  to `res.data.data` + `res.data.pagination` (no API change → mobile-safe). Then deeper phases (status actions,
+  notifications, financial breakdown) per the spec.
+
+> **SHIPPED 2026-06-28/29:** Mobile Image Preview + Dot-Separator Price Formatting (release #511) + buyer-mobile
+> home-header overflow fix (#512) — both LIVE in prod. Model: `docs/delivery-fees-and-currency.md`.
 
 > **SHIPPED 2026-06-28** — Delivery-Fee Correctness + CDF→FC (prod, releases #509 + hotfix #510). Backend BLOCKS on
 > no-zone (city-based match); admin zone ×100/÷100 scaling fixed; CDF→FC everywhere. **Checkout double-wrap hotfix**
