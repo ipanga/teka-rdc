@@ -39,8 +39,8 @@ interface Order {
 }
 
 interface OrdersResponse {
-  orders: Order[];
-  meta?: {
+  data: Order[];
+  pagination?: {
     total: number;
     page: number;
     limit: number;
@@ -83,8 +83,8 @@ export default function OrdersListPage() {
         params.set('status', statusFilter);
       }
       const res = await apiFetch<OrdersResponse>(`/v1/sellers/orders?${params}`);
-      setOrders(res.data.orders || []);
-      setTotalPages(res.data.meta?.totalPages ?? 1);
+      setOrders(res.data.data || []);
+      setTotalPages(res.data.pagination?.totalPages ?? 1);
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);

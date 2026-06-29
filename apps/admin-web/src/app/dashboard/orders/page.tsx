@@ -34,7 +34,7 @@ interface Order {
 
 interface PaginatedResponse {
   data: Order[];
-  meta: {
+  pagination: {
     total: number;
     page: number;
     limit: number;
@@ -83,7 +83,7 @@ export default function OrdersPage() {
       const res = await apiFetch<PaginatedResponse>(`/v1/admin/orders?${params}`);
       const rd = res.data;
       if (Array.isArray(rd)) { setOrders(rd); setTotalPages(1); }
-      else { setOrders(rd.data); setTotalPages(rd.meta?.totalPages ?? 1); }
+      else { setOrders(rd.data); setTotalPages(rd.pagination?.totalPages ?? 1); }
     } catch {
       // Error handled by apiFetch
     } finally {
