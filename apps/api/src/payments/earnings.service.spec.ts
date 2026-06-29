@@ -90,3 +90,21 @@ describe('EarningsService.createEarning', () => {
     expect(tx.sellerProfile.update).not.toHaveBeenCalled();
   });
 });
+
+describe('EarningsService.computeBreakdown (seller "à recevoir" preview)', () => {
+  it('projects gross/commission/net at the default rate (no category)', async () => {
+    const { service } = makeService();
+    const b = await service.computeBreakdown(1000000n, null);
+    expect(b.grossAmountCDF).toBe(1000000n);
+    expect(b.commissionCDF).toBe(100000n); // 10%
+    expect(b.netAmountCDF).toBe(900000n);
+    expect(b.commissionRate.toString()).toBe('0.1');
+  });
+
+  it('uses the category rate when present', async () => {
+    const { service } = makeService({ categorySetting: { rate: new Decimal('0.2000') } });
+    const b = await service.computeBreakdown(1000000n, 'cat-1');
+    expect(b.commissionCDF).toBe(200000n);
+    expect(b.netAmountCDF).toBe(800000n);
+  });
+});
