@@ -65,7 +65,8 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
       _FilterItem(OrderStatus.pending, "En attente"),
       _FilterItem(OrderStatus.confirmed, "Confirmées"),
       _FilterItem(OrderStatus.processing, "En préparation"),
-      _FilterItem(OrderStatus.shipped, "Expédiées"),
+      _FilterItem(OrderStatus.readyForTekaPickup, "Prête pour collecte"),
+      _FilterItem(OrderStatus.outForDelivery, "En livraison"),
       _FilterItem(OrderStatus.delivered, "Livrées"),
       _FilterItem(OrderStatus.cancelled, "Annulées"),
     ];

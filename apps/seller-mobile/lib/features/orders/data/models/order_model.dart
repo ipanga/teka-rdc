@@ -2,6 +2,8 @@ enum OrderStatus {
   pending,
   confirmed,
   processing,
+  readyForTekaPickup,
+  receivedAtTeka,
   shipped,
   outForDelivery,
   delivered,
@@ -17,6 +19,10 @@ OrderStatus parseOrderStatus(String? status) {
       return OrderStatus.confirmed;
     case 'PROCESSING':
       return OrderStatus.processing;
+    case 'READY_FOR_TEKA_PICKUP':
+      return OrderStatus.readyForTekaPickup;
+    case 'RECEIVED_AT_TEKA':
+      return OrderStatus.receivedAtTeka;
     case 'SHIPPED':
       return OrderStatus.shipped;
     case 'OUT_FOR_DELIVERY':
@@ -40,6 +46,10 @@ String orderStatusToApi(OrderStatus status) {
       return 'CONFIRMED';
     case OrderStatus.processing:
       return 'PROCESSING';
+    case OrderStatus.readyForTekaPickup:
+      return 'READY_FOR_TEKA_PICKUP';
+    case OrderStatus.receivedAtTeka:
+      return 'RECEIVED_AT_TEKA';
     case OrderStatus.shipped:
       return 'SHIPPED';
     case OrderStatus.outForDelivery:

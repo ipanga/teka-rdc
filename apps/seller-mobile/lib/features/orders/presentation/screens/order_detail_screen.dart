@@ -360,26 +360,12 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                             .read(sellerOrdersRepositoryProvider)
                             .processOrder(order.id),
                       ),
-                      onShip: () => _performAction(
+                      onReadyForPickup: () => _performAction(
                         context,
-                        "Expedier",
+                        "Prête pour collecte",
                         () => ref
                             .read(sellerOrdersRepositoryProvider)
-                            .shipOrder(order.id),
-                      ),
-                      onOutForDelivery: () => _performAction(
-                        context,
-                        "En livraison",
-                        () => ref
-                            .read(sellerOrdersRepositoryProvider)
-                            .markOutForDelivery(order.id),
-                      ),
-                      onDeliver: () => _performAction(
-                        context,
-                        "Livrer",
-                        () => ref
-                            .read(sellerOrdersRepositoryProvider)
-                            .deliverOrder(order.id),
+                            .markReadyForPickup(order.id),
                       ),
                     ),
             ),
@@ -688,6 +674,10 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
         return "Confirmee";
       case 'PROCESSING':
         return "En préparation";
+      case 'READY_FOR_TEKA_PICKUP':
+        return "Prête pour collecte";
+      case 'RECEIVED_AT_TEKA':
+        return "Reçue par Teka";
       case 'SHIPPED':
         return "Expediee";
       case 'OUT_FOR_DELIVERY':

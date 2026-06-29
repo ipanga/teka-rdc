@@ -252,6 +252,23 @@ class _ProductListItem extends StatelessWidget {
                         fontSize: 13,
                       ),
                     ),
+                    if (product.cityName != null) ...[
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          const Icon(Icons.place_outlined,
+                              size: 12, color: TekaColors.mutedForeground),
+                          const SizedBox(width: 2),
+                          Text(
+                            product.cityName!,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: TekaColors.mutedForeground,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 6),
                     Row(
                       children: [

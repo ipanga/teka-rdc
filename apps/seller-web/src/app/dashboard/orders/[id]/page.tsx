@@ -134,9 +134,7 @@ export default function OrderDetailPage() {
   };
 
   const handleProcess = () => handleAction('process');
-  const handleShip = () => handleAction('ship');
-  const handleOutForDelivery = () => handleAction('out-for-delivery');
-  const handleDeliver = () => handleAction('deliver');
+  const handleReadyForPickup = () => handleAction('ready-for-pickup');
 
   const formatPrice = (centimes: string) => formatFC(centimes);
 
@@ -209,42 +207,15 @@ export default function OrderDetailPage() {
       case 'PROCESSING':
         return (
           <button
-            onClick={handleShip}
+            onClick={handleReadyForPickup}
             disabled={actionLoading}
             className={`${btnBase} bg-primary text-primary-foreground hover:bg-primary/90`}
           >
-            {actionLoading ? '...' : 'Expédier'}
+            {actionLoading ? '...' : 'Prête pour collecte'}
           </button>
         );
-      case 'SHIPPED':
-        return (
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleOutForDelivery}
-              disabled={actionLoading}
-              className={`${btnBase} bg-primary text-primary-foreground hover:bg-primary/90`}
-            >
-              {actionLoading ? '...' : 'En livraison'}
-            </button>
-            <button
-              onClick={handleDeliver}
-              disabled={actionLoading}
-              className={`${btnBase} border border-border text-foreground hover:bg-muted`}
-            >
-              {actionLoading ? '...' : 'Livrer'}
-            </button>
-          </div>
-        );
-      case 'OUT_FOR_DELIVERY':
-        return (
-          <button
-            onClick={handleDeliver}
-            disabled={actionLoading}
-            className={`${btnBase} bg-success text-white hover:bg-success/90`}
-          >
-            {actionLoading ? '...' : 'Livrer'}
-          </button>
-        );
+      // READY_FOR_TEKA_PICKUP and beyond are handled by Teka (admin) — the
+      // seller has no further action once the parcel is ready for pickup.
       default:
         return null;
     }
@@ -521,7 +492,7 @@ export default function OrderDetailPage() {
                 <p className="text-sm font-medium text-foreground">
                   {order.paymentMethod === 'MOBILE_MONEY'
                     ? 'Mobile Money'
-                    : order.paymentMethod === 'CASH_ON_DELIVERY'
+                    : order.paymentMethod === 'COD'
                       ? 'Paiement à la livraison'
                       : order.paymentMethod || '---'}
                 </p>

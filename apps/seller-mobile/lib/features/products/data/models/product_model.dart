@@ -150,6 +150,7 @@ class SellerProductModel {
   final List<ProductImageModel> images;
   final List<ProductSpecificationModel> specifications;
   final CategoryModel? category;
+  final String? cityName; // town where the product is published/sold
   final DateTime createdAt;
   final DateTime? updatedAt;
 
@@ -169,6 +170,7 @@ class SellerProductModel {
     this.images = const [],
     this.specifications = const [],
     this.category,
+    this.cityName,
     required this.createdAt,
     this.updatedAt,
   });
@@ -216,6 +218,7 @@ class SellerProductModel {
 
     final categoryRaw = json['category'] as Map<String, dynamic>?;
     final brandRaw = json['brand'] as Map<String, dynamic>?;
+    final cityRaw = json['city'] as Map<String, dynamic>?;
 
     return SellerProductModel(
       id: json['id'] as String,
@@ -234,6 +237,7 @@ class SellerProductModel {
       specifications: specifications,
       category:
           categoryRaw != null ? CategoryModel.fromJson(categoryRaw) : null,
+      cityName: cityRaw?['name'] as String?,
       createdAt: DateTime.parse(
           json['createdAt'] as String? ?? DateTime.now().toIso8601String()),
       updatedAt: json['updatedAt'] != null
