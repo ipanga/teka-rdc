@@ -69,6 +69,7 @@ export function Sidebar() {
     { href: '/dashboard/delivery-zones', label: "Zones de livraison", icon: '\uD83D\uDE9A' },
     { href: '/dashboard/transactions', label: "Transactions", icon: '\uD83D\uDCC4' },
     { href: '/dashboard/payouts', label: "Virements", icon: '\uD83D\uDCB5' },
+    { href: '/dashboard/returns', label: "Retours", icon: '\u21A9' },
     { href: '/dashboard/commission', label: "Commissions", icon: '\u2699' },
     { href: '/dashboard/reviews', label: "Avis", icon: '\u2605' },
     { href: '/dashboard/banners', label: "Banni\u00E8res", icon: '\uD83D\uDDBC' },

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 
 const DEFAULT_COMMISSION_RATE = new Decimal('0.1000'); // 10%
@@ -84,6 +85,47 @@ export class EarningsService {
     this.logger.log(
       `Earning created for order ${orderId}: gross=${grossAmountCDF}, commission=${commissionCDF} (${commissionRate}), net=${netAmountCDF}`,
     );
+  }
+
+  /**
+   * Reverse a delivered order's earning when a return is approved. Runs inside
+   * the caller's transaction (`tx`) so it commits atomically with the order
+   * flip to RETURNED + restock.
+   *
+   * - No earning yet → nothing to reverse.
+   * - Earning already in a payout (`isPaid`) → leave it; the cash is committed,
+   *   so an admin must settle the clawback manually. Returns `inPayout: true`.
+   * - Otherwise → debit the wallet by the net and delete the earning row.
+   */
+  async reverseEarning(
+    orderId: string,
+    tx: Prisma.TransactionClient,
+  ): Promise<{ reversed: boolean; inPayout: boolean }> {
+    const earning = await tx.sellerEarning.findUnique({
+      where: { orderId },
+      select: {
+        id: true,
+        sellerProfileId: true,
+        netAmountCDF: true,
+        isPaid: true,
+        payoutId: true,
+      },
+    });
+    if (!earning) return { reversed: false, inPayout: false };
+
+    if (earning.isPaid || earning.payoutId) {
+      this.logger.warn(
+        `Return on order ${orderId}: earning already in a payout — manual clawback required`,
+      );
+      return { reversed: false, inPayout: true };
+    }
+
+    await tx.sellerProfile.update({
+      where: { id: earning.sellerProfileId },
+      data: { walletBalanceCDF: { decrement: earning.netAmountCDF } },
+    });
+    await tx.sellerEarning.delete({ where: { id: earning.id } });
+    return { reversed: true, inPayout: false };
   }
 
   /**
