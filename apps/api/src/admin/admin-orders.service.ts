@@ -404,6 +404,12 @@ export class AdminOrdersService {
       OrderStatus.RECEIVED_AT_TEKA,
       'Reçue par Teka RDC',
     );
+    this.analytics.capture(updated.buyerId, 'order_received_at_teka', {
+      orderId,
+      orderNumber: updated.orderNumber,
+      sellerId: updated.sellerId,
+      status: OrderStatus.RECEIVED_AT_TEKA,
+    });
     this.notificationService
       .notifyOrderReceivedAtTeka(updated)
       .catch((err) =>
@@ -420,6 +426,12 @@ export class AdminOrdersService {
       OrderStatus.OUT_FOR_DELIVERY,
       'En cours de livraison',
     );
+    this.analytics.capture(updated.buyerId, 'order_out_for_delivery', {
+      orderId,
+      orderNumber: updated.orderNumber,
+      sellerId: updated.sellerId,
+      status: OrderStatus.OUT_FOR_DELIVERY,
+    });
     this.notificationService
       .notifyOrderOutForDelivery(updated)
       .catch((err) =>

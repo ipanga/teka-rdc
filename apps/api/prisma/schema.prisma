@@ -1203,9 +1203,11 @@ enum UserNotificationType {
   PRODUCT_REJECTED
   // Admin broadcast (generic message) and a product-linked promo broadcast
   // (deep-links to the PDP). The generic shape (type + entityType/entityId)
-  // also supports future ORDER/DELIVERY/WISHLIST/BACK_IN_STOCK without redesign.
+  // also supports future DELIVERY/WISHLIST/BACK_IN_STOCK without redesign.
   BROADCAST
   PRODUCT_PROMO
+  // Order lifecycle (seller new-order feed; entityType 'order' → order detail).
+  ORDER
 }
 
 model UserNotification {

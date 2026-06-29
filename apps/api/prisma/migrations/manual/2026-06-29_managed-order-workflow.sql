@@ -10,6 +10,9 @@
 ALTER TYPE "OrderStatus" ADD VALUE IF NOT EXISTS 'READY_FOR_TEKA_PICKUP';
 ALTER TYPE "OrderStatus" ADD VALUE IF NOT EXISTS 'RECEIVED_AT_TEKA';
 
+-- 1b) New UserNotificationType value for the seller new-order in-app feed.
+ALTER TYPE "UserNotificationType" ADD VALUE IF NOT EXISTS 'ORDER';
+
 -- 2) ReturnStatus enum for buyer return requests.
 DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ReturnStatus') THEN

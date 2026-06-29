@@ -38,8 +38,19 @@ function makeService(opts: {
   const earningsService = {
     reverseEarning: jest.fn().mockResolvedValue({ reversed: true, inPayout: false }),
   };
-  const service = new ReturnsService(prisma as never, earningsService as never);
-  return { service, prisma, tx, earningsService };
+  const notificationService = {
+    notifyReturnRequested: jest.fn().mockResolvedValue(undefined),
+    notifyReturnApproved: jest.fn().mockResolvedValue(undefined),
+    notifyReturnRejected: jest.fn().mockResolvedValue(undefined),
+  };
+  const analytics = { capture: jest.fn() };
+  const service = new ReturnsService(
+    prisma as never,
+    earningsService as never,
+    notificationService as never,
+    analytics as never,
+  );
+  return { service, prisma, tx, earningsService, notificationService };
 }
 
 describe('ReturnsService.createReturnRequest', () => {

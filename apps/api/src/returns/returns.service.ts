@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EarningsService } from '../payments/earnings.service';
+import { OrderNotificationService } from '../notifications/order-notification.service';
+import { PostHogService } from '../analytics/posthog.service';
 import {
   OrderStatus,
   ReturnStatus,
@@ -26,6 +28,8 @@ export class ReturnsService {
   constructor(
     private prisma: PrismaService,
     private earningsService: EarningsService,
+    private notificationService: OrderNotificationService,
+    private analytics: PostHogService,
   ) {}
 
   /**
@@ -64,9 +68,19 @@ export class ReturnsService {
       );
     }
 
-    return this.prisma.returnRequest.create({
+    const created = await this.prisma.returnRequest.create({
       data: { orderId, buyerId, reason: reason.trim() },
     });
+
+    // Notify the seller + track the event (fire-and-forget).
+    this.notificationService
+      .notifyReturnRequested({ id: orderId })
+      .catch((err) =>
+        this.logger.error('Échec notification (retour demandé)', err),
+      );
+    this.analytics.capture(buyerId, 'return_requested', { orderId });
+
+    return created;
   }
 
   /** Admin: paginated list of return requests, optional status filter. */
@@ -203,13 +217,19 @@ export class ReturnsService {
       `Return ${returnId} approved for order ${order.orderNumber} (earning reversed=${result.reversed}, inPayout=${result.inPayout})`,
     );
 
+    this.notificationService
+      .notifyReturnApproved({ id: order.id })
+      .catch((err) =>
+        this.logger.error('Échec notification (retour approuvé)', err),
+      );
+
     return { id: returnId, status: ReturnStatus.APPROVED, ...result };
   }
 
   /** Admin rejects a return: the order stays DELIVERED, payout proceeds normally. */
   async rejectReturn(returnId: string, adminId: string, note?: string) {
-    await this.loadPendingReturn(returnId);
-    return this.prisma.returnRequest.update({
+    const ret = await this.loadPendingReturn(returnId);
+    const updated = await this.prisma.returnRequest.update({
       where: { id: returnId },
       data: {
         status: ReturnStatus.REJECTED,
@@ -218,6 +238,14 @@ export class ReturnsService {
         reviewNote: note,
       },
     });
+
+    this.notificationService
+      .notifyReturnRejected({ id: ret.order.id })
+      .catch((err) =>
+        this.logger.error('Échec notification (retour refusé)', err),
+      );
+
+    return updated;
   }
 
   private async loadPendingReturn(returnId: string) {

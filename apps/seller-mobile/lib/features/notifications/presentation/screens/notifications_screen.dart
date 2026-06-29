@@ -23,6 +23,8 @@ class NotificationsScreen extends ConsumerWidget {
         return Icons.check_circle_outline;
       case 'PRODUCT_REJECTED':
         return Icons.cancel_outlined;
+      case 'ORDER':
+        return Icons.receipt_long;
       default:
         return Icons.notifications_outlined;
     }
@@ -34,6 +36,8 @@ class NotificationsScreen extends ConsumerWidget {
         return TekaColors.success;
       case 'PRODUCT_REJECTED':
         return TekaColors.tekaRed;
+      case 'ORDER':
+        return TekaColors.tekaRed;
       default:
         return TekaColors.mutedForeground;
     }
@@ -43,6 +47,8 @@ class NotificationsScreen extends ConsumerWidget {
     ref.read(notificationsProvider.notifier).markRead(n.id);
     if (n.entityType == 'product' && n.entityId != null) {
       context.push('/products/${n.entityId}');
+    } else if (n.entityType == 'order' && n.entityId != null) {
+      context.push('/orders/${n.entityId}');
     }
   }
 
