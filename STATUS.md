@@ -6,7 +6,14 @@
 
 ## Active initiative
 
-**None.** (Order Management Workflow — all 9 phases complete, shipping to prod.)
+**Managed Order Workflow** (started 2026-06-29) — upgrade the order flow from seller-driven to **Teka-managed**:
+Teka collects from seller → delivers to buyer → collects COD cash → 2-day return window → seller payout minus
+commission. Adds 2 statuses (`READY_FOR_TEKA_PICKUP`, `RECEIVED_AT_TEKA`), transfers delivery+cash control to admin,
+adds buyer returns + lazy 2-day payout-eligibility hold, seller new-order email/in-app/push, seller product town
+column. Phase-by-phase, commit per phase. **Tracker: `tasks/managed-order-workflow-progress.md`** (resume here).
+Currently: **Phase 0** (schema + backend status-model core).
+
+> **None.** (Order Management Workflow — all 9 phases complete, shipped to prod.)
 
 > **SHIPPED 2026-06-29 — Order Management Workflow (9 phases, develop→main).** Reported bug (confirmed orders not
 > appearing) fixed in **Phase 2** (shipped early, release 2a24026): order-list endpoints emit
