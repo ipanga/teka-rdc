@@ -1,4 +1,4 @@
-# Status — 2026-06-28
+# Status — 2026-06-29
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,12 +6,25 @@
 
 ## Active initiative
 
-**Managed Order Workflow** (started 2026-06-29) — upgrade the order flow from seller-driven to **Teka-managed**:
-Teka collects from seller → delivers to buyer → collects COD cash → 2-day return window → seller payout minus
-commission. Adds 2 statuses (`READY_FOR_TEKA_PICKUP`, `RECEIVED_AT_TEKA`), transfers delivery+cash control to admin,
-adds buyer returns + lazy 2-day payout-eligibility hold, seller new-order email/in-app/push, seller product town
-column. Phase-by-phase, commit per phase. **Tracker: `tasks/managed-order-workflow-progress.md`** (resume here).
-Currently: **Phase 0** (schema + backend status-model core).
+**None.** (Managed Order Workflow — all 7 phases complete on `develop`, ready for the `develop → main` PR.)
+
+> **DONE 2026-06-29 — Managed Order Workflow (7 phases, on `develop`).** Upgraded the order flow from
+> seller-driven to **Teka-managed**: Teka collects from the seller → delivers → collects COD cash → 2-day return
+> window → seller payout minus commission. **P0** schema + canonical state machine (+`READY_FOR_TEKA_PICKUP`,
+> `RECEIVED_AT_TEKA`, `Order.deliveredAt/returnedAt`, `ReturnRequest`); admin owns delivery transitions; buyer
+> cancel widened to {PENDING,CONFIRMED,PROCESSING} + restock-on-cancel. **P1** seller surfaces → "Prête pour
+> collecte", dashboard status summary (`/v1/sellers/orders/stats`), product **town** column; removed seller
+> ship/deliver. **P2** returns module + admin ops center (reçue/en livraison/livrée+encaissement, `/dashboard/returns`).
+> **P3** buyer returns (`POST /v1/orders/:id/return`, 2-day window) + managed status labels. **P4** seller new-order
+> **email + in-app + push** + return notifications + PostHog. **P5** **lazy return-window payout hold** (earnings
+> eligible only `deliveredAt+2d`, computed on read; `walletBalanceCDF` non-authoritative) — runtime-verified on
+> real Postgres. **P6** all-surface gates + docs. Tracker: `tasks/managed-order-workflow-progress.md`; model:
+> `docs/order-workflow.md`. Gates: **api 194 unit + 116 e2e**, 3 web type-check+build, both mobile analyze (0 lib
+> errors). Prod migration: `apps/api/prisma/migrations/manual/2026-06-29_managed-order-workflow.sql` (apply before deploy).
+
+---
+
+### Prior — **Order Management Workflow** (shipped to prod 2026-06-29, before the managed upgrade above)
 
 > **None.** (Order Management Workflow — all 9 phases complete, shipped to prod.)
 
