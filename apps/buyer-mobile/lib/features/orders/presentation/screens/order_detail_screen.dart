@@ -30,6 +30,7 @@ class OrderDetailScreen extends ConsumerWidget {
           order: order,
           locale: locale,
           onCancel: () => _showCancelDialog(context, ref, order.id),
+          onReturn: () => _showReturnDialog(context, ref, order.id),
         ),
         loading: () => const Center(
           child: CircularProgressIndicator(strokeWidth: 2),
@@ -121,23 +122,104 @@ class OrderDetailScreen extends ConsumerWidget {
       ),
     );
   }
+
+  void _showReturnDialog(
+    BuildContext context,
+    WidgetRef ref,
+    String orderId,
+  ) {
+    final reasonController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text("Demander un retour"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              "Expliquez la raison du retour. Teka RDC examinera votre demande.",
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: reasonController,
+              maxLines: 3,
+              decoration: InputDecoration(
+                labelText: "Raison du retour",
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.all(12),
+              ),
+              style: const TextStyle(fontSize: 14),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text("Annuler"),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final reason = reasonController.text.trim();
+              if (reason.isEmpty) return;
+              Navigator.of(dialogContext).pop();
+              try {
+                final repository = ref.read(ordersRepositoryProvider);
+                await repository.requestReturn(orderId, reason);
+                ref.invalidate(orderDetailProvider(orderId));
+                ref.read(ordersProvider.notifier).refresh();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text(
+                        "Demande de retour envoyée. Teka RDC va l'examiner.",
+                      ),
+                      backgroundColor: TekaColors.success,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text(
+                        "Une erreur est survenue. Veuillez réessayer.",
+                      ),
+                      backgroundColor: TekaColors.destructive,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text("Envoyer la demande"),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _OrderDetailBody extends StatelessWidget {
   final OrderModel order;
   final String locale;
   final VoidCallback onCancel;
+  final VoidCallback onReturn;
 
   const _OrderDetailBody({
     required this.order,
     required this.locale,
     required this.onCancel,
+    required this.onReturn,
   });
 
   @override
   Widget build(BuildContext context) {
     final dateStr = _formatDate(order.createdAt);
     final isPending = order.status.toUpperCase() == 'PENDING';
+    final canReturn = _canRequestReturn(order);
 
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
@@ -464,11 +546,35 @@ class _OrderDetailBody extends StatelessWidget {
             ),
           ],
 
+          // Return request (delivered, within the 2-day window)
+          if (canReturn) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: onReturn,
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+                child: const Text("Demander un retour"),
+              ),
+            ),
+          ],
+
           // Bottom padding
           SizedBox(height: MediaQuery.of(context).viewPadding.bottom + 16),
         ],
       ),
     );
+  }
+
+  /// A buyer may request a return on a DELIVERED order within 2 days of delivery.
+  bool _canRequestReturn(OrderModel order) {
+    if (order.status.toUpperCase() != 'DELIVERED') return false;
+    if (order.deliveredAt == null) return false;
+    final delivered = DateTime.tryParse(order.deliveredAt!);
+    if (delivered == null) return false;
+    return DateTime.now().isBefore(delivered.add(const Duration(days: 2)));
   }
 
   String _formatDate(String dateStr) {

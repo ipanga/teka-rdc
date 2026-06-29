@@ -156,6 +156,8 @@ export type OrderStatus =
   | 'PENDING'
   | 'CONFIRMED'
   | 'PROCESSING'
+  | 'READY_FOR_TEKA_PICKUP'
+  | 'RECEIVED_AT_TEKA'
   | 'SHIPPED'
   | 'OUT_FOR_DELIVERY'
   | 'DELIVERED'
@@ -213,6 +215,8 @@ export interface Order {
   subtotalCDF: string;
   deliveryFeeCDF: string;
   totalCDF: string;
+  deliveredAt?: string | null;
+  returnedAt?: string | null;
   buyerNote?: string | null;
   seller: OrderSeller;
   items: OrderItem[];

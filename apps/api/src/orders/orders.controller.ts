@@ -10,11 +10,16 @@ import {
 import { OrdersService } from './orders.service';
 import { OrderQueryDto } from './dto/order-query.dto';
 import { CancelOrderDto } from './dto/cancel-order.dto';
+import { RequestReturnDto } from './dto/request-return.dto';
+import { ReturnsService } from '../returns/returns.service';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('v1/orders')
 export class OrdersController {
-  constructor(private ordersService: OrdersService) {}
+  constructor(
+    private ordersService: OrdersService,
+    private returnsService: ReturnsService,
+  ) {}
 
   @Get()
   findAll(
@@ -39,5 +44,15 @@ export class OrdersController {
     @Body() dto: CancelOrderDto,
   ) {
     return this.ordersService.cancelOrder(userId, id, dto.reason);
+  }
+
+  /** Buyer requests a return — DELIVERED order, within the 2-day window. */
+  @Post(':id/return')
+  requestReturn(
+    @CurrentUser('userId') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: RequestReturnDto,
+  ) {
+    return this.returnsService.createReturnRequest(userId, id, dto.reason);
   }
 }

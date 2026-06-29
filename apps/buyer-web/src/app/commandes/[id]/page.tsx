@@ -8,7 +8,7 @@ import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { OrderStatusBadge } from '@/components/orders/order-status-badge';
 import { OrderTimeline } from '@/components/orders/order-timeline';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, ApiError } from '@/lib/api-client';
 import { formatCDF } from '@/lib/format';
 import { Badge, Button, Card, Container } from '@/components/ui';
 import type { Order, PaymentStatus } from '@/lib/types';
@@ -37,6 +37,12 @@ export default function OrderDetailPage() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelSuccess, setCancelSuccess] = useState(false);
 
+  const [showReturnDialog, setShowReturnDialog] = useState(false);
+  const [returnReason, setReturnReason] = useState('');
+  const [isRequestingReturn, setIsRequestingReturn] = useState(false);
+  const [returnSuccess, setReturnSuccess] = useState(false);
+  const [returnError, setReturnError] = useState('');
+
   useEffect(() => {
     setIsLoading(true);
     setError(false);
@@ -64,6 +70,29 @@ export default function OrderDetailPage() {
       // silent
     } finally {
       setIsCancelling(false);
+    }
+  }
+
+  async function handleRequestReturn() {
+    if (isRequestingReturn || !returnReason.trim()) return;
+    setIsRequestingReturn(true);
+    setReturnError('');
+
+    try {
+      await apiFetch(`/v1/orders/${orderId}/return`, {
+        method: 'POST',
+        body: JSON.stringify({ reason: returnReason.trim() }),
+      });
+      setReturnSuccess(true);
+      setShowReturnDialog(false);
+    } catch (err) {
+      setReturnError(
+        err instanceof ApiError
+          ? err.message
+          : 'Impossible de demander le retour. Réessayez.',
+      );
+    } finally {
+      setIsRequestingReturn(false);
     }
   }
 
@@ -120,6 +149,17 @@ export default function OrderDetailPage() {
     order.seller?.sellerProfile?.businessName ||
     `${order.seller.firstName} ${order.seller.lastName}`;
   const canCancel = order.status === 'PENDING';
+
+  // Buyer may request a return within 2 days of delivery.
+  const RETURN_WINDOW_DAYS = 2;
+  const returnDeadline = order.deliveredAt
+    ? new Date(new Date(order.deliveredAt).getTime() + RETURN_WINDOW_DAYS * 86400000)
+    : null;
+  const canReturn =
+    order.status === 'DELIVERED' &&
+    !returnSuccess &&
+    !!returnDeadline &&
+    new Date() <= returnDeadline;
 
   return (
     <div className="min-h-screen flex flex-col bg-surface-muted">
@@ -322,6 +362,34 @@ export default function OrderDetailPage() {
             </div>
           )}
 
+          {/* Return success */}
+          {returnSuccess && (
+            <div className="mb-4 p-3 bg-success-subtle border border-success/30 rounded-lg text-sm text-success flex items-center gap-2">
+              <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              {"Demande de retour envoyée. Teka RDC va l'examiner."}
+            </div>
+          )}
+
+          {/* Return request */}
+          {canReturn && (
+            <div className="mb-4">
+              {returnDeadline && (
+                <p className="text-xs text-muted-foreground mb-2">
+                  {`Retour possible jusqu'au ${new Intl.DateTimeFormat('fr-CD', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric',
+                  }).format(returnDeadline)}.`}
+                </p>
+              )}
+              <Button variant="outline" size="md" onClick={() => setShowReturnDialog(true)}>
+                {"Demander un retour"}
+              </Button>
+            </div>
+          )}
+
           {/* Cancel dialog */}
           {showCancelDialog && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
@@ -379,6 +447,57 @@ export default function OrderDetailPage() {
                     ) : (
                       "Annuler"
                     )}
+                  </Button>
+                </div>
+              </Card>
+            </div>
+          )}
+
+          {/* Return dialog */}
+          {showReturnDialog && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+              <Card padding="md" variant="elevated" className="w-full max-w-md shadow-xl">
+                <h3 className="text-base font-semibold text-foreground mb-2 tracking-tight">
+                  {"Demander un retour"}
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {"Expliquez la raison du retour. Teka RDC examinera votre demande."}
+                </p>
+
+                {returnError && (
+                  <div className="mb-3 p-2.5 rounded-lg bg-destructive/10 text-destructive text-sm">
+                    {returnError}
+                  </div>
+                )}
+
+                <textarea
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  placeholder={"Raison du retour (article endommagé, non conforme…)"}
+                  rows={3}
+                  maxLength={500}
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-none mb-4"
+                />
+
+                <div className="flex gap-3 justify-end">
+                  <Button
+                    variant="outline"
+                    size="md"
+                    onClick={() => {
+                      setShowReturnDialog(false);
+                      setReturnReason('');
+                      setReturnError('');
+                    }}
+                  >
+                    {"Retour"}
+                  </Button>
+                  <Button
+                    variant="default"
+                    size="md"
+                    onClick={handleRequestReturn}
+                    disabled={isRequestingReturn || !returnReason.trim()}
+                  >
+                    {isRequestingReturn ? "Envoi..." : "Envoyer la demande"}
                   </Button>
                 </div>
               </Card>
