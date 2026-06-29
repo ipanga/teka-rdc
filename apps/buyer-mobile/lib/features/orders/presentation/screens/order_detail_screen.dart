@@ -197,6 +197,36 @@ class _OrderDetailBody extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+
+          // Payment method
+          Row(
+            children: [
+              const Icon(
+                Icons.account_balance_wallet_outlined,
+                size: 16,
+                color: TekaColors.mutedForeground,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                'Mode de paiement: ',
+                style: const TextStyle(
+                  color: TekaColors.mutedForeground,
+                  fontSize: 13,
+                ),
+              ),
+              Text(
+                order.paymentMethod.toUpperCase() == 'COD'
+                    ? 'Paiement à la livraison'
+                    : 'Mobile Money',
+                style: const TextStyle(
+                  color: TekaColors.foreground,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 20),
 
           // Items

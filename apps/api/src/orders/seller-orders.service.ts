@@ -166,6 +166,17 @@ export class SellerOrdersService {
             unitPriceUSD: true,
             totalCDF: true,
             totalUSD: true,
+            product: { select: { categoryId: true } },
+          },
+        },
+        // The persisted earning (only after delivery) — used for the seller's
+        // revenue/commission/net breakdown; before delivery we project it.
+        earning: {
+          select: {
+            grossAmountCDF: true,
+            commissionCDF: true,
+            netAmountCDF: true,
+            commissionRate: true,
           },
         },
         buyer: {
@@ -211,7 +222,41 @@ export class SellerOrdersService {
       throw new ForbiddenException("Vous n'avez pas accès à cette commande");
     }
 
-    return order;
+    // Seller financial breakdown: revenue (subtotal), Teka commission, and the
+    // net "à recevoir". Use the persisted earning once it exists (delivered →
+    // final); otherwise project it from the current commission rate.
+    const b = order.earning
+      ? {
+          grossCDF: order.earning.grossAmountCDF,
+          commissionCDF: order.earning.commissionCDF,
+          netCDF: order.earning.netAmountCDF,
+          commissionRate: order.earning.commissionRate,
+          isFinal: true,
+        }
+      : await (async () => {
+          const p = await this.earningsService.computeBreakdown(
+            order.subtotalCDF,
+            order.items[0]?.product?.categoryId ?? null,
+          );
+          return {
+            grossCDF: p.grossAmountCDF,
+            commissionCDF: p.commissionCDF,
+            netCDF: p.netAmountCDF,
+            commissionRate: p.commissionRate,
+            isFinal: false,
+          };
+        })();
+
+    return {
+      ...order,
+      financials: {
+        grossCDF: b.grossCDF.toString(),
+        commissionCDF: b.commissionCDF.toString(),
+        netCDF: b.netCDF.toString(),
+        commissionRate: b.commissionRate.toString(),
+        isFinal: b.isFinal,
+      },
+    };
   }
 
   /**

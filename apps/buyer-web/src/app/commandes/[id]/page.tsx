@@ -105,9 +105,9 @@ export default function OrderDetailPage() {
                 d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
               />
             </svg>
-            <p className="text-muted-foreground mb-4">{"Vous n'avez aucune commande"}</p>
+            <p className="text-muted-foreground mb-4">{"Commande introuvable"}</p>
             <Link href="/commandes" className="text-primary hover:underline font-medium">
-              {"Retour"}
+              {"Retour à mes commandes"}
             </Link>
           </div>
         </main>

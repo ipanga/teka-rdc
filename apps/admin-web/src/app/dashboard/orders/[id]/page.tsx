@@ -75,6 +75,15 @@ interface OrderDetail {
   buyer?: OrderBuyer | null;
   seller?: OrderSeller | null;
   statusLogs: OrderStatusLog[];
+  // Financial breakdown: seller revenue (subtotal), Teka commission (platform
+  // revenue), seller net. `isFinal` once delivered (persisted earning).
+  financials?: {
+    grossCDF: string;
+    commissionCDF: string;
+    netCDF: string;
+    commissionRate: string;
+    isFinal: boolean;
+  };
 }
 
 const ALL_STATUSES = [
@@ -313,6 +322,32 @@ export default function OrderDetailPage() {
                 </div>
               )}
             </div>
+
+            {/* Financial breakdown (commission / payout) */}
+            {order.financials && (
+              <div className="mt-4 pt-3 border-t border-border space-y-1">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-sm font-semibold text-foreground">Répartition financière</h3>
+                  {!order.financials.isFinal && (
+                    <span className="text-xs text-muted-foreground">Estimation</span>
+                  )}
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Revenu vendeur (produits)</span>
+                  <span className="text-foreground">{formatCDF(order.financials.grossCDF)}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    Commission Teka ({Math.round(Number(order.financials.commissionRate) * 100)}%)
+                  </span>
+                  <span className="text-success">{formatCDF(order.financials.commissionCDF)}</span>
+                </div>
+                <div className="flex justify-between text-sm font-semibold pt-1 border-t border-border">
+                  <span className="text-foreground">Net vendeur (à payer)</span>
+                  <span className="text-foreground">{formatCDF(order.financials.netCDF)}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Timeline */}

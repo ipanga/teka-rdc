@@ -52,19 +52,13 @@ export class EarningsService {
     }
 
     const sellerProfileId = order.seller.sellerProfile.id;
-    const grossAmountCDF = order.subtotalCDF; // Excluding delivery fee
-
-    // Get commission rate for the primary category
-    const categoryId = order.items[0]?.product?.categoryId;
-    const commissionRate = categoryId
-      ? await this.getCommissionRate(categoryId)
-      : DEFAULT_COMMISSION_RATE;
-
-    // Calculate commission and net amounts
-    const commissionCDF = BigInt(
-      Math.round(Number(grossAmountCDF) * commissionRate.toNumber()),
-    );
-    const netAmountCDF = grossAmountCDF - commissionCDF;
+    // Commission is on the subtotal (excludes delivery fee), at the primary
+    // category's rate.
+    const { grossAmountCDF, commissionCDF, netAmountCDF, commissionRate } =
+      await this.computeBreakdown(
+        order.subtotalCDF,
+        order.items[0]?.product?.categoryId ?? null,
+      );
 
     // Create earning + update wallet balance atomically
     await this.prisma.$transaction(async (tx) => {
@@ -158,6 +152,35 @@ export class EarningsService {
     return {
       data,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  /**
+   * Commission/net breakdown for a gross (subtotal, excl. delivery) amount and
+   * the order's primary category. Single source of truth for the calculation —
+   * reused by `createEarning()` (the final, persisted earning on delivery) and
+   * by the seller order-detail "montant à recevoir" preview (before delivery).
+   */
+  async computeBreakdown(
+    grossAmountCDF: bigint,
+    categoryId: string | null,
+  ): Promise<{
+    grossAmountCDF: bigint;
+    commissionCDF: bigint;
+    netAmountCDF: bigint;
+    commissionRate: Decimal;
+  }> {
+    const commissionRate = categoryId
+      ? await this.getCommissionRate(categoryId)
+      : DEFAULT_COMMISSION_RATE;
+    const commissionCDF = BigInt(
+      Math.round(Number(grossAmountCDF) * commissionRate.toNumber()),
+    );
+    return {
+      grossAmountCDF,
+      commissionCDF,
+      netAmountCDF: grossAmountCDF - commissionCDF,
+      commissionRate,
     };
   }
 

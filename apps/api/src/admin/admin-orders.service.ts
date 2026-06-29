@@ -6,10 +6,14 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { AdminOrderQueryDto } from './dto/admin-order-query.dto';
 import { OrderStatus } from '@prisma/client';
+import { EarningsService } from '../payments/earnings.service';
 
 @Injectable()
 export class AdminOrdersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private earningsService: EarningsService,
+  ) {}
 
   /**
    * Returns paginated list of all orders with filters for admin.
@@ -112,6 +116,16 @@ export class AdminOrdersService {
             unitPriceUSD: true,
             totalCDF: true,
             totalUSD: true,
+            product: { select: { categoryId: true } },
+          },
+        },
+        // Persisted earning (after delivery) for the commission/net breakdown.
+        earning: {
+          select: {
+            grossAmountCDF: true,
+            commissionCDF: true,
+            netAmountCDF: true,
+            commissionRate: true,
           },
         },
         buyer: {
@@ -170,7 +184,41 @@ export class AdminOrdersService {
       throw new NotFoundException('Commande non trouvée');
     }
 
-    return order;
+    // Financial breakdown for the admin: seller revenue (subtotal), the Teka
+    // commission (platform revenue), and the seller net. Uses the persisted
+    // earning once delivered (final); otherwise projects from the current rate.
+    const b = order.earning
+      ? {
+          grossCDF: order.earning.grossAmountCDF,
+          commissionCDF: order.earning.commissionCDF,
+          netCDF: order.earning.netAmountCDF,
+          commissionRate: order.earning.commissionRate,
+          isFinal: true,
+        }
+      : await (async () => {
+          const p = await this.earningsService.computeBreakdown(
+            order.subtotalCDF,
+            order.items[0]?.product?.categoryId ?? null,
+          );
+          return {
+            grossCDF: p.grossAmountCDF,
+            commissionCDF: p.commissionCDF,
+            netCDF: p.netAmountCDF,
+            commissionRate: p.commissionRate,
+            isFinal: false,
+          };
+        })();
+
+    return {
+      ...order,
+      financials: {
+        grossCDF: b.grossCDF.toString(),
+        commissionCDF: b.commissionCDF.toString(),
+        netCDF: b.netCDF.toString(),
+        commissionRate: b.commissionRate.toString(),
+        isFinal: b.isFinal,
+      },
+    };
   }
 
   /**

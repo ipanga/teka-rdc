@@ -61,6 +61,15 @@ interface OrderDetail {
   items: OrderItem[];
   statusLogs: StatusLog[];
   createdAt: string;
+  // Seller revenue breakdown. `isFinal` once the order is delivered (the
+  // persisted earning); otherwise a projection from the current rate.
+  financials?: {
+    grossCDF: string;
+    commissionCDF: string;
+    netCDF: string;
+    commissionRate: string;
+    isFinal: boolean;
+  };
 }
 
 export default function OrderDetailPage() {
@@ -376,6 +385,39 @@ export default function OrderDetailPage() {
                 </div>
               </div>
             </div>
+
+            {/* Seller revenue breakdown */}
+            {order.financials && (
+              <div className="px-6 py-4 border-t border-border">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold text-foreground">Votre rémunération</h3>
+                  {!order.financials.isFinal && (
+                    <span className="text-xs text-muted-foreground">Estimation</span>
+                  )}
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                  <div className="flex items-center justify-between w-full max-w-xs text-sm">
+                    <span className="text-muted-foreground">Revenu (produits)</span>
+                    <span className="text-foreground">{formatPrice(order.financials.grossCDF)}</span>
+                  </div>
+                  <div className="flex items-center justify-between w-full max-w-xs text-sm">
+                    <span className="text-muted-foreground">
+                      Commission Teka ({Math.round(Number(order.financials.commissionRate) * 100)}%)
+                    </span>
+                    <span className="text-destructive">−{formatPrice(order.financials.commissionCDF)}</span>
+                  </div>
+                  <div className="flex items-center justify-between w-full max-w-xs text-sm font-semibold border-t border-border pt-1 mt-1">
+                    <span className="text-foreground">Montant à recevoir</span>
+                    <span className="text-primary">{formatPrice(order.financials.netCDF)}</span>
+                  </div>
+                </div>
+                {!order.financials.isFinal && (
+                  <p className="text-xs text-muted-foreground mt-2 max-w-xs ml-auto text-right">
+                    Confirmé et crédité à votre solde à la livraison.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Status timeline */}

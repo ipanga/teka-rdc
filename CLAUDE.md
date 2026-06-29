@@ -178,7 +178,8 @@ history) · `url-and-seo-strategy.md` (city-first URLs/slugs/redirects) · `anal
 `clarity.md` (Microsoft Clarity) · `api-reference.md` · `deployment.md` (§5b admin seeding) ·
 `mobile-connectivity.md` (Rule 15) · `mobile-flavors.md` · `mobile-release.md` (Android signing + Play
 Store) · `payouts.md` (seller payouts + settlement) · `delivery-fees-and-currency.md` (zone-based delivery fees +
-FC display + money convention) · `push-notifications.md` (FCM) ·
+FC display + money convention) · `order-workflow.md` (order lifecycle + commission/financials + list response-shape
+contract) · `push-notifications.md` (FCM) ·
 `session-management.md` (per-surface cookies + token rotation) · `sentry.md` ·
 `deep-linking.md` (App Links / Universal Links + DeepLinkParser) ·
 `town-architecture-refactor.md` + `town-switcher-ux.md` (data-driven town selection / switcher — see note below) ·
