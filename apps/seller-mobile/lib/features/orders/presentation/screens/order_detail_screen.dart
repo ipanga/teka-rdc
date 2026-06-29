@@ -180,6 +180,47 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                   ],
                 ],
               ),
+
+              // Seller revenue breakdown ("à recevoir")
+              if (order.financials != null) ...[
+                const SizedBox(height: 12),
+                _buildSectionCard(
+                  context,
+                  title: order.financials!.isFinal
+                      ? "Votre rémunération"
+                      : "Votre rémunération (estimation)",
+                  icon: Icons.account_balance_wallet_outlined,
+                  children: [
+                    _buildPriceRow(
+                      "Revenu (produits)",
+                      formatCDF(order.financials!.grossCDF),
+                    ),
+                    const SizedBox(height: 4),
+                    _buildPriceRow(
+                      "Commission Teka (${order.financials!.commissionPercent}%)",
+                      '−${formatCDF(order.financials!.commissionCDF)}',
+                      color: TekaColors.destructive,
+                    ),
+                    const Divider(height: 16),
+                    _buildPriceRow(
+                      "Montant à recevoir",
+                      formatCDF(order.financials!.netCDF),
+                      isBold: true,
+                      color: TekaColors.tekaRed,
+                    ),
+                    if (!order.financials!.isFinal) ...[
+                      const SizedBox(height: 6),
+                      const Text(
+                        "Crédité à votre solde à la livraison.",
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: TekaColors.mutedForeground,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
               // Payment info
               if (order.paymentMethod != null ||
                   order.paymentStatus != null) ...[

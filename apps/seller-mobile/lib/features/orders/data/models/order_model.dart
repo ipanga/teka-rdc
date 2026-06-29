@@ -252,6 +252,7 @@ class SellerOrderModel {
   final OrderAddressModel? deliveryAddress;
   final List<OrderStatusLogModel> statusLogs;
   final String? buyerNote;
+  final OrderFinancials? financials;
 
   const SellerOrderModel({
     required this.id,
@@ -270,6 +271,7 @@ class SellerOrderModel {
     this.deliveryAddress,
     this.statusLogs = const [],
     this.buyerNote,
+    this.financials,
   });
 
   int get totalCDFDisplay {
@@ -338,6 +340,42 @@ class SellerOrderModel {
           addressRaw != null ? OrderAddressModel.fromJson(addressRaw) : null,
       statusLogs: statusLogs,
       buyerNote: json['buyerNote'] as String? ?? json['note'] as String?,
+      financials: json['financials'] is Map<String, dynamic>
+          ? OrderFinancials.fromJson(json['financials'] as Map<String, dynamic>)
+          : null,
+    );
+  }
+}
+
+/// Seller revenue breakdown for an order: gross (subtotal), Teka commission,
+/// and the net "à recevoir". `isFinal` once delivered (persisted earning);
+/// otherwise a projection from the current rate. All *CDF are centimes strings.
+class OrderFinancials {
+  final String grossCDF;
+  final String commissionCDF;
+  final String netCDF;
+  final String commissionRate; // decimal string, e.g. "0.1"
+  final bool isFinal;
+
+  const OrderFinancials({
+    required this.grossCDF,
+    required this.commissionCDF,
+    required this.netCDF,
+    required this.commissionRate,
+    required this.isFinal,
+  });
+
+  /// Commission percentage for display, e.g. 0.1 -> 10.
+  int get commissionPercent =>
+      ((double.tryParse(commissionRate) ?? 0) * 100).round();
+
+  factory OrderFinancials.fromJson(Map<String, dynamic> json) {
+    return OrderFinancials(
+      grossCDF: json['grossCDF']?.toString() ?? '0',
+      commissionCDF: json['commissionCDF']?.toString() ?? '0',
+      netCDF: json['netCDF']?.toString() ?? '0',
+      commissionRate: json['commissionRate']?.toString() ?? '0',
+      isFinal: json['isFinal'] as bool? ?? false,
     );
   }
 }
