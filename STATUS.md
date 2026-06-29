@@ -6,17 +6,19 @@
 
 ## Active initiative
 
-**Order Management Workflow — Review & Implementation** (started 2026-06-29) — IN PROGRESS on `develop`.
-Reported bug: a confirmed buyer order doesn't appear on buyer `/commandes`, seller dashboard, or (possibly) admin.
-**Tracker: `tasks/order-management-progress.md`.** Phase-by-phase (pause after each).
-- **Phase 1 (audit + root cause) ✅ DONE.** ROOT CAUSE = **order-list response-shape mismatch** (NOT order
-  creation — prod DB proves the order exists, correct buyerId/sellerId/PENDING/delivery-fee). Order-list endpoints
-  emit `{ success, data: { data: Order[], pagination } }`; correct read is `res.data.data` + `res.data.pagination`.
-  buyer-web reads `res.data.meta` (throws), seller-web reads `res.data.orders` (empty), buyer-mobile casts the
-  wrapper Map `as List` (throws); admin-web works (defensive); **seller-mobile is the only correct reference**.
-  Detail pages + checkout result are fine. **NEXT: Phase 2** — restore visibility by aligning the 4 broken clients
-  to `res.data.data` + `res.data.pagination` (no API change → mobile-safe). Then deeper phases (status actions,
-  notifications, financial breakdown) per the spec.
+**None.** (Order Management Workflow — all 9 phases complete, shipping to prod.)
+
+> **SHIPPED 2026-06-29 — Order Management Workflow (9 phases, develop→main).** Reported bug (confirmed orders not
+> appearing) fixed in **Phase 2** (shipped early, release 2a24026): order-list endpoints emit
+> `{ success, data: { data, pagination } }`; aligned the 4 mis-reading clients to `res.data.data` +
+> `res.data.pagination` (buyer-web/seller-web/admin-web/buyer-mobile; seller-mobile was already correct). Order
+> creation was always correct (DB-verified). **Phases 3-9:** audit confirmed the COD lifecycle / commission /
+> snapshots already sound (+commission tests); buyer-web detail copy fix; **seller revenue breakdown** ("Votre
+> rémunération": Revenu/Commission Teka %/Montant à recevoir) added to seller-web + admin-web ("Répartition
+> financière") + seller-mobile via a shared `EarningsService.computeBreakdown` + API `financials`; buyer-mobile
+> "Mode de paiement"; emails/push/PostHog already wired. Tracker: `tasks/order-management-progress.md`; model:
+> `docs/order-workflow.md`. Gates: api 171 unit + 116 e2e, 3 web type-check+build, both mobile analyze;
+> EMULATOR-VERIFIED buyer-mobile list + detail (TK-20260628-BBA3 = 123.500 FC).
 
 > **SHIPPED 2026-06-28/29:** Mobile Image Preview + Dot-Separator Price Formatting (release #511) + buyer-mobile
 > home-header overflow fix (#512) — both LIVE in prod. Model: `docs/delivery-fees-and-currency.md`.
