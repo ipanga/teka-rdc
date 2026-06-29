@@ -285,6 +285,11 @@ export default function EarningsPage() {
               formatPrice(wallet?.balanceCDF ?? '0')
             )}
           </p>
+          {!walletLoading && Number(wallet?.pendingCDF ?? '0') > 0 && (
+            <p className="text-xs text-muted-foreground mt-2">
+              {`+ ${formatPrice(wallet?.pendingCDF ?? '0')} en attente (fenêtre de retour de 2 jours)`}
+            </p>
+          )}
         </div>
         <div className="bg-white rounded-xl border border-border p-5">
           <h3 className="text-sm font-medium text-muted-foreground">Revenus totaux</h3>

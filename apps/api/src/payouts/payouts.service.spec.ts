@@ -34,11 +34,15 @@ function makeService(payout: Record<string, unknown> | null) {
     notifyPayoutPaid: jest.fn().mockResolvedValue(undefined),
     notifyPayoutRejected: jest.fn().mockResolvedValue(undefined),
   };
+  const earningsService = {
+    getEligibleEarnings: jest.fn().mockResolvedValue([]),
+  };
   const service = new PayoutsService(
     prisma as never,
     sellerNotifications as never,
+    earningsService as never,
   );
-  return { service, prisma, sellerNotifications };
+  return { service, prisma, sellerNotifications, earningsService };
 }
 
 describe('PayoutsService — process (APPROVED → PROCESSING)', () => {
@@ -119,8 +123,8 @@ describe('PayoutsService — complete (→ COMPLETED, terminal)', () => {
   });
 });
 
-describe('PayoutsService — reject restores wallet + earnings', () => {
-  it('flips to REJECTED, unlinks earnings, restores the wallet balance, and notifies the seller', async () => {
+describe('PayoutsService — reject unlinks earnings', () => {
+  it('flips to REJECTED, unlinks earnings (back to the eligible pool), and notifies the seller', async () => {
     const { service, prisma, sellerNotifications } = makeService({
       id: 'p1',
       status: PayoutStatus.APPROVED,
@@ -138,10 +142,8 @@ describe('PayoutsService — reject restores wallet + earnings', () => {
       where: { id: { in: ['e1', 'e2'] } },
       data: { isPaid: false, payoutId: null },
     });
-    expect(prisma.sellerProfile.update).toHaveBeenCalledWith({
-      where: { id: 'seller1' },
-      data: { walletBalanceCDF: { increment: BigInt(700000) } },
-    });
+    // Lazy model: no walletBalanceCDF mutation — unlinking restores eligibility.
+    expect(prisma.sellerProfile.update).not.toHaveBeenCalled();
     expect(sellerNotifications.notifyPayoutRejected).toHaveBeenCalledWith('p1');
   });
 
@@ -167,7 +169,11 @@ describe('PayoutsService — reusable payout destination (B1)', () => {
         }),
       },
     };
-    const service = new PayoutsService(prisma as never, {} as never);
+    const service = new PayoutsService(
+      prisma as never,
+      {} as never,
+      {} as never,
+    );
     const res = await service.updatePayoutMethod('seller1', {
       payoutMethod: 'M_PESA',
       payoutPhone: '+243970000001',
@@ -184,14 +190,23 @@ describe('PayoutsService — reusable payout destination (B1)', () => {
     const prisma = {
       sellerProfile: {
         findUnique: jest.fn().mockResolvedValue({
-          walletBalanceCDF: BigInt(600000), // above the 5 000 CDF minimum
           payoutMethod: null,
           payoutPhone: null,
         }),
       },
       payout: { findFirst: jest.fn().mockResolvedValue(null) },
     };
-    const service = new PayoutsService(prisma as never, {} as never);
+    // Above the 5 000 CDF minimum via eligible (window-cleared) earnings.
+    const earningsService = {
+      getEligibleEarnings: jest
+        .fn()
+        .mockResolvedValue([{ id: 'e1', netAmountCDF: BigInt(600000) }]),
+    };
+    const service = new PayoutsService(
+      prisma as never,
+      {} as never,
+      earningsService as never,
+    );
     await expect(service.requestPayout('seller1', {})).rejects.toThrow(
       BadRequestException,
     );
@@ -201,7 +216,6 @@ describe('PayoutsService — reusable payout destination (B1)', () => {
     const prisma = {
       sellerProfile: {
         findUnique: jest.fn().mockResolvedValue({
-          walletBalanceCDF: BigInt(600000),
           payoutMethod: 'AIRTEL_MONEY',
           payoutPhone: '+243990000002',
         }),
@@ -214,9 +228,6 @@ describe('PayoutsService — reusable payout destination (B1)', () => {
           .mockResolvedValue({ id: 'pay1', status: PayoutStatus.REQUESTED }),
       },
       sellerEarning: {
-        findMany: jest
-          .fn()
-          .mockResolvedValue([{ id: 'e1', netAmountCDF: BigInt(600000) }]),
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       $transaction: jest.fn(),
@@ -224,7 +235,16 @@ describe('PayoutsService — reusable payout destination (B1)', () => {
     prisma.$transaction.mockImplementation(
       (cb: (tx: typeof prisma) => unknown) => cb(prisma),
     );
-    const service = new PayoutsService(prisma as never, {} as never);
+    const earningsService = {
+      getEligibleEarnings: jest
+        .fn()
+        .mockResolvedValue([{ id: 'e1', netAmountCDF: BigInt(600000) }]),
+    };
+    const service = new PayoutsService(
+      prisma as never,
+      {} as never,
+      earningsService as never,
+    );
     await service.requestPayout('seller1', {});
     expect(prisma.payout.create).toHaveBeenCalledWith(
       expect.objectContaining({

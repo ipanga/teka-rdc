@@ -12,6 +12,7 @@ import { UpdatePayoutMethodDto } from './dto/update-payout-method.dto';
 import { PayoutQueryDto } from './dto/payout-query.dto';
 import { PayoutStatus } from '@prisma/client';
 import { SellerNotificationService } from '../notifications/seller-notification.service';
+import { EarningsService } from '../payments/earnings.service';
 
 /** Minimum payout amount: 5 000 CDF = 500 000 centimes */
 const MIN_PAYOUT_AMOUNT_CDF = BigInt(500000);
@@ -23,6 +24,7 @@ export class PayoutsService {
   constructor(
     private prisma: PrismaService,
     private sellerNotifications: SellerNotificationService,
+    private earningsService: EarningsService,
   ) {}
 
   /**
@@ -31,11 +33,10 @@ export class PayoutsService {
    * and atomically creates the payout + marks earnings as paid.
    */
   async requestPayout(sellerProfileId: string, dto: RequestPayoutDto) {
-    // Get current wallet balance + saved payout destination
+    // Saved payout destination (balance is computed from eligible earnings).
     const sellerProfile = await this.prisma.sellerProfile.findUnique({
       where: { id: sellerProfileId },
       select: {
-        walletBalanceCDF: true,
         payoutMethod: true,
         payoutPhone: true,
       },
@@ -45,9 +46,17 @@ export class PayoutsService {
       throw new NotFoundException('Profil vendeur non trouvé');
     }
 
-    if (sellerProfile.walletBalanceCDF < MIN_PAYOUT_AMOUNT_CDF) {
+    // Only earnings that have cleared the 2-day return window are withdrawable.
+    const eligibleEarnings =
+      await this.earningsService.getEligibleEarnings(sellerProfileId);
+    const availableCDF = eligibleEarnings.reduce(
+      (sum, e) => sum + e.netAmountCDF,
+      BigInt(0),
+    );
+
+    if (availableCDF < MIN_PAYOUT_AMOUNT_CDF) {
       throw new BadRequestException(
-        `Le solde minimum pour un retrait est de ${formatFC(Number(MIN_PAYOUT_AMOUNT_CDF))}. Votre solde actuel est de ${formatFC(Number(sellerProfile.walletBalanceCDF))}.`,
+        `Le solde minimum pour un retrait est de ${formatFC(Number(MIN_PAYOUT_AMOUNT_CDF))}. Votre solde disponible est de ${formatFC(Number(availableCDF))}. Les revenus en attente sont libérés après la fenêtre de retour de 2 jours.`,
       );
     }
 
@@ -75,30 +84,12 @@ export class PayoutsService {
       );
     }
 
-    // Calculate the payout amount from unpaid earnings
-    const unpaidEarnings = await this.prisma.sellerEarning.findMany({
-      where: {
-        sellerProfileId,
-        isPaid: false,
-        payoutId: null,
-      },
-      select: { id: true, netAmountCDF: true },
-    });
-
-    const totalEarningsCDF = unpaidEarnings.reduce(
-      (sum, e) => sum + e.netAmountCDF,
-      BigInt(0),
-    );
-
-    // Use the wallet balance as the payout amount (it should match unpaid earnings)
-    const payoutAmountCDF = sellerProfile.walletBalanceCDF;
-
-    // Atomically: create payout, mark earnings as paid, decrement wallet
+    // Atomically: create payout + reserve the eligible earnings into it.
     const payout = await this.prisma.$transaction(async (tx) => {
       const newPayout = await tx.payout.create({
         data: {
           sellerProfileId,
-          amountCDF: payoutAmountCDF,
+          amountCDF: availableCDF,
           currency: 'CDF',
           status: PayoutStatus.REQUESTED,
           payoutMethod,
@@ -106,32 +97,16 @@ export class PayoutsService {
         },
       });
 
-      // Mark all unpaid earnings as paid and link to this payout
-      if (unpaidEarnings.length > 0) {
-        await tx.sellerEarning.updateMany({
-          where: {
-            id: { in: unpaidEarnings.map((e) => e.id) },
-          },
-          data: {
-            isPaid: true,
-            payoutId: newPayout.id,
-          },
-        });
-      }
-
-      // Decrement wallet balance
-      await tx.sellerProfile.update({
-        where: { id: sellerProfileId },
-        data: {
-          walletBalanceCDF: { decrement: payoutAmountCDF },
-        },
+      await tx.sellerEarning.updateMany({
+        where: { id: { in: eligibleEarnings.map((e) => e.id) } },
+        data: { isPaid: true, payoutId: newPayout.id },
       });
 
       return newPayout;
     });
 
     this.logger.log(
-      `Payout requested: id=${payout.id}, seller=${sellerProfileId}, amount=${payoutAmountCDF} centimes`,
+      `Payout requested: id=${payout.id}, seller=${sellerProfileId}, amount=${availableCDF} centimes`,
     );
 
     return payout;
@@ -213,7 +188,8 @@ export class PayoutsService {
         },
       });
 
-      // Restore earnings: unmark as paid, remove payoutId link
+      // Restore earnings: unmark as paid + remove payoutId link. They return to
+      // the eligible pool automatically (lazy model — no wallet field to adjust).
       if (earningIds.length > 0) {
         await tx.sellerEarning.updateMany({
           where: { id: { in: earningIds } },
@@ -223,14 +199,6 @@ export class PayoutsService {
           },
         });
       }
-
-      // Restore wallet balance
-      await tx.sellerProfile.update({
-        where: { id: payout.sellerProfileId },
-        data: {
-          walletBalanceCDF: { increment: payout.amountCDF },
-        },
-      });
     });
 
     this.logger.log(
