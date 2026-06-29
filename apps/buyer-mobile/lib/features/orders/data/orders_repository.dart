@@ -3,6 +3,36 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import 'models/order_model.dart';
 
+/// Extracts the order list + pagination from the API envelope. The orders-list
+/// endpoint emits `{ success, data: { data: [...], pagination: {...} } }`, so
+/// the array lives at `data.data`. Tolerant of a single-wrap `{ data: [...] }`,
+/// a legacy `{ orders: [...] }`, or a bare array. Pure → unit-tested.
+({List<dynamic> rawList, int total, int totalPages}) parseOrdersEnvelope(
+  dynamic responseData,
+) {
+  final payload = responseData is Map ? responseData['data'] : responseData;
+
+  if (payload is Map && payload['data'] is List) {
+    final list = payload['data'] as List;
+    final pg = payload['pagination'] as Map<String, dynamic>?;
+    return (
+      rawList: list,
+      total: pg?['total'] as int? ?? list.length,
+      totalPages: pg?['totalPages'] as int? ?? 1,
+    );
+  } else if (payload is List) {
+    return (rawList: payload, total: payload.length, totalPages: 1);
+  } else if (payload is Map && payload['orders'] is List) {
+    final list = payload['orders'] as List;
+    return (
+      rawList: list,
+      total: payload['total'] as int? ?? list.length,
+      totalPages: payload['totalPages'] as int? ?? 1,
+    );
+  }
+  return (rawList: const [], total: 0, totalPages: 1);
+}
+
 class OrdersRepository {
   final Dio _dio;
 
@@ -25,36 +55,12 @@ class OrdersRepository {
       '/v1/orders',
       queryParameters: queryParams,
     );
-    final responseData = response.data;
-
-    final List<dynamic> rawList;
-    final int total;
-    final int totalPages;
-
-    if (responseData is Map && responseData['data'] != null) {
-      rawList = responseData['data'] as List;
-      final meta = responseData['meta'] as Map<String, dynamic>?;
-      total = meta?['total'] as int? ?? rawList.length;
-      totalPages = meta?['totalPages'] as int? ?? 1;
-    } else if (responseData is Map && responseData['orders'] != null) {
-      rawList = responseData['orders'] as List;
-      total = responseData['total'] as int? ?? rawList.length;
-      totalPages = responseData['totalPages'] as int? ?? 1;
-    } else if (responseData is List) {
-      rawList = responseData;
-      total = rawList.length;
-      totalPages = 1;
-    } else {
-      rawList = [];
-      total = 0;
-      totalPages = 1;
-    }
-
-    final orders = rawList
+    final parsed = parseOrdersEnvelope(response.data);
+    final orders = parsed.rawList
         .map((e) => OrderModel.fromJson(e as Map<String, dynamic>))
         .toList();
 
-    return (orders: orders, total: total, totalPages: totalPages);
+    return (orders: orders, total: parsed.total, totalPages: parsed.totalPages);
   }
 
   Future<OrderModel> getOrderById(String id) async {

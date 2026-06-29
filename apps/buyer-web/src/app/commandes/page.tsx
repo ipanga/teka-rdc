@@ -50,7 +50,7 @@ export default function OrdersPage() {
 
       const res = await apiFetch<PaginatedOrders>(`/v1/orders?${params.toString()}`);
       setOrders(res.data.data);
-      setTotal(res.data.meta.total);
+      setTotal(res.data.pagination.total);
     } catch {
       setOrders([]);
     } finally {

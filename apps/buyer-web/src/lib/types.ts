@@ -230,13 +230,15 @@ export interface Order {
   updatedAt: string;
 }
 
-/** Paginated orders response */
+/** Paginated orders response — the API envelope's `data` for GET /v1/orders.
+ * The list is at `.data` and pagination at `.pagination` (the server's key). */
 export interface PaginatedOrders {
   data: Order[];
-  meta: {
+  pagination: {
     page: number;
     limit: number;
     total: number;
+    totalPages: number;
   };
 }
 
