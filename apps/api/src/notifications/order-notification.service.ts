@@ -5,6 +5,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NotificationPrefsService } from '../users/notification-prefs.service';
 import { PushService, PushPayload } from '../push/push.service';
 import { EmailService, OrderEmailPayload } from '../email/email.service';
+import { UserNotificationService } from './user-notification.service';
+import { UserNotificationType } from '@prisma/client';
 
 /**
  * Handles notifications for order lifecycle events.
@@ -28,16 +30,21 @@ import { EmailService, OrderEmailPayload } from '../email/email.service';
 export class OrderNotificationService {
   private readonly logger = new Logger(OrderNotificationService.name);
   private readonly buyerWebUrl: string;
+  private readonly sellerWebUrl: string;
 
   constructor(
     private prisma: PrismaService,
     private notificationPrefs: NotificationPrefsService,
     private pushService: PushService,
     private emailService: EmailService,
+    private userNotifications: UserNotificationService,
     configService: ConfigService,
   ) {
     this.buyerWebUrl = configService
       .get<string>('BUYER_WEB_URL', 'https://teka.cd')
+      .replace(/\/$/, '');
+    this.sellerWebUrl = configService
+      .get<string>('SELLER_WEB_URL', 'https://seller.teka.cd')
       .replace(/\/$/, '');
   }
 
@@ -66,12 +73,45 @@ export class OrderNotificationService {
         });
       }
 
-      if (await this.shouldNotify(seller)) {
-        this.sendPushToSeller(seller.id, {
+      // Seller in-app feed row — written regardless of prefs (opt-outs gate
+      // push/email delivery only, never the feed; mirrors broadcasts).
+      if (seller?.id) {
+        const buyerTown = enriched.deliveryAddress?.town ?? null;
+        await this.userNotifications.create({
+          userId: seller.id,
+          type: UserNotificationType.ORDER,
           title: 'Nouvelle commande',
           body: `Commande ${orderNumber} reçue — ${itemCount} article(s), ${subtotalCDF} FC.`,
-          data: { orderId: enriched.id, screen: 'order-details' },
+          entityType: 'order',
+          entityId: enriched.id,
         });
+
+        if (await this.shouldNotify(seller)) {
+          this.sendPushToSeller(seller.id, {
+            title: 'Nouvelle commande',
+            body: `Commande ${orderNumber} reçue — ${itemCount} article(s), ${subtotalCDF} FC.`,
+            data: { orderId: enriched.id, screen: 'order-details' },
+          });
+
+          // Seller email (in addition to push — operational, time-sensitive).
+          if (seller.email) {
+            await this.emailService
+              .sendSellerNewOrder(
+                seller.email,
+                seller.firstName ?? null,
+                orderNumber,
+                itemCount,
+                subtotalCDF,
+                buyerTown,
+                `${this.sellerWebUrl}/dashboard/orders/${enriched.id}`,
+              )
+              .catch((err) =>
+                this.logger.warn(
+                  `seller new-order email failed for ${seller.id}: ${err?.message ?? err}`,
+                ),
+              );
+          }
+        }
       }
     } catch (error) {
       this.logger.error(
@@ -185,6 +225,79 @@ export class OrderNotificationService {
   }
 
   /**
+   * Notifies buyer the parcel is prepared and awaiting Teka pickup.
+   * Push-only for now (no dedicated email template yet — Phase 4 adds fallback).
+   */
+  async notifyOrderReadyForPickup(order: any): Promise<void> {
+    try {
+      const enriched = await this.enrichOrder(order);
+      if (!enriched) return;
+      const { orderNumber, buyer } = enriched;
+      if (!(await this.shouldNotify(buyer))) return;
+
+      this.sendPushToBuyer(buyer.id, {
+        title: 'Commande prête',
+        body: `${orderNumber} est prête et attend la collecte par Teka.`,
+        data: { orderId: enriched.id, screen: 'order-details' },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Échec de notification (prête pour collecte): ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /**
+   * Notifies buyer that Teka has received the product at its warehouse.
+   */
+  async notifyOrderReceivedAtTeka(order: any): Promise<void> {
+    try {
+      const enriched = await this.enrichOrder(order);
+      if (!enriched) return;
+      const { orderNumber, buyer } = enriched;
+      if (!(await this.shouldNotify(buyer))) return;
+
+      this.sendPushToBuyer(buyer.id, {
+        title: 'Reçue par Teka',
+        body: `${orderNumber} a été reçue par Teka RDC. Livraison bientôt.`,
+        data: { orderId: enriched.id, screen: 'order-details' },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Échec de notification (reçue par Teka): ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /**
+   * Notifies buyer the order is out for delivery (Teka agent en route).
+   */
+  async notifyOrderOutForDelivery(order: any): Promise<void> {
+    try {
+      const enriched = await this.enrichOrder(order);
+      if (!enriched) return;
+      const { orderNumber, buyer, deliveryAddress } = enriched;
+      const town = deliveryAddress?.town ?? '';
+      if (!(await this.shouldNotify(buyer))) return;
+
+      this.sendPushToBuyer(buyer.id, {
+        title: 'En livraison',
+        body: town
+          ? `${orderNumber} est en cours de livraison vers ${town}.`
+          : `${orderNumber} est en cours de livraison.`,
+        data: { orderId: enriched.id, screen: 'order-details' },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Échec de notification (en livraison): ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /**
    * Notifies buyer and seller that an order has been cancelled.
    */
   async notifyOrderCancelled(order: any, reason?: string): Promise<void> {
@@ -223,6 +336,83 @@ export class OrderNotificationService {
     } catch (error) {
       this.logger.error(
         `Échec de notification pour commande annulée: ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /**
+   * Buyer requested a return — notify the seller (in-app + push) so they know a
+   * delivered order is being contested.
+   */
+  async notifyReturnRequested(order: any): Promise<void> {
+    try {
+      const enriched = await this.enrichOrder(order);
+      if (!enriched) return;
+      const { orderNumber, seller } = enriched;
+      if (!seller?.id) return;
+
+      await this.userNotifications.create({
+        userId: seller.id,
+        type: UserNotificationType.ORDER,
+        title: 'Demande de retour',
+        body: `Un retour a été demandé pour la commande ${orderNumber}.`,
+        entityType: 'order',
+        entityId: enriched.id,
+      });
+
+      if (await this.shouldNotify(seller)) {
+        this.sendPushToSeller(seller.id, {
+          title: 'Demande de retour',
+          body: `Un retour a été demandé pour ${orderNumber}.`,
+          data: { orderId: enriched.id, screen: 'order-details' },
+        });
+      }
+    } catch (error) {
+      this.logger.error(
+        `Échec de notification (retour demandé): ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /** Admin approved a return — notify the buyer the refund is underway. */
+  async notifyReturnApproved(order: any): Promise<void> {
+    try {
+      const enriched = await this.enrichOrder(order);
+      if (!enriched) return;
+      const { orderNumber, buyer } = enriched;
+      if (!(await this.shouldNotify(buyer))) return;
+
+      this.sendPushToBuyer(buyer.id, {
+        title: 'Retour approuvé',
+        body: `Votre retour pour ${orderNumber} a été approuvé. Le remboursement est en cours.`,
+        data: { orderId: enriched.id, screen: 'order-details' },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Échec de notification (retour approuvé): ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /** Admin rejected a return — notify the buyer. */
+  async notifyReturnRejected(order: any): Promise<void> {
+    try {
+      const enriched = await this.enrichOrder(order);
+      if (!enriched) return;
+      const { orderNumber, buyer } = enriched;
+      if (!(await this.shouldNotify(buyer))) return;
+
+      this.sendPushToBuyer(buyer.id, {
+        title: 'Retour refusé',
+        body: `Votre demande de retour pour ${orderNumber} n'a pas été acceptée.`,
+        data: { orderId: enriched.id, screen: 'order-details' },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Échec de notification (retour refusé): ${error.message}`,
         error.stack,
       );
     }
@@ -312,6 +502,7 @@ export class OrderNotificationService {
       order?.buyer?.phone &&
       order?.buyer?.email !== undefined &&
       order?.seller?.phone &&
+      order?.seller?.email !== undefined &&
       order?.deliveryAddress
     ) {
       return order;
@@ -342,6 +533,7 @@ export class OrderNotificationService {
               firstName: true,
               lastName: true,
               phone: true,
+              email: true,
               sellerProfile: {
                 select: { businessName: true },
               },

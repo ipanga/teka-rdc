@@ -103,7 +103,7 @@ Before making ANY architectural or UX decision, internalize these constraints:
 
 - **Unreliable internet:** Most users are on 2G/3G with frequent drops. Pages must be lightweight (<200KB initial payload ideally), images lazy-loaded and aggressively compressed, and API responses paginated and minimal. Consider offline-first patterns for the mobile app (queue actions, sync when online).
 - **Low-end devices:** Target Android 8+ devices with 2GB RAM. Avoid heavy JS bundles on web. Flutter apps must be optimized for low memory.
-- **Cash on Delivery only:** The platform is COD-only since 2026-05-26 (Orange/AT/Flexpay removal initiative). Mobile Money via Flexpay was retired — `CheckoutService` writes `Transaction { provider: COD }` synchronously on order creation; `SellerOrdersService.markDelivered()` flips it to `COMPLETED`. The `PaymentMethod.MOBILE_MONEY` enum value stays on the schema for historical-row display. Re-introducing automated payments would mean adding a new provider abstraction — none currently exists.
+- **Cash on Delivery only:** The platform is COD-only since 2026-05-26 (Orange/AT/Flexpay removal initiative). Mobile Money via Flexpay was retired — `CheckoutService` writes `Transaction { provider: COD }` synchronously on order creation; `AdminOrdersService.markDelivered()` (Teka ops collects the cash on delivery) flips it to `COMPLETED`. The `PaymentMethod.MOBILE_MONEY` enum value stays on the schema for historical-row display. Re-introducing automated payments would mean adding a new provider abstraction — none currently exists.
 - **French.** All UI strings, seed data, error messages, and email templates are French, **written directly as literals — there is no localization layer anywhere.** Both Flutter apps had gen-l10n/`app_fr.arb` removed (buyer-mobile 2026-06-22, seller-mobile 2026-06-23); all three Next.js apps had **next-intl fully removed** (admin-web, seller-web, buyer-web — 2026-06-23). No `messages/fr.json`, no `src/i18n/`, no providers/plugins. DB stores translatable fields as plain TEXT. See Rule 1.
 - **Logistics are local:** No national postal system. Delivery is handled by local riders/drivers. Build a simple delivery zone system based on towns/neighborhoods, not postal codes. Support seller self-delivery + platform-managed delivery options.
 - **Email is the auth identity; phone is for delivery.** All roles register and log in with email + password (since May 2026). Phone (`+243XXXXXXXXX`) is collected at the address / delivery-contact / seller-profile surfaces only, for order notifications and rider contact. `User.phone` is nullable — email-only buyers have no phone.
@@ -178,8 +178,9 @@ history) · `url-and-seo-strategy.md` (city-first URLs/slugs/redirects) · `anal
 `clarity.md` (Microsoft Clarity) · `api-reference.md` · `deployment.md` (§5b admin seeding) ·
 `mobile-connectivity.md` (Rule 15) · `mobile-flavors.md` · `mobile-release.md` (Android signing + Play
 Store) · `payouts.md` (seller payouts + settlement) · `delivery-fees-and-currency.md` (zone-based delivery fees +
-FC display + money convention) · `order-workflow.md` (order lifecycle + commission/financials + list response-shape
-contract) · `push-notifications.md` (FCM) ·
+FC display + money convention) · `order-workflow.md` (**Teka-managed** order lifecycle: collection → delivery →
+COD cash → 2-day return window → payout; commission/financials + lazy payout eligibility + returns + list
+response-shape contract) · `push-notifications.md` (FCM) ·
 `session-management.md` (per-surface cookies + token rotation) · `sentry.md` ·
 `deep-linking.md` (App Links / Universal Links + DeepLinkParser) ·
 `town-architecture-refactor.md` + `town-switcher-ux.md` (data-driven town selection / switcher — see note below) ·

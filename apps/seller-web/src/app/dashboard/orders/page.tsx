@@ -53,7 +53,8 @@ type StatusFilter =
   | 'PENDING'
   | 'CONFIRMED'
   | 'PROCESSING'
-  | 'SHIPPED'
+  | 'READY_FOR_TEKA_PICKUP'
+  | 'RECEIVED_AT_TEKA'
   | 'OUT_FOR_DELIVERY'
   | 'DELIVERED'
   | 'CANCELLED';
@@ -138,16 +139,8 @@ export default function OrdersListPage() {
     handleAction(orderId, 'process');
   };
 
-  const handleShip = (orderId: string) => {
-    handleAction(orderId, 'ship');
-  };
-
-  const handleOutForDelivery = (orderId: string) => {
-    handleAction(orderId, 'out-for-delivery');
-  };
-
-  const handleDeliver = (orderId: string) => {
-    handleAction(orderId, 'deliver');
+  const handleReadyForPickup = (orderId: string) => {
+    handleAction(orderId, 'ready-for-pickup');
   };
 
   const formatPrice = (centimes: string) => formatFC(centimes);
@@ -164,7 +157,7 @@ export default function OrdersListPage() {
     switch (method) {
       case 'MOBILE_MONEY':
         return "Mobile Money";
-      case 'CASH_ON_DELIVERY':
+      case 'COD':
         return "Paiement à la livraison";
       default:
         return method || '---';
@@ -188,7 +181,8 @@ export default function OrdersListPage() {
     { key: 'PENDING', label: "En attente" },
     { key: 'CONFIRMED', label: "Confirmées" },
     { key: 'PROCESSING', label: "En préparation" },
-    { key: 'SHIPPED', label: "Expédiées" },
+    { key: 'READY_FOR_TEKA_PICKUP', label: "Prête pour collecte" },
+    { key: 'OUT_FOR_DELIVERY', label: "En livraison" },
     { key: 'DELIVERED', label: "Livrées" },
     { key: 'CANCELLED', label: "Annulées" },
   ];
@@ -233,42 +227,14 @@ export default function OrdersListPage() {
       case 'PROCESSING':
         return (
           <button
-            onClick={() => handleShip(order.id)}
+            onClick={() => handleReadyForPickup(order.id)}
             disabled={isLoading}
             className={`${btnBase} bg-primary text-primary-foreground hover:bg-primary/90`}
           >
-            {isLoading ? '...' : 'Expédier'}
+            {isLoading ? '...' : 'Prête pour collecte'}
           </button>
         );
-      case 'SHIPPED':
-        return (
-          <>
-            <button
-              onClick={() => handleOutForDelivery(order.id)}
-              disabled={isLoading}
-              className={`${btnBase} bg-primary text-primary-foreground hover:bg-primary/90`}
-            >
-              {isLoading ? '...' : 'En livraison'}
-            </button>
-            <button
-              onClick={() => handleDeliver(order.id)}
-              disabled={isLoading}
-              className={`${btnBase} border border-border text-foreground hover:bg-muted`}
-            >
-              {isLoading ? '...' : 'Livrer'}
-            </button>
-          </>
-        );
-      case 'OUT_FOR_DELIVERY':
-        return (
-          <button
-            onClick={() => handleDeliver(order.id)}
-            disabled={isLoading}
-            className={`${btnBase} bg-success text-white hover:bg-success/90`}
-          >
-            {isLoading ? '...' : 'Livrer'}
-          </button>
-        );
+      // Once ready for pickup, delivery is handled by Teka — no seller action.
       default:
         return null;
     }

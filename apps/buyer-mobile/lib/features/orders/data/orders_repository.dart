@@ -86,6 +86,11 @@ class OrdersRepository {
     }
     await _dio.post('/v1/orders/$id/cancel', data: data);
   }
+
+  /// Request a return on a delivered order (within the 2-day window).
+  Future<void> requestReturn(String id, String reason) async {
+    await _dio.post('/v1/orders/$id/return', data: {'reason': reason});
+  }
 }
 
 final ordersRepositoryProvider = Provider<OrdersRepository>((ref) {

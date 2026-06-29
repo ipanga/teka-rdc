@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/utils/price_formatter.dart';
 import '../providers/earnings_provider.dart';
 import '../widgets/earning_tile.dart';
 import '../widgets/payout_tile.dart';
@@ -95,6 +96,19 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen>
                   icon: Icons.percent,
                   color: TekaColors.warning,
                 ),
+                if ((wallet?.pendingCDFDisplay ?? 0) > 0) ...[
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      "+ ${formatFcNumber(wallet!.pendingCDFDisplay)} FC en attente (fenêtre de retour de 2 jours)",
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: TekaColors.mutedForeground,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 12),
 
                 // Payout request action + guards (Initiative #3 / C2).

@@ -69,6 +69,9 @@ interface OrderDetail {
   deliveryFeeCDF: string;
   deliveryFeeUSD?: string | null;
   paymentMethod?: string | null;
+  paymentStatus?: string | null;
+  deliveredAt?: string | null;
+  returnedAt?: string | null;
   createdAt: string;
   items: OrderItem[];
   address?: OrderAddress | null;
@@ -90,7 +93,9 @@ const ALL_STATUSES = [
   'PENDING',
   'CONFIRMED',
   'PROCESSING',
-  'SHIPPED',
+  'READY_FOR_TEKA_PICKUP',
+  'RECEIVED_AT_TEKA',
+  'OUT_FOR_DELIVERY',
   'DELIVERED',
   'CANCELLED',
   'RETURNED',
@@ -114,6 +119,9 @@ export default function OrderDetailPage() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
+
+  // Teka-managed delivery transition state
+  const [isSubmittingManaged, setIsSubmittingManaged] = useState(false);
 
   const showFeedback = (type: 'success' | 'error', message: string) => {
     setFeedback({ type, message });
@@ -160,6 +168,25 @@ export default function OrderDetailPage() {
       showFeedback('error', 'Erreur');
     } finally {
       setIsSubmittingStatus(false);
+    }
+  };
+
+  const handleManagedAction = async (
+    action: 'receive' | 'dispatch' | 'deliver',
+    successLabel: string,
+  ) => {
+    if (!order) return;
+    setIsSubmittingManaged(true);
+    try {
+      await apiFetch(`/v1/admin/orders/${order.id}/${action}`, {
+        method: 'PATCH',
+      });
+      showFeedback('success', successLabel);
+      fetchOrder();
+    } catch {
+      showFeedback('error', 'Erreur');
+    } finally {
+      setIsSubmittingManaged(false);
     }
   };
 
@@ -487,6 +514,55 @@ export default function OrderDetailPage() {
             )}
           </div>
 
+          {/* Delivery & cash collection */}
+          <div className="bg-white rounded-xl border border-border p-4">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+              Livraison & encaissement
+            </h2>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Encaissement (COD)</span>
+                <span
+                  className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                    order.paymentStatus === 'COMPLETED'
+                      ? 'bg-success/10 text-success'
+                      : 'bg-warning/10 text-warning'
+                  }`}
+                >
+                  {order.paymentStatus === 'COMPLETED'
+                    ? 'Encaissé'
+                    : "En attente d'encaissement"}
+                </span>
+              </div>
+              {order.deliveredAt && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Livrée le</span>
+                  <span className="text-foreground">
+                    {new Date(order.deliveredAt).toLocaleDateString('fr-CD', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                    })}
+                  </span>
+                </div>
+              )}
+              {order.status === 'DELIVERED' && order.deliveredAt && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Retour possible jusqu&apos;au</span>
+                  <span className="text-foreground">
+                    {new Date(
+                      new Date(order.deliveredAt).getTime() + 2 * 86400000,
+                    ).toLocaleDateString('fr-CD', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                    })}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Admin Actions */}
           {!isTerminal && (
             <div className="bg-white rounded-xl border border-border p-4">
@@ -494,15 +570,51 @@ export default function OrderDetailPage() {
                 Actions
               </h2>
               <div className="space-y-2">
+                {/* Teka-managed delivery — primary next step by status. */}
+                {order.status === 'READY_FOR_TEKA_PICKUP' && (
+                  <button
+                    onClick={() => handleManagedAction('receive', 'Reçue par Teka')}
+                    disabled={isSubmittingManaged}
+                    className="w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                  >
+                    {isSubmittingManaged ? '...' : 'Marquer reçue par Teka'}
+                  </button>
+                )}
+                {order.status === 'RECEIVED_AT_TEKA' && (
+                  <button
+                    onClick={() => handleManagedAction('dispatch', 'En livraison')}
+                    disabled={isSubmittingManaged}
+                    className="w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                  >
+                    {isSubmittingManaged ? '...' : 'Marquer en livraison'}
+                  </button>
+                )}
+                {(order.status === 'OUT_FOR_DELIVERY' ||
+                  order.status === 'SHIPPED') && (
+                  <button
+                    onClick={() =>
+                      handleManagedAction(
+                        'deliver',
+                        'Livrée — encaissement confirmé',
+                      )
+                    }
+                    disabled={isSubmittingManaged}
+                    className="w-full px-4 py-2 text-sm font-medium text-white bg-success rounded-lg hover:bg-success/90 disabled:opacity-50 transition-colors"
+                  >
+                    {isSubmittingManaged
+                      ? '...'
+                      : "Confirmer la livraison + l'encaissement"}
+                  </button>
+                )}
                 <button
                   onClick={() => {
                     setNewStatus(order.status);
                     setStatusNote('');
                     setShowStatusModal(true);
                   }}
-                  className="w-full px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-lg hover:bg-primary/90 transition-colors"
+                  className="w-full px-4 py-2 text-sm font-medium text-foreground bg-secondary rounded-lg hover:bg-secondary/80 transition-colors"
                 >
-                  Changer le statut
+                  Changer le statut (manuel)
                 </button>
                 <button
                   onClick={() => {

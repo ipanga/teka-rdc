@@ -191,8 +191,22 @@ class HomeScreen extends ConsumerWidget {
   }
 
   Widget _buildOrdersCard(BuildContext context, SellerOrdersState ordersState) {
+    final orders = ordersState.orders;
     final pendingCount =
-        ordersState.orders.where((o) => o.status == OrderStatus.pending).length;
+        orders.where((o) => o.status == OrderStatus.pending).length;
+    final toPrepareCount = orders
+        .where((o) =>
+            o.status == OrderStatus.confirmed ||
+            o.status == OrderStatus.processing)
+        .length;
+    final readyCount = orders
+        .where((o) => o.status == OrderStatus.readyForTekaPickup)
+        .length;
+    final summaryParts = <String>[
+      if (pendingCount > 0) '$pendingCount nouvelle${pendingCount > 1 ? 's' : ''}',
+      if (toPrepareCount > 0) '$toPrepareCount à préparer',
+      if (readyCount > 0) '$readyCount prête${readyCount > 1 ? 's' : ''} pour collecte',
+    ];
 
     return InkWell(
       onTap: () => context.go('/orders'),
@@ -227,9 +241,9 @@ class HomeScreen extends ConsumerWidget {
                       fontSize: 15,
                     ),
                   ),
-                  if (pendingCount > 0)
+                  if (summaryParts.isNotEmpty)
                     Text(
-                      '$pendingCount en attente',
+                      summaryParts.join(' · '),
                       style: TextStyle(
                         fontSize: 12,
                         color: TekaColors.tekaRed,

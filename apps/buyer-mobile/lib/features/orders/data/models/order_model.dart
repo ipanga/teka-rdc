@@ -12,6 +12,7 @@ class OrderModel {
   final String? deliveryFeeUSD;
   final String? buyerNote;
   final String createdAt;
+  final String? deliveredAt;
   final OrderSellerModel? seller;
   final List<OrderItemModel> items;
   final OrderAddressModel? deliveryAddress;
@@ -32,6 +33,7 @@ class OrderModel {
     this.deliveryFeeUSD,
     this.buyerNote,
     required this.createdAt,
+    this.deliveredAt,
     this.seller,
     this.items = const [],
     this.deliveryAddress,
@@ -54,6 +56,7 @@ class OrderModel {
       deliveryFeeUSD: json['deliveryFeeUSD']?.toString(),
       buyerNote: json['buyerNote'] as String?,
       createdAt: json['createdAt']?.toString() ?? '',
+      deliveredAt: json['deliveredAt']?.toString(),
       seller: json['seller'] != null
           ? OrderSellerModel.fromJson(json['seller'] as Map<String, dynamic>)
           : null,

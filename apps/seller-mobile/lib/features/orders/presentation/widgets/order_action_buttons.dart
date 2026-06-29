@@ -7,9 +7,7 @@ class OrderActionButtons extends StatelessWidget {
   final VoidCallback? onConfirm;
   final VoidCallback? onReject;
   final VoidCallback? onProcess;
-  final VoidCallback? onShip;
-  final VoidCallback? onOutForDelivery;
-  final VoidCallback? onDeliver;
+  final VoidCallback? onReadyForPickup;
 
   const OrderActionButtons({
     super.key,
@@ -17,9 +15,7 @@ class OrderActionButtons extends StatelessWidget {
     this.onConfirm,
     this.onReject,
     this.onProcess,
-    this.onShip,
-    this.onOutForDelivery,
-    this.onDeliver,
+    this.onReadyForPickup,
   });
 
   @override
@@ -72,57 +68,22 @@ class OrderActionButtons extends StatelessWidget {
         return SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: onShip,
+            onPressed: onReadyForPickup,
             style: ElevatedButton.styleFrom(
               backgroundColor: TekaColors.tekaRed,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
-            child: Text("Expedier"),
+            child: Text("Prête pour collecte"),
           ),
         );
 
+      // Once ready for pickup, delivery + cash collection are handled by Teka —
+      // the seller has no further action.
+      case OrderStatus.readyForTekaPickup:
+      case OrderStatus.receivedAtTeka:
       case OrderStatus.shipped:
-        return Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: onOutForDelivery,
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: Text("En livraison"),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: onDeliver,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: TekaColors.tekaRed,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: Text("Livrer"),
-              ),
-            ),
-          ],
-        );
-
       case OrderStatus.outForDelivery:
-        return SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: onDeliver,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: TekaColors.tekaRed,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-            child: Text("Livrer"),
-          ),
-        );
-
       case OrderStatus.delivered:
       case OrderStatus.cancelled:
       case OrderStatus.returned:

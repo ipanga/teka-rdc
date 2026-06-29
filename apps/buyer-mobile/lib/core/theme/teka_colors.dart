@@ -78,6 +78,9 @@ class TekaColors {
       case 'CONFIRMED':
       case 'PROCESSING':
         return info;
+      case 'READY_FOR_TEKA_PICKUP':
+      case 'RECEIVED_AT_TEKA':
+        return const Color(0xFF6366F1); // indigo-500 — Teka custody
       case 'SHIPPED':
       case 'OUT_FOR_DELIVERY':
         return const Color(0xFF8B5CF6); // purple-500 — keeps SHIPPED visual

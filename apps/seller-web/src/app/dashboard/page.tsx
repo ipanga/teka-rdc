@@ -13,6 +13,16 @@ interface ProductStats {
   draft: number;
 }
 
+interface OrderSummary {
+  nouvelles: number;
+  aPreparer: number;
+  pretesPourCollecte: number;
+  enLivraison: number;
+  livrees: number;
+  annulees: number;
+  retours: number;
+}
+
 // Canonical paginated response shape across all admin/seller APIs.
 // Used to be `{ products, meta }` here — that didn't match the API's
 // `{ data, pagination }` envelope, so stats cards silently rendered 0.
@@ -36,6 +46,8 @@ export default function SellerDashboardPage() {
     totalReviews: 0,
   });
   const [reviewStatsLoading, setReviewStatsLoading] = useState(true);
+  const [orderSummary, setOrderSummary] = useState<OrderSummary | null>(null);
+  const [orderSummaryLoading, setOrderSummaryLoading] = useState(true);
 
   const formatPrice = (centimes: string) => formatFC(centimes);
 
@@ -100,9 +112,21 @@ export default function SellerDashboardPage() {
       }
     }
 
+    async function loadOrderSummary() {
+      try {
+        const res = await apiFetch<{ summary: OrderSummary }>('/v1/sellers/orders/stats');
+        setOrderSummary(res.data.summary);
+      } catch {
+        // Order summary stays null
+      } finally {
+        setOrderSummaryLoading(false);
+      }
+    }
+
     loadStats();
     loadWallet();
     loadReviewStats();
+    loadOrderSummary();
   }, []);
 
   const renderStars = (rating: number) => {
@@ -198,6 +222,42 @@ export default function SellerDashboardPage() {
             </p>
           </div>
         ))}
+      </div>
+
+      {/* Order status summary */}
+      <div className="bg-white rounded-xl border border-border p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-foreground">Commandes</h2>
+          <Link href="/dashboard/orders" className="text-sm font-medium text-primary hover:underline">
+            Voir tout
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-7 gap-3">
+          {([
+            { label: 'Nouvelles', value: orderSummary?.nouvelles ?? 0, color: 'text-warning' },
+            { label: 'À préparer', value: orderSummary?.aPreparer ?? 0, color: 'text-blue-700' },
+            { label: 'Prêtes pour collecte', value: orderSummary?.pretesPourCollecte ?? 0, color: 'text-indigo-700' },
+            { label: 'En livraison', value: orderSummary?.enLivraison ?? 0, color: 'text-indigo-700' },
+            { label: 'Livrées', value: orderSummary?.livrees ?? 0, color: 'text-success' },
+            { label: 'Annulées / rejetées', value: orderSummary?.annulees ?? 0, color: 'text-destructive' },
+            { label: 'Retours', value: orderSummary?.retours ?? 0, color: 'text-muted-foreground' },
+          ]).map((card) => (
+            <Link
+              key={card.label}
+              href="/dashboard/orders"
+              className="rounded-lg border border-border p-3 hover:bg-muted/40 transition-colors"
+            >
+              <p className={`text-2xl font-bold ${card.color}`}>
+                {orderSummaryLoading ? (
+                  <span className="inline-block w-8 h-7 bg-muted rounded animate-pulse" />
+                ) : (
+                  card.value
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 leading-tight">{card.label}</p>
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* Reviews stats */}

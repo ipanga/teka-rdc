@@ -64,6 +64,18 @@ class OrderStatusBadge extends StatelessWidget {
           icon: Icons.settings_outlined,
           label: "En préparation",
         );
+      case OrderStatus.readyForTekaPickup:
+        return _OrderStatusConfig(
+          color: const Color(0xFF6366F1),
+          icon: Icons.inventory_2_outlined,
+          label: "Prête pour collecte",
+        );
+      case OrderStatus.receivedAtTeka:
+        return _OrderStatusConfig(
+          color: const Color(0xFF4F46E5),
+          icon: Icons.warehouse_outlined,
+          label: "Reçue par Teka",
+        );
       case OrderStatus.shipped:
         return _OrderStatusConfig(
           color: const Color(0xFF0EA5E9),

@@ -21,6 +21,9 @@ function hrefFor(n: SellerNotification): string {
   if (n.entityType === 'product' && n.entityId) {
     return `/dashboard/products/${n.entityId}`;
   }
+  if (n.entityType === 'order' && n.entityId) {
+    return `/dashboard/orders/${n.entityId}`;
+  }
   return '/dashboard/products';
 }
 

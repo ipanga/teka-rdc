@@ -22,6 +22,7 @@ interface Product {
   status: string;
   condition: string;
   images: ProductImage[];
+  city?: { id: string; name: string } | null;
   createdAt: string;
 }
 
@@ -297,6 +298,9 @@ export default function ProductsListPage() {
                       <h2 className="font-semibold text-foreground line-clamp-2">{getProductTitle(product)}</h2>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         <ProductStatusBadge status={product.status} />
+                        {product.city?.name && (
+                          <span className="text-xs text-muted-foreground">📍 {product.city.name}</span>
+                        )}
                         <span className="text-xs text-muted-foreground">{formatDate(product.createdAt)}</span>
                       </div>
                       <p className="mt-2 text-sm font-bold text-primary">{formatPrice(product.priceCDF)}</p>
@@ -368,6 +372,7 @@ export default function ProductsListPage() {
                   <tr className="border-b border-border bg-muted/50">
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground w-16" />
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Nom</th>
+                    <th className="text-left px-4 py-3 font-medium text-muted-foreground">Ville</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Prix</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Statut</th>
                     <th className="text-left px-4 py-3 font-medium text-muted-foreground">Date</th>
@@ -405,6 +410,9 @@ export default function ProductsListPage() {
                         </td>
                         <td className="px-4 py-3">
                           <span className="font-medium text-foreground">{getProductTitle(product)}</span>
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {product.city?.name ?? '—'}
                         </td>
                         <td className="px-4 py-3 text-foreground">
                           {formatPrice(product.priceCDF)}

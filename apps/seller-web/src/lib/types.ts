@@ -3,6 +3,10 @@ export type PayoutStatus = 'REQUESTED' | 'APPROVED' | 'PROCESSING' | 'COMPLETED'
 
 export interface SellerWallet {
   balanceCDF: string;
+  /** Withdrawable now (window-cleared) — alias of balanceCDF. */
+  availableCDF?: string;
+  /** Held inside the 2-day return window (not yet withdrawable). */
+  pendingCDF?: string;
   totalEarnedCDF: string;
   totalCommissionCDF: string;
   pendingPayoutCDF: string;

@@ -26,6 +26,12 @@ export class SellerOrdersController {
     return this.sellerOrdersService.findSellerOrders(userId, query);
   }
 
+  // Declared before `@Get(':id')` so "stats" isn't captured by the UUID param.
+  @Get('stats')
+  stats(@CurrentUser('userId') userId: string) {
+    return this.sellerOrdersService.getOrderStats(userId);
+  }
+
   @Get(':id')
   findById(
     @CurrentUser('userId') userId: string,
@@ -59,27 +65,16 @@ export class SellerOrdersController {
     return this.sellerOrdersService.processOrder(userId, id);
   }
 
-  @Patch(':id/ship')
-  ship(
+  /**
+   * Seller's final step: hand the parcel off to Teka for collection.
+   * Everything after this (received-at-Teka, dispatch, deliver, cash) is
+   * driven by Teka/admin — sellers no longer ship or deliver directly.
+   */
+  @Patch(':id/ready-for-pickup')
+  readyForPickup(
     @CurrentUser('userId') userId: string,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.sellerOrdersService.shipOrder(userId, id);
-  }
-
-  @Patch(':id/out-for-delivery')
-  outForDelivery(
-    @CurrentUser('userId') userId: string,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.sellerOrdersService.markOutForDelivery(userId, id);
-  }
-
-  @Patch(':id/deliver')
-  deliver(
-    @CurrentUser('userId') userId: string,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.sellerOrdersService.deliverOrder(userId, id);
+    return this.sellerOrdersService.markReadyForPickup(userId, id);
   }
 }

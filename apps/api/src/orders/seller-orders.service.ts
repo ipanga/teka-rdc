@@ -7,11 +7,10 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrderNotificationService } from '../notifications/order-notification.service';
-import { PaymentsService } from '../payments/payments.service';
 import { EarningsService } from '../payments/earnings.service';
 import { PostHogService } from '../analytics/posthog.service';
 import { SellerOrderQueryDto } from './dto/seller-order-query.dto';
-import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
+import { OrderStatus } from '@prisma/client';
 
 /**
  * Maps an order's new status to its PostHog event name. Attributed to the
@@ -21,6 +20,8 @@ import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
 const ORDER_STATUS_EVENT: Partial<Record<OrderStatus, string>> = {
   [OrderStatus.CONFIRMED]: 'order_confirmed',
   [OrderStatus.PROCESSING]: 'order_processing',
+  [OrderStatus.READY_FOR_TEKA_PICKUP]: 'order_ready_for_pickup',
+  [OrderStatus.RECEIVED_AT_TEKA]: 'order_received_at_teka',
   [OrderStatus.SHIPPED]: 'order_shipped',
   [OrderStatus.OUT_FOR_DELIVERY]: 'order_out_for_delivery',
   [OrderStatus.DELIVERED]: 'order_delivered',
@@ -34,7 +35,6 @@ export class SellerOrdersService {
   constructor(
     private prisma: PrismaService,
     private notificationService: OrderNotificationService,
-    private paymentsService: PaymentsService,
     private earningsService: EarningsService,
     private analytics: PostHogService,
   ) {}
@@ -62,22 +62,9 @@ export class SellerOrdersService {
     });
   }
 
-  /**
-   * Valid state transitions for the order lifecycle.
-   */
-  private readonly validTransitions: Record<OrderStatus, OrderStatus[]> = {
-    [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
-    [OrderStatus.CONFIRMED]: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
-    [OrderStatus.PROCESSING]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
-    [OrderStatus.SHIPPED]: [
-      OrderStatus.OUT_FOR_DELIVERY,
-      OrderStatus.DELIVERED,
-    ],
-    [OrderStatus.OUT_FOR_DELIVERY]: [OrderStatus.DELIVERED],
-    [OrderStatus.DELIVERED]: [OrderStatus.RETURNED],
-    [OrderStatus.CANCELLED]: [],
-    [OrderStatus.RETURNED]: [],
-  };
+  // Canonical state-machine lives in order-workflow.constants.ts
+  // (ORDER_STATUS_TRANSITIONS). Each seller action below validates its own
+  // explicit precondition via validateTransition().
 
   /**
    * Returns paginated list of seller's orders.
@@ -143,6 +130,42 @@ export class SellerOrdersService {
         limit,
         total,
         totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
+   * Order counts grouped into the seller-dashboard summary buckets.
+   * Drives the "Nouvelles / À préparer / Prêtes pour collecte / …" cards.
+   */
+  async getOrderStats(sellerId: string) {
+    const grouped = await this.prisma.order.groupBy({
+      by: ['status'],
+      where: { sellerId, deletedAt: null },
+      _count: { _all: true },
+    });
+
+    const counts: Partial<Record<OrderStatus, number>> = {};
+    for (const g of grouped) {
+      counts[g.status] = g._count._all;
+    }
+    const sum = (...statuses: OrderStatus[]) =>
+      statuses.reduce((n, s) => n + (counts[s] ?? 0), 0);
+
+    return {
+      byStatus: counts,
+      summary: {
+        nouvelles: sum(OrderStatus.PENDING),
+        aPreparer: sum(OrderStatus.CONFIRMED, OrderStatus.PROCESSING),
+        pretesPourCollecte: sum(OrderStatus.READY_FOR_TEKA_PICKUP),
+        enLivraison: sum(
+          OrderStatus.RECEIVED_AT_TEKA,
+          OrderStatus.OUT_FOR_DELIVERY,
+          OrderStatus.SHIPPED,
+        ),
+        livrees: sum(OrderStatus.DELIVERED),
+        annulees: sum(OrderStatus.CANCELLED),
+        retours: sum(OrderStatus.RETURNED),
       },
     };
   }
@@ -308,6 +331,18 @@ export class SellerOrdersService {
         `Rejetée par le vendeur : ${reason}`,
       );
 
+      // Restore stock held since checkout.
+      const heldItems = await tx.orderItem.findMany({
+        where: { orderId },
+        select: { productId: true, quantity: true },
+      });
+      for (const it of heldItems) {
+        await tx.product.update({
+          where: { id: it.productId },
+          data: { quantity: { increment: it.quantity } },
+        });
+      }
+
       return tx.order.update({
         where: { id: orderId },
         data: {
@@ -352,141 +387,38 @@ export class SellerOrdersService {
   }
 
   /**
-   * Ships an order: PROCESSING -> SHIPPED.
+   * Seller hands the parcel off to Teka: PROCESSING -> READY_FOR_TEKA_PICKUP.
+   * This is the seller's last step — Teka/admin drives everything after.
    */
-  async shipOrder(sellerId: string, orderId: string) {
+  async markReadyForPickup(sellerId: string, orderId: string) {
     const order = await this.findAndValidateSellerOrder(sellerId, orderId);
     this.validateTransition(
       order,
       [OrderStatus.PROCESSING],
-      OrderStatus.SHIPPED,
+      OrderStatus.READY_FOR_TEKA_PICKUP,
     );
 
     const updatedOrder = await this.transitionOrder(
       orderId,
       order.status,
-      OrderStatus.SHIPPED,
+      OrderStatus.READY_FOR_TEKA_PICKUP,
       sellerId,
     );
 
-    // Fire-and-forget: notify buyer of shipment
+    // Fire-and-forget: notify buyer the parcel is ready for Teka pickup.
     this.notificationService
-      .notifyOrderShipped(updatedOrder)
+      .notifyOrderReadyForPickup(updatedOrder)
       .catch((err) =>
-        this.logger.error("Échec de notification d'expédition", err),
+        this.logger.error('Échec de notification (prête pour collecte)', err),
       );
 
     return updatedOrder;
   }
 
-  /**
-   * Marks order as out for delivery: SHIPPED -> OUT_FOR_DELIVERY.
-   */
-  async markOutForDelivery(sellerId: string, orderId: string) {
-    const order = await this.findAndValidateSellerOrder(sellerId, orderId);
-    this.validateTransition(
-      order,
-      [OrderStatus.SHIPPED],
-      OrderStatus.OUT_FOR_DELIVERY,
-    );
-
-    return this.transitionOrder(
-      orderId,
-      order.status,
-      OrderStatus.OUT_FOR_DELIVERY,
-      sellerId,
-    );
-  }
-
-  /**
-   * Delivers an order: SHIPPED|OUT_FOR_DELIVERY -> DELIVERED.
-   * Also sets paymentStatus to COMPLETED for COD orders.
-   */
-  async deliverOrder(sellerId: string, orderId: string) {
-    const order = await this.findAndValidateSellerOrder(sellerId, orderId);
-    this.validateTransition(
-      order,
-      [OrderStatus.SHIPPED, OrderStatus.OUT_FOR_DELIVERY],
-      OrderStatus.DELIVERED,
-    );
-
-    const updatedOrder = await this.prisma.$transaction(async (tx) => {
-      await this.createStatusLog(
-        tx,
-        orderId,
-        order.status,
-        OrderStatus.DELIVERED,
-        sellerId,
-      );
-
-      const updateData: any = {
-        status: OrderStatus.DELIVERED,
-      };
-
-      // If COD, mark payment as completed on delivery
-      if (order.paymentMethod === PaymentMethod.COD) {
-        updateData.paymentStatus = PaymentStatus.COMPLETED;
-      }
-
-      const result = await tx.order.update({
-        where: { id: orderId },
-        data: updateData,
-        include: {
-          items: true,
-          statusLogs: { orderBy: { createdAt: 'desc' }, take: 5 },
-        },
-      });
-
-      // Best-seller counter: a DELIVERED order is a confirmed sale. Increment
-      // each line item's product.unitsSold atomically within this transaction.
-      for (const item of result.items) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { unitsSold: { increment: item.quantity } },
-        });
-      }
-
-      return result;
-    });
-
-    // Fire-and-forget: notify buyer of delivery
-    this.notificationService
-      .notifyOrderDelivered(updatedOrder)
-      .catch((err) =>
-        this.logger.error('Échec de notification de livraison', err),
-      );
-
-    // Server-owned analytics: delivery + COD payment completion.
-    this.trackOrderStatus(updatedOrder, OrderStatus.DELIVERED);
-    if (order.paymentMethod === PaymentMethod.COD) {
-      this.analytics.capture(updatedOrder.buyerId, 'payment_completed', {
-        orderId,
-        method: PaymentMethod.COD,
-        amount_cdf: Number(updatedOrder.totalCDF),
-      });
-    }
-
-    // Complete COD transaction if applicable
-    if (order.paymentMethod === PaymentMethod.COD) {
-      this.paymentsService
-        .completeCodTransaction(orderId)
-        .catch((err) =>
-          this.logger.error('Échec de finalisation transaction COD', err),
-        );
-    }
-
-    // Create earning if payment is completed (COD auto-completes, MM may already be completed)
-    if (
-      updatedOrder.paymentStatus === PaymentStatus.COMPLETED ||
-      order.paymentMethod === PaymentMethod.COD
-    ) {
-      this.earningsService
-        .createEarning(orderId)
-        .catch((err) => this.logger.error('Échec de création du revenu', err));
-    }
-
-    return updatedOrder;
-  }
+  // Delivery to the buyer (received-at-Teka → out-for-delivery → delivered +
+  // cash collection) moved to AdminOrdersService in the managed-workflow
+  // rollout — Teka, not the seller, controls the logistics chain. The seller's
+  // last action is markReadyForPickup above.
 
   /**
    * Validates that the requested status transition is allowed.

@@ -4,6 +4,8 @@ type OrderStatus =
   | 'PENDING'
   | 'CONFIRMED'
   | 'PROCESSING'
+  | 'READY_FOR_TEKA_PICKUP'
+  | 'RECEIVED_AT_TEKA'
   | 'SHIPPED'
   | 'OUT_FOR_DELIVERY'
   | 'DELIVERED'
@@ -14,6 +16,8 @@ const statusStyles: Record<OrderStatus, string> = {
   PENDING: 'bg-warning/15 text-warning',
   CONFIRMED: 'bg-blue-100 text-blue-700',
   PROCESSING: 'bg-blue-100 text-blue-700',
+  READY_FOR_TEKA_PICKUP: 'bg-indigo-100 text-indigo-700',
+  RECEIVED_AT_TEKA: 'bg-indigo-100 text-indigo-700',
   SHIPPED: 'bg-blue-100 text-blue-700',
   OUT_FOR_DELIVERY: 'bg-blue-100 text-blue-700',
   DELIVERED: 'bg-success/15 text-success',
@@ -25,6 +29,8 @@ const labelMap: Record<OrderStatus, string> = {
   PENDING: 'En attente',
   CONFIRMED: 'Confirmées',
   PROCESSING: 'En préparation',
+  READY_FOR_TEKA_PICKUP: 'Prête pour collecte',
+  RECEIVED_AT_TEKA: 'Reçue par Teka',
   SHIPPED: 'Expédiées',
   OUT_FOR_DELIVERY: 'En livraison',
   DELIVERED: 'Livrées',

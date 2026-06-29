@@ -56,4 +56,33 @@ export class AdminOrdersController {
       dto.reason ?? '',
     );
   }
+
+  // --- Teka-managed delivery transitions ------------------------------------
+
+  /** Mark the parcel received at the Teka warehouse. */
+  @Patch(':id/receive')
+  receiveAtTeka(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('userId') adminId: string,
+  ) {
+    return this.adminOrdersService.markReceivedAtTeka(id, adminId);
+  }
+
+  /** Dispatch the parcel for delivery to the buyer. */
+  @Patch(':id/dispatch')
+  dispatch(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('userId') adminId: string,
+  ) {
+    return this.adminOrdersService.markOutForDelivery(id, adminId);
+  }
+
+  /** Confirm delivery + COD cash collection. */
+  @Patch(':id/deliver')
+  deliver(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('userId') adminId: string,
+  ) {
+    return this.adminOrdersService.markDelivered(id, adminId);
+  }
 }

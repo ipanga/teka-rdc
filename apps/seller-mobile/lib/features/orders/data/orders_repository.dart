@@ -93,21 +93,11 @@ class SellerOrdersRepository {
         response.data['data'] as Map<String, dynamic>);
   }
 
-  Future<SellerOrderModel> shipOrder(String id) async {
-    final response = await _dio.patch('/v1/sellers/orders/$id/ship');
-    return SellerOrderModel.fromJson(
-        response.data['data'] as Map<String, dynamic>);
-  }
-
-  Future<SellerOrderModel> markOutForDelivery(String id) async {
+  /// Seller's final step — hand the parcel off to Teka. Delivery + cash
+  /// collection are driven by Teka/admin after this.
+  Future<SellerOrderModel> markReadyForPickup(String id) async {
     final response =
-        await _dio.patch('/v1/sellers/orders/$id/out-for-delivery');
-    return SellerOrderModel.fromJson(
-        response.data['data'] as Map<String, dynamic>);
-  }
-
-  Future<SellerOrderModel> deliverOrder(String id) async {
-    final response = await _dio.patch('/v1/sellers/orders/$id/deliver');
+        await _dio.patch('/v1/sellers/orders/$id/ready-for-pickup');
     return SellerOrderModel.fromJson(
         response.data['data'] as Map<String, dynamic>);
   }

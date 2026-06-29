@@ -36,6 +36,10 @@ class OrderStatusBadge extends StatelessWidget {
         return "Confirmee";
       case 'PROCESSING':
         return "En preparation";
+      case 'READY_FOR_TEKA_PICKUP':
+        return "Prête pour collecte";
+      case 'RECEIVED_AT_TEKA':
+        return "Reçue par Teka";
       case 'SHIPPED':
         return "Expediee";
       case 'OUT_FOR_DELIVERY':

@@ -10,6 +10,7 @@ import {
   contactFormTemplate,
   type ContactFormEmailInput,
 } from './templates/contact-form.template';
+import { sellerNewOrderTemplate } from './templates/seller-new-order.template';
 import { orderConfirmedTemplate } from './templates/order-confirmed.template';
 import { orderShippedTemplate } from './templates/order-shipped.template';
 import { orderDeliveredTemplate } from './templates/order-delivered.template';
@@ -230,6 +231,28 @@ export class EmailService {
       productName,
       reason,
       dashboardUrl,
+    );
+    return this.sendEmail(email, subject, html);
+  }
+
+  /** Notifies a seller that a new order has arrived (push + in-app run separately). */
+  async sendSellerNewOrder(
+    email: string,
+    firstName: string | null,
+    orderNumber: string,
+    itemCount: number,
+    subtotalLabel: string,
+    buyerTown: string | null,
+    orderUrl: string,
+  ): Promise<boolean> {
+    const subject = `Nouvelle commande ${orderNumber} — Teka RDC`;
+    const html = sellerNewOrderTemplate(
+      firstName,
+      orderNumber,
+      itemCount,
+      subtotalLabel,
+      buyerTown,
+      orderUrl,
     );
     return this.sendEmail(email, subject, html);
   }

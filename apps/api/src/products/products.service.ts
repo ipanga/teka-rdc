@@ -273,6 +273,10 @@ export class ProductsService {
           category: {
             select: { id: true, name: true },
           },
+          // Town where the product is published/sold (seller product list column).
+          city: {
+            select: { id: true, name: true },
+          },
         },
       }),
       this.prisma.product.count({ where }),

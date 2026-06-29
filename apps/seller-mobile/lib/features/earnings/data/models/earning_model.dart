@@ -1,11 +1,13 @@
 class SellerWallet {
   final String balanceCDF;
+  final String pendingCDF;
   final String totalEarnedCDF;
   final String totalCommissionCDF;
   final String pendingPayoutCDF;
 
   const SellerWallet({
     required this.balanceCDF,
+    this.pendingCDF = '0',
     required this.totalEarnedCDF,
     required this.totalCommissionCDF,
     required this.pendingPayoutCDF,
@@ -13,6 +15,12 @@ class SellerWallet {
 
   int get balanceCDFDisplay {
     final centimes = int.tryParse(balanceCDF) ?? 0;
+    return centimes ~/ 100;
+  }
+
+  /// Held inside the 2-day return window (not yet withdrawable).
+  int get pendingCDFDisplay {
+    final centimes = int.tryParse(pendingCDF) ?? 0;
     return centimes ~/ 100;
   }
 
@@ -34,6 +42,7 @@ class SellerWallet {
   factory SellerWallet.fromJson(Map<String, dynamic> json) {
     return SellerWallet(
       balanceCDF: json['balanceCDF']?.toString() ?? '0',
+      pendingCDF: json['pendingCDF']?.toString() ?? '0',
       totalEarnedCDF: json['totalEarnedCDF']?.toString() ?? '0',
       totalCommissionCDF: json['totalCommissionCDF']?.toString() ?? '0',
       pendingPayoutCDF: json['pendingPayoutCDF']?.toString() ?? '0',

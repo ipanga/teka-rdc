@@ -21,6 +21,7 @@ import { OrdersModule } from './orders/orders.module';
 import { CheckoutModule } from './checkout/checkout.module';
 import { PaymentsModule } from './payments/payments.module';
 import { PayoutsModule } from './payouts/payouts.module';
+import { ReturnsModule } from './returns/returns.module';
 import { CommissionModule } from './commission/commission.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { WishlistModule } from './wishlist/wishlist.module';
@@ -66,6 +67,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     CheckoutModule,
     PaymentsModule,
     PayoutsModule,
+    ReturnsModule,
     CommissionModule,
     ReviewsModule,
     WishlistModule,
