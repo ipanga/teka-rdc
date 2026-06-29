@@ -63,11 +63,19 @@ enum OrderStatus {
   PENDING
   CONFIRMED
   PROCESSING
+  READY_FOR_TEKA_PICKUP
+  RECEIVED_AT_TEKA
   SHIPPED
   OUT_FOR_DELIVERY
   DELIVERED
   CANCELLED
   RETURNED
+}
+
+enum ReturnStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
 }
 
 enum PaymentMethod {
@@ -702,6 +710,8 @@ model Order {
   buyerNote          String?
   cancellationReason String?
   cancelledBy        String?       @db.Uuid
+  deliveredAt        DateTime? // set when admin marks DELIVERED — anchors the 2-day return window + payout eligibility
+  returnedAt         DateTime? // set when admin approves a return (status → RETURNED)
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
   deletedAt          DateTime?
@@ -714,6 +724,7 @@ model Order {
   transactions    Transaction[]
   earning         SellerEarning?
   reviews         Review[]
+  returnRequests  ReturnRequest[]
 
   @@index([buyerId])
   @@index([sellerId])
@@ -769,6 +780,30 @@ model OrderStatusLog {
   @@index([orderId])
   @@index([createdAt])
   @@map("order_status_logs")
+}
+
+model ReturnRequest {
+  id           String       @id @default(uuid()) @db.Uuid
+  orderId      String       @db.Uuid
+  // buyerId / reviewedById are plain UUID columns (no Prisma relation) to avoid
+  // back-relation churn on User — mirrors Order.cancelledBy.
+  buyerId      String       @db.Uuid
+  reason       String
+  status       ReturnStatus @default(REQUESTED)
+  reviewedById String?      @db.Uuid // admin who approved/rejected
+  reviewedAt   DateTime?
+  reviewNote   String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  deletedAt    DateTime?
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([buyerId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("return_requests")
 }
 
 model Transaction {

@@ -185,6 +185,79 @@ export class OrderNotificationService {
   }
 
   /**
+   * Notifies buyer the parcel is prepared and awaiting Teka pickup.
+   * Push-only for now (no dedicated email template yet — Phase 4 adds fallback).
+   */
+  async notifyOrderReadyForPickup(order: any): Promise<void> {
+    try {
+      const enriched = await this.enrichOrder(order);
+      if (!enriched) return;
+      const { orderNumber, buyer } = enriched;
+      if (!(await this.shouldNotify(buyer))) return;
+
+      this.sendPushToBuyer(buyer.id, {
+        title: 'Commande prête',
+        body: `${orderNumber} est prête et attend la collecte par Teka.`,
+        data: { orderId: enriched.id, screen: 'order-details' },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Échec de notification (prête pour collecte): ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /**
+   * Notifies buyer that Teka has received the product at its warehouse.
+   */
+  async notifyOrderReceivedAtTeka(order: any): Promise<void> {
+    try {
+      const enriched = await this.enrichOrder(order);
+      if (!enriched) return;
+      const { orderNumber, buyer } = enriched;
+      if (!(await this.shouldNotify(buyer))) return;
+
+      this.sendPushToBuyer(buyer.id, {
+        title: 'Reçue par Teka',
+        body: `${orderNumber} a été reçue par Teka RDC. Livraison bientôt.`,
+        data: { orderId: enriched.id, screen: 'order-details' },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Échec de notification (reçue par Teka): ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /**
+   * Notifies buyer the order is out for delivery (Teka agent en route).
+   */
+  async notifyOrderOutForDelivery(order: any): Promise<void> {
+    try {
+      const enriched = await this.enrichOrder(order);
+      if (!enriched) return;
+      const { orderNumber, buyer, deliveryAddress } = enriched;
+      const town = deliveryAddress?.town ?? '';
+      if (!(await this.shouldNotify(buyer))) return;
+
+      this.sendPushToBuyer(buyer.id, {
+        title: 'En livraison',
+        body: town
+          ? `${orderNumber} est en cours de livraison vers ${town}.`
+          : `${orderNumber} est en cours de livraison.`,
+        data: { orderId: enriched.id, screen: 'order-details' },
+      });
+    } catch (error) {
+      this.logger.error(
+        `Échec de notification (en livraison): ${error.message}`,
+        error.stack,
+      );
+    }
+  }
+
+  /**
    * Notifies buyer and seller that an order has been cancelled.
    */
   async notifyOrderCancelled(order: any, reason?: string): Promise<void> {

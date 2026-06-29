@@ -59,6 +59,15 @@ export class SellerOrdersController {
     return this.sellerOrdersService.processOrder(userId, id);
   }
 
+  /** Seller's final step: hand the parcel off to Teka for collection. */
+  @Patch(':id/ready-for-pickup')
+  readyForPickup(
+    @CurrentUser('userId') userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.sellerOrdersService.markReadyForPickup(userId, id);
+  }
+
   @Patch(':id/ship')
   ship(
     @CurrentUser('userId') userId: string,

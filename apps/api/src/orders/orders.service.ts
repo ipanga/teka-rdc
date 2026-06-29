@@ -10,6 +10,7 @@ import { OrderNotificationService } from '../notifications/order-notification.se
 import { PostHogService } from '../analytics/posthog.service';
 import { OrderQueryDto } from './dto/order-query.dto';
 import { OrderStatus, PaymentMethod } from '@prisma/client';
+import { BUYER_CANCELLABLE_STATUSES } from './order-workflow.constants';
 
 @Injectable()
 export class OrdersService {
@@ -187,9 +188,12 @@ export class OrdersService {
       throw new ForbiddenException("Vous n'avez pas accès à cette commande");
     }
 
-    if (order.status !== OrderStatus.PENDING) {
+    // Buyer may cancel only before the parcel leaves for Teka custody
+    // (PENDING / CONFIRMED / PROCESSING). Once READY_FOR_TEKA_PICKUP or later
+    // the goods are in the logistics chain — only admin can cancel.
+    if (!BUYER_CANCELLABLE_STATUSES.includes(order.status)) {
       throw new BadRequestException(
-        "Seules les commandes en attente peuvent être annulées par l'acheteur",
+        "Cette commande ne peut plus être annulée. Contactez le support si nécessaire.",
       );
     }
 
@@ -204,6 +208,18 @@ export class OrdersService {
           note: reason || "Annulée par l'acheteur",
         },
       });
+
+      // Restore stock held since checkout (decremented at order creation).
+      const heldItems = await tx.orderItem.findMany({
+        where: { orderId },
+        select: { productId: true, quantity: true },
+      });
+      for (const it of heldItems) {
+        await tx.product.update({
+          where: { id: it.productId },
+          data: { quantity: { increment: it.quantity } },
+        });
+      }
 
       // Update order
       return tx.order.update({

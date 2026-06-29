@@ -2,17 +2,45 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AdminOrderQueryDto } from './dto/admin-order-query.dto';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
 import { EarningsService } from '../payments/earnings.service';
+import { PaymentsService } from '../payments/payments.service';
+import { OrderNotificationService } from '../notifications/order-notification.service';
+import { PostHogService } from '../analytics/posthog.service';
+import { canTransition } from '../orders/order-workflow.constants';
+
+// Relations returned on every admin order-transition response (list/detail
+// rows the admin-web table + detail page already read).
+const ADMIN_TRANSITION_INCLUDE = {
+  items: true,
+  buyer: {
+    select: { id: true, firstName: true, lastName: true, phone: true },
+  },
+  seller: {
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      sellerProfile: { select: { businessName: true } },
+    },
+  },
+  statusLogs: { orderBy: { createdAt: 'desc' as const }, take: 5 },
+} as const;
 
 @Injectable()
 export class AdminOrdersService {
+  private readonly logger = new Logger(AdminOrdersService.name);
+
   constructor(
     private prisma: PrismaService,
     private earningsService: EarningsService,
+    private paymentsService: PaymentsService,
+    private notificationService: OrderNotificationService,
+    private analytics: PostHogService,
   ) {}
 
   /**
@@ -318,6 +346,18 @@ export class AdminOrdersService {
         },
       });
 
+      // Restore stock held since checkout.
+      const heldItems = await tx.orderItem.findMany({
+        where: { orderId },
+        select: { productId: true, quantity: true },
+      });
+      for (const it of heldItems) {
+        await tx.product.update({
+          where: { id: it.productId },
+          data: { quantity: { increment: it.quantity } },
+        });
+      }
+
       return tx.order.update({
         where: { id: orderId },
         data: {
@@ -347,6 +387,181 @@ export class AdminOrdersService {
           },
           statusLogs: { orderBy: { createdAt: 'desc' }, take: 5 },
         },
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Teka-managed delivery transitions (admin / ops center owns these).
+  // Seller hands off at READY_FOR_TEKA_PICKUP; everything below is Teka's.
+  // ---------------------------------------------------------------------------
+
+  /** READY_FOR_TEKA_PICKUP -> RECEIVED_AT_TEKA (Teka confirms warehouse intake). */
+  async markReceivedAtTeka(orderId: string, adminId: string) {
+    const updated = await this.applyTransition(
+      orderId,
+      adminId,
+      OrderStatus.RECEIVED_AT_TEKA,
+      'Reçue par Teka RDC',
+    );
+    this.notificationService
+      .notifyOrderReceivedAtTeka(updated)
+      .catch((err) =>
+        this.logger.error('Échec de notification (reçue par Teka)', err),
+      );
+    return updated;
+  }
+
+  /** RECEIVED_AT_TEKA (or legacy SHIPPED) -> OUT_FOR_DELIVERY. */
+  async markOutForDelivery(orderId: string, adminId: string) {
+    const updated = await this.applyTransition(
+      orderId,
+      adminId,
+      OrderStatus.OUT_FOR_DELIVERY,
+      'En cours de livraison',
+    );
+    this.notificationService
+      .notifyOrderOutForDelivery(updated)
+      .catch((err) =>
+        this.logger.error('Échec de notification (en livraison)', err),
+      );
+    return updated;
+  }
+
+  /**
+   * OUT_FOR_DELIVERY (or legacy SHIPPED) -> DELIVERED. The Teka agent has
+   * delivered the parcel and collected the COD cash, so this also:
+   *  - stamps `deliveredAt` (anchors the return window + payout eligibility),
+   *  - marks the COD payment COMPLETED (cash collected),
+   *  - bumps each product's unitsSold,
+   *  - completes the COD transaction + creates the seller earning.
+   */
+  async markDelivered(orderId: string, adminId: string) {
+    const order = await this.loadOrder(orderId);
+    this.assertTransition(order.status, OrderStatus.DELIVERED);
+
+    const updatedOrder = await this.prisma.$transaction(async (tx) => {
+      await tx.orderStatusLog.create({
+        data: {
+          orderId,
+          fromStatus: order.status,
+          toStatus: OrderStatus.DELIVERED,
+          changedBy: adminId,
+          note: 'Livrée — encaissement confirmé',
+        },
+      });
+
+      const data: {
+        status: OrderStatus;
+        deliveredAt: Date;
+        paymentStatus?: PaymentStatus;
+      } = {
+        status: OrderStatus.DELIVERED,
+        deliveredAt: new Date(),
+      };
+      if (order.paymentMethod === PaymentMethod.COD) {
+        data.paymentStatus = PaymentStatus.COMPLETED;
+      }
+
+      const result = await tx.order.update({
+        where: { id: orderId },
+        data,
+        include: ADMIN_TRANSITION_INCLUDE,
+      });
+
+      for (const item of result.items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: { unitsSold: { increment: item.quantity } },
+        });
+      }
+
+      return result;
+    });
+
+    // Fire-and-forget side effects (mirror the former seller deliverOrder).
+    this.notificationService
+      .notifyOrderDelivered(updatedOrder)
+      .catch((err) =>
+        this.logger.error('Échec de notification de livraison', err),
+      );
+
+    this.analytics.capture(updatedOrder.buyerId, 'order_delivered', {
+      orderId,
+      orderNumber: updatedOrder.orderNumber,
+      sellerId: updatedOrder.sellerId,
+      status: OrderStatus.DELIVERED,
+    });
+    if (order.paymentMethod === PaymentMethod.COD) {
+      this.analytics.capture(updatedOrder.buyerId, 'payment_completed', {
+        orderId,
+        method: PaymentMethod.COD,
+        amount_cdf: Number(updatedOrder.totalCDF),
+      });
+      this.paymentsService
+        .completeCodTransaction(orderId)
+        .catch((err) =>
+          this.logger.error('Échec de finalisation transaction COD', err),
+        );
+    }
+
+    if (
+      updatedOrder.paymentStatus === PaymentStatus.COMPLETED ||
+      order.paymentMethod === PaymentMethod.COD
+    ) {
+      this.earningsService
+        .createEarning(orderId)
+        .catch((err) => this.logger.error('Échec de création du revenu', err));
+    }
+
+    return updatedOrder;
+  }
+
+  // --- private transition helpers -------------------------------------------
+
+  private async loadOrder(orderId: string) {
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId, deletedAt: null },
+    });
+    if (!order) {
+      throw new NotFoundException('Commande non trouvée');
+    }
+    return order;
+  }
+
+  /** Throws if `from -> to` is not allowed by the canonical state machine. */
+  private assertTransition(from: OrderStatus, to: OrderStatus): void {
+    if (!canTransition(from, to)) {
+      throw new BadRequestException(
+        `Transition de statut invalide : "${from}" → "${to}".`,
+      );
+    }
+  }
+
+  /** Validated simple transition + audit log, returns the order with relations. */
+  private async applyTransition(
+    orderId: string,
+    adminId: string,
+    to: OrderStatus,
+    note: string,
+  ) {
+    const order = await this.loadOrder(orderId);
+    this.assertTransition(order.status, to);
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.orderStatusLog.create({
+        data: {
+          orderId,
+          fromStatus: order.status,
+          toStatus: to,
+          changedBy: adminId,
+          note,
+        },
+      });
+      return tx.order.update({
+        where: { id: orderId },
+        data: { status: to },
+        include: ADMIN_TRANSITION_INCLUDE,
       });
     });
   }

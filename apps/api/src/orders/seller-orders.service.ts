@@ -21,6 +21,8 @@ import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
 const ORDER_STATUS_EVENT: Partial<Record<OrderStatus, string>> = {
   [OrderStatus.CONFIRMED]: 'order_confirmed',
   [OrderStatus.PROCESSING]: 'order_processing',
+  [OrderStatus.READY_FOR_TEKA_PICKUP]: 'order_ready_for_pickup',
+  [OrderStatus.RECEIVED_AT_TEKA]: 'order_received_at_teka',
   [OrderStatus.SHIPPED]: 'order_shipped',
   [OrderStatus.OUT_FOR_DELIVERY]: 'order_out_for_delivery',
   [OrderStatus.DELIVERED]: 'order_delivered',
@@ -62,22 +64,9 @@ export class SellerOrdersService {
     });
   }
 
-  /**
-   * Valid state transitions for the order lifecycle.
-   */
-  private readonly validTransitions: Record<OrderStatus, OrderStatus[]> = {
-    [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELLED],
-    [OrderStatus.CONFIRMED]: [OrderStatus.PROCESSING, OrderStatus.CANCELLED],
-    [OrderStatus.PROCESSING]: [OrderStatus.SHIPPED, OrderStatus.CANCELLED],
-    [OrderStatus.SHIPPED]: [
-      OrderStatus.OUT_FOR_DELIVERY,
-      OrderStatus.DELIVERED,
-    ],
-    [OrderStatus.OUT_FOR_DELIVERY]: [OrderStatus.DELIVERED],
-    [OrderStatus.DELIVERED]: [OrderStatus.RETURNED],
-    [OrderStatus.CANCELLED]: [],
-    [OrderStatus.RETURNED]: [],
-  };
+  // Canonical state-machine lives in order-workflow.constants.ts
+  // (ORDER_STATUS_TRANSITIONS). Each seller action below validates its own
+  // explicit precondition via validateTransition().
 
   /**
    * Returns paginated list of seller's orders.
@@ -308,6 +297,18 @@ export class SellerOrdersService {
         `Rejetée par le vendeur : ${reason}`,
       );
 
+      // Restore stock held since checkout.
+      const heldItems = await tx.orderItem.findMany({
+        where: { orderId },
+        select: { productId: true, quantity: true },
+      });
+      for (const it of heldItems) {
+        await tx.product.update({
+          where: { id: it.productId },
+          data: { quantity: { increment: it.quantity } },
+        });
+      }
+
       return tx.order.update({
         where: { id: orderId },
         data: {
@@ -352,7 +353,38 @@ export class SellerOrdersService {
   }
 
   /**
+   * Seller hands the parcel off to Teka: PROCESSING -> READY_FOR_TEKA_PICKUP.
+   * This is the seller's last step — Teka/admin drives everything after.
+   */
+  async markReadyForPickup(sellerId: string, orderId: string) {
+    const order = await this.findAndValidateSellerOrder(sellerId, orderId);
+    this.validateTransition(
+      order,
+      [OrderStatus.PROCESSING],
+      OrderStatus.READY_FOR_TEKA_PICKUP,
+    );
+
+    const updatedOrder = await this.transitionOrder(
+      orderId,
+      order.status,
+      OrderStatus.READY_FOR_TEKA_PICKUP,
+      sellerId,
+    );
+
+    // Fire-and-forget: notify buyer the parcel is ready for Teka pickup.
+    this.notificationService
+      .notifyOrderReadyForPickup(updatedOrder)
+      .catch((err) =>
+        this.logger.error('Échec de notification (prête pour collecte)', err),
+      );
+
+    return updatedOrder;
+  }
+
+  /**
    * Ships an order: PROCESSING -> SHIPPED.
+   * @deprecated Legacy seller-driven delivery — removed in the managed-workflow
+   * rollout (Phase 1). Kept transitionally so any in-flight client still works.
    */
   async shipOrder(sellerId: string, orderId: string) {
     const order = await this.findAndValidateSellerOrder(sellerId, orderId);
