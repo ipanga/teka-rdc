@@ -7,18 +7,14 @@ import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { OrderStatusBadge } from '@/components/orders/order-status-badge';
 
-interface OrderItemProduct {
-  id: string;
-  title: string;
-  images: { id: string; url: string; order: number }[];
-}
-
 interface OrderItem {
   id: string;
+  productId: string;
   quantity: number;
   unitPriceCDF: string;
-  totalPriceCDF: string;
-  product: OrderItemProduct;
+  totalCDF: string;
+  productTitle: string;
+  productImage: string | null;
 }
 
 interface OrderBuyer {
@@ -41,7 +37,7 @@ interface DeliveryAddress {
 
 interface StatusLog {
   id: string;
-  status: string;
+  toStatus: string;
   note?: string;
   createdAt: string;
 }
@@ -156,15 +152,9 @@ export default function OrderDetailPage() {
     }).format(new Date(dateStr));
   };
 
-  const getProductTitle = (product: OrderItemProduct) => {
-    return product?.title || '---';
-  };
-
-  const getThumbUrl = (product: OrderItemProduct) => {
-    if (!product?.images || product.images.length === 0) return null;
-    const sorted = [...product.images].sort((a, b) => a.order - b.order);
-    const url = sorted[0].url;
-    return url.replace('/upload/', '/upload/w_60,h_60,c_fill/');
+  const getThumbUrl = (image: string | null) => {
+    if (!image) return null;
+    return image.replace('/upload/', '/upload/w_60,h_60,c_fill/');
   };
 
   const renderActions = () => {
@@ -303,9 +293,9 @@ export default function OrderDetailPage() {
                 </thead>
                 <tbody>
                   {order.items.map((item) => {
-                    const thumbUrl = getThumbUrl(item.product);
+                    const thumbUrl = getThumbUrl(item.productImage);
                     return (
-                      <tr key={item.id} className="border-b border-border last:border-0">
+                      <tr key={item.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3">
                           {thumbUrl ? (
                             <img
@@ -320,8 +310,13 @@ export default function OrderDetailPage() {
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-3 font-medium text-foreground">
-                          {getProductTitle(item.product)}
+                        <td className="px-4 py-3 font-medium">
+                          <Link
+                            href={`/dashboard/products/${item.productId}`}
+                            className="text-primary hover:underline"
+                          >
+                            {item.productTitle || '---'}
+                          </Link>
                         </td>
                         <td className="px-4 py-3 text-foreground">
                           {item.quantity}
@@ -330,7 +325,7 @@ export default function OrderDetailPage() {
                           {formatPrice(item.unitPriceCDF)}
                         </td>
                         <td className="px-4 py-3 text-right font-medium text-foreground">
-                          {formatPrice(item.totalPriceCDF)}
+                          {formatPrice(item.totalCDF)}
                         </td>
                       </tr>
                     );
@@ -414,7 +409,7 @@ export default function OrderDetailPage() {
                         </div>
                         <div className="flex-1 min-w-0 pb-1">
                           <div className="flex items-center gap-2">
-                            <OrderStatusBadge status={log.status} />
+                            <OrderStatusBadge status={log.toStatus} />
                             <span className="text-xs text-muted-foreground">
                               {formatDateTime(log.createdAt)}
                             </span>

@@ -10,13 +10,13 @@ import { OrderStatusBadge } from '@/components/orders/order-status-badge';
 interface OrderItem {
   id: string;
   productId: string;
-  title: string;
+  productTitle: string;
   quantity: number;
   unitPriceCDF: string;
   unitPriceUSD?: string | null;
   totalCDF: string;
   totalUSD?: string | null;
-  coverImageUrl?: string | null;
+  productImage?: string | null;
 }
 
 interface OrderAddress {
@@ -49,7 +49,7 @@ interface OrderSeller {
 
 interface OrderStatusLog {
   id: string;
-  status: string;
+  toStatus: string;
   note?: string | null;
   createdAt: string;
   changedBy?: {
@@ -295,14 +295,15 @@ export default function OrderDetailPage() {
             </h2>
             <div className="space-y-3">
               {order.items.map((item) => (
-                <div
+                <Link
                   key={item.id}
-                  className="flex items-center gap-3 py-2 border-b border-border last:border-0"
+                  href={`/dashboard/products/${item.productId}`}
+                  className="flex items-center gap-3 py-2 border-b border-border last:border-0 -mx-2 px-2 rounded-lg hover:bg-muted/40 transition-colors"
                 >
-                  {item.coverImageUrl ? (
+                  {item.productImage ? (
                     <img
-                      src={getOptimizedUrl(item.coverImageUrl)}
-                      alt={item.title}
+                      src={getOptimizedUrl(item.productImage)}
+                      alt={item.productTitle}
                       className="w-12 h-12 rounded-lg object-cover bg-muted shrink-0"
                       loading="lazy"
                     />
@@ -314,8 +315,8 @@ export default function OrderDetailPage() {
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">
-                      {item.title}
+                    <p className="text-sm font-medium text-primary truncate hover:underline">
+                      {item.productTitle}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Quantité: {item.quantity} &times; {formatCDF(item.unitPriceCDF)}
@@ -324,7 +325,7 @@ export default function OrderDetailPage() {
                   <div className="text-sm font-medium text-foreground whitespace-nowrap">
                     {formatCDF(item.totalCDF)}
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
 
@@ -399,7 +400,7 @@ export default function OrderDetailPage() {
                     </div>
                     <div className="pb-3">
                       <div className="flex items-center gap-2">
-                        <OrderStatusBadge status={log.status} />
+                        <OrderStatusBadge status={log.toStatus} />
                         <span className="text-xs text-muted-foreground">
                           {new Date(log.createdAt).toLocaleDateString('fr-CD', {
                             year: 'numeric',

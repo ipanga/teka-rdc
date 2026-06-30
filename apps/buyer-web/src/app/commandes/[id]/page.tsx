@@ -249,9 +249,10 @@ export default function OrderDetailPage() {
 
             <div className="divide-y divide-border">
               {order.items.map((item) => {
-                const title = item.productSnapshot.title ?? '';
-                const thumbUrl =
-                  item.productSnapshot.image?.thumbnailUrl || item.productSnapshot.image?.url;
+                const title = item.productTitle ?? '';
+                const thumbUrl = item.productImage
+                  ? item.productImage.replace('/upload/', '/upload/w_128,h_128,c_fill,f_auto/')
+                  : undefined;
 
                 return (
                   <div key={item.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
@@ -286,7 +287,7 @@ export default function OrderDetailPage() {
                     </div>
 
                     <p className="text-sm font-semibold text-foreground shrink-0">
-                      {formatCDF(item.totalPriceCDF)}
+                      {formatCDF(item.totalCDF)}
                     </p>
                   </div>
                 );

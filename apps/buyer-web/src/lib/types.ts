@@ -176,25 +176,24 @@ export type PaymentStatus =
 // checkout flow only creates `'COD'` orders.
 export type PaymentMethod = 'COD' | 'MOBILE_MONEY';
 
-/** Order status log entry */
+/** Order status log entry — matches the API (fromStatus/toStatus, not `status`). */
 export interface OrderStatusLog {
   id: string;
-  status: OrderStatus;
+  fromStatus?: OrderStatus | null;
+  toStatus: OrderStatus;
   note?: string | null;
   createdAt: string;
 }
 
-/** Order item snapshot */
+/** Order item snapshot — flat fields as returned by the API (OrderItem model). */
 export interface OrderItem {
   id: string;
   productId: string;
   quantity: number;
   unitPriceCDF: string;
-  totalPriceCDF: string;
-  productSnapshot: {
-    title: string;
-    image: { url: string; thumbnailUrl: string } | null;
-  };
+  totalCDF: string;
+  productTitle: string;
+  productImage: string | null;
 }
 
 /** Order seller info (expanded from API) */
