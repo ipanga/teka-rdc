@@ -73,6 +73,15 @@ export default function ReturnsPage() {
     }
   }, [page, statusFilter]);
 
+  // Honor a `?status=` deep-link on mount (dashboard "Retours" ops card).
+  useEffect(() => {
+    const valid: StatusFilter[] = ['REQUESTED', 'APPROVED', 'REJECTED'];
+    const fromUrl = new URLSearchParams(window.location.search).get('status');
+    if (fromUrl && (valid as string[]).includes(fromUrl)) {
+      setStatusFilter(fromUrl as StatusFilter);
+    }
+  }, []);
+
   useEffect(() => {
     load();
   }, [load]);

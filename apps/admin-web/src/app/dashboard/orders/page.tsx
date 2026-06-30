@@ -91,6 +91,20 @@ export default function OrdersPage() {
     }
   }, [page, statusFilter, search, dateFrom, dateTo]);
 
+  // Honor a `?status=` deep-link on mount (dashboard "Opérations commandes"
+  // cards). Read from window to avoid a Suspense-boundary requirement.
+  useEffect(() => {
+    const valid = [
+      'PENDING', 'CONFIRMED', 'PROCESSING', 'READY_FOR_TEKA_PICKUP',
+      'RECEIVED_AT_TEKA', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED',
+      'CANCELLED', 'RETURNED',
+    ];
+    const fromUrl = new URLSearchParams(window.location.search).get('status');
+    if (fromUrl && valid.includes(fromUrl)) {
+      setStatusFilter(fromUrl);
+    }
+  }, []);
+
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
