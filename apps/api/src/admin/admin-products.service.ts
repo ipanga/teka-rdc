@@ -136,12 +136,15 @@ export class AdminProductsService {
             firstName: true,
             lastName: true,
             email: true,
+            status: true,
             sellerProfile: {
               select: {
                 businessName: true,
                 businessType: true,
                 location: true,
                 applicationStatus: true,
+                avgRating: true,
+                totalReviews: true,
               },
             },
           },

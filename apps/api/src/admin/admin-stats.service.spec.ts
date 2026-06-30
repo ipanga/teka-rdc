@@ -3,12 +3,20 @@ import { AdminStatsService } from './admin-stats.service';
 // getDashboardStats fans out many prisma calls via Promise.all. This mock
 // returns benign zero-ish values for all of them and distinguishes the two
 // sellerProfile.count calls by their where.applicationStatus.
-function makeService() {
+function makeService(orderGroups?: Array<{ status: string; _count: { _all: number } }>) {
   const prisma = {
     user: { count: jest.fn().mockResolvedValue(0) },
     order: {
-      count: jest.fn().mockResolvedValue(0),
+      count: jest.fn().mockResolvedValue(3), // deliveredToday (any order.count)
       aggregate: jest.fn().mockResolvedValue({ _sum: { totalCDF: null } }),
+      groupBy: jest.fn().mockResolvedValue(
+        orderGroups ?? [
+          { status: 'PENDING', _count: { _all: 4 } },
+          { status: 'READY_FOR_TEKA_PICKUP', _count: { _all: 6 } },
+          { status: 'RECEIVED_AT_TEKA', _count: { _all: 2 } },
+          { status: 'OUT_FOR_DELIVERY', _count: { _all: 9 } },
+        ],
+      ),
     },
     sellerEarning: {
       aggregate: jest.fn().mockResolvedValue({ _sum: { commissionCDF: null } }),
@@ -29,6 +37,7 @@ function makeService() {
         ),
     },
     product: { count: jest.fn().mockResolvedValue(5) },
+    returnRequest: { count: jest.fn().mockResolvedValue(8) },
   };
   const service = new AdminStatsService(prisma as never);
   return { service };
@@ -46,6 +55,25 @@ describe('AdminStatsService.getDashboardStats — pending seller applications (Q
     const { service } = makeService();
     const res = await service.getDashboardStats();
     expect(res.data.pendingProductsCount).toBe(5);
+  });
+
+  it('maps managed-order ops counters from the status groupBy + returns', async () => {
+    const { service } = makeService();
+    const ops = (await service.getDashboardStats()).data.orderOps;
+    expect(ops.awaitingConfirmation).toBe(4); // PENDING
+    expect(ops.readyForPickup).toBe(6); // READY_FOR_TEKA_PICKUP
+    expect(ops.receivedAtTeka).toBe(2); // RECEIVED_AT_TEKA
+    expect(ops.outForDelivery).toBe(9); // OUT_FOR_DELIVERY
+    expect(ops.deliveredToday).toBe(3); // order.count
+    expect(ops.pendingReturns).toBe(8); // returnRequest.count
+  });
+
+  it('defaults missing statuses to 0', async () => {
+    const { service } = makeService([{ status: 'PENDING', _count: { _all: 1 } }]);
+    const ops = (await service.getDashboardStats()).data.orderOps;
+    expect(ops.awaitingConfirmation).toBe(1);
+    expect(ops.readyForPickup).toBe(0);
+    expect(ops.outForDelivery).toBe(0);
   });
 });
 

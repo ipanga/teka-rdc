@@ -105,3 +105,17 @@ return the single object at `res.data`.
 | seller-mobile | ✓ + home buckets | + **Votre rémunération** | confirm / reject / préparer / **prête pour collecte** |
 
 Seller product lists (web + mobile) show the product **town** (`Product.city`).
+
+## Order/product navigation & admin visibility (2026-06-30)
+
+- **Order products are clickable** to the product page on **buyer-web** (city-first PDP via `productHref`),
+  **buyer-mobile** (`/products/{shortCode}`), and the **admin** order detail (`/dashboard/products/:id`). The
+  buyer order-detail items carry a live `product:{ id, slug, shortCode, status, city{slug} }` (snapshots stay
+  authoritative); an inactive product shows "· Indisponible", isn't linked, and the order line is preserved.
+- **Seller visibility (admin)**: the admin order detail shows the seller (clickable boutique link + contact /
+  email / phone) and "Vendu par {seller}" per line; the admin product detail shows full seller info (boutique,
+  contact, email, phone, status, rating). Both link to a new **`/dashboard/sellers/[id]`** seller-detail page
+  (reuses `GET /v1/admin/users/:id` — no new endpoint).
+- **Admin dashboard — Opérations commandes**: managed-workflow counters from `GET /v1/admin/stats` →
+  `orderOps{ awaitingConfirmation, readyForPickup, receivedAtTeka, outForDelivery, deliveredToday,
+  pendingReturns }`, each card deep-linking to the filtered order/return list (`?status=`).

@@ -19,6 +19,15 @@ import {
   CartesianGrid,
 } from 'recharts';
 
+interface OrderOps {
+  awaitingConfirmation: number;
+  readyForPickup: number;
+  receivedAtTeka: number;
+  outForDelivery: number;
+  deliveredToday: number;
+  pendingReturns: number;
+}
+
 interface AdminStats {
   totalUsers: number;
   totalSellers: number;
@@ -26,6 +35,7 @@ interface AdminStats {
   totalRevenueCDF: string;
   pendingSellerApplicationsCount: number;
   pendingProductsCount: number;
+  orderOps?: OrderOps;
 }
 
 interface TrendPoint {
@@ -213,6 +223,35 @@ export default function AdminDashboardPage() {
               {stats?.totalRevenueCDF ? formatCDF(stats.totalRevenueCDF) : '-- FC'}
             </p>
           )}
+        </div>
+      </div>
+
+      {/* Order operations (Teka logistics) */}
+      <div className="mt-10">
+        <h2 className="text-lg font-semibold text-foreground mb-4">Opérations commandes</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+          {([
+            { label: 'Nouvelles', sub: 'à confirmer', value: stats?.orderOps?.awaitingConfirmation ?? 0, href: '/dashboard/orders?status=PENDING', color: 'text-warning' },
+            { label: 'Prêtes pour collecte', sub: 'Teka', value: stats?.orderOps?.readyForPickup ?? 0, href: '/dashboard/orders?status=READY_FOR_TEKA_PICKUP', color: 'text-indigo-700' },
+            { label: 'Reçues par Teka', sub: 'entrepôt', value: stats?.orderOps?.receivedAtTeka ?? 0, href: '/dashboard/orders?status=RECEIVED_AT_TEKA', color: 'text-indigo-700' },
+            { label: 'En livraison', sub: '', value: stats?.orderOps?.outForDelivery ?? 0, href: '/dashboard/orders?status=OUT_FOR_DELIVERY', color: 'text-primary' },
+            { label: 'Livrées', sub: "aujourd'hui", value: stats?.orderOps?.deliveredToday ?? 0, href: '/dashboard/orders?status=DELIVERED', color: 'text-success' },
+            { label: 'Retours', sub: 'à traiter', value: stats?.orderOps?.pendingReturns ?? 0, href: '/dashboard/returns?status=REQUESTED', color: 'text-destructive' },
+          ]).map((c) => (
+            <Link
+              key={c.label}
+              href={c.href}
+              className="bg-white rounded-xl border border-border p-4 hover:shadow-sm hover:border-primary/30 transition-all"
+            >
+              {isLoading ? (
+                <div className="h-8 w-10 bg-muted rounded animate-pulse" />
+              ) : (
+                <p className={`text-2xl font-bold ${c.color}`}>{stats?.orderOps ? c.value : '--'}</p>
+              )}
+              <p className="text-xs font-medium text-foreground mt-1 leading-tight">{c.label}</p>
+              {c.sub && <p className="text-[11px] text-muted-foreground leading-tight">{c.sub}</p>}
+            </Link>
+          ))}
         </div>
       </div>
 

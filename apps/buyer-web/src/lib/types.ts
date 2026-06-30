@@ -194,6 +194,14 @@ export interface OrderItem {
   totalCDF: string;
   productTitle: string;
   productImage: string | null;
+  /** Live product link target (PDP). Null/non-ACTIVE → unavailable (line stays intact). */
+  product?: {
+    id: string;
+    slug?: string | null;
+    shortCode?: string | null;
+    status?: string | null;
+    city?: { slug?: string | null } | null;
+  } | null;
 }
 
 /** Order seller info (expanded from API) */

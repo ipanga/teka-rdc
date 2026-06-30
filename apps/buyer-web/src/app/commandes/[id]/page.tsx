@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { productHref } from '@/lib/urls';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { OrderStatusBadge } from '@/components/orders/order-status-badge';
@@ -253,36 +254,57 @@ export default function OrderDetailPage() {
                 const thumbUrl = item.productImage
                   ? item.productImage.replace('/upload/', '/upload/w_128,h_128,c_fill,f_auto/')
                   : undefined;
+                const p = item.product;
+                // Link to the live PDP only when the product is still purchasable.
+                // Unavailable products keep the line (snapshot) but aren't linked.
+                const available = !!p && p.status === 'ACTIVE';
+                const href = available
+                  ? productHref({
+                      id: p!.id,
+                      slug: p!.slug,
+                      shortCode: p!.shortCode,
+                      citySlug: p!.city?.slug,
+                    })
+                  : null;
+
+                const thumb = (
+                  <div className="relative w-14 h-14 md:w-16 md:h-16 bg-surface-muted rounded-lg overflow-hidden shrink-0 border border-border">
+                    {thumbUrl ? (
+                      <Image src={thumbUrl} alt={title} fill sizes="64px" className="object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={1.5}
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
+                        </svg>
+                      </div>
+                    )}
+                  </div>
+                );
 
                 return (
                   <div key={item.id} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                    <div className="relative w-14 h-14 md:w-16 md:h-16 bg-surface-muted rounded-lg overflow-hidden shrink-0 border border-border">
-                      {thumbUrl ? (
-                        <Image
-                          src={thumbUrl}
-                          alt={title}
-                          fill
-                          sizes="64px"
-                          className="object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={1.5}
-                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                            />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
+                    {href ? (
+                      <Link href={href} aria-label={title}>{thumb}</Link>
+                    ) : (
+                      thumb
+                    )}
 
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground line-clamp-2">{title}</p>
+                      {href ? (
+                        <Link href={href} className="text-sm font-medium text-foreground line-clamp-2 hover:text-primary hover:underline">
+                          {title}
+                        </Link>
+                      ) : (
+                        <p className="text-sm font-medium text-foreground line-clamp-2">{title}</p>
+                      )}
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {formatCDF(item.unitPriceCDF)} × {item.quantity}
+                        {p && !available && <span className="text-muted-foreground"> · Indisponible</span>}
                       </p>
                     </div>
 

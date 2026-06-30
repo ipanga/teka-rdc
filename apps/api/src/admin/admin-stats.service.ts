@@ -2,6 +2,16 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrderStatus, PayoutStatus, ProductStatus } from '@prisma/client';
 
+/** Managed-order operational counters for the admin dashboard (Teka logistics). */
+export interface OrderOpsStats {
+  awaitingConfirmation: number; // PENDING — seller hasn't confirmed
+  readyForPickup: number; // READY_FOR_TEKA_PICKUP — awaiting Teka collection
+  receivedAtTeka: number; // RECEIVED_AT_TEKA — in the warehouse
+  outForDelivery: number; // OUT_FOR_DELIVERY
+  deliveredToday: number; // DELIVERED with deliveredAt today
+  pendingReturns: number; // ReturnRequest REQUESTED (awaiting admin review)
+}
+
 export interface DashboardStats {
   totalUsers: number;
   totalSellers: number;
@@ -14,6 +24,7 @@ export interface DashboardStats {
   pendingProductsCount: number;
   ordersThisMonth: number;
   revenueThisMonthCDF: string;
+  orderOps: OrderOpsStats;
 }
 
 export interface CategoryCoverage {
@@ -49,6 +60,9 @@ export class AdminStatsService {
     const firstDayOfMonth = new Date(
       Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
     );
+    const startOfToday = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
+    );
 
     const [
       totalUsers,
@@ -61,6 +75,9 @@ export class AdminStatsService {
       pendingProductsCount,
       ordersThisMonth,
       revenueThisMonthAgg,
+      orderStatusGroups,
+      deliveredToday,
+      pendingReturns,
     ] = await Promise.all([
       // Total active users (non-deleted)
       this.prisma.user.count({
@@ -136,7 +153,31 @@ export class AdminStatsService {
           createdAt: { gte: firstDayOfMonth },
         },
       }),
+
+      // Order counts grouped by status (managed-workflow ops cards)
+      this.prisma.order.groupBy({
+        by: ['status'],
+        where: { deletedAt: null },
+        _count: { _all: true },
+      }),
+
+      // Delivered today
+      this.prisma.order.count({
+        where: {
+          status: OrderStatus.DELIVERED,
+          deletedAt: null,
+          deliveredAt: { gte: startOfToday },
+        },
+      }),
+
+      // Return requests awaiting admin review
+      this.prisma.returnRequest.count({
+        where: { status: 'REQUESTED', deletedAt: null },
+      }),
     ]);
+
+    const statusCount = (s: OrderStatus): number =>
+      orderStatusGroups.find((g) => g.status === s)?._count._all ?? 0;
 
     const stats: DashboardStats = {
       totalUsers,
@@ -156,6 +197,14 @@ export class AdminStatsService {
       revenueThisMonthCDF: (
         revenueThisMonthAgg._sum.totalCDF ?? BigInt(0)
       ).toString(),
+      orderOps: {
+        awaitingConfirmation: statusCount(OrderStatus.PENDING),
+        readyForPickup: statusCount(OrderStatus.READY_FOR_TEKA_PICKUP),
+        receivedAtTeka: statusCount(OrderStatus.RECEIVED_AT_TEKA),
+        outForDelivery: statusCount(OrderStatus.OUT_FOR_DELIVERY),
+        deliveredToday,
+        pendingReturns,
+      },
     };
 
     return { success: true, data: stats };

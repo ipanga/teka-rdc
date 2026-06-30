@@ -91,6 +91,10 @@ class OrderItemModel {
   final String? unitPriceUSD;
   final String totalCDF;
   final String? totalUSD;
+  // Live product link fields (from items[].product). shortCode → canonical PDP
+  // identifier; status drives availability. Snapshots above stay authoritative.
+  final String? productShortCode;
+  final String? productStatus;
 
   const OrderItemModel({
     required this.id,
@@ -102,9 +106,19 @@ class OrderItemModel {
     this.unitPriceUSD,
     required this.totalCDF,
     this.totalUSD,
+    this.productShortCode,
+    this.productStatus,
   });
 
+  /// Identifier to open the PDP (`/products/:id`): canonical shortCode if present,
+  /// else the productId. Null when the product is no longer available.
+  String? get productLinkId {
+    if (productStatus != null && productStatus != 'ACTIVE') return null;
+    return productShortCode ?? (productId.isNotEmpty ? productId : null);
+  }
+
   factory OrderItemModel.fromJson(Map<String, dynamic> json) {
+    final product = json['product'] as Map<String, dynamic>?;
     return OrderItemModel(
       id: json['id'] as String,
       productId: json['productId'] as String? ?? '',
@@ -115,6 +129,8 @@ class OrderItemModel {
       unitPriceUSD: json['unitPriceUSD']?.toString(),
       totalCDF: json['totalCDF']?.toString() ?? '0',
       totalUSD: json['totalUSD']?.toString(),
+      productShortCode: product?['shortCode'] as String?,
+      productStatus: product?['status'] as String?,
     );
   }
 }
