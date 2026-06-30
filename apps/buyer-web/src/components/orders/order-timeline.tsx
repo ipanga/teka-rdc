@@ -50,7 +50,7 @@ export function OrderTimeline({ logs }: OrderTimelineProps) {
               {/* Content */}
               <div className="flex-1 -mt-0.5">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <OrderStatusBadge status={log.status} />
+                  <OrderStatusBadge status={log.toStatus} />
                   <span className="text-xs text-muted-foreground">
                     {formatDate(log.createdAt)}
                   </span>

@@ -20,7 +20,13 @@ interface OrderStatusBadgeProps {
 }
 
 export function OrderStatusBadge({ status }: OrderStatusBadgeProps) {
-  const config = statusConfig[status];
+  // Fallback so an unexpected/empty status degrades to a neutral chip instead
+  // of throwing (white-screen) during render.
+  const config = statusConfig[status] ?? {
+    bgClass: 'bg-muted',
+    textClass: 'text-muted-foreground',
+    label: String(status ?? '—'),
+  };
 
   return (
     <span
