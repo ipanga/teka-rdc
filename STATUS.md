@@ -6,7 +6,14 @@
 
 ## Active initiative
 
-**None.** (Managed Order Workflow — all 7 phases complete on `develop`, ready for the `develop → main` PR.)
+**Order Details & Admin Dashboard Improvements** (started 2026-06-30) — on the managed workflow: admin order
+detail shows seller per line + link; admin product detail shows full seller info + clickable seller-detail page
+(new `/dashboard/sellers/[id]`); buyer order products link to the city-first PDP; admin dashboard gains
+managed-order operational counters (ready-for-pickup / received-by-Teka / out-for-delivery / delivered-today /
+pending returns) linking to filtered lists. Reuse existing services; no API breakage. Phase-by-phase, commit per
+phase. **Tracker: `tasks/order-admin-improvements-progress.md`** (resume here). Currently: **Phase 1** (API extensions).
+
+> **None.** (Managed Order Workflow — all 7 phases complete on `develop`, ready for the `develop → main` PR.)
 
 > **DONE 2026-06-29 — Managed Order Workflow (7 phases, on `develop`).** Upgraded the order flow from
 > seller-driven to **Teka-managed**: Teka collects from the seller → delivers → collects COD cash → 2-day return
