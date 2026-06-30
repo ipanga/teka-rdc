@@ -290,7 +290,22 @@ export class AdminProductsService {
     images: { orderBy: { displayOrder: 'asc' as const } },
     category: { select: { id: true, name: true } },
     seller: {
-      select: { id: true, phone: true, firstName: true, lastName: true },
+      select: {
+        id: true,
+        phone: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        status: true,
+        sellerProfile: {
+          select: {
+            businessName: true,
+            businessType: true,
+            avgRating: true,
+            totalReviews: true,
+          },
+        },
+      },
     },
   };
 

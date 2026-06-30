@@ -122,6 +122,18 @@ export class OrdersService {
             unitPriceUSD: true,
             totalCDF: true,
             totalUSD: true,
+            // Live product link target — lets the buyer order detail deep-link to
+            // the city-first PDP (productHref) and detect an unavailable product
+            // without breaking the order history (snapshots above stay authoritative).
+            product: {
+              select: {
+                id: true,
+                slug: true,
+                shortCode: true,
+                status: true,
+                city: { select: { slug: true } },
+              },
+            },
           },
         },
         seller: {
