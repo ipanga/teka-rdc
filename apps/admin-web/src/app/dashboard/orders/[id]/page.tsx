@@ -38,13 +38,15 @@ interface OrderBuyer {
 
 interface OrderSeller {
   id: string;
-  businessName: string;
-  user?: {
-    firstName?: string | null;
-    lastName?: string | null;
-    phone: string | null;
-    email?: string | null;
-  };
+  firstName?: string | null;
+  lastName?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  sellerProfile?: {
+    businessName?: string | null;
+    businessType?: string | null;
+    location?: string | null;
+  } | null;
 }
 
 interface OrderStatusLog {
@@ -321,6 +323,13 @@ export default function OrderDetailPage() {
                     <p className="text-xs text-muted-foreground">
                       Quantité: {item.quantity} &times; {formatCDF(item.unitPriceCDF)}
                     </p>
+                    {order.seller && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        Vendu par : {order.seller.sellerProfile?.businessName ||
+                          `${order.seller.firstName ?? ''} ${order.seller.lastName ?? ''}`.trim() ||
+                          'Vendeur'}
+                      </p>
+                    )}
                   </div>
                   <div className="text-sm font-medium text-foreground whitespace-nowrap">
                     {formatCDF(item.totalCDF)}
@@ -472,20 +481,29 @@ export default function OrderDetailPage() {
             </h2>
             {order.seller ? (
               <div className="space-y-1 text-sm">
-                <p className="font-medium text-foreground">{order.seller.businessName}</p>
-                {order.seller.user && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Téléphone</span>
-                      <span className="text-foreground">{order.seller.user.phone ?? '—'}</span>
-                    </div>
-                    {order.seller.user.email && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Email</span>
-                        <span className="text-foreground">{order.seller.user.email}</span>
-                      </div>
-                    )}
-                  </>
+                <Link
+                  href={`/dashboard/sellers/${order.seller.id}`}
+                  className="font-medium text-primary hover:underline block"
+                >
+                  {order.seller.sellerProfile?.businessName ||
+                    `${order.seller.firstName ?? ''} ${order.seller.lastName ?? ''}`.trim() ||
+                    'Vendeur'}
+                </Link>
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">Contact</span>
+                  <span className="text-foreground text-right">
+                    {`${order.seller.firstName ?? ''} ${order.seller.lastName ?? ''}`.trim() || '—'}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">Téléphone</span>
+                  <span className="text-foreground text-right">{order.seller.phone ?? '—'}</span>
+                </div>
+                {order.seller.email && (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Email</span>
+                    <span className="text-foreground text-right break-all">{order.seller.email}</span>
+                  </div>
                 )}
               </div>
             ) : (

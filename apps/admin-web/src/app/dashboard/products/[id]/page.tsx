@@ -34,12 +34,17 @@ interface ProductDetail {
   specifications: ProductSpecification[];
   seller?: {
     id: string;
-    businessName: string;
-    user?: {
-      firstName?: string | null;
-      lastName?: string | null;
-      phone: string | null;
-    };
+    firstName?: string | null;
+    lastName?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    status?: string | null;
+    sellerProfile?: {
+      businessName: string;
+      businessType?: string | null;
+      avgRating?: number;
+      totalReviews?: number;
+    } | null;
   };
   category?: {
     id: string;
@@ -362,23 +367,46 @@ export default function ProductDetailPage() {
             </h3>
             {product.seller ? (
               <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Vendeur</span>
-                  <span className="text-foreground font-medium">{product.seller.businessName}</span>
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">Boutique</span>
+                  <Link
+                    href={`/dashboard/sellers/${product.seller.id}`}
+                    className="text-primary font-medium hover:underline text-right"
+                  >
+                    {product.seller.sellerProfile?.businessName ||
+                      `${product.seller.firstName ?? ''} ${product.seller.lastName ?? ''}`.trim() ||
+                      'Vendeur'}
+                  </Link>
                 </div>
-                {product.seller.user && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Contact</span>
-                      <span className="text-foreground">
-                        {product.seller.user.firstName} {product.seller.user.lastName}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Téléphone</span>
-                      <span className="text-foreground">{product.seller.user.phone ?? '—'}</span>
-                    </div>
-                  </>
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">Contact</span>
+                  <span className="text-foreground text-right">
+                    {`${product.seller.firstName ?? ''} ${product.seller.lastName ?? ''}`.trim() || '—'}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">Email</span>
+                  <span className="text-foreground text-right break-all">{product.seller.email ?? '—'}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">Téléphone</span>
+                  <span className="text-foreground text-right">{product.seller.phone ?? '—'}</span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">Statut</span>
+                  <span className="text-foreground text-right">
+                    {product.seller.status === 'ACTIVE' ? 'Actif' : product.seller.status === 'SUSPENDED' ? 'Suspendu' : (product.seller.status ?? '—')}
+                  </span>
+                </div>
+                {product.seller.sellerProfile && (product.seller.sellerProfile.totalReviews ?? 0) > 0 && (
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Note</span>
+                    <span className="text-foreground text-right inline-flex items-center gap-1">
+                      <span className="text-yellow-400">★</span>
+                      {(product.seller.sellerProfile.avgRating ?? 0).toFixed(1)}
+                      <span className="text-muted-foreground">({product.seller.sellerProfile.totalReviews})</span>
+                    </span>
+                  </div>
                 )}
               </div>
             ) : (
