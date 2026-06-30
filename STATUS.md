@@ -6,12 +6,24 @@
 
 ## Active initiative
 
-**Order Details & Admin Dashboard Improvements** (started 2026-06-30) — on the managed workflow: admin order
-detail shows seller per line + link; admin product detail shows full seller info + clickable seller-detail page
-(new `/dashboard/sellers/[id]`); buyer order products link to the city-first PDP; admin dashboard gains
-managed-order operational counters (ready-for-pickup / received-by-Teka / out-for-delivery / delivered-today /
-pending returns) linking to filtered lists. Reuse existing services; no API breakage. Phase-by-phase, commit per
-phase. **Tracker: `tasks/order-admin-improvements-progress.md`** (resume here). Currently: **Phase 1** (API extensions).
+**None.** (Order Details & Admin Dashboard Improvements — all 5 phases complete on `develop`, ready for the PR.)
+
+> **DONE 2026-06-30 — Order Details & Admin Dashboard Improvements (5 phases, on `develop`).** On the managed
+> workflow: **P1** API extensions — buyer order items += `product{id,slug,shortCode,status,city{slug}}`;
+> `findProductForReview` seller += `status` + `sellerProfile{avgRating,totalReviews}`; admin `getDashboardStats`
+> += `orderOps`. **P2** new **`/dashboard/sellers/[id]`** seller-detail page (reuses `/v1/admin/users/:id`);
+> fixed+enriched the seller card on admin order detail (was blank — shape drift) + seller section on admin
+> product detail, both clickable → seller detail; "Vendu par" per order line. **P3** dashboard "Opérations
+> commandes" cards (6 managed buckets) + orders/returns `?status=` deep-links. **P4** buyer order products link to
+> the PDP (web `productHref` + mobile `/products/{shortCode}`, "· Indisponible" when inactive, order intact).
+> **P5** gates + docs. Found+fixed 3 latent shape-drift bugs (admin order/product seller sections were blank).
+> Reused existing services; **no new endpoints, no migration**. Tracker: `tasks/order-admin-improvements-progress.md`;
+> model: `docs/order-workflow.md`. Gates: **api 196 unit + 116 e2e**, 3 web type-check+build, both mobile analyze
+> (0 lib errors) + buyer-mobile order tests; live-verified all new API contracts.
+
+---
+
+### Prior — **Managed Order Workflow** (shipped to prod 2026-06-29)
 
 > **None.** (Managed Order Workflow — all 7 phases complete on `develop`, ready for the `develop → main` PR.)
 
