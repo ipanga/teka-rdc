@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
@@ -595,7 +596,11 @@ class _OrderItemRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    final linkId = item.productLinkId;
+    final unavailable = item.productStatus != null && item.productStatus != 'ACTIVE';
+    return InkWell(
+      onTap: linkId != null ? () => context.push('/products/$linkId') : null,
+      child: Padding(
       padding: const EdgeInsets.all(12),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -647,7 +652,8 @@ class _OrderItemRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${formatCDF(item.unitPriceCDF)} x ${item.quantity}',
+                  '${formatCDF(item.unitPriceCDF)} x ${item.quantity}'
+                  '${unavailable ? ' · Indisponible' : ''}',
                   style: const TextStyle(
                     color: TekaColors.mutedForeground,
                     fontSize: 12,
@@ -665,7 +671,13 @@ class _OrderItemRow extends StatelessWidget {
               color: TekaColors.foreground,
             ),
           ),
+          if (linkId != null) ...[
+            const SizedBox(width: 2),
+            const Icon(Icons.chevron_right,
+                size: 18, color: TekaColors.mutedForeground),
+          ],
         ],
+      ),
       ),
     );
   }
