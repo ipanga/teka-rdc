@@ -395,7 +395,8 @@ class _HomeBrandLogo extends StatelessWidget {
     return ExcludeSemantics(
       child: SizedBox(
         height: 27,
-        width: 135,
+        // 1300×320 wordmark (≈4.06:1) → intrinsic width at h27 ≈ 110.
+        width: 110,
         child: Image.asset(
           'assets/brand/logo_teka_cd.png',
           alignment: Alignment.centerLeft,
