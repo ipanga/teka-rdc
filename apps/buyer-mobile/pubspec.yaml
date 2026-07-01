@@ -89,14 +89,18 @@ flutter_launcher_icons:
   adaptive_icon_foreground: "assets/brand/app_icon_foreground.png"
   min_sdk_android: 21
 
-# Branded splash — colored "teka.cd" wordmark on white. Android 12+ shows the
-# masked "T" glyph on brand red (a wide wordmark would be clipped by the circular
-# mask, and the OS splash can't render one).
+# Native splash (prevents a blank screen during cold start — its only job here;
+# there is no in-app splash, per Google's guidance against redundant custom
+# splashes). iOS + Android < 12 show the colored "teka.cd" wordmark on white.
+# The Android 12+ OS splash is icon-only (it masks the image to a circle and
+# can't render a wide wordmark); we point it at the white "T" glyph on white so
+# it stays a clean white screen that flows into the white app — deliberately not
+# the heavy launcher-icon-on-red splash.
 flutter_native_splash:
   color: "#FFFFFF"
   image: assets/brand/logo_teka_cd.png
   android_12:
-    color: "#BF0000"
+    color: "#FFFFFF"
     image: assets/brand/app_icon_foreground.png
   android: true
   ios: true
