@@ -119,24 +119,35 @@ export default function AdminDashboardPage() {
   };
 
   const ChartSkeleton = () => (
-    <div className="bg-white rounded-xl border border-border p-6">
+    <div className="bg-white rounded-lg border border-border p-5 shadow-sm">
       <div className="h-5 w-32 bg-muted rounded animate-pulse mb-4" />
       <div className="h-48 bg-muted rounded animate-pulse" />
     </div>
   );
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-foreground mb-2">Tableau de bord</h1>
-      <p className="text-muted-foreground mb-8">
-        Bienvenue, {user?.firstName}
-      </p>
+    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-sm font-medium text-primary">Administration Teka RDC</p>
+          <h1 className="mt-1 text-2xl font-bold text-foreground">Tableau de bord</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Bienvenue, {user?.firstName}
+          </p>
+        </div>
+        <Link
+          href="/dashboard/orders"
+          className="inline-flex w-fit items-center justify-center rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold text-foreground shadow-sm hover:border-primary/30 hover:text-primary"
+        >
+          Suivre les commandes
+        </Link>
+      </div>
 
       {/* Pending seller applications alert — only shown when there are any. */}
       {!isLoading && (stats?.pendingSellerApplicationsCount ?? 0) > 0 && (
         <Link
           href="/dashboard/sellers"
-          className="flex items-center justify-between gap-4 mb-6 p-4 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors"
+          className="flex flex-col gap-4 rounded-lg border border-primary/30 bg-white p-4 shadow-sm transition-colors hover:bg-primary/5 sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="flex items-center gap-3">
             <span className="flex items-center justify-center w-9 h-9 rounded-full bg-primary text-white text-sm font-bold">
@@ -152,7 +163,7 @@ export default function AdminDashboardPage() {
             </div>
           </div>
           <span className="text-sm font-medium text-primary whitespace-nowrap">
-            Examiner les demandes &rarr;
+            Examiner les demandes
           </span>
         </Link>
       )}
@@ -161,7 +172,7 @@ export default function AdminDashboardPage() {
       {!isLoading && (stats?.pendingProductsCount ?? 0) > 0 && (
         <Link
           href="/dashboard/products?status=PENDING_REVIEW"
-          className="flex items-center justify-between gap-4 mb-6 p-4 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors"
+          className="flex flex-col gap-4 rounded-lg border border-primary/30 bg-white p-4 shadow-sm transition-colors hover:bg-primary/5 sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="flex items-center gap-3">
             <span className="flex items-center justify-center w-9 h-9 rounded-full bg-primary text-white text-sm font-bold">
@@ -177,44 +188,44 @@ export default function AdminDashboardPage() {
             </div>
           </div>
           <span className="text-sm font-medium text-primary whitespace-nowrap">
-            Examiner les produits &rarr;
+            Examiner les produits
           </span>
         </Link>
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl border border-border p-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="bg-white rounded-lg border border-border p-5 shadow-sm">
           <h3 className="text-sm font-medium text-muted-foreground">Utilisateurs</h3>
           {isLoading ? (
             <div className="h-9 mt-2 bg-muted rounded animate-pulse" />
           ) : (
             <p className="text-3xl font-bold text-foreground mt-2">
-              {stats?.totalUsers ?? '--'}
+              {stats?.totalUsers !== undefined ? formatNumber(stats.totalUsers) : '--'}
             </p>
           )}
         </div>
-        <div className="bg-white rounded-xl border border-border p-6">
+        <div className="bg-white rounded-lg border border-border p-5 shadow-sm">
           <h3 className="text-sm font-medium text-muted-foreground">Vendeurs</h3>
           {isLoading ? (
             <div className="h-9 mt-2 bg-muted rounded animate-pulse" />
           ) : (
             <p className="text-3xl font-bold text-foreground mt-2">
-              {stats?.totalSellers ?? '--'}
+              {stats?.totalSellers !== undefined ? formatNumber(stats.totalSellers) : '--'}
             </p>
           )}
         </div>
-        <div className="bg-white rounded-xl border border-border p-6">
+        <div className="bg-white rounded-lg border border-border p-5 shadow-sm">
           <h3 className="text-sm font-medium text-muted-foreground">Commandes</h3>
           {isLoading ? (
             <div className="h-9 mt-2 bg-muted rounded animate-pulse" />
           ) : (
             <p className="text-3xl font-bold text-foreground mt-2">
-              {stats?.totalOrders ?? '--'}
+              {stats?.totalOrders !== undefined ? formatNumber(stats.totalOrders) : '--'}
             </p>
           )}
         </div>
-        <div className="bg-white rounded-xl border border-border p-6">
+        <div className="bg-white rounded-lg border border-border p-5 shadow-sm">
           <h3 className="text-sm font-medium text-muted-foreground">Chiffre d&apos;affaires</h3>
           {isLoading ? (
             <div className="h-9 mt-2 bg-muted rounded animate-pulse" />
@@ -227,9 +238,9 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Order operations (Teka logistics) */}
-      <div className="mt-10">
-        <h2 className="text-lg font-semibold text-foreground mb-4">Opérations commandes</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-foreground">Opérations commandes</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
           {([
             { label: 'Nouvelles', sub: 'à confirmer', value: stats?.orderOps?.awaitingConfirmation ?? 0, href: '/dashboard/orders?status=PENDING', color: 'text-warning' },
             { label: 'Prêtes pour collecte', sub: 'Teka', value: stats?.orderOps?.readyForPickup ?? 0, href: '/dashboard/orders?status=READY_FOR_TEKA_PICKUP', color: 'text-indigo-700' },
@@ -241,7 +252,7 @@ export default function AdminDashboardPage() {
             <Link
               key={c.label}
               href={c.href}
-              className="bg-white rounded-xl border border-border p-4 hover:shadow-sm hover:border-primary/30 transition-all"
+              className="bg-white rounded-lg border border-border p-4 shadow-sm transition-all hover:border-primary/30"
             >
               {isLoading ? (
                 <div className="h-8 w-10 bg-muted rounded animate-pulse" />
@@ -256,18 +267,19 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Trends Section */}
-      <div className="mt-10">
-        <div className="flex items-center justify-between mb-6">
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-lg font-semibold text-foreground">Tendances</h2>
-          <div className="flex gap-2">
+          <div className="flex w-fit rounded-lg border border-border bg-white p-1 shadow-sm">
             {PERIOD_OPTIONS.map((p) => (
               <button
+                type="button"
                 key={p}
                 onClick={() => setPeriod(p)}
-                className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                   period === p
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-background text-foreground border-border hover:bg-muted'
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                 }`}
               >
                 {periodKey(p)}
@@ -277,16 +289,16 @@ export default function AdminDashboardPage() {
         </div>
 
         {isTrendsLoading ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             <ChartSkeleton />
             <ChartSkeleton />
             <ChartSkeleton />
             <ChartSkeleton />
           </div>
         ) : trends ? (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {/* Revenue Chart - Area */}
-            <div className="bg-white rounded-xl border border-border p-6">
+            <div className="bg-white rounded-lg border border-border p-5 shadow-sm">
               <h3 className="text-sm font-medium text-muted-foreground mb-4">Revenus</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <AreaChart data={trends.revenueDaily}>
@@ -320,7 +332,7 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* Orders Chart - Bar */}
-            <div className="bg-white rounded-xl border border-border p-6">
+            <div className="bg-white rounded-lg border border-border p-5 shadow-sm">
               <h3 className="text-sm font-medium text-muted-foreground mb-4">Commandes</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={trends.ordersDaily}>
@@ -342,7 +354,7 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* New Users Chart - Line */}
-            <div className="bg-white rounded-xl border border-border p-6">
+            <div className="bg-white rounded-lg border border-border p-5 shadow-sm">
               <h3 className="text-sm font-medium text-muted-foreground mb-4">Nouveaux utilisateurs</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={trends.usersDaily}>
@@ -371,7 +383,7 @@ export default function AdminDashboardPage() {
             </div>
 
             {/* GMV Chart - Area */}
-            <div className="bg-white rounded-xl border border-border p-6">
+            <div className="bg-white rounded-lg border border-border p-5 shadow-sm">
               <h3 className="text-sm font-medium text-muted-foreground mb-4">Volume brut (GMV)</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <AreaChart data={trends.gmvDaily}>
