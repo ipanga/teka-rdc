@@ -59,19 +59,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 60),
-                Icon(Icons.storefront_rounded,
-                    size: 80, color: TekaColors.tekaRed),
-                const SizedBox(height: 16),
-                Text(
-                  'Teka RDC',
-                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                        color: TekaColors.tekaRed,
-                        fontWeight: FontWeight.bold,
-                      ),
-                  textAlign: TextAlign.center,
+                const SizedBox(height: 72),
+                // Brand wordmark (teka.cd) — the platform logo on the seller
+                // login. Colored variant reads on the light login background.
+                Image.asset(
+                  'assets/brand/logo_teka_cd.png',
+                  height: 52,
+                  semanticLabel: 'Teka RDC',
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
                 Text(
                   'Espace Vendeur',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(

@@ -11,12 +11,14 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: '#BF0000',
     lang: 'fr',
     categories: ['shopping', 'business'],
-    // SVG wordmark used for all icon sizes. The previous `/icons/icon-*.png`
-    // PNG variants did not exist in `public/` and caused a manifest 404 +
-    // console warning on every page load. SVG icons render crisply at any
-    // DPI and are supported by all modern PWA targets.
+    // App icon = the teka "T" glyph (white) on brand red — the same mark used
+    // for the mobile launcher icon and browser favicon. Full-bleed + centered
+    // so it doubles as a maskable icon (safe zone respected) for Android
+    // home-screen installs, where the previous wordmark was letterboxed. SVG
+    // renders crisply at any DPI and is supported by all modern PWA targets.
     icons: [
-      { src: '/logo.svg', sizes: 'any', type: 'image/svg+xml' },
+      { src: '/app-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+      { src: '/app-icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
     ],
   };
 }

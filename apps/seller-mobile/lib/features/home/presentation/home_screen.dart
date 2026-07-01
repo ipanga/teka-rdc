@@ -39,7 +39,12 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Teka Vendeur'),
+        // Brand wordmark in the dashboard header (light AppBar → colored logo).
+        title: Image.asset(
+          'assets/brand/logo_teka_cd.png',
+          height: 26,
+          semanticLabel: 'Teka RDC Vendeur',
+        ),
         actions: [
           // Notification center: bell with an unread badge.
           IconButton(
