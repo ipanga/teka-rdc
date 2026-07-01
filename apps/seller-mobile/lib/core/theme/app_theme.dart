@@ -9,15 +9,18 @@ class AppTheme {
         colorScheme: ColorScheme.fromSeed(
           seedColor: TekaColors.tekaRed,
           primary: TekaColors.tekaRed,
+          secondary: TekaColors.info,
+          tertiary: TekaColors.success,
           error: TekaColors.destructive,
           surface: TekaColors.background,
           onSurface: TekaColors.foreground,
         ),
-        scaffoldBackgroundColor: TekaColors.background,
+        scaffoldBackgroundColor: TekaColors.pageBackground,
         appBarTheme: const AppBarTheme(
           backgroundColor: TekaColors.background,
           foregroundColor: TekaColors.foreground,
           elevation: 0,
+          scrolledUnderElevation: 0,
           centerTitle: false,
           titleTextStyle: TextStyle(
             color: TekaColors.foreground,
@@ -27,13 +30,40 @@ class AppTheme {
           iconTheme: IconThemeData(color: TekaColors.foreground),
           actionsIconTheme: IconThemeData(color: TekaColors.foreground),
         ),
+        navigationBarTheme: NavigationBarThemeData(
+          backgroundColor: TekaColors.background,
+          indicatorColor: TekaColors.tekaRed.withValues(alpha: 0.12),
+          elevation: 0,
+          height: 66,
+          labelTextStyle: WidgetStateProperty.resolveWith(
+            (states) => TextStyle(
+              color: states.contains(WidgetState.selected)
+                  ? TekaColors.tekaRed
+                  : TekaColors.mutedForeground,
+              fontSize: 12,
+              fontWeight: states.contains(WidgetState.selected)
+                  ? FontWeight.w700
+                  : FontWeight.w500,
+            ),
+          ),
+          iconTheme: WidgetStateProperty.resolveWith(
+            (states) => IconThemeData(
+              color: states.contains(WidgetState.selected)
+                  ? TekaColors.tekaRed
+                  : TekaColors.mutedForeground,
+              size: 24,
+            ),
+          ),
+        ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: TekaColors.tekaRed,
             foregroundColor: Colors.white,
+            elevation: 0,
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            textStyle: const TextStyle(fontWeight: FontWeight.w700),
           ),
         ),
         outlinedButtonTheme: OutlinedButtonThemeData(
@@ -43,10 +73,25 @@ class AppTheme {
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            foregroundColor: TekaColors.tekaRed,
+            textStyle: const TextStyle(fontWeight: FontWeight.w700),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: TekaColors.background,
+          hintStyle: const TextStyle(color: TekaColors.mutedForeground),
+          labelStyle: const TextStyle(color: TekaColors.mutedForeground),
           border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: TekaColors.border),
+          ),
+          enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: TekaColors.border),
           ),
@@ -54,8 +99,28 @@ class AppTheme {
             borderRadius: BorderRadius.circular(8),
             borderSide: const BorderSide(color: TekaColors.tekaRed, width: 2),
           ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: TekaColors.destructive),
+          ),
+          focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide:
+                const BorderSide(color: TekaColors.destructive, width: 2),
+          ),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+        dividerTheme: const DividerThemeData(
+          color: TekaColors.border,
+          thickness: 1,
+          space: 1,
+        ),
+        snackBarTheme: SnackBarThemeData(
+          backgroundColor: TekaColors.foreground,
+          contentTextStyle: const TextStyle(color: Colors.white),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
       );
 }

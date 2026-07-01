@@ -7,8 +7,19 @@ import { PostHogProvider } from '@/components/providers/posthog-provider';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Teka RDC',
-  description: 'Votre marketplace en ligne en RD Congo',
+  title: {
+    default: 'Teka RDC Seller',
+    template: '%s | Teka RDC Seller',
+  },
+  description: 'Espace vendeur privé Teka RDC',
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: {
+      index: false,
+      follow: false,
+    },
+  },
 };
 
 export default async function RootLayout({

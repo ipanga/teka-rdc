@@ -53,16 +53,23 @@ export function Sidebar() {
           key={item.href}
           href={item.href}
           onClick={() => setMobileOpen(false)}
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+          className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
             isActive(item.href)
-              ? 'bg-primary text-white font-medium'
-              : 'text-white/70 hover:bg-white/10 hover:text-white'
+              ? 'bg-primary text-white font-semibold shadow-sm shadow-black/10'
+              : 'text-white/75 hover:bg-white/10 hover:text-white'
           }`}
         >
-          <span className="text-lg">{item.icon}</span>
-          <span className="flex-1">{item.label}</span>
+          <span
+            className={`grid h-7 w-7 shrink-0 place-items-center rounded-md text-sm ${
+              isActive(item.href) ? 'bg-white/15' : 'bg-white/10 group-hover:bg-white/15'
+            }`}
+            aria-hidden="true"
+          >
+            {item.icon}
+          </span>
+          <span className="flex-1 truncate">{item.label}</span>
           {item.badge !== undefined && item.badge > 0 && (
-            <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-white text-xs font-bold">
+            <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-xs font-bold text-primary">
               {item.badge > 99 ? '99+' : item.badge}
             </span>
           )}
@@ -74,7 +81,7 @@ export function Sidebar() {
   const userBlock = (
     <div className="p-4 border-t border-white/10">
       <div className="flex items-center gap-3 mb-3">
-        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-sm font-medium text-white">
+        <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-sm font-semibold text-white ring-1 ring-white/15">
           {user?.firstName?.[0] || '?'}
         </div>
         <div className="flex-1 min-w-0">
@@ -86,7 +93,7 @@ export function Sidebar() {
       </div>
       <button
         onClick={handleLogout}
-        className="w-full text-left px-3 py-2 text-sm text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+        className="w-full text-left px-3 py-2 text-sm text-white/75 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
       >
         Se déconnecter
       </button>
@@ -140,25 +147,25 @@ export function Sidebar() {
         </div>
       )}
 
-      <aside className="hidden md:flex w-64 min-h-screen bg-foreground text-white flex-col shrink-0">
-      <div className="p-6 border-b border-white/10">
-        <div className="flex items-start justify-between gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo-white.svg"
-            alt="Teka RDC"
-            className="h-7 w-auto"
-            width={140}
-            height={28}
-          />
-          <NotificationBell />
+      <aside className="hidden md:flex sticky top-0 h-screen w-64 bg-foreground text-white flex-col shrink-0">
+        <div className="p-6 border-b border-white/10">
+          <div className="flex items-start justify-between gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo-white.svg"
+              alt="Teka RDC"
+              className="h-7 w-auto"
+              width={140}
+              height={28}
+            />
+            <NotificationBell />
+          </div>
+          <p className="text-sm text-white/60 mt-2">Espace Vendeur</p>
         </div>
-        <p className="text-sm text-white/60 mt-2">Espace Vendeur</p>
-      </div>
 
-      {nav}
-      {userBlock}
-    </aside>
+        {nav}
+        {userBlock}
+      </aside>
     </>
   );
 }

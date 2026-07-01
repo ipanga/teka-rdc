@@ -156,8 +156,8 @@ export default function SellerDashboardPage() {
     : 'Catalogue prêt à vendre';
 
   return (
-    <div className="space-y-6">
-      <section className="rounded-2xl border border-primary/15 bg-gradient-to-br from-primary to-[#8f0b21] p-5 sm:p-6 text-white shadow-sm">
+    <div className="space-y-5">
+      <section className="rounded-lg border border-primary/15 bg-gradient-to-br from-primary to-[#8f0b21] p-5 sm:p-6 text-white shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
           <div>
             <p className="text-sm font-medium text-white/75">{"Espace Vendeur"}</p>
@@ -171,13 +171,13 @@ export default function SellerDashboardPage() {
           <div className="flex flex-col sm:flex-row gap-3">
             <Link
               href="/dashboard/products/new"
-              className="inline-flex items-center justify-center px-4 py-2.5 bg-white text-primary rounded-lg font-semibold text-sm hover:bg-white/90 transition-colors"
+              className="inline-flex items-center justify-center rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-white/90"
             >
               + Nouveau produit
             </Link>
             <Link
               href="/dashboard/orders"
-              className="inline-flex items-center justify-center px-4 py-2.5 bg-white/10 text-white ring-1 ring-white/30 rounded-lg font-semibold text-sm hover:bg-white/15 transition-colors"
+              className="inline-flex items-center justify-center rounded-lg bg-white/10 px-4 py-2.5 text-sm font-semibold text-white ring-1 ring-white/30 transition-colors hover:bg-white/15"
             >
               Voir les commandes
             </Link>
@@ -189,7 +189,7 @@ export default function SellerDashboardPage() {
       <div>
         <Link
           href="/dashboard/earnings"
-          className="block bg-white rounded-xl border border-border p-5 hover:shadow-sm transition-shadow"
+          className="block rounded-lg border border-border bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
         >
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
@@ -211,7 +211,7 @@ export default function SellerDashboardPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {statCards.map((card) => (
-          <div key={card.label} className="bg-white rounded-xl border border-border p-5">
+          <div key={card.label} className="rounded-lg border border-border bg-white p-5 shadow-sm">
             <h3 className="text-sm font-medium text-muted-foreground">{card.label}</h3>
             <p className={`text-3xl font-bold mt-2 ${card.color}`}>
               {isLoading ? (
@@ -225,7 +225,7 @@ export default function SellerDashboardPage() {
       </div>
 
       {/* Order status summary */}
-      <div className="bg-white rounded-xl border border-border p-5">
+      <div className="rounded-lg border border-border bg-white p-5 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-foreground">Commandes</h2>
           <Link href="/dashboard/orders" className="text-sm font-medium text-primary hover:underline">
@@ -264,7 +264,7 @@ export default function SellerDashboardPage() {
       <div>
         <Link
           href="/dashboard/reviews"
-          className="block bg-white rounded-xl border border-border p-5 hover:shadow-sm transition-shadow"
+          className="block rounded-lg border border-border bg-white p-5 shadow-sm transition-shadow hover:shadow-md"
         >
           <h3 className="text-sm font-medium text-muted-foreground">Note moyenne</h3>
           <div className="flex items-center gap-3 mt-2">
@@ -289,24 +289,24 @@ export default function SellerDashboardPage() {
         </Link>
       </div>
 
-      <div className="bg-white rounded-xl border border-border p-6">
+      <div className="rounded-lg border border-border bg-white p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-foreground mb-4">Actions rapides</h2>
         <div className="flex flex-wrap gap-3">
           <Link
             href="/dashboard/products/new"
-            className="inline-flex items-center px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors"
+            className="inline-flex items-center rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             + Nouveau produit
           </Link>
           <Link
             href="/dashboard/products"
-            className="inline-flex items-center px-4 py-2.5 bg-secondary text-secondary-foreground rounded-lg font-medium text-sm hover:bg-secondary/80 transition-colors"
+            className="inline-flex items-center rounded-lg bg-secondary px-4 py-2.5 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80"
           >
             Voir tous les produits
           </Link>
           <Link
             href="/dashboard/earnings"
-            className="inline-flex items-center px-4 py-2.5 bg-secondary text-secondary-foreground rounded-lg font-medium text-sm hover:bg-secondary/80 transition-colors"
+            className="inline-flex items-center rounded-lg bg-secondary px-4 py-2.5 text-sm font-medium text-secondary-foreground transition-colors hover:bg-secondary/80"
           >
             Revenus
           </Link>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const protectedRoutes = ['/dashboard'];
+const robotsHeader = 'noindex, nofollow, noarchive';
 
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -27,7 +28,9 @@ export default function middleware(request: NextRequest) {
     loginUrl.pathname = '/login';
     loginUrl.search = '';
     loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
+    const response = NextResponse.redirect(loginUrl);
+    response.headers.set('X-Robots-Tag', robotsHeader);
+    return response;
   }
 
   // NOTE: no authOnly /login → /dashboard redirect on this surface.
@@ -36,7 +39,9 @@ export default function middleware(request: NextRequest) {
   // unconditionally and let the dashboard layout do the ADMIN role check as
   // defense in depth.
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  response.headers.set('X-Robots-Tag', robotsHeader);
+  return response;
 }
 
 export const config = {
