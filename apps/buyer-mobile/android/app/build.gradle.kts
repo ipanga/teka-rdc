@@ -53,7 +53,8 @@ android {
     // Flavors. `production` keeps the existing applicationId
     // (com.tootiye.teka — already in Play Store). `development` and
     // `staging` get suffixed ids so all three variants can install
-    // side-by-side on the same device. app_name is generated as an
+    // side-by-side on the same device. The launcher label remains the
+    // public app name for every variant. app_name is generated as an
     // Android string resource via resValue and consumed by the
     // <application android:label="@string/app_name"> in
     // AndroidManifest.xml.
@@ -68,7 +69,7 @@ android {
         create("development") {
             dimension = "env"
             applicationIdSuffix = ".dev"
-            resValue("string", "app_name", "Teka Dev")
+            resValue("string", "app_name", "Teka")
             // App Links host (manifest ${appLinkHost}). dev/staging point at
             // non-prod hosts so they never claim teka.cd links on a device that
             // also has the prod app; only prod's host serves assetlinks.json.
@@ -77,7 +78,7 @@ android {
         create("staging") {
             dimension = "env"
             applicationIdSuffix = ".staging"
-            resValue("string", "app_name", "Teka Staging")
+            resValue("string", "app_name", "Teka")
             manifestPlaceholders["appLinkHost"] = "staging.teka.cd"
         }
         create("production") {
