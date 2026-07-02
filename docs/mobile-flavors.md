@@ -2,7 +2,7 @@
 
 Both Flutter apps (`apps/buyer-mobile`, `apps/seller-mobile`) ship as three Android product flavors so dev/staging/prod builds can install side-by-side with independent IDs, names, and backend URLs.
 
-iOS is **not in scope** here — iOS scaffolding doesn't exist yet for either app. When it lands (tracked in `STATUS.md` as "PR C"), iOS flavors get added in the same shape: schemes per flavor, per-flavor `GoogleService-Info.plist`, per-flavor bundle IDs matching the Android ones.
+**iOS is now flavor-wired too** (both apps), mirroring Android — see [iOS flavors](#ios-flavors) below.
 
 ## At a glance
 
@@ -118,7 +118,9 @@ The merged file is what unblocks CI builds for dev + staging.
 | `SELLER_GOOGLE_SERVICES_JSON_B64` | GitHub repo secret | CI builds of any seller flavor |
 | Sentry DSNs | `flavors/*.json` (committed) | Optional. DSNs are public write-only keys — safe to commit. Currently empty. |
 | Android signing keystore | Not yet configured | Play Store submission (today release builds use the debug keystore — see `android/app/build.gradle.kts` TODO) |
-| iOS APNs `.p8` | Not yet configured | iOS push (waits on iOS scaffold) |
+| `{BUYER,SELLER}_GOOGLE_SERVICE_INFO_PLIST_B64` | GitHub repo secret | iOS builds (prod plist; the fallback for all flavors — see [iOS flavors](#ios-flavors)) |
+| `{BUYER,SELLER}_GOOGLE_SERVICE_INFO_PLIST_{DEVELOPMENT,STAGING}_B64` | GitHub repo secret | Optional — real per-flavor iOS Firebase (else dev/staging fall back to prod) |
+| iOS APNs `.p8` | Uploaded to Firebase console | iOS push delivery (FCM→APNs) |
 
 Backend FCM auth (server-side push send) is handled separately via the discrete `FIREBASE_PROJECT_ID` / `FIREBASE_PRIVATE_KEY` / `FIREBASE_CLIENT_EMAIL` env trio that `PushService` reads at boot — no file decoding needed there. See `docs/push-notifications.md`.
 
@@ -150,3 +152,47 @@ Something is reading `FlavorConfig.instance` (or `ApiConstants.baseUrl`) before 
 
 **`no matching variant` from Flutter**
 You ran `flutter build apk` or `flutter run` without `--flavor`. Pass one of `development | staging | production`.
+
+## iOS flavors
+
+iOS mirrors Android: three **schemes** (`development` / `staging` / `production`) driving
+nine **build configurations** (`{Debug,Release,Profile}-{development,staging,production}`),
+with matching bundle ids. Wired via `scripts/ios-flavorize.rb` (uses the `xcodeproj` gem
+that ships with CocoaPods) — re-run it if you ever need to regenerate.
+
+| Flavor | Buyer bundle id | Seller bundle id | Display name (buyer / seller) |
+|---|---|---|---|
+| development | `com.tootiye.teka.dev` | `com.tootiye.tekaseller.dev` | Teka Dev / Teka Seller Dev |
+| staging | `com.tootiye.teka.staging` | `com.tootiye.tekaseller.staging` | Teka Stg / Teka Seller Stg |
+| production | `com.tootiye.teka` | `com.tootiye.tekaseller` | Teka / Teka Seller |
+
+Bundle ids/names match the Android `applicationId`s exactly. Only `Release-production`
+uses `Runner-Release.entitlements` (aps-environment **production**, for TestFlight/App
+Store); every other config uses `Runner.entitlements` (aps-environment development).
+
+**Build / run (note: no `--flavor` fails, same as Android):**
+```bash
+# From apps/buyer-mobile or apps/seller-mobile
+flutter run   --flavor development --dart-define-from-file=flavors/development.json
+flutter build ipa --flavor production --dart-define-from-file=flavors/production.json   # → TestFlight/App Store
+```
+
+**iOS simulator dev caveat:** `flavors/development.json` uses `http://10.0.2.2:5050`
+(the Android-emulator loopback). The iOS simulator can't reach that — override on the
+command line (don't edit the shared JSON): append
+`--dart-define=API_BASE_URL=http://127.0.0.1:5050/api`.
+
+**Firebase (graceful fallback).** iOS needs a `GoogleService-Info.plist` whose bundle id
+matches each flavor. A build phase (`scripts/ios-select-firebase-plist.sh`) picks
+`ios/Runner/config/<flavor>/GoogleService-Info.plist` if present, else falls back to the
+committed-via-secret prod plist at `ios/Runner/GoogleService-Info.plist`. So dev/staging
+build today (using prod's Firebase). To give them real isolation, register
+`com.tootiye.teka.dev` / `.staging` (+ seller equivalents) as iOS apps in the Firebase
+console, drop their plists at the `config/<flavor>/` paths (gitignored), and set the
+`{BUYER,SELLER}_GOOGLE_SERVICE_INFO_PLIST_{DEVELOPMENT,STAGING}_B64` secrets
+(`scripts/sync-firebase-secrets.sh`) — no code change needed.
+
+**Signing / TestFlight (operator).** Accept the Apple Program License Agreement, and on
+each App ID enable the **Push Notifications** + **Associated Domains** capabilities (buyer)
+/ **Push** (seller). Automatic signing then regenerates the profiles. iOS CI is **not**
+wired yet (archive/upload from Xcode or `flutter build ipa`). See `docs/mobile-release.md`.

@@ -4,10 +4,19 @@ platform :ios, '15.0'
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
+# One entry per flavor build configuration (mirrors the Android product
+# flavors). Debug-* map to :debug; Release-*/Profile-* map to :release so
+# CocoaPods picks the right Pods xcconfig per configuration.
 project 'Runner', {
-  'Debug' => :debug,
-  'Profile' => :release,
-  'Release' => :release,
+  'Debug-development'   => :debug,
+  'Debug-staging'       => :debug,
+  'Debug-production'    => :debug,
+  'Profile-development' => :release,
+  'Profile-staging'     => :release,
+  'Profile-production'  => :release,
+  'Release-development' => :release,
+  'Release-staging'     => :release,
+  'Release-production'  => :release,
 }
 
 def flutter_root
