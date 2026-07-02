@@ -51,7 +51,8 @@ android {
 
     // Flavors. `production` keeps the existing applicationId
     // (com.tootiye.tekaseller). `development` and `staging` get
-    // suffixed ids so all three variants can install side-by-side.
+    // suffixed ids so all three variants can install side-by-side. The
+    // launcher label remains the public app name for every variant.
     // Firebase: google-services.json must contain client entries for
     // all three package names. See apps/buyer-mobile/android/app/build.gradle.kts
     // for the same comment in full.
@@ -60,12 +61,12 @@ android {
         create("development") {
             dimension = "env"
             applicationIdSuffix = ".dev"
-            resValue("string", "app_name", "Teka Seller Dev")
+            resValue("string", "app_name", "Teka Seller")
         }
         create("staging") {
             dimension = "env"
             applicationIdSuffix = ".staging"
-            resValue("string", "app_name", "Teka Seller Staging")
+            resValue("string", "app_name", "Teka Seller")
         }
         create("production") {
             dimension = "env"

@@ -39,43 +39,208 @@ class MainShell extends ConsumerWidget {
 
     return Scaffold(
       body: navigationShell,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: _onTap,
-        backgroundColor: TekaColors.surface,
-        indicatorColor: TekaColors.tekaRedSubtle,
-        surfaceTintColor: Colors.transparent,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: [
-          const NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home, color: TekaColors.tekaRed),
-            label: 'Accueil',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.grid_view_outlined),
-            selectedIcon:
-                Icon(Icons.grid_view_rounded, color: TekaColors.tekaRed),
-            label: 'Catégories',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.favorite_border),
-            selectedIcon: Icon(Icons.favorite, color: TekaColors.tekaRed),
-            label: 'Favoris',
-          ),
-          NavigationDestination(
-            icon: _CartTabIcon(count: cartCount, selected: false),
-            selectedIcon: _CartTabIcon(count: cartCount, selected: true),
-            label: 'Panier',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person, color: TekaColors.tekaRed),
-            label: 'Compte',
+      bottomNavigationBar: _BottomBarFrame(
+        child: _BottomTabBar(
+          currentIndex: navigationShell.currentIndex,
+          onTap: _onTap,
+          items: [
+            const _BottomTabItem(
+              icon: Icons.home_outlined,
+              selectedIcon: Icons.home,
+              label: 'Accueil',
+            ),
+            const _BottomTabItem(
+              icon: Icons.grid_view_outlined,
+              selectedIcon: Icons.grid_view_rounded,
+              label: 'Catégories',
+            ),
+            const _BottomTabItem(
+              icon: Icons.favorite_border,
+              selectedIcon: Icons.favorite,
+              label: 'Favoris',
+            ),
+            _BottomTabItem.custom(
+              iconWidget: _CartTabIcon(count: cartCount, selected: false),
+              selectedIconWidget: _CartTabIcon(
+                count: cartCount,
+                selected: true,
+              ),
+              label: 'Panier',
+            ),
+            const _BottomTabItem(
+              icon: Icons.person_outline,
+              selectedIcon: Icons.person,
+              label: 'Compte',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomBarFrame extends StatelessWidget {
+  final Widget child;
+  const _BottomBarFrame({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: TekaColors.surface,
+        border: Border(
+          top: BorderSide(color: TekaColors.border),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 18,
+            offset: Offset(0, -6),
           ),
         ],
       ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: child,
+        ),
+      ),
     );
+  }
+}
+
+class _BottomTabBar extends StatelessWidget {
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+  final List<_BottomTabItem> items;
+
+  const _BottomTabBar({
+    required this.currentIndex,
+    required this.onTap,
+    required this.items,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 68,
+      child: Row(
+        children: [
+          for (var index = 0; index < items.length; index++)
+            Expanded(
+              child: _BottomTabButton(
+                item: items[index],
+                selected: index == currentIndex,
+                onTap: () => onTap(index),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BottomTabButton extends StatelessWidget {
+  final _BottomTabItem item;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _BottomTabButton({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected ? TekaColors.tekaRed : TekaColors.mutedForeground;
+    final icon = item.buildIcon(selected);
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: item.label,
+      child: InkWell(
+        onTap: onTap,
+        splashColor: TekaColors.tekaRedSubtle,
+        highlightColor: TekaColors.tekaRedSubtle.withValues(alpha: 0.6),
+        child: Column(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOutCubic,
+              width: selected ? 30 : 0,
+              height: 3,
+              decoration: BoxDecoration(
+                color: selected ? TekaColors.tekaRed : Colors.transparent,
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(999),
+                ),
+              ),
+            ),
+            Expanded(
+              child: IconTheme(
+                data: IconThemeData(color: color, size: 25),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    icon,
+                    const SizedBox(height: 4),
+                    AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOutCubic,
+                      style: TextStyle(
+                        color: color,
+                        fontSize: 11.5,
+                        height: 1.1,
+                        fontWeight:
+                            selected ? FontWeight.w800 : FontWeight.w500,
+                      ),
+                      child: Text(
+                        item.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomTabItem {
+  final IconData? icon;
+  final IconData? selectedIcon;
+  final Widget? iconWidget;
+  final Widget? selectedIconWidget;
+  final String label;
+
+  const _BottomTabItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+  })  : iconWidget = null,
+        selectedIconWidget = null;
+
+  const _BottomTabItem.custom({
+    required this.iconWidget,
+    required this.selectedIconWidget,
+    required this.label,
+  })  : icon = null,
+        selectedIcon = null;
+
+  Widget buildIcon(bool selected) {
+    final customIcon = selected ? selectedIconWidget : iconWidget;
+    if (customIcon != null) return customIcon;
+
+    final iconData = selected ? selectedIcon : icon;
+    return Icon(iconData);
   }
 }
 
