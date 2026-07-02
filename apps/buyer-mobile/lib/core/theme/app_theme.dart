@@ -69,14 +69,18 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: TekaColors.surface,
         indicatorColor: TekaColors.tekaRedSubtle,
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
         surfaceTintColor: Colors.transparent,
-        elevation: 3,
-        height: 64,
+        elevation: 0,
+        height: 68,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
           return TextStyle(
             fontSize: 11.5,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+            height: 1.1,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             color: selected ? TekaColors.tekaRed : TekaColors.mutedForeground,
           );
         }),

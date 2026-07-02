@@ -39,41 +39,74 @@ class MainShell extends ConsumerWidget {
 
     return Scaffold(
       body: navigationShell,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: navigationShell.currentIndex,
-        onDestinationSelected: _onTap,
-        backgroundColor: TekaColors.surface,
-        indicatorColor: TekaColors.tekaRedSubtle,
-        surfaceTintColor: Colors.transparent,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        destinations: [
-          const NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home, color: TekaColors.tekaRed),
-            label: 'Accueil',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.grid_view_outlined),
-            selectedIcon:
-                Icon(Icons.grid_view_rounded, color: TekaColors.tekaRed),
-            label: 'Catégories',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.favorite_border),
-            selectedIcon: Icon(Icons.favorite, color: TekaColors.tekaRed),
-            label: 'Favoris',
-          ),
-          NavigationDestination(
-            icon: _CartTabIcon(count: cartCount, selected: false),
-            selectedIcon: _CartTabIcon(count: cartCount, selected: true),
-            label: 'Panier',
-          ),
-          const NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person, color: TekaColors.tekaRed),
-            label: 'Compte',
+      bottomNavigationBar: _BottomBarFrame(
+        child: NavigationBar(
+          selectedIndex: navigationShell.currentIndex,
+          onDestinationSelected: _onTap,
+          backgroundColor: Colors.transparent,
+          indicatorColor: TekaColors.tekaRedSubtle,
+          surfaceTintColor: Colors.transparent,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          destinations: [
+            const NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home, color: TekaColors.tekaRed),
+              label: 'Accueil',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.grid_view_outlined),
+              selectedIcon:
+                  Icon(Icons.grid_view_rounded, color: TekaColors.tekaRed),
+              label: 'Catégories',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.favorite_border),
+              selectedIcon: Icon(Icons.favorite, color: TekaColors.tekaRed),
+              label: 'Favoris',
+            ),
+            NavigationDestination(
+              icon: _CartTabIcon(count: cartCount, selected: false),
+              selectedIcon: _CartTabIcon(count: cartCount, selected: true),
+              label: 'Panier',
+            ),
+            const NavigationDestination(
+              icon: Icon(Icons.person_outline),
+              selectedIcon: Icon(Icons.person, color: TekaColors.tekaRed),
+              label: 'Compte',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomBarFrame extends StatelessWidget {
+  final Widget child;
+  const _BottomBarFrame({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: TekaColors.surface,
+        border: Border(
+          top: BorderSide(color: TekaColors.border),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x14000000),
+            blurRadius: 18,
+            offset: Offset(0, -6),
           ),
         ],
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: child,
+        ),
       ),
     );
   }
