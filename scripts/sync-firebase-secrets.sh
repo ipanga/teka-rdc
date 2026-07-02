@@ -59,15 +59,27 @@ decode_to BUYER_GOOGLE_SERVICES_JSON_B64 \
 decode_to SELLER_GOOGLE_SERVICES_JSON_B64 \
   "$repo_root/apps/seller-mobile/android/app/google-services.json"
 
-# iOS — buyer-mobile is wired (ios/ scaffold present, prod GoogleService-Info.plist
-# for com.tootiye.teka). The decode is a no-op until the secret is set, so it's
-# safe to leave active.
+# iOS production plists (bundle ids com.tootiye.teka / com.tootiye.tekaseller).
+# These are the fallback used by ALL flavors until per-flavor plists are added
+# (see the per-flavor block below). No-op until the secret is set.
 decode_to BUYER_GOOGLE_SERVICE_INFO_PLIST_B64 \
   "$repo_root/apps/buyer-mobile/ios/Runner/GoogleService-Info.plist"
+decode_to SELLER_GOOGLE_SERVICE_INFO_PLIST_B64 \
+  "$repo_root/apps/seller-mobile/ios/Runner/GoogleService-Info.plist"
 
-# seller-mobile has no ios/ folder yet — keep commented until its scaffold lands.
-# decode_to SELLER_GOOGLE_SERVICE_INFO_PLIST_B64 \
-#   "$repo_root/apps/seller-mobile/ios/Runner/GoogleService-Info.plist"
+# iOS per-flavor plists (OPTIONAL — graceful fallback to the prod plist above
+# until provided). To give dev/staging their own Firebase iOS apps, register the
+# suffixed bundle ids (com.tootiye.teka.dev / .staging + seller equivalents) in
+# the Firebase console, then set these secrets. scripts/ios-select-firebase-plist.sh
+# picks Runner/config/<flavor>/GoogleService-Info.plist when present.
+for app in buyer seller; do
+  case "$app" in buyer) dir=buyer-mobile ;; seller) dir=seller-mobile ;; esac
+  for flavor in development staging; do
+    var="$(echo "${app}_GOOGLE_SERVICE_INFO_PLIST_${flavor}_B64" | tr '[:lower:]' '[:upper:]')"
+    decode_to "$var" \
+      "$repo_root/apps/${dir}/ios/Runner/config/${flavor}/GoogleService-Info.plist"
+  done
+done
 
 # The APNs .p8 lives in the Firebase console for delivery; decode locally only
 # if a build/CI step needs the file on disk.

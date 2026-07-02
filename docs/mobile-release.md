@@ -153,8 +153,36 @@ flutter build appbundle --release --flavor production \
       when `SENTRY_AUTH_TOKEN` is set).
 - [ ] Confirm FCM push delivery on a real installed build.
 
+## iOS — TestFlight / App Store
+
+iOS is **flavor-wired** (schemes `development`/`staging`/`production` → the 9 build
+configs, bundle-id suffixes matching Android). Full model: `docs/mobile-flavors.md` →
+"iOS flavors". CI is not wired yet — build + upload from your Mac.
+
+**Operator one-time (Apple):**
+1. Accept the **Program License Agreement** at developer.apple.com as the Account Holder
+   (the "Unable to process request - PLA Update available" block in Xcode). Without this,
+   automatic signing can't register capabilities or regenerate profiles.
+2. On each App ID enable capabilities: buyer `com.tootiye.teka` → **Push Notifications** +
+   **Associated Domains**; seller `com.tootiye.tekaseller` → **Push Notifications**. With
+   automatic signing, Xcode adds these on "Try Again" once the PLA is accepted.
+3. Upload the APNs `.p8` to the Firebase console (project-wide; see
+   `docs/push-notifications.md`).
+
+**Build the production IPA (per app, from `apps/{buyer,seller}-mobile`):**
+```bash
+flutter build ipa --flavor production --dart-define-from-file=flavors/production.json \
+  --dart-define=SENTRY_DSN=<app dsn> --dart-define=SENTRY_RELEASE=$(git rev-parse --short HEAD)
+# → build/ios/ipa/*.ipa — upload via Xcode Organizer or Transporter to App Store Connect.
+```
+Only `Release-production` carries the **production** aps-environment entitlement (correct
+for TestFlight). `flutter build ipa` archives the `production` scheme automatically.
+
+**Firebase per-flavor** (dev/staging) is optional — they fall back to the prod plist until
+you register their iOS apps + set the `*_GOOGLE_SERVICE_INFO_PLIST_{DEVELOPMENT,STAGING}_B64`
+secrets. See `docs/mobile-flavors.md`.
+
 ## Not covered (deferred)
 
-iOS / App Store — blocked on the iOS scaffold (the long-deferred "PR C"); when it
-lands, mirror this with Xcode archives, `GoogleService-Info.plist`, APNs, and App
-Store Connect. See `docs/mobile-flavors.md` + the STATUS "Open follow-ups".
+iOS **CI** (macOS runner + App Store Connect API key + distribution signing → automated
+TestFlight upload). Today iOS archives/uploads are done from Xcode as above.
