@@ -193,19 +193,28 @@ for TestFlight). `ExportOptions-*.plist` set `uploadSymbols=false` on purpose �
    Firebase console (see `docs/push-notifications.md`).
 2. **match store** — create a private repo `teka-ios-certs`. Run **once per app, locally**
    (needs Apple login for the team):
+   **Both apps live on the same Apple team `YK6Z393A4D` (TOOTIYE ENTERPRISES LTD)**, so one
+   ASC API key + one Distribution certificate serve both; match keeps one cert and a profile
+   per bundle id in the repo. **Prerequisite:** each bundle id must already exist as an App ID
+   on the team — building/associating the app once in Xcode (or `fastlane produce -a
+   com.tootiye.tekaseller`) registers it. Then, per app:
    ```bash
    bundle install
    MATCH_PASSWORD=<pick-one> bundle exec fastlane match appstore \
      --git_url https://github.com/<org>/teka-ios-certs.git \
+     --api_key_path <asc-key.json> \
      --app_identifier com.tootiye.teka       --team_id YK6Z393A4D   # buyer
    MATCH_PASSWORD=<same>    bundle exec fastlane match appstore \
      --git_url https://github.com/<org>/teka-ios-certs.git \
-     --app_identifier com.tootiye.tekaseller --team_id APYDR8XX6S   # seller
+     --api_key_path <asc-key.json> \
+     --app_identifier com.tootiye.tekaseller --team_id YK6Z393A4D   # seller
    ```
-   Both apps' assets coexist in the one repo (bundle ids differ → no collision).
-3. **App Store Connect API key** — create one **per Apple team** (Users and Access → Keys,
-   role App Manager); download the `.p8`; base64 it. Ensure both prod App IDs have an app
-   record in App Store Connect.
+   `<asc-key.json>` is a `{key_id, issuer_id, key (the .p8 body), in_house:false}` file — this
+   authenticates match to Apple non-interactively (no Apple ID / 2FA). Both apps' assets
+   coexist in the one repo (bundle ids differ → no collision).
+3. **App Store Connect API key** — create one (Users and Access → Integrations → App Store
+   Connect API, role App Manager); download the `.p8`; base64 it. One key covers both apps
+   (same team). Ensure both prod App IDs have an app record in App Store Connect.
 4. **GitHub Environment** — create `ios-testflight` and add required reviewer(s).
 5. **GitHub Secrets:**
 
@@ -214,7 +223,7 @@ for TestFlight). `ExportOptions-*.plist` set `uploadSymbols=false` on purpose �
    | `MATCH_PASSWORD` | shared | the match encryption passphrase from step 2 |
    | `MATCH_GIT_BASIC_AUTH` | shared | `base64("<gh-user>:<PAT>")` — read access to `teka-ios-certs` |
    | `BUYER_ASC_API_KEY_ID` / `BUYER_ASC_API_ISSUER_ID` / `BUYER_ASC_API_KEY_P8_B64` | buyer | ASC API key (team `YK6Z393A4D`) |
-   | `SELLER_ASC_API_KEY_ID` / `SELLER_ASC_API_ISSUER_ID` / `SELLER_ASC_API_KEY_P8_B64` | seller | ASC API key (team `APYDR8XX6S`) |
+   | `SELLER_ASC_API_KEY_ID` / `SELLER_ASC_API_ISSUER_ID` / `SELLER_ASC_API_KEY_P8_B64` | seller | same ASC key as buyer (both apps share team `YK6Z393A4D`) |
 
    Reused as-is: `SENTRY_AUTH_TOKEN`, `SENTRY_DSN_{BUYER,SELLER}_MOBILE`,
    `{BUYER,SELLER}_GOOGLE_SERVICE_INFO_PLIST_B64`. Team ids are non-secret (in `Fastfile`).

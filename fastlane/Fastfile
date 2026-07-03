@@ -27,7 +27,7 @@ APPS = {
   "seller" => {
     app_dir:    "apps/seller-mobile",
     bundle_id:  "com.tootiye.tekaseller",
-    team_id:    "APYDR8XX6S",
+    team_id:    "YK6Z393A4D",
   },
 }.freeze
 
