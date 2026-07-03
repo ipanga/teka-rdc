@@ -1,4 +1,4 @@
-# Status — 2026-06-29
+# Status — 2026-07-03
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,7 +6,24 @@
 
 ## Active initiative
 
-**None.** (Order Details & Admin Dashboard Improvements — all 5 phases complete on `develop`, ready for the PR.)
+**iOS dSYM → Sentry + TestFlight CI/CD** — code-complete on branch `feat/ios-testflight-cicd`, PR into
+`develop` open; **gated on operator one-time setup before the first release run** (`docs/mobile-release.md`
+→ "iOS — TestFlight / App Store (automated CI)").
+
+> **Scope.** Wires the two missing iOS release gaps, mirroring the Android two-workflow split. **(A)**
+> `.github/workflows/build-mobile-ipa.yml` — macOS, app×flavor matrix, `flutter build ios --no-codesign`
+> + `sentry_dart_plugin` **iOS dSYM → Sentry** for all 3 flavors (no signing infra). **(B)** repo-root
+> Fastlane (`Gemfile`/`Gemfile.lock`, `fastlane/{Fastfile,Appfile,Matchfile,ExportOptions-{buyer,seller}.plist}`)
+> — lanes `setup_signing` (match read-only + CI-only `Automatic→Manual` flip, never committed) +
+> `upload_testflight` (ASC API key). **(C)** `.github/workflows/release-mobile-ipa.yml` — signed
+> **production** IPA + dSYM (build job, auto) → `.ipa` artifact → **`ios-testflight` environment approval
+> gate** → TestFlight upload (testflight job). **Decisions (user):** signing = Fastlane `match`
+> (`teka-ios-certs` repo); TestFlight = production only (dev/staging = build+dSYM artifact); approval =
+> `workflow_dispatch` + protected environment. Committed pbxproj stays `Automatic` (local dev unaffected).
+> Docs: `docs/mobile-release.md` (operator setup + secrets table) + `docs/sentry.md` (iOS dSYM section).
+> **Operator TODO before first release run:** create `teka-ios-certs` + run `fastlane match appstore` per
+> app; create per-team ASC API keys; create the `ios-testflight` environment + reviewers; add secrets
+> (`MATCH_PASSWORD`, `MATCH_GIT_BASIC_AUTH`, `{BUYER,SELLER}_ASC_API_*`). Android CI untouched; no API/DB/web change.
 
 > **DONE 2026-06-30 — Order Details & Admin Dashboard Improvements (5 phases, on `develop`).** On the managed
 > workflow: **P1** API extensions — buyer order items += `product{id,slug,shortCode,status,city{slug}}`;

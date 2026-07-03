@@ -1,0 +1,10 @@
+# Fastlane Appfile — intentionally minimal.
+#
+# Teka ships TWO iOS apps from ONE Fastfile (buyer + seller), each on its own
+# Apple team, so the app-specific values (bundle id, team id, App Store Connect
+# API key) can't be hard-coded here. They're resolved per-run from the
+# `TEKA_APP` env var via the APPS map + ENV in fastlane/Fastfile.
+#
+# App Store Connect auth is provided per-lane through
+# `app_store_connect_api_key` (the ASC API key secrets), not via
+# `apple_id`/`itc_team_id` here.

@@ -1,0 +1,21 @@
+# Fastlane match configuration — code-signing assets storage.
+#
+# match keeps the App Distribution certificate + App Store provisioning
+# profiles for BOTH apps (com.tootiye.teka + com.tootiye.tekaseller) in one
+# private git repo, encrypted with MATCH_PASSWORD. Bundle ids differ, so the
+# two Apple teams' profiles coexist without collision.
+#
+# CI runs in READ-ONLY mode: it only clones + decrypts existing assets, never
+# regenerates them (that's an operator's one-time local `fastlane match
+# appstore` step — see docs/mobile-release.md). Read-only mode needs only git
+# access (MATCH_GIT_URL) + MATCH_PASSWORD; it never touches the Apple API.
+#
+# git_url comes from the env so the PAT-authenticated URL
+# (https://x-access-token:<PAT>@github.com/<org>/teka-ios-certs.git) stays out
+# of the repo. app_identifier / type / team_id are passed per-lane in the
+# Fastfile (they vary by app).
+git_url(ENV["MATCH_GIT_URL"])
+storage_mode("git")
+
+type("appstore")
+readonly(true)

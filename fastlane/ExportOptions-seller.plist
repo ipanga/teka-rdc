@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Export options for `flutter build ipa` (seller-mobile, production).
+  Manual signing with the match-managed App Store profile installed by
+  `fastlane ios setup_signing`. uploadSymbols=false: dSYMs go to Sentry via
+  sentry_dart_plugin, not Apple (Apple's upload chokes on the precompiled
+  Sentry.framework dSYM — see docs/mobile-release.md).
+-->
+<plist version="1.0">
+<dict>
+  <key>method</key>
+  <string>app-store</string>
+  <key>signingStyle</key>
+  <string>manual</string>
+  <key>teamID</key>
+  <string>YK6Z393A4D</string>
+  <key>provisioningProfiles</key>
+  <dict>
+    <key>com.tootiye.tekaseller</key>
+    <string>match AppStore com.tootiye.tekaseller</string>
+  </dict>
+  <key>uploadSymbols</key>
+  <false/>
+  <key>uploadBitcode</key>
+  <false/>
+  <key>destination</key>
+  <string>export</string>
+</dict>
+</plist>

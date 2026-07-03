@@ -52,7 +52,7 @@ Set under https://github.com/ipanga/teka-rdc/settings/secrets/actions:
 
 | Secret | Used by |
 |---|---|
-| `SENTRY_AUTH_TOKEN` | `deploy.yml` (Next.js source-map upload via `withSentryConfig`) + `build-mobile-apk.yml` (Flutter symbol upload via `sentry-dart-plugin`). One org-scoped token, scopes: `project:read` + `project:write` + `project:releases`. |
+| `SENTRY_AUTH_TOKEN` | `deploy.yml` (Next.js source-map upload via `withSentryConfig`) + the four mobile workflows (`build-mobile-{apk,ipa}.yml`, `release-mobile-{aab,ipa}.yml` — Flutter Android `.so` + iOS dSYM upload via `sentry-dart-plugin`). One org-scoped token, scopes: `project:read` + `project:write` + `project:releases`. |
 | `NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB` | Browser-side DSN for buyer-web (baked into bundle at build time) |
 | `NEXT_PUBLIC_SENTRY_DSN_SELLER_WEB` | Browser-side DSN for seller-web |
 | `NEXT_PUBLIC_SENTRY_DSN_ADMIN_WEB` | Browser-side DSN for admin-web |
@@ -101,7 +101,16 @@ Flutter-specific:
 |---|---|---|
 | API | **None.** TypeScript stack traces stay readable because `tsx` runs sources directly + we don't minify Node code. | N/A |
 | 3× Next.js | `withSentryConfig` in `next.config.ts` uploads JS source maps during `next build` | `SENTRY_AUTH_TOKEN` env present in the build stage |
-| 2× Flutter | `sentry-dart-plugin` uploads native debug symbols (libapp.so etc) after build | `SENTRY_AUTH_TOKEN` env present + `sentry.properties` config |
+| 2× Flutter (Android) | `sentry-dart-plugin` uploads native debug symbols (libapp.so etc) after `flutter build apk/appbundle` | `SENTRY_AUTH_TOKEN` env present + `sentry.properties` config |
+| 2× Flutter (iOS) | same `sentry-dart-plugin` uploads iOS **dSYMs** after `flutter build ios`/`ipa` (all Release configs emit `dwarf-with-dsym`) | `SENTRY_AUTH_TOKEN` env present + `sentry.properties` config |
+
+The same `sentry.properties` governs both platforms — the plugin discovers whatever debug
+files the build produced. iOS dSYM upload runs in `build-mobile-ipa.yml` (dev/staging/prod
+validation) and `release-mobile-ipa.yml` (the production TestFlight release); it's the same
+"Upload Sentry debug symbols" step as the Android workflows. Note the iOS
+`ExportOptions-*.plist` set `uploadSymbols=false` so Apple does **not** also collect dSYMs —
+symbolication happens in Sentry, and Apple's upload otherwise fails on the precompiled
+`Sentry.framework` dSYM.
 
 For mobile, the plugin config is in `apps/<app>-mobile/sentry.properties`:
 ```properties
@@ -145,9 +154,10 @@ Build args are wired in `deploy.yml`'s "Compute build args" step. For each web, 
 
 ### Flutter apps
 
-In `build-mobile-apk.yml`, after `flutter build apk`:
+In the four mobile workflows — Android `build-mobile-apk.yml` + `release-mobile-aab.yml`,
+iOS `build-mobile-ipa.yml` + `release-mobile-ipa.yml` — after the `flutter build`:
 1. The build itself runs with `--dart-define=SENTRY_DSN=<per-app secret> --dart-define=SENTRY_RELEASE=<sha>` overriding the empty defaults in `flavors/*.json`.
-2. A separate "Upload Sentry debug symbols" step runs `flutter pub run sentry_dart_plugin` which calls Sentry CLI to upload `.so` files.
+2. A separate "Upload Sentry debug symbols" step runs `flutter pub run sentry_dart_plugin` which calls Sentry CLI to upload Android `.so` files / iOS dSYMs.
 
 Step warns + skips cleanly when `SENTRY_AUTH_TOKEN` is unset. Otherwise plugin failures bubble up — no silent swallowing.
 
@@ -215,5 +225,5 @@ Step warns + skips cleanly when `SENTRY_AUTH_TOKEN` is unset. Otherwise plugin f
 - `apps/<buyer|seller>-mobile/lib/core/config/sentry_scrub.dart` — phone scrubber (mirrors API + web).
 - `apps/<buyer|seller>-mobile/sentry.properties` — plugin config (org/project/upload flags).
 - `.github/workflows/deploy.yml` (`Compute build args` step) — per-web build-arg expansion.
-- `.github/workflows/build-mobile-apk.yml` (`Resolve per-app Sentry DSN` + `Upload Sentry debug symbols` steps).
+- `.github/workflows/build-mobile-{apk,ipa}.yml` + `release-mobile-{aab,ipa}.yml` (`Resolve per-app Sentry DSN` + `Upload Sentry debug symbols` steps — Android `.so` + iOS dSYM).
 - `docker-compose.prod.yml` — `env_file: .env.production` + `SENTRY_*` interpolation per service.

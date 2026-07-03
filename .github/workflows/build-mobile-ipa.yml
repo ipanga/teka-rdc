@@ -1,0 +1,164 @@
+# Mobile IPA builder — flavor-aware, UNSIGNED (iOS mirror of "Build mobile APK").
+#
+# Triggered manually from the Actions tab → "Build mobile IPA" → Run
+# workflow. Use this to validate that a flavor compiles on iOS and to push
+# its dSYMs to Sentry — WITHOUT any Apple signing infrastructure. It builds
+# `Runner.app` with `--no-codesign`, so it never touches certificates,
+# provisioning profiles, or App Store Connect. For a signed, TestFlight-ready
+# production build use "Release mobile IPA" (release-mobile-ipa.yml).
+#
+# Inputs:
+#   app     = buyer | seller | both                     (default: buyer)
+#   flavor  = development | staging | production | all   (default: production)
+#
+# Matrix: when `app=both` and/or `flavor=all`, the matrix fans out to build
+# all selected combinations in parallel jobs. Single-choice inputs produce a
+# single job.
+#
+# Notes
+# - Runs on macOS (Xcode toolchain required for iOS builds); all other CI is
+#   Linux. This is the only macOS workflow besides "Release mobile IPA".
+# - The GoogleService-Info.plist files are gitignored — they ship via GitHub
+#   Secrets (BUYER/SELLER_GOOGLE_SERVICE_INFO_PLIST_B64 + optional per-flavor),
+#   decoded onto disk by `scripts/sync-firebase-secrets.sh`. The Xcode build
+#   phase `scripts/ios-select-firebase-plist.sh` picks the flavor's plist and
+#   falls back to the production plist when a per-flavor one isn't provided.
+# - dSYM → Sentry runs via `sentry_dart_plugin` (configured in
+#   apps/<app>-mobile/sentry.properties, which already targets the iOS
+#   projects). All Release configs emit `dwarf-with-dsym`, so crash reports
+#   symbolicate once these dSYMs land in Sentry.
+# - The build uploads as a workflow artifact named
+#   `<app>-mobile-<flavor>-ios-app`; click the run to download the .app.
+name: Build mobile IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Which app to build'
+        required: true
+        type: choice
+        default: buyer
+        options: [buyer, seller, both]
+      flavor:
+        description: 'Which flavor to build'
+        required: true
+        type: choice
+        default: production
+        options: [development, staging, production, all]
+
+# Don't pile up concurrent iOS builds; cancel any in-flight run when a new one
+# starts (each run uploads to the same artifact prefix).
+concurrency:
+  group: mobile-ipa-build-${{ inputs.app }}-${{ inputs.flavor }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # macOS runner is mandatory for the iOS toolchain (xcodebuild).
+    runs-on: macos-latest
+    strategy:
+      # Don't kill sibling flavor/app builds if one fails — staging and
+      # production are independently shippable, dev is a developer convenience.
+      fail-fast: false
+      # Dynamic matrix: each axis collapses to a single entry when the operator
+      # picks a single value, fans out when they pick the "all"/"both" sentinel.
+      matrix:
+        app: ${{ inputs.app == 'both' && fromJSON('["buyer","seller"]') || fromJSON(format('["{0}"]', inputs.app)) }}
+        flavor: ${{ inputs.flavor == 'all' && fromJSON('["development","staging","production"]') || fromJSON(format('["{0}"]', inputs.flavor)) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Decode Firebase secrets onto disk
+        # Same iOS-aware script the Android workflows use. Unset secrets skip
+        # gracefully; the per-flavor plists fall back to the prod plist.
+        env:
+          BUYER_GOOGLE_SERVICE_INFO_PLIST_B64: ${{ secrets.BUYER_GOOGLE_SERVICE_INFO_PLIST_B64 }}
+          SELLER_GOOGLE_SERVICE_INFO_PLIST_B64: ${{ secrets.SELLER_GOOGLE_SERVICE_INFO_PLIST_B64 }}
+          BUYER_GOOGLE_SERVICE_INFO_PLIST_DEVELOPMENT_B64: ${{ secrets.BUYER_GOOGLE_SERVICE_INFO_PLIST_DEVELOPMENT_B64 }}
+          BUYER_GOOGLE_SERVICE_INFO_PLIST_STAGING_B64: ${{ secrets.BUYER_GOOGLE_SERVICE_INFO_PLIST_STAGING_B64 }}
+          SELLER_GOOGLE_SERVICE_INFO_PLIST_DEVELOPMENT_B64: ${{ secrets.SELLER_GOOGLE_SERVICE_INFO_PLIST_DEVELOPMENT_B64 }}
+          SELLER_GOOGLE_SERVICE_INFO_PLIST_STAGING_B64: ${{ secrets.SELLER_GOOGLE_SERVICE_INFO_PLIST_STAGING_B64 }}
+        run: bash scripts/sync-firebase-secrets.sh
+
+      - name: Verify Firebase plist decoded for this app
+        run: |
+          # The Xcode build phase needs at least the fallback prod plist on
+          # disk (per-flavor plists are optional). Fail with a clear pointer.
+          path="apps/${{ matrix.app }}-mobile/ios/Runner/GoogleService-Info.plist"
+          if [ ! -s "$path" ]; then
+            echo "::error::$path is missing or empty — set ${{ matrix.app }}_GOOGLE_SERVICE_INFO_PLIST_B64 in repo secrets (base64 of the iOS GoogleService-Info.plist)."
+            exit 1
+          fi
+          echo "✓ $path present ($(wc -c < "$path") bytes)"
+
+      - name: Verify flavor config exists
+        run: |
+          cfg="apps/${{ matrix.app }}-mobile/flavors/${{ matrix.flavor }}.json"
+          if [ ! -s "$cfg" ]; then
+            echo "::error::$cfg is missing — flavor config required for --dart-define-from-file"
+            exit 1
+          fi
+          echo "✓ $cfg present"
+
+      - name: pub get
+        working-directory: apps/${{ matrix.app }}-mobile
+        run: flutter pub get
+
+      - name: Resolve per-app Sentry DSN
+        id: sentry
+        env:
+          BUYER_DSN: ${{ secrets.SENTRY_DSN_BUYER_MOBILE }}
+          SELLER_DSN: ${{ secrets.SENTRY_DSN_SELLER_MOBILE }}
+        run: |
+          # One DSN per app, same DSN across all flavors — Sentry's environment
+          # tag (set from FLAVOR via FlavorConfig) separates them. Empty when
+          # unset; the Flutter SDK then skips init (build still succeeds).
+          case "${{ matrix.app }}" in
+            buyer)  echo "dsn=${BUYER_DSN}"  >> "$GITHUB_OUTPUT" ;;
+            seller) echo "dsn=${SELLER_DSN}" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Build ${{ matrix.flavor }} iOS app (unsigned)
+        working-directory: apps/${{ matrix.app }}-mobile
+        run: |
+          # --no-codesign compiles Runner.app + dSYMs without any signing
+          # assets. SENTRY_DSN/SENTRY_RELEASE override the empty placeholders
+          # in flavors/*.json (--dart-define is last-wins).
+          flutter build ios \
+            --no-codesign \
+            --release \
+            --flavor ${{ matrix.flavor }} \
+            --dart-define-from-file=flavors/${{ matrix.flavor }}.json \
+            --dart-define=SENTRY_DSN=${{ steps.sentry.outputs.dsn }} \
+            --dart-define=SENTRY_RELEASE=${{ github.sha }}
+
+      - name: Upload Sentry debug symbols (iOS dSYMs)
+        # Uploads the iOS dSYMs via sentry-dart-plugin (configured in
+        # apps/<app>-mobile/sentry.properties). When SENTRY_AUTH_TOKEN is unset
+        # → step warns + skips (no false-positive failure). When set → plugin
+        # runs; any non-zero exit fails the step loudly.
+        working-directory: apps/${{ matrix.app }}-mobile
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_RELEASE: ${{ github.sha }}
+        run: |
+          if [ -z "${SENTRY_AUTH_TOKEN}" ]; then
+            echo "::warning::SENTRY_AUTH_TOKEN not set — skipping dSYM upload"
+            exit 0
+          fi
+          flutter pub run sentry_dart_plugin
+
+      - name: Upload iOS app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app }}-mobile-${{ matrix.flavor }}-ios-app
+          path: apps/${{ matrix.app }}-mobile/build/ios/iphoneos/Runner.app
+          retention-days: 14
