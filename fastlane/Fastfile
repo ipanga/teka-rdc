@@ -1,0 +1,106 @@
+# Fastlane — iOS release toolchain for Teka's two mobile apps.
+#
+# ONE Fastfile drives BOTH apps (buyer + seller). The app is selected per-run
+# via the `TEKA_APP` env var (buyer|seller); everything app-specific lives in
+# the APPS map below. Apple credentials never appear here — they arrive as env
+# vars set from GitHub Secrets by the workflow.
+#
+# Lanes (called from .github/workflows/release-mobile-ipa.yml):
+#   fastlane ios setup_signing     — install match cert+profile, flip the
+#                                    production Release config to Manual signing
+#                                    (CI checkout only — never committed).
+#   fastlane ios upload_testflight — push a built .ipa to TestFlight via the
+#                                    App Store Connect API key.
+#
+# The actual `flutter build ipa` happens in the workflow (not `gym`) so the
+# Flutter `--dart-define`s (flavor config + Sentry DSN/release) are preserved.
+# Fastlane's role is narrow: signing assets in, TestFlight out.
+
+# Per-app configuration. bundle_id/team_id/scheme are non-secret (team ids live
+# in the pbxproj too). Production flavor only — TestFlight ships production.
+APPS = {
+  "buyer" => {
+    app_dir:    "apps/buyer-mobile",
+    bundle_id:  "com.tootiye.teka",
+    team_id:    "YK6Z393A4D",
+  },
+  "seller" => {
+    app_dir:    "apps/seller-mobile",
+    bundle_id:  "com.tootiye.tekaseller",
+    team_id:    "APYDR8XX6S",
+  },
+}.freeze
+
+# The single production Release build config produced by scripts/ios-flavorize.rb.
+PROD_CONFIG = "Release-production".freeze
+
+def app_config
+  key = ENV["TEKA_APP"].to_s
+  APPS[key] || UI.user_error!("TEKA_APP must be 'buyer' or 'seller' (got: #{key.inspect})")
+end
+
+# Configure the App Store Connect API key from the generic ASC_* env vars the
+# workflow sets (per-app secrets are selected in the workflow's ternary, so the
+# Fastfile stays app-agnostic here). Key content is base64 in ASC_KEY_P8_B64.
+def load_asc_api_key
+  app_store_connect_api_key(
+    key_id:      ENV.fetch("ASC_KEY_ID"),
+    issuer_id:   ENV.fetch("ASC_ISSUER_ID"),
+    key_content: ENV.fetch("ASC_KEY_P8_B64"),
+    is_key_content_base64: true,
+    in_house:    false,
+  )
+end
+
+platform :ios do
+  # Install signing assets and switch the production Release config to Manual
+  # signing so `flutter build ipa --export-options-plist` can export an
+  # App-Store-signed archive headlessly.
+  lane :setup_signing do
+    cfg = app_config
+
+    # Ephemeral keychain — auto-created, unlocked, and cleaned up by the runner.
+    setup_ci
+
+    # Read-only: clone + decrypt existing cert/profile from teka-ios-certs.
+    # git_url + storage/type/readonly come from fastlane/Matchfile.
+    match(
+      app_identifier: cfg[:bundle_id],
+      team_id:        cfg[:team_id],
+    )
+
+    # Flip ONLY the production Release config to Manual signing with the match
+    # profile. This mutates the working-copy pbxproj in the CI checkout; it is
+    # never committed, so local dev keeps CODE_SIGN_STYLE=Automatic.
+    update_code_signing_settings(
+      path:                  "#{cfg[:app_dir]}/ios/Runner.xcodeproj",
+      use_automatic_signing: false,
+      targets:               ["Runner"],
+      build_configurations:  [PROD_CONFIG],
+      bundle_identifier:     cfg[:bundle_id],
+      team_id:               cfg[:team_id],
+      code_sign_identity:    "Apple Distribution",
+      profile_name:          "match AppStore #{cfg[:bundle_id]}",
+    )
+
+    UI.success("Signing ready for #{cfg[:bundle_id]} (#{PROD_CONFIG} → Manual)")
+  end
+
+  # Upload an already-built .ipa (path in IPA_PATH) to TestFlight. No build
+  # here — the workflow's `flutter build ipa` produced the signed archive.
+  lane :upload_testflight do
+    ipa = ENV.fetch("IPA_PATH")
+    UI.user_error!("IPA not found at #{ipa}") unless File.exist?(ipa)
+
+    api_key = load_asc_api_key
+
+    upload_to_testflight(
+      api_key:                        api_key,
+      ipa:                            ipa,
+      skip_waiting_for_build_processing: true,
+      skip_submission:                true,
+    )
+
+    UI.success("Uploaded #{ipa} to TestFlight")
+  end
+end
