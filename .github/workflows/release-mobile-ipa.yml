@@ -125,13 +125,32 @@ jobs:
             seller) echo "dsn=${SELLER_DSN}" >> "$GITHUB_OUTPUT" ;;
           esac
 
+      - name: Configure git auth for the match repo
+        # match clones the PRIVATE teka-ios-certs over HTTPS. Rather than rely on
+        # match applying MATCH_GIT_BASIC_AUTH itself (which breaks if the base64
+        # secret carries a newline from line-wrapping), set the github.com auth
+        # header globally here — whitespace-stripped — and verify read access
+        # BEFORE the slow build. MATCH_GIT_BASIC_AUTH = base64("<user>:<PAT>").
+        env:
+          MATCH_GIT_BASIC_AUTH: ${{ secrets.MATCH_GIT_BASIC_AUTH }}
+        run: |
+          auth=$(printf '%s' "${MATCH_GIT_BASIC_AUTH}" | tr -d '\r\n ')
+          git config --global http.https://github.com/.extraheader "AUTHORIZATION: basic ${auth}"
+          if ! git ls-remote "https://github.com/${{ github.repository_owner }}/teka-ios-certs.git" >/dev/null 2>&1; then
+            echo "::error::Cannot read teka-ios-certs — MATCH_GIT_BASIC_AUTH must be a single-line base64 of '<github-user>:<PAT>' with a PAT that has read access to that repo."
+            exit 1
+          fi
+          echo "✓ git auth to teka-ios-certs OK"
+
       - name: Install signing (Fastlane match, read-only)
         # Clones + decrypts the match cert/profile and flips Release-production
-        # to Manual signing in this checkout only (never committed).
+        # to Manual signing in this checkout only (never committed). Git auth is
+        # already configured globally above, so match's HTTPS clone just works —
+        # MATCH_GIT_BASIC_AUTH is intentionally NOT passed here to avoid match
+        # layering a second (possibly malformed) auth header.
         env:
           TEKA_APP: ${{ matrix.app }}
           MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
-          MATCH_GIT_BASIC_AUTH: ${{ secrets.MATCH_GIT_BASIC_AUTH }}
           MATCH_GIT_URL: https://github.com/${{ github.repository_owner }}/teka-ios-certs.git
         run: bundle exec fastlane ios setup_signing
 
