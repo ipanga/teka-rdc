@@ -48,6 +48,10 @@ export default function CheckoutPage() {
   // Non-blocking warning: a seller ships from a different town than the
   // delivery address, so transport cost may rise. Never gates the button.
   const [townMismatch, setTownMismatch] = useState(false);
+  // Stable idempotency key for this checkout intent — generated once on the
+  // first place-order attempt and reused on every retry, so a retry-after-
+  // timeout resolves to the same server-side order instead of duplicating it.
+  const idempotencyKeyRef = useRef<string | null>(null);
 
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [cities, setCities] = useState<City[]>([]);
@@ -298,7 +302,8 @@ export default function CheckoutPage() {
     setIsPlacing(true);
     setError(null);
 
-    const idempotencyKey = crypto.randomUUID();
+    const idempotencyKey =
+      idempotencyKeyRef.current ?? (idempotencyKeyRef.current = crypto.randomUUID());
     const body: CheckoutRequest = {
       deliveryAddressId: selectedAddressId,
       paymentMethod,

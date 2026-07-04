@@ -126,6 +126,31 @@ buyer-web `components/product-reviews.tsx` + `components/pages/product-detail-pa
 5. Delivery address in a different town → amber warning card, confirm still enabled.
 6. DELIVERED order → "Noter le produit" → review submits; second attempt blocked.
 
+## Follow-up (2026-07-04) — multi-seller checkout 500 + stable idempotency key
+
+**P0 (found via Sentry `PrismaClientKnownRequestError`):** `checkout()` fans a single checkout out to
+**one Order per seller**, all sharing the buyer's one `idempotencyKey`. `Order.idempotencyKey` had a
+**global `@unique`**, so any cart spanning **2+ sellers** failed on the 2nd `order.create` with
+`Unique constraint failed on the fields: (idempotencyKey)` → the "Une erreur est survenue sur nos serveurs"
+500. (Single-seller carts — incl. my earlier dev repro — never hit it, which is why it looked
+environmental.)
+- **Fix (server):** schema `Order.idempotencyKey` `@unique` → **`@@unique([idempotencyKey, sellerId])`**
+  (`apps/api/prisma/schema.prisma`) + idempotent prod migration
+  `apps/api/prisma/migrations/manual/2026-07-04_order_idempotency_per_seller.sql` (drop old constraint,
+  add composite unique). Still blocks a true duplicate (same key + same seller); allows the per-seller
+  fan-out. NULL keys stay distinct (legacy orders unaffected). Verified on dev: 2-seller checkout creates
+  both orders; same-key+same-seller still `P2002`.
+- **Fix (clients — idempotent/resumable, CLAUDE.md §1 power-outage rule):** the key was generated **per
+  tap** (`const Uuid().v4()` in the button handler / `crypto.randomUUID()` per `handlePlaceOrder`), so a
+  double-tap or retry-after-timeout minted a *new* key → duplicate orders. Now generated **once per
+  checkout and reused across retries**, cleared on success:
+  - buyer-mobile: key moved into `CheckoutNotifier` (`_idempotencyKey ??= …`; `placeOrder()` is now
+    arg-less) — `checkout_provider.dart` + `checkout_screen.dart`.
+  - buyer-web: `idempotencyKeyRef` (`useRef`) in `app/paiement/page.tsx`.
+- **Deploy note:** the migration must be applied to prod via the **Apply prod migration** Action
+  (`2026-07-04_order_idempotency_per_seller.sql`) — the code change alone is not enough.
+
 ## Remaining / follow-ups
-- None required. Optional future: surface individual product-suggestion rows on mobile search (currently
+- **Apply the prod migration** (above) before/with the API deploy.
+- Optional future: surface individual product-suggestion rows on mobile search (currently
   products = the live grid); enable staging→TestFlight for review builds.
