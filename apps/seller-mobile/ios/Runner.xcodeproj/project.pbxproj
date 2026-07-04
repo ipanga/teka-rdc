@@ -511,6 +511,8 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				DEVELOPMENT_TEAM = YK6Z393A4D;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -536,6 +538,8 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				DEVELOPMENT_TEAM = YK6Z393A4D;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -630,6 +634,8 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				DEVELOPMENT_TEAM = YK6Z393A4D;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -655,6 +661,8 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				DEVELOPMENT_TEAM = YK6Z393A4D;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -785,6 +793,8 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				DEVELOPMENT_TEAM = YK6Z393A4D;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -884,6 +894,8 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Runner/Runner-Release.entitlements";
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				DEVELOPMENT_TEAM = YK6Z393A4D;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -908,6 +920,8 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				DEVELOPMENT_TEAM = YK6Z393A4D;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -932,6 +946,8 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				DEVELOPMENT_TEAM = YK6Z393A4D;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -1236,6 +1252,8 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.business";
 				DEVELOPMENT_TEAM = YK6Z393A4D;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;

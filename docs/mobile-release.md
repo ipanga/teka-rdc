@@ -86,6 +86,37 @@ Play rejects an upload whose `versionCode` isn't higher than the last. Bump
 version: 1.0.1+2   # was 1.0.0+1
 ```
 
+### App identity — version, build number, display name, category
+
+**`pubspec.yaml` `version:` is the single source of truth. Never edit the version
+or build number in Xcode.** How each field is wired on iOS:
+
+| Field (Xcode General tab) | Comes from |
+|---|---|
+| **Version** (`CFBundleShortVersionString`) | `$(FLUTTER_BUILD_NAME)` ← pubspec `x.y.z`; also bound to `MARKETING_VERSION` so the field isn't blank |
+| **Build** (`CFBundleVersion`) | `$(FLUTTER_BUILD_NUMBER)` ← pubspec `+N`; also bound to `CURRENT_PROJECT_VERSION`. CI overrides with an epoch `--build-number` (TestFlight needs each upload higher) |
+| **Display Name** (`CFBundleDisplayName`) | `$(PRODUCT_DISPLAY_NAME)`, set **per flavor** in the pbxproj — buyer: `Teka` / `Teka Stg` / `Teka Dev`; seller: `Teka Seller` / `Teka Seller Stg` / `Teka Seller Dev` |
+| **App Category** (`LSApplicationCategoryType`) | `INFOPLIST_KEY_LSApplicationCategoryType` — buyer `public.app-category.shopping`, seller `public.app-category.business` |
+
+> **Why Xcode's General tab can show a stale Build (e.g. `2`) or a blank Display Name.**
+> `FLUTTER_BUILD_NAME`/`NUMBER` live in `ios/Flutter/Generated.xcconfig` (gitignored),
+> which Flutter rewrites from pubspec **on build**, not when you merely open Xcode. If you
+> opened Xcode after a `pubspec` bump without building, it shows the previous values. Refresh
+> them without a full build:
+> ```bash
+> cd apps/<buyer|seller>-mobile
+> flutter build ios --config-only --no-codesign \
+>   --flavor production --dart-define-from-file=flavors/production.json
+> ```
+> The **Display Name** field looks blank because `CFBundleDisplayName` is a `$(…)` variable
+> (Xcode's editor only renders literals) — this is expected and correct; the built app is
+> named `Teka` / `Teka Seller`. Verify the resolved values any time with:
+> ```bash
+> cd apps/<buyer|seller>-mobile/ios && xcodebuild -project Runner.xcodeproj -target Runner \
+>   -configuration Release-production -showBuildSettings \
+>   | grep -E 'MARKETING_VERSION|CURRENT_PROJECT_VERSION|PRODUCT_DISPLAY_NAME|LSApplicationCategoryType'
+> ```
+
 ## 4. Build the AAB
 
 **CI (recommended):** Actions → **"Release mobile AAB"** → Run workflow → pick
