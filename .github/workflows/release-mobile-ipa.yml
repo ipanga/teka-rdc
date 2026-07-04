@@ -251,7 +251,9 @@ jobs:
           ASC_ISSUER_ID: ${{ matrix.app == 'buyer' && secrets.BUYER_ASC_API_ISSUER_ID || secrets.SELLER_ASC_API_ISSUER_ID }}
           ASC_KEY_P8_B64: ${{ matrix.app == 'buyer' && secrets.BUYER_ASC_API_KEY_P8_B64 || secrets.SELLER_ASC_API_KEY_P8_B64 }}
         run: |
-          IPA_PATH=$(ls ipa/*.ipa | head -1)
+          # Absolute path — fastlane runs the lane from its own resolved project
+          # dir, so a relative "ipa/…" wouldn't resolve inside the Fastfile.
+          IPA_PATH=$(ls "${GITHUB_WORKSPACE}"/ipa/*.ipa | head -1)
           export IPA_PATH
           echo "Uploading ${IPA_PATH} for ${TEKA_APP}"
           bundle exec fastlane ios upload_testflight
