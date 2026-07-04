@@ -247,3 +247,16 @@ final cartProvider = StateNotifierProvider<CartNotifier, CartState>((ref) {
 final cartItemCountProvider = Provider<int>((ref) {
   return ref.watch(cartProvider).totalItems;
 });
+
+/// The cart line for [productId], or null when the product isn't in the cart.
+/// Lets the product-detail screen react to cart state — showing the Jumia-style
+/// quantity stepper when in cart, or the "Ajouter au panier" button otherwise —
+/// and keeps that bar in sync with the cart / checkout everywhere.
+final cartItemProvider =
+    Provider.family<CartItemModel?, String>((ref, productId) {
+  final items = ref.watch(cartProvider).items;
+  for (final item in items) {
+    if (item.productId == productId) return item;
+  }
+  return null;
+});

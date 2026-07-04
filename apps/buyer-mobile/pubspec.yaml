@@ -55,6 +55,11 @@ dependencies:
   sentry_flutter: ^9.20.0
   posthog_flutter: ^5.25.3
 
+  # RFC4122 v4 UUIDs — used for the checkout idempotency key, which the API
+  # validates with a strict UUID @Matches regex. Promoted from a transitive
+  # dep so it can be imported directly.
+  uuid: ^4.5.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

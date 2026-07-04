@@ -330,7 +330,11 @@ class _OrderDetailBody extends StatelessWidget {
               children: [
                 for (var i = 0; i < order.items.length; i++) ...[
                   if (i > 0) const Divider(height: 1, color: TekaColors.border),
-                  _OrderItemRow(item: order.items[i], locale: locale),
+                  _OrderItemRow(
+                    item: order.items[i],
+                    locale: locale,
+                    isDelivered: order.status.toUpperCase() == 'DELIVERED',
+                  ),
                 ],
               ],
             ),
@@ -591,18 +595,30 @@ class _OrderDetailBody extends StatelessWidget {
 class _OrderItemRow extends StatelessWidget {
   final OrderItemModel item;
   final String locale;
+  // When the order is DELIVERED the buyer may rate each purchased product.
+  final bool isDelivered;
 
-  const _OrderItemRow({required this.item, required this.locale});
+  const _OrderItemRow({
+    required this.item,
+    required this.locale,
+    this.isDelivered = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final linkId = item.productLinkId;
     final unavailable = item.productStatus != null && item.productStatus != 'ACTIVE';
+    // Eligibility (DELIVERED order, one-per-product, moderation) is enforced by
+    // the product-reviews screen + API; this is just the entry point.
+    final canRate = isDelivered && linkId != null && !unavailable;
     return InkWell(
       onTap: linkId != null ? () => context.push('/products/$linkId') : null,
       child: Padding(
       padding: const EdgeInsets.all(12),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+      Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ClipRRect(
@@ -675,6 +691,29 @@ class _OrderItemRow extends StatelessWidget {
             const SizedBox(width: 2),
             const Icon(Icons.chevron_right,
                 size: 18, color: TekaColors.mutedForeground),
+          ],
+        ],
+      ),
+          if (canRate) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: () => context.push('/products/$linkId/reviews'),
+                icon: const Icon(Icons.star_border, size: 16),
+                label: const Text('Noter le produit'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: TekaColors.tekaRed,
+                  side: const BorderSide(color: TekaColors.tekaRed),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  minimumSize: const Size(0, 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
           ],
         ],
       ),

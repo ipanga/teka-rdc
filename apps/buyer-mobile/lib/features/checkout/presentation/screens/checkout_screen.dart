@@ -1,9 +1,8 @@
-import 'dart:math';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:uuid/uuid.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/connectivity/connectivity_provider.dart';
 import '../../../../core/theme/teka_colors.dart';
@@ -221,8 +220,10 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         buttonText = "Confirmer la commande";
         onPressed = canProceed
             ? () {
-                final idempotencyKey =
-                    '${DateTime.now().millisecondsSinceEpoch}-${Random().nextInt(999999).toString().padLeft(6, '0')}';
+                // Must be an RFC4122 v4 UUID: the API's CreateOrderDto rejects
+                // anything else with a strict @Matches regex, which previously
+                // surfaced as a false "Erreur de validation" on confirm.
+                final idempotencyKey = const Uuid().v4();
                 ref.read(checkoutProvider.notifier).placeOrder(idempotencyKey);
               }
             : null;
@@ -949,6 +950,44 @@ class _ReviewStep extends StatelessWidget {
                       color: TekaColors.tekaRed,
                       fontSize: 13,
                     ),
+                  ),
+                ),
+              ],
+              // Non-blocking heads-up when the delivery address is in a
+              // different town than the product(s). Checkout stays enabled.
+              if (checkoutState.deliveryAvailable != false &&
+                  checkoutState.townMismatch) ...[
+                const SizedBox(height: 8),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFB45309).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: const Color(0xFFB45309).withValues(alpha: 0.30),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(
+                        Icons.info_outline,
+                        size: 18,
+                        color: Color(0xFFB45309),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "L'adresse de livraison sélectionnée se trouve dans une ville différente de celle des produits. Cela peut entraîner des frais de transport supplémentaires. Veuillez vérifier votre adresse avant de confirmer la commande.",
+                          style: const TextStyle(
+                            color: Color(0xFF92400E),
+                            fontSize: 13,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],

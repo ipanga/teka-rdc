@@ -1,4 +1,4 @@
-# Status — 2026-07-03
+# Status — 2026-07-04
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,8 +6,23 @@
 
 ## Active initiative
 
-**None.** (iOS dSYM → Sentry + TestFlight CI/CD — complete on `develop`, TestFlight-verified end-to-end
-for both apps, in the `develop → main` release PR.)
+**Buyer-mobile TestFlight fixes — on `fix/buyer-mobile-cart-search-checkout-rating`, PR into `develop`.**
+Six defects from a real iPhone build + buyer-web parity. Tracker: `docs/buyer-mobile-cart-search-checkout-rating-fixes.md`.
+All six fixed at source, minimal + backward-compatible; API + all Flutter/web tests green.
+
+> **DONE 2026-07-04 — buyer-mobile nav/cart/search/checkout/town/rating fixes.**
+> **(1)** Nav stack preserved on protected inline actions — `ensureAuthenticated` now `Future<bool>` that
+> PUSHES login + awaits; verify screen pops back so the PDP keeps its back button and the action resumes
+> in place (new `pushAuthFlowProvider` distinguishes push vs redirect; router post-auth redirect skipped in
+> push mode). **(2)** Jumia-style PDP bar `[accueil | − | qté | +]` via new `cartItemProvider` (stock-capped,
+> already-in-cart aware). **(3)** Search now surfaces brand + category chips (repo discarded `products`/`brands`).
+> **(4, P0)** Checkout idempotency key is now a real v4 UUID (`uuid` dep) — was a non-UUID string the API
+> rejected as "Erreur de validation"; shared `dio_error_messages` now prefers the field-specific message.
+> **(5)** Town-mismatch warning (non-blocking amber card) on web + mobile from new quote flags
+> (`fromTown`/`townMismatch`, additive). **(6)** Rating after delivery fixed — `canReview()` returns the
+> eligible `orderId` (web POST also fixed) + "Noter le produit" entry on both order-detail pages. No DB
+> migration. Tests: API 202/29 green (+reviews spec, +checkout town-mismatch cases); Flutter analyze clean
+> +3 test files; buyer-web tsc clean.
 
 > **DONE 2026-07-04 — iOS dSYM → Sentry + TestFlight CI/CD (on `develop`, verified end-to-end).** Wired the
 > two missing iOS release gaps, mirroring the Android two-workflow split; no API/DB/web change, Android CI

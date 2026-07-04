@@ -91,6 +91,8 @@ flutter pub run build_runner build           # regenerate Riverpod / freezed cod
 
 Dev/staging APKs need per-flavor `google-services.json` (CI injects from secrets) or they fail at `:processGoogleServices*` — see `docs/mobile-flavors.md`.
 
+**Mobile release CI (manual `workflow_dispatch`, per app buyer/seller/both):** Android = `release-mobile-aab.yml` (signed AAB) + `build-mobile-apk.yml`. **iOS** = `release-mobile-ipa.yml` (signed **production** IPA via Fastlane **`match`** → dSYM→Sentry → `.ipa` → **`ios-testflight` approval gate** → TestFlight) + `build-mobile-ipa.yml` (unsigned per-flavor + dSYM→Sentry). Load-bearing facts: **both apps share Apple team `YK6Z393A4D`**; certs/profiles live in the private **`teka-ios-certs`** match repo; committed pbxproj stays `CODE_SIGN_STYLE=Automatic` (CI flips to Manual ephemerally); each TestFlight upload needs a unique higher `CFBundleVersion` (CI stamps `--build-number=$(date -u +%s)`). **Full runbook + secrets + CI gotchas: `docs/mobile-release.md`.**
+
 ### Branching (see CONTRIBUTING.md for full detail)
 
 Two-branch GitHub Flow: `develop` is the active working branch, `main` is release-only and updated **only** via `gh pr merge --merge` (never `--squash` — squashes cause permanent SHA divergence and phantom conflicts on later back-merges). A pre-push hook at `.githooks/pre-push` blocks direct pushes to `main`. After a hotfix lands on `main`, immediately back-merge `main → develop` to close the loop.
@@ -177,7 +179,8 @@ Android is the shipping target for both apps (APK distribution + Play Store). iO
 history) · `url-and-seo-strategy.md` (city-first URLs/slugs/redirects) · `analytics.md` (PostHog) ·
 `clarity.md` (Microsoft Clarity) · `api-reference.md` · `deployment.md` (§5b admin seeding) ·
 `mobile-connectivity.md` (Rule 15) · `mobile-flavors.md` · `mobile-release.md` (Android signing + Play
-Store) · `payouts.md` (seller payouts + settlement) · `delivery-fees-and-currency.md` (zone-based delivery fees +
+Store; **iOS TestFlight CI/CD** — match signing + dSYM→Sentry + approval gate) ·
+`payouts.md` (seller payouts + settlement) · `delivery-fees-and-currency.md` (zone-based delivery fees +
 FC display + money convention) · `order-workflow.md` (**Teka-managed** order lifecycle: collection → delivery →
 COD cash → 2-day return window → payout; commission/financials + lazy payout eligibility + returns + list
 response-shape contract) · `push-notifications.md` (FCM) ·
@@ -204,6 +207,7 @@ Key categories (see `.env.example` for the full list with comments):
 - **Error monitoring** — `SENTRY_DSN` (empty in dev → init skipped, `captureException` a no-op), `SENTRY_RELEASE` (optional git short-sha for per-release grouping).
 - **Push notifications (FCM)** — `PushService` takes either `GOOGLE_APPLICATION_CREDENTIALS` (path to a service-account JSON) **or** the discrete trio `FIREBASE_PROJECT_ID`/`FIREBASE_PRIVATE_KEY`/`FIREBASE_CLIENT_EMAIL` (the trio wins when both are set). No-op when neither is configured. Never commit the JSON. **Full setup: `docs/push-notifications.md`.**
 - **WhatsApp OTP (Gupshup)** — `WHATSAPP_PROVIDER` + `GUPSHUP_*` (see Rule 14). Mobile keys are per-flavor.
+- **iOS release CI (GitHub Actions *repo* secrets, not env-file vars; 2026-07-04):** `MATCH_PASSWORD`, `MATCH_GIT_BASIC_AUTH` (base64 `"<user>:<PAT>"`, single-line; PAT reads `teka-ios-certs`); per-app `{BUYER,SELLER}_ASC_API_KEY_ID`/`_ASC_API_ISSUER_ID`/`_ASC_API_KEY_P8_B64` (ASC key; same team `YK6Z393A4D` → buyer==seller values). Plus the existing Firebase-plist + Sentry secrets. `MATCH_GIT_URL` derives from `github.repository_owner` (not a secret); the `ios-testflight` **environment** holds only the reviewer rule, no secrets. **Full table + runbook: `docs/mobile-release.md`.**
 
 Removed / not in use: `REDIS_URL`, `OTP_EXPIRY_MINUTES`, `GOOGLE_*_CLIENT_ID`, all `ORANGE_*`/`FLEXPAY_*`/SMS vars.
 

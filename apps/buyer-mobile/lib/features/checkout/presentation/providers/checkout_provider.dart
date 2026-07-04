@@ -28,6 +28,9 @@ class CheckoutState {
   // Whether an active delivery zone covers the selected address. null = not yet
   // resolved; false = blocked (no zone / quote failed) — never silently free.
   final bool? deliveryAvailable;
+  // True when a seller ships from a different town than the delivery address —
+  // a NON-blocking warning that transport cost may rise.
+  final bool townMismatch;
 
   const CheckoutState({
     this.step = CheckoutStep.address,
@@ -44,6 +47,7 @@ class CheckoutState {
     this.deliveryFeeCDF,
     this.isLoadingQuote = false,
     this.deliveryAvailable,
+    this.townMismatch = false,
   });
 
   CheckoutState copyWith({
@@ -61,6 +65,7 @@ class CheckoutState {
     String? deliveryFeeCDF,
     bool? isLoadingQuote,
     bool? deliveryAvailable,
+    bool? townMismatch,
     bool clearError = false,
     bool clearAddress = false,
     bool clearDeliveryFee = false,
@@ -83,6 +88,8 @@ class CheckoutState {
       isLoadingQuote: isLoadingQuote ?? this.isLoadingQuote,
       deliveryAvailable:
           clearDeliveryFee ? null : (deliveryAvailable ?? this.deliveryAvailable),
+      townMismatch:
+          clearDeliveryFee ? false : (townMismatch ?? this.townMismatch),
     );
   }
 
@@ -153,6 +160,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       state = state.copyWith(
         deliveryFeeCDF: quote.deliveryAvailable ? quote.deliveryFeeCDF : null,
         deliveryAvailable: quote.deliveryAvailable,
+        townMismatch: quote.townMismatch,
         isLoadingQuote: false,
       );
     } catch (_) {
