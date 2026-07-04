@@ -177,12 +177,20 @@ jobs:
       - name: Build production signed IPA
         working-directory: apps/${{ matrix.app }}-mobile
         run: |
+          # TestFlight requires a unique, ever-increasing CFBundleVersion per
+          # upload. Use the Unix epoch (monotonic, always > any small manual
+          # build like '2') as the build number — overrides the pubspec value
+          # via Flutter's --build-number → $(FLUTTER_BUILD_NUMBER) in Info.plist.
+          # The marketing version (CFBundleShortVersionString) stays from pubspec.
+          BUILD_NUMBER=$(date -u +%s)
+          echo "CFBundleVersion (build number) = ${BUILD_NUMBER}"
           # flutter build ipa preserves the flavor --dart-define-from-file +
           # Sentry defines (which `fastlane gym` cannot inject). The export
           # options reference the match profile installed above.
           flutter build ipa \
             --release \
             --flavor production \
+            --build-number="${BUILD_NUMBER}" \
             --dart-define-from-file=flavors/production.json \
             --dart-define=SENTRY_DSN=${{ steps.sentry.outputs.dsn }} \
             --dart-define=SENTRY_RELEASE=${{ github.sha }} \
