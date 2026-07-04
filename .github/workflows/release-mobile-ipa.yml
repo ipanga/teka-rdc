@@ -58,6 +58,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Don't persist the GITHUB_TOKEN as a github.com auth header — it only
+          # grants access to THIS repo, and a leftover header collides with the
+          # PAT header we set for cloning the private teka-ios-certs match repo
+          # (git would send two Authorization headers → 403). This job does no
+          # authenticated git ops against teka-rdc, so dropping it is safe.
+          persist-credentials: false
 
       - name: Pin Xcode (latest stable)
         uses: maxim-lobanov/setup-xcode@v1
@@ -135,8 +142,21 @@ jobs:
           MATCH_GIT_BASIC_AUTH: ${{ secrets.MATCH_GIT_BASIC_AUTH }}
         run: |
           auth=$(printf '%s' "${MATCH_GIT_BASIC_AUTH}" | tr -d '\r\n ')
+          # Safe shape check (never prints the token): confirm it's base64 that
+          # decodes to a single "user:token" pair.
+          if decoded=$(printf '%s' "${auth}" | base64 -d 2>/dev/null); then
+            case "${decoded}" in
+              *:*) echo "shape: base64 decodes to '<user>:<token>' form (ok)";;
+              *)   echo "shape: base64 decodes but has NO ':' — expected '<user>:<PAT>'";;
+            esac
+          else
+            echo "shape: value is NOT valid base64 — expected base64 of '<user>:<PAT>'"
+          fi
           git config --global http.https://github.com/.extraheader "AUTHORIZATION: basic ${auth}"
-          if ! git ls-remote "https://github.com/${{ github.repository_owner }}/teka-ios-certs.git" >/dev/null 2>&1; then
+          # Verify from a neutral dir so no repo-local config can interfere, and
+          # surface git's real error (contains no secret) if it fails.
+          if ! err=$(cd "${RUNNER_TEMP}" && git ls-remote "https://github.com/${{ github.repository_owner }}/teka-ios-certs.git" 2>&1 >/dev/null); then
+            echo "git error: ${err}"
             echo "::error::Cannot read teka-ios-certs — MATCH_GIT_BASIC_AUTH must be a single-line base64 of '<github-user>:<PAT>' with a PAT that has read access to that repo."
             exit 1
           fi
