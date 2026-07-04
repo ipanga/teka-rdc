@@ -867,12 +867,14 @@ class _PdpCartBar extends ConsumerWidget {
         Expanded(
           child: Container(
             height: 48,
+            // Outer border matches the home icon so the three controls read as
+            // one segmented stepper: red − | white qty | red +.
             decoration: BoxDecoration(
-              color: TekaColors.tekaRed,
+              border: Border.all(color: TekaColors.border),
               borderRadius: BorderRadius.circular(10),
             ),
+            clipBehavior: Clip.antiAlias,
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 _PdpQtyButton(
                   icon: Icons.remove,
@@ -885,12 +887,20 @@ class _PdpCartBar extends ConsumerWidget {
                     }
                   },
                 ),
-                Text(
-                  '$qty',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                // Quantity readout — white background like the home icon (not
+                // red), dark text for legibility.
+                Expanded(
+                  child: Container(
+                    alignment: Alignment.center,
+                    color: TekaColors.surface,
+                    child: Text(
+                      '$qty',
+                      style: const TextStyle(
+                        color: TekaColors.foreground,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
                 _PdpQtyButton(
@@ -974,10 +984,11 @@ class _PdpQtyButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: SizedBox(
-        width: 48,
+      child: Container(
+        width: 52,
         height: 48,
+        alignment: Alignment.center,
+        color: TekaColors.tekaRed,
         child: Icon(
           icon,
           color: dimmed ? Colors.white54 : Colors.white,

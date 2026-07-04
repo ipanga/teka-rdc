@@ -2,7 +2,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:uuid/uuid.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/connectivity/connectivity_provider.dart';
 import '../../../../core/theme/teka_colors.dart';
@@ -219,13 +218,11 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
             !ref.watch(isOfflineProvider);
         buttonText = "Confirmer la commande";
         onPressed = canProceed
-            ? () {
-                // Must be an RFC4122 v4 UUID: the API's CreateOrderDto rejects
-                // anything else with a strict @Matches regex, which previously
-                // surfaced as a false "Erreur de validation" on confirm.
-                final idempotencyKey = const Uuid().v4();
-                ref.read(checkoutProvider.notifier).placeOrder(idempotencyKey);
-              }
+            // The idempotency key is owned by the notifier now: generated once
+            // per checkout and reused on every retry, so a double-tap or a
+            // retry-after-timeout can't create a duplicate order. (The API
+            // requires an RFC4122 v4 UUID; the notifier generates one.)
+            ? () => ref.read(checkoutProvider.notifier).placeOrder()
             : null;
         break;
       default:

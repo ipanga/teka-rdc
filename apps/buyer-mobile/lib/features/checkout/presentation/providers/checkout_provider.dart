@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import '../../data/checkout_repository.dart';
 import '../../data/models/checkout_model.dart';
@@ -105,6 +106,13 @@ class CheckoutState {
 
 class CheckoutNotifier extends StateNotifier<CheckoutState> {
   final CheckoutRepository _repository;
+
+  /// Stable idempotency key for THIS checkout intent. Generated once on the
+  /// first placeOrder attempt and reused on every retry, so a double-tap or a
+  /// retry-after-timeout resolves to the same server-side order instead of
+  /// creating a duplicate. The provider is autoDispose, so a brand-new checkout
+  /// screen gets a fresh notifier (and key); we also clear it on success.
+  String? _idempotencyKey;
 
   CheckoutNotifier(this._repository) : super(const CheckoutState()) {
     _loadAddresses();
@@ -240,8 +248,11 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     }
   }
 
-  Future<bool> placeOrder(String idempotencyKey) async {
+  Future<bool> placeOrder() async {
     if (!state.canPlaceOrder) return false;
+
+    // Generate once, reuse on every retry (idempotent/resumable checkout).
+    final idempotencyKey = _idempotencyKey ??= const Uuid().v4();
 
     state = state.copyWith(
       step: CheckoutStep.processing,
@@ -259,6 +270,8 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 
       final response = await _repository.checkout(request);
 
+      // Success → drop the key so a subsequent (distinct) checkout starts fresh.
+      _idempotencyKey = null;
       state = state.copyWith(
         step: CheckoutStep.success,
         orders: response.orders,

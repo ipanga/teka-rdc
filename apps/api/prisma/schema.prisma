@@ -706,7 +706,12 @@ model Order {
   subtotalUSD        BigInt?
   totalCDF           BigInt
   totalUSD           BigInt?
-  idempotencyKey     String?       @unique
+  // Idempotency is scoped PER SELLER: one checkout (single key) fans out to one
+  // order per seller in the cart, so all those orders share the key. A global
+  // @unique here made any multi-seller checkout fail on the 2nd order.create.
+  // The composite @@unique([idempotencyKey, sellerId]) below still blocks a
+  // true duplicate (same key + same seller) while allowing the per-seller fan-out.
+  idempotencyKey     String?
   buyerNote          String?
   cancellationReason String?
   cancelledBy        String?       @db.Uuid
@@ -738,6 +743,9 @@ model Order {
   @@index([sellerId, status])
   @@index([sellerId, createdAt])
   @@index([status, createdAt])
+  // Per-seller idempotency (see idempotencyKey note above). NULL keys stay
+  // distinct in Postgres, so legacy/no-key orders are unaffected.
+  @@unique([idempotencyKey, sellerId])
   @@map("orders")
 }
 
