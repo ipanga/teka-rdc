@@ -28,8 +28,10 @@ export class ReviewsService {
   async canReview(
     buyerId: string,
     productId: string,
-  ): Promise<{ canReview: boolean; reason?: string }> {
-    // Check if buyer has a DELIVERED order containing this product
+  ): Promise<{ canReview: boolean; reason?: string; orderId?: string }> {
+    // Check if buyer has a DELIVERED order containing this product. Fetch the
+    // order id so the client can echo it back on POST /reviews (the create DTO
+    // requires a valid orderId — without it every submission 400s).
     const deliveredOrderItem = await this.prisma.orderItem.findFirst({
       where: {
         productId,
@@ -39,7 +41,9 @@ export class ReviewsService {
           deletedAt: null,
         },
       },
-      select: { id: true },
+      // Most recent eligible order first, so the returned orderId is stable.
+      orderBy: { createdAt: 'desc' },
+      select: { orderId: true },
     });
 
     if (!deliveredOrderItem) {
@@ -65,7 +69,7 @@ export class ReviewsService {
       };
     }
 
-    return { canReview: true };
+    return { canReview: true, orderId: deliveredOrderItem.orderId };
   }
 
   /**

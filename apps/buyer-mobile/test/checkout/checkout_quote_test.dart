@@ -51,5 +51,14 @@ void main() {
       final legacy = CheckoutQuote.fromJson(decode('{}'));
       expect(legacy.deliveryAvailable, isTrue);
     });
+
+    test('townMismatch: parses true, defaults false when absent', () {
+      final mismatch = CheckoutQuote.fromJson(decode(
+          '{"subtotalCDF":"1000000","deliveryFeeCDF":"0","totalCDF":"1000000","townMismatch":true}'));
+      expect(mismatch.townMismatch, isTrue);
+      // Older API responses omit the flag — default to no warning.
+      final legacy = CheckoutQuote.fromJson(decode('{}'));
+      expect(legacy.townMismatch, isFalse);
+    });
   });
 }

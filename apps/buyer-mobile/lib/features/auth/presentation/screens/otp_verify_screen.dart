@@ -66,13 +66,7 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
             code: code,
           );
       if (!mounted) return;
-      // Navigate explicitly to the saved return-to (the protected action the
-      // guest came from) or home. Done here rather than via the router redirect:
-      // refreshListenable doesn't reliably navigate off a PUSHED auth route, so
-      // relying on it left the user stuck on this screen after a valid code.
-      final returnTo = ref.read(returnToRouteProvider);
-      ref.read(returnToRouteProvider.notifier).state = null;
-      context.go(returnTo ?? '/');
+      _navigateAfterAuth();
     } on SellerAccountException {
       if (!mounted) return;
       _codeController.clear();
@@ -81,6 +75,27 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
       if (!mounted) return;
       setState(() => _error = friendlyErrorMessage(e));
     }
+  }
+
+  /// Leave the auth flow after a successful verification. Two modes (see
+  /// [pushAuthFlowProvider]): PUSH-mode (inline action) pops connexion + this
+  /// screen so the origin (e.g. the PDP) reappears with its back button intact
+  /// and the awaiting `ensureAuthenticated` resumes the action; REPLACE-mode
+  /// (protected-route redirect) navigates to the saved return-to. Explicit here
+  /// because refreshListenable doesn't reliably navigate off a PUSHED auth route.
+  void _navigateAfterAuth() {
+    final isPush = ref.read(pushAuthFlowProvider);
+    if (isPush) {
+      final router = GoRouter.of(context);
+      // Pop this OTP screen, then connexion — revealing the origin beneath and
+      // completing `ensureAuthenticated`'s awaited push with `true`.
+      router.pop();
+      if (router.canPop()) router.pop(true);
+      return;
+    }
+    final returnTo = ref.read(returnToRouteProvider);
+    ref.read(returnToRouteProvider.notifier).state = null;
+    context.go(returnTo ?? '/');
   }
 
   void _showSellerAccountDialog() {

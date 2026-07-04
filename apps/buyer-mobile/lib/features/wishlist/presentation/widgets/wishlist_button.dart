@@ -53,7 +53,8 @@ class WishlistButton extends ConsumerWidget {
       tooltip: isWishlisted ? "Retirer des favoris" : "Ajouter aux favoris",
       onPressed: () async {
         // Favorites require an account — gate guests to login, then return.
-        if (!ensureAuthenticated(context, ref)) return;
+        if (!await ensureAuthenticated(context, ref)) return;
+        if (!context.mounted) return;
         try {
           await ref.read(wishlistProvider.notifier).toggleWishlist(productId);
           if (context.mounted) {

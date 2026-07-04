@@ -45,6 +45,9 @@ export default function CheckoutPage() {
   // misleading "Gratuit"). `quoteError` = the quote request itself failed.
   const [deliveryAvailable, setDeliveryAvailable] = useState<boolean | null>(null);
   const [quoteError, setQuoteError] = useState(false);
+  // Non-blocking warning: a seller ships from a different town than the
+  // delivery address, so transport cost may rise. Never gates the button.
+  const [townMismatch, setTownMismatch] = useState(false);
 
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [cities, setCities] = useState<City[]>([]);
@@ -248,6 +251,7 @@ export default function CheckoutPage() {
       try {
         const res = await apiFetch<{
           deliveryAvailable: boolean;
+          townMismatch?: boolean;
           sellerQuotes: {
             sellerId: string;
             deliveryFeeCDF: string | null;
@@ -266,6 +270,7 @@ export default function CheckoutPage() {
         }
         setDeliveryFees(fees);
         setDeliveryAvailable(res.data.deliveryAvailable);
+        setTownMismatch(res.data.townMismatch ?? false);
         setQuoteError(false);
       } catch {
         // Do NOT fall back to free delivery — surface the failure so the buyer
@@ -273,6 +278,7 @@ export default function CheckoutPage() {
         if (!cancelled) {
           setDeliveryFees({});
           setDeliveryAvailable(false);
+          setTownMismatch(false);
           setQuoteError(true);
         }
       }
@@ -902,6 +908,18 @@ export default function CheckoutPage() {
                   {quoteError
                     ? "Impossible de calculer les frais de livraison. Veuillez réessayer."
                     : "Aucune zone de livraison disponible pour cette adresse. Veuillez vérifier votre ville de livraison."}
+                </div>
+              )}
+
+              {/* Town-mismatch heads-up — non-blocking; the confirm button stays enabled */}
+              {deliveryAvailable !== false && townMismatch && (
+                <div className="flex items-start gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                  <svg className="w-5 h-5 shrink-0 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>
+                    {"L'adresse de livraison sélectionnée se trouve dans une ville différente de celle des produits. Cela peut entraîner des frais de transport supplémentaires. Veuillez vérifier votre adresse avant de confirmer la commande."}
+                  </span>
                 </div>
               )}
 

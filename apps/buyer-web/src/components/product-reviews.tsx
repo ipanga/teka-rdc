@@ -112,10 +112,12 @@ function RatingDistribution({
 
 function ReviewModal({
   productId,
+  orderId,
   onClose,
   onSubmitted,
 }: {
   productId: string;
+  orderId: string;
   onClose: () => void;
   onSubmitted: () => void;
 }) {
@@ -134,6 +136,7 @@ function ReviewModal({
         method: 'POST',
         body: JSON.stringify({
           productId,
+          orderId,
           rating,
           text: text.trim() || undefined,
         }),
@@ -235,6 +238,9 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
   const [myReview, setMyReview] = useState<Review | null>(null);
   const [canReview, setCanReview] = useState(false);
   const [canReviewReason, setCanReviewReason] = useState('');
+  // The eligible DELIVERED order id — required by POST /v1/reviews. Without it
+  // the create DTO rejects the submission with a 400.
+  const [canReviewOrderId, setCanReviewOrderId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -288,11 +294,14 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
       return;
     }
     try {
-      const res = await apiFetch<{ canReview: boolean; reason?: string }>(
-        `/v1/reviews/products/${productId}/can-review`,
-      );
+      const res = await apiFetch<{
+        canReview: boolean;
+        reason?: string;
+        orderId?: string;
+      }>(`/v1/reviews/products/${productId}/can-review`);
       setCanReview(res.data.canReview);
       setCanReviewReason(res.data.reason || '');
+      setCanReviewOrderId(res.data.orderId ?? null);
     } catch {
       setCanReview(false);
     }
@@ -553,9 +562,10 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
       )}
 
       {/* Review modal */}
-      {showModal && (
+      {showModal && canReviewOrderId && (
         <ReviewModal
           productId={productId}
+          orderId={canReviewOrderId}
           onClose={() => setShowModal(false)}
           onSubmitted={handleReviewSubmitted}
         />

@@ -38,10 +38,30 @@ String extractDioErrorMessage(DioException e) {
   final data = e.response?.data;
   if (data is Map) {
     final error = data['error'];
-    if (error is Map &&
-        error['message'] is String &&
-        (error['message'] as String).trim().isNotEmpty) {
-      apiMessage = (error['message'] as String).trim();
+    if (error is Map) {
+      final topMessage =
+          error['message'] is String ? (error['message'] as String).trim() : '';
+      // Validation failures collapse to the generic "Erreur de validation"
+      // wrapper while the field-specific French reason lives in `errors[]`.
+      // Prefer that specific reason so the user sees what actually failed
+      // instead of a vague banner.
+      String? fieldMessage;
+      final errors = error['errors'];
+      if (errors is List && errors.isNotEmpty) {
+        final first = errors.first;
+        if (first is Map &&
+            first['message'] is String &&
+            (first['message'] as String).trim().isNotEmpty) {
+          fieldMessage = (first['message'] as String).trim();
+        }
+      }
+      if (topMessage.isNotEmpty && topMessage != 'Erreur de validation') {
+        apiMessage = topMessage;
+      } else if (fieldMessage != null) {
+        apiMessage = fieldMessage;
+      } else if (topMessage.isNotEmpty) {
+        apiMessage = topMessage;
+      }
     } else {
       final message = data['message'];
       if (message is String && message.trim().isNotEmpty) {

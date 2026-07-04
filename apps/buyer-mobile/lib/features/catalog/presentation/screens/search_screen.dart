@@ -31,6 +31,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   String _query = '';
   String? _lastSearchTracked; // de-dups the search_performed event per query
   List<SuggestedCategory> _categories = const []; // autocomplete category hits
+  List<SuggestedBrand> _brands = const []; // autocomplete brand hits
   List<String> _recent = const []; // recent searches (local)
   List<String> _popular = const []; // popular searches (API)
 
@@ -102,17 +103,25 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final q = value.trim();
     setState(() => _query = q);
     if (q.length < 2) {
-      setState(() => _categories = const []);
+      setState(() {
+        _categories = const [];
+        _brands = const [];
+      });
       return;
     }
     final cityId = ref.read(cityProvider).selectedCity?.id;
     ref
         .read(catalogRepositoryProvider)
         .getSearchSuggestions(q, cityId: cityId)
-        .then((cats) {
-      if (mounted && _query == q) setState(() => _categories = cats);
+        .then((s) {
+      if (mounted && _query == q) {
+        setState(() {
+          _categories = s.categories;
+          _brands = s.brands;
+        });
+      }
     }).catchError((_) {
-      // Non-critical: leave categories as-is on a failed suggestions fetch.
+      // Non-critical: leave suggestions as-is on a failed fetch.
     });
   }
 
@@ -163,6 +172,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                           setState(() {
                             _query = '';
                             _categories = const [];
+                            _brands = const [];
                           });
                         },
                       )
@@ -288,41 +298,70 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     );
   }
 
-  Widget _buildCategorySuggestions(
-    BuildContext context,
-  ) {
+  Widget _buildSuggestionChips(BuildContext context) {
+    final labelStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: TekaColors.mutedForeground,
+          fontWeight: FontWeight.w600,
+        );
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 0, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            "Catégories",
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: TekaColors.mutedForeground,
-                  fontWeight: FontWeight.w600,
-                ),
-          ),
-          const SizedBox(height: 6),
-          SizedBox(
-            height: 36,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.only(right: 16),
-              itemCount: _categories.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (context, i) {
-                final c = _categories[i];
-                return ActionChip(
-                  label: Text(c.name),
-                  onPressed: () => context.push(
-                    '/categories/${c.id}',
-                    extra: {'categoryName': c.name},
-                  ),
-                );
-              },
+          if (_categories.isNotEmpty) ...[
+            Text("Catégories", style: labelStyle),
+            const SizedBox(height: 6),
+            SizedBox(
+              height: 36,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.only(right: 16),
+                itemCount: _categories.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, i) {
+                  final c = _categories[i];
+                  return ActionChip(
+                    label: Text(c.name),
+                    onPressed: () => context.push(
+                      '/categories/${c.id}',
+                      extra: {'categoryName': c.name},
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
+          ],
+          if (_brands.isNotEmpty) ...[
+            if (_categories.isNotEmpty) const SizedBox(height: 10),
+            Text("Marques", style: labelStyle),
+            const SizedBox(height: 6),
+            SizedBox(
+              height: 36,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.only(right: 16),
+                itemCount: _brands.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, i) {
+                  final b = _brands[i];
+                  return ActionChip(
+                    avatar: const Icon(Icons.sell_outlined, size: 16),
+                    label: Text(b.name),
+                    // Parity with buyer-web: tapping a brand runs a search for
+                    // its name (surfaces that brand's products in the grid).
+                    onPressed: () {
+                      _controller.text = b.name;
+                      _controller.selection = TextSelection.fromPosition(
+                        TextPosition(offset: b.name.length),
+                      );
+                      _saveRecent(b.name);
+                      _applyQuery(b.name);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -410,9 +449,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       },
       child: CustomScrollView(
         slivers: [
-          // Category suggestions (autocomplete) — tappable chips above results.
-          if (_categories.isNotEmpty)
-            SliverToBoxAdapter(child: _buildCategorySuggestions(context)),
+          // Category + brand suggestions (autocomplete) — tappable chips above
+          // results. Products appear in the grid below.
+          if (_categories.isNotEmpty || _brands.isNotEmpty)
+            SliverToBoxAdapter(child: _buildSuggestionChips(context)),
           // Results count
           SliverToBoxAdapter(
             child: Padding(

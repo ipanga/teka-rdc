@@ -167,10 +167,12 @@ class CatalogRepository {
         .toList(growable: false);
   }
 
-  /// GET /v1/browse/search/suggestions — matching categories for autocomplete.
-  /// (Products are already shown live in the search grid; this surfaces the
-  /// category suggestions, matching buyer-web's dropdown.)
-  Future<List<SuggestedCategory>> getSearchSuggestions(
+  /// GET /v1/browse/search/suggestions — category + brand hits for autocomplete.
+  /// Products are surfaced live in the search grid (the mobile equivalent of
+  /// buyer-web's product rows); categories + brands appear as tappable chips
+  /// above the grid, matching buyer-web's dropdown. Previously this discarded
+  /// everything but categories — brands never showed.
+  Future<SearchSuggestions> getSearchSuggestions(
     String q, {
     String? cityId,
   }) async {
@@ -183,10 +185,17 @@ class CatalogRepository {
     );
     final data = response.data['data'] ?? response.data;
     final cats = (data['categories'] as List?) ?? const [];
-    return cats
-        .cast<Map<String, dynamic>>()
-        .map(SuggestedCategory.fromJson)
-        .toList(growable: false);
+    final brands = (data['brands'] as List?) ?? const [];
+    return SearchSuggestions(
+      categories: cats
+          .cast<Map<String, dynamic>>()
+          .map(SuggestedCategory.fromJson)
+          .toList(growable: false),
+      brands: brands
+          .cast<Map<String, dynamic>>()
+          .map(SuggestedBrand.fromJson)
+          .toList(growable: false),
+    );
   }
 
   /// GET /v1/browse/search/popular — top recent search terms (for the empty /
@@ -300,6 +309,36 @@ class SuggestedCategory {
       name: json['name']?.toString() ?? '',
     );
   }
+}
+
+/// A brand match returned by the search-suggestions endpoint.
+class SuggestedBrand {
+  final String id;
+  final String name;
+
+  const SuggestedBrand({required this.id, required this.name});
+
+  factory SuggestedBrand.fromJson(Map<String, dynamic> json) {
+    return SuggestedBrand(
+      id: json['id'] as String,
+      name: json['name']?.toString() ?? '',
+    );
+  }
+}
+
+/// Autocomplete suggestions (categories + brands) for a search term. Products
+/// are shown live in the results grid rather than here.
+class SearchSuggestions {
+  final List<SuggestedCategory> categories;
+  final List<SuggestedBrand> brands;
+
+  const SearchSuggestions({
+    this.categories = const [],
+    this.brands = const [],
+  });
+
+  bool get isEmpty => categories.isEmpty && brands.isEmpty;
+  bool get isNotEmpty => !isEmpty;
 }
 
 final catalogRepositoryProvider = Provider<CatalogRepository>((ref) {
