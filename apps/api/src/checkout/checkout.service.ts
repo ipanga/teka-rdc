@@ -358,7 +358,12 @@ export class CheckoutService {
     sellerId: string,
     toTown: string,
     db: TxClient = this.prisma,
-  ): Promise<{ cdf: bigint; usd: bigint | null; found: boolean }> {
+  ): Promise<{
+    cdf: bigint;
+    usd: bigint | null;
+    found: boolean;
+    fromTown: string;
+  }> {
     const sellerProfile = await db.sellerProfile.findFirst({
       where: { userId: sellerId },
       select: { location: true, city: { select: { name: true } } },
@@ -373,6 +378,9 @@ export class CheckoutService {
       cdf: estimate.data.found ? BigInt(estimate.data.feeCDF!) : BigInt(0),
       usd: estimate.data.feeUSD ? BigInt(estimate.data.feeUSD) : null,
       found: estimate.data.found,
+      // The seller's origin town — the client compares it against the delivery
+      // town to warn (non-blocking) that transport cost may rise on a mismatch.
+      fromTown,
     };
   }
 
@@ -407,6 +415,11 @@ export class CheckoutService {
       // No zone → this seller can't be delivered to this address. Surface it so
       // buyer-web can block checkout instead of showing a misleading "Gratuit".
       const sellerTotal = group.subtotalCDF + fee.cdf;
+      // Non-blocking heads-up: the seller ships from a different town than the
+      // delivery address, so transport cost may be higher. Compared case- and
+      // whitespace-insensitively to avoid false positives on formatting.
+      const townMismatch =
+        this.normalizeTown(fee.fromTown) !== this.normalizeTown(buyerTown);
       sellerQuotes.push({
         sellerId: group.sellerId,
         sellerName: group.sellerName,
@@ -415,6 +428,8 @@ export class CheckoutService {
         deliveryFeeCDF: fee.found ? fee.cdf.toString() : null,
         deliveryFeeUSD: fee.found ? (fee.usd?.toString() ?? null) : null,
         deliveryAvailable: fee.found,
+        fromTown: fee.fromTown,
+        townMismatch,
         totalCDF: sellerTotal.toString(),
       });
       subtotalCDF += group.subtotalCDF;
@@ -428,13 +443,22 @@ export class CheckoutService {
     // calculer" checkout bug.)
     return {
       deliveryAddressId,
+      buyerTown,
       subtotalCDF: subtotalCDF.toString(),
       deliveryFeeCDF: deliveryFeeCDF.toString(),
       totalCDF: (subtotalCDF + deliveryFeeCDF).toString(),
       // Overall gate for the buyer-web "Confirmer la commande" button.
       deliveryAvailable: sellerQuotes.every((q) => q.deliveryAvailable),
+      // Non-blocking: at least one seller ships from a different town. Clients
+      // show a warning card but keep the confirm button enabled.
+      townMismatch: sellerQuotes.some((q) => q.townMismatch),
       sellerQuotes,
     };
+  }
+
+  /** Case- and whitespace-insensitive town key for mismatch comparison. */
+  private normalizeTown(town: string | null | undefined): string {
+    return (town ?? '').trim().toLowerCase();
   }
 
   /**

@@ -167,11 +167,17 @@ class CheckoutQuote {
   /// compatibility with older API responses that omit the flag.
   final bool deliveryAvailable;
 
+  /// True when at least one seller ships from a town different from the
+  /// delivery address — a NON-blocking heads-up that transport cost may rise.
+  /// Defaults false for older API responses that omit the flag.
+  final bool townMismatch;
+
   const CheckoutQuote({
     required this.subtotalCDF,
     required this.deliveryFeeCDF,
     required this.totalCDF,
     this.deliveryAvailable = true,
+    this.townMismatch = false,
   });
 
   factory CheckoutQuote.fromJson(Map<String, dynamic> json) {
@@ -180,6 +186,7 @@ class CheckoutQuote {
       deliveryFeeCDF: json['deliveryFeeCDF']?.toString() ?? '0',
       totalCDF: json['totalCDF']?.toString() ?? '0',
       deliveryAvailable: json['deliveryAvailable'] as bool? ?? true,
+      townMismatch: json['townMismatch'] as bool? ?? false,
     );
   }
 }

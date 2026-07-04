@@ -202,4 +202,49 @@ describe('CheckoutService.quote', () => {
     expect(data.sellerQuotes[0].deliveryAvailable).toBe(false);
     expect(data.sellerQuotes[0].deliveryFeeCDF).toBeNull();
   });
+
+  it('flags a town mismatch per-seller + overall (case/whitespace-insensitive)', async () => {
+    const { service } = makeService({
+      address: { town: 'Lubumbashi' },
+      // sellerA ships from the SAME town (no mismatch, casing/spacing differs);
+      // sellerB ships from Kolwezi (mismatch).
+      sellerCityByUser: { sellerA: '  lubumbashi ', sellerB: 'Kolwezi' },
+      cartSummary: {
+        items: [{}, {}],
+        sellerGroups: [
+          { sellerId: 'sellerA', sellerName: 'A', items: [{ quantity: 1 }], subtotalCDF: 1000000n },
+          { sellerId: 'sellerB', sellerName: 'B', items: [{ quantity: 1 }], subtotalCDF: 2000000n },
+        ],
+      },
+    });
+
+    const data = await service.quote('u1', 'addr1');
+
+    expect(data.buyerTown).toBe('Lubumbashi');
+    expect(data.sellerQuotes[0]).toEqual(
+      expect.objectContaining({ fromTown: '  lubumbashi ', townMismatch: false }),
+    );
+    expect(data.sellerQuotes[1]).toEqual(
+      expect.objectContaining({ fromTown: 'Kolwezi', townMismatch: true }),
+    );
+    // Overall = OR across sellers → true because sellerB differs.
+    expect(data.townMismatch).toBe(true);
+  });
+
+  it('reports no town mismatch when every seller ships from the delivery town', async () => {
+    const { service } = makeService({
+      address: { town: 'Lubumbashi' },
+      sellerCityByUser: { sellerA: 'Lubumbashi' },
+      cartSummary: {
+        items: [{}],
+        sellerGroups: [
+          { sellerId: 'sellerA', sellerName: 'A', items: [{ quantity: 1 }], subtotalCDF: 1000000n },
+        ],
+      },
+    });
+
+    const data = await service.quote('u1', 'addr1');
+    expect(data.townMismatch).toBe(false);
+    expect(data.sellerQuotes[0].townMismatch).toBe(false);
+  });
 });

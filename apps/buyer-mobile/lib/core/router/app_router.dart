@@ -34,6 +34,17 @@ import 'main_shell.dart';
 /// the user returns to where they were (Guest Browsing, 2026-06-22).
 final returnToRouteProvider = StateProvider<String?>((ref) => null);
 
+/// How the current auth flow was entered, which decides how we leave it:
+///   • `true`  = PUSHED over live content by `ensureAuthenticated` (an inline
+///     action like add-to-cart). On success we POP back to the origin so its
+///     back button + browsing stack survive, and the awaiting caller resumes
+///     the action in place.
+///   • `false` = REPLACED the stack by the router redirect (a guest hit a
+///     protected route). On success we `go(returnTo)`.
+/// This is the single deterministic signal the verify screens use — `canPop()`
+/// can't distinguish the two (it's true in both).
+final pushAuthFlowProvider = StateProvider<bool>((ref) => false);
+
 /// Routes that require authentication. Everything else (home, categories,
 /// product detail, search, city selection, content pages) is public for guests.
 const _protectedPrefixes = <String>[
@@ -90,14 +101,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       // Guests browse freely; only protected routes require login. Save where
       // they were headed so we can return them there after they authenticate.
+      // This is the REPLACE path (stack was swapped for the login screen), so
+      // clear the push flag — the verify screen must `go(returnTo)`, not pop.
       if (!isAuth && !isAuthRoute && isProtectedRoute(location)) {
         ref.read(returnToRouteProvider.notifier).state = state.uri.toString();
+        ref.read(pushAuthFlowProvider.notifier).state = false;
         return '/auth/connexion';
       }
 
       // Just authenticated while on an auth route → send them to the saved
       // return-to (the protected route / action they came from), else home.
-      if (isAuth && isAuthRoute) {
+      // SKIP this when the flow was PUSHED (`ensureAuthenticated`): there the
+      // verify screen pops back to the live origin, and a `go(returnTo)` here
+      // would replace (destroy) that preserved browsing stack.
+      if (isAuth && isAuthRoute && !ref.read(pushAuthFlowProvider)) {
         final returnTo = ref.read(returnToRouteProvider);
         if (returnTo != null && returnTo.isNotEmpty) {
           // Clear after this redirect resolves (avoids mutating during build).

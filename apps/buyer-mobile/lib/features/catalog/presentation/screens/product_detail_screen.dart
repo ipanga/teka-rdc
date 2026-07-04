@@ -575,55 +575,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                         ],
                       ),
                     ),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: product.isOutOfStock
-                            ? null
-                            : () async {
-                                // Cart requires an account — gate guests to login.
-                                if (!ensureAuthenticated(context, ref)) return;
-                                try {
-                                  await ref
-                                      .read(cartProvider.notifier)
-                                      .addItem(product.id);
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: const Text(
-                                            "Produit ajouté au panier"),
-                                        backgroundColor: TekaColors.success,
-                                        duration: const Duration(seconds: 2),
-                                      ),
-                                    );
-                                  }
-                                } catch (_) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: const Text(
-                                          "Une erreur est survenue. Veuillez réessayer.",
-                                        ),
-                                        backgroundColor: TekaColors.destructive,
-                                        duration: const Duration(seconds: 2),
-                                      ),
-                                    );
-                                  }
-                                }
-                              },
-                        icon: const Icon(Icons.shopping_cart_outlined),
-                        label: const Text("Ajouter au panier"),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: TekaColors.tekaRed,
-                          disabledBackgroundColor: TekaColors.muted,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          textStyle: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
+                    _PdpCartBar(product: product),
                   ],
                 ),
               ),
@@ -818,6 +770,220 @@ class _RelatedSectionState extends ConsumerState<_RelatedSection> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// PDP action bar (Jumia-style). Reacts to cart state via [cartItemProvider]:
+///   • out of stock → disabled "Rupture de stock"
+///   • not in cart  → "Ajouter au panier" (gates guests to login, then adds)
+///   • in cart      → [ accueil | − | qté | + ] with stock-capped +/−; − at
+///     qty 1 removes the line and restores the add button. Kept in sync with
+///     the cart/checkout everywhere because it derives from the cart provider.
+class _PdpCartBar extends ConsumerWidget {
+  final ProductDetailModel product;
+
+  const _PdpCartBar({required this.product});
+
+  Future<void> _add(BuildContext context, WidgetRef ref) async {
+    // Cart requires an account — gate guests to login, then add in place.
+    if (!await ensureAuthenticated(context, ref)) return;
+    if (!context.mounted) return;
+    try {
+      await ref.read(cartProvider.notifier).addItem(product.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Produit ajouté au panier"),
+            backgroundColor: TekaColors.success,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (_) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Une erreur est survenue. Veuillez réessayer."),
+            backgroundColor: TekaColors.destructive,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (product.isOutOfStock) {
+      return SizedBox(
+        width: double.infinity,
+        child: FilledButton(
+          onPressed: null,
+          style: FilledButton.styleFrom(
+            disabledBackgroundColor: TekaColors.muted,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            textStyle:
+                const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          child: const Text("Rupture de stock"),
+        ),
+      );
+    }
+
+    final cartItem = ref.watch(cartItemProvider(product.id));
+    final qty = cartItem?.quantity ?? 0;
+
+    // Not in cart → the add button.
+    if (qty <= 0) {
+      return SizedBox(
+        width: double.infinity,
+        child: FilledButton.icon(
+          onPressed: () => _add(context, ref),
+          icon: const Icon(Icons.shopping_cart_outlined),
+          label: const Text("Ajouter au panier"),
+          style: FilledButton.styleFrom(
+            backgroundColor: TekaColors.tekaRed,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            textStyle:
+                const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ),
+      );
+    }
+
+    // In cart → [ accueil | − | qté | + ].
+    final stock = product.quantity;
+    final atMax = qty >= stock;
+    return Row(
+      children: [
+        // Home shortcut (mirrors the Jumia bottom bar's house icon).
+        _PdpBarIconButton(
+          icon: Icons.home_outlined,
+          tooltip: "Accueil",
+          onTap: () => context.go('/'),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Container(
+            height: 48,
+            decoration: BoxDecoration(
+              color: TekaColors.tekaRed,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                _PdpQtyButton(
+                  icon: Icons.remove,
+                  onTap: () {
+                    final notifier = ref.read(cartProvider.notifier);
+                    if (qty <= 1) {
+                      notifier.removeItem(product.id);
+                    } else {
+                      notifier.updateQuantity(product.id, qty - 1);
+                    }
+                  },
+                ),
+                Text(
+                  '$qty',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                _PdpQtyButton(
+                  icon: Icons.add,
+                  // Dim + block at the stock ceiling, with clear feedback.
+                  dimmed: atMax,
+                  onTap: () {
+                    if (atMax) {
+                      ScaffoldMessenger.of(context)
+                        ..clearSnackBars()
+                        ..showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              "Stock maximum atteint ($stock disponible${stock > 1 ? 's' : ''})",
+                            ),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      return;
+                    }
+                    ref
+                        .read(cartProvider.notifier)
+                        .updateQuantity(product.id, qty + 1);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A square outlined icon button used at the left of the in-cart PDP bar.
+class _PdpBarIconButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  const _PdpBarIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            border: Border.all(color: TekaColors.border),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: TekaColors.foreground, size: 22),
+        ),
+      ),
+    );
+  }
+}
+
+/// A +/− control inside the in-cart PDP stepper.
+class _PdpQtyButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool dimmed;
+
+  const _PdpQtyButton({
+    required this.icon,
+    required this.onTap,
+    this.dimmed = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: SizedBox(
+        width: 48,
+        height: 48,
+        child: Icon(
+          icon,
+          color: dimmed ? Colors.white54 : Colors.white,
+          size: 22,
+        ),
+      ),
     );
   }
 }

@@ -544,8 +544,11 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
 
           {/* Reviews section — the reviews API only accepts UUIDs
               (ParseUUIDPipe), but `productId` from the URL may be a slug. Pass
-              the resolved UUID from the fetched product instead. */}
-          <ProductReviews productId={product.id} />
+              the resolved UUID from the fetched product instead. The `avis`
+              anchor lets the delivered-order page deep-link buyers here to rate. */}
+          <div id="avis" className="scroll-mt-24">
+            <ProductReviews productId={product.id} />
+          </div>
 
           {/* Cross-sell: same category + price proximity. */}
           <RelatedProducts productId={product.id} />
