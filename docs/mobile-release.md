@@ -186,6 +186,11 @@ for TestFlight). `ExportOptions-*.plist` set `uploadSymbols=false` on purpose �
 `Sentry.framework` dSYM; harmless because crashes symbolicate in Sentry).
 
 ### Operator one-time setup (cannot be automated)
+> **Status: DONE + verified end-to-end 2026-07-04.** The match store is bootstrapped for both
+> apps (one Distribution cert + a profile per bundle id in `teka-ios-certs`), all secrets/env
+> are set, and a full `app=both` release run uploaded both apps to TestFlight. The steps below
+> are the reproduction/reference (e.g. rotating the PAT, re-running match, or a fresh machine).
+
 1. **Apple Program License Agreement** — accept at developer.apple.com as Account Holder
    (the "Unable to process request - PLA Update available" block). Enable capabilities on
    each App ID: buyer `com.tootiye.teka` → **Push Notifications** + **Associated Domains**;
@@ -238,6 +243,34 @@ flutter build ipa --flavor production --dart-define-from-file=flavors/production
   --dart-define=SENTRY_DSN=<app dsn> --dart-define=SENTRY_RELEASE=$(git rev-parse --short HEAD)
 # → build/ios/ipa/*.ipa — upload via Xcode Organizer or Transporter (or let CI do it).
 ```
+
+### CI internals & gotchas (why the release workflow is shaped the way it is)
+These were all found by running the pipeline for real; don't "simplify" them away.
+
+- **`persist-credentials: false` on the build job's `actions/checkout`.** Checkout otherwise
+  persists the `GITHUB_TOKEN` as a `github.com` auth header (scoped to *this* repo only).
+  `match` cloning the private `teka-ios-certs` then sends **two** `Authorization` headers
+  (that token + our PAT) → GitHub 403. Dropping it is safe (the job does no authenticated
+  git ops against `teka-rdc`).
+- **Explicit git auth for the certs clone.** The workflow sets
+  `git config --global http.https://github.com/.extraheader "AUTHORIZATION: basic <b64>"`
+  from `MATCH_GIT_BASIC_AUTH`, **whitespace-stripped** (a line-wrapped base64 secret silently
+  breaks the header), and verifies read access with `git ls-remote` from a neutral dir
+  *before* the slow build — so a bad PAT fails in seconds with a clear message instead of a
+  cryptic match error. `MATCH_GIT_BASIC_AUTH` must be single-line `base64("<user>:<PAT>")`
+  and the PAT must read `teka-ios-certs`.
+- **Absolute IPA path to `upload_testflight`.** fastlane runs the lane from its own resolved
+  project dir, so a relative `ipa/*.ipa` won't resolve inside the Fastfile — the workflow
+  passes `${GITHUB_WORKSPACE}/ipa/*.ipa`.
+- **Unique, ever-increasing `CFBundleVersion`.** TestFlight rejects a build whose build number
+  was already uploaded (`-19232`). The build step stamps `--build-number=$(date -u +%s)`
+  (epoch — monotonic, always higher than small manual builds); the marketing version
+  (`CFBundleShortVersionString`) stays from `pubspec.yaml`. Both `Info.plist`s use
+  `$(FLUTTER_BUILD_NUMBER)`, so `--build-number` drives it.
+- **Signing style stays `Automatic` in git.** `setup_signing` flips only `Release-production`
+  to Manual (with the match profile) **in the CI checkout**, never committed — local Xcode dev
+  keeps automatic signing. `ExportOptions-*.plist` set `uploadSymbols=false` so Apple doesn't
+  choke on the precompiled `Sentry.framework` dSYM (symbols go to Sentry, not Apple).
 
 ## Not covered (deferred)
 
