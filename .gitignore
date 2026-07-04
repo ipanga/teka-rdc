@@ -69,3 +69,16 @@ apps/buyer-mobile/android/app/google-services.json
 apps/buyer-mobile/ios/Runner/GoogleService-Info.plist
 apps/seller-mobile/android/app/google-services.json
 apps/seller-mobile/ios/Runner/GoogleService-Info.plist
+
+# iOS code-signing material — must NEVER be committed. Certs + profiles live
+# encrypted in the teka-ios-certs match repo; CI decrypts them at runtime.
+*.mobileprovision
+*.p12
+*.cer
+*.certSigningRequest
+
+# Fastlane run artifacts (auto-generated per invocation).
+fastlane/report.xml
+fastlane/README.md
+fastlane/test_output/
+**/fastlane/report.xml

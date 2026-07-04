@@ -153,36 +153,94 @@ flutter build appbundle --release --flavor production \
       when `SENTRY_AUTH_TOKEN` is set).
 - [ ] Confirm FCM push delivery on a real installed build.
 
-## iOS — TestFlight / App Store
+## iOS — TestFlight / App Store (automated CI)
 
 iOS is **flavor-wired** (schemes `development`/`staging`/`production` → the 9 build
 configs, bundle-id suffixes matching Android). Full model: `docs/mobile-flavors.md` →
-"iOS flavors". CI is not wired yet — build + upload from your Mac.
+"iOS flavors". **CI is wired** — two macOS workflows mirror the Android split:
 
-**Operator one-time (Apple):**
-1. Accept the **Program License Agreement** at developer.apple.com as the Account Holder
-   (the "Unable to process request - PLA Update available" block in Xcode). Without this,
-   automatic signing can't register capabilities or regenerate profiles.
-2. On each App ID enable capabilities: buyer `com.tootiye.teka` → **Push Notifications** +
-   **Associated Domains**; seller `com.tootiye.tekaseller` → **Push Notifications**. With
-   automatic signing, Xcode adds these on "Try Again" once the PLA is accepted.
-3. Upload the APNs `.p8` to the Firebase console (project-wide; see
-   `docs/push-notifications.md`).
+| Workflow | Purpose | Signing | TestFlight |
+|---|---|---|---|
+| `.github/workflows/build-mobile-ipa.yml` | validate any flavor compiles + push dSYMs to Sentry | none (`--no-codesign`) | no |
+| `.github/workflows/release-mobile-ipa.yml` | signed production IPA → TestFlight | Fastlane `match` (read-only) | yes, behind an approval gate |
 
-**Build the production IPA (per app, from `apps/{buyer,seller}-mobile`):**
-```bash
-flutter build ipa --flavor production --dart-define-from-file=flavors/production.json \
-  --dart-define=SENTRY_DSN=<app dsn> --dart-define=SENTRY_RELEASE=$(git rev-parse --short HEAD)
-# → build/ios/ipa/*.ipa — upload via Xcode Organizer or Transporter to App Store Connect.
-```
+Both run on `macos-latest` (the only macOS jobs in the repo). Signing lives in Fastlane
+(`fastlane/Fastfile` — lanes `setup_signing` + `upload_testflight`, driven by `TEKA_APP`);
+the committed pbxproj stays `CODE_SIGN_STYLE=Automatic` and is flipped to Manual **only in
+the CI checkout** by `update_code_signing_settings` (never committed), so local dev is
+unaffected. `flutter build ipa` (not `gym`) does the archive/export so the flavor
+`--dart-define`s + Sentry DSN/release survive.
+
+### Release flow (`Release mobile IPA`, `app = buyer|seller|both`)
+1. `build` job (auto): match installs the dist cert + App Store profile → `flutter build
+   ipa --flavor production --export-options-plist fastlane/ExportOptions-<app>.plist` →
+   `sentry_dart_plugin` uploads the iOS dSYMs → `.ipa` artifact.
+2. **Approval gate:** the `testflight` job is bound to the protected `ios-testflight`
+   GitHub Environment — a reviewer must approve before it runs.
+3. `testflight` job: downloads the `.ipa` → `fastlane ios upload_testflight` (App Store
+   Connect API key). `app=both` fans out to two matrix legs.
+
 Only `Release-production` carries the **production** aps-environment entitlement (correct
-for TestFlight). `flutter build ipa` archives the `production` scheme automatically.
+for TestFlight). `ExportOptions-*.plist` set `uploadSymbols=false` on purpose — dSYMs go to
+**Sentry** via the plugin, not to Apple (Apple's own upload chokes on the precompiled
+`Sentry.framework` dSYM; harmless because crashes symbolicate in Sentry).
+
+### Operator one-time setup (cannot be automated)
+1. **Apple Program License Agreement** — accept at developer.apple.com as Account Holder
+   (the "Unable to process request - PLA Update available" block). Enable capabilities on
+   each App ID: buyer `com.tootiye.teka` → **Push Notifications** + **Associated Domains**;
+   seller `com.tootiye.tekaseller` → **Push Notifications**. Upload the APNs `.p8` to the
+   Firebase console (see `docs/push-notifications.md`).
+2. **match store** — create a private repo `teka-ios-certs`. Run **once per app, locally**
+   (needs Apple login for the team):
+   **Both apps live on the same Apple team `YK6Z393A4D` (TOOTIYE ENTERPRISES LTD)**, so one
+   ASC API key + one Distribution certificate serve both; match keeps one cert and a profile
+   per bundle id in the repo. **Prerequisite:** each bundle id must already exist as an App ID
+   on the team — building/associating the app once in Xcode (or `fastlane produce -a
+   com.tootiye.tekaseller`) registers it. Then, per app:
+   ```bash
+   bundle install
+   MATCH_PASSWORD=<pick-one> bundle exec fastlane match appstore \
+     --git_url https://github.com/<org>/teka-ios-certs.git \
+     --api_key_path <asc-key.json> \
+     --app_identifier com.tootiye.teka       --team_id YK6Z393A4D   # buyer
+   MATCH_PASSWORD=<same>    bundle exec fastlane match appstore \
+     --git_url https://github.com/<org>/teka-ios-certs.git \
+     --api_key_path <asc-key.json> \
+     --app_identifier com.tootiye.tekaseller --team_id YK6Z393A4D   # seller
+   ```
+   `<asc-key.json>` is a `{key_id, issuer_id, key (the .p8 body), in_house:false}` file — this
+   authenticates match to Apple non-interactively (no Apple ID / 2FA). Both apps' assets
+   coexist in the one repo (bundle ids differ → no collision).
+3. **App Store Connect API key** — create one (Users and Access → Integrations → App Store
+   Connect API, role App Manager); download the `.p8`; base64 it. One key covers both apps
+   (same team). Ensure both prod App IDs have an app record in App Store Connect.
+4. **GitHub Environment** — create `ios-testflight` and add required reviewer(s).
+5. **GitHub Secrets:**
+
+   | Secret | Scope | Value |
+   |---|---|---|
+   | `MATCH_PASSWORD` | shared | the match encryption passphrase from step 2 |
+   | `MATCH_GIT_BASIC_AUTH` | shared | `base64("<gh-user>:<PAT>")` — read access to `teka-ios-certs` |
+   | `BUYER_ASC_API_KEY_ID` / `BUYER_ASC_API_ISSUER_ID` / `BUYER_ASC_API_KEY_P8_B64` | buyer | ASC API key (team `YK6Z393A4D`) |
+   | `SELLER_ASC_API_KEY_ID` / `SELLER_ASC_API_ISSUER_ID` / `SELLER_ASC_API_KEY_P8_B64` | seller | same ASC key as buyer (both apps share team `YK6Z393A4D`) |
+
+   Reused as-is: `SENTRY_AUTH_TOKEN`, `SENTRY_DSN_{BUYER,SELLER}_MOBILE`,
+   `{BUYER,SELLER}_GOOGLE_SERVICE_INFO_PLIST_B64`. Team ids are non-secret (in `Fastfile`).
 
 **Firebase per-flavor** (dev/staging) is optional — they fall back to the prod plist until
 you register their iOS apps + set the `*_GOOGLE_SERVICE_INFO_PLIST_{DEVELOPMENT,STAGING}_B64`
 secrets. See `docs/mobile-flavors.md`.
 
+### Local build (no CI, from `apps/{buyer,seller}-mobile`)
+```bash
+flutter build ipa --flavor production --dart-define-from-file=flavors/production.json \
+  --dart-define=SENTRY_DSN=<app dsn> --dart-define=SENTRY_RELEASE=$(git rev-parse --short HEAD)
+# → build/ios/ipa/*.ipa — upload via Xcode Organizer or Transporter (or let CI do it).
+```
+
 ## Not covered (deferred)
 
-iOS **CI** (macOS runner + App Store Connect API key + distribution signing → automated
-TestFlight upload). Today iOS archives/uploads are done from Xcode as above.
+- **staging/dev → TestFlight** — the release workflow ships production only. To add
+  staging, register its App Store Connect record + bundle ids and add a matrix leg.
+- **Tag-triggered release** — kept manual `workflow_dispatch` (same as the Android AAB job).

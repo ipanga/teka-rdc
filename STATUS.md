@@ -1,4 +1,4 @@
-# Status — 2026-06-29
+# Status — 2026-07-03
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,7 +6,28 @@
 
 ## Active initiative
 
-**None.** (Order Details & Admin Dashboard Improvements — all 5 phases complete on `develop`, ready for the PR.)
+**None.** (iOS dSYM → Sentry + TestFlight CI/CD — complete on `develop`, TestFlight-verified end-to-end
+for both apps, in the `develop → main` release PR.)
+
+> **DONE 2026-07-04 — iOS dSYM → Sentry + TestFlight CI/CD (on `develop`, verified end-to-end).** Wired the
+> two missing iOS release gaps, mirroring the Android two-workflow split; no API/DB/web change, Android CI
+> untouched. **(A)** `.github/workflows/build-mobile-ipa.yml` — macOS, app×flavor matrix,
+> `flutter build ios --no-codesign` + `sentry_dart_plugin` **iOS dSYM → Sentry** for all 3 flavors (no
+> signing infra). **(B)** repo-root Fastlane (`Gemfile`/`Gemfile.lock`,
+> `fastlane/{Fastfile,Appfile,Matchfile,ExportOptions-{buyer,seller}.plist}`) — lanes `setup_signing` (match
+> read-only + CI-only `Automatic→Manual` flip, never committed) + `upload_testflight` (ASC API key).
+> **(C)** `.github/workflows/release-mobile-ipa.yml` — signed **production** IPA + dSYM (build job, auto) →
+> `.ipa` artifact → **`ios-testflight` environment approval gate** → TestFlight upload. **Decisions (user):**
+> signing = Fastlane `match` (`teka-ios-certs` repo; both apps share team `YK6Z393A4D` → one cert + a profile
+> per bundle id); TestFlight = production only (dev/staging = build+dSYM artifact); approval =
+> `workflow_dispatch` + protected environment. Committed pbxproj stays `Automatic` (local dev unaffected).
+> **Operator setup done + match stores bootstrapped** (buyer+seller in `teka-ios-certs`; secrets + env +
+> reviewer configured). **Verified end-to-end 2026-07-04:** run 28698644247 — both `build` jobs sign + build
+> + dSYM→Sentry, gate approved, both `testflight` jobs uploaded to App Store Connect (run conclusion
+> success). Four real-run fixes landed on `develop`: `persist-credentials:false` (GITHUB_TOKEN vs match-PAT
+> header collision), explicit whitespace-stripped git auth for the private certs clone, absolute IPA path to
+> `upload_testflight`, and auto-incremented epoch `CFBundleVersion` (TestFlight rejects duplicate build
+> numbers). Docs: `docs/mobile-release.md` (pipeline + operator runbook) + `docs/sentry.md` (iOS dSYM).
 
 > **DONE 2026-06-30 — Order Details & Admin Dashboard Improvements (5 phases, on `develop`).** On the managed
 > workflow: **P1** API extensions — buyer order items += `product{id,slug,shortCode,status,city{slug}}`;

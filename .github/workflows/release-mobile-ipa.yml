@@ -1,0 +1,267 @@
+# Mobile release build — signed production IPA → TestFlight (iOS mirror of
+# "Release mobile AAB").
+#
+# Triggered manually from the Actions tab → "Release mobile IPA" → Run
+# workflow. Builds a real App-Store-signed, production-flavor `.ipa`, uploads
+# its dSYMs to Sentry, and (after a human approves the `ios-testflight`
+# environment) ships it to TestFlight. Signing uses Fastlane `match`
+# (read-only) — no keystore/cert lives in this repo.
+#
+# Inputs:
+#   app = buyer | seller | both   (default: buyer)
+#
+# Always builds the `production` flavor — dev/staging never ship to TestFlight
+# (use "Build mobile IPA" for those; it validates + uploads dSYMs only).
+#
+# Flow (per app):
+#   build job      → match signing → flutter build ipa → dSYM → Sentry → .ipa artifact
+#   [approval gate]  the `testflight` job is bound to the protected
+#                    `ios-testflight` GitHub Environment; a reviewer must
+#                    approve before it starts.
+#   testflight job → download .ipa artifact → upload_to_testflight
+#
+# Required GitHub Secrets:
+#   MATCH_PASSWORD             decrypt the teka-ios-certs match store
+#   MATCH_GIT_BASIC_AUTH       base64("<user>:<PAT>") — CI clone of teka-ios-certs
+#   <APP>_ASC_API_KEY_ID       App Store Connect API key id
+#   <APP>_ASC_API_ISSUER_ID    App Store Connect API issuer id
+#   <APP>_ASC_API_KEY_P8_B64   base64 of the ASC API .p8 key
+#   <APP>_GOOGLE_SERVICE_INFO_PLIST_B64   base64 of ios/Runner/GoogleService-Info.plist
+# Optional: SENTRY_DSN_<APP>_MOBILE, SENTRY_AUTH_TOKEN (dSYM upload).
+#
+# One-time operator setup (match store, ASC keys, the ios-testflight
+# environment + reviewers): see docs/mobile-release.md.
+name: Release mobile IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Which app to release'
+        required: true
+        type: choice
+        default: buyer
+        options: [buyer, seller, both]
+
+concurrency:
+  group: mobile-ipa-release-${{ inputs.app }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # macOS runner is mandatory for the iOS toolchain (xcodebuild).
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ inputs.app == 'both' && fromJSON('["buyer","seller"]') || fromJSON(format('["{0}"]', inputs.app)) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Don't persist the GITHUB_TOKEN as a github.com auth header — it only
+          # grants access to THIS repo, and a leftover header collides with the
+          # PAT header we set for cloning the private teka-ios-certs match repo
+          # (git would send two Authorization headers → 403). This job does no
+          # authenticated git ops against teka-rdc, so dropping it is safe.
+          persist-credentials: false
+
+      - name: Pin Xcode (latest stable)
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Set up Ruby + Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Decode Firebase secrets onto disk
+        env:
+          BUYER_GOOGLE_SERVICE_INFO_PLIST_B64: ${{ secrets.BUYER_GOOGLE_SERVICE_INFO_PLIST_B64 }}
+          SELLER_GOOGLE_SERVICE_INFO_PLIST_B64: ${{ secrets.SELLER_GOOGLE_SERVICE_INFO_PLIST_B64 }}
+        run: bash scripts/sync-firebase-secrets.sh
+
+      - name: Verify Firebase plist decoded
+        run: |
+          path="apps/${{ matrix.app }}-mobile/ios/Runner/GoogleService-Info.plist"
+          if [ ! -s "$path" ]; then
+            echo "::error::$path missing — set ${{ matrix.app }}_GOOGLE_SERVICE_INFO_PLIST_B64"
+            exit 1
+          fi
+
+      - name: Fail fast if signing / ASC secrets are missing
+        env:
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTH: ${{ secrets.MATCH_GIT_BASIC_AUTH }}
+          ASC_KEY_ID: ${{ matrix.app == 'buyer' && secrets.BUYER_ASC_API_KEY_ID || secrets.SELLER_ASC_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ matrix.app == 'buyer' && secrets.BUYER_ASC_API_ISSUER_ID || secrets.SELLER_ASC_API_ISSUER_ID }}
+          ASC_KEY_P8_B64: ${{ matrix.app == 'buyer' && secrets.BUYER_ASC_API_KEY_P8_B64 || secrets.SELLER_ASC_API_KEY_P8_B64 }}
+        run: |
+          missing=""
+          [ -z "${MATCH_PASSWORD}" ]       && missing="${missing} MATCH_PASSWORD"
+          [ -z "${MATCH_GIT_BASIC_AUTH}" ] && missing="${missing} MATCH_GIT_BASIC_AUTH"
+          [ -z "${ASC_KEY_ID}" ]           && missing="${missing} ${{ matrix.app }}_ASC_API_KEY_ID"
+          [ -z "${ASC_ISSUER_ID}" ]        && missing="${missing} ${{ matrix.app }}_ASC_API_ISSUER_ID"
+          [ -z "${ASC_KEY_P8_B64}" ]       && missing="${missing} ${{ matrix.app }}_ASC_API_KEY_P8_B64"
+          if [ -n "${missing}" ]; then
+            echo "::error::Missing required secrets:${missing}. See docs/mobile-release.md."
+            exit 1
+          fi
+          echo "✓ signing + ASC secrets present"
+
+      - name: pub get
+        working-directory: apps/${{ matrix.app }}-mobile
+        run: flutter pub get
+
+      - name: Resolve per-app Sentry DSN
+        id: sentry
+        env:
+          BUYER_DSN: ${{ secrets.SENTRY_DSN_BUYER_MOBILE }}
+          SELLER_DSN: ${{ secrets.SENTRY_DSN_SELLER_MOBILE }}
+        run: |
+          case "${{ matrix.app }}" in
+            buyer)  echo "dsn=${BUYER_DSN}"  >> "$GITHUB_OUTPUT" ;;
+            seller) echo "dsn=${SELLER_DSN}" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+      - name: Configure git auth for the match repo
+        # match clones the PRIVATE teka-ios-certs over HTTPS. Rather than rely on
+        # match applying MATCH_GIT_BASIC_AUTH itself (which breaks if the base64
+        # secret carries a newline from line-wrapping), set the github.com auth
+        # header globally here — whitespace-stripped — and verify read access
+        # BEFORE the slow build. MATCH_GIT_BASIC_AUTH = base64("<user>:<PAT>").
+        env:
+          MATCH_GIT_BASIC_AUTH: ${{ secrets.MATCH_GIT_BASIC_AUTH }}
+        run: |
+          auth=$(printf '%s' "${MATCH_GIT_BASIC_AUTH}" | tr -d '\r\n ')
+          # Safe shape check (never prints the token): confirm it's base64 that
+          # decodes to a single "user:token" pair.
+          if decoded=$(printf '%s' "${auth}" | base64 -d 2>/dev/null); then
+            case "${decoded}" in
+              *:*) echo "shape: base64 decodes to '<user>:<token>' form (ok)";;
+              *)   echo "shape: base64 decodes but has NO ':' — expected '<user>:<PAT>'";;
+            esac
+          else
+            echo "shape: value is NOT valid base64 — expected base64 of '<user>:<PAT>'"
+          fi
+          git config --global http.https://github.com/.extraheader "AUTHORIZATION: basic ${auth}"
+          # Verify from a neutral dir so no repo-local config can interfere, and
+          # surface git's real error (contains no secret) if it fails.
+          if ! err=$(cd "${RUNNER_TEMP}" && git ls-remote "https://github.com/${{ github.repository_owner }}/teka-ios-certs.git" 2>&1 >/dev/null); then
+            echo "git error: ${err}"
+            echo "::error::Cannot read teka-ios-certs — MATCH_GIT_BASIC_AUTH must be a single-line base64 of '<github-user>:<PAT>' with a PAT that has read access to that repo."
+            exit 1
+          fi
+          echo "✓ git auth to teka-ios-certs OK"
+
+      - name: Install signing (Fastlane match, read-only)
+        # Clones + decrypts the match cert/profile and flips Release-production
+        # to Manual signing in this checkout only (never committed). Git auth is
+        # already configured globally above, so match's HTTPS clone just works —
+        # MATCH_GIT_BASIC_AUTH is intentionally NOT passed here to avoid match
+        # layering a second (possibly malformed) auth header.
+        env:
+          TEKA_APP: ${{ matrix.app }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_URL: https://github.com/${{ github.repository_owner }}/teka-ios-certs.git
+        run: bundle exec fastlane ios setup_signing
+
+      - name: Build production signed IPA
+        working-directory: apps/${{ matrix.app }}-mobile
+        run: |
+          # TestFlight requires a unique, ever-increasing CFBundleVersion per
+          # upload. Use the Unix epoch (monotonic, always > any small manual
+          # build like '2') as the build number — overrides the pubspec value
+          # via Flutter's --build-number → $(FLUTTER_BUILD_NUMBER) in Info.plist.
+          # The marketing version (CFBundleShortVersionString) stays from pubspec.
+          BUILD_NUMBER=$(date -u +%s)
+          echo "CFBundleVersion (build number) = ${BUILD_NUMBER}"
+          # flutter build ipa preserves the flavor --dart-define-from-file +
+          # Sentry defines (which `fastlane gym` cannot inject). The export
+          # options reference the match profile installed above.
+          flutter build ipa \
+            --release \
+            --flavor production \
+            --build-number="${BUILD_NUMBER}" \
+            --dart-define-from-file=flavors/production.json \
+            --dart-define=SENTRY_DSN=${{ steps.sentry.outputs.dsn }} \
+            --dart-define=SENTRY_RELEASE=${{ github.sha }} \
+            --export-options-plist="${{ github.workspace }}/fastlane/ExportOptions-${{ matrix.app }}.plist"
+
+      - name: Verify IPA produced
+        working-directory: apps/${{ matrix.app }}-mobile
+        run: |
+          ipa=$(ls build/ios/ipa/*.ipa 2>/dev/null | head -1 || true)
+          if [ -z "${ipa}" ]; then
+            echo "::error::No .ipa produced under build/ios/ipa — export/signing failed"
+            exit 1
+          fi
+          echo "✓ ${ipa} ($(wc -c < "${ipa}") bytes)"
+
+      - name: Upload Sentry debug symbols (iOS dSYMs)
+        working-directory: apps/${{ matrix.app }}-mobile
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_RELEASE: ${{ github.sha }}
+        run: |
+          if [ -z "${SENTRY_AUTH_TOKEN}" ]; then
+            echo "::warning::SENTRY_AUTH_TOKEN not set — skipping dSYM upload"
+            exit 0
+          fi
+          flutter pub run sentry_dart_plugin
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.app }}-mobile-production-ipa
+          path: apps/${{ matrix.app }}-mobile/build/ios/ipa/*.ipa
+          retention-days: 30
+          if-no-files-found: error
+
+  testflight:
+    needs: build
+    runs-on: macos-latest
+    # Protected environment — a reviewer must approve before this job starts.
+    # The build + dSYM upload above already ran; only the TestFlight push waits.
+    environment: ios-testflight
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ inputs.app == 'both' && fromJSON('["buyer","seller"]') || fromJSON(format('["{0}"]', inputs.app)) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Ruby + Fastlane
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Download IPA artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.app }}-mobile-production-ipa
+          path: ipa
+
+      - name: Upload to TestFlight
+        env:
+          TEKA_APP: ${{ matrix.app }}
+          ASC_KEY_ID: ${{ matrix.app == 'buyer' && secrets.BUYER_ASC_API_KEY_ID || secrets.SELLER_ASC_API_KEY_ID }}
+          ASC_ISSUER_ID: ${{ matrix.app == 'buyer' && secrets.BUYER_ASC_API_ISSUER_ID || secrets.SELLER_ASC_API_ISSUER_ID }}
+          ASC_KEY_P8_B64: ${{ matrix.app == 'buyer' && secrets.BUYER_ASC_API_KEY_P8_B64 || secrets.SELLER_ASC_API_KEY_P8_B64 }}
+        run: |
+          # Absolute path — fastlane runs the lane from its own resolved project
+          # dir, so a relative "ipa/…" wouldn't resolve inside the Fastfile.
+          IPA_PATH=$(ls "${GITHUB_WORKSPACE}"/ipa/*.ipa | head -1)
+          export IPA_PATH
+          echo "Uploading ${IPA_PATH} for ${TEKA_APP}"
+          bundle exec fastlane ios upload_testflight
