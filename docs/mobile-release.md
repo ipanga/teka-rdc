@@ -96,7 +96,7 @@ or build number in Xcode.** How each field is wired on iOS:
 | **Version** (`CFBundleShortVersionString`) | `$(FLUTTER_BUILD_NAME)` ← pubspec `x.y.z`; also bound to `MARKETING_VERSION` so the field isn't blank |
 | **Build** (`CFBundleVersion`) | `$(FLUTTER_BUILD_NUMBER)` ← pubspec `+N`; also bound to `CURRENT_PROJECT_VERSION`. CI overrides with an epoch `--build-number` (TestFlight needs each upload higher) |
 | **Display Name** (`CFBundleDisplayName`) | `$(PRODUCT_DISPLAY_NAME)`, set **per flavor** in the pbxproj — buyer: `Teka` / `Teka Stg` / `Teka Dev`; seller: `Teka Seller` / `Teka Seller Stg` / `Teka Seller Dev` |
-| **App Category** (`LSApplicationCategoryType`) | `INFOPLIST_KEY_LSApplicationCategoryType` — buyer `public.app-category.shopping`, seller `public.app-category.business` |
+| **App Category** (`LSApplicationCategoryType`) | `INFOPLIST_KEY_LSApplicationCategoryType` — buyer `public.app-category.shopping`, seller `public.app-category.business`. Populates the Xcode General tab only (see note below); the store-facing category is set in **App Store Connect** |
 
 > **Why Xcode's General tab can show a stale Build (e.g. `2`) or a blank Display Name.**
 > `FLUTTER_BUILD_NAME`/`NUMBER` live in `ios/Flutter/Generated.xcconfig` (gitignored),
@@ -116,6 +116,43 @@ or build number in Xcode.** How each field is wired on iOS:
 >   -configuration Release-production -showBuildSettings \
 >   | grep -E 'MARKETING_VERSION|CURRENT_PROJECT_VERSION|PRODUCT_DISPLAY_NAME|LSApplicationCategoryType'
 > ```
+> Or check the **built** binary directly (the source of truth):
+> ```bash
+> /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' \
+>   apps/<app>-mobile/build/ios/iphoneos/Runner.app/Info.plist   # → Teka / Teka Seller
+> ```
+
+> **`INFOPLIST_KEY_*` build settings do NOT reach the built app here.** This project uses an
+> explicit `INFOPLIST_FILE = Runner/Info.plist` (`GENERATE_INFOPLIST_FILE` is **not** `YES`), so
+> Xcode's `INFOPLIST_KEY_*` settings only populate the **General-tab GUI**, never the built
+> `Info.plist`. That's why the App Category above is wired as `INFOPLIST_KEY_LSApplicationCategoryType`
+> (fine — the iOS store category is authoritative in **App Store Connect**, not the binary), but
+> anything that must land in the shipped bundle (like the display name) has to be an explicit
+> key in `Runner/Info.plist` with a `$(VAR)` — which is exactly why the Display Name field is blank.
+> Do **not** try to "fix" the blank field by switching `CFBundleDisplayName` to an `INFOPLIST_KEY_`:
+> that empties the name in the built app.
+
+### Opening the project in Xcode — use `Runner.xcworkspace`, never `Runner.xcodeproj`
+
+Both apps integrate plugins through **CocoaPods**, so you must open the **workspace**:
+
+```bash
+open apps/seller-mobile/ios/Runner.xcworkspace     # ✅  (NOT Runner.xcodeproj)
+```
+
+Opening the bare `Runner.xcodeproj` skips the CocoaPods integration and the **seller** build
+fails with `Module 'flutter_image_compress_common' not found` — that pod (from
+`flutter_image_compress`, seller-only) ships **CocoaPods-only** (no Swift Package Manager
+support), so it exists in the Pods project the workspace loads but not in the standalone
+`.xcodeproj`. (buyer-mobile has no CocoaPods-only plugin, so its bare project happens to build —
+don't rely on that; always open the workspace for both.) If pods look stale, regenerate first:
+
+```bash
+cd apps/seller-mobile && flutter pub get && (cd ios && pod install)
+```
+
+CI is unaffected — `flutter build ipa` / `xcodebuild` in the release workflows already target the
+workspace. The trap only bites when opening the project by hand in Xcode.
 
 ## 4. Build the AAB
 
