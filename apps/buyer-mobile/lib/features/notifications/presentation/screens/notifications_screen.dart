@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/adaptive_leading.dart';
 import '../../../../core/widgets/app_bar_actions.dart';
 import '../providers/notifications_provider.dart';
 
@@ -28,6 +29,9 @@ class NotificationsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        // Opened from the home/profile bell (push) and from FCM taps (deep
+        // link, stack-replacing) — AdaptiveLeading keeps an exit in both cases.
+        leading: const AdaptiveLeading(),
         title: const Text('Notifications'),
         actions: [
           if (state.unreadCount > 0)
