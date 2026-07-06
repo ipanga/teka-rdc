@@ -131,7 +131,7 @@ export class ReviewsService {
 
         return created;
       },
-      { timeout: 60000 },
+      { timeout: 30000 },
     );
 
     this.logger.log(
@@ -312,7 +312,7 @@ export class ReviewsService {
 
         await this.recalculateRatings(tx, review.productId);
       },
-      { timeout: 60000 },
+      { timeout: 30000 },
     );
 
     this.logger.log(`Review ${reviewId} soft-deleted by buyer ${buyerId}`);

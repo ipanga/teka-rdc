@@ -294,7 +294,10 @@ export class CheckoutService {
 
         return createdOrders;
       },
-      { timeout: 120000 },
+      // Cap how long this holds a pooled connection. 30s is ample for creating
+      // a handful of per-seller orders; failing fast frees the connection back
+      // to the (small) pool instead of starving trivial reads for 2 minutes.
+      { timeout: 30000, maxWait: 10000 },
     );
 
     this.logger.log(
