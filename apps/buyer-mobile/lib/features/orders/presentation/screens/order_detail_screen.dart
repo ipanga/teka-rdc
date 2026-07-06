@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
+import '../../../../core/widgets/adaptive_leading.dart';
 import '../../../../core/widgets/app_states.dart';
 import '../../data/models/order_model.dart';
 import '../../data/orders_repository.dart';
@@ -24,7 +25,10 @@ class OrderDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Mes commandes"),
+        // Defensive: order detail can be opened from a push-notification deep
+        // link (stack-replacing), so guarantee an exit via AdaptiveLeading.
+        leading: const AdaptiveLeading(),
+        title: const Text("Détail de la commande"),
       ),
       body: orderAsync.when(
         data: (order) => _OrderDetailBody(

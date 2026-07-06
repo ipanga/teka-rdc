@@ -5,6 +5,7 @@ import 'package:seller_mobile/core/utils/price_formatter.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../data/models/order_model.dart';
 import '../../data/orders_repository.dart';
+import '../../../../core/widgets/adaptive_leading.dart';
 import '../providers/orders_provider.dart';
 import '../widgets/order_action_buttons.dart';
 import '../widgets/order_status_badge.dart';
@@ -20,7 +21,10 @@ class OrderDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Commandes"),
+        // Defensive: opened from the orders list (push) and from notification
+        // deep links (stack-replacing) — AdaptiveLeading keeps an exit.
+        leading: const AdaptiveLeading(),
+        title: const Text("Détail de la commande"),
       ),
       body: orderAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),

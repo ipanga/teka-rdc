@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/adaptive_leading.dart';
 import '../../../../core/widgets/app_states.dart';
 import '../providers/orders_provider.dart';
 import '../widgets/order_card.dart';
@@ -28,6 +29,10 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        // Reachable via go('/orders') from checkout success / payment-pending
+        // (stack replaced → no auto back button); AdaptiveLeading falls back to
+        // Home so the user is never trapped.
+        leading: const AdaptiveLeading(),
         title: const Text("Mes commandes"),
       ),
       body: Column(

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:seller_mobile/core/utils/price_formatter.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../data/models/product_model.dart';
+import '../../../../core/widgets/adaptive_leading.dart';
 import '../../data/products_repository.dart';
 import '../providers/products_provider.dart';
 import '../widgets/status_badge.dart';
@@ -30,7 +31,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("Produits"),
+        // Reached via go('/products/:id') right after a product is created
+        // (stack replaced → no auto back, and this is a root-nav route so no
+        // bottom bar either). AdaptiveLeading falls back to the products list.
+        leading: const AdaptiveLeading(fallbackLocation: '/products'),
+        title: const Text("Détail du produit"),
       ),
       body: productAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
