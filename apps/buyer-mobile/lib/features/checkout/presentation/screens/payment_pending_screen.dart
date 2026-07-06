@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
+import '../../../../core/widgets/adaptive_leading.dart';
 import '../../../orders/data/orders_repository.dart';
 import '../../data/models/checkout_model.dart';
 
@@ -107,8 +108,10 @@ class _PaymentPendingScreenState extends ConsumerState<PaymentPendingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Paiement en attente"),
-        automaticallyImplyLeading: false,
+        // Was automaticallyImplyLeading:false, which trapped the user (reached
+        // via go, no bottom bar). AdaptiveLeading gives a safe exit to Home.
+        leading: const AdaptiveLeading(),
+        title: const Text("Paiement en attente"),
       ),
       body: SafeArea(
         child: Center(
