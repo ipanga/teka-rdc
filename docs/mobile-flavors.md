@@ -9,11 +9,11 @@ Both Flutter apps (`apps/buyer-mobile`, `apps/seller-mobile`) ship as three Andr
 | | Buyer | Seller |
 |---|---|---|
 | **Dev** app ID | `com.tootiye.teka.dev` | `com.tootiye.tekaseller.dev` |
-| **Dev** display name | `Teka Dev` | `Teka Seller Dev` |
+| **Dev** display name | `Teka Dev` | `Teka Vendeur Dev` |
 | **Staging** app ID | `com.tootiye.teka.staging` | `com.tootiye.tekaseller.staging` |
-| **Staging** display name | `Teka Staging` | `Teka Seller Staging` |
+| **Staging** display name | `Teka Staging` | `Teka Vendeur Staging` |
 | **Production** app ID | `com.tootiye.teka` | `com.tootiye.tekaseller` |
-| **Production** display name | `Teka` | `Teka Seller` |
+| **Production** display name | `Teka` | `Teka Vendeur` |
 
 Production keeps its existing applicationId so the Play Store listing is unaffected. Dev/staging use `applicationIdSuffix` so all three variants co-install.
 
@@ -162,9 +162,9 @@ that ships with CocoaPods) — re-run it if you ever need to regenerate.
 
 | Flavor | Buyer bundle id | Seller bundle id | Display name (buyer / seller) |
 |---|---|---|---|
-| development | `com.tootiye.teka.dev` | `com.tootiye.tekaseller.dev` | Teka Dev / Teka Seller Dev |
-| staging | `com.tootiye.teka.staging` | `com.tootiye.tekaseller.staging` | Teka Stg / Teka Seller Stg |
-| production | `com.tootiye.teka` | `com.tootiye.tekaseller` | Teka / Teka Seller |
+| development | `com.tootiye.teka.dev` | `com.tootiye.tekaseller.dev` | Teka Dev / Teka Vendeur Dev |
+| staging | `com.tootiye.teka.staging` | `com.tootiye.tekaseller.staging` | Teka Stg / Teka Vendeur Stg |
+| production | `com.tootiye.teka` | `com.tootiye.tekaseller` | Teka / Teka Vendeur |
 
 Bundle ids/names match the Android `applicationId`s exactly. Only `Release-production`
 uses `Runner-Release.entitlements` (aps-environment **production**, for TestFlight/App

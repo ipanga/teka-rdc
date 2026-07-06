@@ -95,7 +95,7 @@ or build number in Xcode.** How each field is wired on iOS:
 |---|---|
 | **Version** (`CFBundleShortVersionString`) | `$(FLUTTER_BUILD_NAME)` ← pubspec `x.y.z`; also bound to `MARKETING_VERSION` so the field isn't blank |
 | **Build** (`CFBundleVersion`) | `$(FLUTTER_BUILD_NUMBER)` ← pubspec `+N`; also bound to `CURRENT_PROJECT_VERSION`. CI overrides with an epoch `--build-number` (TestFlight needs each upload higher) |
-| **Display Name** (`CFBundleDisplayName`) | `$(PRODUCT_DISPLAY_NAME)`, set **per flavor** in the pbxproj — buyer: `Teka` / `Teka Stg` / `Teka Dev`; seller: `Teka Seller` / `Teka Seller Stg` / `Teka Seller Dev` |
+| **Display Name** (`CFBundleDisplayName`) | `$(PRODUCT_DISPLAY_NAME)`, set **per flavor** in the pbxproj — buyer: `Teka` / `Teka Stg` / `Teka Dev`; seller: `Teka Vendeur` / `Teka Vendeur Stg` / `Teka Vendeur Dev` |
 | **App Category** (`LSApplicationCategoryType`) | `INFOPLIST_KEY_LSApplicationCategoryType` — buyer `public.app-category.shopping`, seller `public.app-category.business`. Populates the Xcode General tab only (see note below); the store-facing category is set in **App Store Connect** |
 
 > **Why Xcode's General tab can show a stale Build (e.g. `2`) or a blank Display Name.**
@@ -110,7 +110,7 @@ or build number in Xcode.** How each field is wired on iOS:
 > ```
 > The **Display Name** field looks blank because `CFBundleDisplayName` is a `$(…)` variable
 > (Xcode's editor only renders literals) — this is expected and correct; the built app is
-> named `Teka` / `Teka Seller`. Verify the resolved values any time with:
+> named `Teka` / `Teka Vendeur`. Verify the resolved values any time with:
 > ```bash
 > cd apps/<buyer|seller>-mobile/ios && xcodebuild -project Runner.xcodeproj -target Runner \
 >   -configuration Release-production -showBuildSettings \
@@ -119,7 +119,7 @@ or build number in Xcode.** How each field is wired on iOS:
 > Or check the **built** binary directly (the source of truth):
 > ```bash
 > /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' \
->   apps/<app>-mobile/build/ios/iphoneos/Runner.app/Info.plist   # → Teka / Teka Seller
+>   apps/<app>-mobile/build/ios/iphoneos/Runner.app/Info.plist   # → Teka / Teka Vendeur
 > ```
 
 > **`INFOPLIST_KEY_*` build settings do NOT reach the built app here.** This project uses an
@@ -186,7 +186,7 @@ flutter build appbundle --release --flavor production \
 
 **Account / app (one-time):**
 - [ ] Google Play **Developer account** ($25 one-time) created + identity verified.
-- [ ] Create the app in Play Console (one per app: Teka / Teka Seller), default
+- [ ] Create the app in Play Console (one per app: Teka / Teka Vendeur), default
       language **French (fr)**, app/game = App, free.
 - [ ] Confirm the package names match (`com.tootiye.teka`, `com.tootiye.tekaseller`).
 - [ ] **Play App Signing** enrolled (default for new apps) — upload key = the
