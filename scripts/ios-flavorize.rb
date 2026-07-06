@@ -11,7 +11,7 @@
 #
 # Usage: ruby scripts/ios-flavorize.rb <app-dir> <base-bundle-id> <base-display-name>
 #   ruby scripts/ios-flavorize.rb apps/buyer-mobile  com.tootiye.teka       "Teka"
-#   ruby scripts/ios-flavorize.rb apps/seller-mobile com.tootiye.tekaseller "Teka Seller"
+#   ruby scripts/ios-flavorize.rb apps/seller-mobile com.tootiye.tekaseller "Teka Vendeur"
 #
 # Uses the `xcodeproj` gem that ships with CocoaPods (no extra install).
 
