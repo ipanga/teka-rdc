@@ -19,7 +19,11 @@ import '../../features/products/presentation/screens/product_form_screen.dart';
 import '../../features/products/presentation/screens/product_images_screen.dart';
 import '../../features/products/presentation/screens/products_list_screen.dart';
 import '../../features/products/data/models/product_model.dart';
+import '../../features/profile/presentation/screens/notification_settings_screen.dart';
+import '../../features/profile/presentation/screens/personal_info_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/profile/presentation/screens/security_screen.dart';
+import '../../features/profile/presentation/screens/shop_profile_screen.dart';
 import '../../features/promotions/presentation/screens/create_promotion_screen.dart';
 import '../../features/promotions/presentation/screens/promotions_list_screen.dart';
 import '../../features/reviews/presentation/screens/seller_reviews_screen.dart';
@@ -62,7 +66,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (isLoading) return null;
 
       // Wrong role -> show wrong role screen
-      if (isWrongRole && state.matchedLocation != '/auth/wrong-role' &&
+      if (isWrongRole &&
+          state.matchedLocation != '/auth/wrong-role' &&
           state.matchedLocation != '/auth/register') {
         return '/auth/wrong-role';
       }
@@ -237,7 +242,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const NotificationsScreen(),
       ),
 
-      // (The /profile tab lives in the shell above.)
+      // Profile sub-routes (the /profile tab itself lives in the shell above)
+      GoRoute(
+        path: '/profile/personal',
+        builder: (context, state) => const PersonalInfoScreen(),
+      ),
+      GoRoute(
+        path: '/profile/shop',
+        builder: (context, state) => const ShopProfileScreen(),
+      ),
+      GoRoute(
+        path: '/profile/notifications',
+        builder: (context, state) => const NotificationSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/profile/security',
+        builder: (context, state) => const SecurityScreen(),
+      ),
 
       // /messages and /messages/:id retired 2026-05-17 — direct buyer↔
       // seller messaging removed in favour of "Contacter le support".
