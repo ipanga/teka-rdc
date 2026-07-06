@@ -23,7 +23,11 @@ import '../../features/home/presentation/home_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/orders/presentation/screens/order_detail_screen.dart';
 import '../../features/orders/presentation/screens/orders_screen.dart';
+import '../../features/profile/presentation/screens/address_book_screen.dart';
+import '../../features/profile/presentation/screens/notification_settings_screen.dart';
+import '../../features/profile/presentation/screens/personal_info_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/profile/presentation/screens/security_screen.dart';
 import '../../features/content/presentation/screens/content_page_screen.dart';
 import '../../features/reviews/presentation/screens/product_reviews_screen.dart';
 import '../../features/wishlist/presentation/screens/wishlist_screen.dart';
@@ -229,6 +233,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const NotificationsScreen(),
       ),
       GoRoute(
+        path: '/profile/informations',
+        builder: (context, state) => const PersonalInfoScreen(),
+      ),
+      GoRoute(
+        path: '/profile/addresses',
+        builder: (context, state) => const AddressBookScreen(),
+      ),
+      GoRoute(
+        path: '/profile/notifications',
+        builder: (context, state) => const NotificationSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/profile/security',
+        builder: (context, state) => const SecurityScreen(),
+      ),
+      GoRoute(
         path: '/pages/:slug',
         builder: (context, state) {
           final slug = state.pathParameters['slug']!;
@@ -246,7 +266,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             observers: [PosthogObserver()],
             routes: [
-              GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
+              GoRoute(
+                  path: '/', builder: (context, state) => const HomeScreen()),
             ],
           ),
           StatefulShellBranch(

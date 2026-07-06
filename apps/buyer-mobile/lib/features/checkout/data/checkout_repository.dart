@@ -82,6 +82,26 @@ class CheckoutRepository {
 
     return AddressModel.fromJson(resultJson);
   }
+
+  Future<AddressModel> setDefaultAddress(String id) async {
+    final response = await _dio.patch('/v1/addresses/$id/default');
+    final responseData = response.data;
+
+    final Map<String, dynamic> resultJson;
+    if (responseData is Map && responseData['data'] != null) {
+      resultJson = responseData['data'] as Map<String, dynamic>;
+    } else if (responseData is Map) {
+      resultJson = Map<String, dynamic>.from(responseData);
+    } else {
+      throw Exception('Invalid default address response');
+    }
+
+    return AddressModel.fromJson(resultJson);
+  }
+
+  Future<void> deleteAddress(String id) async {
+    await _dio.delete('/v1/addresses/$id');
+  }
 }
 
 final checkoutRepositoryProvider = Provider<CheckoutRepository>((ref) {
