@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_error_messages.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../products/data/models/product_model.dart';
 import '../../../products/data/products_repository.dart';
 import '../../data/models/review_model.dart';
@@ -72,10 +73,10 @@ class SellerReviewsNotifier extends StateNotifier<SellerReviewsState> {
   final ReviewsRepository _reviewsRepository;
   final ProductsRepository _productsRepository;
 
+  // Starts loading and does NOT auto-fetch — the first load is driven off auth
+  // status by `sellerReviewsProvider`. See sellerProductsProvider.
   SellerReviewsNotifier(this._reviewsRepository, this._productsRepository)
-      : super(const SellerReviewsState()) {
-    loadProducts();
-  }
+      : super(const SellerReviewsState(isLoadingProducts: true));
 
   Future<void> loadProducts() async {
     state = state.copyWith(isLoadingProducts: true, clearError: true);
@@ -196,8 +197,15 @@ class SellerReviewsNotifier extends StateNotifier<SellerReviewsState> {
 
 final sellerReviewsProvider =
     StateNotifierProvider<SellerReviewsNotifier, SellerReviewsState>((ref) {
-  return SellerReviewsNotifier(
+  final notifier = SellerReviewsNotifier(
     ref.read(reviewsRepositoryProvider),
     ref.read(productsRepositoryProvider),
   );
+  // Load off auth status, not the constructor — see sellerProductsProvider.
+  ref.listen<AuthStatus>(authProvider.select((s) => s.status), (prev, next) {
+    if (next == AuthStatus.authenticated && prev != AuthStatus.authenticated) {
+      notifier.loadProducts();
+    }
+  }, fireImmediately: true);
+  return notifier;
 });

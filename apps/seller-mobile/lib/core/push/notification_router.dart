@@ -4,6 +4,7 @@
 ///   - `{ screen: 'order-details',   orderId:   <uuid> }`   — new-order push
 ///   - `{ screen: 'product-details', productId: <uuid> }`   — approval / rejection
 ///   - `{ screen: 'product-reviews', productId: <uuid> }`   — new review
+///   - `{ screen: 'notifications' }`                        — generic admin broadcast
 ///
 /// Differences from buyer-mobile:
 ///   - There is no `/products/:id/reviews` route — sellers see a
@@ -31,6 +32,11 @@ class NotificationRouter {
         // the productId — the page can filter from query params or
         // the user can scroll to it. Route still encodes the intent.
         return '/reviews';
+      case 'notifications':
+        // Generic admin broadcast (no linked product) → open the
+        // Notification Center. Backend sends this for a plain broadcast;
+        // without this case the tap did nothing. Parity with buyer-mobile.
+        return '/notifications';
       default:
         return null;
     }

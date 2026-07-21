@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:seller_mobile/core/utils/price_formatter.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../data/models/product_model.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
@@ -515,6 +516,25 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   Future<void> _submitForReview(
       BuildContext context, SellerProductModel product) async {
+    // Pre-flight: the API rejects a submission with zero images
+    // ("Le produit doit avoir au moins une image avant la soumission").
+    // Catch it client-side to avoid a confusing round-trip and point the
+    // seller straight at the image manager instead of a generic error.
+    if (product.images.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              "Ajoutez au moins une image avant de soumettre le produit."),
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: "Ajouter",
+            onPressed: () => context.push('/products/${product.id}/images'),
+          ),
+        ),
+      );
+      return;
+    }
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -550,9 +570,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       }
     } catch (e) {
       if (mounted) {
+        // Surface the API's contextual French reason (missing image, price ≤ 0,
+        // not a draft…) instead of a generic banner. friendlyErrorMessage also
+        // reports only unexpected errors to Sentry.
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Une erreur est survenue. Veuillez réessayer."),
+            content: Text(friendlyErrorMessage(e)),
             behavior: SnackBarBehavior.floating,
           ),
         );

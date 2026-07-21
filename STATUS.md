@@ -1,4 +1,4 @@
-# Status — 2026-07-04
+# Status — 2026-07-21
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,9 +6,29 @@
 
 ## Active initiative
 
-**Buyer-mobile TestFlight fixes — on `fix/buyer-mobile-cart-search-checkout-rating`, PR into `develop`.**
-Six defects from a real iPhone build + buyer-web parity. Tracker: `docs/buyer-mobile-cart-search-checkout-rating-fixes.md`.
-All six fixed at source, minimal + backward-compatible; API + all Flutter/web tests green.
+**Seller-mobile submit / first-load / image-editing / notifications fixes — 4 stacked PRs into `develop`.**
+Four seller-facing defects from a real device build + seller-web parity. Tracker:
+`docs/seller-product-loading-images-notifications-fixes.md`. All fixed at source, minimal + backward-compatible,
+**no DB/API-contract change**; API + all Flutter/web tests green (seller-mobile suite 11).
+
+PRs (stacked, merge in order; retarget each base to `develop` as the prior merges):
+`#550 submit-error` ← `#551 first-load-race` ← `#552 inline-image-edit` ← `#553 notifications`.
+
+> **DONE 2026-07-21 — seller-mobile P1–P4.** **(P1)** "Soumettre pour révision" masked the API's real
+> validation reason (0-image draft) behind a generic banner → now surfaces `friendlyErrorMessage` + a
+> pre-flight empty-image guard with an "Ajouter" shortcut; seller-web list submit no longer swallows the
+> error (+3 API submit specs). **(P2)** First-open Commandes/Produits error→retry was a cold-start race
+> (list `StateNotifier`s fetched in constructors before auth) → each provider (orders/products/notifications/
+> earnings/promotions/reviews) now starts loading + drives its first load off `authProvider.status` via
+> `ref.listen(…fireImmediately)`, mirroring `dashboardStatsProvider`; removed the redundant home reload
+> workaround (+provider test). **(P3)** Edit form had no image controls → extracted a shared
+> `ProductImageManager` (add+delete, reused by `ProductImagesScreen`) embedded inline in the edit path;
+> Cloudinary delete already swallows+logs (verified, no change) (+widget test). **(P4)** Diagnosed the empty
+> Centre as the P2 race; fixed two proven gaps — seller `NotificationRouter` now routes plain broadcasts
+> (`screen:'notifications'` → `/notifications`, parity w/ buyer) + settings screen now reflects real OS
+> permission (new `PushService.getPermissionStatus()`; denied → guidance banner, notDetermined → request CTA);
+> admin `ALL_SELLERS` audience already existed (+router test). **Remaining:** on-device runtime pass (needs a
+> device/emulator) — steps in the tracker.
 
 > **DONE 2026-07-04 — buyer-mobile nav/cart/search/checkout/town/rating fixes.**
 > **(1)** Nav stack preserved on protected inline actions — `ensureAuthenticated` now `Future<bool>` that
