@@ -266,4 +266,41 @@ describe('ProductsService lifecycle transitions', () => {
       BadRequestException,
     );
   });
+
+  it('submit: rejects a DRAFT product with zero images (400)', async () => {
+    const { service } = makeLifecycleService({
+      id: 'p1',
+      status: 'DRAFT',
+      images: [],
+      priceCDF: BigInt(38000000),
+    });
+    await expect(
+      service.submitForReview('seller1', 'p1'),
+    ).rejects.toThrow('Le produit doit avoir au moins une image avant la soumission');
+  });
+
+  it('submit: rejects a non-DRAFT product (400)', async () => {
+    const { service } = makeLifecycleService({
+      id: 'p1',
+      status: 'ACTIVE',
+      images: [{ id: 'img1' }],
+      priceCDF: BigInt(38000000),
+    });
+    await expect(
+      service.submitForReview('seller1', 'p1'),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('submit: DRAFT with an image + price → PENDING_REVIEW', async () => {
+    const { service, updateMock, prisma } = makeLifecycleService({
+      id: 'p1',
+      status: 'DRAFT',
+      title: 'Tecno Spark',
+      images: [{ id: 'img1' }],
+      priceCDF: BigInt(38000000),
+    });
+    await service.submitForReview('seller1', 'p1');
+    expect(updateMock.mock.calls[0][0].data.status).toBe('PENDING_REVIEW');
+    expect(prisma.productStatusLog.create).toHaveBeenCalled();
+  });
 });
