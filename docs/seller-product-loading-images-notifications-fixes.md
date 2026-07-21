@@ -11,7 +11,7 @@ parity with **seller-web**. Investigation (three parallel Explore agents) establ
 - [x] **P1 — Submit for review fails.** Surface the real API reason + guard 0-image submit. (PR #1)
 - [x] **P2 — First-load error on Commandes/Produits.** Auth-guard provider auto-loads. (PR #2)
 - [x] **P3 — Inline image editing in the edit form.** Extract shared image manager. (PR #3)
-- [ ] **P4 — Notifications.** Runtime-diagnose empty Centre; targeted fixes only. (PR #4)
+- [x] **P4 — Notifications.** Diagnosed; broadcast-tap routing + OS-permission truth fixed. (PR #4)
 
 ## Root causes
 
@@ -97,18 +97,50 @@ add-tile hidden + "Maximum atteint" at 8. Full suite (9) green; analyze clean on
 
 **No DB / API change.**
 
-### P4 — Notifications  ⏳ pending (diagnose at runtime first)
-Backend feed + device tokens + `ALL_SELLERS` broadcasts + order/product events all already exist and are
-wired. Empty Centre is most likely the P2 race or a no-notification test account. Diagnose before coding.
+### P4 — Notifications  ✅ FIXED (PR #4)
+**Diagnosis (code-level, since an on-device pass needs a device/emulator):** the seller notification stack is
+already fully wired — backend writes `UserNotification` rows for order + product-moderation events and for
+broadcasts, `/v1/seller/notifications` returns them, device tokens register on login, FCM foreground/tap
+handlers exist. Findings:
+- **Empty Centre root cause = the P2 race** (the notifications provider auto-loaded pre-auth and cached an
+  empty/error feed). Fixed in PR #2 (now auth-gated).
+- **Broadcast push tap routed nowhere (real gap).** A plain admin broadcast sends `{ screen: 'notifications' }`
+  (`broadcasts.service.ts:383`), but the seller `NotificationRouter` had no such case → tap did nothing.
+  buyer-mobile already handled it.
+- **Admin `ALL_SELLERS` audience already exists** (`admin-web …/broadcasts/page.tsx` — "Tous les vendeurs").
+  No gap.
+- **Settings didn't reflect OS permission (real gap).** The settings screen only read/wrote backend prefs; a
+  toggle could read "on" while the phone had notifications denied → push silently never arrives.
+
+**Fixes:**
+- `apps/seller-mobile/lib/core/push/notification_router.dart` — added `case 'notifications' → '/notifications'`
+  (parity with buyer-mobile). Test: `test/core/push/notification_router_test.dart`.
+- `apps/seller-mobile/lib/core/push/push_service.dart` — added `getPermissionStatus()` (reads OS permission
+  via `getNotificationSettings()` **without** prompting).
+- `…/profile/presentation/screens/notification_settings_screen.dart` — reads the OS status on load and shows
+  a truthful banner: **denied** → "notifications désactivées dans les réglages… réactivez-les" (no false
+  "enabled"); **notDetermined** → an "Activer les notifications" button that requests permission. Toggles
+  still control the backend channel prefs (email fallback stays meaningful).
+
+**Deliberately deferred (documented):** a one-tap "open system settings" deep-link needs a new native package
+(`app_settings`/`permission_handler`) — not added to keep scope minimal and avoid an unverifiable native dep;
+the banner instructs the seller to open Réglages manually. The core requirement (never claim enabled when the
+OS denied) is met.
+
+**No DB / API change.** Tests: full suite (11) green; analyze clean on our source.
+
+### ⚠️ Remaining manual verification (needs a device/emulator)
+On-device runtime pass not performed in-session. Before closing the initiative, run seller-mobile (dev
+flavor) against `pnpm dev:api` and confirm: (1) cold-start Commandes/Produits/Centre load without the
+error→retry; (2) trigger an order + a product approve/reject + an `ALL_SELLERS` broadcast → all appear in the
+Centre + home badge, and tapping each push deep-links correctly (incl. the plain broadcast → Centre);
+(3) deny OS notifications → the settings banner reflects it.
 
 ## Risks / notes
 - P1 relies on the API keeping its French validation messages (it does; specs now lock them in).
 - Cloudinary orphan cleanup (P3) is assessed as acceptable/follow-up, not built here.
 
 ## Resume instructions
-Next: **P4** — branch `fix/seller-notifications` (stacked on the P3 branch). Notifications are already
-fully wired + the P2 race guard now covers the notifications provider, so this phase is **runtime
-diagnosis first**: run seller-mobile (dev flavor) against `pnpm dev:api`, trigger order + product
-moderation + an `ALL_SELLERS` broadcast, and confirm the Centre de notifications populates. Then apply only
-proven gaps: BROADCAST/PRODUCT_PROMO deep-link routing in `NotificationRouter`; verify admin-web exposes an
-`ALL_SELLERS` audience; settings↔OS-permission truth. Document findings here.
+All four phases implemented across PRs #1–#4 (stacked: #550 ← #551 ← #552 ← #4). Merge in order into
+`develop` (retarget each PR's base to `develop` as the previous one merges). Then run the **Remaining manual
+verification** on-device pass above and tick it off. Nothing else outstanding.

@@ -1,5 +1,7 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/push/push_service.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
 import '../../data/profile_repository.dart';
@@ -18,6 +20,7 @@ class _NotificationSettingsScreenState
   bool _saving = false;
   String? _error;
   NotificationPrefs? _prefs;
+  AuthorizationStatus? _osStatus;
 
   @override
   void initState() {
@@ -33,14 +36,31 @@ class _NotificationSettingsScreenState
     try {
       final prefs =
           await ref.read(profileRepositoryProvider).getNotificationPrefs();
+      // Read the actual OS permission so the UI never claims notifications are
+      // on while the phone has them blocked. Best-effort — a failure just
+      // leaves the banner hidden.
+      final osStatus = await PushService.instance.getPermissionStatus();
       if (!mounted) return;
-      setState(() => _prefs = prefs);
+      setState(() {
+        _prefs = prefs;
+        _osStatus = osStatus;
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() => _error = 'Impossible de charger vos préférences.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// Prompts for permission when it hasn't been decided yet, then refreshes the
+  /// banner. On iOS a prior denial can't be re-prompted — the banner then tells
+  /// the seller to enable notifications in the phone settings.
+  Future<void> _requestOsPermission() async {
+    await PushService.instance.requestPermission();
+    final osStatus = await PushService.instance.getPermissionStatus();
+    if (!mounted) return;
+    setState(() => _osStatus = osStatus);
   }
 
   Future<void> _update({
@@ -100,9 +120,28 @@ class _NotificationSettingsScreenState
           smsBroadcasts: true,
         );
 
+    final osBlocked = _osStatus == AuthorizationStatus.denied;
+    final osUndetermined = _osStatus == AuthorizationStatus.notDetermined;
+
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        // OS-level permission truth: if the phone blocks notifications, no
+        // in-app toggle can deliver a push — say so instead of implying they
+        // work. If undecided, offer to ask for permission.
+        if (osBlocked) ...[
+          _OsPermissionBanner(
+            blocked: true,
+            onAction: null,
+          ),
+          const SizedBox(height: 16),
+        ] else if (osUndetermined) ...[
+          _OsPermissionBanner(
+            blocked: false,
+            onAction: _requestOsPermission,
+          ),
+          const SizedBox(height: 16),
+        ],
         const _NoticeCard(
           icon: Icons.info_outline_rounded,
           text:
@@ -166,6 +205,73 @@ class _PreferenceTile extends StatelessWidget {
         subtitle: Text(subtitle),
         value: value,
         onChanged: enabled ? onChanged : null,
+      ),
+    );
+  }
+}
+
+class _OsPermissionBanner extends StatelessWidget {
+  /// true = OS has denied notifications (nothing to tap — guide to settings);
+  /// false = not yet decided (offer to request permission).
+  final bool blocked;
+  final VoidCallback? onAction;
+
+  const _OsPermissionBanner({required this.blocked, required this.onAction});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = blocked ? TekaColors.destructive : TekaColors.warning;
+    final text = blocked
+        ? 'Les notifications sont désactivées dans les réglages de votre '
+            'téléphone. Réactivez-les dans Réglages › Notifications pour '
+            'recevoir les alertes de commande.'
+        : "Autorisez les notifications pour être prévenu des nouvelles "
+            'commandes en temps réel.';
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.30)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  blocked
+                      ? Icons.notifications_off_outlined
+                      : Icons.notifications_active_outlined,
+                  color: color,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    text,
+                    style: const TextStyle(
+                      color: TekaColors.foreground,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (onAction != null) ...[
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton(
+                  onPressed: onAction,
+                  child: const Text('Activer les notifications'),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
