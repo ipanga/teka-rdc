@@ -11,6 +11,7 @@ import '../../data/products_repository.dart';
 import '../providers/products_provider.dart';
 import '../widgets/category_selector.dart';
 import '../widgets/dynamic_attribute_field.dart';
+import '../widgets/product_image_manager.dart';
 
 class ProductFormScreen extends ConsumerStatefulWidget {
   final SellerProductModel? product;
@@ -179,6 +180,29 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 ),
               ),
               const SizedBox(height: 16),
+            ],
+
+            // Images — inline management on the edit path (parity with
+            // seller-web). On create the product has no id yet, so images are
+            // added after the first save via the detail screen.
+            if (_isEditing) ...[
+              Text(
+                "Images",
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                "Ajoutez au moins une image. La première sert de couverture.",
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  color: TekaColors.mutedForeground,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ProductImageManager(productId: widget.product!.id),
+              const SizedBox(height: 24),
             ],
 
             // Category

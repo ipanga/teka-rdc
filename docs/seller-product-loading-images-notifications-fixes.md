@@ -10,7 +10,7 @@ parity with **seller-web**. Investigation (three parallel Explore agents) establ
 
 - [x] **P1 — Submit for review fails.** Surface the real API reason + guard 0-image submit. (PR #1)
 - [x] **P2 — First-load error on Commandes/Produits.** Auth-guard provider auto-loads. (PR #2)
-- [ ] **P3 — Inline image editing in the edit form.** Extract shared image manager. (PR #3)
+- [x] **P3 — Inline image editing in the edit form.** Extract shared image manager. (PR #3)
 - [ ] **P4 — Notifications.** Runtime-diagnose empty Centre; targeted fixes only. (PR #4)
 
 ## Root causes
@@ -65,9 +65,37 @@ constructor, starts in a loading (non-error) state, and `loadProducts()` fetches
 
 **No DB / API-contract change.**
 
-### P3 — Inline image editing  ⏳ pending
-Working `ProductImagesScreen` (add+delete) exists but isn't reachable from `ProductFormScreen`. Extract a
-shared `ProductImageManager`. Neither web nor mobile has a reorder/cover endpoint → parity = add+delete.
+### P3 — Inline image editing  ✅ FIXED (PR #3)
+A working `ProductImagesScreen` (add+delete) existed but was only reachable from the DRAFT detail screen's
+"Ajouter" button — not from the edit form. seller-web manages images inline. Neither web nor mobile has a
+reorder/cover endpoint (`products.controller.ts` exposes only `POST/DELETE :id/images`), so parity =
+add+delete.
+
+**Fix:**
+- New `apps/seller-mobile/lib/features/products/presentation/widgets/product_image_manager.dart` —
+  `ProductImageManager`, the single shared add+delete grid (reuses `ImageUploadTile` +
+  `products_repository.uploadImage/deleteImage`; ≤8 images; `image_picker` 1200×1200 q80 +
+  `compressImageForUpload` ≤500 KB WebP). Shrink-wrapped so it embeds in both a ListView and a Column.
+  Upload/delete errors now surface via `friendlyErrorMessage` (was a generic string).
+- `product_images_screen.dart` reduced to a thin `Scaffold` + `SingleChildScrollView` wrapper around it.
+- `product_form_screen.dart` embeds `ProductImageManager` inline in the **edit** path (a section titled
+  "Images" after the published-product notice). Create keeps the save→detail→add-images flow (no product
+  id until first save).
+
+**Cloudinary lifecycle (verified, no change needed):** `products.service.deleteImage` verifies owner then
+calls `cloudinary.deleteImage(cloudinaryId)`, which **swallows + logs** failures (`logger.error`) and
+returns, so the DB row is always removed and a failed destroy is logged for reconciliation — no orphan
+blocks the user, no silent failure. Orphan-on-abandon (upload then leave) is assessed acceptable/follow-up.
+
+**Display parity (unchanged):** image rendering across buyer-web/mobile PDP + admin moderation reads images
+the same way; P3 only adds a management entry point, so display is unaffected. Manual cross-surface check
+remains in the verification checklist.
+
+**Tests:** `test/features/products/product_image_manager_test.dart` — count header + add tile under max;
+add-tile hidden + "Maximum atteint" at 8. Full suite (9) green; analyze clean on our source (the 4 info
+`use_build_context_synchronously` lints match the codebase style, moved from the old screen).
+
+**No DB / API change.**
 
 ### P4 — Notifications  ⏳ pending (diagnose at runtime first)
 Backend feed + device tokens + `ALL_SELLERS` broadcasts + order/product events all already exist and are
@@ -78,6 +106,9 @@ wired. Empty Centre is most likely the P2 race or a no-notification test account
 - Cloudinary orphan cleanup (P3) is assessed as acceptable/follow-up, not built here.
 
 ## Resume instructions
-Next: **P3** — branch `fix/seller-mobile-inline-image-edit` (stacked on the P2 branch); extract a shared
-`ProductImageManager` (add+delete, reusing `ImageUploadTile` + `products_repository` upload/delete) and
-embed it in `ProductFormScreen`'s edit path; verify Cloudinary destroy logging; cross-surface display check.
+Next: **P4** — branch `fix/seller-notifications` (stacked on the P3 branch). Notifications are already
+fully wired + the P2 race guard now covers the notifications provider, so this phase is **runtime
+diagnosis first**: run seller-mobile (dev flavor) against `pnpm dev:api`, trigger order + product
+moderation + an `ALL_SELLERS` broadcast, and confirm the Centre de notifications populates. Then apply only
+proven gaps: BROADCAST/PRODUCT_PROMO deep-link routing in `NotificationRouter`; verify admin-web exposes an
+`ALL_SELLERS` audience; settings↔OS-permission truth. Document findings here.
