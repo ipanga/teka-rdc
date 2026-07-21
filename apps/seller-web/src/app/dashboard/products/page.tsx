@@ -115,11 +115,14 @@ export default function ProductsListPage() {
 
   const handleSubmit = async (productId: string) => {
     setSubmittingId(productId);
+    setError('');
     try {
       await apiFetch(`/v1/sellers/products/${productId}/submit`, { method: 'PATCH' });
       loadProducts();
-    } catch {
-      // ignore
+    } catch (err) {
+      // Surface the API's contextual reason (e.g. missing image) instead of
+      // silently doing nothing — parity with the detail page + seller-mobile.
+      setError(err instanceof ApiError ? err.message : 'Une erreur est survenue');
     } finally {
       setSubmittingId(null);
     }
