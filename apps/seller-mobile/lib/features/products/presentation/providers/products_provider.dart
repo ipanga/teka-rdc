@@ -61,9 +61,12 @@ class ProductsListState {
 class ProductsListNotifier extends StateNotifier<ProductsListState> {
   final ProductsRepository _repository;
 
-  ProductsListNotifier(this._repository) : super(const ProductsListState()) {
-    loadProducts();
-  }
+  // Starts in a loading state and does NOT auto-fetch. The first load is driven
+  // by `sellerProductsProvider` once auth resolves to authenticated — firing in
+  // the constructor races token restoration on cold start (request with no
+  // bearer → 401 → cached error until "Réessayer"). See dashboardStatsProvider.
+  ProductsListNotifier(this._repository)
+      : super(const ProductsListState(isLoading: true));
 
   Future<void> loadProducts() async {
     state = state.copyWith(isLoading: true, clearError: true);
@@ -174,7 +177,18 @@ class ProductsListNotifier extends StateNotifier<ProductsListState> {
 
 final sellerProductsProvider =
     StateNotifierProvider<ProductsListNotifier, ProductsListState>((ref) {
-  return ProductsListNotifier(ref.read(productsRepositoryProvider));
+  final notifier = ProductsListNotifier(ref.read(productsRepositoryProvider));
+  // Drive the first (and re-)load off auth status instead of the constructor.
+  // fireImmediately covers the warm path (already authenticated when the tab is
+  // opened); the transition guard covers the cold path (unknown → authenticated
+  // after token restore). Until then the notifier stays in its loading state, so
+  // the list shows a skeleton — never a 401 cached from an unauthenticated start.
+  ref.listen<AuthStatus>(authProvider.select((s) => s.status), (prev, next) {
+    if (next == AuthStatus.authenticated && prev != AuthStatus.authenticated) {
+      notifier.loadProducts();
+    }
+  }, fireImmediately: true);
+  return notifier;
 });
 
 // -- Dashboard stats (server-computed counts; one call) --
