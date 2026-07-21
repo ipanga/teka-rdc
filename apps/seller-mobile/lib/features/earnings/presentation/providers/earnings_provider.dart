@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/earnings_repository.dart';
 import '../../data/models/earning_model.dart';
 
@@ -71,10 +72,10 @@ class EarningsState {
 class EarningsNotifier extends StateNotifier<EarningsState> {
   final EarningsRepository _repository;
 
-  EarningsNotifier(this._repository) : super(const EarningsState()) {
-    loadWallet();
-    loadEarnings();
-  }
+  // Starts loading and does NOT auto-fetch — the first load is driven off auth
+  // status by `earningsProvider`. Firing in the constructor races token restore
+  // on cold start (no bearer → 401 → cached error). See sellerProductsProvider.
+  EarningsNotifier(this._repository) : super(const EarningsState(isLoading: true));
 
   Future<void> loadWallet() async {
     try {
@@ -249,5 +250,13 @@ class EarningsNotifier extends StateNotifier<EarningsState> {
 
 final earningsProvider =
     StateNotifierProvider<EarningsNotifier, EarningsState>((ref) {
-  return EarningsNotifier(ref.read(earningsRepositoryProvider));
+  final notifier = EarningsNotifier(ref.read(earningsRepositoryProvider));
+  // Load off auth status, not the constructor — see sellerProductsProvider.
+  ref.listen<AuthStatus>(authProvider.select((s) => s.status), (prev, next) {
+    if (next == AuthStatus.authenticated && prev != AuthStatus.authenticated) {
+      notifier.loadWallet();
+      notifier.loadEarnings();
+    }
+  }, fireImmediately: true);
+  return notifier;
 });

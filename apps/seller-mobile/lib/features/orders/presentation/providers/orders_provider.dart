@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_error_messages.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/order_model.dart';
 import '../../data/orders_repository.dart';
 
@@ -57,9 +58,12 @@ class SellerOrdersState {
 class SellerOrdersNotifier extends StateNotifier<SellerOrdersState> {
   final SellerOrdersRepository _repository;
 
-  SellerOrdersNotifier(this._repository) : super(const SellerOrdersState()) {
-    loadOrders();
-  }
+  // Starts loading and does NOT auto-fetch. The first load is driven by
+  // `sellerOrdersProvider` once auth resolves — firing in the constructor races
+  // token restoration on cold start (no bearer → 401 → cached error until
+  // "Réessayer"). Mirrors sellerProductsProvider / dashboardStatsProvider.
+  SellerOrdersNotifier(this._repository)
+      : super(const SellerOrdersState(isLoading: true));
 
   Future<void> loadOrders() async {
     state = state.copyWith(isLoading: true, clearError: true);
@@ -141,7 +145,14 @@ class SellerOrdersNotifier extends StateNotifier<SellerOrdersState> {
 
 final sellerOrdersProvider =
     StateNotifierProvider<SellerOrdersNotifier, SellerOrdersState>((ref) {
-  return SellerOrdersNotifier(ref.read(sellerOrdersRepositoryProvider));
+  final notifier = SellerOrdersNotifier(ref.read(sellerOrdersRepositoryProvider));
+  // Load off auth status, not the constructor — see sellerProductsProvider.
+  ref.listen<AuthStatus>(authProvider.select((s) => s.status), (prev, next) {
+    if (next == AuthStatus.authenticated && prev != AuthStatus.authenticated) {
+      notifier.loadOrders();
+    }
+  }, fireImmediately: true);
+  return notifier;
 });
 
 // -- Single order detail --

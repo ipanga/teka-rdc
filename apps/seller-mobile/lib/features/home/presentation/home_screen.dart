@@ -24,18 +24,9 @@ class HomeScreen extends ConsumerWidget {
     final userName = authState.user?['firstName'] as String? ?? '';
     final unread = ref.watch(notificationsProvider.select((s) => s.unread));
 
-    // The products/orders notifiers auto-load in their constructors, which can
-    // fire during an unauthenticated startup attempt (expired session → 401)
-    // and cache an empty result that never refreshes after login. Reload them
-    // the moment auth resolves to authenticated. (Stats self-refresh via their
-    // own auth dependency.)
-    ref.listen(authProvider.select((s) => s.status), (prev, next) {
-      if (next == AuthStatus.authenticated &&
-          prev != AuthStatus.authenticated) {
-        ref.read(sellerProductsProvider.notifier).loadProducts();
-        ref.read(sellerOrdersProvider.notifier).loadOrders();
-      }
-    });
+    // Products / orders / notifications providers now load themselves off auth
+    // status (see sellerProductsProvider), so the old manual reload-on-auth
+    // workaround here is gone — keeping it would double-load on sign-in.
 
     return Scaffold(
       appBar: AppBar(

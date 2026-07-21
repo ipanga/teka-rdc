@@ -9,7 +9,7 @@ parity with **seller-web**. Investigation (three parallel Explore agents) establ
 ## Task checklist
 
 - [x] **P1 — Submit for review fails.** Surface the real API reason + guard 0-image submit. (PR #1)
-- [ ] **P2 — First-load error on Commandes/Produits.** Auth-guard provider auto-loads. (PR #2)
+- [x] **P2 — First-load error on Commandes/Produits.** Auth-guard provider auto-loads. (PR #2)
 - [ ] **P3 — Inline image editing in the edit form.** Extract shared image manager. (PR #3)
 - [ ] **P4 — Notifications.** Runtime-diagnose empty Centre; targeted fixes only. (PR #4)
 
@@ -40,10 +40,30 @@ transitions*: 0-image DRAFT → 400 (image message), non-DRAFT → 400, DRAFT+im
 
 **No DB / API-contract change.**
 
-### P2 — First-load race  ⏳ pending
-Three `StateNotifier`s auto-load in their constructors before auth tokens restore on cold start →
-request with no bearer → 401 → error cached. Fix pattern already exists in `dashboardStatsProvider`
-(`products_provider.dart:182-192`). See plan.
+### P2 — First-load race  ✅ FIXED (PR #2)
+Seller `StateNotifier`s auto-loaded in their constructors before auth tokens restored on cold start →
+request with no bearer → 401 → error cached until "Réessayer". The fix pattern already existed in
+`dashboardStatsProvider` (`products_provider.dart`) but was never ported.
+
+**Fix:** each affected `StateNotifierProvider` now (a) starts the notifier in a **loading** state and
+**stops fetching from the constructor**, and (b) drives the first/re-load from the provider factory via
+`ref.listen(authProvider.select((s) => s.status), …, fireImmediately: true)` — loading only on the
+transition into `AuthStatus.authenticated`. `fireImmediately` covers the warm path (already
+authenticated); the transition guard covers the cold path. Until auth resolves the screen shows a
+skeleton, never a cached 401.
+
+**Files (all `apps/seller-mobile/lib/features/…/presentation/providers/`):**
+- `orders/orders_provider.dart` (Commandes), `products/products_provider.dart` (Produits),
+  `notifications/notifications_provider.dart` (Centre — the likely cause of the empty feed),
+  `earnings/earnings_provider.dart` (Revenus — 2 loaders), `promotions/promotion_provider.dart`,
+  `reviews/reviews_provider.dart`.
+- `home/home_screen.dart`: removed the now-redundant manual reload-on-auth workaround (would double-load).
+
+**Tests:** `test/features/products/products_provider_test.dart` — notifier does **not** fetch in its
+constructor, starts in a loading (non-error) state, and `loadProducts()` fetches once. Full suite (7) green;
+`flutter analyze` clean on our source (only vendored `build/ios/SourcePackages` example noise).
+
+**No DB / API-contract change.**
 
 ### P3 — Inline image editing  ⏳ pending
 Working `ProductImagesScreen` (add+delete) exists but isn't reachable from `ProductFormScreen`. Extract a
@@ -58,5 +78,6 @@ wired. Empty Centre is most likely the P2 race or a no-notification test account
 - Cloudinary orphan cleanup (P3) is assessed as acceptable/follow-up, not built here.
 
 ## Resume instructions
-Next: **P2** — branch `fix/seller-mobile-first-load-race` off `develop`; guard the three notifiers'
-auto-load on `AuthStatus.authenticated`; audit earnings/dashboard/profile; add a Flutter test.
+Next: **P3** — branch `fix/seller-mobile-inline-image-edit` (stacked on the P2 branch); extract a shared
+`ProductImageManager` (add+delete, reusing `ImageUploadTile` + `products_repository` upload/delete) and
+embed it in `ProductFormScreen`'s edit path; verify Cloudinary destroy logging; cross-surface display check.

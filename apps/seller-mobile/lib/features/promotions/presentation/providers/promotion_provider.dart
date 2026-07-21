@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_error_messages.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/promotion_model.dart';
 import '../../data/promotion_repository.dart';
 
@@ -49,10 +50,10 @@ class PromotionsListState {
 class PromotionsListNotifier extends StateNotifier<PromotionsListState> {
   final PromotionRepository _repository;
 
+  // Starts loading and does NOT auto-fetch — the first load is driven off auth
+  // status by `sellerPromotionsProvider`. See sellerProductsProvider.
   PromotionsListNotifier(this._repository)
-      : super(const PromotionsListState()) {
-    loadPromotions();
-  }
+      : super(const PromotionsListState(isLoading: true));
 
   Future<void> loadPromotions() async {
     state = state.copyWith(isLoading: true, clearError: true);
@@ -129,5 +130,12 @@ class PromotionsListNotifier extends StateNotifier<PromotionsListState> {
 
 final sellerPromotionsProvider =
     StateNotifierProvider<PromotionsListNotifier, PromotionsListState>((ref) {
-  return PromotionsListNotifier(ref.read(promotionRepositoryProvider));
+  final notifier = PromotionsListNotifier(ref.read(promotionRepositoryProvider));
+  // Load off auth status, not the constructor — see sellerProductsProvider.
+  ref.listen<AuthStatus>(authProvider.select((s) => s.status), (prev, next) {
+    if (next == AuthStatus.authenticated && prev != AuthStatus.authenticated) {
+      notifier.loadPromotions();
+    }
+  }, fireImmediately: true);
+  return notifier;
 });

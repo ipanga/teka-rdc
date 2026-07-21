@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_error_messages.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/notification_model.dart';
 import '../../data/notifications_repository.dart';
 
@@ -35,9 +36,13 @@ class NotificationsState {
 class NotificationsNotifier extends StateNotifier<NotificationsState> {
   final NotificationsRepository _repo;
 
-  NotificationsNotifier(this._repo) : super(const NotificationsState()) {
-    load();
-  }
+  // Starts loading and does NOT auto-fetch. The first load is driven by
+  // `notificationsProvider` once auth resolves — firing in the constructor races
+  // token restoration on cold start (no bearer → 401 → the Centre de
+  // notifications shows an error/empty feed until reload). See
+  // sellerProductsProvider / dashboardStatsProvider.
+  NotificationsNotifier(this._repo)
+      : super(const NotificationsState(isLoading: true));
 
   Future<void> load() async {
     state = state.copyWith(isLoading: true, clearError: true);
@@ -99,5 +104,16 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
 
 final notificationsProvider =
     StateNotifierProvider<NotificationsNotifier, NotificationsState>((ref) {
-  return NotificationsNotifier(ref.read(notificationsRepositoryProvider));
+  final notifier =
+      NotificationsNotifier(ref.read(notificationsRepositoryProvider));
+  // Load off auth status, not the constructor — see sellerProductsProvider.
+  // This is the most likely cause of the "empty Centre de notifications": the
+  // feed fetched during an unauthenticated startup and cached an empty/error
+  // result that never refreshed.
+  ref.listen<AuthStatus>(authProvider.select((s) => s.status), (prev, next) {
+    if (next == AuthStatus.authenticated && prev != AuthStatus.authenticated) {
+      notifier.load();
+    }
+  }, fireImmediately: true);
+  return notifier;
 });
