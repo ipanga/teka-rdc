@@ -65,10 +65,14 @@ export class OrderNotificationService {
       const subtotalCDF = this.formatCDF(enriched.subtotalCDF);
       const itemCount = items.length;
 
+      const buyerTitle = 'Commande enregistrée';
+      const buyerBody = `Commande ${orderNumber} — ${totalCDF} FC. Nous vous tiendrons informé.`;
+      // Persist the feed row first (always), then deliver per prefs.
+      await this.recordBuyerFeed(buyer.id, buyerTitle, buyerBody, enriched.id);
       if (await this.shouldNotify(buyer)) {
         this.sendPushToBuyer(buyer.id, {
-          title: 'Commande enregistrée',
-          body: `Commande ${orderNumber} — ${totalCDF} FC. Nous vous tiendrons informé.`,
+          title: buyerTitle,
+          body: buyerBody,
           data: { orderId: enriched.id, screen: 'order-details' },
         });
       }
@@ -130,13 +134,16 @@ export class OrderNotificationService {
       if (!enriched) return;
 
       const { orderNumber, buyer } = enriched;
+      const title = 'Commande confirmée';
+      const body = `${orderNumber} a été confirmée par le vendeur. Préparation en cours.`;
+      await this.recordBuyerFeed(buyer.id, title, body, enriched.id);
       if (!(await this.shouldNotify(buyer))) return;
 
       await this.pushOrEmail(
         buyer,
         {
-          title: 'Commande confirmée',
-          body: `${orderNumber} a été confirmée par le vendeur. Préparation en cours.`,
+          title,
+          body,
           data: { orderId: enriched.id, screen: 'order-details' },
         },
         {
@@ -166,15 +173,18 @@ export class OrderNotificationService {
       const neighborhood = deliveryAddress?.neighborhood ?? '';
       const locationParts = [town, neighborhood].filter(Boolean).join(', ');
 
+      const title = 'Commande expédiée';
+      const body = locationParts
+        ? `${orderNumber} est en route vers ${locationParts}.`
+        : `${orderNumber} est en route.`;
+      await this.recordBuyerFeed(buyer.id, title, body, enriched.id);
       if (!(await this.shouldNotify(buyer))) return;
 
       await this.pushOrEmail(
         buyer,
         {
-          title: 'Commande expédiée',
-          body: locationParts
-            ? `${orderNumber} est en route vers ${locationParts}.`
-            : `${orderNumber} est en route.`,
+          title,
+          body,
           data: { orderId: enriched.id, screen: 'order-details' },
         },
         {
@@ -201,13 +211,16 @@ export class OrderNotificationService {
       if (!enriched) return;
 
       const { orderNumber, buyer } = enriched;
+      const title = 'Commande livrée';
+      const body = `${orderNumber} a été livrée. Merci pour votre achat sur Teka !`;
+      await this.recordBuyerFeed(buyer.id, title, body, enriched.id);
       if (!(await this.shouldNotify(buyer))) return;
 
       await this.pushOrEmail(
         buyer,
         {
-          title: 'Commande livrée',
-          body: `${orderNumber} a été livrée. Merci pour votre achat sur Teka !`,
+          title,
+          body,
           data: { orderId: enriched.id, screen: 'order-details' },
         },
         {
@@ -233,11 +246,14 @@ export class OrderNotificationService {
       const enriched = await this.enrichOrder(order);
       if (!enriched) return;
       const { orderNumber, buyer } = enriched;
+      const title = 'Commande prête';
+      const body = `${orderNumber} est prête et attend la collecte par Teka.`;
+      await this.recordBuyerFeed(buyer.id, title, body, enriched.id);
       if (!(await this.shouldNotify(buyer))) return;
 
       this.sendPushToBuyer(buyer.id, {
-        title: 'Commande prête',
-        body: `${orderNumber} est prête et attend la collecte par Teka.`,
+        title,
+        body,
         data: { orderId: enriched.id, screen: 'order-details' },
       });
     } catch (error) {
@@ -256,11 +272,14 @@ export class OrderNotificationService {
       const enriched = await this.enrichOrder(order);
       if (!enriched) return;
       const { orderNumber, buyer } = enriched;
+      const title = 'Reçue par Teka';
+      const body = `${orderNumber} a été reçue par Teka RDC. Livraison bientôt.`;
+      await this.recordBuyerFeed(buyer.id, title, body, enriched.id);
       if (!(await this.shouldNotify(buyer))) return;
 
       this.sendPushToBuyer(buyer.id, {
-        title: 'Reçue par Teka',
-        body: `${orderNumber} a été reçue par Teka RDC. Livraison bientôt.`,
+        title,
+        body,
         data: { orderId: enriched.id, screen: 'order-details' },
       });
     } catch (error) {
@@ -280,13 +299,16 @@ export class OrderNotificationService {
       if (!enriched) return;
       const { orderNumber, buyer, deliveryAddress } = enriched;
       const town = deliveryAddress?.town ?? '';
+      const title = 'En livraison';
+      const body = town
+        ? `${orderNumber} est en cours de livraison vers ${town}.`
+        : `${orderNumber} est en cours de livraison.`;
+      await this.recordBuyerFeed(buyer.id, title, body, enriched.id);
       if (!(await this.shouldNotify(buyer))) return;
 
       this.sendPushToBuyer(buyer.id, {
-        title: 'En livraison',
-        body: town
-          ? `${orderNumber} est en cours de livraison vers ${town}.`
-          : `${orderNumber} est en cours de livraison.`,
+        title,
+        body,
         data: { orderId: enriched.id, screen: 'order-details' },
       });
     } catch (error) {
@@ -309,12 +331,15 @@ export class OrderNotificationService {
       const displayReason =
         reason || enriched.cancellationReason || 'Non spécifiée';
 
+      const buyerTitle = 'Commande annulée';
+      const buyerBody = `${orderNumber} a été annulée. Raison : ${displayReason}.`;
+      await this.recordBuyerFeed(buyer.id, buyerTitle, buyerBody, enriched.id);
       if (await this.shouldNotify(buyer)) {
         await this.pushOrEmail(
           buyer,
           {
-            title: 'Commande annulée',
-            body: `${orderNumber} a été annulée. Raison : ${displayReason}.`,
+            title: buyerTitle,
+            body: buyerBody,
             data: { orderId: enriched.id, screen: 'order-details' },
           },
           {
@@ -382,11 +407,14 @@ export class OrderNotificationService {
       const enriched = await this.enrichOrder(order);
       if (!enriched) return;
       const { orderNumber, buyer } = enriched;
+      const title = 'Retour approuvé';
+      const body = `Votre retour pour ${orderNumber} a été approuvé. Le remboursement est en cours.`;
+      await this.recordBuyerFeed(buyer.id, title, body, enriched.id);
       if (!(await this.shouldNotify(buyer))) return;
 
       this.sendPushToBuyer(buyer.id, {
-        title: 'Retour approuvé',
-        body: `Votre retour pour ${orderNumber} a été approuvé. Le remboursement est en cours.`,
+        title,
+        body,
         data: { orderId: enriched.id, screen: 'order-details' },
       });
     } catch (error) {
@@ -403,11 +431,14 @@ export class OrderNotificationService {
       const enriched = await this.enrichOrder(order);
       if (!enriched) return;
       const { orderNumber, buyer } = enriched;
+      const title = 'Retour refusé';
+      const body = `Votre demande de retour pour ${orderNumber} n'a pas été acceptée.`;
+      await this.recordBuyerFeed(buyer.id, title, body, enriched.id);
       if (!(await this.shouldNotify(buyer))) return;
 
       this.sendPushToBuyer(buyer.id, {
-        title: 'Retour refusé',
-        body: `Votre demande de retour pour ${orderNumber} n'a pas été acceptée.`,
+        title,
+        body,
         data: { orderId: enriched.id, screen: 'order-details' },
       });
     } catch (error) {
@@ -421,6 +452,39 @@ export class OrderNotificationService {
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
+
+  /**
+   * Persists a buyer in-app notification feed row (`GET /v1/notifications`).
+   *
+   * Written regardless of notification prefs or push permission — opt-outs and
+   * a dismissed/blocked push only affect *delivery*, never the persistent feed
+   * (mirrors the seller path + broadcasts). This is the fix for the buyer
+   * Notification Center showing "Aucune notification" despite receiving pushes:
+   * order events used to fire push/email only and never wrote a feed row.
+   *
+   * Fail-soft: a feed write must never block the push/email that follows.
+   */
+  private async recordBuyerFeed(
+    buyerId: string,
+    title: string,
+    body: string,
+    orderId: string,
+  ): Promise<void> {
+    try {
+      await this.userNotifications.create({
+        userId: buyerId,
+        type: UserNotificationType.ORDER,
+        title,
+        body,
+        entityType: 'order',
+        entityId: orderId,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `buyer feed row failed for ${buyerId} (order ${orderId}): ${err?.message ?? err}`,
+      );
+    }
+  }
 
   /**
    * Push-first, email-fallback for buyers. Awaits the push so we can read
