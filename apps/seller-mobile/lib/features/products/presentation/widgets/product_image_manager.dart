@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/network/dio_error_messages.dart';
@@ -121,7 +122,7 @@ class _ProductImageManagerState extends ConsumerState<ProductImageManager> {
             }
             return ImageUploadTile(
               isUploading: _isUploading,
-              onTap: () => _pickAndUploadImage(context, product.id),
+              onTap: () => _chooseSourceAndUpload(context, product.id),
             );
           },
         ),
@@ -129,11 +130,59 @@ class _ProductImageManagerState extends ConsumerState<ProductImageManager> {
     );
   }
 
-  Future<void> _pickAndUploadImage(
+  /// Bottom sheet letting the seller take a new photo or pick from the gallery.
+  /// French labels; reuses the same upload pipeline for both sources.
+  Future<void> _chooseSourceAndUpload(
       BuildContext context, String productId) async {
+    if (_isUploading) return; // guard against duplicate taps
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: TekaColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined,
+                    color: TekaColors.tekaRed),
+                title: Text("Prendre une photo"),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined,
+                    color: TekaColors.tekaRed),
+                title: Text("Choisir dans la galerie"),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+    if (source == null || !mounted) return;
+    await _pickAndUploadImage(context, productId, source);
+  }
+
+  Future<void> _pickAndUploadImage(
+      BuildContext context, String productId, ImageSource source) async {
+    if (_isUploading) return; // guard against duplicate uploads
     try {
       final xFile = await _picker.pickImage(
-        source: ImageSource.gallery,
+        source: source,
         maxWidth: 1200,
         maxHeight: 1200,
         imageQuality: 80,
@@ -153,6 +202,22 @@ class _ProductImageManagerState extends ConsumerState<ProductImageManager> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Image ajoutée"),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } on PlatformException catch (e) {
+      // Camera / photo-library permission denied at the OS level. image_picker
+      // surfaces these as PlatformException codes — map to a clear French hint.
+      if (mounted) {
+        final denied = e.code == 'camera_access_denied' ||
+            e.code == 'photo_access_denied';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(denied
+                ? "Accès refusé. Autorisez l'appareil photo ou les photos "
+                    'dans les réglages de votre téléphone.'
+                : friendlyErrorMessage(e)),
             behavior: SnackBarBehavior.floating,
           ),
         );

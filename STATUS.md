@@ -1,4 +1,4 @@
-# Status — 2026-07-21
+# Status — 2026-07-24
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,7 +6,24 @@
 
 ## Active initiative
 
-**Seller-mobile submit / first-load / image-editing / notifications fixes — 4 stacked PRs into `develop`.**
+**Seller product images + category attributes — 2 stacked PRs into `develop`.**
+Three device-reported issues: tappable image placeholder, camera capture, and a monitor showing cooker
+attributes. Tracker: `docs/seller-product-images-category-attributes-fixes.md`. No schema change.
+
+PRs (stacked): `image-entry-camera` (P1/P2) ← `api-category-attributes-leaf-only` (P3).
+
+> **DONE 2026-07-24 — seller product images + attributes.** **(P1)** Empty image placeholder is now a
+> tappable Semantic button opening the image manager (was inert; only "Ajouter" worked). **(P2)** Camera
+> capture — French bottom-sheet chooser (Prendre une photo / Choisir dans la galerie); reuses compress→
+> Cloudinary upload; iOS `Info.plist` gains `NSCamera`/`NSPhotoLibrary` usage strings (Android needs
+> none). **(P3)** Wrong-category attributes root-caused: `getCategoryAttributes` merged self+parent+
+> grandparent, so cooker attributes admin-added on the Informatique parent leaked into every monitor form.
+> Fixed to **leaf-only** + admin guard (reject attributes on non-leaf categories) + a backward-compatible
+> prune migration (unreferenced non-leaf attrs only). Verified on-device (camera→Cloudinary upload;
+> Moniteurs shows only Taille écran/Résolution/Garantie) + API suite 209 green. **Operator:** apply
+> `manual/2026-07-23_prune-non-leaf-attributes.sql` post-deploy (hygiene; API fix alone resolves the symptom).
+
+> **DONE 2026-07-21 — seller-mobile submit / first-load / image-editing / notifications (4 PRs #550–#553, released to `main` via #554).**
 Four seller-facing defects from a real device build + seller-web parity. Tracker:
 `docs/seller-product-loading-images-notifications-fixes.md`. All fixed at source, minimal + backward-compatible,
 **no DB/API-contract change**; API + all Flutter/web tests green (seller-mobile suite 11).

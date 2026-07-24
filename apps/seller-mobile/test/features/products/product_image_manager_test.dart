@@ -61,4 +61,18 @@ void main() {
     expect(find.byType(ImageUploadTile), findsNWidgets(8));
     expect(find.text('Maximum atteint'), findsOneWidget);
   });
+
+  testWidgets('tapping the add tile opens the camera/gallery source chooser',
+      (t) async {
+    await _pump(t, _productWith(1));
+
+    // The last ImageUploadTile is the add tile.
+    await t.tap(find.byType(ImageUploadTile).last);
+    await t.pump(); // open the bottom sheet
+    await t.pump(const Duration(milliseconds: 300));
+
+    // French chooser with both sources (P2).
+    expect(find.text('Prendre une photo'), findsOneWidget);
+    expect(find.text('Choisir dans la galerie'), findsOneWidget);
+  });
 }

@@ -251,17 +251,58 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         ),
         const SizedBox(height: 8),
         if (product.images.isEmpty)
-          Container(
-            height: 100,
-            decoration: BoxDecoration(
-              color: TekaColors.muted,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Center(
-              child: Icon(Icons.image_outlined,
-                  size: 40, color: TekaColors.mutedForeground),
-            ),
-          )
+          // Tappable placeholder — same entry point as the "Ajouter" button, so
+          // the whole empty card opens the image manager (only when the product
+          // is editable). Non-editable products keep a static placeholder.
+          Builder(builder: (context) {
+            final canManageImages = product.status == ProductStatus.draft ||
+                product.status == ProductStatus.rejected;
+            final placeholder = Container(
+              height: 100,
+              decoration: BoxDecoration(
+                color: TekaColors.muted,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      canManageImages
+                          ? Icons.add_photo_alternate_outlined
+                          : Icons.image_outlined,
+                      size: 36,
+                      color: TekaColors.mutedForeground,
+                    ),
+                    if (canManageImages) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        "Ajouter des images",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: TekaColors.mutedForeground,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+            if (!canManageImages) return placeholder;
+            return Semantics(
+              button: true,
+              label: "Ajouter des images",
+              child: Material(
+                color: Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => context.push('/products/${product.id}/images'),
+                  child: placeholder,
+                ),
+              ),
+            );
+          })
         else
           SizedBox(
             height: 100,
