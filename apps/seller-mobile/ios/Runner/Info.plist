@@ -26,6 +26,10 @@
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
+		<key>NSCameraUsageDescription</key>
+		<string>Teka Vendeur utilise l'appareil photo pour prendre des photos de vos produits.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Teka Vendeur accède à vos photos pour ajouter des images à vos produits.</string>
 		<key>UIApplicationSceneManifest</key>
 		<dict>
 			<key>UIApplicationSupportsMultipleScenes</key>
