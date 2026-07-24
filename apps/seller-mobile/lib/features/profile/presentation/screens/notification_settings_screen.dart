@@ -64,22 +64,22 @@ class _NotificationSettingsScreenState
   }
 
   Future<void> _update({
-    bool? smsOrderUpdates,
-    bool? smsBroadcasts,
+    bool? orderUpdates,
+    bool? announcements,
   }) async {
     final previous = _prefs;
     setState(() {
       _prefs = NotificationPrefs(
-        smsOrderUpdates: smsOrderUpdates ?? previous?.smsOrderUpdates ?? true,
-        smsBroadcasts: smsBroadcasts ?? previous?.smsBroadcasts ?? true,
+        orderUpdates: orderUpdates ?? previous?.orderUpdates ?? true,
+        announcements: announcements ?? previous?.announcements ?? true,
       );
       _saving = true;
     });
     try {
       final next =
           await ref.read(profileRepositoryProvider).updateNotificationPrefs(
-                smsOrderUpdates: smsOrderUpdates,
-                smsBroadcasts: smsBroadcasts,
+                orderUpdates: orderUpdates,
+                announcements: announcements,
               );
       if (!mounted) return;
       setState(() => _prefs = next);
@@ -116,8 +116,8 @@ class _NotificationSettingsScreenState
 
     final prefs = _prefs ??
         const NotificationPrefs(
-          smsOrderUpdates: true,
-          smsBroadcasts: true,
+          orderUpdates: true,
+          announcements: true,
         );
 
     final osBlocked = _osStatus == AuthorizationStatus.denied;
@@ -152,18 +152,18 @@ class _NotificationSettingsScreenState
           title: 'Mises à jour de commande',
           subtitle: 'Nouvelles commandes, préparation, collecte et livraison',
           icon: Icons.local_shipping_outlined,
-          value: prefs.smsOrderUpdates,
+          value: prefs.orderUpdates,
           enabled: !_saving,
-          onChanged: (value) => _update(smsOrderUpdates: value),
+          onChanged: (value) => _update(orderUpdates: value),
         ),
         const SizedBox(height: 10),
         _PreferenceTile(
           title: 'Annonces et promotions',
           subtitle: "Messages envoyés par l'équipe Teka RDC",
           icon: Icons.campaign_outlined,
-          value: prefs.smsBroadcasts,
+          value: prefs.announcements,
           enabled: !_saving,
-          onChanged: (value) => _update(smsBroadcasts: value),
+          onChanged: (value) => _update(announcements: value),
         ),
       ],
     );

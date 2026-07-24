@@ -1,5 +1,7 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/push/push_service.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
 import '../../../../core/widgets/app_states.dart';
@@ -19,6 +21,7 @@ class _NotificationSettingsScreenState
   bool _saving = false;
   String? _error;
   NotificationPrefs? _prefs;
+  AuthorizationStatus? _osStatus;
 
   @override
   void initState() {
@@ -34,8 +37,15 @@ class _NotificationSettingsScreenState
     try {
       final prefs =
           await ref.read(profileRepositoryProvider).getNotificationPrefs();
+      // Read the actual OS permission so the UI never claims notifications are
+      // on while the phone has them blocked. Best-effort — a failure just
+      // leaves the banner hidden.
+      final osStatus = await PushService.instance.getPermissionStatus();
       if (!mounted) return;
-      setState(() => _prefs = prefs);
+      setState(() {
+        _prefs = prefs;
+        _osStatus = osStatus;
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() => _error = 'Impossible de charger vos préférences.');
@@ -44,23 +54,33 @@ class _NotificationSettingsScreenState
     }
   }
 
+  /// Prompts for permission when it hasn't been decided yet, then refreshes the
+  /// banner. On iOS a prior denial can't be re-prompted — the banner then tells
+  /// the buyer to enable notifications in the phone settings.
+  Future<void> _requestOsPermission() async {
+    await PushService.instance.requestPermission();
+    final osStatus = await PushService.instance.getPermissionStatus();
+    if (!mounted) return;
+    setState(() => _osStatus = osStatus);
+  }
+
   Future<void> _update({
-    bool? smsOrderUpdates,
-    bool? smsBroadcasts,
+    bool? orderUpdates,
+    bool? announcements,
   }) async {
     final previous = _prefs;
     setState(() {
       _prefs = NotificationPrefs(
-        smsOrderUpdates: smsOrderUpdates ?? previous?.smsOrderUpdates ?? true,
-        smsBroadcasts: smsBroadcasts ?? previous?.smsBroadcasts ?? true,
+        orderUpdates: orderUpdates ?? previous?.orderUpdates ?? true,
+        announcements: announcements ?? previous?.announcements ?? true,
       );
       _saving = true;
     });
     try {
       final next =
           await ref.read(profileRepositoryProvider).updateNotificationPrefs(
-                smsOrderUpdates: smsOrderUpdates,
-                smsBroadcasts: smsBroadcasts,
+                orderUpdates: orderUpdates,
+                announcements: announcements,
               );
       if (!mounted) return;
       setState(() => _prefs = next);
@@ -99,14 +119,27 @@ class _NotificationSettingsScreenState
 
     final prefs = _prefs ??
         const NotificationPrefs(
-          smsOrderUpdates: true,
-          smsBroadcasts: true,
+          orderUpdates: true,
+          announcements: true,
         );
+
+    final osBlocked = _osStatus == AuthorizationStatus.denied;
+    final osUndetermined = _osStatus == AuthorizationStatus.notDetermined;
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _NoticeCard(
+        // OS-level permission truth: if the phone blocks notifications, no
+        // in-app toggle can deliver a push — say so instead of implying they
+        // work. If undecided, offer to ask for permission.
+        if (osBlocked) ...[
+          const _OsPermissionBanner(blocked: true, onAction: null),
+          const SizedBox(height: 16),
+        ] else if (osUndetermined) ...[
+          _OsPermissionBanner(blocked: false, onAction: _requestOsPermission),
+          const SizedBox(height: 16),
+        ],
+        const _NoticeCard(
           icon: Icons.info_outline_rounded,
           text:
               'Les codes WhatsApp de connexion restent toujours envoyés pour protéger votre compte.',
@@ -116,18 +149,18 @@ class _NotificationSettingsScreenState
           title: 'Mises à jour de commande',
           subtitle: 'Confirmation, préparation, livraison et annulation',
           icon: Icons.local_shipping_outlined,
-          value: prefs.smsOrderUpdates,
+          value: prefs.orderUpdates,
           enabled: !_saving,
-          onChanged: (value) => _update(smsOrderUpdates: value),
+          onChanged: (value) => _update(orderUpdates: value),
         ),
         const SizedBox(height: 10),
         _PreferenceTile(
           title: 'Annonces et promotions',
           subtitle: "Messages envoyés par l'équipe Teka RDC",
           icon: Icons.campaign_outlined,
-          value: prefs.smsBroadcasts,
+          value: prefs.announcements,
           enabled: !_saving,
-          onChanged: (value) => _update(smsBroadcasts: value),
+          onChanged: (value) => _update(announcements: value),
         ),
       ],
     );
@@ -169,6 +202,72 @@ class _PreferenceTile extends StatelessWidget {
         subtitle: Text(subtitle),
         value: value,
         onChanged: enabled ? onChanged : null,
+      ),
+    );
+  }
+}
+
+class _OsPermissionBanner extends StatelessWidget {
+  /// true = OS has denied notifications (nothing to tap — guide to settings);
+  /// false = not yet decided (offer to request permission).
+  final bool blocked;
+  final VoidCallback? onAction;
+
+  const _OsPermissionBanner({required this.blocked, required this.onAction});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = blocked ? TekaColors.destructive : TekaColors.warning;
+    final text = blocked
+        ? 'Les notifications sont désactivées dans les réglages de votre '
+            'téléphone. Réactivez-les dans Réglages › Notifications pour '
+            'recevoir le suivi de vos commandes.'
+        : 'Autorisez les notifications pour suivre vos commandes en temps réel.';
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.30)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  blocked
+                      ? Icons.notifications_off_outlined
+                      : Icons.notifications_active_outlined,
+                  color: color,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    text,
+                    style: const TextStyle(
+                      color: TekaColors.foreground,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (onAction != null) ...[
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: FilledButton(
+                  onPressed: onAction,
+                  child: const Text('Activer les notifications'),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

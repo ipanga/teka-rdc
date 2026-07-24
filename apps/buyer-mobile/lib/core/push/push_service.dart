@@ -145,6 +145,19 @@ class PushService {
     }
   }
 
+  /// Reads the current OS notification permission WITHOUT prompting — so the
+  /// settings UI can tell the truth (never show "enabled" when the OS denied).
+  /// Returns notDetermined on any failure (safe default: offers a request CTA).
+  Future<AuthorizationStatus> getPermissionStatus() async {
+    try {
+      final settings = await _messaging.getNotificationSettings();
+      return settings.authorizationStatus;
+    } catch (e) {
+      _log('getNotificationSettings failed: $e');
+      return AuthorizationStatus.notDetermined;
+    }
+  }
+
   /// Returns the current FCM registration token, or null if Firebase
   /// init failed / the device hasn't generated one yet. The result is
   /// cached for the lifetime of the process; use [refreshToken] to
