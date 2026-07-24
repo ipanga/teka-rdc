@@ -6,11 +6,21 @@
 
 ## Active initiative
 
-**Seller product images + category attributes — 2 stacked PRs into `develop`.**
-Three device-reported issues: tappable image placeholder, camera capture, and a monitor showing cooker
-attributes. Tracker: `docs/seller-product-images-category-attributes-fixes.md`. No schema change.
+**Buyer cart nav · notifications · help pages · account deletion · app-review login — 7 independent PRs into `develop` (in review).**
+Six buyer-facing issues from device screenshots, each root-caused (no UI-only patches), web/mobile parity kept.
+Tracker: `docs/buyer-cart-help-notifications-account-deletion-review-login.md`. Plan: `~/.claude/plans/claude-code-prompt-peppy-curry.md`.
 
-PRs (stacked): `image-entry-camera` (P1/P2) ← `api-category-attributes-leaf-only` (P3).
+PRs (independent, mergeable in any order): **#558** cart→PDP · **#559** help pages (Markdown + canonical contact +
+prod migration) · **#560** notification settings (dead toggle + OS-permission) · **#561** Notification Center
+persistence + backfill · **#562** account deletion (30-day pending; schema migration) · **#563** app-review login
+(env-gated, ships disabled).
+
+> **Owner actions before certain PRs go live:** (a) #563 needs the dedicated `+243` **review phone** approved + set
+> as a secret, flag flipped only during a review window; (b) #559 → apply `manual/2026-07-24_content_contact_details.sql`;
+> (c) #562 → apply `manual/2026-07-24_account_deletion_pending.sql`; (d) #561 → optional backfill script `--confirm`.
+> **Notification-prefs dead toggle fixed on all four surfaces in #560** (buyer-mobile, seller-mobile, buyer-web, seller-web).
+
+> **DONE (prior) — seller product images + category attributes.** See the note below (kept as history).
 
 > **DONE 2026-07-24 — seller product images + attributes.** **(P1)** Empty image placeholder is now a
 > tappable Semantic button opening the image manager (was inert; only "Ajouter" worked). **(P2)** Camera
