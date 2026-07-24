@@ -284,4 +284,66 @@ describe('BuyerOtpService', () => {
       );
     });
   });
+
+  describe('app-review login (allowlisted bypass)', () => {
+    const REVIEW_PHONE = '+243900000000';
+    const reviewConfig = (over: Record<string, string> = {}) =>
+      makeConfig({
+        APP_REVIEW_LOGIN_ENABLED: 'true',
+        APP_REVIEW_BUYER_PHONE_E164: REVIEW_PHONE,
+        APP_REVIEW_BUYER_OTP: '123456',
+        ...over,
+      });
+
+    function reviewService(config: ConfigService) {
+      const prisma = makePrismaStub();
+      // No real OTP row exists — the only way verify can pass is the bypass.
+      prisma.otp.findFirst.mockResolvedValue(null);
+      prisma.user.findFirst.mockResolvedValue({
+        id: 'review-buyer',
+        role: 'BUYER',
+        status: 'ACTIVE',
+        phone: REVIEW_PHONE,
+      });
+      const svc = new BuyerOtpService(
+        prisma,
+        { sendOtp: jest.fn() } as any,
+        config,
+        makeAuthStub(),
+        makeAnalytics(),
+      );
+      return { svc, prisma };
+    }
+
+    it('signs in the allowlisted phone with the fixed OTP (no real OTP row)', async () => {
+      const { svc } = reviewService(reviewConfig());
+      const res = await svc.verifyOtp(REVIEW_PHONE, '123456');
+      expect(res.user.id).toBe('review-buyer');
+      expect(res.tokens.accessToken).toBeTruthy();
+    });
+
+    it('rejects the fixed OTP for any other phone', async () => {
+      const { svc } = reviewService(reviewConfig());
+      await expect(
+        svc.verifyOtp('+243999999999', '123456'),
+      ).rejects.toThrow();
+    });
+
+    it('rejects a wrong code for the allowlisted phone', async () => {
+      const { svc } = reviewService(reviewConfig());
+      await expect(svc.verifyOtp(REVIEW_PHONE, '000000')).rejects.toThrow();
+    });
+
+    it('is inert when the feature is disabled', async () => {
+      const { svc } = reviewService(reviewConfig({ APP_REVIEW_LOGIN_ENABLED: 'false' }));
+      await expect(svc.verifyOtp(REVIEW_PHONE, '123456')).rejects.toThrow();
+    });
+
+    it('never matches on empty config', async () => {
+      const { svc } = reviewService(
+        reviewConfig({ APP_REVIEW_BUYER_PHONE_E164: '', APP_REVIEW_BUYER_OTP: '' }),
+      );
+      await expect(svc.verifyOtp('', '')).rejects.toThrow();
+    });
+  });
 });
