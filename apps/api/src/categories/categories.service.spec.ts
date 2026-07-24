@@ -107,3 +107,46 @@ describe('CategoriesService.reorderCategories', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 });
+
+function makeAttrCreateService(opts: {
+  categoryExists: boolean;
+  childCount: number;
+}) {
+  const create = jest.fn().mockImplementation((args) => ({ id: 'new', ...args.data }));
+  const prisma = {
+    category: {
+      findUnique: jest
+        .fn()
+        .mockResolvedValue(opts.categoryExists ? { id: 'cat' } : null),
+      count: jest.fn().mockResolvedValue(opts.childCount),
+    },
+    productAttribute: { create },
+  };
+  const service = new CategoriesService(prisma as never);
+  return { service, create };
+}
+
+describe('CategoriesService.createAttribute — leaf-only guard', () => {
+  const dto = { name: 'Résolution', type: 'SELECT', options: ['HD', '4K'] } as never;
+
+  it('rejects adding an attribute to a NON-leaf category (has children)', async () => {
+    const { service, create } = makeAttrCreateService({
+      categoryExists: true,
+      childCount: 3,
+    });
+    await expect(service.createAttribute('parent', dto)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('allows adding an attribute to a leaf product type (no children)', async () => {
+    const { service, create } = makeAttrCreateService({
+      categoryExists: true,
+      childCount: 0,
+    });
+    await service.createAttribute('leaf', dto);
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(create.mock.calls[0][0].data.categoryId).toBe('leaf');
+  });
+});

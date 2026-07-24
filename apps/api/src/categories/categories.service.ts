@@ -245,6 +245,19 @@ export class CategoriesService {
       throw new NotFoundException('Catégorie non trouvée');
     }
 
+    // Attributes attach per product type (the leaf). Adding them to a category
+    // that has children would leak into every descendant's seller form (the
+    // root cause of the cooker-attributes-on-a-monitor bug), so reject it here.
+    const childCount = await this.prisma.category.count({
+      where: { parentCategoryId: categoryId, deletedAt: null },
+    });
+    if (childCount > 0) {
+      throw new BadRequestException(
+        "Les caractéristiques ne peuvent être ajoutées qu'à un type de produit " +
+          '(niveau le plus bas), pas à une catégorie ou sous-catégorie.',
+      );
+    }
+
     return this.prisma.productAttribute.create({
       data: {
         categoryId,

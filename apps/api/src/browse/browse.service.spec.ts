@@ -138,3 +138,34 @@ describe('BrowseService.browseProducts — demo retirement (P3c)', () => {
     ]);
   });
 });
+
+describe('BrowseService.getCategoryAttributes — leaf-only', () => {
+  function makeAttrService() {
+    const attrFindMany = jest.fn().mockResolvedValue([]);
+    const prisma = {
+      category: {
+        findUnique: jest.fn().mockResolvedValue({ id: 'leaf1' }),
+      },
+      productAttribute: { findMany: attrFindMany },
+    };
+    const service = new BrowseService(prisma as never);
+    return { service, attrFindMany, prisma };
+  }
+
+  it('queries attributes for the leaf category ONLY (no parent-chain merge)', async () => {
+    const { service, attrFindMany } = makeAttrService();
+    await service.getCategoryAttributes('leaf1');
+    const where = attrFindMany.mock.calls[0][0].where;
+    // Must be an exact-match on the leaf, NOT { categoryId: { in: [...] } }.
+    expect(where).toEqual({ categoryId: 'leaf1' });
+    expect(where.categoryId).not.toHaveProperty('in');
+  });
+
+  it('throws NotFound for an unknown category', async () => {
+    const { service, prisma } = makeAttrService();
+    prisma.category.findUnique.mockResolvedValueOnce(null);
+    await expect(service.getCategoryAttributes('nope')).rejects.toThrow(
+      'Catégorie non trouvée',
+    );
+  });
+});
