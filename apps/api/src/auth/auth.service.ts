@@ -162,6 +162,11 @@ export class AuthService {
       throw new ForbiddenException('Votre compte a été suspendu.');
     }
 
+    // Reactivation: logging back in within the 30-day window cancels a pending
+    // account deletion (the purge job hasn't anonymized it yet — deletedAt is
+    // still null, which is why the lookup above found it).
+    const reactivated = user.deletionRequestedAt != null;
+
     const tokens = await this.generateTokens(
       user.id,
       user.role,
@@ -170,8 +175,18 @@ export class AuthService {
     );
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date() },
+      data: {
+        lastLoginAt: new Date(),
+        ...(reactivated
+          ? { deletionRequestedAt: null, deletionScheduledAt: null }
+          : {}),
+      },
     });
+    if (reactivated) {
+      this.logger.warn(
+        `Account ${user.id} reactivated on login (pending deletion cancelled)`,
+      );
+    }
 
     // Server-owned login event. `admin_login` is an alias capture so the
     // admin funnel is queryable without filtering user_login by role.
@@ -183,7 +198,7 @@ export class AuthService {
       this.analytics.capture(user.id, 'admin_login', { method: 'email' });
     }
 
-    return { user: this.sanitizeUser(user), tokens };
+    return { user: this.sanitizeUser(user), tokens, reactivated };
   }
 
   // Seller migration (phone-OTP legacy seller → email + password) was

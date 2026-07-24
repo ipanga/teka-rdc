@@ -29,6 +29,6 @@ import { WhatsappModule } from '../whatsapp/whatsapp.module';
   ],
   controllers: [AuthController],
   providers: [AuthService, BuyerOtpService, BuyerClaimService, JwtStrategy],
-  exports: [AuthService, JwtModule],
+  exports: [AuthService, BuyerOtpService, JwtModule],
 })
 export class AuthModule {}

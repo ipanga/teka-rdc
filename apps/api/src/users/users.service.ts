@@ -79,15 +79,6 @@ export class UsersService {
     return profile;
   }
 
-  async deleteAccount(userId: string) {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { deletedAt: new Date() },
-    });
-
-    return { message: 'Compte supprimé avec succès' };
-  }
-
   /**
    * Upload a new avatar to Cloudinary and save the URL on the user row.
    * Returns the updated avatar URL. The image is stored under the
