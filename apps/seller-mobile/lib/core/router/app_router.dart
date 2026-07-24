@@ -23,6 +23,7 @@ import '../../features/profile/presentation/screens/notification_settings_screen
 import '../../features/profile/presentation/screens/personal_info_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/screens/security_screen.dart';
+import '../../features/profile/presentation/screens/account_deletion_screen.dart';
 import '../../features/profile/presentation/screens/shop_profile_screen.dart';
 import '../../features/promotions/presentation/screens/create_promotion_screen.dart';
 import '../../features/promotions/presentation/screens/promotions_list_screen.dart';
@@ -258,6 +259,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile/security',
         builder: (context, state) => const SecurityScreen(),
+      ),
+      GoRoute(
+        path: '/profile/delete-account',
+        builder: (context, state) => const AccountDeletionScreen(),
       ),
 
       // /messages and /messages/:id retired 2026-05-17 — direct buyer↔

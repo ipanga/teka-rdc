@@ -217,6 +217,33 @@ class ProfileRepository {
     );
   }
 
+  /// GET /v1/users/account/deletion — current pending-deletion status.
+  Future<DeletionStatus> getDeletionStatus() async {
+    final response = await _dio.get('/v1/users/account/deletion');
+    return DeletionStatus.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+  /// POST /v1/users/account/deletion — schedule deletion (seller re-auth =
+  /// current password). Not retry-safe (mutates account + revokes sessions).
+  Future<DeletionStatus> requestAccountDeletion({
+    required String password,
+  }) async {
+    final response = await _dio.post(
+      '/v1/users/account/deletion',
+      data: {'confirmPhrase': 'SUPPRIMER', 'password': password},
+    );
+    return DeletionStatus.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+  /// DELETE /v1/users/account/deletion — cancel a pending deletion.
+  Future<void> cancelAccountDeletion() async {
+    await _dio.delete('/v1/users/account/deletion');
+  }
+
   /// GET /v1/users/sessions — list of active refresh-token sessions.
   Future<List<SessionDto>> listSessions() async {
     final response = await _dio.get('/v1/users/sessions');
@@ -238,6 +265,21 @@ class ProfileRepository {
     final response = await _dio.delete('/v1/users/sessions');
     final data = response.data['data'] as Map<String, dynamic>;
     return data['revoked'] as int? ?? 0;
+  }
+}
+
+class DeletionStatus {
+  final bool pending;
+  final DateTime? scheduledAt;
+  const DeletionStatus({required this.pending, this.scheduledAt});
+
+  factory DeletionStatus.fromJson(Map<String, dynamic> data) {
+    return DeletionStatus(
+      pending: data['pending'] as bool? ?? false,
+      scheduledAt: data['scheduledAt'] != null
+          ? DateTime.tryParse(data['scheduledAt'].toString())
+          : null,
+    );
   }
 }
 
