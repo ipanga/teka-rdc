@@ -124,6 +124,10 @@ export interface CartItem {
   product: {
     id: string;
     title: string;
+    // Canonical PDP link fields — build the URL via productHref (lib/urls.ts).
+    slug?: string | null;
+    shortCode?: string | null;
+    city?: { slug?: string | null } | null;
     priceCDF: string;
     priceUSD?: number | null;
     discountPriceCDF?: string | null;

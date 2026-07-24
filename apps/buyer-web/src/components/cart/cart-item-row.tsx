@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useCartStore } from '@/lib/cart-store';
 import { formatCDF } from '@/lib/format';
+import { productHref } from '@/lib/urls';
 import { cn } from '@/components/ui';
 import type { CartItem } from '@/lib/types';
 
@@ -29,7 +30,17 @@ export function CartItemRow({ item }: CartItemRowProps) {
     ? (product.discountPriceCDF as string)
     : product.priceCDF;
   const subtotalCentimes = BigInt(effectiveCDF) * BigInt(quantity);
-  const productUrl = `/recherche?q=${encodeURIComponent(title)}`;
+  // Canonical PDP link `/{citySlug}/{slug}-{shortCode}`. When the resolver code
+  // is missing (legacy/unavailable product), render plain text instead of a
+  // dead link.
+  const productUrl = product.shortCode
+    ? productHref({
+        id: product.id,
+        slug: product.slug,
+        shortCode: product.shortCode,
+        citySlug: product.city?.slug,
+      })
+    : null;
 
   async function handleQuantityChange(newQty: number) {
     if (newQty < 1 || newQty > maxStock || isUpdating) return;
@@ -45,44 +56,58 @@ export function CartItemRow({ item }: CartItemRowProps) {
     setIsUpdating(false);
   }
 
+  const imageInner = thumbnailUrl ? (
+    <Image
+      src={thumbnailUrl}
+      alt={title}
+      fill
+      sizes="(max-width: 768px) 80px, 112px"
+      className="object-cover"
+    />
+  ) : (
+    <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={1.5}
+          d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+        />
+      </svg>
+    </div>
+  );
+
   return (
     <div className="flex gap-3 md:gap-4 py-4 border-b border-border last:border-0">
-      {/* Product image */}
-      <Link
-        href={productUrl}
-        className="relative w-20 h-20 md:w-28 md:h-28 bg-surface-muted rounded-lg overflow-hidden shrink-0 border border-border"
-      >
-        {thumbnailUrl ? (
-          <Image
-            src={thumbnailUrl}
-            alt={title}
-            fill
-            sizes="(max-width: 768px) 80px, 112px"
-            className="object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.5}
-                d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
-          </div>
-        )}
-      </Link>
+      {/* Product image — links to the PDP when resolvable */}
+      {productUrl ? (
+        <Link
+          href={productUrl}
+          className="relative w-20 h-20 md:w-28 md:h-28 bg-surface-muted rounded-lg overflow-hidden shrink-0 border border-border"
+        >
+          {imageInner}
+        </Link>
+      ) : (
+        <div className="relative w-20 h-20 md:w-28 md:h-28 bg-surface-muted rounded-lg overflow-hidden shrink-0 border border-border">
+          {imageInner}
+        </div>
+      )}
 
       {/* Product info */}
       <div className="flex-1 min-w-0 flex flex-col justify-between">
         <div>
-          <Link
-            href={productUrl}
-            className="text-sm md:text-base font-medium text-foreground hover:text-primary transition-colors line-clamp-2 leading-snug"
-          >
-            {title}
-          </Link>
+          {productUrl ? (
+            <Link
+              href={productUrl}
+              className="text-sm md:text-base font-medium text-foreground hover:text-primary transition-colors line-clamp-2 leading-snug"
+            >
+              {title}
+            </Link>
+          ) : (
+            <span className="text-sm md:text-base font-medium text-foreground line-clamp-2 leading-snug">
+              {title}
+            </span>
+          )}
           <p className="text-xs text-muted-foreground mt-1">
             {"Vendeur"}: <span className="font-medium">{product.seller.businessName}</span>
           </p>
