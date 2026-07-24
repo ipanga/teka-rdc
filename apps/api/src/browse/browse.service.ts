@@ -1125,39 +1125,28 @@ export class BrowseService {
   }
 
   /**
-   * Returns product attributes for a category.
-   * Includes attributes from the category itself and its parent categories.
-   * Used by seller forms to render dynamic fields.
+   * Returns the product attributes for a single category.
+   *
+   * Attributes attach PER PRODUCT TYPE (the leaf of the Category tree — see the
+   * marketplace-taxonomy model). Products link to the leaf, and the seller form
+   * only ever selects a leaf, so we return that node's attributes ONLY. The old
+   * implementation walked self + parent + grandparent and merged their rows,
+   * which leaked unrelated attributes (e.g. cooker "Type"/"Nombre de feux"
+   * created on a parent category bleeding into every monitor form) into every
+   * descendant. Leaf-only makes the set deterministic and correct.
    */
   async getCategoryAttributes(categoryId: string) {
     const category = await this.prisma.category.findUnique({
       where: { id: categoryId, deletedAt: null },
-      include: {
-        parentCategory: {
-          include: {
-            parentCategory: true,
-          },
-        },
-      },
+      select: { id: true },
     });
 
     if (!category) {
       throw new NotFoundException('Catégorie non trouvée');
     }
 
-    // Collect category IDs: self + parent + grandparent
-    const categoryIds = [categoryId];
-    if (category.parentCategoryId) {
-      categoryIds.push(category.parentCategoryId);
-      if (category.parentCategory?.parentCategoryId) {
-        categoryIds.push(category.parentCategory.parentCategoryId);
-      }
-    }
-
     const attributes = await this.prisma.productAttribute.findMany({
-      where: {
-        categoryId: { in: categoryIds },
-      },
+      where: { categoryId },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     });
 
