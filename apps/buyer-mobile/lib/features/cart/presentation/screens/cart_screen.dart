@@ -50,6 +50,8 @@ class CartScreen extends ConsumerWidget {
                       final item = cartState.items[index];
                       return CartItemTile(
                         item: item,
+                        onOpenProduct: () =>
+                            context.push('/products/${item.productId}'),
                         onQuantityChanged: (newQuantity) {
                           ref
                               .read(cartProvider.notifier)

@@ -72,6 +72,10 @@ export default function CartPage() {
             product: {
               id: p.id,
               title: p.title,
+              // Canonical PDP link fields, so guest cart rows link correctly.
+              slug: p.slug,
+              shortCode: p.shortCode,
+              city: p.city ? { slug: p.city.slug } : null,
               priceCDF: p.priceCDF,
               priceUSD: p.priceUSD,
               discountPriceCDF: p.discountPriceCDF,

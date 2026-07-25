@@ -9,11 +9,16 @@ class CartItemTile extends StatelessWidget {
   final ValueChanged<int> onQuantityChanged;
   final VoidCallback onRemove;
 
+  /// Opens the product detail page. Wired on the image + title/price area only;
+  /// the quantity stepper and remove button stay independent tap targets.
+  final VoidCallback? onOpenProduct;
+
   const CartItemTile({
     super.key,
     required this.item,
     required this.onQuantityChanged,
     required this.onRemove,
+    this.onOpenProduct,
   });
 
   @override
@@ -34,39 +39,43 @@ class CartItemTile extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Product thumbnail — larger (96dp matches web 24-tailwind)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              width: 96,
-              height: 96,
-              decoration: BoxDecoration(
-                color: TekaColors.surfaceMuted,
-                border: Border.all(color: TekaColors.border),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: imageUrl != null && imageUrl.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: imageUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => const Center(
-                        child: SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+          // Product thumbnail — larger (96dp matches web 24-tailwind).
+          // Tapping opens the product detail page.
+          GestureDetector(
+            onTap: onOpenProduct,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                width: 96,
+                height: 96,
+                decoration: BoxDecoration(
+                  color: TekaColors.surfaceMuted,
+                  border: Border.all(color: TekaColors.border),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: imageUrl != null && imageUrl.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => const Center(
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
                         ),
-                      ),
-                      errorWidget: (context, url, error) => const Icon(
-                        Icons.image_not_supported_outlined,
+                        errorWidget: (context, url, error) => const Icon(
+                          Icons.image_not_supported_outlined,
+                          color: TekaColors.mutedForeground,
+                          size: 28,
+                        ),
+                      )
+                    : const Icon(
+                        Icons.image_outlined,
                         color: TekaColors.mutedForeground,
                         size: 28,
                       ),
-                    )
-                  : const Icon(
-                      Icons.image_outlined,
-                      color: TekaColors.mutedForeground,
-                      size: 28,
-                    ),
+              ),
             ),
           ),
 
@@ -77,39 +86,50 @@ class CartItemTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: TekaColors.foreground,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    height: 1.35,
-                  ),
-                ),
-                if (item.product.sellerName != null &&
-                    item.product.sellerName!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      item.product.sellerName!,
-                      style: const TextStyle(
-                        color: TekaColors.mutedForeground,
-                        fontSize: 12,
+                // Title / seller / price open the product detail page.
+                // The stepper + remove row below stays independent.
+                GestureDetector(
+                  onTap: onOpenProduct,
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: TekaColors.foreground,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          height: 1.35,
+                        ),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                const SizedBox(height: 6),
-                Text(
-                  unitPrice,
-                  style: const TextStyle(
-                    color: TekaColors.tekaRed,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.2,
+                      if (item.product.sellerName != null &&
+                          item.product.sellerName!.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            item.product.sellerName!,
+                            style: const TextStyle(
+                              color: TekaColors.mutedForeground,
+                              fontSize: 12,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      const SizedBox(height: 6),
+                      Text(
+                        unitPrice,
+                        style: const TextStyle(
+                          color: TekaColors.tekaRed,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(height: 10),

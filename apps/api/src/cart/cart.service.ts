@@ -15,6 +15,10 @@ const CART_ITEM_INCLUDE = {
         select: {
           id: true,
           title: true,
+          // Canonical PDP link fields — web builds `/{citySlug}/{slug}-{shortCode}`.
+          slug: true,
+          shortCode: true,
+          city: { select: { slug: true } },
           priceCDF: true,
           priceUSD: true,
           discountPriceCDF: true,
@@ -428,6 +432,9 @@ export class CartService {
       product: {
         id: string;
         title: string;
+        slug: string | null;
+        shortCode: string | null;
+        city: { slug: string | null } | null;
         priceCDF: bigint;
         priceUSD: bigint | null;
         discountPriceCDF: bigint | null;
@@ -463,6 +470,10 @@ export class CartService {
         product: {
           id: item.product.id,
           title: item.product.title,
+          // Canonical PDP link fields (web builds the product URL via productHref).
+          slug: item.product.slug,
+          shortCode: item.product.shortCode,
+          city: item.product.city ? { slug: item.product.city.slug } : null,
           priceCDF: item.product.priceCDF,
           priceUSD: item.product.priceUSD,
           discountPriceCDF: item.product.discountPriceCDF,
