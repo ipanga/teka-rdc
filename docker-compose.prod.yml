@@ -37,6 +37,14 @@ services:
       # (same pattern as SENTRY_RELEASE). Empty fallback keeps a plain
       # `docker compose -f docker-compose.prod.yml up` working without it.
       - POSTHOG_API_KEY=${POSTHOG_API_KEY:-}
+      # App-store review login — exported from GitHub Secrets by deploy.yml so
+      # the flag is toggleable without SSHing the VPS-managed .env.production.
+      # Defaults keep it OFF: absent secrets → enabled=false, empty phone →
+      # isReviewLogin() returns false. Flip the APP_REVIEW_LOGIN_ENABLED secret
+      # to `true` only during an active store-review window, then back to `false`.
+      - APP_REVIEW_LOGIN_ENABLED=${APP_REVIEW_LOGIN_ENABLED:-false}
+      - APP_REVIEW_BUYER_PHONE_E164=${APP_REVIEW_BUYER_PHONE_E164:-}
+      - APP_REVIEW_BUYER_OTP=${APP_REVIEW_BUYER_OTP:-123456}
     networks:
       - frontend
       - backend
