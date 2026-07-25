@@ -1,4 +1,4 @@
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { defaultUrlTransform } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import Link from 'next/link';
 import { Header } from '@/components/layout/header';
@@ -93,6 +93,12 @@ export async function ContentPageView({
           <h1>{title}</h1>
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
+            // react-markdown's default sanitizer strips `tel:` links; allow
+            // them through (for tappable phone numbers) while keeping the
+            // default protection for everything else.
+            urlTransform={(url) =>
+              url.startsWith('tel:') ? url : defaultUrlTransform(url)
+            }
             components={{
               // Route internal links through rewriteContentLink so legacy
               // /pages/<en-slug> markdown still resolves to the right URL

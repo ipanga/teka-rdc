@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/app_states.dart';
+import '../../../../core/widgets/markdown_content.dart';
 import '../../data/content_repository.dart';
 import '../../data/models/content_page_model.dart';
 
@@ -44,7 +45,7 @@ class ContentPageScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    "Page non trouvee",
+                    "Page non trouvée",
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
                           color: TekaColors.mutedForeground,
                         ),
@@ -69,9 +70,8 @@ class ContentPageScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
                 const Divider(height: 1),
                 const SizedBox(height: 16),
-                // Render content as text paragraphs
-                // Split by double newlines for paragraph breaks
-                ..._buildContentParagraphs(context, content),
+                // Render CMS Markdown (headings, lists, bold, tappable links).
+                MarkdownContent(content),
               ],
             ),
           );
@@ -85,48 +85,5 @@ class ContentPageScreen extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  List<Widget> _buildContentParagraphs(BuildContext context, String content) {
-    final paragraphs = content.split(RegExp(r'\n\s*\n'));
-    final widgets = <Widget>[];
-
-    for (int i = 0; i < paragraphs.length; i++) {
-      final paragraph = paragraphs[i].trim();
-      if (paragraph.isEmpty) continue;
-
-      // Check if it looks like a heading (starts with # or is all uppercase short text)
-      if (paragraph.startsWith('#')) {
-        final level = paragraph.indexOf(RegExp(r'[^#]'));
-        final headingText = paragraph.substring(level).trim();
-        widgets.add(
-          Padding(
-            padding: EdgeInsets.only(top: i > 0 ? 16 : 0, bottom: 8),
-            child: Text(
-              headingText,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: TekaColors.foreground,
-                  ),
-            ),
-          ),
-        );
-      } else {
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              paragraph,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: TekaColors.foreground,
-                    height: 1.6,
-                  ),
-            ),
-          ),
-        );
-      }
-    }
-
-    return widgets;
   }
 }

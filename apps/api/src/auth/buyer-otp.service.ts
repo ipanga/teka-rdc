@@ -30,6 +30,8 @@ export interface RequestOtpResult {
 export interface VerifyOtpResult {
   user: any;
   tokens: AuthTokens;
+  /** True when this login cancelled a pending account deletion. */
+  reactivated?: boolean;
 }
 
 @Injectable()
@@ -72,7 +74,11 @@ export class BuyerOtpService {
     lastName?: string,
     device?: { userAgent?: string; ipAddress?: string },
   ): Promise<VerifyOtpResult> {
-    const verified = await this.verifyOtpInternal(phone, code);
+    // App-store review login is a login-only, allowlisted bypass — it must NOT
+    // consume/validate a real Otp row, so check it before verifyOtpInternal.
+    const verified =
+      this.isReviewLogin(phone, code) ||
+      (await this.verifyOtpInternal(phone, code));
     if (!verified) {
       throw new UnauthorizedException('Code OTP invalide ou expiré');
     }
@@ -86,6 +92,11 @@ export class BuyerOtpService {
       throw new ForbiddenException('Votre compte a été suspendu.');
     }
 
+    // Reactivation: logging back in within the 30-day window cancels a pending
+    // account deletion (deletedAt is still null — the purge job hasn't run).
+    const reactivated = (user as { deletionRequestedAt?: Date | null })
+      .deletionRequestedAt != null;
+
     const tokens = await this.authService.generateTokensForUser(
       user.id,
       user.role,
@@ -94,8 +105,19 @@ export class BuyerOtpService {
     );
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date(), phoneVerified: true },
+      data: {
+        lastLoginAt: new Date(),
+        phoneVerified: true,
+        ...(reactivated
+          ? { deletionRequestedAt: null, deletionScheduledAt: null }
+          : {}),
+      },
     });
+    if (reactivated) {
+      this.logger.warn(
+        `Account ${user.id} reactivated on OTP login (pending deletion cancelled)`,
+      );
+    }
 
     // Server-owned auth event. First verify for a phone => registration,
     // otherwise a login. distinctId is the public user.id so the client's
@@ -105,7 +127,44 @@ export class BuyerOtpService {
       method: 'whatsapp_otp',
     });
 
-    return { user: this.authService.sanitize(user), tokens };
+    return { user: this.authService.sanitize(user), tokens, reactivated };
+  }
+
+  /**
+   * App-store review login: a tightly-scoped, env-gated bypass so Apple/Google
+   * reviewers can sign in without a live WhatsApp OTP.
+   *
+   * Accepts the fixed OTP ONLY when ALL hold: the feature is explicitly enabled
+   * (`APP_REVIEW_LOGIN_ENABLED`), the submitted phone EXACTLY equals the single
+   * allowlisted `APP_REVIEW_BUYER_PHONE_E164`, and the code EXACTLY equals
+   * `APP_REVIEW_BUYER_OTP`. Every other phone always uses a real Gupshup OTP.
+   * This is NOT a universal bypass and the code is never logged.
+   */
+  private isReviewLogin(phone: string, code: string): boolean {
+    const enabledRaw = this.configService.get<string | boolean>(
+      'APP_REVIEW_LOGIN_ENABLED',
+    );
+    const enabled = enabledRaw === true || enabledRaw === 'true';
+    if (!enabled) return false;
+
+    const allowPhone = this.configService.get<string>(
+      'APP_REVIEW_BUYER_PHONE_E164',
+      '',
+    );
+    const allowCode = this.configService.get<string>(
+      'APP_REVIEW_BUYER_OTP',
+      '',
+    );
+    // Never match on empty config — avoids accidentally allowing '' == ''.
+    if (!allowPhone || !allowCode) return false;
+
+    const match = phone === allowPhone && code === allowCode;
+    if (match) {
+      this.logger.warn(
+        '[app-review] review login accepted for the allowlisted phone',
+      );
+    }
+    return match;
   }
 
   /**

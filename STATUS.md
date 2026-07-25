@@ -6,11 +6,23 @@
 
 ## Active initiative
 
-**Seller product images + category attributes — 2 stacked PRs into `develop`.**
-Three device-reported issues: tappable image placeholder, camera capture, and a monitor showing cooker
-attributes. Tracker: `docs/seller-product-images-category-attributes-fixes.md`. No schema change.
+**None.** The buyer initiative below merged to `develop` on 2026-07-25.
 
-PRs (stacked): `image-entry-camera` (P1/P2) ← `api-category-attributes-leaf-only` (P3).
+> **DONE 2026-07-25 — buyer cart nav · notifications · help pages · account deletion · app-review login**
+> (8 PRs #558–#564 merged to `develop`). Six device-reported buyer issues, each root-caused, web/mobile parity.
+> Tracker: `docs/buyer-cart-help-notifications-account-deletion-review-login.md`; full narrative in `PROGRESS.md`.
+> **#558** cart→PDP · **#559** help pages (Markdown + canonical contact + prod migration) · **#560** notification
+> settings (dead toggle fixed on all 4 surfaces + OS-permission) · **#561** Notification Center persistence +
+> backfill · **#562** account deletion (30-day pending; schema migration) · **#563** app-review login (env-gated,
+> ships disabled) · **#564** docs. Merged develop verified green: API 226 unit + 116 e2e, buyer-mobile 139 +
+> seller-mobile 12, web type-checks. Not device-verified (no device; cloud DB unreachable from the build env).
+> **Remaining operator actions:** both prod migrations now **auto-apply during deploy** (listed in
+> `prisma/migrations/manual/auto-apply.list`; `deploy.yml` runs them before the rolling swap — see `docs/deployment.md §5a`),
+> so no SSH/manual SQL. Optionally run `backfill-buyer-order-notifications.ts --confirm` (data backfill). **App-review
+> login:** the review phone `+243810000000` is set in the env files (enabled in dev; **prod stays
+> `APP_REVIEW_LOGIN_ENABLED=false` — flip to `true` only during an active store-review window**, then off).
+
+> **DONE (prior) — seller product images + category attributes.** See the note below (kept as history).
 
 > **DONE 2026-07-24 — seller product images + attributes.** **(P1)** Empty image placeholder is now a
 > tappable Semantic button opening the image manager (was inert; only "Ajouter" worked). **(P2)** Camera

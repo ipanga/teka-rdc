@@ -277,6 +277,33 @@ export class EmailService {
     return this.sendEmail(email, subject, html);
   }
 
+  /**
+   * Confirms that an account deletion has been scheduled. Best-effort — the
+   * caller ignores the result. `formattedDate` is the DD/MM/YYYY the account
+   * will be permanently anonymized unless the user logs back in first.
+   */
+  async sendAccountDeletionScheduled(
+    email: string,
+    formattedDate: string,
+  ): Promise<boolean> {
+    const subject = 'Suppression de votre compte Teka RDC programmée';
+    const html = `
+      <div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;color:#1f2937">
+        <h2 style="color:#BF0000">Suppression de compte programmée</h2>
+        <p>Nous avons bien reçu votre demande de suppression de compte.</p>
+        <p>Votre compte sera <strong>désactivé immédiatement</strong> et
+        définitivement supprimé le <strong>${formattedDate}</strong>.</p>
+        <p>Vous avez changé d'avis ? <strong>Reconnectez-vous simplement avant
+        cette date</strong> pour réactiver votre compte et annuler la suppression.</p>
+        <p>Certaines informations (commandes, factures) peuvent être conservées
+        de façon anonymisée pour respecter nos obligations légales et comptables.</p>
+        <p style="color:#6b7280;font-size:13px">Si vous n'êtes pas à l'origine de
+        cette demande, reconnectez-vous immédiatement et changez vos identifiants.</p>
+      </div>
+    `;
+    return this.sendEmail(email, subject, html);
+  }
+
   /** Forwards a public contact-form submission to the support inbox. */
   async sendContactNotification(
     input: ContactFormEmailInput & { to: string; replyTo: string },

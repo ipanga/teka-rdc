@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { useAuthStore } from '@/lib/auth-store';
+import { DeleteAccountSection } from '@/components/account/delete-account-section';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Container } from '@/components/ui';
@@ -44,9 +45,11 @@ export default function BuyerProfilePage() {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Notification preferences (auto-save on toggle)
-  const [smsOrderUpdates, setSmsOrderUpdates] = useState(true);
-  const [smsBroadcasts, setSmsBroadcasts] = useState(true);
+  // Notification preferences (auto-save on toggle). The "Annonces" toggle drives
+  // both backend broadcast channels; the legacy `smsBroadcasts` key was retired
+  // 2026-05-26 and is silently ignored by the API.
+  const [orderUpdates, setOrderUpdates] = useState(true);
+  const [announcements, setAnnouncements] = useState(true);
   const [notifSaving, setNotifSaving] = useState(false);
 
   // Active sessions ("Appareils connectés")
@@ -72,11 +75,14 @@ export default function BuyerProfilePage() {
 
   const loadNotificationPrefs = useCallback(async () => {
     try {
-      const res = await apiFetch<{ smsOrderUpdates: boolean; smsBroadcasts: boolean }>(
-        '/v1/users/notification-prefs',
-      );
-      setSmsOrderUpdates(res.data.smsOrderUpdates);
-      setSmsBroadcasts(res.data.smsBroadcasts);
+      const res = await apiFetch<{
+        smsOrderUpdates: boolean;
+        pushBroadcasts: boolean;
+        emailBroadcasts: boolean;
+      }>('/v1/users/notification-prefs');
+      setOrderUpdates(res.data.smsOrderUpdates);
+      // Announcements are on if either broadcast channel is on.
+      setAnnouncements(res.data.pushBroadcasts || res.data.emailBroadcasts);
     } catch {
       // Defaults stay all-on
     }
@@ -127,19 +133,24 @@ export default function BuyerProfilePage() {
     }
   };
 
-  const updateNotifPref = async (key: 'smsOrderUpdates' | 'smsBroadcasts', value: boolean) => {
-    if (key === 'smsOrderUpdates') setSmsOrderUpdates(value);
-    else setSmsBroadcasts(value);
+  const updateNotifPref = async (key: 'orderUpdates' | 'announcements', value: boolean) => {
+    if (key === 'orderUpdates') setOrderUpdates(value);
+    else setAnnouncements(value);
     setNotifSaving(true);
+    // The single "Annonces" toggle controls both broadcast channels.
+    const body =
+      key === 'orderUpdates'
+        ? { smsOrderUpdates: value }
+        : { pushBroadcasts: value, emailBroadcasts: value };
     try {
       await apiFetch('/v1/users/notification-prefs', {
         method: 'PATCH',
-        body: JSON.stringify({ [key]: value }),
+        body: JSON.stringify(body),
       });
       showFeedback('success', "Préférences enregistrées");
     } catch {
-      if (key === 'smsOrderUpdates') setSmsOrderUpdates(!value);
-      else setSmsBroadcasts(!value);
+      if (key === 'orderUpdates') setOrderUpdates(!value);
+      else setAnnouncements(!value);
       showFeedback('error', "Erreur lors de la mise à jour");
     } finally {
       setNotifSaving(false);
@@ -346,21 +357,21 @@ export default function BuyerProfilePage() {
       {/* Notifications */}
       <section className="mb-6 bg-white rounded-xl border border-border p-6">
         <h2 className="text-base font-semibold text-foreground mb-2">{"Notifications"}</h2>
-        <p className="text-sm text-muted-foreground mb-4">{"Choisissez les SMS que vous voulez recevoir. Les codes WhatsApp restent toujours envoyés."}</p>
+        <p className="text-sm text-muted-foreground mb-4">{"Choisissez les notifications que vous voulez recevoir. Les codes WhatsApp de connexion restent toujours envoyés."}</p>
         <div className="space-y-3">
           <NotifToggle
             label={"Mises à jour de commande"}
-            description={"Confirmation, expédition, livraison, annulation"}
-            checked={smsOrderUpdates}
+            description={"Confirmation, préparation, livraison, annulation"}
+            checked={orderUpdates}
             disabled={notifSaving}
-            onChange={(v) => updateNotifPref('smsOrderUpdates', v)}
+            onChange={(v) => updateNotifPref('orderUpdates', v)}
           />
           <NotifToggle
             label={"Annonces et promotions"}
             description={"Messages marketing envoyés par l'équipe Teka"}
-            checked={smsBroadcasts}
+            checked={announcements}
             disabled={notifSaving}
-            onChange={(v) => updateNotifPref('smsBroadcasts', v)}
+            onChange={(v) => updateNotifPref('announcements', v)}
           />
         </div>
       </section>
@@ -440,6 +451,8 @@ export default function BuyerProfilePage() {
               </Link>
             </div>
           </section>
+
+          <DeleteAccountSection phone={user?.phone ?? null} />
         </Container>
       </main>
       <Footer />

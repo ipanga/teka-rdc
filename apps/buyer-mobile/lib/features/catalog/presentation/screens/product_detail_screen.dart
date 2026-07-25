@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -585,12 +586,28 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         loading: () => const Center(
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
-        error: (error, _) => AppErrorState(
-          message: "Une erreur est survenue. Veuillez réessayer.",
-          onRetry: () {
-            ref.invalidate(productDetailProvider(productId));
-          },
-        ),
+        error: (error, _) {
+          // A 404 means the product was removed, suspended or is no longer
+          // available — offer a way back to browsing rather than a pointless
+          // retry. Transient errors keep the retry affordance.
+          final isUnavailable =
+              error is DioException && error.response?.statusCode == 404;
+          if (isUnavailable) {
+            return AppErrorState(
+              message: "Ce produit n'est plus disponible.",
+              actionLabel: 'Retour',
+              onRetry: () => context.canPop()
+                  ? context.pop()
+                  : context.go('/categories'),
+            );
+          }
+          return AppErrorState(
+            message: "Une erreur est survenue. Veuillez réessayer.",
+            onRetry: () {
+              ref.invalidate(productDetailProvider(productId));
+            },
+          );
+        },
       ),
     );
   }

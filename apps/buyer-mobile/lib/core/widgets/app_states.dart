@@ -91,7 +91,16 @@ class AppErrorState extends StatelessWidget {
   final String? message;
   final VoidCallback? onRetry;
 
-  const AppErrorState({super.key, this.message, this.onRetry});
+  /// Label for the action button. Defaults to "Réessayer" for the common
+  /// retry case; override (e.g. "Retour") when the action isn't a retry.
+  final String? actionLabel;
+
+  const AppErrorState({
+    super.key,
+    this.message,
+    this.onRetry,
+    this.actionLabel,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -128,7 +137,7 @@ class AppErrorState extends StatelessWidget {
                   const SizedBox(height: 16),
                   FilledButton(
                     onPressed: onRetry,
-                    child: const Text('Réessayer'),
+                    child: Text(actionLabel ?? 'Réessayer'),
                   ),
                 ],
               ],

@@ -83,4 +83,17 @@ export class DeviceTokensService {
     });
     return { removed: result.count };
   }
+
+  /**
+   * Deactivates ALL of a user's push tokens — used on account deletion so no
+   * further push can be delivered to a removed account. Soft (isActive=false),
+   * keeping the audit rows.
+   */
+  async deactivateAll(userId: string): Promise<{ removed: number }> {
+    const result = await this.prisma.deviceToken.updateMany({
+      where: { userId, isActive: true },
+      data: { isActive: false },
+    });
+    return { removed: result.count };
+  }
 }

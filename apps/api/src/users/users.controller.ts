@@ -53,10 +53,9 @@ export class UsersController {
     return this.usersService.uploadAvatar(userId, file);
   }
 
-  @Delete('profile')
-  async deleteAccount(@CurrentUser('userId') userId: string) {
-    return this.usersService.deleteAccount(userId);
-  }
+  // Account deletion moved to AccountDeletionController
+  // (POST/GET/DELETE /v1/users/account/deletion) — the old unguarded
+  // `DELETE /v1/users/profile` soft-delete (no re-auth/safeguards) was removed.
 
   /**
    * Set (or clear with `cityId: null`) the current buyer's preferred delivery

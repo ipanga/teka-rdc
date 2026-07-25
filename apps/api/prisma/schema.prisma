@@ -247,6 +247,14 @@ model User {
   deletedAt   DateTime?
   lastLoginAt DateTime?
 
+  // Account deletion — 30-day pending-deletion grace period. On request:
+  // deletionRequestedAt/deletionScheduledAt are set and the sessions are
+  // revoked; logging back in within the window clears them (reactivation);
+  // the daily purge job anonymizes accounts past deletionScheduledAt and
+  // stamps deletedAt (the terminal, anonymized state).
+  deletionRequestedAt DateTime?
+  deletionScheduledAt DateTime?
+
   // Relations
   preferredCity       City?           @relation("UserPreferredCity", fields: [preferredCityId], references: [id])
   sellerProfile       SellerProfile?  @relation("UserSellerProfile")
@@ -286,6 +294,7 @@ model User {
   @@index([role])
   @@index([status])
   @@index([deletedAt])
+  @@index([deletionScheduledAt])
   @@index([preferredCityId])
   @@map("users")
 }

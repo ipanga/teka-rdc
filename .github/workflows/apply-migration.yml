@@ -1,9 +1,18 @@
-# One-off prod database migration runner.
+# One-off prod database migration runner (MANUAL path).
+#
+# NOTE (2026-07-25): expand-phase migrations can now be applied automatically
+# during deploy — list the filename in
+# `apps/api/prisma/migrations/manual/auto-apply.list` and deploy.yml runs it
+# before the rolling swap (see docs/deployment.md §5a). Use THIS workflow only
+# for migrations that must NOT auto-apply: destructive changes, or contract-phase
+# steps that drop a column still read by the currently-running code, applied by
+# hand at the right moment. (This workflow reads the file from the RUNNING api
+# container, so the file must already be deployed — i.e. merged to `main`.)
 #
 # `apps/api/prisma/migrations/manual/*.sql` files ship inside the api
-# image (Dockerfile COPYs the prisma/ dir) but are not auto-applied at
-# deploy time — they're intentionally manual so each schema change is a
-# conscious operator action. Until this workflow existed, applying meant
+# image (Dockerfile COPYs the prisma/ dir). Files NOT in auto-apply.list are
+# intentionally manual so each such schema change is a conscious operator
+# action. Until this workflow existed, applying meant
 # SSHing in and running a multi-token `docker compose ... exec api sh -c
 # 'psql ...'` line that had bitten us twice with paste-collapsed `\sh`
 # escaping. This workflow uses `workflow_dispatch` to wrap that into a

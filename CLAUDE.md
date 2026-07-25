@@ -66,7 +66,7 @@ DATABASE_URL=$(grep '^DATABASE_URL=' .env.development | cut -d= -f2-) \
 
 After editing `apps/api/prisma/schema.prisma`: run `pnpm db:push` (cloud DB, no migration files in dev) then `pnpm --filter api prisma:generate` if your IDE doesn't pick up new types.
 
-For production, schema-affecting changes ship as manual SQL files under `apps/api/prisma/migrations/manual/YYYY-MM-DD_*.sql` (idempotent — wrap in `IF NOT EXISTS`). Apply via the `Apply prod migration` GitHub Action: Actions tab → select the workflow → Run workflow → paste the filename. The workflow handles the docker-exec ceremony and validates the filename before SSHing. The api image bundles `postgresql-client` (added 2026-05-21) so psql works inside the container.
+For production, schema-affecting changes ship as manual SQL files under `apps/api/prisma/migrations/manual/YYYY-MM-DD_*.sql` (idempotent — wrap in `IF NOT EXISTS` / guard data updates). Two apply paths (see `docs/deployment.md §5a`): **(1) auto-applied during deploy** — add the filename to `apps/api/prisma/migrations/manual/auto-apply.list` and `deploy.yml` runs it (via `apply-auto.sh`, tracked in `_manual_migrations`) **before the rolling swap** (expand→deploy); use only for additive/backward-compatible + idempotent migrations, since the old code keeps serving while it runs. **(2) manual** `Apply prod migration` GitHub Action (Actions tab → Run workflow → paste the filename) for destructive/contract-phase migrations that must not auto-apply — it docker-execs into the *running* api container (file must already be on `main`). The api image bundles `postgresql-client` (added 2026-05-21) so psql works inside the container.
 
 ### Docker
 
@@ -91,7 +91,7 @@ flutter pub run build_runner build           # regenerate Riverpod / freezed cod
 
 Dev/staging APKs need per-flavor `google-services.json` (CI injects from secrets) or they fail at `:processGoogleServices*` — see `docs/mobile-flavors.md`.
 
-**Mobile release CI (manual `workflow_dispatch`, per app buyer/seller/both):** Android = `release-mobile-aab.yml` (signed AAB) + `build-mobile-apk.yml`. **iOS** = `release-mobile-ipa.yml` (signed **production** IPA via Fastlane **`match`** → dSYM→Sentry → `.ipa` → **`ios-testflight` approval gate** → TestFlight) + `build-mobile-ipa.yml` (unsigned per-flavor + dSYM→Sentry). Load-bearing facts: **both apps share Apple team `YK6Z393A4D`**; certs/profiles live in the private **`teka-ios-certs`** match repo; committed pbxproj stays `CODE_SIGN_STYLE=Automatic` (CI flips to Manual ephemerally); each TestFlight upload needs a unique higher `CFBundleVersion` (CI stamps `--build-number=$(date -u +%s)`). **Full runbook + secrets + CI gotchas: `docs/mobile-release.md`.**
+**Mobile release CI (manual `workflow_dispatch`, per app buyer/seller/both):** Android = `release-mobile-aab.yml` + `build-mobile-apk.yml`; iOS = `release-mobile-ipa.yml` (signed prod IPA via Fastlane `match` → dSYM→Sentry → `ios-testflight` approval gate → TestFlight) + `build-mobile-ipa.yml`. Load-bearing: both apps share Apple team `YK6Z393A4D`; certs live in the private `teka-ios-certs` match repo; committed pbxproj stays `CODE_SIGN_STYLE=Automatic` (CI flips to Manual ephemerally); each TestFlight upload needs a higher `CFBundleVersion`. **Full runbook + secrets + CI gotchas: `docs/mobile-release.md`.** Root `Gemfile`/`fastlane/` hold the Fastlane setup.
 
 ### Branching (see CONTRIBUTING.md for full detail)
 
@@ -171,8 +171,10 @@ Android is the shipping target for both apps (APK distribution + Play Store). iO
   `lib/`, `middleware.ts`); the api's `src/` is domain modules; `apps/api/prisma/` holds schema + seed +
   migrations.
 - `packages/shared` — `@teka/shared`: types, constants, Zod validators, `normalizeDrcPhone`, cookie names.
-- Root: `docker-compose{,.prod}.yml`, `.env.{development,production}` (root-level, NOT per-app),
-  `pnpm-workspace.yaml`, `nginx/`, `scripts/`, `tasks/` (gitignored local trackers — not a backlog).
+- Root: `docker-compose{,.prod}.yml`, `.env.{development,production,test}` (root-level, NOT per-app),
+  `pnpm-workspace.yaml`, `nginx/`, `scripts/`, `Gemfile` + `fastlane/` (iOS release tooling), `tasks/`
+  (gitignored local trackers — not a backlog). Root `package.json` has a `pnpm.overrides` block pinning
+  security-patched transitive deps — don't strip it during dependency work.
 
 **`docs/` index** (read `architecture.md` first):
 `architecture.md` (authoritative service architecture) · `product-spec.md` (feature spec + 8-phase
@@ -194,7 +196,7 @@ response-shape contract) · `push-notifications.md` (FCM) ·
 
 ## 3. ENVIRONMENT CONFIGURATION
 
-`.env.development` (dev) and `.env.production` (prod) live at the **repo root**, not per-app. Every workspace reads from these — the api via `tsx --env-file=../../.env.development`, the Next.js apps via the built-in loader. `.env.example` is the authoritative variable list; keep it in sync when adding new vars.
+`.env.development` (dev), `.env.production` (prod), and `.env.test` (API tests) live at the **repo root**, not per-app. Every workspace reads from these — the api via `tsx --env-file=../../.env.development`, the Next.js apps via the built-in loader. `.env.example` is the authoritative variable list; keep it in sync when adding new vars.
 
 Key categories (see `.env.example` for the full list with comments):
 
@@ -207,7 +209,7 @@ Key categories (see `.env.example` for the full list with comments):
 - **Error monitoring** — `SENTRY_DSN` (empty in dev → init skipped, `captureException` a no-op), `SENTRY_RELEASE` (optional git short-sha for per-release grouping).
 - **Push notifications (FCM)** — `PushService` takes either `GOOGLE_APPLICATION_CREDENTIALS` (path to a service-account JSON) **or** the discrete trio `FIREBASE_PROJECT_ID`/`FIREBASE_PRIVATE_KEY`/`FIREBASE_CLIENT_EMAIL` (the trio wins when both are set). No-op when neither is configured. Never commit the JSON. **Full setup: `docs/push-notifications.md`.**
 - **WhatsApp OTP (Gupshup)** — `WHATSAPP_PROVIDER` + `GUPSHUP_*` (see Rule 14). Mobile keys are per-flavor.
-- **iOS release CI (GitHub Actions *repo* secrets, not env-file vars; 2026-07-04):** `MATCH_PASSWORD`, `MATCH_GIT_BASIC_AUTH` (base64 `"<user>:<PAT>"`, single-line; PAT reads `teka-ios-certs`); per-app `{BUYER,SELLER}_ASC_API_KEY_ID`/`_ASC_API_ISSUER_ID`/`_ASC_API_KEY_P8_B64` (ASC key; same team `YK6Z393A4D` → buyer==seller values). Plus the existing Firebase-plist + Sentry secrets. `MATCH_GIT_URL` derives from `github.repository_owner` (not a secret); the `ios-testflight` **environment** holds only the reviewer rule, no secrets. **Full table + runbook: `docs/mobile-release.md`.**
+- **iOS release CI (GitHub Actions *repo* secrets, not env-file vars):** `MATCH_PASSWORD`, `MATCH_GIT_BASIC_AUTH`, per-app `{BUYER,SELLER}_ASC_API_KEY_ID`/`_ASC_API_ISSUER_ID`/`_ASC_API_KEY_P8_B64` (same team `YK6Z393A4D` → buyer==seller), plus Firebase-plist + Sentry secrets. **Full table + runbook: `docs/mobile-release.md`.**
 
 Removed / not in use: `REDIS_URL`, `OTP_EXPIRY_MINUTES`, `GOOGLE_*_CLIENT_ID`, all `ORANGE_*`/`FLEXPAY_*`/SMS vars.
 
@@ -220,57 +222,39 @@ role-by-role feature spec is in **`docs/product-spec.md`** (historical reference
 behaviour the authoritative sources are §10 (Rules) below + `docs/architecture.md` — where the original
 spec and current behaviour differ (auth, payments, SMS), **the Rules win.**
 
-**Catalog taxonomy + brands (refactored 2026-06-24).** The catalog is a **3-level taxonomy** — **Category →
-Subcategory → Product Type** (7 categories → 35 subcategories → ~145 product types) — built by **reusing the
-self-referential `Category` tree** (product types are `Category` nodes, `16000000-` UUID range; **no separate
-ProductType table**). Defined in `apps/api/prisma/taxonomy-data.ts`, seeded as the **only active** tree (older
-nodes are deactivated **and soft-deleted** — FK-safe; existing products remapped by old name). The 7 (fixed
-order): Supermarché · Téléphones & Accessoires · Électronique · Électroménager · Mode · Beauté & Santé · Maison
-& Cuisine (**Construction & Bricolage + Automobile & Moto removed** — 0 real products). **Products link to the
-leaf (product type).** Attributes + brands attach **per product type**. Brands are a **first-class library**
-(`Brand` model; admin `/dashboard/brands` CRUD/merge; `Product.brandId`; buyer `brandIds` facet; always includes
-"Autre"), **not** a "Marque" attribute. **Condition = `NEW`/`USED` enum only** (not an attribute). Admin manages
-all 3 levels (polymorphic category endpoints + `PATCH /v1/admin/categories/reorder`). Dynamic attributes support
-`TEXT/SELECT/MULTISELECT/NUMERIC/BOOLEAN`.
-Pre-launch reset tooling: `pnpm db:reset-catalog` (dry-run / `-- --confirm`) + admin `DELETE
-/v1/admin/products/:id/hard`. Seeded ids are non-RFC4122 (`13000000-`/`15000000-`) → endpoints validate ids
-by DB lookup, not `@IsUUID`. Full model: `docs/architecture.md` → "Marketplace taxonomy + brands".
+**Catalog taxonomy + brands (refactored 2026-06-24).** A **3-level taxonomy** — **Category → Subcategory →
+Product Type** (7 categories → 35 subcats → ~145 types) — built by **reusing the self-referential `Category`
+tree** (product types are `Category` nodes, `16000000-` UUID range; **no separate ProductType table**); defined
+in `apps/api/prisma/taxonomy-data.ts`. **Products link to the leaf (product type)**, with attributes + brands
+per type. Brands are a **first-class `Brand` library** (admin `/dashboard/brands`; `Product.brandId`; buyer
+`brandIds` facet), **not** a "Marque" attribute; **condition = `NEW`/`USED` enum only**. Seeded ids are
+non-RFC4122 → endpoints validate by DB lookup, not `@IsUUID`. Reset tooling: `pnpm db:reset-catalog` (dry-run /
+`-- --confirm`) + admin `DELETE /v1/admin/products/:id/hard`. Full model: `docs/architecture.md` → "Marketplace
+taxonomy + brands".
 
-**Demo catalog + retirement (P3c).** A seeded "Teka RDC Officiel" demo catalog (~152 products,
-`Product.isDemo=true`) keeps the storefront non-empty pre-merchants; it always ranks below real products.
-Two **system settings** (KV store) control automatic per-category retirement: `RETIRE_DEMO_CATALOG`
-(master switch, **default `false` — ships dormant**) and `DEMO_RETIRE_THRESHOLD` (default `3`). When the
-switch is on, a category's demo is hidden from buyer surfaces (and its PDPs 301 → category) once it has ≥
-threshold real ACTIVE products. **Leave it `false` until real merchants populate categories** — enabling
-on a demo-only store is a no-op that prematurely arms auto-hide. Edit via admin → catalog-coverage (or the
-settings page). Full model: `docs/architecture.md` → "Demo-catalog retirement (P3c)".
+**Demo catalog + retirement (P3c).** A seeded "Teka RDC Officiel" demo catalog (`Product.isDemo=true`) keeps
+the storefront non-empty pre-merchants and always ranks below real products. Per-category auto-retirement is
+gated by two KV settings: `RETIRE_DEMO_CATALOG` (**default `false` — ships dormant; leave it off until real
+merchants populate categories**) and `DEMO_RETIRE_THRESHOLD` (default `3`). Full model: `docs/architecture.md`
+→ "Demo-catalog retirement (P3c)".
 
-**Per-product discounts (2026-06-23).** Sellers set an optional **`Product.discountPriceCDF`/`discountPriceUSD`**
-(always-on, no admin approval) — separate from the admin `Promotion`/flash-deal model (untouched). Effective
-price = `discountPriceCDF ?? priceCDF`; the % is derived on display, never stored; validation enforces
-`0 < discount < price`. Cart/checkout charge the effective price; `OrderItem.listUnitPriceCDF` snapshots the
-original. On ACTIVE products sellers may edit only price/discount/stock (no re-review). Discovery: `/promotions`
-page + home section + `onPromotion=true` browse filter; cards show `−X%` + strikethrough and **no longer show
-the condition badge or seller name** (those stay on the PDP). Full model: `docs/architecture.md` →
-"Per-product discounts".
+**Per-product discounts (2026-06-23).** Sellers set optional `Product.discountPriceCDF`/`discountPriceUSD`
+(always-on, no admin approval) — separate from the admin `Promotion`/flash-deal model. Effective price =
+`discountPriceCDF ?? priceCDF` (% derived on display, never stored; `0 < discount < price`); `OrderItem.listUnitPriceCDF`
+snapshots the original. On ACTIVE products sellers may edit only price/discount/stock (no re-review). Full
+model: `docs/architecture.md` → "Per-product discounts".
 
-**Broadcast notifications (2026-06-23).** Admin → buyers notification platform on the generic user-scoped
-`UserNotification` feed + FCM. Admin `/v1/admin/broadcasts` targets **all buyers** (segment) or **specific
-buyers** (`recipientIds`) + an optional **linked product** (`PRODUCT_PROMO` → PDP deep-link); send is
-**fan-out on write** (one `UserNotification` per recipient; opt-outs only gate push/email *delivery*, never
-the feed). Buyers read it via the unified **`/v1/notifications`** feed — buyer-web header bell + `/notifications`
-page (client islands, `noindex`, 60s poll) and the buyer-mobile Notification Center + AppBar unread badge
-(FCM tap deep-links via `NotificationRouter`). Admin uses the **Centre de notifications** (the extended
-broadcasts page). The seller `/v1/seller/notifications` alias is untouched. Full model: `docs/architecture.md`
-→ "Notifications & broadcasts".
+**Broadcast notifications (2026-06-23).** Admin → buyers on the user-scoped `UserNotification` feed + FCM.
+`/v1/admin/broadcasts` targets all buyers or specific `recipientIds` + optional linked product; send is
+**fan-out on write** (opt-outs gate push/email delivery only, never the feed). Buyers read the unified
+**`/v1/notifications`** feed (web bell + mobile Notification Center). Full model: `docs/architecture.md` →
+"Notifications & broadcasts".
 
-**Universal deep linking (2026-06-23, buyer-mobile).** A `https://teka.cd/...` link opens buyer-mobile on the
-right screen when installed (**Android App Links** + **iOS Universal Links**), else the website — **additive, no
-web URL/SEO change**. Single source of truth: `apps/buyer-mobile/lib/core/deep_link/deep_link_parser.dart`
-(mirrors buyer-web `lib/urls.ts`; host-allowlisted; private/unknown paths → browser fallback). Association files
-at `apps/buyer-web/public/.well-known/{assetlinks.json,apple-app-site-association}`. `NotificationRouter` also
-resolves a `url` payload via the parser; product Share emits the canonical URL. **When adding a deep-linkable
-route, update both `urls.ts` and `DeepLinkParser` + a test.** Full model: `docs/deep-linking.md`.
+**Universal deep linking (2026-06-23, buyer-mobile).** `https://teka.cd/...` links open buyer-mobile when
+installed (Android App Links + iOS Universal Links), else the website — additive, no URL/SEO change. Single
+source of truth: `apps/buyer-mobile/lib/core/deep_link/deep_link_parser.dart`, which **mirrors** buyer-web
+`lib/urls.ts`. **When adding a deep-linkable route, update both `urls.ts` and `DeepLinkParser` + a test.** Full
+model: `docs/deep-linking.md`.
 
 ---
 

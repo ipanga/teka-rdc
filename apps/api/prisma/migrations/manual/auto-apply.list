@@ -1,0 +1,23 @@
+# Auto-apply manifest — migrations the deploy workflow runs automatically.
+#
+# The deploy job (.github/workflows/deploy.yml) applies each file listed here
+# during the EXPAND phase — after the new images are pulled but BEFORE the
+# rolling container swap — using a one-off container from the freshly-pulled
+# api image. This lands additive/idempotent schema + data changes ahead of the
+# new code, so the still-running old containers keep serving and the new code
+# never hits a missing column. Applied files are recorded in the
+# `_manual_migrations` table, so each runs exactly once (and re-deploys skip
+# them); the SQL is idempotent anyway as defence in depth.
+#
+# ONLY list migrations that are:
+#   - additive / backward-compatible (an EXPAND migration — old code tolerates
+#     it), and
+#   - idempotent + safe to re-run.
+# Anything destructive, or a CONTRACT step that removes a column still read by
+# the currently-running code, must NOT go here — apply those by hand via the
+# "Apply prod migration" workflow (apply-migration.yml) at the right moment.
+#
+# Order matters: files run top-to-bottom. Blank lines and #comments are ignored.
+
+2026-07-24_account_deletion_pending.sql
+2026-07-24_content_contact_details.sql

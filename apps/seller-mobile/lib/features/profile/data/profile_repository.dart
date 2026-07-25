@@ -187,34 +187,63 @@ class ProfileRepository {
   }
 
   /// GET /v1/users/notification-prefs — resolved prefs with defaults
-  /// applied (server-side). Returns { smsOrderUpdates, smsBroadcasts }.
+  /// applied (server-side).
   Future<NotificationPrefs> getNotificationPrefs() async {
     final response = await _dio.get('/v1/users/notification-prefs');
     final data = response.data['data'] as Map<String, dynamic>;
-    return NotificationPrefs(
-      smsOrderUpdates: data['smsOrderUpdates'] as bool? ?? true,
-      smsBroadcasts: data['smsBroadcasts'] as bool? ?? true,
-    );
+    return NotificationPrefs.fromJson(data);
   }
 
   /// PATCH /v1/users/notification-prefs — accepts partial body; server
   /// merges into stored prefs and returns the resolved set.
+  ///
+  /// The single "Annonces et promotions" toggle drives BOTH backend broadcast
+  /// channels (`pushBroadcasts` + `emailBroadcasts`). The legacy `smsBroadcasts`
+  /// key was retired 2026-05-26 and is silently ignored by the API — sending it
+  /// (as the app used to) left the toggle a no-op.
   Future<NotificationPrefs> updateNotificationPrefs({
-    bool? smsOrderUpdates,
-    bool? smsBroadcasts,
+    bool? orderUpdates,
+    bool? announcements,
   }) async {
     final body = <String, dynamic>{};
-    if (smsOrderUpdates != null) body['smsOrderUpdates'] = smsOrderUpdates;
-    if (smsBroadcasts != null) body['smsBroadcasts'] = smsBroadcasts;
+    if (orderUpdates != null) body['smsOrderUpdates'] = orderUpdates;
+    if (announcements != null) {
+      body['pushBroadcasts'] = announcements;
+      body['emailBroadcasts'] = announcements;
+    }
     final response = await _dio.patch(
       '/v1/users/notification-prefs',
       data: body,
     );
     final data = response.data['data'] as Map<String, dynamic>;
-    return NotificationPrefs(
-      smsOrderUpdates: data['smsOrderUpdates'] as bool? ?? true,
-      smsBroadcasts: data['smsBroadcasts'] as bool? ?? true,
+    return NotificationPrefs.fromJson(data);
+  }
+
+  /// GET /v1/users/account/deletion — current pending-deletion status.
+  Future<DeletionStatus> getDeletionStatus() async {
+    final response = await _dio.get('/v1/users/account/deletion');
+    return DeletionStatus.fromJson(
+      response.data['data'] as Map<String, dynamic>,
     );
+  }
+
+  /// POST /v1/users/account/deletion — schedule deletion (seller re-auth =
+  /// current password). Not retry-safe (mutates account + revokes sessions).
+  Future<DeletionStatus> requestAccountDeletion({
+    required String password,
+  }) async {
+    final response = await _dio.post(
+      '/v1/users/account/deletion',
+      data: {'confirmPhrase': 'SUPPRIMER', 'password': password},
+    );
+    return DeletionStatus.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+  /// DELETE /v1/users/account/deletion — cancel a pending deletion.
+  Future<void> cancelAccountDeletion() async {
+    await _dio.delete('/v1/users/account/deletion');
   }
 
   /// GET /v1/users/sessions — list of active refresh-token sessions.
@@ -238,6 +267,21 @@ class ProfileRepository {
     final response = await _dio.delete('/v1/users/sessions');
     final data = response.data['data'] as Map<String, dynamic>;
     return data['revoked'] as int? ?? 0;
+  }
+}
+
+class DeletionStatus {
+  final bool pending;
+  final DateTime? scheduledAt;
+  const DeletionStatus({required this.pending, this.scheduledAt});
+
+  factory DeletionStatus.fromJson(Map<String, dynamic> data) {
+    return DeletionStatus(
+      pending: data['pending'] as bool? ?? false,
+      scheduledAt: data['scheduledAt'] != null
+          ? DateTime.tryParse(data['scheduledAt'].toString())
+          : null,
+    );
   }
 }
 
@@ -267,13 +311,26 @@ class SessionDto {
   }
 }
 
+/// Seller notification opt-outs. Two user-facing switches:
+///   - [orderUpdates]  → backend `smsOrderUpdates` (push + email order events)
+///   - [announcements] → backend `pushBroadcasts` + `emailBroadcasts` together
 class NotificationPrefs {
-  final bool smsOrderUpdates;
-  final bool smsBroadcasts;
+  final bool orderUpdates;
+  final bool announcements;
   const NotificationPrefs({
-    required this.smsOrderUpdates,
-    required this.smsBroadcasts,
+    required this.orderUpdates,
+    required this.announcements,
   });
+
+  factory NotificationPrefs.fromJson(Map<String, dynamic> data) {
+    return NotificationPrefs(
+      orderUpdates: data['smsOrderUpdates'] as bool? ?? true,
+      // Announcements are ON if either broadcast channel is on. This app moves
+      // both together, but a mixed server state still reads as enabled.
+      announcements: (data['pushBroadcasts'] as bool? ?? true) ||
+          (data['emailBroadcasts'] as bool? ?? true),
+    );
+  }
 }
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {

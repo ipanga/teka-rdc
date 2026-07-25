@@ -28,6 +28,7 @@ import '../../features/profile/presentation/screens/notification_settings_screen
 import '../../features/profile/presentation/screens/personal_info_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/screens/security_screen.dart';
+import '../../features/profile/presentation/screens/account_deletion_screen.dart';
 import '../../features/content/presentation/screens/content_page_screen.dart';
 import '../../features/reviews/presentation/screens/product_reviews_screen.dart';
 import '../../features/wishlist/presentation/screens/wishlist_screen.dart';
@@ -247,6 +248,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile/security',
         builder: (context, state) => const SecurityScreen(),
+      ),
+      GoRoute(
+        path: '/profile/delete-account',
+        builder: (context, state) => const AccountDeletionScreen(),
       ),
       GoRoute(
         path: '/pages/:slug',

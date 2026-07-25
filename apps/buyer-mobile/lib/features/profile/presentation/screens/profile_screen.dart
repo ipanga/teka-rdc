@@ -164,7 +164,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 _AccountMenuTile(
                   icon: Icons.tune_rounded,
                   title: 'Notifications',
-                  subtitle: 'Préférences SMS et annonces',
+                  subtitle: 'Commandes, promotions et annonces',
                   onTap: () =>
                       _open('/profile/notifications', 'notification_settings'),
                 ),
@@ -186,6 +186,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   onTap: () => _open('/pages/help', 'help'),
                 ),
                 _AccountMenuTile(
+                  icon: Icons.shopping_bag_outlined,
+                  title: 'Comment acheter',
+                  subtitle: 'Passer une commande étape par étape',
+                  onTap: () => _open('/pages/how-to-buy', 'how_to_buy'),
+                ),
+                _AccountMenuTile(
                   icon: Icons.support_agent_outlined,
                   title: 'Contacter le support',
                   subtitle: 'Assistance commandes et compte',
@@ -196,6 +202,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   title: 'FAQ',
                   subtitle: 'Questions fréquentes',
                   onTap: () => _open('/pages/faq', 'faq'),
+                ),
+                _AccountMenuTile(
+                  icon: Icons.info_outline_rounded,
+                  title: 'À propos',
+                  subtitle: 'En savoir plus sur Teka RDC',
+                  onTap: () => _open('/pages/about', 'about'),
                 ),
                 _AccountMenuTile(
                   icon: Icons.description_outlined,
