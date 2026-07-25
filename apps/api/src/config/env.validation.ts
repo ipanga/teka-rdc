@@ -77,6 +77,13 @@ export const envValidationSchema = Joi.object({
   SELLER_WEB_URL: Joi.string().default('http://localhost:5100'),
   ADMIN_WEB_URL: Joi.string().default('http://localhost:5200'),
 
+  // App-store review login (buyer). A tightly-scoped, env-gated bypass: when
+  // enabled, ONLY the exact allowlisted phone accepts the fixed OTP. Defaults
+  // OFF; the number is owner-provided as a secret. Never a universal bypass.
+  APP_REVIEW_LOGIN_ENABLED: Joi.boolean().default(false),
+  APP_REVIEW_BUYER_PHONE_E164: Joi.string().allow('').default(''),
+  APP_REVIEW_BUYER_OTP: Joi.string().allow('').default(''),
+
   // PostHog (server-side product analytics). Server secret — NOT a
   // NEXT_PUBLIC_ var. Empty → PostHogService is a no-op (mirrors
   // SENTRY_DSN). Single prod project; dev left empty so local runs don't
