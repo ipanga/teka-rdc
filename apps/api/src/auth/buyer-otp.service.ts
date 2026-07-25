@@ -30,6 +30,8 @@ export interface RequestOtpResult {
 export interface VerifyOtpResult {
   user: any;
   tokens: AuthTokens;
+  /** True when this login cancelled a pending account deletion. */
+  reactivated?: boolean;
 }
 
 @Injectable()
@@ -86,6 +88,11 @@ export class BuyerOtpService {
       throw new ForbiddenException('Votre compte a été suspendu.');
     }
 
+    // Reactivation: logging back in within the 30-day window cancels a pending
+    // account deletion (deletedAt is still null — the purge job hasn't run).
+    const reactivated = (user as { deletionRequestedAt?: Date | null })
+      .deletionRequestedAt != null;
+
     const tokens = await this.authService.generateTokensForUser(
       user.id,
       user.role,
@@ -94,8 +101,19 @@ export class BuyerOtpService {
     );
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date(), phoneVerified: true },
+      data: {
+        lastLoginAt: new Date(),
+        phoneVerified: true,
+        ...(reactivated
+          ? { deletionRequestedAt: null, deletionScheduledAt: null }
+          : {}),
+      },
     });
+    if (reactivated) {
+      this.logger.warn(
+        `Account ${user.id} reactivated on OTP login (pending deletion cancelled)`,
+      );
+    }
 
     // Server-owned auth event. First verify for a phone => registration,
     // otherwise a login. distinctId is the public user.id so the client's
@@ -105,7 +123,7 @@ export class BuyerOtpService {
       method: 'whatsapp_otp',
     });
 
-    return { user: this.authService.sanitize(user), tokens };
+    return { user: this.authService.sanitize(user), tokens, reactivated };
   }
 
   /**

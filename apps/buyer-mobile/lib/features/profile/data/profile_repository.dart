@@ -109,6 +109,33 @@ class ProfileRepository {
     return NotificationPrefs.fromJson(data);
   }
 
+  /// GET /v1/users/account/deletion — current pending-deletion status.
+  Future<DeletionStatus> getDeletionStatus() async {
+    final response = await _dio.get('/v1/users/account/deletion');
+    return DeletionStatus.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+  /// POST /v1/users/account/deletion — schedule deletion (buyer re-auth = OTP).
+  /// Not retry-safe (mutates account + revokes sessions).
+  Future<DeletionStatus> requestAccountDeletion({
+    required String otpCode,
+  }) async {
+    final response = await _dio.post(
+      '/v1/users/account/deletion',
+      data: {'confirmPhrase': 'SUPPRIMER', 'otpCode': otpCode},
+    );
+    return DeletionStatus.fromJson(
+      response.data['data'] as Map<String, dynamic>,
+    );
+  }
+
+  /// DELETE /v1/users/account/deletion — cancel a pending deletion.
+  Future<void> cancelAccountDeletion() async {
+    await _dio.delete('/v1/users/account/deletion');
+  }
+
   /// GET /v1/users/sessions — list of active refresh-token sessions.
   Future<List<SessionDto>> listSessions() async {
     final response = await _dio.get('/v1/users/sessions');
@@ -151,6 +178,21 @@ class NotificationPrefs {
       // both together, but a mixed server state still reads as enabled.
       announcements: (data['pushBroadcasts'] as bool? ?? true) ||
           (data['emailBroadcasts'] as bool? ?? true),
+    );
+  }
+}
+
+class DeletionStatus {
+  final bool pending;
+  final DateTime? scheduledAt;
+  const DeletionStatus({required this.pending, this.scheduledAt});
+
+  factory DeletionStatus.fromJson(Map<String, dynamic> data) {
+    return DeletionStatus(
+      pending: data['pending'] as bool? ?? false,
+      scheduledAt: data['scheduledAt'] != null
+          ? DateTime.tryParse(data['scheduledAt'].toString())
+          : null,
     );
   }
 }

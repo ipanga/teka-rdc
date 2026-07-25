@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
 import '../../../../core/widgets/app_states.dart';
@@ -163,6 +164,28 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
               ],
             ),
           ),
+        const SizedBox(height: 32),
+        const Divider(height: 1),
+        const SizedBox(height: 16),
+        const Text(
+          'Zone sensible',
+          style: TextStyle(
+            color: TekaColors.mutedForeground,
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: () => context.push('/profile/delete-account'),
+          icon: const Icon(Icons.delete_forever_outlined),
+          label: const Text('Supprimer mon compte'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: TekaColors.destructive,
+            side: const BorderSide(color: TekaColors.destructive),
+            minimumSize: const Size.fromHeight(48),
+          ),
+        ),
       ],
     );
   }

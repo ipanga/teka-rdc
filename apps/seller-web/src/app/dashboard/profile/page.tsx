@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { apiFetch, ApiError } from '@/lib/api-client';
+import { DeleteAccountSection } from '@/components/account/delete-account-section';
 
 interface SellerProfileShape {
   businessName: string;
@@ -642,6 +643,8 @@ export default function SellerProfilePage() {
           <p className="text-sm text-muted-foreground mt-3">{"Aucun autre appareil connecté"}</p>
         )}
       </section>
+
+      <DeleteAccountSection />
     </div>
   );
 }

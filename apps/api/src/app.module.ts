@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { envValidationSchema } from './config/env.validation';
 import { PrismaModule } from './prisma/prisma.module';
 import { HealthModule } from './health/health.module';
@@ -49,6 +50,8 @@ import { RolesGuard } from './auth/guards/roles.guard';
       validationSchema: envValidationSchema,
     }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+    // In-process scheduler for the daily account-deletion purge (@Cron).
+    ScheduleModule.forRoot(),
     PrismaModule,
     HealthModule,
     AuthModule,
