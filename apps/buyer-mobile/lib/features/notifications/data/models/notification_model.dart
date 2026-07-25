@@ -23,13 +23,16 @@ class NotificationModel {
 
   bool get isRead => readAt != null;
 
-  /// go_router path to open when tapped: a product notification → the PDP
-  /// (resolved by id); anything else stays on the center.
+  /// go_router path to open when tapped: a product notification → the PDP,
+  /// an order notification → the order detail page; anything else stays on
+  /// the center.
   String? get deepLinkPath {
-    if ((type == 'PRODUCT_PROMO' || entityType == 'product') &&
-        entityId != null &&
-        entityId!.isNotEmpty) {
+    final hasEntity = entityId != null && entityId!.isNotEmpty;
+    if ((type == 'PRODUCT_PROMO' || entityType == 'product') && hasEntity) {
       return '/products/$entityId';
+    }
+    if ((type == 'ORDER' || entityType == 'order') && hasEntity) {
+      return '/orders/$entityId';
     }
     return null;
   }
