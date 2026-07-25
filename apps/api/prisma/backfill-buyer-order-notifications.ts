@@ -24,10 +24,17 @@ const prisma = new PrismaClient();
 const CONFIRM = process.argv.includes('--confirm');
 const BATCH = 500;
 
+// Mirror OrderNotificationService.formatCDF exactly: amounts are stored in
+// CENTIMES (BigInt), displayed in whole francs with '.' thousands separators
+// (DRC convention). Must match so backfilled bodies read like live ones.
 function formatCDF(value: bigint | number | null | undefined): string {
   if (value == null) return '0';
-  const n = typeof value === 'bigint' ? Number(value) : value;
-  return new Intl.NumberFormat('fr-FR').format(Math.round(n)).replace(/\s/g, '.');
+  const numeric = typeof value === 'bigint' ? Number(value) : value;
+  const francs = Math.round(numeric / 100);
+  const sign = francs < 0 ? '-' : '';
+  return `${sign}${Math.abs(francs)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`;
 }
 
 async function main() {

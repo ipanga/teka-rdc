@@ -1,0 +1,79 @@
+# One-off prod backfill: buyer order-notification feed history.
+#
+# Runs `tsx prisma/backfill-buyer-order-notifications.ts --confirm` inside the
+# api container on the VPS (GitHub does the SSH — no manual shell access). The
+# script is idempotent: it inserts a single "Commande enregistrée"
+# UserNotification per existing buyer order where none exists, so historical
+# orders show up in the Notification Center. Re-running is a no-op.
+#
+# It does NOT reconstruct intermediate historical pushes (confirmed/shipped/…):
+# those were never persisted and can't be recovered — only the order-placed
+# event is derivable from the Order row.
+#
+# Trigger from the Actions tab → "Run prod notification backfill" → Run workflow.
+# The `confirm` input must be the literal string `RUN` (guardrail against an
+# accidental single-click run). Without --confirm the script is a dry-run; this
+# workflow always passes --confirm, so the RUN guard is the real gate.
+#
+# Concurrency-locked against the production-deploy group so it can't run while a
+# deploy is rolling out (and vice versa).
+name: Run prod notification backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type RUN to confirm. Idempotent — inserts missing buyer order-placed notifications.'
+        required: true
+        type: string
+        default: ''
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate confirm input
+        run: |
+          if [ "${{ inputs.confirm }}" != "RUN" ]; then
+            echo "::error::Confirm input must be the literal string 'RUN', got: '${{ inputs.confirm }}'"
+            exit 1
+          fi
+
+      - name: SSH run backfill
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # Paginates all orders (batch 500) with a per-order existence check.
+          # Generous timeout for a large table over a cloud DB.
+          command_timeout: 15m
+          script: |
+            set -euo pipefail
+
+            cd /home/deploy/teka-rdc
+
+            COMPOSE="docker compose --env-file .env.production -f docker-compose.prod.yml"
+
+            # Resolve tsx robustly — same three-way fallback as run-prod-seed.yml
+            # (pnpm's symlink chain can be broken by the multi-stage COPY).
+            echo "▶ resolving tsx in api container"
+            if $COMPOSE exec -T api test -x node_modules/.bin/tsx; then
+              TSX_CMD='node_modules/.bin/tsx'
+            elif $COMPOSE exec -T api test -f node_modules/tsx/dist/cli.mjs; then
+              TSX_CMD='node node_modules/tsx/dist/cli.mjs'
+            else
+              echo "  not found locally; installing tsx@4 globally (ephemeral)"
+              $COMPOSE exec -T api npm install -g tsx@4 --silent
+              TSX_CMD='tsx'
+            fi
+            echo "  using: $TSX_CMD"
+
+            echo "▶ running backfill-buyer-order-notifications.ts --confirm"
+            $COMPOSE exec -T api sh -c "$TSX_CMD prisma/backfill-buyer-order-notifications.ts --confirm"
+
+            echo "✓ notification backfill completed"
