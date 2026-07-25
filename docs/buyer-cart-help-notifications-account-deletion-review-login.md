@@ -57,10 +57,9 @@ Past **pushes** were never persisted server-side and cannot be reconstructed fro
 
 ## Operator actions (post-merge / deploy)
 
-1. **#559** — apply `manual/2026-07-24_content_contact_details.sql` (Apply prod migration workflow) — corrects existing content pages.
-2. **#562** — apply `manual/2026-07-24_account_deletion_pending.sql` (adds the two columns + index) before/with deploy. Purge cron runs in-process daily at 03:00 (idempotent, multi-instance-safe).
-3. **#561** — optionally run `prisma/backfill-buyer-order-notifications.ts --confirm` to seed order history into existing buyers' feeds.
-4. **#563** — set `APP_REVIEW_BUYER_PHONE_E164` to the owner-approved dedicated number (secret) and `APP_REVIEW_LOGIN_ENABLED=true` **only** during an active store-review window; disable after. See `docs/app-review-login.md`.
+1. **Both migrations are now AUTO-APPLIED during deploy** — no SSH, no manual SQL. `manual/2026-07-24_account_deletion_pending.sql` (#562) and `manual/2026-07-24_content_contact_details.sql` (#559) are listed in `apps/api/prisma/migrations/manual/auto-apply.list`; `deploy.yml` runs them via `apply-auto.sh` **before the rolling swap** (expand→deploy), so the schema exists before the new code serves and there is no downtime. Idempotent + tracked in `_manual_migrations`. Full mechanism: `docs/deployment.md §5a`. Purge cron runs in-process daily at 03:00.
+2. **#561** — optionally run `prisma/backfill-buyer-order-notifications.ts --confirm` to seed order history into existing buyers' feeds. (Not auto-run — a data backfill, not a schema migration; do it once when convenient.)
+3. **#563** — set `APP_REVIEW_BUYER_PHONE_E164=+243810000000` in the prod secret store and `APP_REVIEW_LOGIN_ENABLED=true` **only** during an active store-review window; disable after. See `docs/app-review-login.md`.
 
 ## Known follow-up
 

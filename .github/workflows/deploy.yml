@@ -207,6 +207,31 @@ jobs:
             $COMPOSE pull
 
             # ------------------------------------------------------------------
+            # EXPAND phase — apply auto-listed DB migrations BEFORE the rolling
+            # swap, using a one-off container from the freshly-pulled NEW api
+            # image (its prisma/ dir carries the SQL + the runner). This does
+            # NOT touch the still-running OLD api container.
+            #
+            # Why here (industry-standard expand → deploy): some new columns are
+            # read on every authenticated request (e.g. jwt.strategy selects the
+            # whole users row), so the schema MUST exist before the new code
+            # serves traffic — and the healthcheck is /health/live (no DB check),
+            # so a rolling swap would NOT catch a missing-column 500. The listed
+            # migrations are additive + idempotent, so the old code tolerates the
+            # new columns and keeps serving while this runs.
+            #
+            # apply-auto.sh reads prisma/migrations/manual/auto-apply.list and
+            # applies each un-applied file once (recorded in `_manual_migrations`),
+            # exiting non-zero on the first SQL error. `set -e` then aborts the
+            # deploy HERE — before any swap — so the old containers keep serving:
+            # no downtime, and the new code never runs against a missing column.
+            # Anything not in the manifest (destructive / contract steps) is still
+            # applied by hand via the "Apply prod migration" workflow.
+            # ------------------------------------------------------------------
+            echo "▶ applying auto-apply DB migrations (expand phase)…"
+            $COMPOSE run --rm --no-deps -T api sh prisma/migrations/apply-auto.sh
+
+            # ------------------------------------------------------------------
             # Install the `docker rollout` CLI plugin. Idempotent — we always
             # (re)write the file and verify afterwards. The conditional form
             # failed silently when a prior run left a partial/broken plugin
