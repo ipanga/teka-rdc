@@ -121,6 +121,43 @@ docker compose --env-file .env.production -f docker-compose.prod.yml run --rm ap
 docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 ```
 
+### 5a. Database migrations (automated during deploy)
+
+Schema-affecting changes ship as **idempotent manual SQL files** under
+`apps/api/prisma/migrations/manual/YYYY-MM-DD_*.sql`. There are now **two** ways
+they reach production — pick by migration type:
+
+**A. Auto-applied during deploy (expand-phase migrations).** List the filename in
+`apps/api/prisma/migrations/manual/auto-apply.list` and it runs automatically on
+the next `main` deploy — **no SSH, no manual step**. The deploy workflow
+(`.github/workflows/deploy.yml`) runs `prisma/migrations/apply-auto.sh` from a
+one-off container built on the freshly-pulled new api image, **after the image
+pull but before the rolling container swap** (industry-standard *expand → deploy*).
+Each listed file is applied once (recorded in the `_manual_migrations` table) and
+is idempotent, so re-deploys skip it and a re-run is harmless. If any migration
+fails, the deploy **aborts before the swap** — the old containers keep serving, so
+there is no downtime and the new code never runs against a missing column.
+
+> **Only list expand-safe migrations** (additive/backward-compatible + idempotent):
+> new nullable columns, new indexes, guarded data updates. The old code must
+> tolerate the change, because it keeps serving while the migration runs. This is
+> load-bearing: some new columns are read on *every* authenticated request (e.g.
+> `jwt.strategy` selects the whole `users` row), and the healthcheck is
+> `/health/live` (no DB check), so the schema must exist **before** the new code
+> serves — which is exactly what running it pre-swap guarantees.
+
+**B. Manual, point-and-click (destructive or contract-phase migrations).** For
+anything that removes a column still read by the running code, or any destructive
+change, do **not** put it in the manifest. Apply it by hand at the right moment via
+the **Apply prod migration** GitHub Action (`apply-migration.yml`): Actions tab →
+Run workflow → paste the filename. It runs the file inside the running api
+container over `docker exec` (so the file must already be in the deployed image —
+i.e. merged to `main` first).
+
+_(The `prisma migrate deploy` line below is the legacy Prisma-Migrate path, kept
+for reference; day-to-day schema changes use the manual-SQL + auto-apply flow
+above.)_
+
 ### 5b. Initial production seed (first deploy only)
 
 The seed script understands `SEED_MODE` (`dev` | `prod`). **Always use `prod`** against the production database — `dev` inserts sample buyers, sellers, products, orders, banners and so on, which you do not want anywhere near a live system.

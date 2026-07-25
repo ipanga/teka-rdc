@@ -66,7 +66,7 @@ DATABASE_URL=$(grep '^DATABASE_URL=' .env.development | cut -d= -f2-) \
 
 After editing `apps/api/prisma/schema.prisma`: run `pnpm db:push` (cloud DB, no migration files in dev) then `pnpm --filter api prisma:generate` if your IDE doesn't pick up new types.
 
-For production, schema-affecting changes ship as manual SQL files under `apps/api/prisma/migrations/manual/YYYY-MM-DD_*.sql` (idempotent — wrap in `IF NOT EXISTS`). Apply via the `Apply prod migration` GitHub Action: Actions tab → select the workflow → Run workflow → paste the filename. The workflow handles the docker-exec ceremony and validates the filename before SSHing. The api image bundles `postgresql-client` (added 2026-05-21) so psql works inside the container.
+For production, schema-affecting changes ship as manual SQL files under `apps/api/prisma/migrations/manual/YYYY-MM-DD_*.sql` (idempotent — wrap in `IF NOT EXISTS` / guard data updates). Two apply paths (see `docs/deployment.md §5a`): **(1) auto-applied during deploy** — add the filename to `apps/api/prisma/migrations/manual/auto-apply.list` and `deploy.yml` runs it (via `apply-auto.sh`, tracked in `_manual_migrations`) **before the rolling swap** (expand→deploy); use only for additive/backward-compatible + idempotent migrations, since the old code keeps serving while it runs. **(2) manual** `Apply prod migration` GitHub Action (Actions tab → Run workflow → paste the filename) for destructive/contract-phase migrations that must not auto-apply — it docker-execs into the *running* api container (file must already be on `main`). The api image bundles `postgresql-client` (added 2026-05-21) so psql works inside the container.
 
 ### Docker
 
