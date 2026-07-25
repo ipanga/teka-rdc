@@ -82,29 +82,31 @@ class ProfileRepository {
   Future<NotificationPrefs> getNotificationPrefs() async {
     final response = await _dio.get('/v1/users/notification-prefs');
     final data = response.data['data'] as Map<String, dynamic>;
-    return NotificationPrefs(
-      smsOrderUpdates: data['smsOrderUpdates'] as bool? ?? true,
-      smsBroadcasts: data['smsBroadcasts'] as bool? ?? true,
-    );
+    return NotificationPrefs.fromJson(data);
   }
 
   /// PATCH /v1/users/notification-prefs — partial body; server merges.
+  ///
+  /// The single "Annonces et promotions" toggle drives BOTH backend broadcast
+  /// channels (`pushBroadcasts` + `emailBroadcasts`). The legacy `smsBroadcasts`
+  /// key was retired 2026-05-26 and is silently ignored by the API — sending it
+  /// (as the app used to) left the toggle a no-op.
   Future<NotificationPrefs> updateNotificationPrefs({
-    bool? smsOrderUpdates,
-    bool? smsBroadcasts,
+    bool? orderUpdates,
+    bool? announcements,
   }) async {
     final body = <String, dynamic>{};
-    if (smsOrderUpdates != null) body['smsOrderUpdates'] = smsOrderUpdates;
-    if (smsBroadcasts != null) body['smsBroadcasts'] = smsBroadcasts;
+    if (orderUpdates != null) body['smsOrderUpdates'] = orderUpdates;
+    if (announcements != null) {
+      body['pushBroadcasts'] = announcements;
+      body['emailBroadcasts'] = announcements;
+    }
     final response = await _dio.patch(
       '/v1/users/notification-prefs',
       data: body,
     );
     final data = response.data['data'] as Map<String, dynamic>;
-    return NotificationPrefs(
-      smsOrderUpdates: data['smsOrderUpdates'] as bool? ?? true,
-      smsBroadcasts: data['smsBroadcasts'] as bool? ?? true,
-    );
+    return NotificationPrefs.fromJson(data);
   }
 
   /// GET /v1/users/sessions — list of active refresh-token sessions.
@@ -131,13 +133,26 @@ class ProfileRepository {
   }
 }
 
+/// Buyer notification opt-outs. Two user-facing switches:
+///   - [orderUpdates]  → backend `smsOrderUpdates` (push + email order events)
+///   - [announcements] → backend `pushBroadcasts` + `emailBroadcasts` together
 class NotificationPrefs {
-  final bool smsOrderUpdates;
-  final bool smsBroadcasts;
+  final bool orderUpdates;
+  final bool announcements;
   const NotificationPrefs({
-    required this.smsOrderUpdates,
-    required this.smsBroadcasts,
+    required this.orderUpdates,
+    required this.announcements,
   });
+
+  factory NotificationPrefs.fromJson(Map<String, dynamic> data) {
+    return NotificationPrefs(
+      orderUpdates: data['smsOrderUpdates'] as bool? ?? true,
+      // Announcements are ON if either broadcast channel is on. This app moves
+      // both together, but a mixed server state still reads as enabled.
+      announcements: (data['pushBroadcasts'] as bool? ?? true) ||
+          (data['emailBroadcasts'] as bool? ?? true),
+    );
+  }
 }
 
 class SessionDto {
