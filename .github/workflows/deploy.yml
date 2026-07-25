@@ -199,6 +199,15 @@ jobs:
             # the web NEXT_PUBLIC_POSTHOG_KEY_* build-args.
             export POSTHOG_API_KEY="${{ secrets.POSTHOG_API_KEY }}"
 
+            # App-store review login toggle + allowlisted account. Read from
+            # GitHub Secrets so the flag flips without touching the VPS
+            # .env.production. Unset secrets render empty → the api's
+            # ${APP_REVIEW_LOGIN_ENABLED:-false} / empty-phone defaults keep the
+            # scoped login OFF. Set the secret to `true` for a review window.
+            export APP_REVIEW_LOGIN_ENABLED="${{ secrets.APP_REVIEW_LOGIN_ENABLED }}"
+            export APP_REVIEW_BUYER_PHONE_E164="${{ secrets.APP_REVIEW_BUYER_PHONE_E164 }}"
+            export APP_REVIEW_BUYER_OTP="${{ secrets.APP_REVIEW_BUYER_OTP }}"
+
             # `--env-file .env.production` handles yaml interpolation for every
             # compose invocation below. We do NOT shell-source the file:
             # `.env.production` is compose-format (unquoted values with spaces
