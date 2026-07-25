@@ -6,19 +6,20 @@
 
 ## Active initiative
 
-**Buyer cart nav · notifications · help pages · account deletion · app-review login — 7 independent PRs into `develop` (in review).**
-Six buyer-facing issues from device screenshots, each root-caused (no UI-only patches), web/mobile parity kept.
-Tracker: `docs/buyer-cart-help-notifications-account-deletion-review-login.md`. Plan: `~/.claude/plans/claude-code-prompt-peppy-curry.md`.
+**None.** The buyer initiative below merged to `develop` on 2026-07-25.
 
-PRs (independent, mergeable in any order): **#558** cart→PDP · **#559** help pages (Markdown + canonical contact +
-prod migration) · **#560** notification settings (dead toggle + OS-permission) · **#561** Notification Center
-persistence + backfill · **#562** account deletion (30-day pending; schema migration) · **#563** app-review login
-(env-gated, ships disabled).
-
-> **Owner actions before certain PRs go live:** (a) #563 needs the dedicated `+243` **review phone** approved + set
-> as a secret, flag flipped only during a review window; (b) #559 → apply `manual/2026-07-24_content_contact_details.sql`;
-> (c) #562 → apply `manual/2026-07-24_account_deletion_pending.sql`; (d) #561 → optional backfill script `--confirm`.
-> **Notification-prefs dead toggle fixed on all four surfaces in #560** (buyer-mobile, seller-mobile, buyer-web, seller-web).
+> **DONE 2026-07-25 — buyer cart nav · notifications · help pages · account deletion · app-review login**
+> (8 PRs #558–#564 merged to `develop`). Six device-reported buyer issues, each root-caused, web/mobile parity.
+> Tracker: `docs/buyer-cart-help-notifications-account-deletion-review-login.md`; full narrative in `PROGRESS.md`.
+> **#558** cart→PDP · **#559** help pages (Markdown + canonical contact + prod migration) · **#560** notification
+> settings (dead toggle fixed on all 4 surfaces + OS-permission) · **#561** Notification Center persistence +
+> backfill · **#562** account deletion (30-day pending; schema migration) · **#563** app-review login (env-gated,
+> ships disabled) · **#564** docs. Merged develop verified green: API 226 unit + 116 e2e, buyer-mobile 139 +
+> seller-mobile 12, web type-checks. Not device-verified (no device; cloud DB unreachable from the build env).
+> **Remaining operator actions:** apply `manual/2026-07-24_content_contact_details.sql` + `manual/2026-07-24_account_deletion_pending.sql`
+> (Apply prod migration workflow); optionally run `backfill-buyer-order-notifications.ts --confirm`. **App-review
+> login:** the review phone `+243810000000` is set in the env files (enabled in dev; **prod stays
+> `APP_REVIEW_LOGIN_ENABLED=false` — flip to `true` only during an active store-review window**, then off).
 
 > **DONE (prior) — seller product images + category attributes.** See the note below (kept as history).
 
