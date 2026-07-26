@@ -28,12 +28,12 @@ import 'connectivity_provider.dart';
 /// aggressive for a transient lifecycle event.
 ///
 /// Wire into `app.dart` as the outermost widget under MaterialApp.router's
-/// builder, wrapping the [ConnectivityBannerHost]:
+/// builder, wrapping the `ConnectivityToastHost`:
 ///
 /// ```dart
 /// MaterialApp.router(
 ///   builder: (ctx, child) => ConnectivityLifecycleObserver(
-///     child: ConnectivityBannerHost(child: child ?? const SizedBox()),
+///     child: ConnectivityToastHost(child: child ?? const SizedBox()),
 ///   ),
 ///   ...
 /// )

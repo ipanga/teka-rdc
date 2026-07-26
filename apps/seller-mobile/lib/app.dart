@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/analytics/posthog_analytics.dart';
 import 'core/connectivity/connectivity_lifecycle_observer.dart';
 import 'core/connectivity/connectivity_sentry_reporter.dart';
-import 'core/connectivity/widgets/connectivity_banner.dart';
+import 'core/connectivity/widgets/connectivity_toast_host.dart';
 import 'core/push/push_controller.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
@@ -66,11 +66,13 @@ class TekaApp extends ConsumerWidget {
       //      WidgetsBindingObserver lifecycle events to the
       //      connectivity service — pauses the probe timer on
       //      background, kicks a fresh probe on resume.
-      //   2. ConnectivityBannerHost (innermost) shows the slim
-      //      colored banner above the routed content based on state.
+      //   2. ConnectivityToastHost (innermost) announces connectivity
+      //      changes with a floating snackbar. It renders `child`
+      //      verbatim, so it never shifts layout — unlike the banner it
+      //      replaced, which sat in a Column above every route.
       // See lib/core/connectivity/.
       builder: (context, child) => ConnectivityLifecycleObserver(
-        child: ConnectivityBannerHost(
+        child: ConnectivityToastHost(
           child: child ?? const SizedBox.shrink(),
         ),
       ),
