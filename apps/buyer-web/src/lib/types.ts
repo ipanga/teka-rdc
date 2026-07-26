@@ -62,11 +62,16 @@ export interface BrowseProduct {
   brand?: { name: string } | null;
 }
 
-/** Specification item */
+/**
+ * Specification item. The API flattens the attribute label onto `name` (the
+ * raw Prisma row nests it under `attribute.name`, which is why labels used to
+ * render blank) and orders the list by the attribute's configured sortOrder.
+ */
 export interface ProductSpecification {
   id: string;
   name: string;
   value: string;
+  sortOrder?: number;
 }
 
 /** Full product detail from GET /api/v1/browse/products/:id */

@@ -310,15 +310,27 @@ class ProductDetailModel {
 }
 
 class ProductSpecification {
+  /// Human label ("Taille"). The API flattens `attribute.name` onto the spec;
+  /// the nested fallback below keeps this model working against an API
+  /// deployed before that change, where `name` was simply absent and every
+  /// label rendered blank.
   final String name;
   final String value;
 
   const ProductSpecification({required this.name, required this.value});
 
+  bool get isRenderable => name.isNotEmpty && value.isNotEmpty;
+
   factory ProductSpecification.fromJson(Map<String, dynamic> json) {
+    final attribute = json['attribute'];
+    final nestedName = attribute is Map<String, dynamic>
+        ? attribute['name']?.toString()
+        : null;
     return ProductSpecification(
-      name: json['name']?.toString() ?? '',
-      value: json['value']?.toString() ?? '',
+      name: (json['name']?.toString().trim().isNotEmpty ?? false)
+          ? json['name'].toString().trim()
+          : (nestedName?.trim() ?? ''),
+      value: json['value']?.toString().trim() ?? '',
     );
   }
 }

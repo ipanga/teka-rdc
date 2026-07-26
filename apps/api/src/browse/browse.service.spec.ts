@@ -169,3 +169,78 @@ describe('BrowseService.getCategoryAttributes — leaf-only', () => {
     );
   });
 });
+
+describe('BrowseService.getProductDetail — specification labels', () => {
+  // The human label lives on ProductAttribute.name, but every client
+  // (buyer-mobile, buyer-web, admin-web) reads a flat `spec.name`. Before the
+  // flattening the key was simply absent, so the "Caractéristiques" table
+  // rendered values with blank labels ("M" instead of "Taille : M").
+  function makeDetailService(specifications: unknown[]) {
+    const findFirst = jest.fn().mockResolvedValue({
+      id: 'p1',
+      categoryId: 'c1',
+      isDemo: false,
+      images: [],
+      specifications,
+      category: null,
+      city: null,
+      seller: { id: 's1', firstName: 'A', lastName: 'B', sellerProfile: null },
+    });
+    const prisma = {
+      product: { findFirst },
+      systemSetting: { findUnique: jest.fn().mockResolvedValue(null) },
+    };
+    return new BrowseService(prisma as never);
+  }
+
+  const spec = (name: string, value: string, sortOrder = 0, id = name) => ({
+    id,
+    attributeId: `attr-${id}`,
+    value,
+    attribute: { name, sortOrder },
+  });
+
+  it('flattens attribute.name onto the spec', async () => {
+    const service = makeDetailService([spec('Taille', 'M')]);
+    const result = (await service.getProductDetail(
+      'abc123',
+    )) as unknown as { specifications: Array<Record<string, unknown>> };
+
+    expect(result.specifications).toEqual([
+      {
+        id: 'Taille',
+        attributeId: 'attr-Taille',
+        name: 'Taille',
+        value: 'M',
+        sortOrder: 0,
+      },
+    ]);
+  });
+
+  it('requests the attribute sortOrder ordering', async () => {
+    const service = makeDetailService([]);
+    await service.getProductDetail('abc123');
+    // Ordering is delegated to Prisma so the admin-configured order survives.
+    const prisma = (service as unknown as { prisma: { product: { findFirst: jest.Mock } } })
+      .prisma;
+    const arg = prisma.product.findFirst.mock.calls[0][0] as {
+      include: { specifications: { orderBy: unknown } };
+    };
+    expect(arg.include.specifications.orderBy).toEqual({
+      attribute: { sortOrder: 'asc' },
+    });
+  });
+
+  it('drops specs with no label or no value', async () => {
+    const service = makeDetailService([
+      spec('Taille', 'M', 0, 'a'),
+      spec('', 'Coton', 1, 'b'),
+      spec('Couleur', '   ', 2, 'c'),
+    ]);
+    const result = (await service.getProductDetail(
+      'abc123',
+    )) as unknown as { specifications: Array<Record<string, unknown>> };
+
+    expect(result.specifications.map((s) => s.name)).toEqual(['Taille']);
+  });
+});
