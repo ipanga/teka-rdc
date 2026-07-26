@@ -1,4 +1,4 @@
-# Status — 2026-07-24
+# Status — 2026-07-26
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,7 +6,27 @@
 
 ## Active initiative
 
-**None.** The buyer initiative below merged to `develop` on 2026-07-25.
+**Mobile connectivity UX · product-detail cleanup · rating/identifier fixes** — branch
+`fix/mobile-connectivity-toast` (base `develop`), **6 commits, code complete, not yet opened as PRs.**
+Tracker: `docs/mobile-product-detail-rating-connectivity-fixes.md`.
+
+Nine device-reported symptoms → five independent root causes (symptoms 6–9 were one identifier bug).
+**PR1** connectivity banner → floating toast, both Flutter apps (no layout shift, ~1 toast/min under
+flapping; seller-mobile's first connectivity tests) · **PR2** public "X vendus" removed from cards +
+PDP (mobile + web; `unitsSold` stays in the API as the popularity sort key) · **PR3** share hardened
+(three silent-failure paths now report + tell the user) + support block removed · **PR4**
+specification labels flattened in the API (fixed blank labels on buyer-mobile, buyer-web **and**
+admin-web at once) · **PR5** PDP passes the resolved product uuid to reviews/wishlist/related and
+Order Detail's rating CTA uses the uuid — kills "Validation failed (uuid is expected)"; French
+`UuidParam` + error-helper backstops, no API contract change · **PR6** docs.
+
+Green: API 229 unit + 118 e2e, buyer-mobile 156, seller-mobile 31, web type-checks, analyze clean.
+**No DB migration, no env var, no deploy ordering.**
+
+**Next:** open the 6 PRs into `develop` in order (2, 3 and 5 stack on `product_detail_screen.dart`),
+then the on-device pass — real share sheet, real 2G/3G flapping, App Links from WhatsApp, and an
+end-to-end rating submission. None of those can be claimed from this environment (no device attached,
+cloud DB unreachable from the build env).
 
 > **DONE 2026-07-25 — buyer cart nav · notifications · help pages · account deletion · app-review login**
 > (8 PRs #558–#564 merged to `develop`). Six device-reported buyer issues, each root-caused, web/mobile parity.

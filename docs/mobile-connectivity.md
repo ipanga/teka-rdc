@@ -28,12 +28,12 @@ Five states, one snapshot at a time:
        └── disconnected ◀─────┘─────┘
 ```
 
-| State | Meaning | UI banner |
+| State | Meaning | UI |
 |---|---|---|
-| `connected` | Interface up + probe `< 1500ms` | (none) |
-| `unstable` | Interface up + probe slow (≥2 consecutive `≥1500ms`) | orange "Connexion lente" |
-| `noInternet` | Interface up but probe fails (captive portal, DNS, 5xx) | orange "Pas d'accès internet" |
-| `disconnected` | Interface reports down (`ConnectivityResult.none`) | red "Hors-ligne" |
+| `connected` | Interface up + probe `< 1500ms` | (none — or the paired "rétablie" toast, see [UI](#ui)) |
+| `unstable` | Interface up + probe slow (≥2 consecutive `≥1500ms`) | (none) |
+| `noInternet` | Interface up but probe fails (captive portal, DNS, 5xx) | offline toast |
+| `disconnected` | Interface reports down (`ConnectivityResult.none`) | offline toast |
 | `reconnecting` | Recovery in progress — interface flipped back up, probe pending | (none — transient) |
 
 Hysteresis is asymmetric on purpose: **two slow probes** push the user into `unstable`, but **one fast probe** brings them out. DRC 3G flaps too often to symmetric-debounce.
@@ -96,25 +96,88 @@ A real 401 from the refresh endpoint still wipes tokens and force-logs-out, as b
 | Product browse, categories, profile | Returns last cached value if available, else error | Cache wiring is opt-in; only the cart is wired today (see [Deferred work](#deferred-work)) |
 | Order creation, seller order transitions, payouts, product publish | Hard-blocked by `OfflineAwareInterceptor` when disconnected | Non-retry-safe — state mutations must not race the wire |
 
-## UI
+## UI — non-blocking connectivity toasts
 
-A slim 5-state banner sits above every route, mounted by `MaterialApp.router.builder` → `ConnectivityBannerHost`. Colors and copy:
+**Changed 2026-07-26.** Until then a slim 5-state banner sat above every route in
+a `Column`, so it pushed the entire page down whenever it appeared — and on a
+flapping link the 3s green "rétablie" bar re-fired every few seconds, reflowing
+the page each time. It is now a floating snackbar: `ConnectivityToastHost`,
+mounted at the same place (`MaterialApp.router.builder`), whose `build()` returns
+its child verbatim and therefore cannot shift layout.
 
-| State | Color | Copy (FR) | Localization key |
-|---|---|---|---|
-| `disconnected` | Red | "Hors-ligne. Vérifiez votre connexion." | `connectivityBannerDisconnected` |
-| `noInternet` | Orange | "Pas d'accès internet. Tentative de reconnexion…" | `connectivityBannerNoInternet` |
-| `unstable` | Orange | "Connexion lente." | `connectivityBannerUnstable` |
-| `reconnecting` | Orange | "Reconnexion en cours…" | `connectivityBannerReconnecting` |
-| `connected` (after offline) | Green, **3s only** | "Connexion rétablie" | `connectivityBannerRestored` |
+Two framework details make that mount point work with zero plumbing:
 
-The "Connexion rétablie" toast is gated on `_previousOfflineStatus` only tracking `disconnected` + `noInternet` — `reconnecting → connected` on app startup must not flash a green banner.
+- `MaterialApp` wraps `builder:` **inside** its `ScaffoldMessenger`, so the host
+  already shares the messenger every routed `Scaffold` resolves to. No
+  `scaffoldMessengerKey` is needed or wanted.
+- `SnackBarBehavior.floating` presents to the **root** scaffold — the shell that
+  owns `bottomNavigationBar` — and offsets by
+  `min(contentBottom, size.height - minViewPadding.bottom)`. Bottom-nav
+  clearance and SafeArea are therefore automatic on every route.
 
-Animations: `AnimatedSize` 200ms (height) + `AnimatedSwitcher` 200ms (cross-fade).
+The five states collapse to three buckets (a **private** `_ConnectivityUx` enum
+inside the host — see the warning below):
+
+| Bucket | States | Toast |
+|---|---|---|
+| offline | `disconnected`, `noInternet` | `Connexion Internet indisponible.` — error tone, `wifi_off_outlined`, 4s |
+| online | `connected` | `Connexion rétablie.` — success tone, `wifi_outlined`, 2s — **only** to close a loop actually opened |
+| (silent) | `unstable`, `reconnecting` | nothing. `unstable` means online-but-slow, and `reconnecting` is an internal transient |
+
+Toasts go through the shared helper `core/widgets/app_snackbar.dart`
+(`showAppSnackbar`), which sets behaviour/margin/shape on the `SnackBar` itself
+rather than via `ThemeData.snackBarTheme` — buyer-mobile has no `snackBarTheme`
+and seller-mobile does, so theming would render the same message differently in
+the two apps.
+
+### Anti-flap
+
+| Constant | Value | Why |
+|---|---|---|
+| `settleDelay` | 2s | A bucket must hold before it is announced; swallows every sub-2s flap, and moves `showSnackBar` out of the build phase (calling it during build asserts) |
+| `minNotifyInterval` | 60s | 2× `healthyProbeInterval` — the fastest cadence at which the machine can sustainably oscillate. Caps output at ~1 toast/min without suppressing an isolated real event |
+| `offlineToastDuration` | 4s | Bad news needs dwell time |
+| `restoredToastDuration` | 2s | Good news needs a glance |
+
+Dedupe is on the **bucket**, never on the snapshot: `ConnectivitySnapshot ==`
+includes `at` and `lastProbeLatencyMs`, so a fresh snapshot lands on every probe
+(~30s) even when nothing changed. The cooldown is a `Timer`, not a
+`DateTime.now()` comparison, so it is deterministic under the test clock. On a
+35s-period flap this yields ~1 toast per 80s; the old banner reflowed the page on
+all six transitions.
+
+**Invariant:** the app booting healthy (`reconnecting → connected`) must never
+flash "Connexion rétablie". Guarded twice — nothing has been announced yet
+(`_notifiedBucket == null`) *and* no offline toast is outstanding
+(`_offlineToastShown == false`). A suppressed offline event also leaves the flag
+false, so its recovery stays silent too.
+
+### No persistent global offline affordance
+
+Deliberate. Anything always-visible is either in the layout (the shift we just
+removed) or floats over content on every screen, dodging each route's own bottom
+bar. Sustained offline is surfaced by the screen that needs it, which is what
+"only when meaningful to the current action" means in practice: checkout's
+inline "Connexion requise pour passer commande" notice (unchanged, see the
+matrix above) and `AppErrorState`'s "Réessayer".
+
+An infinite-duration snackbar (`Duration(days: 1)`, hidden on recovery) was
+considered and **rejected**: `showSnackBar` queues, so it would starve every
+other snackbar in the app for the whole offline window.
+
+Losing the `unstable` / `reconnecting` banners costs no observability —
+`ConnectivitySentryReporter` subscribes to the service stream directly, so all
+five states keep full Sentry fidelity.
+
+> **Do not "unify" the bucket with `isOfflineProvider`.** They agree today
+> (`disconnected || noInternet`) and the temptation to share one provider is
+> real, but folding `reconnecting` into "offline" would flicker checkout's
+> place-order button disabled on every 30s recovery probe. The toast enum is
+> private for exactly this reason.
 
 ## App lifecycle
 
-`ConnectivityLifecycleObserver` (a `WidgetsBindingObserver`) wraps `ConnectivityBannerHost` and bridges:
+`ConnectivityLifecycleObserver` (a `WidgetsBindingObserver`) wraps `ConnectivityToastHost` and bridges:
 
 | `AppLifecycleState` | Action |
 |---|---|
@@ -158,7 +221,10 @@ apps/buyer-mobile/lib/core/connectivity/
 ├── connectivity_lifecycle_observer.dart     WidgetsBindingObserver bridge
 ├── connectivity_sentry_reporter.dart        observability
 └── widgets/
-    └── connectivity_banner.dart             global banner widget
+    └── connectivity_toast_host.dart         layout-neutral toast host
+
+apps/buyer-mobile/lib/core/widgets/
+└── app_snackbar.dart                        shared floating-snackbar helper
 
 apps/buyer-mobile/lib/core/network/
 ├── api_client.dart                          chain: OfflineAware → Auth → Retry → Log
@@ -179,18 +245,38 @@ The same tree exists at `apps/seller-mobile/lib/core/`.
 
 Cache wiring is currently live only on the cart. The plan reserved cache keys for `productsList`, `categoriesTree`, `userProfile`, `sellerOrdersList`; wiring those in is the next opt-in pass. Offline cart **mutation** queueing (add-while-offline-replay-on-reconnect) was also deferred — the current behavior is hard-block via `OfflineAwareInterceptor`.
 
+Also deferred, from the 2026-07-26 toast migration:
+
+- Migrating the ~50 inline `ScaffoldMessenger.of(context).showSnackBar(...)` call sites across both apps to `showAppSnackbar`. They carry bespoke colours/durations/actions, so it is a per-site judgement call, not a mechanical rewrite. New snackbars should use the helper.
+- Adding a `snackBarTheme` to buyer-mobile for parity with seller-mobile. Not done with the migration because it would silently restyle buyer's existing 9 call sites from fixed-bottom to floating.
+- Mirroring the remaining connectivity suites (service, lifecycle, interceptors, cache) into seller-mobile — only the toast-host and error-message suites are mirrored today.
+- `core/network/offline_aware_interceptor.dart` differs between the two apps by four lines of **comment text only** (no behavioural difference); worth aligning next time that file is touched.
+
 ## Tests
 
-Total: 54 specs (buyer-mobile), mirrored in seller-mobile.
+Buyer-mobile carries the full suite. **Only the rows marked ✓ are mirrored in
+seller-mobile** — an earlier version of this doc claimed the whole suite was,
+which was never true (seller-mobile had zero connectivity tests until
+2026-07-26).
 
-| Layer | File | Coverage |
-|---|---|---|
-| State machine | `test/core/connectivity/connectivity_service_test.dart` | 10 |
-| Retry | `test/core/network/retry_interceptor_test.dart` | 9 |
-| Offline-aware | `test/core/network/offline_aware_interceptor_test.dart` | 10 |
-| Banner | `test/core/connectivity/connectivity_banner_test.dart` | 8 |
-| Lifecycle | `test/core/connectivity/connectivity_lifecycle_observer_test.dart` | 8 |
-| Typed cache | `test/core/cache/typed_cache_test.dart` | 9 |
+| Layer | File | Coverage | Mirrored |
+|---|---|---|---|
+| State machine | `test/core/connectivity/connectivity_service_test.dart` | 10 | |
+| Retry | `test/core/network/retry_interceptor_test.dart` | 9 | |
+| Offline-aware | `test/core/network/offline_aware_interceptor_test.dart` | 10 | |
+| Toast host | `test/core/connectivity/widgets/connectivity_toast_host_test.dart` | 13 | ✓ |
+| Error messages | `test/core/network/dio_error_messages_test.dart` | 5 | ✓ |
+| Lifecycle | `test/core/connectivity/connectivity_lifecycle_observer_test.dart` | 8 | |
+| Typed cache | `test/core/cache/typed_cache_test.dart` | 9 | |
+
+The load-bearing toast-host spec is **layout invariance**: record the page rect
+while connected, emit `disconnected`, settle, assert the rect is unchanged. That
+is what "no layout shift" means mechanically, and it is the regression test for
+the whole migration. Note that because the toast preempts (`clearSnackBars`),
+its entrance waits for any outgoing snackbar's exit — tests must
+`pumpAndSettle()` before letting the display duration elapse, or the dismiss
+timer (armed in `ScaffoldMessengerState.build` after the entrance completes) has
+not started yet.
 
 ## Why these decisions
 
@@ -201,3 +287,5 @@ Total: 54 specs (buyer-mobile), mirrored in seller-mobile.
 | Hard-block offline checkout (no queue-and-replay) | Replay would race against price + stock changes during the offline window; surface the offline state and let the user retry |
 | Full-jitter backoff | DRC shared cell-tower outages knock thousands offline simultaneously — predictable exponential delays would reconnect them in lockstep and DDoS the API |
 | Email-fallback on Sentry rate limits (no fallback) | Sentry's own rate limit handles spam at the project level; the in-code 1/min ceiling is for *meaningfully different* events not retried-but-succeeded chatter |
+| Toast instead of a global banner (2026-07-26) | The banner sat in a `Column` above every route, so it reflowed the whole page on each transition, and on a flapping 2G link the 3s green bar re-fired every ~5s. A `ScaffoldMessenger` toast renders outside layout, inherits bottom-nav + SafeArea clearance from the framework, and never touches scroll position |
+| Rate-limit connectivity toasts to ~1/min | On DRC 2G the honest signal is "the link is unreliable", not each individual transition. Announcing every flip is noise the user cannot act on |
