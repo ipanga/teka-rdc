@@ -928,6 +928,8 @@ export class BrowseService {
       images: { orderBy: { displayOrder: 'asc' as const } },
       specifications: {
         include: { attribute: true },
+        // Preserve the order the admin configured on the attribute.
+        orderBy: { attribute: { sortOrder: 'asc' as const } },
       },
       category: {
         include: {
@@ -1025,7 +1027,7 @@ export class BrowseService {
     // cart hydration assumed list-shape; reading `seller.businessName` was
     // undefined, which crashed the cart page (`undefined.trim()`). The PDP
     // also rendered an empty "VENDEUR" label for the same reason.
-    const { seller, ...rest } = product;
+    const { seller, specifications, ...rest } = product;
     const sellerFullName = [seller.firstName, seller.lastName]
       .filter(Boolean)
       .join(' ');
@@ -1034,6 +1036,23 @@ export class BrowseService {
       businessName:
         seller.sellerProfile?.businessName || sellerFullName || 'Vendeur',
     };
+
+    // Flatten specifications for the same reason the seller shape above is
+    // flattened: the raw Prisma include nests the human label under
+    // `attribute.name`, but every client (buyer-mobile, buyer-web, admin-web)
+    // reads a flat `spec.name`. That key did not exist, so the
+    // "Caractéristiques" table rendered values with blank labels ("M" instead
+    // of "Taille : M"). Rows with no label or no value are dropped rather than
+    // rendered half-empty.
+    const specsFlat = specifications
+      .filter((s) => s.attribute?.name && s.value?.trim())
+      .map((s) => ({
+        id: s.id,
+        attributeId: s.attributeId,
+        name: s.attribute.name,
+        value: s.value,
+        sortOrder: s.attribute.sortOrder,
+      }));
 
     // Demo retirement (P3c): a demo product in a retired category should 301 to
     // its category page. The buyer-web PDP reads this flag and redirects.
@@ -1044,6 +1063,7 @@ export class BrowseService {
     return {
       ...rest,
       seller: sellerFlat,
+      specifications: specsFlat,
       breadcrumb,
       isRetired,
     };

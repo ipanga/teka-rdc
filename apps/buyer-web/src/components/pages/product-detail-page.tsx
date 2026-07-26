@@ -148,6 +148,9 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
   const images = product.images || [];
   const selectedImage = images[selectedImageIndex] || null;
   const isOutOfStock = product.quantity <= 0;
+  const specs = (product.specifications ?? []).filter(
+    (s) => s.name?.trim() && s.value?.trim(),
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-surface-muted">
@@ -481,14 +484,15 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
             </Card>
           )}
 
-          {/* Specifications */}
-          {product.specifications && product.specifications.length > 0 && (
+          {/* Specifications. A spec missing either side would render as a
+              half-empty row, so filter before deciding to show the card. */}
+          {specs.length > 0 && (
             <Card padding="md" className="mt-4">
               <h2 className="text-base font-semibold text-foreground mb-4 tracking-tight">
                 {"Caractéristiques"}
               </h2>
               <dl className="grid grid-cols-1 sm:grid-cols-[200px_1fr] gap-x-4">
-                {product.specifications.map((spec, i) => (
+                {specs.map((spec, i) => (
                   <div
                     key={spec.id}
                     className={cn(

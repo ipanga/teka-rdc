@@ -165,6 +165,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         data: (product) {
           final title = product.title;
           final description = product.description ?? '';
+          // A spec with no label or no value would render as a half-empty row.
+          final specs =
+              product.specifications.where((s) => s.isRenderable).toList();
           final hasDiscount = product.hasDiscount;
           final price = formatCDF(product.effectivePriceCDF);
           final priceUSD =
@@ -470,7 +473,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                               ],
 
                               // Specifications
-                              if (product.specifications.isNotEmpty) ...[
+                              if (specs.isNotEmpty) ...[
                                 Text(
                                   "Caractéristiques",
                                   style: Theme.of(context)
@@ -492,7 +495,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                       width: 0.5,
                                     ),
                                   ),
-                                  children: product.specifications
+                                  children: specs
                                       .map(
                                         (spec) => TableRow(
                                           children: [
