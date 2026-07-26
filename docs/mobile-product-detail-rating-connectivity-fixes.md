@@ -358,25 +358,110 @@ connectivity problems mid-pass, and the account was signed in on the emulator in
 **Bottom line: the four-symptom identifier bug (PR #576) is confirmed fixed on a real runtime with
 production data.** D1 and D4 were the two user-visible failures, and both pass.
 
+### Deferred — D2, review submission (blocked by policy, not by a bug)
+
+**Will not be run against production from the owner's personal account** (owner decision,
+2026-07-27). Submitting posts a real, publicly visible review under a real identity and moves the
+product's aggregate rating.
+
+To unblock, one of:
+
+- **a dedicated test account with its own test product and delivered test order**, so the review is
+  disposable and attributable to a test identity; or
+- **a non-production environment** (staging/dev API with a seeded catalogue), which also unblocks
+  D7/D8 (logged-out paths) since signing out a throwaway account is harmless.
+
+Until then the write path is covered only by automated tests (`reviews.service.spec`, the reviews
+e2e specs) plus D1, which proves the screen and its eligibility call work end-to-end — everything up
+to the submit button.
+
+### Follow-up PRs spun out of this initiative
+
+| PR | Subject | Status |
+|---|---|---|
+| **#578** | `flutter_deeplinking_enabled=false` (+ iOS plist) so App Links reach `DeepLinkParser` | **MERGED** into `develop` (`19a1339`), 7/7 checks green, no review comments |
+| **#579** | Town selection not persisting across cold starts | **OPEN**, awaiting review — not merged |
+
 ### Third defect found — town selection does not persist
 
-Independent of both the six PRs and the deep-link flag. The first-visit town modal reappears on
-**every cold start** even after a town is chosen, and a control launch with **no** deep link
-reproduces it, so it is not deep-link-related. It reproduces on **both** the physical device and the
-emulator, so it is not device-specific. `FlutterSecureStorage` logs healthy
-(`Data already migrated`, keystore2 OK), so the cause is elsewhere — not investigated further.
-This is what currently stops C3 from completing end-to-end: the modal gates startup and the pushed
-route is lost behind it.
+Independent of both the six PRs and the deep-link flag. Investigated and fixed in **PR #579**.
 
-## Outstanding device verification (cannot be claimed from this environment)
+**Symptom.** The town picker reappeared on **every cold start** after a town had been chosen —
+with the buyer's own town **already highlighted**. Reproduced on the physical device *and* the
+emulator (not device-specific) and with a control launch carrying **no** deep link (not
+link-related). `FlutterSecureStorage` logged healthy throughout.
 
-No physical device is attached and the cloud DB is unreachable from the build env, so none of the
-below has been executed:
+**Root cause — published too late; not lost, ignored or overwritten.**
+`CityNotifier.fetchCities()` emitted `isLoading: false` as soon as the city list arrived, then
+`await`ed secure storage and emitted the resolved town in a *second* update. The router gate
+(`app_router.dart:103`) redirects on `!hasCity && !isLoading` and `refreshListenable` re-evaluates it
+on every state change — so the intermediate state opened the gate for exactly the duration of the
+storage read. The redirect won the race and the town landed milliseconds later, which is precisely
+why the picker rendered pre-selected.
 
-- Real OS share sheet contents + iPad popover anchoring (PR3).
-- Real 2G/3G flapping behaviour and toast cadence on a live network (PR1).
-- App Links opened from WhatsApp (PR3/PR5).
-- End-to-end rating submission against a live API (PR5).
+**Fix.** Resolve the stored town *before* publishing, so everything the gate reads lands in one
+terminal state update. An id that no longer resolves (town deleted or deactivated) is dropped from
+storage instead of being re-read on every launch.
+
+**Tests performed** — 8 new (`test/city/city_persistence_test.dart`), **verified to fail on the
+pre-fix provider** so they cannot rot into always-green:
+
+| Scenario | Where |
+|---|---|
+| Cold start never publishes a gate-opening state *(load-bearing)* | unit |
+| Stored town restored | unit |
+| Fresh install → no town, gate legitimately asks | unit |
+| **Deactivated** town not restored, id dropped | unit |
+| Unknown/deleted id not restored, id dropped | unit |
+| `selectCity` survives a simulated cold start | unit |
+| Town change replaces the persisted id | unit |
+| `clearCity` removes it (explicit-clear path) | unit |
+| Cold restart → opens on the stored town, no picker | emulator, live API |
+| Change town → cold restart → opens on Kolwezi w/ its accent + catalogue | emulator, live API |
+| Restore town → cold restart → Lubumbashi, session/cart/favourites intact | emulator, live API |
+| Fresh install → picker shown (correct) | emulator |
+
+buyer-mobile suite **164 passed**; `flutter analyze` clean.
+
+**Logout/login:** `clearCity` is never called from logout, so the town intentionally survives
+sign-out (device-level browsing preference; guests browse town-scoped too). Login adopts
+`preferredCityId` only when no local choice exists. Verified by code inspection + the `clearCity`
+unit test rather than by signing the owner's account out.
+
+**buyer-web checked, not affected:** `initFromStorage()` reads `localStorage` synchronously, the town
+also rides a cookie for SSR, and the first-visit gate is a cookie-gated overlay rendered *after*
+content — not a router redirect. No async window, no equivalent race. Only the `preferredCityId` API
+is shared, and its contract is unchanged.
+
+Fixing this also unblocks **C3 end-to-end**: the picker no longer gates startup, so a cold-start deep
+link should now reach its product. **That re-test is still outstanding.**
+
+## Outstanding physical-device tests (as of 2026-07-27)
+
+Superseded items removed — C1, D1, D3, D4, D5 and D9 are **done** (see the pass above). What is left:
+
+**Needs a device someone is holding (I cannot tap or screenshot physical iOS at all, and driving the
+owner's handset conflicts with them using it):**
+
+| # | Test | Why it is still open |
+|---|---|---|
+| C2 | Share to WhatsApp and receive the link | Needs a real WhatsApp contact |
+| C4 | Tap a shared link on a device **without** the app | Needs a second handset |
+| C3 | Cold-start deep link reaching the product | Re-test after #579 merges — the town picker no longer gates startup |
+| A5 / A10 | Real 2G/3G degradation and toast cadence | Airplane-mode toggling is only a coarse stand-in |
+| C7 | iPad share popover anchoring | The only place `sharePositionOrigin` matters |
+| E3 | Low-end Android (2GB) jank | Emulator does not represent it |
+| **all iOS** | Everything above on iOS | No input injection or screenshot for physical iOS from this toolchain: no `idb`/`ios-deploy`, `devicectl` has no screenshot/tap, `idevicescreenshot` fails on iOS 26. The app **is** installed and launchable on the iPhone (built + signed, team `YK6Z393A4D`) — it needs human hands |
+
+**Blocked on environment/policy, not on a device:**
+
+| # | Test | Blocker |
+|---|---|---|
+| D2 | Submit a review | Owner decision: never against production from a personal account. Needs a test account + test product/order, or a non-prod environment |
+| D7 / D8 | Logged-out paths | Would require signing the owner's account out |
+| D6 | Search / Category / Cart / Favoris / notification entry points | Not run; Home + Order Detail are verified |
+| D10–D14 | Already-reviewed, double-tap, network-failure and unavailable-product edges | Not run |
+| B6–B9 on **web** | Labelled Caractéristiques on buyer-web / admin-web | Needs PR4's API change deployed; mobile already works via the Dart fallback |
 
 ## Test summary (this branch vs `develop`)
 
