@@ -327,6 +327,47 @@ returns. Single captures at +4s and +7s both missed it; a burst at 0.7s interval
 ~+2.8s. Also remember the 60s cooldown — toggling airplane mode twice inside a minute correctly
 produces **no** second toast, which reads as a failure if you are not expecting it.
 
+## Sections C + D — signed-in pass, 2026-07-27
+
+Run against the **live** `api.teka.cd` with a **real signed-in buyer account and real orders**.
+Section C on a **physical Galaxy A56**; section D on the **Android emulator** (the handset developed
+connectivity problems mid-pass, and the account was signed in on the emulator instead).
+
+### Section C — share + links (physical device)
+
+| Item | Result |
+|---|---|
+| **C1** share sheet | **PASS.** Android share sheet opens with the canonical `https://teka.cd/lubumbashi/lot-de-2-chemises-…` — i.e. `{webBaseUrl}/{citySlug}/{slug}-{shortCode}`. **The reported "share does nothing" did not reproduce.** |
+| **C3** App Link | **Defect found and fixed** — see PR #578. Was `GoException: no routes for location` on cold *and* warm start. After the fix the exception is gone and `DeepLinkController` runs (the URL's town is applied), but the destination is still lost behind the first-visit town modal (below). |
+| C2 / C4 | Not run — need a WhatsApp send to a contact and a second handset without the app. |
+
+### Section D — the four-symptom identifier bug (emulator, real account)
+
+| Item | Result |
+|---|---|
+| **D1** rating screen from a delivered order | **PASS — the original bug is gone.** "Noter le produit" on `TK-20260704-D852` opens **Avis** with the rating histogram, "Aucun avis pour le moment" and the **Écrire un avis** CTA. Previously this exact tap rendered the error card *"Validation failed (uuid is expected)"* + Réessayer. |
+| **D3** favorite from an Order-Detail-opened PDP | **PASS.** The heart renders **filled**, i.e. `wishlistedIds.contains(product.id)` matches — it previously compared a shortCode against a set of uuids and never filled. |
+| **D4** Avis section on that PDP | **PASS.** "Avis (0)" renders with its empty state. It previously collapsed to `SizedBox.shrink()` on this path because the 400 left stats null. |
+| **D5** same product from Home | **PASS.** Identical rendering to the Order-Detail path. |
+| **D9** non-delivered order | **PASS.** A pending order shows both items with **no** rating CTA (offers "Annuler la commande"). |
+| **D2** submit a review | **NOT RUN.** It posts a real public review under the owner's account on the live marketplace; not authorised. |
+| D6 remaining entry points | Home + Order Detail verified. Search / Category / Cart / Favoris / notification not run; deep link blocked by the town modal. |
+| D7 / D8 logged-out paths | **NOT RUN** — would require signing the owner's account out. |
+| D10–D14 | Not run. |
+
+**Bottom line: the four-symptom identifier bug (PR #576) is confirmed fixed on a real runtime with
+production data.** D1 and D4 were the two user-visible failures, and both pass.
+
+### Third defect found — town selection does not persist
+
+Independent of both the six PRs and the deep-link flag. The first-visit town modal reappears on
+**every cold start** even after a town is chosen, and a control launch with **no** deep link
+reproduces it, so it is not deep-link-related. It reproduces on **both** the physical device and the
+emulator, so it is not device-specific. `FlutterSecureStorage` logs healthy
+(`Data already migrated`, keystore2 OK), so the cause is elsewhere — not investigated further.
+This is what currently stops C3 from completing end-to-end: the modal gates startup and the pushed
+route is lost behind it.
+
 ## Outstanding device verification (cannot be claimed from this environment)
 
 No physical device is attached and the cloud DB is unreachable from the build env, so none of the
