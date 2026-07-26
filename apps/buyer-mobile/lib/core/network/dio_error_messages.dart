@@ -81,9 +81,34 @@ String extractDioErrorMessage(DioException e) {
     return "Vous n'avez pas accès à cette ressource.";
   }
 
+  // Same problem one layer down: Nest's BUILT-IN pipes (ParseUUIDPipe,
+  // ParseIntPipe, …) throw English strings such as "Validation failed (uuid is
+  // expected)". Those reach us as a plain `message` with no `errors[]`, so the
+  // branch above would happily show them to the user — which is exactly what
+  // happened on the rating screen and the favorite button. Business 4xx
+  // messages written by us are French and still pass through untouched.
+  if (apiMessage != null && _isFrameworkEnglish(apiMessage)) {
+    return 'Impossible de charger cette information.\n\nVeuillez réessayer.';
+  }
+
   if (apiMessage != null) return apiMessage;
 
   return 'Une erreur inattendue est survenue.\n\nVeuillez réessayer.';
+}
+
+/// Whether an API `message` is one of Nest's built-in English defaults rather
+/// than a French business message we wrote. Deliberately a small, explicit list
+/// — anything broader (e.g. "looks like English") would swallow legitimate
+/// copy.
+bool _isFrameworkEnglish(String message) {
+  const frameworkPrefixes = <String>[
+    'Validation failed', // Parse*Pipe
+    'Bad Request',
+    'Not Found',
+    'Internal Server Error',
+    'Unprocessable Entity',
+  ];
+  return frameworkPrefixes.any(message.startsWith);
 }
 
 /// Maps ANY caught error (Dio or otherwise) to a friendly French message AND, as

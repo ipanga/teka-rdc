@@ -610,11 +610,15 @@ class _OrderItemRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Two identifiers on purpose: `linkId` (shortCode when available) matches
+    // the canonical public URL and only ever feeds the PDP route, while
+    // `reviewId` is the product uuid the reviews API requires.
     final linkId = item.productLinkId;
+    final reviewId = item.productReviewId;
     final unavailable = item.productStatus != null && item.productStatus != 'ACTIVE';
     // Eligibility (DELIVERED order, one-per-product, moderation) is enforced by
     // the product-reviews screen + API; this is just the entry point.
-    final canRate = isDelivered && linkId != null && !unavailable;
+    final canRate = isDelivered && reviewId != null && !unavailable;
     return InkWell(
       onTap: linkId != null ? () => context.push('/products/$linkId') : null,
       child: Padding(
@@ -703,7 +707,7 @@ class _OrderItemRow extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: OutlinedButton.icon(
-                onPressed: () => context.push('/products/$linkId/reviews'),
+                onPressed: () => context.push('/products/$reviewId/reviews'),
                 icon: const Icon(Icons.star_border, size: 16),
                 label: const Text('Noter le produit'),
                 style: OutlinedButton.styleFrom(

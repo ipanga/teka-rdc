@@ -185,13 +185,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const PromotionsScreen(),
       ),
       GoRoute(
+        // `:id` is an opaque identifier — uuid, 6-char shortCode or slug. Only
+        // the browse endpoint resolves all three, so the screen forwards the
+        // resolved product.id to every API-bound child.
         path: '/products/:id',
         builder: (context, state) {
-          final productId = state.pathParameters['id']!;
-          return ProductDetailScreen(productId: productId);
+          final identifier = state.pathParameters['id']!;
+          return ProductDetailScreen(identifier: identifier);
         },
       ),
       GoRoute(
+        // Reviews endpoints are ParseUUIDPipe — this route requires a real
+        // product uuid. Callers that only hold a shortCode must open the PDP
+        // instead and let it resolve.
         path: '/products/:id/reviews',
         builder: (context, state) {
           final productId = state.pathParameters['id']!;
