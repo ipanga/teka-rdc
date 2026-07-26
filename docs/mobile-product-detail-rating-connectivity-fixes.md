@@ -180,6 +180,113 @@ because the mobile helper renders API 4xx messages verbatim.
 
 ---
 
+## Consolidated physical-device checklist (iOS + Android)
+
+One pass covering all six PRs. Run against a build of the **full stack** (all six merged, or the
+tip of `docs/mobile-fixes-tracker`) pointed at an API running PR4+PR5.
+
+Build: `flutter run --flavor development --dart-define-from-file=flavors/development.json`
+(use `staging`/`production` if testing against a deployed API).
+
+**Devices:** at least one physical Android (the 2GB/Android 8 target class if available) and one
+physical iPhone. The iPad column matters only for the share popover. Simulators/emulators are
+**not** sufficient for the share sheet, real network flapping, or App/Universal Links.
+
+Preconditions: a buyer account with **≥1 DELIVERED order** containing a product that is still
+ACTIVE, at least one product carrying attributes (Taille/Matière/Couleur), and one product with
+recorded sales.
+
+### A. Connectivity (PR1) — buyer-mobile **and** seller-mobile
+
+| # | Step | Expected | iOS | Android |
+|---|---|---|---|---|
+| A1 | Cold start, network on | **No toast at all** (cold-start invariant) | ☐ | ☐ |
+| A2 | Cold start in airplane mode | Offline toast; note the AppBar's vertical position | ☐ | ☐ |
+| A3 | Compare A1 vs A2 screenshots | AppBar/page position **identical** — nothing shifted | ☐ | ☐ |
+| A4 | Airplane on → wait 5s → off | Offline toast, then "Connexion rétablie." (if ≥60s since last toast) | ☐ | ☐ |
+| A5 | **Flap:** toggle airplane 4× within 60s | ≤ ~1 toast/min; page never reflows | ☐ | ☐ |
+| A6 | Scroll mid-feed, then drop connection | Scroll position preserved | ☐ | ☐ |
+| A7 | Toast while on a tab route | Floats **above** the bottom nav, not behind it | ☐ | ☐ |
+| A8 | Toast on PDP and on checkout | Clears those screens' bottom bars too | ☐ | ☐ |
+| A9 | Background 30s while offline → resume | No stale/burst toasts | ☐ | ☐ |
+| A10 | Walk to weak signal (real 2G/3G, not airplane) | Slow-but-alive shows **nothing** (`unstable` is silent) | ☐ | ☐ |
+| A11 | **Checkout regression:** go offline on the review step | Inline "Connexion requise pour passer commande" + disabled button, exactly as before | ☐ | ☐ |
+| A12 | Repeat A1–A9 in **seller-mobile** | Identical behaviour | ☐ | ☐ |
+
+### B. Product cards + detail (PR2, PR4)
+
+| # | Step | Expected | iOS | Android |
+|---|---|---|---|---|
+| B1 | Home: Promotions / Populaires / Nouveautés | **No "X vendus"** on any card | ☐ | ☐ |
+| B2 | Search, Category, Favoris, Recently viewed, Related rail | No "X vendus" | ☐ | ☐ |
+| B3 | PDP of a product with sales | No sold count under the price; rating row intact and aligned | ☐ | ☐ |
+| B4 | PDP of a product with 0 reviews | No leftover gap where the standalone line was | ☐ | ☐ |
+| B5 | Category page, default/popularity sort | Best-sellers still rank first (proves `unitsSold` still reaches the API) | ☐ | ☐ |
+| B6 | PDP **Caractéristiques** | `Taille : M`, `Matière : Coton`, `Couleur : Bleu` — labels present | ☐ | ☐ |
+| B7 | Compare to admin attribute order | Matches configured `sortOrder`, not insertion order | ☐ | ☐ |
+| B8 | Product with no attributes | Section absent entirely (no empty card) | ☐ | ☐ |
+| B9 | Long label + long value | Wraps, no overflow/ellipsis clipping | ☐ | ☐ |
+| B10 | PDP seller card | Support block **gone**; seller name + Officiel/Vérifié badge still render cleanly, no dangling divider | ☐ | ☐ |
+
+### C. Share (PR3)
+
+| # | Step | Expected | iOS | Android |
+|---|---|---|---|---|
+| C1 | PDP from Home → **Partager** | OS share sheet opens with title + `https://teka.cd/{ville}/{slug}-{code}` | ☐ | ☐ |
+| C2 | Share to WhatsApp | Link previews correctly | ☐ | ☐ |
+| C3 | Tap that link on a device **with** the app | Opens the app (Universal Links / App Links) on the right PDP | ☐ | ☐ |
+| C4 | Tap it on a device **without** the app | Opens the website | ☐ | ☐ |
+| C5 | Tap Partager **while the PDP is still loading** | Button visibly disabled; no silent no-op | ☐ | ☐ |
+| C6 | Share from a PDP opened via **Order Detail** | Still the canonical URL (not a search URL, not an id) | ☐ | ☐ |
+| C7 | **iPad only:** tap Partager | Popover anchors to the button; no crash | ☐ | n/a |
+| C8 | If share ever fails | French snackbar + a Sentry event tagged `action=product_share` | ☐ | ☐ |
+
+> C8 is the point of PR3: the trigger was never reproduced, so the first real failure must name
+> itself. If C1 fails, **capture the Sentry event** before retrying.
+
+### D. Identifier / favorite / ratings (PR5) — the four-symptom bug
+
+| # | Step | Expected | iOS | Android |
+|---|---|---|---|---|
+| D1 | Commandes → delivered order → **Noter le produit** | Review form opens. **No "Validation failed (uuid is expected)"** | ☐ | ☐ |
+| D2 | Submit rating + comment | French success → back to Order Detail → item shows as reviewed | ☐ | ☐ |
+| D3 | Same Order Detail → tap the product row → **heart** | Fills and persists across refresh + reopen | ☐ | ☐ |
+| D4 | That PDP → scroll to **Avis** | Section present with stats bar + review list | ☐ | ☐ |
+| D5 | Same product opened from **Home** | Identical to D3/D4 | ☐ | ☐ |
+| D6 | Open the PDP from Search / Category / Cart / Favoris / push notification / deep link | Heart + Avis work from **every** entry point | ☐ | ☐ |
+| D7 | Logged out: open a PDP | Avis still loads (guest 401 on `canReview` must not blank it) | ☐ | ☐ |
+| D8 | Logged out: tap the heart | Login prompt → after login, returns to the PDP | ☐ | ☐ |
+| D9 | Non-delivered order | No rating CTA | ☐ | ☐ |
+| D10 | Already-reviewed item | No CTA / disabled; no duplicate review possible | ☐ | ☐ |
+| D11 | Double-tap the rating CTA | One screen, not two | ☐ | ☐ |
+| D12 | Airplane mode on the reviews screen | French network message + retry; never raw/English | ☐ | ☐ |
+| D13 | Point at an unreachable API, open a PDP | Avis shows "Impossible de charger les avis." + **Réessayer** (not an empty gap) | ☐ | ☐ |
+| D14 | Product that became unavailable after purchase | Order Detail row is non-tappable; no rating CTA | ☐ | ☐ |
+
+### E. Cross-cutting
+
+| # | Step | Expected | iOS | Android |
+|---|---|---|---|---|
+| E1 | Any error surfaced anywhere in the pass | **No English, no raw validation strings**, no stack traces | ☐ | ☐ |
+| E2 | Back navigation from every screen touched above | Returns to the correct previous screen | ☐ | ☐ |
+| E3 | Low-end Android (2GB) | No jank introduced by the toast; PDP scroll stays smooth | n/a | ☐ |
+| E4 | Sentry dashboard after the pass | Only expected events; no flood; **no PII (phones/tokens) in any payload** | ☐ | ☐ |
+| E5 | PostHog | `product_shared` / `product_viewed` still fire | ☐ | ☐ |
+
+### Platform-specific gotchas
+
+- **iOS:** Universal Links need the AASA file served from the deployed domain — C3 will fail on a
+  dev build pointed at localhost regardless of app correctness. Test C3/C4 against production
+  `teka.cd`.
+- **Android:** App Links verification requires the release signing cert's fingerprint in
+  `assetlinks.json`; a debug build may fall through to the browser. Use
+  `adb shell am start -a android.intent.action.VIEW -d "https://teka.cd/..."` to test the intent
+  filter directly, independently of verification.
+- **iOS share:** the iPad popover (C7) is the only place `sharePositionOrigin` matters; on iPhone
+  its absence would not have thrown.
+- **Android emulator vs device:** A5/A10 (real flapping) cannot be simulated faithfully — airplane
+  mode toggles are a coarse approximation of a degrading cell link.
+
 ## Outstanding device verification (cannot be claimed from this environment)
 
 No physical device is attached and the cloud DB is unreachable from the build env, so none of the
