@@ -287,6 +287,46 @@ recorded sales.
 - **Android emulator vs device:** A5/A10 (real flapping) cannot be simulated faithfully — airplane
   mode toggles are a coarse approximation of a degrading cell link.
 
+## Emulator pass, 2026-07-26 (buyer-mobile, Android emulator — **not** the device pass)
+
+Run after all six PRs merged to `develop`, using a **production-flavour debug APK** against the live
+`api.teka.cd` (the cloud DB refuses TCP 5432 from the build host, so a local API is not an option).
+Android emulator only — no physical device was attached, so nothing here substitutes for the
+checklist above.
+
+**Confirmed against the original bug screenshots:**
+
+| Item | Result |
+|---|---|
+| B1/B2 | Home feed identical to the report; the shirt card's "5 vendus" and Ariel's "2 vendus" are gone, prices/discounts intact |
+| B3 | PDP price block has no sold count |
+| B6 | `Taille : M`, `Matière : Coton`, `Couleur : Bleu` all render **with labels** |
+| B10 | Support block gone; the `Vendeur … ✓ Officiel` row still renders cleanly, no dangling divider |
+| A2/A3 | Page is **pixel-identical** online vs airplane mode — AppBar, spec rows and Avis all at the same coordinates |
+| A4 (offline leg) | Floating red toast "Connexion Internet indisponible." appears and auto-dismisses |
+| A4 (recovery leg) | Green "Connexion rétablie." toast fires after the 60s cooldown has elapsed |
+| A7 | On tab routes both toasts sit **above** the bottom navigation bar |
+
+**Correction to an earlier assumption:** B6 was expected to fail until the API deploys, since
+`api.teka.cd` still returns the nested `attribute.name` shape. It passes on mobile anyway — PR4's
+defensive Dart fallback reads the nested key. That is the back-compat path working as designed.
+**buyer-web and admin-web still need the deploy**, as they have no equivalent fallback.
+
+**Finding — A8 not satisfied on pushed routes.** On the PDP the toast **overlays** the bottom CTA bar
+rather than clearing it (it covered the disabled "Rupture de stock" button; on an in-stock product it
+would briefly cover "Ajouter au panier"). Tab routes clear the nav bar correctly, so this is specific
+to routes carrying their own bottom bar. Impact is low — 4s, capped at ~1 toast/min — but the
+checklist's A8 wording ("clears those screens' bottom bars too") is not met. Worth a small follow-up:
+either accept and reword A8, or give those routes a `bottomNavigationBar`-registered footer so the
+framework offsets the snackbar.
+
+**Testing note for whoever repeats this.** The recovery toast is easy to miss: it runs for **2s**
+against the offline toast's 4s, and the recovery path is `disconnected → reconnecting → probe →
+connected` *then* a 2s settle, so its visible window is roughly **+2s to +4.5s** after the network
+returns. Single captures at +4s and +7s both missed it; a burst at 0.7s intervals caught it at
+~+2.8s. Also remember the 60s cooldown — toggling airplane mode twice inside a minute correctly
+produces **no** second toast, which reads as a failure if you are not expecting it.
+
 ## Outstanding device verification (cannot be claimed from this environment)
 
 No physical device is attached and the cloud DB is unreachable from the build env, so none of the
