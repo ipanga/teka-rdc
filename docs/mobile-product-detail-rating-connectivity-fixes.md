@@ -1,6 +1,7 @@
 # Mobile: connectivity UX · product-detail cleanup · rating/identifier fixes
 
-**Started:** 2026-07-26 · **Branch base:** `develop` · **Status:** in progress
+**Started:** 2026-07-26 · **Branch:** `fix/mobile-connectivity-toast` (base `develop`) ·
+**Status:** all six PRs code-complete; device verification outstanding
 
 Tracker for nine device-reported defects across buyer-mobile (one shared with seller-mobile). Read
 this file first when resuming; each PR section below is self-contained.
@@ -88,15 +89,94 @@ the bottom of this file.
 
 ---
 
-## PR2 — Remove public sold count · buyer-mobile + buyer-web ⬜ pending
+## PR2 — Remove public sold count · buyer-mobile + buyer-web ✅ code complete
 
-## PR3 — PDP share + support block · buyer-mobile + buyer-web ⬜ pending
+`product_card.dart` (one widget, all nine card surfaces) + the PDP price block;
+mirrored on web in `product-card.tsx` + `product-detail-page.tsx`. On the mobile
+card the count shared a Row with the rating, so the else-branch that rendered it
+standalone for unreviewed products is gone entirely.
 
-## PR4 — Characteristic labels · api + buyer-web + admin-web + buyer-mobile ⬜ pending
+`unitsSold` deliberately stays in the payload, the Prisma model and the client
+types — `browse.service.ts` uses it as the popularity sort key and
+`admin-orders.service.ts` increments it on delivery. The type comments that
+described it as public copy were updated so it does not get re-added.
 
-## PR5 — Canonical product identifier · buyer-mobile + api ⬜ pending
+Tests: buyer-mobile 145, buyer-web type-check clean.
 
-## PR6 — Docs ⬜ pending
+## PR3 — PDP share + support block · buyer-mobile + buyer-web ✅ code complete
+
+The share handler existed and `share_plus ^10.1.4` was installed, so this was
+never a missing callback. It had three silent-failure paths, any of which looks
+exactly like a dead button: a null URL hitting a bare `return`, an uncaught
+`StateError` from `FlavorConfig.instance` inside `productWebUrl`, and
+`Share.share` throwing on iPad/macOS without a `sharePositionOrigin`. All three
+now report to Sentry (`action=product_share` + product id) and show a French
+snackbar; the popover is anchored via a `GlobalKey`; the button is disabled
+rather than inert while the product loads.
+
+`productWebUrl` itself was correct and is unchanged — it already mirrors
+buyer-web's `productHref` and `WEB_BASE_URL` is set in all three flavor files.
+
+**Which path fires on the reporter's device is still unknown** and needs an
+on-device repro; the change makes it name itself instead of failing silently.
+
+Support block removed from the mobile PDP and the equivalent link from
+buyer-web's seller card. Support access unchanged in Compte → Aide, the footer,
+`/contact` and order support.
+
+## PR4 — Characteristic labels · api + buyer-web + admin-web + buyer-mobile ✅ code complete
+
+Fixed at the source: `getProductDetail` now flattens specifications to
+`{ id, attributeId, name, value, sortOrder }` and delegates ordering to Prisma
+(`orderBy: { attribute: { sortOrder: 'asc' } }`), so the admin-configured order
+is preserved; empty rows are dropped server-side. The same flattening was
+applied to `admin-products.service.findProductForReview` — admin-web reads
+`spec.name` too, so it had the identical bug.
+
+Clients need no change to benefit. Defensive extras: the Dart `fromJson` falls
+back to `attribute.name` (so a mobile build on an older API degrades to today's
+behaviour instead of breaking), and both PDPs filter half-empty specs before
+deciding whether to render the section.
+
+Tests: API 229 (+3 covering flattening, ordering and the empty-row drop).
+
+## PR5 — Canonical product identifier · buyer-mobile + api ✅ code complete
+
+The four-symptom bug. `ProductDetailScreen.productId` → `identifier`
+(uuid | shortCode | slug); `product.id` is now the only value handed to
+`WishlistButton`, `_ReviewsSection`, `_RelatedSection`,
+`RecentlyViewedSection` and the `/products/:id/reviews` push. Order Detail gains
+`productReviewId` (always the uuid) for the rating CTA while `productLinkId`
+stays display-only; both are documented as such at the definition.
+
+The Avis section no longer collapses to `SizedBox.shrink()` on failure — it
+shows a compact retryable notice, because "missing" is indistinguishable from
+"no reviews yet". `ReviewsNotifier._init` loads its four calls independently and
+only reports an error when the core data fails, so a guest's 401 on `canReview`
+no longer blanks the section.
+
+Backstops: `UuidParam` (French `Identifiant invalide.`) replaces the raw
+`ParseUUIDPipe` on the 8 buyer-facing reviews/wishlist params, and
+`extractDioErrorMessage` stops passing Nest's built-in English pipe messages
+through as if they were our French copy (mirrored into seller-mobile). **No API
+contract change** — the endpoints still accept uuids only.
+
+Side effect worth knowing: recently-viewed exclusion now works from every entry
+point, since it also compares uuids.
+
+Tests: API 229 unit + 118 e2e (+2 asserting the shortCode rejection is French),
+buyer-mobile 156 (+11), seller-mobile 31 (+5 mirrored). Verified zero diff under
+`features/checkout/` and `connectivity_provider.dart`.
+
+## PR6 — Docs ✅ code complete
+
+`docs/mobile-connectivity.md` § UI fully rewritten (the old copy table listed
+strings that never shipped and `connectivityBanner*` localization keys that
+never existed — neither app has an l10n layer). State table, files tree, tests
+table (the "mirrored in seller-mobile" claim was false and is now per-row),
+deferred work and the decisions table all updated. CLAUDE.md Rule 15 gains two
+bullets: use `showAppSnackbar`, and use `UuidParam` on buyer-facing params
+because the mobile helper renders API 4xx messages verbatim.
 
 ---
 
@@ -110,9 +190,35 @@ below has been executed:
 - App Links opened from WhatsApp (PR3/PR5).
 - End-to-end rating submission against a live API (PR5).
 
+## Test summary (this branch vs `develop`)
+
+| Suite | Before | After |
+|---|---|---|
+| API unit | 226 | 229 |
+| API e2e | 116 | 118 |
+| buyer-mobile | 139 | 156 |
+| seller-mobile | 12 | 31 |
+| buyer-web / admin-web | type-check clean | type-check clean |
+
+## Risks and rollback
+
+- **PR1** is the highest-visibility change (every screen in both apps). It is
+  self-contained: reverting the commit restores the banner, since the state
+  machine and providers were never touched.
+- **PR4** changes a response shape (`specifications[]` is flattened). It is
+  additive for readers of `name`/`value` and no client read `attribute.name`, but
+  any *unknown* consumer reading the nested shape would break. seller-web only
+  writes specs, so it is unaffected.
+- **PR5** renames a widget parameter and changes which id reaches four call
+  sites; the API contract is unchanged, so client and server can deploy in
+  either order.
+- No DB migration, no env var, no deployment ordering constraint in this branch.
+
 ## Resume instructions
 
 1. Read this file, then `STATUS.md`.
-2. `git log --oneline develop..HEAD` to see which PRs have landed.
-3. Continue with the first section marked ⬜, in order — PRs 2, 3 and 5 all touch
-   `product_detail_screen.dart` and must stack in that order.
+2. `git log --oneline develop..HEAD` — six commits, one per PR, in the order
+   above (PRs 2, 3 and 5 all touch `product_detail_screen.dart`, hence the
+   stacking).
+3. Remaining work is the device pass listed above, then opening the PRs into
+   `develop` (never `main`).
