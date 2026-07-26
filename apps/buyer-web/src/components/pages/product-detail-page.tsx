@@ -444,24 +444,10 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                     </span>
                   )}
                 </div>
-                {/* Direct buyer↔seller chat retired 2026-05-17. Questions
-                    about a product or order now flow through Teka RDC
-                    support — single channel, faster moderation, clearer
-                    dispute trail. */}
-                <Link
-                  href="/contact"
-                  className="mt-2 inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary-hover transition-colors font-medium"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
-                    />
-                  </svg>
-                  {"Contacter le support Teka RDC"}
-                </Link>
+                {/* Direct buyer↔seller chat was retired 2026-05-17; the
+                    support link that stood here was removed 2026-07-26 for
+                    parity with mobile. Support is reachable from the footer,
+                    the account menu and /contact. */}
               </Card>
 
               {/* Category link */}
