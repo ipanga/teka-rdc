@@ -51,8 +51,8 @@ export interface BrowseProduct {
   cityId?: string | null;
   citySlug?: string | null;
   cityName?: string | null;
-  // Best-seller social proof: total delivered units. Rendered as "X vendus"
-  // only when > 0.
+  // Total delivered units. NOT rendered publicly (removed 2026-07-26) — kept
+  // on the payload because it is the API's popularity sort key.
   unitsSold?: number | null;
   // Rating social proof — denormalized on Product. Stars render only when
   // totalReviews > 0.

@@ -50,8 +50,8 @@ class BrowseProductModel {
   final String? cityId;
   final String? citySlug;
   final String? cityName;
-  // Best-seller social proof: total delivered units. Shown as "X vendus"
-  // only when > 0.
+  // Total delivered units. NOT shown publicly (removed 2026-07-26) — kept on
+  // the model because it is the API's popularity sort key.
   final int unitsSold;
   // Rating social proof — stars render only when totalReviews > 0.
   final double avgRating;

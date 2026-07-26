@@ -246,19 +246,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                         ),
                                   ),
                                 ),
-                              if (product.unitsSold > 0)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Text(
-                                    "${product.unitsSold} ${(product.unitsSold) == 1 ? 'vendu' : 'vendus'}",
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodySmall
-                                        ?.copyWith(
-                                          color: TekaColors.mutedForeground,
-                                        ),
-                                  ),
-                                ),
                               const SizedBox(height: 12),
 
                               // Condition badge + stock

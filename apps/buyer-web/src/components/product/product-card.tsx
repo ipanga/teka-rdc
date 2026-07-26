@@ -185,9 +185,11 @@ export function ProductCard({ product }: ProductCardProps) {
               {`Vous économisez ${formatCDF(savingsCDF)}`}
             </p>
           )}
-          {/* Rating + sold count — social proof. Stars only render once a
-              product has at least one review (most are 0 pre-traffic). */}
-          {(product.totalReviews ?? 0) > 0 ? (
+          {/* Rating — social proof. Stars only render once a product has at
+              least one review (most are 0 pre-traffic). The unit-sold count is
+              deliberately not public; it stays on the API for popularity
+              ranking and seller/admin reporting. */}
+          {(product.totalReviews ?? 0) > 0 && (
             <div className="flex items-center gap-1.5 pt-0.5">
               <StarRating value={product.avgRating ?? 0} />
               <span className="text-[11px] font-medium text-foreground">
@@ -196,19 +198,7 @@ export function ProductCard({ product }: ProductCardProps) {
               <span className="text-[11px] text-muted-foreground">
                 ({product.totalReviews})
               </span>
-              {product.unitsSold != null && product.unitsSold > 0 && (
-                <span className="text-[11px] text-muted-foreground">
-                  · {product.unitsSold <= 1 ? `${product.unitsSold} vendu` : `${product.unitsSold} vendus`}
-                </span>
-              )}
             </div>
-          ) : (
-            product.unitsSold != null &&
-            product.unitsSold > 0 && (
-              <p className="text-[11px] text-muted-foreground">
-                {product.unitsSold <= 1 ? `${product.unitsSold} vendu` : `${product.unitsSold} vendus`}
-              </p>
-            )
           )}
         </div>
       </Link>
