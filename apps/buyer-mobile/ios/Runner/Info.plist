@@ -74,5 +74,15 @@
 		<true/>
 		<key>UIViewControllerBasedStatusBarAppearance</key>
 		<false/>
+		<!-- Universal Links are routed by app_links → DeepLinkController →
+		     DeepLinkParser, not by Flutter's built-in deep linking. Left
+		     enabled (the default since Flutter 3.x) the framework feeds the raw
+		     URI to GoRouter, which cannot match "https://teka.cd/…" and throws
+		     `no routes for location` — reproduced on Android device
+		     2026-07-26 on both cold and warm start; iOS shares the router and
+		     the same failure mode. Mirrors the Android manifest's
+		     flutter_deeplinking_enabled=false. -->
+		<key>FlutterDeepLinkingEnabled</key>
+		<false/>
 	</dict>
 </plist>
