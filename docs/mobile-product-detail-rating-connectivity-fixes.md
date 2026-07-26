@@ -200,6 +200,28 @@ below has been executed:
 | seller-mobile | 12 | 31 |
 | buyer-web / admin-web | type-check clean | type-check clean |
 
+## Unresolved: one unreproducible API e2e run
+
+On 2026-07-26 a single backgrounded `pnpm test:e2e` run reported **8 failed
+tests in 1 suite** (110/118 passing). Every subsequent run passes:
+
+- 3 solo runs — 118/118
+- 2 runs executed concurrently with each other — 118/118 each
+- 1 run under the same heavy load as the original (workspace `tsc` + both
+  `flutter analyze` in parallel) — 118/118
+
+The failure detail was lost (that command's output was filtered to summary
+lines only), so the failing suite is unknown. No suite contains exactly 8
+tests, which rules out a whole-suite `beforeAll` crash and points at a partial
+failure inside one of the four larger suites — `browse` (29), `auth` (26),
+`checkout` (11) or `payouts` (9).
+
+**It is not attributed.** Contention was the obvious hypothesis and was
+disproved by direct reproduction. Treat it as a possible intermittent flake:
+if e2e fails in CI, capture the full output before re-running, and check
+whether the same suite is implicated. The only suite this branch touches is
+`reviews` (4 tests), which cannot account for 8 failures.
+
 ## Risks and rollback
 
 - **PR1** is the highest-visibility change (every screen in both apps). It is
