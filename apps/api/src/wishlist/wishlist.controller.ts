@@ -5,8 +5,8 @@ import {
   Delete,
   Param,
   Query,
-  ParseUUIDPipe,
 } from '@nestjs/common';
+import { UuidParam } from '../common/pipes/uuid-param.pipe';
 import { isUUID } from 'class-validator';
 import { WishlistService } from './wishlist.service';
 import { WishlistQueryDto } from './dto/wishlist-query.dto';
@@ -25,7 +25,7 @@ export class WishlistController {
   @Post(':productId')
   async add(
     @CurrentUser('userId') userId: string,
-    @Param('productId', ParseUUIDPipe) productId: string,
+    @Param('productId', UuidParam) productId: string,
   ) {
     const data = await this.wishlistService.addToWishlist(userId, productId);
     return { success: true, data };
@@ -38,7 +38,7 @@ export class WishlistController {
   @Delete(':productId')
   async remove(
     @CurrentUser('userId') userId: string,
-    @Param('productId', ParseUUIDPipe) productId: string,
+    @Param('productId', UuidParam) productId: string,
   ) {
     const data = await this.wishlistService.removeFromWishlist(
       userId,
@@ -99,7 +99,7 @@ export class WishlistController {
   @Get(':productId/status')
   async checkStatus(
     @CurrentUser('userId') userId: string,
-    @Param('productId', ParseUUIDPipe) productId: string,
+    @Param('productId', UuidParam) productId: string,
   ) {
     const data = await this.wishlistService.isInWishlist(userId, productId);
     return { success: true, data };

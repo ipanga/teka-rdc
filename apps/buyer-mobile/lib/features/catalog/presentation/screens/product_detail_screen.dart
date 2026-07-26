@@ -26,9 +26,17 @@ import '../widgets/product_card.dart';
 import '../widgets/recently_viewed_section.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
-  final String productId;
+  /// How the product was addressed in the route — a UUID, a 6-char shortCode
+  /// or a slug. `GET /v1/browse/products/:identifier` resolves all three.
+  ///
+  /// It is deliberately NOT called `productId`: only `/browse/products` accepts
+  /// a non-UUID. Reviews, wishlist and related are `ParseUUIDPipe`, so they
+  /// must be given the *resolved* `product.id` instead. Passing this value to
+  /// them is what produced "Validation failed (uuid is expected)" when the PDP
+  /// was opened from Order Detail (which links by shortCode).
+  final String identifier;
 
-  const ProductDetailScreen({super.key, required this.productId});
+  const ProductDetailScreen({super.key, required this.identifier});
 
   @override
   ConsumerState<ProductDetailScreen> createState() =>
@@ -120,12 +128,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final productId = widget.productId;
-    final productAsync = ref.watch(productDetailProvider(productId));
+    final identifier = widget.identifier;
+    final productAsync = ref.watch(productDetailProvider(identifier));
 
     // Fire product_viewed once on first successful load (buyer-owned UI event,
     // parity with buyer-web). ids/price only — no PII.
-    ref.listen(productDetailProvider(productId), (prev, next) {
+    ref.listen(productDetailProvider(identifier), (prev, next) {
       next.whenData((product) {
         if (_viewTracked) return;
         _viewTracked = true;
@@ -157,7 +165,17 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 ? null
                 : () => _shareProduct(productAsync.value!),
           ),
-          WishlistButton(productId: productId),
+          // Must use the RESOLVED uuid: /v1/wishlist/:productId is a
+          // ParseUUIDPipe, and the wishlisted-id set it compares against holds
+          // uuids, so a shortCode would both 400 and render the heart unfilled.
+          if (productAsync.valueOrNull != null)
+            WishlistButton(productId: productAsync.value!.id)
+          else
+            const TekaAppBarIconButton(
+              icon: Icons.favorite_border,
+              tooltip: 'Favoris',
+              onPressed: null,
+            ),
           const SizedBox(width: 8),
         ],
       ),
@@ -181,9 +199,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 child: RefreshIndicator(
                   color: TekaColors.tekaRed,
                   onRefresh: () async {
-                    ref.invalidate(productDetailProvider(productId));
-                    ref.invalidate(reviewsProvider(productId));
-                    await ref.read(productDetailProvider(productId).future);
+                    ref.invalidate(productDetailProvider(identifier));
+                    ref.invalidate(reviewsProvider(product.id));
+                    await ref.read(productDetailProvider(identifier).future);
                   },
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
@@ -535,16 +553,18 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                 const SizedBox(height: 12),
                               ],
 
-                              // Reviews section
-                              _ReviewsSection(productId: productId),
+                              // Everything below is API-bound and therefore
+                              // takes the RESOLVED uuid, never the route
+                              // identifier (which may be a shortCode or slug).
+                              _ReviewsSection(productId: product.id),
 
                               // Related products (same category + price)
                               const SizedBox(height: 24),
-                              _RelatedSection(productId: productId),
+                              _RelatedSection(productId: product.id),
 
                               // Recently viewed (client-local), excl. current
                               const SizedBox(height: 24),
-                              RecentlyViewedSection(excludeId: productId),
+                              RecentlyViewedSection(excludeId: product.id),
                             ],
                           ),
                         ),
@@ -637,7 +657,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           return AppErrorState(
             message: "Une erreur est survenue. Veuillez réessayer.",
             onRetry: () {
-              ref.invalidate(productDetailProvider(productId));
+              ref.invalidate(productDetailProvider(identifier));
             },
           );
         },
@@ -670,8 +690,49 @@ class _ReviewsSection extends ConsumerWidget {
       );
     }
 
-    // Don't show section at all if there was an error and no stats
-    if (reviewsState.stats == null) return const SizedBox.shrink();
+    // Stats failed to load. Previously this returned SizedBox.shrink(), which
+    // is why a 400 from passing a non-uuid made the whole "Avis" section look
+    // like it did not exist. Show a compact, retryable notice instead — a
+    // missing section is indistinguishable from a product with no reviews.
+    if (reviewsState.stats == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Avis",
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: TekaColors.foreground,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.error_outline,
+                  size: 16, color: TekaColors.mutedForeground),
+              const SizedBox(width: 6),
+              const Expanded(
+                child: Text(
+                  "Impossible de charger les avis.",
+                  style: TextStyle(
+                    color: TekaColors.mutedForeground,
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () =>
+                    ref.read(reviewsProvider(productId).notifier).refresh(),
+                child: const Text(
+                  "Réessayer",
+                  style: TextStyle(color: TekaColors.tekaRed, fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
 
     final stats = reviewsState.stats!;
     final previewReviews = reviewsState.reviews.take(3).toList();

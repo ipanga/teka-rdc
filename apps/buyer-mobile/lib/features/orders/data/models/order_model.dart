@@ -110,11 +110,24 @@ class OrderItemModel {
     this.productStatus,
   });
 
-  /// Identifier to open the PDP (`/products/:id`): canonical shortCode if present,
-  /// else the productId. Null when the product is no longer available.
+  /// Identifier to open the PDP (`/products/:id`) — **display only**.
+  /// Prefers the canonical shortCode so the route matches the public web URL.
+  /// Null when the product is no longer available.
+  ///
+  /// Never pass this to an API: reviews and wishlist endpoints are
+  /// `ParseUUIDPipe` and reject a shortCode with a 400. Use [productReviewId]
+  /// (or the PDP's resolved `product.id`) for anything API-bound.
   String? get productLinkId {
     if (productStatus != null && productStatus != 'ACTIVE') return null;
     return productShortCode ?? (productId.isNotEmpty ? productId : null);
+  }
+
+  /// The product's uuid, for API-bound navigation such as the rating screen
+  /// (`/products/:id/reviews`). Null when the order item predates the
+  /// `productId` field or the product is unavailable.
+  String? get productReviewId {
+    if (productStatus != null && productStatus != 'ACTIVE') return null;
+    return productId.isNotEmpty ? productId : null;
   }
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) {
