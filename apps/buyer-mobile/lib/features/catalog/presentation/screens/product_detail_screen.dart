@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/auth/auth_guard.dart';
@@ -9,6 +10,7 @@ import '../../../../core/deep_link/web_links.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/widgets/app_bar_actions.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/app_states.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../reviews/presentation/providers/reviews_provider.dart';
@@ -36,15 +38,84 @@ class ProductDetailScreen extends ConsumerStatefulWidget {
 class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   bool _viewTracked = false;
 
+  /// Anchors the iPad/macOS share popover. Without an origin rect `Share.share`
+  /// throws on those form factors, which is one of the ways this action could
+  /// look like it "does nothing".
+  final GlobalKey _shareButtonKey = GlobalKey();
+
   /// Share the product's canonical web URL — opens the app via App/Universal
   /// Links when the recipient has it installed, else the website.
+  ///
+  /// Every failure path used to return silently; each one now tells the user
+  /// something and reports the technical detail to Sentry.
   Future<void> _shareProduct(ProductDetailModel product) async {
-    final url = productWebUrl(product);
-    if (url == null) return;
+    final String? url;
+    try {
+      url = productWebUrl(product);
+    } catch (e, stack) {
+      // productWebUrl reads FlavorConfig.instance, which throws a StateError
+      // if initialize() never ran.
+      _reportShareFailure(e, stack, product);
+      _showShareError();
+      return;
+    }
+
+    if (url == null) {
+      _reportShareFailure(
+        StateError('productWebUrl returned null (no slug/shortCode/id)'),
+        StackTrace.current,
+        product,
+      );
+      _showShareError();
+      return;
+    }
+
     const PosthogAnalytics().capture('product_shared', properties: {
       'productId': product.id,
     });
-    await Share.share(url, subject: product.title);
+
+    try {
+      await Share.share(
+        url,
+        subject: product.title,
+        sharePositionOrigin: _shareOrigin(),
+      );
+    } catch (e, stack) {
+      _reportShareFailure(e, stack, product);
+      _showShareError();
+    }
+  }
+
+  Rect? _shareOrigin() {
+    final box = _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return null;
+    return box.localToGlobal(Offset.zero) & box.size;
+  }
+
+  void _showShareError() {
+    if (!mounted) return;
+    showAppSnackbar(
+      context,
+      message: 'Impossible de partager ce produit pour le moment.',
+      tone: AppSnackbarTone.error,
+    );
+  }
+
+  void _reportShareFailure(
+    Object error,
+    StackTrace? stack,
+    ProductDetailModel product,
+  ) {
+    // No-op when Sentry isn't initialised (dev/test).
+    Sentry.captureException(
+      error,
+      stackTrace: stack,
+      withScope: (scope) {
+        scope.level = SentryLevel.error;
+        scope.setTag('action', 'product_share');
+        scope.setTag('productId', product.id);
+      },
+    );
   }
 
   @override
@@ -77,12 +148,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         title: const Text("Détails du produit"),
         actions: [
           TekaAppBarIconButton(
+            key: _shareButtonKey,
             icon: Icons.share_outlined,
             tooltip: 'Partager',
-            onPressed: () {
-              final product = productAsync.valueOrNull;
-              if (product != null) _shareProduct(product);
-            },
+            // Disabled (visibly, not inertly) until the product is loaded —
+            // there is nothing to build a share URL from before that.
+            onPressed: productAsync.valueOrNull == null
+                ? null
+                : () => _shareProduct(productAsync.value!),
           ),
           WishlistButton(productId: productId),
           const SizedBox(width: 8),
@@ -361,41 +434,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                     ),
                                   ],
                                 ),
-                                const SizedBox(height: 12),
-                                // Direct buyer↔seller messaging retired
-                                // 2026-05-17 — buyers contact Teka RDC
-                                // support instead. The seller name + city
-                                // shown above are the entire seller card now.
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 10),
-                                  decoration: BoxDecoration(
-                                    color: TekaColors.surface,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: TekaColors.border,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      const Icon(
-                                        Icons.support_agent_outlined,
-                                        size: 18,
-                                        color: TekaColors.tekaRed,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          "Pour toute question, contactez le support Teka RDC.",
-                                          style: const TextStyle(
-                                            color: TekaColors.foreground,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                                // Direct buyer↔seller messaging was retired
+                                // 2026-05-17; the support pointer that stood
+                                // here was removed 2026-07-26 (support lives in
+                                // Compte → Aide and /contact). The seller name
+                                // + city above are the entire seller card now.
                                 const SizedBox(height: 16),
                                 const Divider(color: TekaColors.border),
                                 const SizedBox(height: 12),
