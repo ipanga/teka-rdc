@@ -318,13 +318,6 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                           ~ {formatUSD(product.priceUSD)}
                         </p>
                       )}
-                      {product.unitsSold != null && product.unitsSold > 0 && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {product.unitsSold <= 1
-                            ? `${product.unitsSold} vendu`
-                            : `${product.unitsSold} vendus`}
-                        </p>
-                      )}
                     </>
                   );
                 })()}

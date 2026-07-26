@@ -244,7 +244,9 @@ class ProductCard extends ConsumerWidget {
                               ),
                             ),
                         ],
-                        // Rating (when reviewed) + sold count — social proof.
+                        // Rating — social proof. The unit-sold count is
+                        // deliberately not public (it stays on the API for
+                        // popularity ranking and seller/admin reporting).
                         if (product.totalReviews > 0) ...[
                           const SizedBox(height: 3),
                           Row(
@@ -268,24 +270,7 @@ class ProductCard extends ConsumerWidget {
                                   color: TekaColors.mutedForeground,
                                 ),
                               ),
-                              if (product.unitsSold > 0)
-                                Text(
-                                  " · ${product.unitsSold} ${product.unitsSold == 1 ? 'vendu' : 'vendus'}",
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: TekaColors.mutedForeground,
-                                  ),
-                                ),
                             ],
-                          ),
-                        ] else if (product.unitsSold > 0) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            "${product.unitsSold} ${(product.unitsSold) == 1 ? 'vendu' : 'vendus'}",
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: TekaColors.mutedForeground,
-                            ),
                           ),
                         ],
                       ],
