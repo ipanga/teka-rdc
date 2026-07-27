@@ -338,7 +338,7 @@ connectivity problems mid-pass, and the account was signed in on the emulator in
 | Item | Result |
 |---|---|
 | **C1** share sheet | **PASS.** Android share sheet opens with the canonical `https://teka.cd/lubumbashi/lot-de-2-chemises-…` — i.e. `{webBaseUrl}/{citySlug}/{slug}-{shortCode}`. **The reported "share does nothing" did not reproduce.** |
-| **C3** App Link | **Defect found and fixed** — see PR #578. Was `GoException: no routes for location` on cold *and* warm start. After the fix the exception is gone and `DeepLinkController` runs (the URL's town is applied), but the destination is still lost behind the first-visit town modal (below). |
+| **C3** App Link | **PASS (2026-07-27, after #578 + #579).** Cold start on a canonical product URL opens the app **directly on that product** (Ariel — correct breadcrumb, price, add-to-cart); a warm-start link to a *different* product routes to that one (the shirt PDP, session intact). Took both fixes: #578 (Flutter's built-in deep linking fed the raw URL to GoRouter → `GoException: no routes for location`) and #579 (the town picker then swallowed the destination on cold start). |
 | C2 / C4 | Not run — need a WhatsApp send to a contact and a second handset without the app. |
 
 ### Section D — the four-symptom identifier bug (emulator, real account)
@@ -380,7 +380,7 @@ to the submit button.
 | PR | Subject | Status |
 |---|---|---|
 | **#578** | `flutter_deeplinking_enabled=false` (+ iOS plist) so App Links reach `DeepLinkParser` | **MERGED** into `develop` (`19a1339`), 7/7 checks green, no review comments |
-| **#579** | Town selection not persisting across cold starts | **OPEN**, awaiting review — not merged |
+| **#579** | Town selection not persisting across cold starts | **MERGED** into `develop` (`9f72031`), 7/7 checks green, no review comments |
 
 ### Third defect found — town selection does not persist
 
@@ -433,8 +433,9 @@ also rides a cookie for SSR, and the first-visit gate is a cookie-gated overlay 
 content — not a router redirect. No async window, no equivalent race. Only the `preferredCityId` API
 is shared, and its contract is unchanged.
 
-Fixing this also unblocks **C3 end-to-end**: the picker no longer gates startup, so a cold-start deep
-link should now reach its product. **That re-test is still outstanding.**
+This also unblocked **C3 end-to-end**, re-tested 2026-07-27 from the merged `develop` build:
+a cold-start deep link lands on its product, and a warm-start link to a different product
+routes correctly. Either fix alone left the link short of the product.
 
 ## Outstanding physical-device tests (as of 2026-07-27)
 
@@ -447,7 +448,6 @@ owner's handset conflicts with them using it):**
 |---|---|---|
 | C2 | Share to WhatsApp and receive the link | Needs a real WhatsApp contact |
 | C4 | Tap a shared link on a device **without** the app | Needs a second handset |
-| C3 | Cold-start deep link reaching the product | Re-test after #579 merges — the town picker no longer gates startup |
 | A5 / A10 | Real 2G/3G degradation and toast cadence | Airplane-mode toggling is only a coarse stand-in |
 | C7 | iPad share popover anchoring | The only place `sharePositionOrigin` matters |
 | E3 | Low-end Android (2GB) jank | Emulator does not represent it |
