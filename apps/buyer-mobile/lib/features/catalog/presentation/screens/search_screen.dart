@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/app_states.dart';
+import '../../../../core/widgets/commerce_header.dart';
 import '../../../../core/widgets/product_skeletons.dart';
 import '../../../city/presentation/providers/city_provider.dart';
 import '../../../wishlist/presentation/providers/wishlist_provider.dart';
@@ -131,7 +132,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       appBar: AppBar(
         titleSpacing: 0,
         title: Padding(
-          padding: const EdgeInsets.only(right: 16),
+          padding: const EdgeInsets.only(right: 8),
           child: Container(
             height: 44,
             decoration: BoxDecoration(
@@ -181,6 +182,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             ),
           ),
         ),
+        actions: const [
+          CommerceCartButton(),
+          SizedBox(width: 12),
+        ],
       ),
       body:
           _query.isEmpty ? _buildEmptySearch(context) : _buildResults(context),
@@ -397,7 +402,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     });
 
     if (state.isLoading && state.products.isEmpty) {
-      return const ProductGridSkeleton(count: 6);
+      return ProductGridSkeleton(
+        count: 6,
+        mainAxisExtent: productCardGridExtent(
+          context,
+          variant: ProductCardVariant.catalog,
+        ),
+      );
     }
 
     if (state.error != null && state.products.isEmpty) {
@@ -473,9 +484,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                 (context, index) => ProductCard(product: state.products[index]),
                 childCount: state.products.length,
               ),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                childAspectRatio: kProductCardAspectRatio,
+                mainAxisExtent: productCardGridExtent(
+                  context,
+                  variant: ProductCardVariant.catalog,
+                ),
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
               ),

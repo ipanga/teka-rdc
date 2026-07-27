@@ -9,9 +9,9 @@ import '../../../../core/auth/auth_guard.dart';
 import '../../../../core/deep_link/web_links.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
-import '../../../../core/widgets/app_bar_actions.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/app_states.dart';
+import '../../../../core/widgets/commerce_header.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../reviews/presentation/providers/reviews_provider.dart';
 import '../../../reviews/presentation/widgets/review_stats_bar.dart';
@@ -70,7 +70,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
     if (url == null) {
       _reportShareFailure(
-        StateError('productWebUrl returned null (no slug/shortCode/id)'),
+        StateError('productWebUrl returned null (no slug/shortCode)'),
         StackTrace.current,
         product,
       );
@@ -84,7 +84,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
     try {
       await Share.share(
-        url,
+        '${product.title}\n$url',
         subject: product.title,
         sharePositionOrigin: _shareOrigin(),
       );
@@ -95,7 +95,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   }
 
   Rect? _shareOrigin() {
-    final box = _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
+    final box =
+        _shareButtonKey.currentContext?.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize) return null;
     return box.localToGlobal(Offset.zero) & box.size;
   }
@@ -152,32 +153,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Détails du produit"),
-        actions: [
-          TekaAppBarIconButton(
-            key: _shareButtonKey,
-            icon: Icons.share_outlined,
-            tooltip: 'Partager',
-            // Disabled (visibly, not inertly) until the product is loaded —
-            // there is nothing to build a share URL from before that.
-            onPressed: productAsync.valueOrNull == null
-                ? null
-                : () => _shareProduct(productAsync.value!),
-          ),
-          // Must use the RESOLVED uuid: /v1/wishlist/:productId is a
-          // ParseUUIDPipe, and the wishlisted-id set it compares against holds
-          // uuids, so a shortCode would both 400 and render the heart unfilled.
-          if (productAsync.valueOrNull != null)
-            WishlistButton(productId: productAsync.value!.id)
-          else
-            const TekaAppBarIconButton(
-              icon: Icons.favorite_border,
-              tooltip: 'Favoris',
-              onPressed: null,
-            ),
-          const SizedBox(width: 8),
-        ],
+      appBar: const CommerceAppBar(
+        searchLabel: 'Rechercher dans Teka...',
       ),
       body: productAsync.when(
         data: (product) {
@@ -250,7 +227,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                   ),
                                 ),
 
-                              // Title
+                              // The title owns the full summary width. Product
+                              // actions sit on the secondary rating row so a
+                              // long French name never wraps around controls.
                               Text(
                                 title,
                                 style: Theme.of(context)
@@ -261,14 +240,67 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                       color: TekaColors.foreground,
                                     ),
                               ),
+                              const SizedBox(height: 6),
+
+                              // Uses the exact same reviewsProvider instance as
+                              // the detailed section below, so no client-side
+                              // recalculation or duplicate request is created.
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: _PdpRatingSummary(
+                                        productId: product.id,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _PdpActionSurface(
+                                    child: WishlistButton(
+                                      // Wishlist routes require the resolved
+                                      // UUID, never the route slug/shortCode.
+                                      productId: product.id,
+                                      size: 20,
+                                      inactiveColor: TekaColors.foreground,
+                                      padding: EdgeInsets.zero,
+                                      constraints:
+                                          const BoxConstraints.tightFor(
+                                        width: 44,
+                                        height: 44,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _PdpActionSurface(
+                                    child: IconButton(
+                                      key: _shareButtonKey,
+                                      onPressed: () => _shareProduct(product),
+                                      tooltip: 'Partager ce produit',
+                                      padding: EdgeInsets.zero,
+                                      constraints:
+                                          const BoxConstraints.tightFor(
+                                        width: 44,
+                                        height: 44,
+                                      ),
+                                      icon: const Icon(
+                                        Icons.ios_share_outlined,
+                                        size: 20,
+                                        color: TekaColors.foreground,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                               const SizedBox(height: 8),
 
                               // Price — effective price prominent; when on
                               // promo, show the original struck through, a −X%
                               // badge, and the savings.
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.baseline,
-                                textBaseline: TextBaseline.alphabetic,
+                              Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                spacing: 10,
+                                runSpacing: 6,
                                 children: [
                                   Text(
                                     price,
@@ -277,11 +309,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                         .headlineSmall
                                         ?.copyWith(
                                           fontWeight: FontWeight.bold,
-                                          color: TekaColors.tekaRed,
+                                          color: TekaColors.foreground,
                                         ),
                                   ),
                                   if (hasDiscount) ...[
-                                    const SizedBox(width: 10),
                                     Text(
                                       formatCDF(product.priceCDF),
                                       style: Theme.of(context)
@@ -293,7 +324,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                                 TextDecoration.lineThrough,
                                           ),
                                     ),
-                                    const SizedBox(width: 8),
                                     Container(
                                       padding: const EdgeInsets.symmetric(
                                           horizontal: 6, vertical: 2),
@@ -649,9 +679,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             return AppErrorState(
               message: "Ce produit n'est plus disponible.",
               actionLabel: 'Retour',
-              onRetry: () => context.canPop()
-                  ? context.pop()
-                  : context.go('/categories'),
+              onRetry: () =>
+                  context.canPop() ? context.pop() : context.go('/categories'),
             );
           }
           return AppErrorState(
@@ -661,6 +690,140 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+class _PdpActionSurface extends StatelessWidget {
+  final Widget child;
+
+  const _PdpActionSurface({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: TekaColors.surface,
+        shape: BoxShape.circle,
+        border: Border.all(color: TekaColors.border),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _PdpRatingSummary extends ConsumerWidget {
+  final String productId;
+
+  const _PdpRatingSummary({required this.productId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reviewsState = ref.watch(reviewsProvider(productId));
+    final stats = reviewsState.stats;
+
+    if (stats == null) {
+      if (!reviewsState.isLoading) {
+        return const SizedBox.shrink();
+      }
+      return const SizedBox(
+        height: 44,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(strokeWidth: 1.5),
+            ),
+            SizedBox(width: 8),
+            Text(
+              'Chargement des avis…',
+              style: TextStyle(
+                fontSize: 13,
+                color: TekaColors.mutedForeground,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final hasReviews = stats.totalReviews > 0;
+    final rating = stats.avgRating.toStringAsFixed(1).replaceAll('.', ',');
+    final semanticLabel = hasReviews
+        ? 'Note $rating sur 5, ${stats.totalReviews} avis. Voir les avis.'
+        : 'Aucun avis. Voir les avis.';
+
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      excludeSemantics: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => context.push('/products/$productId/reviews'),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 44),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  hasReviews ? Icons.star_rounded : Icons.star_border_rounded,
+                  size: 19,
+                  color: hasReviews
+                      ? const Color(0xFFF59E0B)
+                      : TekaColors.mutedForeground,
+                ),
+                const SizedBox(width: 5),
+                if (hasReviews) ...[
+                  Text(
+                    rating,
+                    style: const TextStyle(
+                      color: TekaColors.foreground,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  const Text(
+                    '·',
+                    style: TextStyle(color: TekaColors.mutedForeground),
+                  ),
+                  const SizedBox(width: 5),
+                  Flexible(
+                    child: Text(
+                      '${stats.totalReviews} avis',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: TekaColors.mutedForeground,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ] else
+                  const Text(
+                    'Aucun avis',
+                    style: TextStyle(
+                      color: TekaColors.mutedForeground,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                const SizedBox(width: 2),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: TekaColors.mutedForeground,
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -869,14 +1032,21 @@ class _RelatedSectionState extends ConsumerState<_RelatedSection> {
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 260,
+          height: productCardRowExtent(
+            context,
+            variant: ProductCardVariant.discovery,
+            itemWidth: 150,
+          ),
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: items.length,
             separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (context, i) => SizedBox(
               width: 150,
-              child: ProductCard(product: items[i]),
+              child: ProductCard(
+                product: items[i],
+                variant: ProductCardVariant.discovery,
+              ),
             ),
           ),
         ),
