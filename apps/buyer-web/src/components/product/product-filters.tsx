@@ -50,8 +50,10 @@ interface ProductFiltersProps {
 }
 
 export function ProductFilters({
-  condition,
-  onConditionChange,
+  // `condition` / `onConditionChange` stay on Props (callers still pass them,
+  // and the API still accepts the query param) but are no longer consumed —
+  // the État filter was removed 2026-07-28. See
+  // docs/product-condition-deprecation.md.
   minPrice,
   onMinPriceChange,
   maxPrice,
@@ -108,21 +110,11 @@ export function ProductFilters({
         </label>
       )}
 
-      {/* Condition */}
-      <div>
-        <label className="block text-sm font-medium text-foreground mb-1.5">
-          {"État"}
-        </label>
-        <select
-          value={condition}
-          onChange={(e) => onConditionChange(e.target.value as ConditionFilter)}
-          className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-        >
-          <option value="">{"Tous les états"}</option>
-          <option value="NEW">{"Neuf"}</option>
-          <option value="USED">{"Occasion"}</option>
-        </select>
-      </div>
+      {/* The "État" (Neuf / Occasion) filter is gone (2026-07-28): Teka sells
+          new products only, so it could only ever filter everything in or
+          everything out. `condition`/`onConditionChange` are retained on the
+          props so callers keep compiling and the API query param still works
+          for any internal caller — see docs/product-condition-deprecation.md. */}
 
       {/* Price range */}
       <div>

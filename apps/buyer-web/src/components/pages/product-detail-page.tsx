@@ -262,14 +262,11 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
 
             {/* Product info */}
             <div>
-              {/* Condition badge */}
-              <Badge
-                variant={product.condition === 'NEW' ? 'new' : 'used'}
-                size="md"
-                className="mb-3"
-              >
-                {product.condition === 'NEW' ? 'Neuf' : 'Occasion'}
-              </Badge>
+              {/* Product condition is deprecated as a buyer-facing concept
+                  (2026-07-28): Teka sells new products only, so a "Neuf" pill
+                  on every product carried no information. The field is still
+                  stored and still emitted in JSON-LD as NewCondition — see
+                  docs/product-condition-deprecation.md. */}
 
               {/* Title + Wishlist */}
               <div className="flex items-start justify-between gap-3 mb-4">

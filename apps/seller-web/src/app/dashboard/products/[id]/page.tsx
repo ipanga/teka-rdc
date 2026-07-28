@@ -67,7 +67,9 @@ export default function ProductDetailPage() {
   const [priceUSD, setPriceUSD] = useState('');
   const [discountPriceCDF, setDiscountPriceCDF] = useState('');
   const [quantity, setQuantity] = useState('');
-  const [condition, setCondition] = useState<'NEW' | 'USED'>('NEW');
+  // Deprecated as a seller choice (2026-07-28) — Teka accepts new products
+  // only. Still submitted so the API contract is unchanged.
+  const condition = 'NEW' as const;
   const [images, setImages] = useState<ProductImage[]>([]);
   const [specifications, setSpecifications] = useState<{ attributeId: string; value: string }[]>([]);
   const [initialSpecValues, setInitialSpecValues] = useState<Record<string, string>>({});
@@ -106,7 +108,6 @@ export default function ProductDetailPage() {
         p.discountPriceCDF ? String(Number(p.discountPriceCDF) / 100) : '',
       );
       setQuantity(String(p.quantity ?? 0));
-      setCondition((p.condition as 'NEW' | 'USED') || 'NEW');
       setImages(p.images || []);
       const specs = p.specifications || [];
       setSpecifications(specs);
@@ -193,7 +194,6 @@ export default function ProductDetailPage() {
         (title.trim() !== (product?.title ?? '') ||
           (description.trim() || '') !== (product?.description ?? '') ||
           categoryId !== (product?.categoryId ?? '') ||
-          condition !== (product?.condition ?? '') ||
           (brandId || '') !== (product?.brandId ?? ''));
       const sendFull = !isPublishedActive || contentDirty;
       const body: Record<string, unknown> = sendFull
@@ -443,42 +443,11 @@ export default function ProductDetailPage() {
                 )}
               </div>
 
-              {/* Condition */}
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">
-                  Condition
-                </label>
-                {isEditable ? (
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="condition"
-                        value="NEW"
-                        checked={condition === 'NEW'}
-                        onChange={() => setCondition('NEW')}
-                        className="accent-primary"
-                      />
-                      <span className="text-sm text-foreground">Neuf</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="condition"
-                        value="USED"
-                        checked={condition === 'USED'}
-                        onChange={() => setCondition('USED')}
-                        className="accent-primary"
-                      />
-                      <span className="text-sm text-foreground">Occasion</span>
-                    </label>
-                  </div>
-                ) : (
-                  <p className="px-3 py-2 bg-muted rounded-lg text-foreground text-sm">
-                    {condition === 'NEW' ? 'Neuf' : 'Occasion'}
-                  </p>
-                )}
-              </div>
+              {/* The Neuf / Occasion selector was removed 2026-07-28: Teka
+                  accepts new products only, so the choice was misleading.
+                  `condition` is still submitted as NEW to keep the API
+                  contract unchanged — see
+                  docs/product-condition-deprecation.md. */}
             </div>
           </div>
 

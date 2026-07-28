@@ -75,8 +75,16 @@ export class CreateProductDto {
   @Type(() => Number)
   quantity: number;
 
+  /**
+   * DEPRECATED (2026-07-28) — Teka sells new products only and no seller UI
+   * offers the choice. Now OPTIONAL and defaulted to NEW by the service, so a
+   * client that stops sending it keeps working; still accepted (and still
+   * validated) so existing callers are unaffected.
+   * See docs/product-condition-deprecation.md.
+   */
+  @IsOptional()
   @IsIn(['NEW', 'USED'], { message: 'Condition invalide' })
-  condition: string;
+  condition?: string;
 
   @IsOptional()
   @IsArray()

@@ -37,6 +37,12 @@ export class BrowseProductsQueryDto {
   @IsString()
   maxPrice?: string;
 
+  /**
+   * DEPRECATED (2026-07-28) — no buyer surface offers a condition filter any
+   * more (Teka sells new products only). Still accepted so existing links and
+   * any internal caller keep working.
+   * See docs/product-condition-deprecation.md.
+   */
   @IsOptional()
   @IsEnum(['NEW', 'USED'])
   condition?: 'NEW' | 'USED';

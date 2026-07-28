@@ -173,7 +173,8 @@ export class ProductsService {
         discountPriceCDF,
         discountPriceUSD,
         quantity: dto.quantity,
-        condition: dto.condition as ProductCondition,
+        // Deprecated field: defaults to NEW when the client omits it.
+        condition: (dto.condition as ProductCondition) ?? ProductCondition.NEW,
         status: ProductStatus.DRAFT,
         specifications: dto.specifications?.length
           ? {
@@ -460,7 +461,8 @@ export class ProductsService {
           ...(dto.discountPriceUSD !== undefined && { discountPriceUSD }),
           ...(dto.quantity !== undefined && { quantity: dto.quantity }),
           ...(dto.condition !== undefined && {
-            condition: dto.condition as ProductCondition,
+            // Deprecated field: defaults to NEW when the client omits it.
+        condition: (dto.condition as ProductCondition) ?? ProductCondition.NEW,
           }),
           // If product was rejected, reset to DRAFT on edit
           ...(product.status === ProductStatus.REJECTED && {
