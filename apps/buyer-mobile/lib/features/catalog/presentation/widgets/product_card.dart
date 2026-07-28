@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/constants/stock.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../wishlist/presentation/widgets/wishlist_button.dart';
@@ -159,8 +160,9 @@ class ProductCard extends ConsumerWidget {
                           bottom: 8,
                           left: 8,
                           child: _Pill(
-                            label:
-                                "🔥 Plus que ${product.quantity} disponible${product.quantity > 1 ? 's' : ''}",
+                            // Never the exact remaining quantity — that is
+                            // internal inventory. See core/constants/stock.dart.
+                            label: "🔥 ${stockStatusLabel(StockStatus.lowStock)}",
                             background: TekaColors.warning,
                             foreground: Colors.white,
                             maxWidth: constraints.maxWidth - 16,

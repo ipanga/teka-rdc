@@ -24,6 +24,7 @@ import '../providers/catalog_provider.dart';
 import '../widgets/image_gallery.dart';
 import '../widgets/product_card.dart';
 import '../widgets/recently_viewed_section.dart';
+import '../../../../core/constants/stock.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   /// How the product was addressed in the route — a UUID, a 6-char shortCode
@@ -167,8 +168,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           final price = formatCDF(product.effectivePriceCDF);
           final priceUSD =
               product.priceUSD != null ? formatUSD(product.priceUSD!) : null;
-          final isNew = product.condition.toUpperCase() == 'NEW' ||
-              product.condition.toUpperCase() == 'NEUF';
 
           return Column(
             children: [
@@ -372,30 +371,15 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                 ),
                               const SizedBox(height: 12),
 
-                              // Condition badge + stock
+                              // Availability. The Neuf / Occasion badge that
+                              // used to lead this row was removed 2026-07-28:
+                              // Teka sells new products only, so a "Neuf" pill
+                              // on every product carried no information. The
+                              // field is still stored and still emitted in
+                              // JSON-LD on the web — see
+                              // docs/product-condition-deprecation.md.
                               Row(
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: isNew
-                                          ? TekaColors.success
-                                          : TekaColors.warning,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      isNew ? "Neuf" : "Occasion",
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
                                   if (product.isOutOfStock)
                                     Text(
                                       "Rupture de stock",
@@ -407,7 +391,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                     )
                                   else if (product.isLowStock)
                                     Text(
-                                      "Plus que ${product.quantity} en stock",
+                                      stockStatusLabel(StockStatus.lowStock),
                                       style: const TextStyle(
                                         color: TekaColors.warning,
                                         fontSize: 13,
@@ -416,7 +400,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                     )
                                   else
                                     Text(
-                                      "En stock · ${product.quantity} disponible${product.quantity > 1 ? 's' : ''}",
+                                      stockStatusLabel(StockStatus.inStock),
                                       style: const TextStyle(
                                         color: TekaColors.success,
                                         fontSize: 13,
@@ -1194,9 +1178,10 @@ class _PdpCartBar extends ConsumerWidget {
                         ..clearSnackBars()
                         ..showSnackBar(
                           SnackBar(
-                            content: Text(
-                              "Stock maximum atteint ($stock disponible${stock > 1 ? 's' : ''})",
-                            ),
+                            // Deliberately no count: the cap still applies,
+                            // but the exact remaining quantity is internal
+                            // inventory. See core/constants/stock.dart.
+                            content: const Text("Stock maximum atteint"),
                             duration: const Duration(seconds: 2),
                           ),
                         );
