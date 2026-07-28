@@ -95,7 +95,13 @@ class CommerceCartButton extends ConsumerWidget {
       icon: Icons.shopping_cart_outlined,
       tooltip: 'Panier',
       badgeCount: count,
-      onPressed: onPressed ?? () => context.push('/cart'),
+      // `go`, never `push`: /cart is a StatefulShellBranch route (one of the
+      // five bottom tabs). Pushing a shell-branch route from outside the shell
+      // is what GoRouter rejects, and it surfaced as a red error screen when
+      // this button was tapped from product detail. `go` switches to the Panier
+      // tab instead of stacking a second, orphaned Cart on the root navigator —
+      // which also keeps the badge and the tab's own state authoritative.
+      onPressed: onPressed ?? () => context.go('/cart'),
     );
   }
 }
