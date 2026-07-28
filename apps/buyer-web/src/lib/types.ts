@@ -327,6 +327,12 @@ export interface DeliveryEstimate {
 
 /** Review from API */
 export interface Review {
+  /**
+   * Short headline. NULLABLE by design: reviews written before 2026-07-28 have
+   * none and must render without an empty title gap. Required by the API for
+   * new and edited reviews — see docs/review-title-and-editing.md.
+   */
+  title?: string | null;
   id: string;
   productId: string;
   userId: string;

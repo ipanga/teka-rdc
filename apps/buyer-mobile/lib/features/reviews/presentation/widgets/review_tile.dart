@@ -8,12 +8,15 @@ class ReviewTile extends StatelessWidget {
   final ReviewModel review;
   final bool isOwn;
   final VoidCallback? onDelete;
+  /// Owner-only. Opens the form prefilled so the buyer amends in place.
+  final VoidCallback? onEdit;
 
   const ReviewTile({
     super.key,
     required this.review,
     this.isOwn = false,
     this.onDelete,
+    this.onEdit,
   });
 
   @override
@@ -77,6 +80,20 @@ class ReviewTile extends StatelessWidget {
                   ],
                 ),
               ),
+              if (isOwn && onEdit != null)
+                IconButton(
+                  icon: const Icon(
+                    Icons.edit_outlined,
+                    size: 20,
+                    color: TekaColors.tekaRed,
+                  ),
+                  tooltip: 'Modifier mon avis',
+                  onPressed: onEdit,
+                  visualDensity: VisualDensity.compact,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
+                ),
+              if (isOwn && onEdit != null) const SizedBox(width: 12),
               if (isOwn && onDelete != null)
                 IconButton(
                   icon: const Icon(
@@ -93,6 +110,19 @@ class ReviewTile extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           StarRating(rating: review.rating.toDouble(), size: 16),
+          // Legacy reviews (pre-2026-07-28) carry no title: render nothing
+          // rather than an empty line.
+          if (review.title != null && review.title!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              review.title!,
+              style: const TextStyle(
+                color: TekaColors.foreground,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
           if (review.text != null && review.text!.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
