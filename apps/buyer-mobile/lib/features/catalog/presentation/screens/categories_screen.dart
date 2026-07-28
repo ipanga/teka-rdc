@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/app_states.dart';
+import '../../../../core/widgets/commerce_header.dart';
 import '../../data/category_images.dart';
 import '../../data/models/category_model.dart';
 import '../providers/catalog_provider.dart';
@@ -18,7 +19,10 @@ class CategoriesScreen extends ConsumerWidget {
     final categories = ref.watch(categoriesProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Catégories')),
+      appBar: const CommerceAppBar(
+        automaticallyImplyLeading: false,
+        searchLabel: 'Rechercher dans Teka...',
+      ),
       body: categories.when(
         data: (cats) => cats.isEmpty
             ? _CategoriesEmpty(onBrowse: () => context.go('/'))
