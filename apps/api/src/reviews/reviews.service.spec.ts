@@ -88,8 +88,13 @@ function makeEditService(existing: unknown) {
       findUnique: jest.fn().mockResolvedValue({ id: 'sp1' }),
       update: jest.fn().mockResolvedValue({}),
     },
-    $transaction: jest.fn(async (cb: (tx: unknown) => unknown) => cb(prisma)),
+    // Assigned after the literal: referencing `prisma` inside its own
+    // initializer makes TS unable to infer the type (TS7022).
+    $transaction: jest.fn(),
   };
+  prisma.$transaction.mockImplementation(
+    async (cb: (tx: unknown) => unknown) => cb(prisma),
+  );
   const service = new ReviewsService(prisma as never, {} as never);
   return { service, prisma, update };
 }

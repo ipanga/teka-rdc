@@ -15,9 +15,10 @@ text      String?
 status    ReviewStatus @default(ACTIVE)
 ```
 
-Nullable is a **compatibility affordance, not a loophole**: the API requires a title for new *and*
-edited reviews. Only reviews written before 2026-07-28 lack one, and they are never backfilled —
-inventing a title for someone else's review would put words in a buyer's mouth.
+Nullable serves two populations, not one: reviews written **before** 2026-07-28, and reviews created
+**during the compatibility window** by a mobile build that predates the field (see
+[Rollout](#rollout--backward-compatible-by-design)). Neither is ever backfilled — inventing a title
+for someone else's review would put words in a buyer's mouth.
 
 Migration `manual/2026-07-28_review_title.sql`:
 
@@ -27,26 +28,57 @@ Migration `manual/2026-07-28_review_title.sql`:
 - registered in `auto-apply.list`, so `deploy.yml` runs it before the rolling swap
 - no backfill, no default, no data migration
 
-## Deployment order
+## Rollout — backward compatible by design
 
-**migration → API → clients.**
+`title` is **optional on create, required on edit**. That asymmetry is the whole compatibility
+story:
 
-Each step is independently safe:
+| | Server rule | Why |
+|---|---|---|
+| `POST /v1/reviews` | title **optional** | Mobile builds already on buyers' phones know nothing about the field. Rejecting them would 400 a review the buyer cannot fix without updating the app. |
+| `PATCH /v1/reviews/:id` | title **required** | An edit can only come from a client new enough to offer the field, so there is no legacy case to protect. |
+| buyer-web + buyer-mobile | title **required** | Both validate before submitting; no new client can create a title-less review. |
 
-| Step | If it lands alone |
-|---|---|
-| Migration | Column exists, nothing writes it. No behaviour change. |
-| API | Accepts + returns `title`; `PATCH /v1/reviews/:id` goes live. Old clients keep POSTing without a title… |
-| Clients | …**except** they can't: `title` is required on create. See the caveat below. |
+When a legacy request arrives without the field, the review is stored with **`title = null`** — the
+same state as a pre-2026-07-28 review, and it renders the same way. The server **never invents a
+title**: a fabricated one would put words in the buyer's mouth and would be indistinguishable from a
+real one afterwards.
 
-> **Caveat worth planning around.** Making `title` required on `POST /v1/reviews` means an
-> **in-the-wild mobile build that does not send it will get a 400** once the API ships. That is a
-> deliberate trade (a title-less new review defeats the feature), but it means the client release
-> should follow the API promptly, and a forced-update prompt is worth considering if adoption of the
-> new build is slow. Reading reviews is unaffected; only *writing* one from an old build breaks.
+Absence is tolerated; rubbish is not. A title that *is* supplied is still validated (5–100 chars),
+on create as well as edit.
 
-Rollback: `DROP COLUMN "title"` (loses titles written in the meantime) plus reverting the code. The
-API tolerates the column being absent only if the code is reverted too — the DTO requires it.
+### Sequence
+
+1. **Apply the additive migration** (`manual/2026-07-28_review_title.sql`). Column exists, nothing
+   writes it, no behaviour change. Safe on its own.
+2. **Deploy the backward-compatible API.** New endpoint live; old clients keep posting successfully
+   (title stored null); new clients send a title.
+3. **Deploy buyer-web.** Title field + edit flow live on the web immediately.
+4. **Release buyer-mobile.** Title field + edit flow reach phones as users update.
+5. **Monitor.** Watch Sentry for review-write errors and track how many creates arrive without a
+   title — that ratio *is* the adoption metric for step 6.
+6. **Only later, and only if approved: tighten the API.** Make `title` required on create once the
+   updated app has sufficient adoption or a forced-update mechanism is live.
+
+Every step is independently safe, and steps 1–4 can be spread over days without a broken window.
+
+### The later cleanup step (not now)
+
+Making `title` strictly required server-side means:
+
+- flip `@IsOptional()` off in `CreateReviewDto` and make the field non-optional,
+- drop the `?? null` fallback in `ReviewsService.createReview`,
+- update `review-dto.spec.ts` — the "accepts a legacy request with NO title" spec becomes the
+  opposite assertion, which is the signal that the compatibility window has closed.
+
+**Preconditions:** confirmed adoption of the title-capable mobile build (or a live forced-update
+mechanism), and an explicit decision to accept that older builds can no longer post reviews. The
+column stays nullable regardless — legacy rows keep their `null`.
+
+### Rollback
+
+`DROP COLUMN "title"` (loses titles written meanwhile) plus reverting the code. The API tolerates the
+column being absent only if the code is reverted too.
 
 ## Editing
 
@@ -92,7 +124,7 @@ explicitly required re-moderation. It does not.
 
 | | Rule | French message |
 |---|---|---|
-| `title` | required (create + edit), 5–100 chars, trimmed | `Le titre doit contenir au moins 5 caractères` / `Le titre ne peut pas dépasser 100 caractères` |
+| `title` | **clients: required.** API: required on edit, optional on create during the compatibility window. 5–100 chars when present, trimmed | `Le titre doit contenir au moins 5 caractères` / `Le titre ne peut pas dépasser 100 caractères` |
 | `text` | optional, ≤1000 chars, trimmed; empty stored as `null` | `Le texte ne peut pas dépasser 1000 caractères` |
 | `rating` | required, integer 1–5 | `La note minimum est 1` / `La note maximum est 5` |
 
@@ -105,10 +137,11 @@ sync**; each carries a comment saying so.
 > buyer-mobile's comment field caps input at 500 (`maxLength: 500`, pre-existing). Mobile is simply
 > stricter, so nothing breaks — worth aligning at some point.
 
-## Legacy reviews (`title = null`)
+## Reviews with `title = null`
 
-Both clients render **nothing at all** where the title would sit — not an empty line, not a
-placeholder:
+Two ways to get one: written before 2026-07-28, or created during the compatibility window by an old
+mobile build. Both render identically — the clients show **nothing at all** where the title would
+sit, not an empty line and not a placeholder:
 
 - buyer-web: `{review.title && <p …>}`
 - buyer-mobile: `if (review.title != null && review.title!.isNotEmpty) …`

@@ -113,7 +113,9 @@ export class ReviewsService {
             buyerId,
             orderId: dto.orderId,
             rating: dto.rating,
-            title: dto.title.trim(),
+            // Legacy client with no title field → stored as null. Never
+            // fabricated; see CreateReviewDto.
+            title: dto.title?.trim() || null,
             text: dto.text?.trim() || null,
             status: ReviewStatus.ACTIVE,
           },
@@ -333,7 +335,9 @@ export class ReviewsService {
           where: { id: reviewId },
           data: {
             rating: dto.rating,
-            title: dto.title.trim(),
+            // Legacy client with no title field → stored as null. Never
+            // fabricated; see CreateReviewDto.
+            title: dto.title?.trim() || null,
             text: dto.text?.trim() || null,
             // status intentionally omitted — see the doc comment above.
           },
