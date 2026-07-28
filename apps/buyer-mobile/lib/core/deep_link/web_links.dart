@@ -26,5 +26,7 @@ String? _productTail(ProductDetailModel p) {
   }
   if (code != null && code.isNotEmpty) return code;
   if (slug != null && slug.isNotEmpty) return slug;
-  return p.id.isNotEmpty ? p.id : null;
+  // A database UUID is a resolver token, not a buyer-facing public URL.
+  // Refuse to share it when the API has not supplied a slug or short code.
+  return null;
 }

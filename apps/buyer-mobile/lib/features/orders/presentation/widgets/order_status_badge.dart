@@ -14,7 +14,7 @@ class OrderStatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -33,23 +33,23 @@ class OrderStatusBadge extends StatelessWidget {
       case 'PENDING':
         return "En attente";
       case 'CONFIRMED':
-        return "Confirmee";
+        return "Confirmée";
       case 'PROCESSING':
-        return "En preparation";
+        return "En préparation";
       case 'READY_FOR_TEKA_PICKUP':
         return "Prête pour collecte";
       case 'RECEIVED_AT_TEKA':
         return "Reçue par Teka";
       case 'SHIPPED':
-        return "Expediee";
+        return "Expédiée";
       case 'OUT_FOR_DELIVERY':
         return "En livraison";
       case 'DELIVERED':
-        return "Livree";
+        return "Livrée";
       case 'CANCELLED':
-        return "Annulee";
+        return "Annulée";
       case 'RETURNED':
-        return "Retournee";
+        return "Retournée";
       default:
         return status;
     }

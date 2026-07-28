@@ -1,12 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/teka_colors.dart';
 
-/// Shared product-grid metrics so every product grid (home, category, search,
-/// wishlist) uses the SAME cell shape — previously these drifted between 0.6
-/// and 0.65, giving cards different heights per screen. Lowered 0.62 → 0.58 to
-/// give the price block room for the stacked sale + struck-through original
-/// price (see ProductCard).
-const double kProductCardAspectRatio = 0.58;
 const double kProductGridSpacing = 12;
 
 /// A lightweight shimmer placeholder block — a muted rounded rectangle with a
@@ -115,11 +109,13 @@ class ProductCardSkeleton extends StatelessWidget {
 class ProductGridSkeleton extends StatelessWidget {
   final int count;
   final EdgeInsetsGeometry padding;
+  final double? mainAxisExtent;
 
   const ProductGridSkeleton({
     super.key,
     this.count = 6,
     this.padding = const EdgeInsets.symmetric(horizontal: 16),
+    this.mainAxisExtent,
   });
 
   @override
@@ -128,9 +124,10 @@ class ProductGridSkeleton extends StatelessWidget {
       padding: padding,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: kProductCardAspectRatio,
+        mainAxisExtent: mainAxisExtent,
+        childAspectRatio: mainAxisExtent == null ? 0.58 : 1,
         crossAxisSpacing: kProductGridSpacing,
         mainAxisSpacing: kProductGridSpacing,
       ),

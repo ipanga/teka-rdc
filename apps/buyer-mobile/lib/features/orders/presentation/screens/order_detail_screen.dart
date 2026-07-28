@@ -615,116 +615,118 @@ class _OrderItemRow extends StatelessWidget {
     // `reviewId` is the product uuid the reviews API requires.
     final linkId = item.productLinkId;
     final reviewId = item.productReviewId;
-    final unavailable = item.productStatus != null && item.productStatus != 'ACTIVE';
+    final unavailable =
+        item.productStatus != null && item.productStatus != 'ACTIVE';
     // Eligibility (DELIVERED order, one-per-product, moderation) is enforced by
     // the product-reviews screen + API; this is just the entry point.
     final canRate = isDelivered && reviewId != null && !unavailable;
     return InkWell(
       onTap: linkId != null ? () => context.push('/products/$linkId') : null,
       child: Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-      Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: SizedBox(
-              width: 56,
-              height: 56,
-              child: item.productImage != null && item.productImage!.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: item.productImage!,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
-                        color: TekaColors.muted,
-                      ),
-                      errorWidget: (_, __, ___) => Container(
-                        color: TekaColors.muted,
-                        child: const Icon(
-                          Icons.image_outlined,
-                          size: 20,
-                          color: TekaColors.mutedForeground,
-                        ),
-                      ),
-                    )
-                  : Container(
-                      color: TekaColors.muted,
-                      child: const Icon(
-                        Icons.image_outlined,
-                        size: 20,
-                        color: TekaColors.mutedForeground,
-                      ),
-                    ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: SizedBox(
+                    width: 56,
+                    height: 56,
+                    child: item.productImage != null &&
+                            item.productImage!.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: item.productImage!,
+                            fit: BoxFit.cover,
+                            placeholder: (_, __) => Container(
+                              color: TekaColors.muted,
+                            ),
+                            errorWidget: (_, __, ___) => Container(
+                              color: TekaColors.muted,
+                              child: const Icon(
+                                Icons.image_outlined,
+                                size: 20,
+                                color: TekaColors.mutedForeground,
+                              ),
+                            ),
+                          )
+                        : Container(
+                            color: TekaColors.muted,
+                            child: const Icon(
+                              Icons.image_outlined,
+                              size: 20,
+                              color: TekaColors.mutedForeground,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.productTitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: TekaColors.foreground,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${formatCDF(item.unitPriceCDF)} x ${item.quantity}'
+                        '${unavailable ? ' · Indisponible' : ''}',
+                        style: const TextStyle(
+                          color: TekaColors.mutedForeground,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Text(
-                  item.productTitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                  formatCDF(item.totalCDF),
                   style: const TextStyle(
+                    fontWeight: FontWeight.w600,
                     fontSize: 13,
                     color: TekaColors.foreground,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  '${formatCDF(item.unitPriceCDF)} x ${item.quantity}'
-                  '${unavailable ? ' · Indisponible' : ''}',
-                  style: const TextStyle(
-                    color: TekaColors.mutedForeground,
-                    fontSize: 12,
-                  ),
-                ),
+                if (linkId != null) ...[
+                  const SizedBox(width: 2),
+                  const Icon(Icons.chevron_right,
+                      size: 18, color: TekaColors.mutedForeground),
+                ],
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            formatCDF(item.totalCDF),
-            style: const TextStyle(
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-              color: TekaColors.foreground,
-            ),
-          ),
-          if (linkId != null) ...[
-            const SizedBox(width: 2),
-            const Icon(Icons.chevron_right,
-                size: 18, color: TekaColors.mutedForeground),
-          ],
-        ],
-      ),
-          if (canRate) ...[
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton.icon(
-                onPressed: () => context.push('/products/$reviewId/reviews'),
-                icon: const Icon(Icons.star_border, size: 16),
-                label: const Text('Noter le produit'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: TekaColors.tekaRed,
-                  side: const BorderSide(color: TekaColors.tekaRed),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  minimumSize: const Size(0, 32),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  textStyle: const TextStyle(
-                      fontSize: 12, fontWeight: FontWeight.w600),
+            if (canRate) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: OutlinedButton.icon(
+                  onPressed: () => context.push('/products/$reviewId/reviews'),
+                  icon: const Icon(Icons.star_border, size: 16),
+                  label: const Text('Noter le produit'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: TekaColors.tekaRed,
+                    side: const BorderSide(color: TekaColors.tekaRed),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    minimumSize: const Size(0, 32),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    textStyle: const TextStyle(
+                        fontSize: 12, fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
-            ),
+            ],
           ],
-        ],
-      ),
+        ),
       ),
     );
   }
@@ -778,11 +780,11 @@ class _PaymentStatusChip extends StatelessWidget {
       case 'COMPLETED':
       case 'PAID':
         chipColor = TekaColors.success;
-        label = "Paye";
+        label = "Payé";
         break;
       case 'FAILED':
         chipColor = TekaColors.destructive;
-        label = "Echoue";
+        label = "Échoué";
         break;
       case 'REFUNDED':
         chipColor = const Color(0xFF2563EB);

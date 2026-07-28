@@ -156,6 +156,13 @@ class _BottomTabButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = selected ? TekaColors.tekaRed : TekaColors.mutedForeground;
     final icon = item.buildIcon(selected);
+    // Five labels share a narrow mobile bar. Let them grow for accessibility,
+    // but cap this navigation-only microcopy before it collides with adjacent
+    // destinations; the full label remains exposed through Semantics above.
+    final requestedScale = MediaQuery.textScalerOf(context).scale(11.5) / 11.5;
+    final navigationTextScaler = TextScaler.linear(
+      requestedScale.clamp(1.0, 1.35),
+    );
 
     return Semantics(
       button: true,
@@ -201,6 +208,7 @@ class _BottomTabButton extends StatelessWidget {
                         item.label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                        textScaler: navigationTextScaler,
                       ),
                     ),
                   ],
