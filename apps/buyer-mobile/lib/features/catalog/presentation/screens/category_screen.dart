@@ -5,8 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
-import '../../../../core/widgets/app_bar_actions.dart';
 import '../../../../core/widgets/app_states.dart';
+import '../../../../core/widgets/commerce_header.dart';
 import '../../../../core/widgets/product_skeletons.dart';
 import '../../../city/presentation/providers/city_provider.dart';
 import '../../../wishlist/presentation/providers/wishlist_provider.dart';
@@ -82,6 +82,17 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     setState(() => _filters = filters);
   }
 
+  Future<void> _showFilters() async {
+    final result = await FilterBottomSheet.show(
+      context,
+      initialFilters: _filters,
+      categoryId: widget.categoryId,
+    );
+    if (result != null) {
+      _applyFilters(result);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(browseProductsProvider(_params));
@@ -96,33 +107,28 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.categoryName ?? "Categories"),
-        actions: [
-          TekaAppBarIconButton(
-            icon: Icons.tune,
-            tooltip: "Trier et filtrer",
-            badgeCount: _filters.activeCount,
-            onPressed: () async {
-              final result = await FilterBottomSheet.show(
-                context,
-                initialFilters: _filters,
-                categoryId: widget.categoryId,
-              );
-              if (result != null) {
-                _applyFilters(result);
-              }
-            },
-          ),
-          const SizedBox(width: 12),
-        ],
+      appBar: const CommerceAppBar(
+        searchLabel: 'Rechercher dans Teka...',
       ),
-      body: RefreshIndicator(
-        color: TekaColors.tekaRed,
-        onRefresh: () async {
-          await ref.read(browseProductsProvider(_params).notifier).refresh();
-        },
-        child: _buildBody(context, state),
+      body: Column(
+        children: [
+          _CategoryContextBar(
+            title: widget.categoryName ?? 'Catégorie',
+            activeFilterCount: _filters.activeCount,
+            onFilterPressed: _showFilters,
+          ),
+          Expanded(
+            child: RefreshIndicator(
+              color: TekaColors.tekaRed,
+              onRefresh: () async {
+                await ref
+                    .read(browseProductsProvider(_params).notifier)
+                    .refresh();
+              },
+              child: _buildBody(context, state),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -132,28 +138,32 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     BrowseProductsState state,
   ) {
     // Condition chips row
-    final conditionBar = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          _ConditionFilterChip(
-            label: "Tous",
-            isSelected: _filters.condition == null,
-            onTap: () => _applyFilters(_filters.copyWith(clearCondition: true)),
-          ),
-          const SizedBox(width: 8),
-          _ConditionFilterChip(
-            label: "Neuf",
-            isSelected: _filters.condition == 'NEW',
-            onTap: () => _applyFilters(_filters.copyWith(condition: 'NEW')),
-          ),
-          const SizedBox(width: 8),
-          _ConditionFilterChip(
-            label: "Occasion",
-            isSelected: _filters.condition == 'USED',
-            onTap: () => _applyFilters(_filters.copyWith(condition: 'USED')),
-          ),
-        ],
+    final conditionBar = SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            _ConditionFilterChip(
+              label: "Tous",
+              isSelected: _filters.condition == null,
+              onTap: () =>
+                  _applyFilters(_filters.copyWith(clearCondition: true)),
+            ),
+            const SizedBox(width: 8),
+            _ConditionFilterChip(
+              label: "Neuf",
+              isSelected: _filters.condition == 'NEW',
+              onTap: () => _applyFilters(_filters.copyWith(condition: 'NEW')),
+            ),
+            const SizedBox(width: 8),
+            _ConditionFilterChip(
+              label: "Occasion",
+              isSelected: _filters.condition == 'USED',
+              onTap: () => _applyFilters(_filters.copyWith(condition: 'USED')),
+            ),
+          ],
+        ),
       ),
     );
 
@@ -161,8 +171,14 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
       return Column(
         children: [
           conditionBar,
-          const Expanded(
-            child: ProductGridSkeleton(count: 6),
+          Expanded(
+            child: ProductGridSkeleton(
+              count: 6,
+              mainAxisExtent: productCardGridExtent(
+                context,
+                variant: ProductCardVariant.catalog,
+              ),
+            ),
           ),
         ],
       );
@@ -191,7 +207,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
           const Expanded(
             child: AppEmptyState(
               icon: Icons.inventory_2_outlined,
-              title: "Aucun produit trouve",
+              title: "Aucun produit trouvé",
             ),
           ),
         ],
@@ -239,9 +255,12 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
               (context, index) => ProductCard(product: state.products[index]),
               childCount: state.products.length,
             ),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              childAspectRatio: kProductCardAspectRatio,
+              mainAxisExtent: productCardGridExtent(
+                context,
+                variant: ProductCardVariant.catalog,
+              ),
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
             ),
@@ -276,6 +295,62 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
           ),
         const SliverToBoxAdapter(child: SizedBox(height: 16)),
       ],
+    );
+  }
+}
+
+class _CategoryContextBar extends StatelessWidget {
+  final String title;
+  final int activeFilterCount;
+  final VoidCallback onFilterPressed;
+
+  const _CategoryContextBar({
+    required this.title,
+    required this.activeFilterCount,
+    required this.onFilterPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: TekaColors.surface,
+        border: Border(
+          bottom: BorderSide(color: TekaColors.border),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 12, 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Badge(
+              isLabelVisible: activeFilterCount > 0,
+              label: Text('$activeFilterCount'),
+              backgroundColor: TekaColors.tekaRed,
+              child: IconButton(
+                onPressed: onFilterPressed,
+                tooltip: 'Trier et filtrer',
+                icon: const Icon(Icons.tune_rounded),
+                style: IconButton.styleFrom(
+                  minimumSize: const Size(44, 44),
+                  foregroundColor: TekaColors.foreground,
+                  backgroundColor: TekaColors.surfaceMuted,
+                  side: const BorderSide(color: TekaColors.border),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

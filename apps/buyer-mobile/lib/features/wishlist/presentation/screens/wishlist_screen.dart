@@ -61,7 +61,13 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
         title: Text("Mes favoris"),
       ),
       body: wishlistState.isLoading
-          ? const ProductGridSkeleton(count: 6)
+          ? ProductGridSkeleton(
+              count: 6,
+              mainAxisExtent: productCardGridExtent(
+                context,
+                variant: ProductCardVariant.catalog,
+              ),
+            )
           : wishlistState.error != null
               ? AppErrorState(
                   message: wishlistState.error,
@@ -83,10 +89,12 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
                       child: GridView.builder(
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.all(16),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 2,
-                          childAspectRatio: kProductCardAspectRatio,
+                          mainAxisExtent: productCardGridExtent(
+                            context,
+                            variant: ProductCardVariant.catalog,
+                          ),
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
                         ),

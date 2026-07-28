@@ -21,7 +21,9 @@ import 'retry_interceptor.dart';
 /// * **Retry** kicks in on transient failures (timeouts, 502/503/504) for
 ///   safe methods (GET/HEAD) or opt-in non-safe methods. Full-jitter
 ///   exponential backoff: 0..500ms, 0..1500ms, 0..4000ms (cap 5s).
-/// * **Log** captures the request/response/error in debug mode.
+/// * **Log** captures request/response/error metadata only. Headers and bodies
+///   are deliberately excluded because they can contain bearer tokens, OTPs,
+///   phone numbers, addresses, and other private user data.
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(BaseOptions(
     baseUrl: ApiConstants.baseUrl,
@@ -53,7 +55,14 @@ final dioProvider = Provider<Dio>((ref) {
   );
   dio.interceptors.add(AuthInterceptor(tokenStorage, refreshDio));
   dio.interceptors.add(RetryInterceptor(client: dio));
-  dio.interceptors.add(LogInterceptor(requestBody: true, responseBody: true));
+  dio.interceptors.add(
+    LogInterceptor(
+      requestHeader: false,
+      requestBody: false,
+      responseHeader: false,
+      responseBody: false,
+    ),
+  );
 
   return dio;
 });
