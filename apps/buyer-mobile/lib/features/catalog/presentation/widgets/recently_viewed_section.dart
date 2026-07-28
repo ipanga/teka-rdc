@@ -27,7 +27,7 @@ class RecentlyViewedSection extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          "Vus recemment",
+          "Vus récemment",
           style: Theme.of(context)
               .textTheme
               .titleMedium
@@ -35,14 +35,21 @@ class RecentlyViewedSection extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 260,
+          height: productCardRowExtent(
+            context,
+            variant: ProductCardVariant.discovery,
+            itemWidth: 150,
+          ),
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: items.length,
             separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (context, i) => SizedBox(
               width: 150,
-              child: ProductCard(product: items[i]),
+              child: ProductCard(
+                product: items[i],
+                variant: ProductCardVariant.discovery,
+              ),
             ),
           ),
         ),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/teka_colors.dart';
 import '../../../core/widgets/app_bar_actions.dart';
+import '../../../core/widgets/commerce_header.dart';
 import '../../../core/widgets/product_skeletons.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../../catalog/data/models/category_model.dart';
@@ -100,21 +101,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
 
     return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: 72,
-        title: _HomeAppBarTitle(
-          cityName: cityName,
-          cityAccent: cityAccent,
-          onCityTap: () => context.push('/city-selection'),
-        ),
-        actions: [
-          _HomeNotificationAction(
-            unreadCount: unreadNotifications,
-            onPressed: () => context.push('/notifications'),
-          ),
-          const SizedBox(width: 12),
-        ],
-      ),
       floatingActionButton: AnimatedScale(
         scale: _showScrollToTop ? 1 : 0,
         duration: const Duration(milliseconds: 200),
@@ -158,72 +144,136 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 .catchError((_) => <BrowseProductModel>[]),
           ]);
         },
-        child: ListView(
+        child: CustomScrollView(
           controller: _scrollController,
-          children: [
-            // Prominent search entry — search is an action, not a tab, so it
-            // lives at the top of the home feed (taps open the search screen).
-            const _HomeSearchBar(),
-
-            // City hero — premium, city-branded header (mirrors the web city
-            // landing hero). Renders nothing until a town is selected.
-            const SizedBox(height: 8),
-            const CityHero(),
-            const SizedBox(height: 8),
-
-            // Banner carousel
-            const BannerCarousel(),
-            const SizedBox(height: 16),
-
-            // Categories strip
-            _SectionHeader(
-              title: "Catégories",
-              onSeeAll: null,
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            HomeCommerceHeader(
+              onSearchPressed: () => context.push('/search'),
+              expandedContent: Row(
+                children: [
+                  Expanded(
+                    child: _HomeAppBarTitle(
+                      cityName: cityName,
+                      cityAccent: cityAccent,
+                      onCityTap: () => context.push('/city-selection'),
+                    ),
+                  ),
+                  _HomeNotificationAction(
+                    unreadCount: unreadNotifications,
+                    onPressed: () => context.push('/notifications'),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
-            categories.when(
-              data: (cats) => SizedBox(
-                height: 118,
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  // Vertical padding gives the tile shadows room (the list clips
-                  // to its bounds).
-                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
-                  itemCount: cats.length,
-                  separatorBuilder: (_, __) => const SizedBox(width: 10),
-                  itemBuilder: (context, index) => CategoryCircle(
-                    category: cats[index],
+            SliverList(
+              delegate: SliverChildListDelegate([
+                // City hero — premium, city-branded header (mirrors the web city
+                // landing hero). Renders nothing until a town is selected.
+                const SizedBox(height: 8),
+                const CityHero(),
+                const SizedBox(height: 8),
+
+                // Banner carousel
+                const BannerCarousel(),
+                const SizedBox(height: 16),
+
+                // Categories strip
+                _SectionHeader(
+                  title: "Catégories",
+                  onSeeAll: null,
+                ),
+                const SizedBox(height: 8),
+                categories.when(
+                  data: (cats) => SizedBox(
+                    height: 118,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      // Vertical padding gives the tile shadows room (the list clips
+                      // to its bounds).
+                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+                      itemCount: cats.length,
+                      separatorBuilder: (_, __) => const SizedBox(width: 10),
+                      itemBuilder: (context, index) => CategoryCircle(
+                        category: cats[index],
+                      ),
+                    ),
+                  ),
+                  loading: () => const SizedBox(
+                    height: 118,
+                    child: _CategoryStripSkeleton(),
+                  ),
+                  error: (_, __) => _InlineFeedState(
+                    icon: Icons.grid_view_rounded,
+                    title: "Catégories indisponibles",
+                    message:
+                        "Vérifiez votre connexion puis tirez pour actualiser.",
+                    onRetry: () => ref.invalidate(categoriesProvider),
                   ),
                 ),
-              ),
-              loading: () => const SizedBox(
-                height: 118,
-                child: _CategoryStripSkeleton(),
-              ),
-              error: (_, __) => _InlineFeedState(
-                icon: Icons.grid_view_rounded,
-                title: "Catégories indisponibles",
-                message: "Vérifiez votre connexion puis tirez pour actualiser.",
-                onRetry: () => ref.invalidate(categoriesProvider),
-              ),
-            ),
 
-            const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-            // Promotions (horizontal scroll) — only shown when promos exist.
-            promo.maybeWhen(
-              data: (products) => products.isEmpty
-                  ? const SizedBox.shrink()
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _SectionHeader(
-                          title: "Promotions",
-                          onSeeAll: () => context.push('/promotions'),
+                // Promotions (horizontal scroll) — only shown when promos exist.
+                promo.maybeWhen(
+                  data: (products) => products.isEmpty
+                      ? const SizedBox.shrink()
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _SectionHeader(
+                              title: "Promotions",
+                              onSeeAll: () => context.push('/promotions'),
+                            ),
+                            const SizedBox(height: 8),
+                            SizedBox(
+                              height: productCardRowExtent(
+                                context,
+                                variant: ProductCardVariant.discovery,
+                                itemWidth: 160,
+                              ),
+                              child: ListView.separated(
+                                scrollDirection: Axis.horizontal,
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                itemCount: products.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 12),
+                                itemBuilder: (context, index) => SizedBox(
+                                  width: 160,
+                                  child: ProductCard(
+                                    product: products[index],
+                                    variant: ProductCardVariant.discovery,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
                         ),
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          height: 280,
+                  orElse: () => const SizedBox.shrink(),
+                ),
+
+                // Popular products (horizontal scroll)
+                _SectionHeader(
+                  title: "Produits populaires",
+                  onSeeAll: null,
+                ),
+                const SizedBox(height: 8),
+                popular.when(
+                  data: (products) => products.isEmpty
+                      ? const _InlineFeedState(
+                          icon: Icons.inventory_2_outlined,
+                          title: "Aucun produit populaire",
+                          message:
+                              "Les produits de votre ville apparaîtront ici.",
+                        )
+                      : SizedBox(
+                          height: productCardRowExtent(
+                            context,
+                            variant: ProductCardVariant.discovery,
+                            itemWidth: 160,
+                          ),
                           child: ListView.separated(
                             scrollDirection: Axis.horizontal,
                             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -232,114 +282,95 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 const SizedBox(width: 12),
                             itemBuilder: (context, index) => SizedBox(
                               width: 160,
-                              child: ProductCard(product: products[index]),
+                              child: ProductCard(
+                                product: products[index],
+                                variant: ProductCardVariant.discovery,
+                              ),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 24),
-                      ],
+                  loading: () => ProductRowSkeleton(
+                    height: productCardRowExtent(
+                      context,
+                      variant: ProductCardVariant.discovery,
+                      itemWidth: 160,
                     ),
-              orElse: () => const SizedBox.shrink(),
-            ),
+                  ),
+                  error: (_, __) => _InlineFeedState(
+                    icon: Icons.wifi_off_rounded,
+                    title: "Produits indisponibles",
+                    message: "Impossible de charger les produits populaires.",
+                    onRetry: () => ref.invalidate(popularProductsProvider),
+                  ),
+                ),
 
-            // Popular products (horizontal scroll)
-            _SectionHeader(
-              title: "Produits populaires",
-              onSeeAll: null,
-            ),
-            const SizedBox(height: 8),
-            popular.when(
-              data: (products) => products.isEmpty
-                  ? const _InlineFeedState(
-                      icon: Icons.inventory_2_outlined,
-                      title: "Aucun produit populaire",
-                      message: "Les produits de votre ville apparaîtront ici.",
-                    )
-                  : SizedBox(
-                      // 160 (square image) + 22 (vertical padding) + ~85
-                      // (title 2-line + 6 + price + 4 + seller) ≈ 267.
-                      // Bumped from 260 to give a few px of safety after
-                      // the home screen showed "BOTTOM OVERFLOWED BY 7.0
-                      // PIXELS" on the 2026-05-23 smoke.
-                      height: 280,
-                      child: ListView.separated(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: products.length,
-                        separatorBuilder: (_, __) => const SizedBox(width: 12),
-                        itemBuilder: (context, index) => SizedBox(
-                          width: 160,
-                          child: ProductCard(product: products[index]),
+                const SizedBox(height: 24),
+
+                // Newest products (grid)
+                _SectionHeader(
+                  title: "Nouveautés",
+                  onSeeAll: null,
+                ),
+                const SizedBox(height: 8),
+                newest.when(
+                  data: (products) => products.isEmpty
+                      ? const _InlineFeedState(
+                          icon: Icons.new_releases_outlined,
+                          title: "Aucune nouveauté",
+                          message: "Les nouveaux produits apparaîtront ici.",
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              mainAxisExtent: productCardGridExtent(
+                                context,
+                                variant: ProductCardVariant.discovery,
+                              ),
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                            ),
+                            itemCount: products.length,
+                            itemBuilder: (context, index) => ProductCard(
+                              product: products[index],
+                              variant: ProductCardVariant.discovery,
+                            ),
+                          ),
                         ),
-                      ),
+                  loading: () => ProductGridSkeleton(
+                    count: 6,
+                    mainAxisExtent: productCardGridExtent(
+                      context,
+                      variant: ProductCardVariant.discovery,
                     ),
-              loading: () => const ProductRowSkeleton(),
-              error: (_, __) => _InlineFeedState(
-                icon: Icons.wifi_off_rounded,
-                title: "Produits indisponibles",
-                message: "Impossible de charger les produits populaires.",
-                onRetry: () => ref.invalidate(popularProductsProvider),
-              ),
+                  ),
+                  error: (_, __) => _InlineFeedState(
+                    icon: Icons.wifi_off_rounded,
+                    title: "Nouveautés indisponibles",
+                    message: "Impossible de charger les derniers produits.",
+                    onRetry: () => ref.invalidate(newestProductsProvider),
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Flash deals section (self-hides when there are no active deals).
+                const FlashDealsSection(),
+
+                // Recently viewed (client-local; self-hides until the buyer has
+                // viewed products).
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: RecentlyViewedSection(),
+                ),
+
+                const SizedBox(height: 24),
+              ]),
             ),
-
-            const SizedBox(height: 24),
-
-            // Newest products (grid)
-            _SectionHeader(
-              title: "Nouveautés",
-              onSeeAll: null,
-            ),
-            const SizedBox(height: 8),
-            newest.when(
-              data: (products) => products.isEmpty
-                  ? const _InlineFeedState(
-                      icon: Icons.new_releases_outlined,
-                      title: "Aucune nouveauté",
-                      message: "Les nouveaux produits apparaîtront ici.",
-                    )
-                  : Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          // Shared product-grid cell shape across home,
-                          // category, search, wishlist — see
-                          // kProductCardAspectRatio in product_skeletons.dart.
-                          childAspectRatio: kProductCardAspectRatio,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                        ),
-                        itemCount: products.length,
-                        itemBuilder: (context, index) => ProductCard(
-                          product: products[index],
-                        ),
-                      ),
-                    ),
-              loading: () => const ProductGridSkeleton(count: 6),
-              error: (_, __) => _InlineFeedState(
-                icon: Icons.wifi_off_rounded,
-                title: "Nouveautés indisponibles",
-                message: "Impossible de charger les derniers produits.",
-                onRetry: () => ref.invalidate(newestProductsProvider),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Flash deals section (self-hides when there are no active deals).
-            const FlashDealsSection(),
-
-            // Recently viewed (client-local; self-hides until the buyer has
-            // viewed products).
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: RecentlyViewedSection(),
-            ),
-
-            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -450,6 +481,14 @@ class _CitySwitcherChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A city name sits inside a deliberately compact header chip. Preserve
+    // accessibility growth without letting system-wide 200% text force the
+    // chip over the logo/search boundary; Semantics carries the full name.
+    final requestedScale = MediaQuery.textScalerOf(context).scale(11) / 11;
+    final cityTextScaler = TextScaler.linear(
+      requestedScale.clamp(1.0, 1.4),
+    );
+
     return ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: 190),
       child: Material(
@@ -480,6 +519,7 @@ class _CitySwitcherChip extends StatelessWidget {
                     cityName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    textScaler: cityTextScaler,
                     style: Theme.of(context).textTheme.labelSmall?.copyWith(
                           color: cityAccent,
                           fontSize: 11,
@@ -527,53 +567,6 @@ class _HomeNotificationAction extends StatelessWidget {
       backgroundColor: TekaColors.tekaRed,
       textColor: Colors.white,
       child: icon,
-    );
-  }
-}
-
-/// Tappable search field on the home feed — styled like an input but routes to
-/// the full search screen on tap (the actual query happens there).
-class _HomeSearchBar extends StatelessWidget {
-  const _HomeSearchBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: GestureDetector(
-        onTap: () => context.push('/search'),
-        child: Container(
-          height: 50,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: TekaColors.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: TekaColors.border),
-            boxShadow: [
-              BoxShadow(
-                color: TekaColors.foreground.withValues(alpha: 0.05),
-                blurRadius: 12,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: const Row(
-            children: [
-              Icon(Icons.search_rounded, size: 22, color: TekaColors.tekaRed),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Rechercher des produits...',
-                  style: TextStyle(
-                    color: TekaColors.mutedForeground,
-                    fontSize: 14.5,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

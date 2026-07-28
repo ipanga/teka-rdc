@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/commerce_header.dart';
 import '../../../../core/widgets/product_skeletons.dart';
 import '../../../city/presentation/providers/city_provider.dart';
 import '../providers/catalog_provider.dart';
@@ -20,7 +21,13 @@ class PromotionsScreen extends ConsumerWidget {
 
     Widget body;
     if (state.isLoading && state.products.isEmpty) {
-      body = const ProductGridSkeleton(count: 6);
+      body = ProductGridSkeleton(
+        count: 6,
+        mainAxisExtent: productCardGridExtent(
+          context,
+          variant: ProductCardVariant.catalog,
+        ),
+      );
     } else if (state.products.isEmpty) {
       body = ListView(
         children: [
@@ -29,7 +36,7 @@ class PromotionsScreen extends ConsumerWidget {
             child: Center(
               child: Text(
                 state.error ??
-                    "Aucune promotion en cours pour le moment. Revenez bientot !",
+                    "Aucune promotion en cours pour le moment. Revenez bientôt !",
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: TekaColors.mutedForeground),
               ),
@@ -40,9 +47,12 @@ class PromotionsScreen extends ConsumerWidget {
     } else {
       body = GridView.builder(
         padding: const EdgeInsets.all(16),
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
-          childAspectRatio: kProductCardAspectRatio,
+          mainAxisExtent: productCardGridExtent(
+            context,
+            variant: ProductCardVariant.catalog,
+          ),
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
         ),
@@ -53,7 +63,9 @@ class PromotionsScreen extends ConsumerWidget {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Promotions")),
+      appBar: const CommerceAppBar(
+        searchLabel: 'Rechercher dans Teka...',
+      ),
       body: RefreshIndicator(
         onRefresh: () =>
             ref.read(browseProductsProvider(params).notifier).refresh(),
