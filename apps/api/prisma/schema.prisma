@@ -35,6 +35,12 @@ enum SellerApplicationStatus {
   REJECTED
 }
 
+/// DEPRECATED (2026-07-28) — Teka sells new products only.
+/// Retained for backward compatibility: the column, the enum and the API field
+/// all still exist, every product is NEW, and no UI offers the choice any more.
+/// USED is never written by any current code path. Do not drop either the enum
+/// or `Product.condition` until production has been validated — see
+/// docs/product-condition-deprecation.md.
 enum ProductCondition {
   NEW
   USED
@@ -508,6 +514,7 @@ model Product {
   discountPriceCDF BigInt? // centimes; null = no promotion
   discountPriceUSD BigInt? // cents; optional USD promo price
   quantity        Int              @default(0)
+  /// DEPRECATED — always NEW; see the ProductCondition enum above.
   condition       ProductCondition @default(NEW)
   status          ProductStatus    @default(DRAFT)
   rejectionReason String?
