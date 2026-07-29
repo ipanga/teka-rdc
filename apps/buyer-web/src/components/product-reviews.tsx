@@ -110,37 +110,59 @@ function RatingDistribution({
 // Review modal
 // ========================
 
+/** Shared with the API and buyer-mobile — keep the three in sync. */
+const TITLE_MIN = 5;
+const TITLE_MAX = 100;
+
 function ReviewModal({
   productId,
   orderId,
+  existingReview,
   onClose,
   onSubmitted,
 }: {
   productId: string;
   orderId: string;
+  /** When set, the modal edits this review in place instead of creating one. */
+  existingReview?: Review | null;
   onClose: () => void;
   onSubmitted: () => void;
 }) {
-  const [rating, setRating] = useState(0);
-  const [text, setText] = useState('');
+  const isEditing = !!existingReview;
+  const [rating, setRating] = useState(existingReview?.rating ?? 0);
+  const [title, setTitle] = useState(existingReview?.title ?? '');
+  const [text, setText] = useState(existingReview?.text ?? '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  const trimmedTitle = title.trim();
+  const titleInvalid =
+    trimmedTitle.length < TITLE_MIN || trimmedTitle.length > TITLE_MAX;
+
   async function handleSubmit() {
-    if (rating === 0) return;
+    if (rating === 0 || titleInvalid) return;
     setIsSubmitting(true);
     setError('');
 
     try {
-      await apiFetch('/v1/reviews', {
-        method: 'POST',
-        body: JSON.stringify({
-          productId,
-          orderId,
-          rating,
-          text: text.trim() || undefined,
-        }),
-      });
+      // PATCH updates the existing row — it can never create a second review.
+      await apiFetch(
+        isEditing ? `/v1/reviews/${existingReview!.id}` : '/v1/reviews',
+        {
+          method: isEditing ? 'PATCH' : 'POST',
+          body: JSON.stringify(
+            isEditing
+              ? { rating, title: trimmedTitle, text: text.trim() || undefined }
+              : {
+                  productId,
+                  orderId,
+                  rating,
+                  title: trimmedTitle,
+                  text: text.trim() || undefined,
+                },
+          ),
+        },
+      );
       onSubmitted();
     } catch (err: unknown) {
       const message =
@@ -163,7 +185,7 @@ function ReviewModal({
       <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6 z-10">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-foreground">
-            {"Donner votre avis"}
+            {isEditing ? "Modifier mon avis" : "Donner votre avis"}
           </h3>
           <button
             onClick={onClose}
@@ -183,8 +205,31 @@ function ReviewModal({
           <StarSelector value={rating} onChange={setRating} />
         </div>
 
-        {/* Text area */}
+        {/* Title — required for new and edited reviews alike */}
         <div className="mb-4">
+          <label className="block text-sm font-medium text-foreground mb-2">
+            {"Titre de l'avis"}
+          </label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={"Résumez votre expérience en quelques mots"}
+            maxLength={TITLE_MAX}
+            className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+          />
+          {trimmedTitle.length > 0 && trimmedTitle.length < TITLE_MIN && (
+            <p className="mt-1 text-xs text-destructive">
+              {`Le titre doit contenir au moins ${TITLE_MIN} caractères`}
+            </p>
+          )}
+        </div>
+
+        {/* Comment */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-foreground mb-2">
+            {"Votre avis"}
+          </label>
           <textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -202,7 +247,7 @@ function ReviewModal({
         {/* Submit */}
         <button
           onClick={handleSubmit}
-          disabled={rating === 0 || isSubmitting}
+          disabled={rating === 0 || titleInvalid || isSubmitting}
           className="w-full py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting ? (
@@ -211,7 +256,7 @@ function ReviewModal({
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
           ) : (
-            "Soumettre"
+            isEditing ? "Enregistrer" : "Soumettre"
           )}
         </button>
       </div>
@@ -242,6 +287,8 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
   // the create DTO rejects the submission with a 400.
   const [canReviewOrderId, setCanReviewOrderId] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
+  // When set, the modal opens in edit mode for the buyer's own review.
+  const [editingReview, setEditingReview] = useState<Review | null>(null);
   const [feedback, setFeedback] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -481,17 +528,35 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={() => setConfirmDeleteId(myReview.id)}
-                  className="text-xs text-destructive hover:underline"
-                >
-                  {"Supprimer mon avis"}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => {
+                      setEditingReview(myReview);
+                      setShowModal(true);
+                    }}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    {"Modifier mon avis"}
+                  </button>
+                  <button
+                    onClick={() => setConfirmDeleteId(myReview.id)}
+                    className="text-xs text-destructive hover:underline"
+                  >
+                    {"Supprimer mon avis"}
+                  </button>
+                </div>
               )}
             </div>
           </div>
+          {/* Legacy reviews (pre-2026-07-28) have no title: render nothing
+              rather than an empty heading. */}
+          {myReview.title && (
+            <p className="text-sm font-semibold text-foreground mt-2">
+              {myReview.title}
+            </p>
+          )}
           {myReview.text && (
-            <p className="text-sm text-foreground mt-2">{myReview.text}</p>
+            <p className="text-sm text-foreground mt-1">{myReview.text}</p>
           )}
         </div>
       )}
@@ -520,6 +585,11 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
                     {formatDate(review.createdAt)}
                   </span>
                 </div>
+                {review.title && (
+                  <p className="text-sm font-semibold text-foreground mb-0.5">
+                    {review.title}
+                  </p>
+                )}
                 {review.text && (
                   <p className="text-sm text-muted-foreground">{review.text}</p>
                 )}
@@ -561,12 +631,19 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
         </div>
       )}
 
-      {/* Review modal */}
-      {showModal && canReviewOrderId && (
+      {/* Review modal. In EDIT mode there is no canReviewOrderId — canReview()
+          reports ALREADY_REVIEWED once a review exists — so the guard must not
+          require it. PATCH does not send orderId anyway; the review's link to
+          its delivered order is fixed at creation and is not editable. */}
+      {showModal && (editingReview || canReviewOrderId) && (
         <ReviewModal
           productId={productId}
-          orderId={canReviewOrderId}
-          onClose={() => setShowModal(false)}
+          orderId={canReviewOrderId ?? ''}
+          existingReview={editingReview}
+          onClose={() => {
+            setShowModal(false);
+            setEditingReview(null);
+          }}
           onSubmitted={handleReviewSubmitted}
         />
       )}

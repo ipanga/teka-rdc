@@ -128,6 +128,7 @@ class ReviewsRepository {
     required String productId,
     required String orderId,
     required int rating,
+    required String title,
     String? text,
   }) async {
     final response = await _dio.post(
@@ -136,6 +137,41 @@ class ReviewsRepository {
         'productId': productId,
         'orderId': orderId,
         'rating': rating,
+        'title': title,
+        if (text != null && text.isNotEmpty) 'text': text,
+      },
+    );
+    final responseData = response.data;
+
+    final Map<String, dynamic> reviewJson;
+    if (responseData is Map && responseData['data'] != null) {
+      reviewJson = responseData['data'] as Map<String, dynamic>;
+    } else if (responseData is Map) {
+      reviewJson = Map<String, dynamic>.from(responseData);
+    } else {
+      throw Exception('Invalid review response');
+    }
+
+    return ReviewModel.fromJson(reviewJson);
+  }
+
+  /// Edits the buyer's own review IN PLACE (PATCH). Never creates a second
+  /// review. productId/orderId are deliberately not sent — the link to the
+  /// delivered order is fixed at creation and is not editable.
+  ///
+  /// Not retry-safe by the Rule 15 default (only GET/HEAD are), and correctly
+  /// so: replaying it is harmless but pointless.
+  Future<ReviewModel> updateReview({
+    required String reviewId,
+    required int rating,
+    required String title,
+    String? text,
+  }) async {
+    final response = await _dio.patch(
+      '/v1/reviews/$reviewId',
+      data: {
+        'rating': rating,
+        'title': title,
         if (text != null && text.isNotEmpty) 'text': text,
       },
     );

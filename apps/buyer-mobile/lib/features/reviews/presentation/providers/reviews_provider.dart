@@ -180,6 +180,7 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
   Future<bool> submitReview({
     required String orderId,
     required int rating,
+    required String title,
     String? text,
   }) async {
     state = state.copyWith(isSubmitting: true, clearError: true);
@@ -188,6 +189,7 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
         productId: _productId,
         orderId: orderId,
         rating: rating,
+        title: title,
         text: text,
       );
       if (!mounted) return true;
@@ -208,6 +210,60 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
           canReview: false,
           reason: 'ALREADY_REVIEWED',
         ),
+      );
+      return true;
+    } on DioException catch (e) {
+      if (!mounted) return false;
+      state = state.copyWith(
+        isSubmitting: false,
+        error: extractDioErrorMessage(e),
+      );
+      return false;
+    } catch (e) {
+      if (!mounted) return false;
+      state = state.copyWith(
+        isSubmitting: false,
+        error: friendlyErrorMessage(e),
+      );
+      return false;
+    }
+  }
+
+  /// Edits the buyer's own review IN PLACE. Never creates a second review —
+  /// the API locates the row by id and enforces ownership, and the
+  /// buyer+product uniqueness constraint would reject a duplicate anyway.
+  ///
+  /// Moderation status is preserved server-side: a HIDDEN review stays hidden
+  /// after an edit, so editing cannot launder moderated content.
+  Future<bool> updateReview({
+    required String reviewId,
+    required int rating,
+    required String title,
+    String? text,
+  }) async {
+    state = state.copyWith(isSubmitting: true, clearError: true);
+    try {
+      final review = await _repository.updateReview(
+        reviewId: reviewId,
+        rating: rating,
+        title: title,
+        text: text,
+      );
+      if (!mounted) return true;
+
+      // Refresh the aggregates + list: a rating change moves the average, and
+      // the edited body must replace the stale copy in the list.
+      final statsResult = await _repository.getReviewStats(_productId);
+      final reviewsResult = await _repository.getProductReviews(_productId);
+      if (!mounted) return true;
+
+      state = state.copyWith(
+        myReview: review,
+        stats: statsResult,
+        reviews: reviewsResult.data,
+        page: reviewsResult.page,
+        totalPages: reviewsResult.totalPages,
+        isSubmitting: false,
       );
       return true;
     } on DioException catch (e) {

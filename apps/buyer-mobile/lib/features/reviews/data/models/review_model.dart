@@ -4,6 +4,10 @@ class ReviewModel {
   final String buyerId;
   final String orderId;
   final int rating;
+  /// Short headline. NULLABLE by design: reviews written before 2026-07-28
+  /// have none and must render without an empty title gap. The API requires
+  /// one for new and edited reviews.
+  final String? title;
   final String? text;
   final String status;
   final String createdAt;
@@ -15,6 +19,7 @@ class ReviewModel {
     required this.buyerId,
     required this.orderId,
     required this.rating,
+    this.title,
     this.text,
     required this.status,
     required this.createdAt,
@@ -28,6 +33,7 @@ class ReviewModel {
       buyerId: json['buyerId'] as String? ?? '',
       orderId: json['orderId'] as String? ?? '',
       rating: json['rating'] as int? ?? 0,
+      title: json['title'] as String?,
       text: json['text'] as String?,
       status: json['status'] as String? ?? 'APPROVED',
       createdAt: json['createdAt']?.toString() ?? '',
