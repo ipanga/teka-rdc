@@ -5,8 +5,10 @@ Umbrella tracker for the seven-priority initiative. Per-topic detail lives in
 [`review-title-and-editing.md`](./review-title-and-editing.md); this file is the index, the status
 board and the deployment/rollback reference.
 
-**Status:** priorities 1–6 shipped to `develop`. Priority 7 (web parity) delivered inside 1–3 and 6.
-Runtime regression partially blocked — see [Phase 8](#phase-8--regression-testing).
+**Status:** priorities 1–5 merged into `develop`; **6 (#586) and 4 (#587) are open**. Priority 7 (web
+parity) was delivered inside 1–3 and 6. Runtime verified on the **iOS Simulator** against production
+data; gesture-dependent and review-write checks remain outstanding for the stated reasons — see
+[Phase 8](#phase-8--regression-testing).
 **Nothing has been merged to `main`.**
 
 ## Priorities → PRs
@@ -92,39 +94,71 @@ column can be left in place harmlessly.
 | Surface | Result |
 |---|---|
 | Backend API | **243 unit + 118 e2e** |
-| buyer-mobile | **190** (192 with both open PRs merged together) |
+| buyer-mobile | **192** on #587; **194** with both open PRs merged together |
 | seller-mobile | **31** |
 | buyer-web / seller-web / admin-web / shared | `type-check` clean, `lint` 0 errors |
 | `flutter analyze` | 0 errors, 0 warnings in `lib/` + `test/` on both apps |
 
-Both open PRs (#586, #587) were merged into a scratch branch and the suite re-run — **192 pass**, so
+Both open PRs (#586, #587) were merged into a scratch branch and the suite re-run — **194 pass**, so
 they are compatible with each other and with `develop`.
 
-### Runtime — blocked by the emulator, not by the code
+### Runtime — iOS Simulator pass (2026-07-30)
 
-The Android emulator's **DNS resolution is broken**: `ping api.teka.cd` → `unknown host`, and
-Android's own `NetworkMonitor` DNS probe times out after 10s. The host resolves the same domain fine
-(`curl https://api.teka.cd/...` → 200), so this is the emulator's network stack. Every screen sits in
-its loading skeleton, which makes a visual pass meaningless.
+The **Android emulator remains unusable**: its DNS resolution is broken (`ping api.teka.cd` →
+`unknown host`, Android's own `NetworkMonitor` DNS probe times out after 10s) while the host resolves
+the same domain fine (`curl https://api.teka.cd/...` → 200). Every screen sits in its loading
+skeleton there, so a visual pass is meaningless.
 
-**Not attempted, therefore not claimed.** The following still need a working device or emulator:
+The **iOS Simulator works**. Build: `flutter build ios --simulator --debug --flavor production
+--dart-define-from-file=flavors/production.json` on a scratch branch carrying merged `develop` **plus
+both open PRs** (#586 + #587), installed on `iPhone 17 Pro`, running against live `api.teka.cd` with
+the owner's session already signed in.
 
-| Area | What to verify |
+**Verified — observed on screen against production data:**
+
+| Check | Evidence |
 |---|---|
-| Cart navigation | The icon opens the Panier tab from all eight PDP entry points, no red screen, badge accurate |
-| Product detail | Order: description → Caractéristiques → Vendeur → Avis → similaires |
-| Stock status | En stock / Stock limité / Rupture de stock, never a number; stepper cap message carries no count |
-| Condition | No Neuf badge, no État filter |
-| Price colour | Discounted and undiscounted cards render the same price colour |
-| Reviews | Create with title; edit → same review updates, no duplicate; legacy review shows no empty title gap |
-| Ratings | Average and count update after a rating change, not after a text-only edit |
-| Wishlist | Heart fills from a PDP opened via Order Detail (shortCode route) |
-| Search · Favorites · Checkout · Notifications · Auth | Unchanged by this initiative, but worth a smoke pass |
-| Seller mobile | Product form has no État selector; create + edit still work |
+| Live data + session | Home renders Lubumbashi hero, categories, promotions; cart badge `8`, favourites pre-filled |
+| Deep links → PDP | Four canonical `/{ville}/{slug}-{shortCode}` links opened in-app, incl. a **cross-town** Kolwezi link from a Lubumbashi session |
+| No unit-sold count | Absent on home, promotions, search and all three PDPs |
+| No condition badge | No **Neuf** / **Occasion** anywhere; no État filter |
+| `En stock` | qty-10 PDP — label only, **no number** |
+| `Rupture de stock` | qty-0 PDP — label + disabled CTA, no number |
+| `Stock limité` | qty-1 and qty-2 cards — amber badge, no number |
+| Threshold is 5 | qty-9 card carries **no** badge; qty-1/2 do |
+| Price colour (PDP) | `30 000 FC` and `3.400.000 FC` both neutral, not red |
+| Price colour (cards) | Discounted `65.000 FC` / `195.000 FC` are the **same** colour as undiscounted `210.000 FC` |
+| Discount still legible | `-3%` `-7%` `-14%` `-35%` badges, struck-through originals, `Vous économisez 100.000 FC` |
+| Wishlist / resolved UUID | Heart renders **filled** on a PDP reached by `shortCode` — the identifier fix holds at runtime |
+| Reviews summary | `5,0 · 1 avis` on a reviewed product; `Aucun avis` with no zero-stars on an unreviewed one |
+| Specification + breadcrumb labels | 3-level taxonomy breadcrumbs render labels, not blanks |
+| Search · promotions · category | All three listings load and render cards |
 
-Review **creation and editing cannot be exercised against production** from the owner's personal
-account (standing decision). It needs a test account with a delivered order, or a non-production
-environment.
+**Not verified, and not claimed — no gesture input available.** `xcrun simctl` exposes
+`openurl`, `launch`, `install` and `io screenshot`, but **no tap and no scroll**; neither `idb` nor
+`cliclick` is installed on the host. Navigation was therefore driven entirely by deep links, and
+anything requiring a gesture was not exercised:
+
+| Area | Why not, and what covers it instead |
+|---|---|
+| Cart-icon tap → Panier tab | Needs a tap. Covered by `commerce_cart_button_test.dart` (+3) **and** already verified on the real device (C1) |
+| Section order on screen | Sits far below the fold; needs a scroll. Now pinned by `product_detail_section_order_test.dart` — see below |
+| Quantity stepper cap message | Needs taps on the stepper. Covered by the string being a `const Text` with no interpolation |
+| Add to cart · checkout · favourites toggle · notifications | Need taps; also **write** operations against production, which the standing decision excludes |
+| Review create / edit | Blocked by the standing decision: **no review writes to production from a personal account.** Needs a test account with a delivered order, or a non-production environment |
+| Seller-mobile product form | Not built for the simulator this round; its condition-selector removal is covered by `flutter analyze` + its 31 tests |
+
+Because Priority 4 shipped as a pure block move with no test of its own, the ordering was pinned
+rather than eyeballed: **`test/catalog/product_detail_section_order_test.dart`** asserts
+`Détails du produit` → `Caractéristiques` → `Vendeur:` → `Avis (n)` by vertical position, plus that
+exactly one seller block exists (a move that copied would render two and still look right in a
+screenshot). It was verified to fail against `develop`'s pre-move file — seller at y=1056,
+specifications at y=1183 — so it genuinely catches the regression rather than merely passing.
+
+> Note: running `flutter build ios` leaves `apps/buyer-mobile/build/ios/SourcePackages/`, whose
+> vendored `firebase_messaging` *example* app contributes ~74 analyzer errors to a local
+> `flutter analyze`. They are build artifacts, not repo code — CI analyses a clean tree and passes.
+> Real code has 9 pre-existing `info`s (deprecated `withOpacity`) and zero errors or warnings.
 
 ## Known gaps and recommendations
 
@@ -153,6 +187,7 @@ environment.
 | `product_price_color_test.dart` (+2) | discounted and undiscounted price colours are equal; discount still signalled |
 | `review_title_test.dart` (+6) | legacy review renders no title line; owner-only edit affordance |
 | `commerce_cart_button_test.dart` (+3) | tab opens with no thrown exception; no duplicate Cart stacked |
+| `product_detail_section_order_test.dart` (+2) | section order by vertical position; exactly one seller block. Verified to fail on the pre-move file |
 
 Several of these exist because the review of #580 found that guarantees from earlier PRs were
 protected **only by comments** — and a rewrite is exactly how such a guarantee disappears.
