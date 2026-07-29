@@ -1,3 +1,4 @@
+import '../../../../core/constants/stock.dart';
 class ProductImageModel {
   final String id;
   final String url;
@@ -111,8 +112,13 @@ class BrowseProductModel {
     );
   }
 
-  bool get isLowStock => quantity > 0 && quantity < 5;
-  bool get isOutOfStock => quantity <= 0;
+  // `<= kLowStockThreshold`, not `< 5`: mobile previously disagreed with
+  // buyer-web (which used <= 5), so a product with exactly 5 left showed as
+  // low stock on the web and normal on mobile.
+  bool get isLowStock =>
+      stockStatusFor(quantity) == StockStatus.lowStock;
+  bool get isOutOfStock =>
+      stockStatusFor(quantity) == StockStatus.outOfStock;
 
   /// Whether a valid seller-set promotion is active (discount < regular price).
   bool get hasDiscount {
@@ -284,8 +290,13 @@ class ProductDetailModel {
     );
   }
 
-  bool get isLowStock => quantity > 0 && quantity < 5;
-  bool get isOutOfStock => quantity <= 0;
+  // `<= kLowStockThreshold`, not `< 5`: mobile previously disagreed with
+  // buyer-web (which used <= 5), so a product with exactly 5 left showed as
+  // low stock on the web and normal on mobile.
+  bool get isLowStock =>
+      stockStatusFor(quantity) == StockStatus.lowStock;
+  bool get isOutOfStock =>
+      stockStatusFor(quantity) == StockStatus.outOfStock;
 
   bool get hasDiscount {
     final p = int.tryParse(priceCDF) ?? 0;

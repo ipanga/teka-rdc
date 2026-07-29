@@ -243,23 +243,12 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Condition filter
-                    Text(
-                      "Etat",
-                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      children: [
-                        _buildConditionChip(null, "Tous"),
-                        _buildConditionChip('NEW', "Neuf"),
-                        _buildConditionChip('USED', "Occasion"),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
+                    // The Etat (Neuf / Occasion) filter was removed
+                    // 2026-07-28: Teka sells new products only, so it could
+                    // only filter everything in or everything out. The
+                    // `condition` field stays on ProductFilters and the API
+                    // still accepts the param — see
+                    // docs/product-condition-deprecation.md.
 
                     // Sort options
                     Text(
@@ -508,25 +497,6 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
         ),
       );
     }).toList();
-  }
-
-  Widget _buildConditionChip(String? value, String label) {
-    final isSelected = _condition == value;
-    return ChoiceChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (_) {
-        setState(() => _condition = value);
-      },
-      selectedColor: TekaColors.tekaRed,
-      labelStyle: TextStyle(
-        color: isSelected ? Colors.white : TekaColors.foreground,
-        fontSize: 13,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
-    );
   }
 
   Widget _buildSortOption(String value, String label) {
