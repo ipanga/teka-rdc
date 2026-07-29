@@ -19,6 +19,7 @@ import { track } from '@/lib/analytics';
 import { formatCDF, formatUSD, discountPercent } from '@/lib/format';
 import { Badge, Button, Card, Container, buttonVariants, cn } from '@/components/ui';
 import type { ProductDetail } from '@/lib/types';
+import { stockStatus, stockStatusLabel } from '@teka/shared';
 
 /**
  * @param identifier  Resolver token for the browse API (shortCode / UUID /
@@ -147,7 +148,11 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
   const description = product.description ?? '';
   const images = product.images || [];
   const selectedImage = images[selectedImageIndex] || null;
-  const isOutOfStock = product.quantity <= 0;
+  // Public availability only — `product.quantity` stays internal (it still
+  // drives the quantity picker's max and server-side stock validation) and is
+  // never rendered. Threshold lives once, in @teka/shared.
+  const stock = stockStatus(product.quantity);
+  const isOutOfStock = stock === 'out_of_stock';
   const specs = (product.specifications ?? []).filter(
     (s) => s.name?.trim() && s.value?.trim(),
   );
@@ -332,20 +337,20 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                     </svg>
                     {"Rupture de stock"}
                   </span>
-                ) : product.quantity <= 5 ? (
-                  // Scarcity cue (Phase D): low stock — nudge urgency.
+                ) : stock === 'low_stock' ? (
+                  // Scarcity cue: low stock — nudge urgency, without a count.
                   <span className="inline-flex items-center gap-1.5 text-sm text-warning font-medium">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.48 0L3.16 16.25A2 2 0 005 19z" />
                     </svg>
-                    {`Plus que ${product.quantity} en stock`}
+                    {stockStatusLabel('low_stock')}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-sm text-success font-medium">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    {"En stock"} &middot; {`${product.quantity} disponible(s)`}
+                    {stockStatusLabel('in_stock')}
                   </span>
                 )}
               </div>

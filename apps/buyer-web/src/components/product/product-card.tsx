@@ -8,6 +8,7 @@ import { useCartStore } from '@/lib/cart-store';
 import { formatCDF, formatUSD, discountPercent } from '@/lib/format';
 import { productHref } from '@/lib/urls';
 import type { BrowseProduct } from '@/lib/types';
+import { stockStatus, stockStatusLabel } from '@teka/shared';
 
 interface ProductCardProps {
   product: BrowseProduct;
@@ -43,10 +44,11 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const title = product.title;
   const imageUrl = product.image?.thumbnailUrl || product.image?.url;
-  const outOfStock = product.quantity <= 0;
-  // Scarcity cue (Phase D): in stock but running low. Threshold mirrors
-  // buyer-mobile's isLowStock (≤ 5).
-  const lowStock = !outOfStock && product.quantity <= 5;
+  // Public availability only — the exact quantity is internal and is never
+  // rendered. Threshold lives once, in @teka/shared.
+  const stock = stockStatus(product.quantity);
+  const outOfStock = stock === 'out_of_stock';
+  const lowStock = stock === 'low_stock';
 
   // Promotional price (seller-set). When present, show the discounted price
   // with the original struck through + a −X% badge. The API guarantees
@@ -128,7 +130,7 @@ export function ProductCard({ product }: ProductCardProps) {
             )}
             {lowStock && (
               <span className="rounded-md bg-warning px-2 py-0.5 text-[11px] font-semibold text-foreground shadow-md">
-                {`🔥 Plus que ${product.quantity} disponible${product.quantity > 1 ? 's' : ''}`}
+                {`🔥 ${stockStatusLabel('low_stock')}`}
               </span>
             )}
           </div>
