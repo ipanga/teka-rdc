@@ -1,4 +1,4 @@
-# Status — 2026-07-26
+# Status — 2026-07-30
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,27 +6,36 @@
 
 ## Active initiative
 
-**Mobile connectivity UX · product-detail cleanup · rating/identifier fixes** — branch
-`fix/mobile-connectivity-toast` (base `develop`), **6 commits, code complete, not yet opened as PRs.**
-Tracker: `docs/mobile-product-detail-rating-connectivity-fixes.md`.
+**New-only catalog · internal stock · review titles + editing · product-detail polish** — seven
+priorities, PRs #580–#588 into `develop`. Umbrella tracker:
+`docs/new-only-stock-review-product-detail-fixes.md` (per-topic detail in
+`docs/product-condition-deprecation.md` + `docs/review-title-and-editing.md`).
+**Nothing has been merged to `main`.**
 
-Nine device-reported symptoms → five independent root causes (symptoms 6–9 were one identifier bug).
-**PR1** connectivity banner → floating toast, both Flutter apps (no layout shift, ~1 toast/min under
-flapping; seller-mobile's first connectivity tests) · **PR2** public "X vendus" removed from cards +
-PDP (mobile + web; `unitsSold` stays in the API as the popularity sort key) · **PR3** share hardened
-(three silent-failure paths now report + tell the user) + support block removed · **PR4**
-specification labels flattened in the API (fixed blank labels on buyer-mobile, buyer-web **and**
-admin-web at once) · **PR5** PDP passes the resolved product uuid to reviews/wishlist/related and
-Order Detail's rating CTA uses the uuid — kills "Validation failed (uuid is expected)"; French
-`UuidParam` + error-helper backstops, no API contract change · **PR6** docs.
+**Merged into `develop`:** **#580** (pre-existing Codex work, reviewed as its own PR because it had
+rewritten the target files) · **#581** PDP cart icon (`push` → `go`; `/cart` is a shell-branch route
+and pushing one throws) · **#582 + #585** condition **deprecated, not dropped** (column/enum/API field
+and JSON-LD `NewCondition` all stay; badge, État facet and seller selector gone) · **#583 + #585**
+exact stock is internal — `En stock` / `Stock limité` / `Rupture de stock`, never a number; threshold
+audited at ≤5 (mobile had `< 5`, web `<= 5`) and centralised · **#584** nullable `Review.title` +
+`PATCH /v1/reviews/:id` updating in place, title optional on create / required on edit.
 
-Green: API 229 unit + 118 e2e, buyer-mobile 156, seller-mobile 31, web type-checks, analyze clean.
-**No DB migration, no env var, no deploy ordering.**
+**Still open:** **#586** discounted price keeps one colour · **#587** seller info sits immediately
+before the ratings (+ its new ordering test) · **#588** docs.
 
-**Next:** open the 6 PRs into `develop` in order (2, 3 and 5 stack on `product_detail_screen.dart`),
-then the on-device pass — real share sheet, real 2G/3G flapping, App Links from WhatsApp, and an
-end-to-end rating submission. None of those can be claimed from this environment (no device attached,
-cloud DB unreachable from the build env).
+Green: API **243 unit + 118 e2e**, buyer-mobile **194** (with both open PRs), seller-mobile **31**,
+web type-check + lint clean. Runtime verified on the **iOS Simulator** against live `api.teka.cd`.
+
+**One prod migration:** `manual/2026-07-28_review_title.sql` — additive, idempotent, in
+`auto-apply.list`, so `deploy.yml` applies it before the rolling swap. No env var. Deploy order is in
+the tracker; steps can be spread over days.
+
+**Next:** merge #586, #587, #588. Then the checks this environment cannot make:
+`xcrun simctl` has no tap or scroll (no `idb`/`cliclick` on the host) so gesture flows — add to cart,
+checkout, favourites toggle, the stepper cap message — are covered by widget tests rather than
+claimed; the Android emulator's DNS is broken; and **review create/edit stays unverified at runtime by
+standing decision — no review writes to production from a personal account.** It needs a test account
+with a delivered order, or a non-production environment.
 
 > **DONE 2026-07-25 — buyer cart nav · notifications · help pages · account deletion · app-review login**
 > (8 PRs #558–#564 merged to `develop`). Six device-reported buyer issues, each root-caused, web/mobile parity.
