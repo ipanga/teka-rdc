@@ -413,72 +413,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                               const Divider(color: TekaColors.border),
                               const SizedBox(height: 12),
 
-                              // Seller info
-                              if (product.seller.businessName != null &&
-                                  product.seller.businessName!.isNotEmpty) ...[
-                                Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.storefront_outlined,
-                                      size: 20,
-                                      color: TekaColors.mutedForeground,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      '${"Vendeur"}: ',
-                                      style: const TextStyle(
-                                        color: TekaColors.mutedForeground,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    Flexible(
-                                      child: Text(
-                                        product.seller.businessName!,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          color: TekaColors.foreground,
-                                          fontWeight: FontWeight.w600,
-                                          fontSize: 14,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 6),
-                                    // Officiel (platform seller) / Vérifié badge.
-                                    Icon(
-                                      Icons.verified,
-                                      size: 15,
-                                      color: product.seller.businessName ==
-                                              'Teka RDC Officiel'
-                                          ? TekaColors.tekaRed
-                                          : TekaColors.success,
-                                    ),
-                                    const SizedBox(width: 2),
-                                    Text(
-                                      product.seller.businessName ==
-                                              'Teka RDC Officiel'
-                                          ? "Officiel"
-                                          : "Vérifié",
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                        color: product.seller.businessName ==
-                                                'Teka RDC Officiel'
-                                            ? TekaColors.tekaRed
-                                            : TekaColors.success,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                // Direct buyer↔seller messaging was retired
-                                // 2026-05-17; the support pointer that stood
-                                // here was removed 2026-07-26 (support lives in
-                                // Compte → Aide and /contact). The seller name
-                                // + city above are the entire seller card now.
-                                const SizedBox(height: 16),
-                                const Divider(color: TekaColors.border),
-                                const SizedBox(height: 12),
-                              ],
-
                               // Description
                               if (description.isNotEmpty) ...[
                                 Text(
@@ -562,6 +496,72 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                       )
                                       .toList(),
                                 ),
+                                const SizedBox(height: 16),
+                                const Divider(color: TekaColors.border),
+                                const SizedBox(height: 12),
+                              ],
+
+                              // Seller info
+                              if (product.seller.businessName != null &&
+                                  product.seller.businessName!.isNotEmpty) ...[
+                                Row(
+                                  children: [
+                                    const Icon(
+                                      Icons.storefront_outlined,
+                                      size: 20,
+                                      color: TekaColors.mutedForeground,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '${"Vendeur"}: ',
+                                      style: const TextStyle(
+                                        color: TekaColors.mutedForeground,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                    Flexible(
+                                      child: Text(
+                                        product.seller.businessName!,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: TekaColors.foreground,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    // Officiel (platform seller) / Vérifié badge.
+                                    Icon(
+                                      Icons.verified,
+                                      size: 15,
+                                      color: product.seller.businessName ==
+                                              'Teka RDC Officiel'
+                                          ? TekaColors.tekaRed
+                                          : TekaColors.success,
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Text(
+                                      product.seller.businessName ==
+                                              'Teka RDC Officiel'
+                                          ? "Officiel"
+                                          : "Vérifié",
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                        color: product.seller.businessName ==
+                                                'Teka RDC Officiel'
+                                            ? TekaColors.tekaRed
+                                            : TekaColors.success,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                // Direct buyer↔seller messaging was retired
+                                // 2026-05-17; the support pointer that stood
+                                // here was removed 2026-07-26 (support lives in
+                                // Compte → Aide and /contact). The seller name
+                                // + city above are the entire seller card now.
                                 const SizedBox(height: 16),
                                 const Divider(color: TekaColors.border),
                                 const SizedBox(height: 12),
