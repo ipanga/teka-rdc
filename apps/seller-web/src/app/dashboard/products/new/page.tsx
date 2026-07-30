@@ -33,7 +33,8 @@ export default function NewProductPage() {
   const [priceUSD, setPriceUSD] = useState('');
   const [discountPriceCDF, setDiscountPriceCDF] = useState('');
   const [quantity, setQuantity] = useState('1');
-  const [condition, setCondition] = useState<'NEW' | 'USED'>('NEW');
+  // Deprecated as a seller choice (2026-07-28) — new products only.
+  const condition = 'NEW' as const;
   const [specifications, setSpecifications] = useState<{ attributeId: string; value: string }[]>([]);
 
   const handleSpecificationsChange = useCallback((specs: { attributeId: string; value: string }[]) => {
@@ -231,36 +232,10 @@ export default function NewProductPage() {
               />
             </div>
 
-            {/* Condition */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                Condition
-              </label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="condition"
-                    value="NEW"
-                    checked={condition === 'NEW'}
-                    onChange={() => setCondition('NEW')}
-                    className="accent-primary"
-                  />
-                  <span className="text-sm text-foreground">Neuf</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="condition"
-                    value="USED"
-                    checked={condition === 'USED'}
-                    onChange={() => setCondition('USED')}
-                    className="accent-primary"
-                  />
-                  <span className="text-sm text-foreground">Occasion</span>
-                </label>
-              </div>
-            </div>
+            {/* The Neuf / Occasion selector was removed 2026-07-28: Teka
+                accepts new products only, so the choice was misleading.
+                `condition` is still submitted as NEW to keep the API contract
+                unchanged — see docs/product-condition-deprecation.md. */}
           </div>
         </div>
 

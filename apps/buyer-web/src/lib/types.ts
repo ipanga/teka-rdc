@@ -51,8 +51,8 @@ export interface BrowseProduct {
   cityId?: string | null;
   citySlug?: string | null;
   cityName?: string | null;
-  // Best-seller social proof: total delivered units. Rendered as "X vendus"
-  // only when > 0.
+  // Total delivered units. NOT rendered publicly (removed 2026-07-26) — kept
+  // on the payload because it is the API's popularity sort key.
   unitsSold?: number | null;
   // Rating social proof — denormalized on Product. Stars render only when
   // totalReviews > 0.
@@ -62,11 +62,16 @@ export interface BrowseProduct {
   brand?: { name: string } | null;
 }
 
-/** Specification item */
+/**
+ * Specification item. The API flattens the attribute label onto `name` (the
+ * raw Prisma row nests it under `attribute.name`, which is why labels used to
+ * render blank) and orders the list by the attribute's configured sortOrder.
+ */
 export interface ProductSpecification {
   id: string;
   name: string;
   value: string;
+  sortOrder?: number;
 }
 
 /** Full product detail from GET /api/v1/browse/products/:id */
@@ -322,6 +327,12 @@ export interface DeliveryEstimate {
 
 /** Review from API */
 export interface Review {
+  /**
+   * Short headline. NULLABLE by design: reviews written before 2026-07-28 have
+   * none and must render without an empty title gap. Required by the API for
+   * new and edited reviews — see docs/review-title-and-editing.md.
+   */
+  title?: string | null;
   id: string;
   productId: string;
   userId: string;

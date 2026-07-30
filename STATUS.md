@@ -1,4 +1,4 @@
-# Status — 2026-07-24
+# Status — 2026-07-30
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,7 +6,43 @@
 
 ## Active initiative
 
-**None.** The buyer initiative below merged to `develop` on 2026-07-25.
+**None.** The new-only catalog initiative closed 2026-07-30 — see below. Do not infer an active
+initiative from a plan file in `~/.claude/plans/`; cross-reference it against this section and git
+history first.
+
+## Closed 2026-07-30 — new-only catalog · internal stock · review titles + editing · PDP polish
+
+Seven priorities, PRs **#580–#588, all merged into `develop`** (develop head `353033b`). Umbrella
+tracker: `docs/new-only-stock-review-product-detail-fixes.md` (per-topic detail in
+`docs/product-condition-deprecation.md` + `docs/review-title-and-editing.md`); full narrative in
+`PROGRESS.md`. **Nothing has been merged to `main` — `origin/main` is still `4e2186b` (2026-07-25).**
+
+**#580** pre-existing unpushed work, reviewed as its own PR because it had rewritten the target files ·
+**#581** PDP cart icon (`push` → `go`; `/cart` is a shell-branch route and pushing one throws) ·
+**#582 + #585** condition **deprecated, not dropped** (column/enum/API field and JSON-LD
+`NewCondition` all stay; badge, État facet and seller selector gone) · **#583 + #585** exact stock is
+internal — `En stock` / `Stock limité` / `Rupture de stock`, never a number; threshold audited at ≤5
+(mobile had `< 5`, web `<= 5`) and centralised · **#584** nullable `Review.title` +
+`PATCH /v1/reviews/:id` updating in place, title optional on create / required on edit ·
+**#586** the current price keeps one colour whether or not discounted · **#587** seller info sits
+immediately before the ratings, with an ordering test verified to fail on the pre-move file ·
+**#588** docs.
+
+Green on merged `develop`: API **243 unit + 118 e2e**, buyer-mobile **194**, seller-mobile **31**,
+`pnpm type-check` clean, buyer-web lint 0 errors, `flutter analyze` 0 errors/warnings in `lib/`+`test/`
+on both apps. Runtime verified on the **iOS Simulator** against live `api.teka.cd`.
+
+**Not verified, by constraint rather than omission:** `xcrun simctl` has no tap or scroll (no
+`idb`/`cliclick` on the host), so gesture flows — add to cart, checkout, favourites toggle, the stepper
+cap message — are covered by widget tests rather than claimed; the Android emulator's DNS is broken;
+and **review create/edit is unverified at runtime by standing decision — no review writes to production
+from a personal account.** That one needs a test account with a delivered order, or a non-production
+environment.
+
+**Release:** promoting to `main` requires one prod migration —
+`manual/2026-07-28_review_title.sql`, additive + idempotent, already listed in `auto-apply.list`, so
+`deploy.yml` applies it **before** the rolling swap. No new env var. Deploy order + rollback are in the
+tracker. **A `develop → main` PR has deliberately not been opened.**
 
 > **DONE 2026-07-25 — buyer cart nav · notifications · help pages · account deletion · app-review login**
 > (8 PRs #558–#564 merged to `develop`). Six device-reported buyer issues, each root-caused, web/mobile parity.
@@ -705,6 +741,25 @@ mobile auth-required (web guest flows N/A on native). P6 close-out also slimmed 
 (buyer 71 / seller 3); teka.cd + api healthy. Full narrative in `PROGRESS.md`.
 
 ## Deferred / backlog (future maintenance)
+
+- **API lint is unenforced, and running it rewrites the tree** *(recorded 2026-07-30; needs its own
+  focused task — deliberately NOT touched during the new-only catalog initiative).* Three separate
+  facts, all pre-existing:
+  1. **`pnpm lint` mutates files.** `apps/api`'s script is `eslint "{src,apps,libs,test}/**/*.ts"
+     **--fix**`, so merely *checking* lint rewrites source. This is where the recurring "28 modified
+     `apps/api` files that nobody edited" comes from — a run during this initiative reproduced that
+     working-tree diff **byte-for-byte identical** to a backup taken beforehand, which is what
+     identified the cause. Anyone who runs `pnpm lint` will see it again.
+  2. **CI does not lint.** The workflow job named **"Lint & Type Check"** (`.github/workflows/ci.yml`)
+     runs `pnpm type-check` only — there is no `pnpm lint` step. The name implies a guarantee that is
+     not enforced anywhere.
+  3. **There is a real backlog behind it:** `pnpm lint` currently reports **943 errors / 218 warnings**
+     in `apps/api` (mostly `@typescript-eslint/no-unsafe-*` around untyped Prisma/JSON boundaries).
+     `buyer-web` is clean (0 errors, 5 warnings); the Flutter apps are analysed separately and pass.
+
+  A fix has to sequence these: split a non-mutating `lint` from a `lint:fix`, land the formatting-only
+  reflow as one reviewable commit, burn down or explicitly `.eslintrc`-waive the 943, and only then add
+  the CI step — adding the step first would red-wall every PR.
 
 - **seller-mobile dashboard stats breakdown** (product status counts + avg rating) and **PDP
   related-products section** — the two optional/cosmetic items from the Mobile Parity Sweep P5.

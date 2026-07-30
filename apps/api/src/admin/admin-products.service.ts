@@ -127,6 +127,7 @@ export class AdminProductsService {
         images: { orderBy: { displayOrder: 'asc' } },
         specifications: {
           include: { attribute: true },
+          orderBy: { attribute: { sortOrder: 'asc' } },
         },
         category: true,
         seller: {
@@ -156,7 +157,20 @@ export class AdminProductsService {
       throw new NotFoundException('Produit non trouvé');
     }
 
-    return product;
+    // Flatten `attribute.name` onto the spec, mirroring the buyer detail
+    // endpoint — the admin product page reads `spec.name`, which the raw
+    // Prisma include never provided.
+    const { specifications, ...rest } = product;
+    return {
+      ...rest,
+      specifications: specifications.map((s) => ({
+        id: s.id,
+        attributeId: s.attributeId,
+        name: s.attribute.name,
+        value: s.value,
+        sortOrder: s.attribute.sortOrder,
+      })),
+    };
   }
 
   /**

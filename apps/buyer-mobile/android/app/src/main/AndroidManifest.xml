@@ -27,6 +27,21 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <!-- Flutter's built-in deep linking is ON by default since Flutter
+                 3.x, which hands the raw incoming URI to the router as a route
+                 location. GoRouter then tries to match the literal
+                 "https://teka.cd/<ville>/<slug>-<code>" and throws
+                 `GoException: no routes for location`, landing the user on Page
+                 Not Found — verified on device 2026-07-26, cold AND warm start.
+                 This app routes links itself via app_links →
+                 DeepLinkController → DeepLinkParser (which mirrors buyer-web
+                 `lib/urls.ts` and falls back to the browser for unmappable
+                 paths), so the built-in handler must be disabled or the two
+                 compete and the built-in wins. See docs/deep-linking.md. -->
+            <meta-data
+              android:name="flutter_deeplinking_enabled"
+              android:value="false"
+              />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

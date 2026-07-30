@@ -69,16 +69,40 @@ class CityNotifier extends StateNotifier<CityState> {
       final activeCities = cities.where((c) => c.isActive).toList()
         ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
 
-      state = state.copyWith(cities: activeCities, isLoading: false);
-
-      // Resolve stored city ID against the fetched list
+      // Resolve the stored town BEFORE publishing `isLoading: false`.
+      //
+      // The router's town gate (app_router.dart) redirects on
+      // `!hasCity && !isLoading`, and `refreshListenable` re-evaluates it on
+      // every state change. Emitting `isLoading: false` here while
+      // `selectedCity` was still null opened that gate for the duration of the
+      // storage read below, so EVERY cold start bounced the buyer to
+      // /city-selection — with their town already highlighted, because it
+      // resolved a few milliseconds later. The choice was never lost or
+      // overwritten, only published too late.
+      //
+      // Everything the gate reads is therefore committed in a single terminal
+      // state update.
       final storedId = await _storage.read(key: _cityIdKey);
-      if (storedId != null) {
+      CityModel? restored;
+      if (storedId != null && storedId.isNotEmpty) {
         final match = activeCities.where((c) => c.id == storedId).toList();
         if (match.isNotEmpty) {
-          state = state.copyWith(selectedCity: match.first);
+          restored = match.first;
+        } else {
+          // The stored town is gone or was deactivated — drop the dangling id
+          // so it can't be re-resolved on every launch, and let the gate ask
+          // for a new choice.
+          await _storage.delete(key: _cityIdKey);
         }
       }
+
+      state = state.copyWith(
+        cities: activeCities,
+        // copyWith keeps the existing value when null, so an unresolvable
+        // stored id leaves any in-session choice untouched.
+        selectedCity: restored,
+        isLoading: false,
+      );
     } catch (e) {
       state = state.copyWith(
         isLoading: false,

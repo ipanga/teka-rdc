@@ -65,45 +65,67 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
     _init();
   }
 
+  /// Re-runs the initial load. Used by the retry affordance on the product
+  /// detail reviews section.
+  Future<void> refresh() => _init();
+
   Future<void> _init() async {
     state = state.copyWith(isLoading: true, clearError: true);
-    try {
-      final results = await Future.wait([
-        _repository.getProductReviews(_productId),
-        _repository.getReviewStats(_productId),
-        _repository.canReview(_productId),
-        _repository.getMyReview(_productId),
-      ]);
 
-      if (!mounted) return;
-
-      final reviewsResult = results[0] as PaginatedReviewsResponse;
-      final statsResult = results[1] as ReviewStatsModel;
-      final canReviewResult = results[2] as CanReviewModel;
-      final myReviewResult = results[3] as ReviewModel?;
-
-      state = state.copyWith(
-        reviews: reviewsResult.data,
-        stats: statsResult,
-        canReviewResult: canReviewResult,
-        myReview: myReviewResult,
-        page: reviewsResult.page,
-        totalPages: reviewsResult.totalPages,
-        isLoading: false,
-      );
-    } on DioException catch (e) {
-      if (!mounted) return;
-      state = state.copyWith(
-        isLoading: false,
-        error: extractDioErrorMessage(e),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      state = state.copyWith(
-        isLoading: false,
-        error: friendlyErrorMessage(e),
-      );
+    // The four calls are loaded independently. A single Future.wait used to
+    // fail them all together, so an auth-only failure (canReview for a guest)
+    // or a per-endpoint failure blanked the entire section. Only a failure of
+    // the core data — the reviews list or the stats — is surfaced as an error.
+    Object? coreError;
+    Future<T?> attempt<T>(Future<T> Function() call, {bool core = false}) async {
+      try {
+        return await call();
+      } catch (e) {
+        if (core) coreError ??= e;
+        return null;
+      }
     }
+
+    // Explicit type arguments: without them Dart infers T from the
+    // Future.wait<Object?> context and getMyReview's nullable return no longer
+    // fits.
+    final results = await Future.wait<Object?>([
+      attempt<PaginatedReviewsResponse>(
+        () => _repository.getProductReviews(_productId),
+        core: true,
+      ),
+      attempt<ReviewStatsModel>(
+        () => _repository.getReviewStats(_productId),
+        core: true,
+      ),
+      attempt<CanReviewModel>(() => _repository.canReview(_productId)),
+      attempt<ReviewModel?>(() => _repository.getMyReview(_productId)),
+    ]);
+
+    if (!mounted) return;
+
+    final reviewsResult = results[0] as PaginatedReviewsResponse?;
+    final statsResult = results[1] as ReviewStatsModel?;
+    final canReviewResult = results[2] as CanReviewModel?;
+    final myReviewResult = results[3] as ReviewModel?;
+
+    final error = coreError == null
+        ? null
+        : (coreError is DioException
+            ? extractDioErrorMessage(coreError as DioException)
+            : friendlyErrorMessage(coreError!));
+
+    state = state.copyWith(
+      reviews: reviewsResult?.data,
+      stats: statsResult,
+      canReviewResult: canReviewResult,
+      myReview: myReviewResult,
+      page: reviewsResult?.page,
+      totalPages: reviewsResult?.totalPages,
+      isLoading: false,
+      error: error,
+      clearError: error == null,
+    );
   }
 
   Future<void> loadReviews({int? page}) async {
@@ -158,6 +180,7 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
   Future<bool> submitReview({
     required String orderId,
     required int rating,
+    required String title,
     String? text,
   }) async {
     state = state.copyWith(isSubmitting: true, clearError: true);
@@ -166,6 +189,7 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
         productId: _productId,
         orderId: orderId,
         rating: rating,
+        title: title,
         text: text,
       );
       if (!mounted) return true;
@@ -186,6 +210,60 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
           canReview: false,
           reason: 'ALREADY_REVIEWED',
         ),
+      );
+      return true;
+    } on DioException catch (e) {
+      if (!mounted) return false;
+      state = state.copyWith(
+        isSubmitting: false,
+        error: extractDioErrorMessage(e),
+      );
+      return false;
+    } catch (e) {
+      if (!mounted) return false;
+      state = state.copyWith(
+        isSubmitting: false,
+        error: friendlyErrorMessage(e),
+      );
+      return false;
+    }
+  }
+
+  /// Edits the buyer's own review IN PLACE. Never creates a second review —
+  /// the API locates the row by id and enforces ownership, and the
+  /// buyer+product uniqueness constraint would reject a duplicate anyway.
+  ///
+  /// Moderation status is preserved server-side: a HIDDEN review stays hidden
+  /// after an edit, so editing cannot launder moderated content.
+  Future<bool> updateReview({
+    required String reviewId,
+    required int rating,
+    required String title,
+    String? text,
+  }) async {
+    state = state.copyWith(isSubmitting: true, clearError: true);
+    try {
+      final review = await _repository.updateReview(
+        reviewId: reviewId,
+        rating: rating,
+        title: title,
+        text: text,
+      );
+      if (!mounted) return true;
+
+      // Refresh the aggregates + list: a rating change moves the average, and
+      // the edited body must replace the stale copy in the list.
+      final statsResult = await _repository.getReviewStats(_productId);
+      final reviewsResult = await _repository.getProductReviews(_productId);
+      if (!mounted) return true;
+
+      state = state.copyWith(
+        myReview: review,
+        stats: statsResult,
+        reviews: reviewsResult.data,
+        page: reviewsResult.page,
+        totalPages: reviewsResult.totalPages,
+        isSubmitting: false,
       );
       return true;
     } on DioException catch (e) {

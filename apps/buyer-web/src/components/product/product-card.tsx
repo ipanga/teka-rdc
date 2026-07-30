@@ -8,6 +8,7 @@ import { useCartStore } from '@/lib/cart-store';
 import { formatCDF, formatUSD, discountPercent } from '@/lib/format';
 import { productHref } from '@/lib/urls';
 import type { BrowseProduct } from '@/lib/types';
+import { stockStatus, stockStatusLabel } from '@teka/shared';
 
 interface ProductCardProps {
   product: BrowseProduct;
@@ -43,10 +44,11 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const title = product.title;
   const imageUrl = product.image?.thumbnailUrl || product.image?.url;
-  const outOfStock = product.quantity <= 0;
-  // Scarcity cue (Phase D): in stock but running low. Threshold mirrors
-  // buyer-mobile's isLowStock (≤ 5).
-  const lowStock = !outOfStock && product.quantity <= 5;
+  // Public availability only — the exact quantity is internal and is never
+  // rendered. Threshold lives once, in @teka/shared.
+  const stock = stockStatus(product.quantity);
+  const outOfStock = stock === 'out_of_stock';
+  const lowStock = stock === 'low_stock';
 
   // Promotional price (seller-set). When present, show the discounted price
   // with the original struck through + a −X% badge. The API guarantees
@@ -128,7 +130,7 @@ export function ProductCard({ product }: ProductCardProps) {
             )}
             {lowStock && (
               <span className="rounded-md bg-warning px-2 py-0.5 text-[11px] font-semibold text-foreground shadow-md">
-                {`🔥 Plus que ${product.quantity} disponible${product.quantity > 1 ? 's' : ''}`}
+                {`🔥 ${stockStatusLabel('low_stock')}`}
               </span>
             )}
           </div>
@@ -158,15 +160,15 @@ export function ProductCard({ product }: ProductCardProps) {
             {title}
           </h3>
           {/* Price hierarchy: bold effective CDF + struck-through original when
-              discounted (effective turns red to signal the deal) + secondary
-              USD. The seller name was removed from cards to cut clutter — it
-              stays on the PDP + store page. */}
+              discounted + secondary USD. The seller name was removed from
+              cards to cut clutter — it stays on the PDP + store page. */}
           <div className="flex items-baseline gap-2 flex-wrap pt-0.5">
-            <span
-              className={`text-base md:text-lg font-extrabold tracking-tight ${
-                hasDiscount ? 'text-primary' : 'text-foreground'
-              }`}
-            >
+            {/* Unconditional `text-primary`: a discount must not change the
+                colour of the current price. The promotion is signalled by the
+                struck-through original, the -X% badge and the savings line.
+                Matches the PDP and Favoris, which already use text-primary for
+                every effective price. */}
+            <span className="text-base md:text-lg font-extrabold tracking-tight text-primary">
               {formatCDF(effectiveCDF)}
             </span>
             {hasDiscount && (
@@ -185,9 +187,11 @@ export function ProductCard({ product }: ProductCardProps) {
               {`Vous économisez ${formatCDF(savingsCDF)}`}
             </p>
           )}
-          {/* Rating + sold count — social proof. Stars only render once a
-              product has at least one review (most are 0 pre-traffic). */}
-          {(product.totalReviews ?? 0) > 0 ? (
+          {/* Rating — social proof. Stars only render once a product has at
+              least one review (most are 0 pre-traffic). The unit-sold count is
+              deliberately not public; it stays on the API for popularity
+              ranking and seller/admin reporting. */}
+          {(product.totalReviews ?? 0) > 0 && (
             <div className="flex items-center gap-1.5 pt-0.5">
               <StarRating value={product.avgRating ?? 0} />
               <span className="text-[11px] font-medium text-foreground">
@@ -196,19 +200,7 @@ export function ProductCard({ product }: ProductCardProps) {
               <span className="text-[11px] text-muted-foreground">
                 ({product.totalReviews})
               </span>
-              {product.unitsSold != null && product.unitsSold > 0 && (
-                <span className="text-[11px] text-muted-foreground">
-                  · {product.unitsSold <= 1 ? `${product.unitsSold} vendu` : `${product.unitsSold} vendus`}
-                </span>
-              )}
             </div>
-          ) : (
-            product.unitsSold != null &&
-            product.unitsSold > 0 && (
-              <p className="text-[11px] text-muted-foreground">
-                {product.unitsSold <= 1 ? `${product.unitsSold} vendu` : `${product.unitsSold} vendus`}
-              </p>
-            )
           )}
         </div>
       </Link>

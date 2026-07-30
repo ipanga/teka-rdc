@@ -1,3 +1,4 @@
+import '../../../../core/constants/stock.dart';
 class ProductImageModel {
   final String id;
   final String url;
@@ -50,8 +51,8 @@ class BrowseProductModel {
   final String? cityId;
   final String? citySlug;
   final String? cityName;
-  // Best-seller social proof: total delivered units. Shown as "X vendus"
-  // only when > 0.
+  // Total delivered units. NOT shown publicly (removed 2026-07-26) — kept on
+  // the model because it is the API's popularity sort key.
   final int unitsSold;
   // Rating social proof — stars render only when totalReviews > 0.
   final double avgRating;
@@ -111,8 +112,13 @@ class BrowseProductModel {
     );
   }
 
-  bool get isLowStock => quantity > 0 && quantity < 5;
-  bool get isOutOfStock => quantity <= 0;
+  // `<= kLowStockThreshold`, not `< 5`: mobile previously disagreed with
+  // buyer-web (which used <= 5), so a product with exactly 5 left showed as
+  // low stock on the web and normal on mobile.
+  bool get isLowStock =>
+      stockStatusFor(quantity) == StockStatus.lowStock;
+  bool get isOutOfStock =>
+      stockStatusFor(quantity) == StockStatus.outOfStock;
 
   /// Whether a valid seller-set promotion is active (discount < regular price).
   bool get hasDiscount {
@@ -284,8 +290,13 @@ class ProductDetailModel {
     );
   }
 
-  bool get isLowStock => quantity > 0 && quantity < 5;
-  bool get isOutOfStock => quantity <= 0;
+  // `<= kLowStockThreshold`, not `< 5`: mobile previously disagreed with
+  // buyer-web (which used <= 5), so a product with exactly 5 left showed as
+  // low stock on the web and normal on mobile.
+  bool get isLowStock =>
+      stockStatusFor(quantity) == StockStatus.lowStock;
+  bool get isOutOfStock =>
+      stockStatusFor(quantity) == StockStatus.outOfStock;
 
   bool get hasDiscount {
     final p = int.tryParse(priceCDF) ?? 0;
@@ -310,15 +321,27 @@ class ProductDetailModel {
 }
 
 class ProductSpecification {
+  /// Human label ("Taille"). The API flattens `attribute.name` onto the spec;
+  /// the nested fallback below keeps this model working against an API
+  /// deployed before that change, where `name` was simply absent and every
+  /// label rendered blank.
   final String name;
   final String value;
 
   const ProductSpecification({required this.name, required this.value});
 
+  bool get isRenderable => name.isNotEmpty && value.isNotEmpty;
+
   factory ProductSpecification.fromJson(Map<String, dynamic> json) {
+    final attribute = json['attribute'];
+    final nestedName = attribute is Map<String, dynamic>
+        ? attribute['name']?.toString()
+        : null;
     return ProductSpecification(
-      name: json['name']?.toString() ?? '',
-      value: json['value']?.toString() ?? '',
+      name: (json['name']?.toString().trim().isNotEmpty ?? false)
+          ? json['name'].toString().trim()
+          : (nestedName?.trim() ?? ''),
+      value: json['value']?.toString().trim() ?? '',
     );
   }
 }

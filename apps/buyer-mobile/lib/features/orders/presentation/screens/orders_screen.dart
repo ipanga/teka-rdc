@@ -21,10 +21,10 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
     final statusFilters = <String?, String>{
       null: "Toutes",
       'PENDING': "En attente",
-      'CONFIRMED': "Confirmees",
-      'SHIPPED': "Expediees",
-      'DELIVERED': "Livrees",
-      'CANCELLED': "Annulees",
+      'CONFIRMED': "Confirmées",
+      'SHIPPED': "Expédiées",
+      'DELIVERED': "Livrées",
+      'CANCELLED': "Annulées",
     };
 
     return Scaffold(
@@ -47,15 +47,16 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
               separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (context, index) {
                 final entry = statusFilters.entries.elementAt(index);
-                final isSelected =
-                    ordersState.selectedStatus == entry.key;
+                final isSelected = ordersState.selectedStatus == entry.key;
                 return FilterChip(
                   label: Text(entry.value),
                   selected: isSelected,
                   onSelected: (_) {
-                    ref.read(ordersProvider.notifier).setStatusFilter(entry.key);
+                    ref
+                        .read(ordersProvider.notifier)
+                        .setStatusFilter(entry.key);
                   },
-                  selectedColor: TekaColors.tekaRed.withOpacity(0.12),
+                  selectedColor: TekaColors.tekaRed.withValues(alpha: 0.12),
                   checkmarkColor: TekaColors.tekaRed,
                   labelStyle: TextStyle(
                     color: isSelected
@@ -126,12 +127,10 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                                     hasPrevious: ordersState.hasPreviousPage,
                                     onPrevious: () => ref
                                         .read(ordersProvider.notifier)
-                                        .loadOrders(
-                                            page: ordersState.page - 1),
+                                        .loadOrders(page: ordersState.page - 1),
                                     onNext: () => ref
                                         .read(ordersProvider.notifier)
-                                        .loadOrders(
-                                            page: ordersState.page + 1),
+                                        .loadOrders(page: ordersState.page + 1),
                                   ),
                               ],
                             ),
@@ -180,7 +179,7 @@ class _PaginationBar extends StatelessWidget {
           TextButton.icon(
             onPressed: hasPrevious ? onPrevious : null,
             icon: const Icon(Icons.chevron_left, size: 20),
-            label: const Text("Precedent"),
+            label: const Text("Précédent"),
             style: TextButton.styleFrom(
               foregroundColor: TekaColors.foreground,
               disabledForegroundColor: TekaColors.border,

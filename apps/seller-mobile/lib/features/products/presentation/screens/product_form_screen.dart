@@ -33,7 +33,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   late final TextEditingController _quantityController;
 
   String? _selectedCategoryId;
-  ProductCondition _condition = ProductCondition.newItem;
+  // Deprecated as a seller choice (2026-07-28) — new products only. Still
+  // submitted so the API contract is unchanged.
+  static const ProductCondition _condition = ProductCondition.newItem;
   bool _isSaving = false;
 
   List<AttributeModel> _attributes = [];
@@ -70,7 +72,6 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
     );
     _selectedCategoryId = p?.categoryId;
     _brandId = p?.brandId;
-    _condition = p?.condition ?? ProductCondition.newItem;
 
     // Initialize spec values from existing product
     if (p != null && p.specifications.isNotEmpty) {
@@ -357,38 +358,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Condition
-            Text(
-              "État",
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    color: TekaColors.mutedForeground,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: _ConditionOption(
-                    label: "Neuf",
-                    icon: Icons.new_releases_outlined,
-                    isSelected: _condition == ProductCondition.newItem,
-                    onTap: () =>
-                        setState(() => _condition = ProductCondition.newItem),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _ConditionOption(
-                    label: "Occasion",
-                    icon: Icons.recycling,
-                    isSelected: _condition == ProductCondition.used,
-                    onTap: () =>
-                        setState(() => _condition = ProductCondition.used),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
+            // The Neuf / Occasion selector was removed 2026-07-28: Teka
+            // accepts new products only, so the choice was misleading.
+            // `condition` is still submitted as NEW so the API contract is
+            // unchanged — see docs/product-condition-deprecation.md.
 
             // Dynamic Attributes
             if (_isLoadingAttributes)
@@ -570,56 +543,3 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   }
 }
 
-class _ConditionOption extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _ConditionOption({
-    required this.label,
-    required this.icon,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected ? TekaColors.tekaRed : TekaColors.border,
-            width: isSelected ? 2 : 1,
-          ),
-          color: isSelected
-              ? TekaColors.tekaRed.withValues(alpha: 0.05)
-              : Colors.transparent,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 20,
-              color:
-                  isSelected ? TekaColors.tekaRed : TekaColors.mutedForeground,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                color: isSelected ? TekaColors.tekaRed : TekaColors.foreground,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

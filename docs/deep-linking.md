@@ -41,6 +41,15 @@ shortCode extraction). **Keep the two in sync** when the web URL structure chang
 
 Reading `deepLinkControllerProvider` in `app.dart` starts it (same read-once pattern as `pushController`).
 
+> **Flutter's built-in deep linking MUST stay disabled.** Since Flutter 3.x it is **on by default**, and it
+> hands the raw incoming URI to the router as a route location — GoRouter then tries to match the literal
+> `https://teka.cd/{ville}/{slug}-{code}`, fails, and shows **Page Not Found**
+> (`GoException: no routes for location: https://teka.cd/…`). It competes with `DeepLinkController` and wins,
+> so `DeepLinkParser` never runs. Reproduced on a physical device 2026-07-26 on **both cold and warm start**;
+> fixed by `flutter_deeplinking_enabled=false` (`android/app/src/main/AndroidManifest.xml`) and
+> `FlutterDeepLinkingEnabled=false` (`ios/Runner/Info.plist`). Do not remove either without moving link
+> routing off `app_links` entirely.
+
 ## Android App Links
 
 - **Manifest** (`android/app/src/main/AndroidManifest.xml`): a `VIEW`/`BROWSABLE` intent-filter with

@@ -19,6 +19,7 @@ import { track } from '@/lib/analytics';
 import { formatCDF, formatUSD, discountPercent } from '@/lib/format';
 import { Badge, Button, Card, Container, buttonVariants, cn } from '@/components/ui';
 import type { ProductDetail } from '@/lib/types';
+import { stockStatus, stockStatusLabel } from '@teka/shared';
 
 /**
  * @param identifier  Resolver token for the browse API (shortCode / UUID /
@@ -147,7 +148,14 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
   const description = product.description ?? '';
   const images = product.images || [];
   const selectedImage = images[selectedImageIndex] || null;
-  const isOutOfStock = product.quantity <= 0;
+  // Public availability only — `product.quantity` stays internal (it still
+  // drives the quantity picker's max and server-side stock validation) and is
+  // never rendered. Threshold lives once, in @teka/shared.
+  const stock = stockStatus(product.quantity);
+  const isOutOfStock = stock === 'out_of_stock';
+  const specs = (product.specifications ?? []).filter(
+    (s) => s.name?.trim() && s.value?.trim(),
+  );
 
   return (
     <div className="min-h-screen flex flex-col bg-surface-muted">
@@ -259,14 +267,11 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
 
             {/* Product info */}
             <div>
-              {/* Condition badge */}
-              <Badge
-                variant={product.condition === 'NEW' ? 'new' : 'used'}
-                size="md"
-                className="mb-3"
-              >
-                {product.condition === 'NEW' ? 'Neuf' : 'Occasion'}
-              </Badge>
+              {/* Product condition is deprecated as a buyer-facing concept
+                  (2026-07-28): Teka sells new products only, so a "Neuf" pill
+                  on every product carried no information. The field is still
+                  stored and still emitted in JSON-LD as NewCondition — see
+                  docs/product-condition-deprecation.md. */}
 
               {/* Title + Wishlist */}
               <div className="flex items-start justify-between gap-3 mb-4">
@@ -318,13 +323,6 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                           ~ {formatUSD(product.priceUSD)}
                         </p>
                       )}
-                      {product.unitsSold != null && product.unitsSold > 0 && (
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {product.unitsSold <= 1
-                            ? `${product.unitsSold} vendu`
-                            : `${product.unitsSold} vendus`}
-                        </p>
-                      )}
                     </>
                   );
                 })()}
@@ -339,20 +337,20 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                     </svg>
                     {"Rupture de stock"}
                   </span>
-                ) : product.quantity <= 5 ? (
-                  // Scarcity cue (Phase D): low stock — nudge urgency.
+                ) : stock === 'low_stock' ? (
+                  // Scarcity cue: low stock — nudge urgency, without a count.
                   <span className="inline-flex items-center gap-1.5 text-sm text-warning font-medium">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.48 0L3.16 16.25A2 2 0 005 19z" />
                     </svg>
-                    {`Plus que ${product.quantity} en stock`}
+                    {stockStatusLabel('low_stock')}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1.5 text-sm text-success font-medium">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
-                    {"En stock"} &middot; {`${product.quantity} disponible(s)`}
+                    {stockStatusLabel('in_stock')}
                   </span>
                 )}
               </div>
@@ -451,24 +449,10 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                     </span>
                   )}
                 </div>
-                {/* Direct buyer↔seller chat retired 2026-05-17. Questions
-                    about a product or order now flow through Teka RDC
-                    support — single channel, faster moderation, clearer
-                    dispute trail. */}
-                <Link
-                  href="/contact"
-                  className="mt-2 inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary-hover transition-colors font-medium"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z"
-                    />
-                  </svg>
-                  {"Contacter le support Teka RDC"}
-                </Link>
+                {/* Direct buyer↔seller chat was retired 2026-05-17; the
+                    support link that stood here was removed 2026-07-26 for
+                    parity with mobile. Support is reachable from the footer,
+                    the account menu and /contact. */}
               </Card>
 
               {/* Category link */}
@@ -502,14 +486,15 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
             </Card>
           )}
 
-          {/* Specifications */}
-          {product.specifications && product.specifications.length > 0 && (
+          {/* Specifications. A spec missing either side would render as a
+              half-empty row, so filter before deciding to show the card. */}
+          {specs.length > 0 && (
             <Card padding="md" className="mt-4">
               <h2 className="text-base font-semibold text-foreground mb-4 tracking-tight">
                 {"Caractéristiques"}
               </h2>
               <dl className="grid grid-cols-1 sm:grid-cols-[200px_1fr] gap-x-4">
-                {product.specifications.map((spec, i) => (
+                {specs.map((spec, i) => (
                   <div
                     key={spec.id}
                     className={cn(

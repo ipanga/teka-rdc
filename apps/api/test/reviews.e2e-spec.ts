@@ -50,4 +50,27 @@ describe('Reviews (e2e) — productId UUID validation', () => {
       .get(`/api/v1/reviews/products/${slug}?page=1&limit=10`)
       .expect(400);
   });
+
+  /**
+   * 2026-07-26: the same class of bug resurfaced on buyer-mobile, which links
+   * to the PDP from Order Detail by shortCode and forwarded that route param to
+   * the reviews calls. The client fix is to pass the resolved uuid; these tests
+   * cover the backstop — the rejection must be phrased in French, because the
+   * mobile error helper renders an API 4xx message straight to the user and
+   * Nest's built-in "Validation failed (uuid is expected)" leaked verbatim.
+   */
+  it('rejects a 6-char shortCode with 400 (mobile Order Detail case)', async () => {
+    return request(app.getHttpServer())
+      .get('/api/v1/reviews/products/ab12cd/stats')
+      .expect(400);
+  });
+
+  it('phrases the rejection in French, never the framework default', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/api/v1/reviews/products/ab12cd/stats')
+      .expect(400);
+
+    expect(res.body.error.message).toBe('Identifiant invalide.');
+    expect(res.body.error.message).not.toContain('uuid is expected');
+  });
 });

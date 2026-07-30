@@ -3,13 +3,15 @@ import {
   Get,
   Post,
   Delete,
+  Patch,
   Body,
   Param,
   Query,
-  ParseUUIDPipe,
 } from '@nestjs/common';
+import { UuidParam } from '../common/pipes/uuid-param.pipe';
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { UpdateReviewDto } from './dto/update-review.dto';
 import { ReviewQueryDto } from './dto/review-query.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -40,7 +42,7 @@ export class ReviewsController {
   @Get('products/:productId')
   @Public()
   async getProductReviews(
-    @Param('productId', ParseUUIDPipe) productId: string,
+    @Param('productId', UuidParam) productId: string,
     @Query() query: ReviewQueryDto,
   ) {
     const result = await this.reviewsService.getProductReviews(
@@ -57,7 +59,7 @@ export class ReviewsController {
   @Get('products/:productId/stats')
   @Public()
   async getProductReviewStats(
-    @Param('productId', ParseUUIDPipe) productId: string,
+    @Param('productId', UuidParam) productId: string,
   ) {
     const data = await this.reviewsService.getProductReviewStats(productId);
     return { success: true, data };
@@ -71,7 +73,7 @@ export class ReviewsController {
   @Roles('BUYER')
   async getMyReview(
     @CurrentUser('userId') userId: string,
-    @Param('productId', ParseUUIDPipe) productId: string,
+    @Param('productId', UuidParam) productId: string,
   ) {
     const data = await this.reviewsService.getMyReviewForProduct(
       userId,
@@ -88,9 +90,26 @@ export class ReviewsController {
   @Roles('BUYER')
   async canReview(
     @CurrentUser('userId') userId: string,
-    @Param('productId', ParseUUIDPipe) productId: string,
+    @Param('productId', UuidParam) productId: string,
   ) {
     const data = await this.reviewsService.canReview(userId, productId);
+    return { success: true, data };
+  }
+
+  /**
+   * PATCH /api/v1/reviews/:id
+   * Edit your own review (rating / title / text). Updates in place — it can
+   * never create a second review for the same product. productId and orderId
+   * are not editable, so the delivered-purchase link cannot be re-pointed.
+   */
+  @Patch(':id')
+  @Roles('BUYER')
+  async update(
+    @CurrentUser('userId') userId: string,
+    @Param('id', UuidParam) id: string,
+    @Body() dto: UpdateReviewDto,
+  ) {
+    const data = await this.reviewsService.updateReview(userId, id, dto);
     return { success: true, data };
   }
 
@@ -102,7 +121,7 @@ export class ReviewsController {
   @Roles('BUYER')
   async delete(
     @CurrentUser('userId') userId: string,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', UuidParam) id: string,
   ) {
     const data = await this.reviewsService.deleteReview(userId, id);
     return { success: true, data };

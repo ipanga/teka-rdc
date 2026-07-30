@@ -8,6 +8,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { OrderStatus, ReviewStatus } from '@prisma/client';
 import { CreateReviewDto } from './dto/create-review.dto';
+import { UpdateReviewDto } from './dto/update-review.dto';
 import { ReviewQueryDto, ReviewSortOption } from './dto/review-query.dto';
 import { SellerNotificationService } from '../notifications/seller-notification.service';
 
@@ -112,7 +113,10 @@ export class ReviewsService {
             buyerId,
             orderId: dto.orderId,
             rating: dto.rating,
-            text: dto.text,
+            // Legacy client with no title field → stored as null. Never
+            // fabricated; see CreateReviewDto.
+            title: dto.title?.trim() || null,
+            text: dto.text?.trim() || null,
             status: ReviewStatus.ACTIVE,
           },
           include: {
@@ -282,6 +286,92 @@ export class ReviewsService {
    * Soft-deletes a review. Only the review author can delete their own review.
    * Recalculates product and seller ratings after deletion.
    */
+  /**
+   * Updates the buyer's own review in place.
+   *
+   * Updates, never inserts: the row is located by id and guarded by ownership,
+   * so editing cannot produce a duplicate. (`@@unique([buyerId, productId])`
+   * would reject one anyway, but the guarantee here is intentional, not
+   * incidental.)
+   *
+   * Eligibility is NOT re-evaluated. The delivered-purchase check already ran
+   * when the review was created, and productId/orderId are not editable (see
+   * UpdateReviewDto), so the link to a delivered order the buyer owns cannot be
+   * changed by an edit. Re-running canReview() would in fact reject every edit,
+   * because it reports ALREADY_REVIEWED once a review exists.
+   *
+   * Moderation status is deliberately left untouched. Teka has no pre-publish
+   * moderation queue — reviews are created ACTIVE and an admin may later set
+   * HIDDEN — so an edit must not flip a hidden review back to ACTIVE, which
+   * would let a buyer launder moderated content by editing it.
+   */
+  async updateReview(buyerId: string, reviewId: string, dto: UpdateReviewDto) {
+    const review = await this.prisma.review.findUnique({
+      where: { id: reviewId },
+      select: {
+        id: true,
+        buyerId: true,
+        productId: true,
+        rating: true,
+        deletedAt: true,
+      },
+    });
+
+    if (!review || review.deletedAt !== null) {
+      throw new NotFoundException('Avis non trouvé');
+    }
+
+    if (review.buyerId !== buyerId) {
+      throw new ForbiddenException(
+        'Vous ne pouvez modifier que vos propres avis',
+      );
+    }
+
+    const ratingChanged = review.rating !== dto.rating;
+
+    const updated = await this.prisma.$transaction(
+      async (tx) => {
+        const result = await tx.review.update({
+          where: { id: reviewId },
+          data: {
+            rating: dto.rating,
+            // Legacy client with no title field → stored as null. Never
+            // fabricated; see CreateReviewDto.
+            title: dto.title?.trim() || null,
+            text: dto.text?.trim() || null,
+            // status intentionally omitted — see the doc comment above.
+          },
+          include: {
+            buyer: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                avatar: true,
+              },
+            },
+          },
+        });
+
+        // Only the rating feeds the aggregates; skip the recalculation when a
+        // buyer only fixed their wording.
+        if (ratingChanged) {
+          await this.recalculateRatings(tx, review.productId);
+        }
+
+        return result;
+      },
+      { timeout: 30000 },
+    );
+
+    this.logger.log(
+      `Review ${reviewId} updated by buyer ${buyerId}` +
+        (ratingChanged ? ' (rating changed — aggregates recalculated)' : ''),
+    );
+
+    return updated;
+  }
+
   async deleteReview(buyerId: string, reviewId: string) {
     const review = await this.prisma.review.findUnique({
       where: { id: reviewId },

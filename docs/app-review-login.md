@@ -38,12 +38,33 @@ customer). Pick/approve it out-of-band and store it as a production secret.
 
 ## Enable / disable procedure (per review window)
 
-1. Set `APP_REVIEW_BUYER_PHONE_E164` to the approved number and
-   `APP_REVIEW_LOGIN_ENABLED=true` in the production environment; redeploy the
-   API (or restart so ConfigService re-reads).
-2. Submit the app; provide the reviewer notes below.
-3. When the review completes, set `APP_REVIEW_LOGIN_ENABLED=false` and redeploy.
-   Recommended: keep it enabled **only** during an active review.
+The toggle is wired through **GitHub Secrets → `deploy.yml` export → the api
+service `environment:` block in `docker-compose.prod.yml`** (same chain as
+`POSTHOG_API_KEY`), so it flips with **no SSH** to the VPS-managed
+`.env.production`. Secrets: `APP_REVIEW_LOGIN_ENABLED`, `APP_REVIEW_BUYER_PHONE_E164`,
+`APP_REVIEW_BUYER_OTP`. Absent/empty → OFF by default.
+
+**Enable (start of a review window):**
+```bash
+gh secret set APP_REVIEW_LOGIN_ENABLED   --body true
+gh secret set APP_REVIEW_BUYER_PHONE_E164 --body +243810000000   # approved number
+gh secret set APP_REVIEW_BUYER_OTP       --body 123456
+gh workflow run deploy.yml               # or push to main; recreates the api container
+```
+Verify: `POST /v1/auth/buyer/otp/verify {phone:+243810000000, code:123456}` → 200;
+any other phone with 123456 → 401.
+
+**Disable (review finished) — do this promptly:**
+```bash
+gh secret set APP_REVIEW_LOGIN_ENABLED --body false
+gh workflow run deploy.yml             # redeploy to recreate the api container
+```
+Keep it enabled **only** during an active review. A container restart is required
+for a secret change to take effect (env is read at container start) — a redeploy
+does exactly that.
+
+**Current status (2026-07-25):** ENABLED in production for a review window
+(phone `+243810000000`). Disable per the steps above once the review completes.
 
 ## Credential rotation
 

@@ -2,15 +2,72 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/constants/stock.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../wishlist/presentation/widgets/wishlist_button.dart';
 import '../../data/models/product_model.dart';
 
+/// Visual density only. Navigation, wishlist, image, price, discount, stock,
+/// and rating behavior remain shared by [ProductCard].
+enum ProductCardVariant {
+  /// Image-first card for Home shelves, recent items, and recommendations.
+  discovery,
+
+  /// Comparison card for Search, Category, Favorites, and full catalog grids.
+  catalog,
+}
+
+double _productCardTextScale(BuildContext context) {
+  final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+  return scale.clamp(1.0, 2.0);
+}
+
+double _productCardInfoExtent(
+  BuildContext context,
+  ProductCardVariant variant,
+) {
+  final scale = _productCardTextScale(context);
+  final base = variant == ProductCardVariant.discovery ? 120.0 : 144.0;
+  final largeTextAllowance =
+      variant == ProductCardVariant.discovery ? 72.0 : 96.0;
+  return base + ((scale - 1) * largeTextAllowance);
+}
+
+/// Main-axis extent for a two-column product grid. Unlike a fixed aspect
+/// ratio, this preserves a square image while reserving enough independent
+/// footer space for French text and accessibility scaling.
+double productCardGridExtent(
+  BuildContext context, {
+  required ProductCardVariant variant,
+  double horizontalPadding = 32,
+  double crossAxisSpacing = 12,
+}) {
+  final cellWidth = (MediaQuery.sizeOf(context).width -
+          horizontalPadding -
+          crossAxisSpacing) /
+      2;
+  return cellWidth + _productCardInfoExtent(context, variant);
+}
+
+/// Height for a horizontal product shelf with a known square image width.
+double productCardRowExtent(
+  BuildContext context, {
+  required ProductCardVariant variant,
+  required double itemWidth,
+}) {
+  return itemWidth + _productCardInfoExtent(context, variant);
+}
+
 class ProductCard extends ConsumerWidget {
   final BrowseProductModel product;
+  final ProductCardVariant variant;
 
-  const ProductCard({super.key, required this.product});
+  const ProductCard({
+    super.key,
+    required this.product,
+    this.variant = ProductCardVariant.catalog,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -20,22 +77,16 @@ class ProductCard extends ConsumerWidget {
     final imageUrl = product.image?.thumbnailUrl ?? product.image?.url;
     final brandName = product.brandName?.trim();
     final isOfficial = product.seller.businessName == 'Teka RDC Officiel';
-    final savings = hasDiscount
-        ? formatCDF(
-            (BigInt.parse(product.priceCDF) -
-                    BigInt.parse(product.effectivePriceCDF))
-                .toString(),
-          )
-        : null;
+    final showCatalogMetadata = variant == ProductCardVariant.catalog;
+    final rating = product.avgRating.toStringAsFixed(1).replaceAll('.', ',');
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 180;
-
-        return GestureDetector(
-          onTap: () => context.push('/products/${product.id}'),
-          child: Card(
-            // Card theme provides border + 12dp radius globally.
+        return Card(
+          clipBehavior: Clip.antiAlias,
+          // Card theme provides border + 12dp radius globally.
+          child: InkWell(
+            onTap: () => context.push('/products/${product.id}'),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -78,20 +129,10 @@ class ProductCard extends ConsumerWidget {
                             size: 32,
                           ),
                         ),
-                      // Top-left: out-of-stock, else the discount badge. The
-                      // condition badge + seller name were removed from cards to
-                      // cut clutter — they stay on the PDP.
-                      if (product.isOutOfStock)
-                        Positioned(
-                          top: 8,
-                          left: 8,
-                          child: _Pill(
-                            label: "Rupture de stock",
-                            background: TekaColors.foreground,
-                            foreground: Colors.white,
-                          ),
-                        )
-                      else if (hasDiscount)
+                      // Discount stays top-left. Stock state sits bottom-left,
+                      // away from the favorite target, so narrow cards never
+                      // stack text under the heart.
+                      if (hasDiscount)
                         Positioned(
                           top: 8,
                           left: 8,
@@ -99,6 +140,18 @@ class ProductCard extends ConsumerWidget {
                             label: "-${product.discountPct}%",
                             background: TekaColors.tekaRed,
                             foreground: Colors.white,
+                            maxWidth: constraints.maxWidth - 16,
+                          ),
+                        ),
+                      if (product.isOutOfStock)
+                        Positioned(
+                          bottom: 8,
+                          left: 8,
+                          child: _Pill(
+                            label: "Rupture de stock",
+                            background: TekaColors.foreground,
+                            foreground: Colors.white,
+                            maxWidth: constraints.maxWidth - 16,
                           ),
                         ),
                       // Low stock warning, bottom-left.
@@ -107,21 +160,23 @@ class ProductCard extends ConsumerWidget {
                           bottom: 8,
                           left: 8,
                           child: _Pill(
-                            label:
-                                "🔥 Plus que ${product.quantity} disponible${product.quantity > 1 ? 's' : ''}",
+                            // Never the exact remaining quantity — that is
+                            // internal inventory. See core/constants/stock.dart.
+                            label: "🔥 ${stockStatusLabel(StockStatus.lowStock)}",
                             background: TekaColors.warning,
                             foreground: Colors.white,
+                            maxWidth: constraints.maxWidth - 16,
                           ),
                         ),
-                      // Wishlist heart, top-right — a compact, clean circular chip.
-                      // The IconButton wins the tap within its bounds, so tapping it
-                      // toggles the wishlist instead of navigating to the PDP.
+                      // The 44dp surface is both the visual chip and the actual
+                      // touch target. The IconButton wins the gesture inside it,
+                      // so toggling never also opens the product.
                       Positioned(
-                        top: 6,
-                        right: 6,
+                        top: 4,
+                        right: 4,
                         child: Container(
-                          width: 32,
-                          height: 32,
+                          width: 44,
+                          height: 44,
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.92),
                             shape: BoxShape.circle,
@@ -135,11 +190,11 @@ class ProductCard extends ConsumerWidget {
                           ),
                           child: WishlistButton(
                             productId: product.id,
-                            size: 17,
+                            size: 19,
                             padding: EdgeInsets.zero,
                             constraints: const BoxConstraints.tightFor(
-                              width: 32,
-                              height: 32,
+                              width: 44,
+                              height: 44,
                             ),
                           ),
                         ),
@@ -154,12 +209,13 @@ class ProductCard extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Brand (when present) + Officiel badge — subtle line above title.
-                        if (brandName != null && brandName.isNotEmpty ||
-                            isOfficial) ...[
+                        if (showCatalogMetadata &&
+                            ((brandName != null && brandName.isNotEmpty) ||
+                                isOfficial)) ...[
                           Row(
                             children: [
                               if (brandName != null && brandName.isNotEmpty)
-                                Flexible(
+                                Expanded(
                                   child: Text(
                                     brandName.toUpperCase(),
                                     maxLines: 1,
@@ -175,15 +231,28 @@ class ProductCard extends ConsumerWidget {
                               if (isOfficial) ...[
                                 if (brandName != null && brandName.isNotEmpty)
                                   const SizedBox(width: 4),
-                                const Icon(Icons.verified,
-                                    size: 11, color: TekaColors.tekaRed),
-                                const SizedBox(width: 2),
-                                const Text(
-                                  "Officiel",
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w700,
-                                    color: TekaColors.tekaRed,
+                                Expanded(
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.verified,
+                                        size: 11,
+                                        color: TekaColors.tekaRed,
+                                      ),
+                                      const SizedBox(width: 2),
+                                      const Expanded(
+                                        child: Text(
+                                          "Officiel",
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w700,
+                                            color: TekaColors.tekaRed,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
@@ -212,10 +281,16 @@ class ProductCard extends ConsumerWidget {
                           child: Text(
                             price,
                             maxLines: 1,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
-                              color: TekaColors.tekaRed,
+                              // Unconditional: a discount must not change the
+                              // colour of the current price. The promotion is
+                              // already signalled three ways below — the
+                              // struck-through original, the -X% badge and the
+                              // savings line. Matches the PDP, which has always
+                              // used foreground for the effective price.
+                              color: TekaColors.foreground,
                               letterSpacing: -0.2,
                             ),
                           ),
@@ -232,59 +307,45 @@ class ProductCard extends ConsumerWidget {
                               decoration: TextDecoration.lineThrough,
                             ),
                           ),
-                          if (savings != null && !isCompact)
-                            Text(
-                              "Vous économisez $savings",
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                color: TekaColors.success,
-                              ),
-                            ),
                         ],
-                        // Rating (when reviewed) + sold count — social proof.
+                        // Compact social proof stays last in the logical
+                        // reading order and has its own flexible row.
                         if (product.totalReviews > 0) ...[
                           const SizedBox(height: 3),
-                          Row(
-                            children: [
-                              const Icon(Icons.star,
-                                  size: 12, color: Color(0xFFF59E0B)),
-                              const SizedBox(width: 2),
-                              Text(
-                                product.avgRating.toStringAsFixed(1),
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: TekaColors.foreground,
-                                ),
-                              ),
-                              const SizedBox(width: 2),
-                              Text(
-                                "(${product.totalReviews})",
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: TekaColors.mutedForeground,
-                                ),
-                              ),
-                              if (product.unitsSold > 0)
-                                Text(
-                                  " · ${product.unitsSold} ${product.unitsSold == 1 ? 'vendu' : 'vendus'}",
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    color: TekaColors.mutedForeground,
+                          Semantics(
+                            label:
+                                "Note $rating sur 5, ${product.totalReviews} avis",
+                            child: ExcludeSemantics(
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.star_rounded,
+                                    size: 13,
+                                    color: Color(0xFFF59E0B),
                                   ),
-                                ),
-                            ],
-                          ),
-                        ] else if (product.unitsSold > 0) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            "${product.unitsSold} ${(product.unitsSold) == 1 ? 'vendu' : 'vendus'}",
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: TekaColors.mutedForeground,
+                                  const SizedBox(width: 2),
+                                  Text(
+                                    rating,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: TekaColors.foreground,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 3),
+                                  Flexible(
+                                    child: Text(
+                                      "(${product.totalReviews} avis)",
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        color: TekaColors.mutedForeground,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         ],
@@ -305,28 +366,35 @@ class _Pill extends StatelessWidget {
   final String label;
   final Color background;
   final Color foreground;
+  final double maxWidth;
 
   const _Pill({
     required this.label,
     required this.background,
     required this.foreground,
+    required this.maxWidth,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: foreground,
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.2,
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: foreground,
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.2,
+          ),
         ),
       ),
     );

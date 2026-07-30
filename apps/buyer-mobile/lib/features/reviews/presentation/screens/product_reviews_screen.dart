@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/app_states.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../data/models/review_model.dart';
 import '../providers/reviews_provider.dart';
 import '../widgets/review_form_dialog.dart';
 import '../widgets/review_stats_bar.dart';
@@ -72,6 +73,11 @@ class ProductReviewsScreen extends ConsumerWidget {
                         ReviewTile(
                           review: reviewsState.myReview!,
                           isOwn: true,
+                          onEdit: () => _showReviewForm(
+                            context,
+                            ref,
+                            existing: reviewsState.myReview,
+                          ),
                           onDelete: () => _confirmDelete(
                               context, ref, reviewsState.myReview!.id),
                         ),
@@ -149,9 +155,19 @@ class ProductReviewsScreen extends ConsumerWidget {
     );
   }
 
-  void _showReviewForm(BuildContext context, WidgetRef ref) {
+  /// Opens the review form. With [existing] the form edits that review in
+  /// place (prefilled); without it, a new review is created.
+  void _showReviewForm(
+    BuildContext context,
+    WidgetRef ref, {
+    ReviewModel? existing,
+  }) {
     final reviewsState = ref.read(reviewsProvider(productId));
-    final orderId = reviewsState.canReviewResult?.orderId ?? '';
+    // When editing there is no canReview orderId — the API reports
+    // ALREADY_REVIEWED once a review exists — so fall back to the review's own
+    // order. PATCH does not send it; it is only here for the create path.
+    final orderId =
+        existing?.orderId ?? reviewsState.canReviewResult?.orderId ?? '';
 
     showModalBottomSheet(
       context: context,
@@ -162,12 +178,17 @@ class ProductReviewsScreen extends ConsumerWidget {
       builder: (ctx) => ReviewFormDialog(
         productId: productId,
         orderId: orderId,
+        existingReview: existing,
       ),
     ).then((submitted) {
       if (submitted == true && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Avis soumis avec succes"),
+            content: Text(
+              existing != null
+                  ? "Avis modifié avec succès"
+                  : "Avis soumis avec succès",
+            ),
             backgroundColor: TekaColors.success,
           ),
         );
