@@ -191,3 +191,64 @@ describe('ReviewsService.updateReview', () => {
     expect(changed.prisma.review.aggregate).toHaveBeenCalled();
   });
 });
+
+// The reviewer is exposed as `buyer` — never `user`.
+//
+// buyer-web's Review type declared `user`/`userId` from the original build, so
+// every consumer type-checked cleanly against a field the API has never sent.
+// `getReviewerName` then read `review.user.firstName` inside the review list's
+// .map(), and since an exception there escapes to the route error boundary, the
+// WHOLE product page rendered "Une erreur est survenue" — on any product with at
+// least one review. It hid for months only because no product had one.
+//
+// buyer-web has no component-test harness, so this pins the API half of that
+// contract: rename the relation here and this fails immediately.
+describe('getProductReviews — reviewer shape is a contract', () => {
+  function makeService(row: Record<string, unknown>) {
+    const prisma = {
+      review: {
+        findMany: jest.fn().mockResolvedValue([row]),
+        count: jest.fn().mockResolvedValue(1),
+      },
+    };
+    return {
+      prisma,
+      service: new ReviewsService(prisma as never, {} as never),
+    };
+  }
+
+  const ROW = {
+    id: 'rev1',
+    productId: 'prod1',
+    buyerId: 'buyer1',
+    rating: 5,
+    title: null,
+    text: 'Satisfait',
+    buyer: { id: 'buyer1', firstName: 'Valéry', lastName: 'Ipanga' },
+  };
+
+  it('includes the reviewer under `buyer`, with the name fields clients render', async () => {
+    const { prisma, service } = makeService(ROW);
+    const res = await service.getProductReviews('prod1', {} as never);
+
+    const include = prisma.review.findMany.mock.calls[0][0].include;
+    expect(include).toHaveProperty('buyer');
+    expect(include).not.toHaveProperty('user');
+    expect(include.buyer.select).toMatchObject({
+      firstName: true,
+      lastName: true,
+    });
+
+    const first = (res.data as Record<string, unknown>[])[0];
+    expect(first).toHaveProperty('buyer');
+    expect(first).not.toHaveProperty('user');
+  });
+
+  it('still returns the row when the reviewer relation is absent', async () => {
+    // Clients must degrade to a fallback name rather than throw, so the API
+    // omitting a reviewer has to stay a survivable case end-to-end.
+    const { service } = makeService({ ...ROW, buyer: null });
+    const res = await service.getProductReviews('prod1', {} as never);
+    expect((res.data as Record<string, unknown>[])[0].buyer).toBeNull();
+  });
+});

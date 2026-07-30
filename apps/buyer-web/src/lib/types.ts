@@ -335,15 +335,25 @@ export interface Review {
   title?: string | null;
   id: string;
   productId: string;
-  userId: string;
+  /**
+   * The API names the reviewer `buyer`/`buyerId` — NOT `user`/`userId`. This
+   * type declared `user` from the original build, so every consumer type-checked
+   * cleanly against a field the API has never sent, and the PDP threw
+   * `Cannot read properties of undefined (reading 'firstName')` on any product
+   * with at least one review. It stayed hidden only because no product had a
+   * review until 2026-07. Keep these names matched to `ReviewsService`.
+   */
+  buyerId: string;
   orderId: string;
   rating: number;
   text?: string | null;
-  user: {
+  /** Optional: a reviewer may be absent from the payload; never dereference it directly. */
+  buyer?: {
     id: string;
     firstName?: string | null;
     lastName?: string | null;
-  };
+    avatar?: string | null;
+  } | null;
   createdAt: string;
 }
 
