@@ -398,7 +398,14 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
   }
 
   function getReviewerName(review: Review) {
-    const parts = [review.user.firstName, review.user.lastName].filter(Boolean);
+    // Optional-chained deliberately: the reviewer is `buyer` (not `user`), and
+    // it is optional. A missing reviewer must degrade to a fallback name — it
+    // must never throw, because this runs inside the review list's .map() and
+    // an exception there takes down the WHOLE product page via the route error
+    // boundary, not just this one row.
+    const parts = [review.buyer?.firstName, review.buyer?.lastName].filter(
+      Boolean,
+    );
     return parts.length > 0 ? parts.join(' ') : 'Utilisateur';
   }
 
