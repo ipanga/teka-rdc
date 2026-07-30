@@ -284,9 +284,13 @@ class ProductCard extends ConsumerWidget {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
-                              color: hasDiscount
-                                  ? TekaColors.tekaRed
-                                  : TekaColors.foreground,
+                              // Unconditional: a discount must not change the
+                              // colour of the current price. The promotion is
+                              // already signalled three ways below — the
+                              // struck-through original, the -X% badge and the
+                              // savings line. Matches the PDP, which has always
+                              // used foreground for the effective price.
+                              color: TekaColors.foreground,
                               letterSpacing: -0.2,
                             ),
                           ),

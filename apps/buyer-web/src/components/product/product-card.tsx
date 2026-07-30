@@ -160,15 +160,15 @@ export function ProductCard({ product }: ProductCardProps) {
             {title}
           </h3>
           {/* Price hierarchy: bold effective CDF + struck-through original when
-              discounted (effective turns red to signal the deal) + secondary
-              USD. The seller name was removed from cards to cut clutter — it
-              stays on the PDP + store page. */}
+              discounted + secondary USD. The seller name was removed from
+              cards to cut clutter — it stays on the PDP + store page. */}
           <div className="flex items-baseline gap-2 flex-wrap pt-0.5">
-            <span
-              className={`text-base md:text-lg font-extrabold tracking-tight ${
-                hasDiscount ? 'text-primary' : 'text-foreground'
-              }`}
-            >
+            {/* Unconditional `text-primary`: a discount must not change the
+                colour of the current price. The promotion is signalled by the
+                struck-through original, the -X% badge and the savings line.
+                Matches the PDP and Favoris, which already use text-primary for
+                every effective price. */}
+            <span className="text-base md:text-lg font-extrabold tracking-tight text-primary">
               {formatCDF(effectiveCDF)}
             </span>
             {hasDiscount && (
