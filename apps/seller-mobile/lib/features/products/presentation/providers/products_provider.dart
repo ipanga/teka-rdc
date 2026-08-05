@@ -207,8 +207,19 @@ final dashboardStatsProvider = FutureProvider<ProductStats>((ref) async {
 
 // -- Single product detail --
 
+/// A product's status can change WITHOUT the seller doing anything — an admin
+/// approves or rejects it out of band. Every `ref.invalidate` in this app is
+/// triggered by a seller action (submit, withdraw, edit, images), so a plain
+/// keep-alive provider served the status captured on first view for the rest of
+/// the app's life: a product approved minutes ago still read "En attente" until
+/// the app was killed, while the products list — which has pull-to-refresh —
+/// showed it correctly.
+///
+/// `autoDispose` drops the cache when the last listener goes, so leaving the
+/// detail screen and coming back refetches. The screen also pulls to refresh,
+/// for the seller who is already looking at it when the decision lands.
 final productDetailProvider =
-    FutureProvider.family<SellerProductModel, String>((ref, id) async {
+    FutureProvider.autoDispose.family<SellerProductModel, String>((ref, id) async {
   final repository = ref.read(productsRepositoryProvider);
   return repository.getProduct(id);
 });
