@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:posthog_flutter/posthog_flutter.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -56,6 +57,24 @@ Future<void> _initPosthog() async {
 }
 
 Future<void> _bootstrap() async {
+  // Status bar: dark icons on our light background.
+  //
+  // Both apps used to hide the status bar outright (`android:windowFullscreen`
+  // + iOS `UIStatusBarHidden`, added with the splash-screen work) — the clock,
+  // battery and signal were simply gone for the whole session, not just the
+  // splash. With the bar visible again its contents must be legible, and the
+  // AppBarTheme's `systemOverlayStyle` is not enough on its own: it only
+  // applies where a real AppBar is mounted, and the buyer home renders a
+  // SliverPersistentHeader instead. Setting it once here covers every screen.
+  // Both apps are light-only (no darkTheme), so this needs no theme listener.
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark, // Android
+      statusBarBrightness: Brightness.light, // iOS
+    ),
+  );
+
   // PostHog before the first frame so the router's PosthogObserver and the
   // identify-on-auth listener have an initialized SDK. No-op without a key.
   await _initPosthog();

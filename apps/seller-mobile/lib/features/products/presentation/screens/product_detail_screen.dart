@@ -60,7 +60,16 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
             ),
           ),
         ),
-        data: (product) => _buildContent(context, product),
+        // Pull-to-refresh, matching the products list. An admin's approval or
+        // rejection arrives without any seller action, so the seller needs a
+        // way to re-check status without leaving the screen.
+        data: (product) => RefreshIndicator(
+          onRefresh: () async {
+            ref.invalidate(productDetailProvider(widget.productId));
+            await ref.read(productDetailProvider(widget.productId).future);
+          },
+          child: _buildContent(context, product),
+        ),
       ),
     );
   }
@@ -69,6 +78,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     final locale = 'fr';
 
     return ListView(
+      // Required for pull-to-refresh: without it a short page does not scroll,
+      // so the gesture never reaches the RefreshIndicator.
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       children: [
         // Rejection reason banner

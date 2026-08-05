@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'teka_colors.dart';
 
 class AppTheme {
@@ -29,6 +30,14 @@ class AppTheme {
           ),
           iconTheme: IconThemeData(color: TekaColors.foreground),
           actionsIconTheme: IconThemeData(color: TekaColors.foreground),
+          // Mirrors buyer-mobile. Without this an AppBar recomputes the
+          // overlay from its own background and can override the style set at
+          // bootstrap, so the two must agree.
+          systemOverlayStyle: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            statusBarIconBrightness: Brightness.dark,
+            statusBarBrightness: Brightness.light,
+          ),
         ),
         navigationBarTheme: NavigationBarThemeData(
           backgroundColor: TekaColors.background,
