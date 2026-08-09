@@ -125,3 +125,27 @@ jobs:
       - name: Analyze
         working-directory: apps/${{ matrix.app }}
         run: flutter analyze --no-fatal-infos
+
+  release-config:
+    name: Release Config
+    runs-on: ubuntu-latest
+    # This job only reads the checkout and runs a Ruby script — no token use at
+    # all. Scoped explicitly (the other jobs in this file predate the
+    # convention and are left alone).
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      # Guards the app → TestFlight tester-group mapping and the three
+      # upload_to_testflight flags that decide whether a build reaches anyone.
+      # All three were wrong until 2026-08-09: five releases uploaded cleanly
+      # and were distributed to nobody, because a build with no tester group is
+      # never sent and never emailed. Pure source parsing — no fastlane, no
+      # network, no App Store Connect credentials.
+      - name: TestFlight distribution config
+        run: ruby fastlane/testflight_groups_test.rb

@@ -246,7 +246,56 @@ unaffected. `flutter build ipa` (not `gym`) does the archive/export so the flavo
 2. **Approval gate:** the `testflight` job is bound to the protected `ios-testflight`
    GitHub Environment — a reviewer must approve before it runs.
 3. `testflight` job: downloads the `.ipa` → `fastlane ios upload_testflight` (App Store
-   Connect API key). `app=both` fans out to two matrix legs.
+   Connect API key) → **waits for Apple to finish processing** → **distributes to the app's
+   internal tester group** → reads the assignment back and fails if it did not take.
+   `app=both` fans out to two matrix legs. Expect this step to run **5–15 min longer** than
+   the upload alone; that wait is what makes distribution possible at all (below).
+
+### TestFlight tester groups — the mapping
+
+| App | Bundle id | Internal group | Repo variable |
+|---|---|---|---|
+| buyer | `com.tootiye.teka` | **Teka Buyer test team** | `TESTFLIGHT_BUYER_GROUP` |
+| seller | `com.tootiye.tekaseller` | **Testers Teka RDC** | `TESTFLIGHT_SELLER_GROUP` |
+
+Both groups are **internal**. `distribute_external: false`, and nothing is ever submitted for
+Apple's external beta review.
+
+**Where the config lives.** GitHub → *Settings → Secrets and variables → Actions → Variables*
+(repository scope). They are **variables, not secrets**, deliberately: a tester-group name is
+not a credential, and GitHub masks secret values — which would redact the group name from the
+job summary that exists to show you where the build went. Leaving them unset is safe: the
+Fastfile falls back to the exact names above, so a release still distributes correctly. Set a
+variable only when a group is renamed in App Store Connect.
+
+**Why a build can't get the wrong group.** The workflow passes *both* variables on every run
+and never chooses between them; the app → variable-name mapping lives in the `APPS` table in
+`fastlane/Fastfile`, so the buyer lane can only read `TESTFLIGHT_BUYER_GROUP`. A second guard
+in `testflight_group` aborts if the resolved name matches the other app's group. Both are
+pinned by `fastlane/testflight_groups_test.rb`, run in CI by the **Release Config** job.
+
+### The three flags that decide whether a tester ever sees a build
+
+Uploading is not distributing. Until **2026-08-09** this lane ran with
+`skip_waiting_for_build_processing: true` and `skip_submission: true` and no `groups:`, so
+five consecutive releases uploaded cleanly and reached **nobody** — every build landed in App
+Store Connect with an empty *Groups* column, no invite email, and never appeared in the
+TestFlight app. All three settings are load-bearing:
+
+| Setting | Value | Why |
+|---|---|---|
+| `skip_waiting_for_build_processing` | `false` | Fastlane does not distribute at all when this is `true` — distribution requires Apple to have finished processing. **This was the actual bug.** |
+| `skip_submission` | `false` | `true` uploads the binary and skips the distribute step, so `groups:` is silently ignored |
+| `distribute_external` | `false` | internal testers only; external would need Apple's beta review |
+
+After distributing, the lane queries the group back from App Store Connect and **fails the
+job** if the build is not in it, so a green run means "testers can see it" rather than "the
+upload returned 200". If the read-back itself cannot run it warns instead of failing — by then
+the upload and distribution have already succeeded, and failing a good release over a broken
+verification helper would be worse.
+
+The job summary prints app, version, build number, processing status, group and distribution
+status — no credentials.
 
 Only `Release-production` carries the **production** aps-environment entitlement (correct
 for TestFlight). `ExportOptions-*.plist` set `uploadSymbols=false` on purpose — dSYMs go to
@@ -258,6 +307,13 @@ for TestFlight). `ExportOptions-*.plist` set `uploadSymbols=false` on purpose �
 > apps (one Distribution cert + a profile per bundle id in `teka-ios-certs`), all secrets/env
 > are set, and a full `app=both` release run uploaded both apps to TestFlight. The steps below
 > are the reproduction/reference (e.g. rotating the PAT, re-running match, or a fresh machine).
+>
+> **Automatic distribution added 2026-08-09** (PR [#594](https://github.com/ipanga/teka-rdc/pull/594),
+> merged to `develop` as **`d9cf9fe`**). Until then the lane uploaded without distributing, so
+> five consecutive releases reached no tester — see *TestFlight tester groups* above for the
+> mapping and the three flags. **The first release after this change is the one that proves it
+> end-to-end**; builds `1785961399` (buyer) and `1785961365` (seller) predate it and were
+> assigned to their groups by hand in App Store Connect.
 
 1. **Apple Program License Agreement** — accept at developer.apple.com as Account Holder
    (the "Unable to process request - PLA Update available" block). Enable capabilities on

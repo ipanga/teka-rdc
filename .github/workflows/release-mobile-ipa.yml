@@ -253,11 +253,22 @@ jobs:
           path: ipa
 
       - name: Upload to TestFlight
+        # Now also DISTRIBUTES to the app's internal tester group and waits for
+        # Apple to finish processing, so this step takes ~5-15 min longer than
+        # it used to. Before 2026-08-09 it uploaded and exited, which left every
+        # build with no group — no invite email, invisible in TestFlight.
         env:
           TEKA_APP: ${{ matrix.app }}
           ASC_KEY_ID: ${{ matrix.app == 'buyer' && secrets.BUYER_ASC_API_KEY_ID || secrets.SELLER_ASC_API_KEY_ID }}
           ASC_ISSUER_ID: ${{ matrix.app == 'buyer' && secrets.BUYER_ASC_API_ISSUER_ID || secrets.SELLER_ASC_API_ISSUER_ID }}
           ASC_KEY_P8_B64: ${{ matrix.app == 'buyer' && secrets.BUYER_ASC_API_KEY_P8_B64 || secrets.SELLER_ASC_API_KEY_P8_B64 }}
+          # Both are passed every run; the Fastfile picks by TEKA_APP, so the
+          # workflow never decides which group a build gets. Repo *variables*,
+          # not secrets: a group name is not a credential, and GitHub masks
+          # secret values — which would redact the group from the job summary.
+          # Unset is fine; the Fastfile falls back to the documented name.
+          TESTFLIGHT_BUYER_GROUP: ${{ vars.TESTFLIGHT_BUYER_GROUP }}
+          TESTFLIGHT_SELLER_GROUP: ${{ vars.TESTFLIGHT_SELLER_GROUP }}
         run: |
           # Absolute path — fastlane runs the lane from its own resolved project
           # dir, so a relative "ipa/…" wouldn't resolve inside the Fastfile.
