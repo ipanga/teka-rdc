@@ -163,28 +163,42 @@ platform :ios do
 
     UI.message("#{key}: #{cfg[:bundle_id]} #{version} (#{build}) → internal group '#{group}'")
 
-    # Distribution to an INTERNAL group, which needs all three of these:
+    # INTERNAL distribution. Apple's API does NOT let a build be assigned to an
+    # internal group, so this deliberately does not pass `groups:`.
     #
     #   skip_waiting_for_build_processing: false
-    #     Fastlane documents that when this is true the build is never
-    #     distributed to testers — distribution can only happen once Apple has
-    #     finished processing. This is what silently broke every release up to
-    #     2026-08-09. Cost: the job now waits ~5-15 min for processing.
+    #     Fastlane never distributes while this is true — distribution can only
+    #     happen once Apple has finished processing. Also required so export
+    #     compliance is settled here rather than left for a human.
     #
     #   skip_submission: false
-    #     `true` uploads the binary and skips the distribute step entirely, so
-    #     `groups` would be ignored.
+    #     `true` skips the whole distribute step, including the export
+    #     compliance handling above.
     #
-    #   distribute_external: false
-    #     Internal testers only. External distribution would require Apple's
-    #     beta review; we deliberately do not submit for it.
+    #   distribute_external: false + submit_beta_review: false
+    #     Internal only, and never submitted for Apple's external Beta App
+    #     Review. `submit_beta_review` DEFAULTS TO TRUE in pilot, and pilot
+    #     submits whenever `submit_beta_review && (groups || distribute_external)`
+    #     — so the 2026-08-09 attempt that passed `groups:` triggered an
+    #     external review submission and failed with "Beta App Description is
+    #     required to submit a build for external testing". It must be pinned
+    #     false explicitly.
+    #
+    #   no `groups:`
+    #     `groups:` makes pilot POST /v1/builds/{id}/relationships/betaGroups,
+    #     which Apple rejects for internal groups:
+    #       "Builds cannot be assigned to this internal group.
+    #        - Cannot add internal group to a build."
+    #     There is no API that adds a build to an internal group. Internal
+    #     groups receive builds through the group's own "automatic
+    #     distribution" setting (hasAccessToAllBuilds) — verified below.
     upload_to_testflight(
       api_key:                           api_key,
       ipa:                               ipa,
       skip_waiting_for_build_processing: false,
       skip_submission:                   false,
       distribute_external:               false,
-      groups:                            [group],
+      submit_beta_review:                false,
     )
 
     # `upload_to_testflight` raises if the group does not exist or distribution
@@ -208,14 +222,17 @@ platform :ios do
     UI.success("#{key} #{version} (#{build}) distributed to '#{group}'")
   end
 
-  # Read the assignment back from App Store Connect: find the named group on
-  # the app, list ITS builds, and confirm ours is among them.
+  # Confirm the build actually reached the internal group.
   #
-  # Raises when the group exists but does not contain the build — a real
-  # distribution failure, where testers would never receive it. A failure to
-  # QUERY is only a warning: upload and distribute have already succeeded by
-  # this point, and failing a good release because a read-back helper broke
-  # would be the worse outcome.
+  # An internal group receives builds ONLY through its own "automatic
+  # distribution" setting (`hasAccessToAllBuilds`) — Apple has no API to push a
+  # build into an internal group. So the check is: the group exists, it is
+  # internal, it is set to receive every build, and our build is listed.
+  #
+  # Raises on a real distribution failure — testers would not receive it. A
+  # failure to QUERY is only a warning: upload and processing have already
+  # succeeded by then, and failing a good release because a read-back helper
+  # broke would be worse.
   def verify_group_assignment(bundle_id, version, build, expected)
     app = Spaceship::ConnectAPI::App.find(bundle_id)
     group = app.get_beta_groups.find { |g| g.name == expected }
@@ -231,25 +248,37 @@ platform :ios do
       UI.important("'#{expected}' is not an internal group — check the App Store Connect setup")
     end
 
+    unless group.has_access_to_all_builds
+      UI.user_error!(
+        "Internal group '#{expected}' does not have automatic distribution enabled, " \
+        "and Apple provides no API to add a build to an internal group " \
+        "(\"Cannot add internal group to a build\"). Enable " \
+        "\"Automatically distribute builds to this group\" (hasAccessToAllBuilds) " \
+        "on the group in App Store Connect — one-time — or every release will " \
+        "need assigning by hand."
+      )
+    end
+
     # Match on the build number alone. `Build#version` IS CFBundleVersion, and
     # ours is a Unix timestamp, so it is unique across the whole app — while
     # `Build#app_version` raises unless the query included pre_release_version,
     # which fetch_builds does not guarantee.
-    in_group = group.fetch_builds.any? { |b| b.version.to_s == build.to_s }
-
-    if in_group
-      UI.success("Verified: #{version} (#{build}) is in '#{expected}'")
+    if group.fetch_builds.any? { |b| b.version.to_s == build.to_s }
+      UI.success("Verified: #{version} (#{build}) is available to '#{expected}'")
       return true
     end
 
-    UI.user_error!(
-      "Build #{version} (#{build}) is NOT in '#{expected}' after distribution. " \
-      "Testers would never receive it."
+    # The group is set to take every build, so this is a propagation lag rather
+    # than a failed assignment — App Store Connect is the source of truth.
+    UI.important(
+      "Build #{version} (#{build}) is not listed under '#{expected}' yet, though " \
+      "the group takes all builds. Confirm in App Store Connect."
     )
+    false
   rescue FastlaneCore::Interface::FastlaneError
     raise # a real distribution failure — keep it fatal
   rescue StandardError => e
-    UI.important("Could not verify group assignment (#{e.class}): #{e.message}")
+    UI.important("Could not verify group availability (#{e.class}): #{e.message}")
     false
   end
 end

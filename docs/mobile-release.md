@@ -274,7 +274,27 @@ and never chooses between them; the app → variable-name mapping lives in the `
 in `testflight_group` aborts if the resolved name matches the other app's group. Both are
 pinned by `fastlane/testflight_groups_test.rb`, run in CI by the **Release Config** job.
 
-### The three flags that decide whether a tester ever sees a build
+> ### ⚠️ Internal groups: Apple has no "assign build to group" API
+>
+> Learned the hard way on **2026-08-09** (run `31318050415`, both apps failed):
+>
+> - `groups:` makes fastlane `POST /v1/builds/{id}/relationships/betaGroups`, which Apple
+>   rejects outright for internal groups — *"Builds cannot be assigned to this internal group.
+>   Cannot add internal group to a build."*
+> - `submit_beta_review` **defaults to `true`** in pilot, and pilot submits whenever
+>   `submit_beta_review && (groups || distribute_external)`. Passing `groups:` therefore
+>   triggered a real **external Beta App Review** submission, which failed on the seller with
+>   *"Beta App Description is required to submit a build for external testing."*
+>
+> So the lane passes **no `groups:`** and pins **`submit_beta_review: false`**.
+>
+> An internal group receives builds through **its own setting**: *Automatically distribute
+> builds to this group* (`hasAccessToAllBuilds`) in App Store Connect. That is a **one-time
+> per-group checkbox** the operator must enable — it cannot be set from the release workflow
+> without mutating your App Store Connect configuration. The lane verifies it and **fails with
+> that instruction** if it is off, so a release can never silently reach nobody.
+
+### The flags that decide whether a tester ever sees a build
 
 Uploading is not distributing. Until **2026-08-09** this lane ran with
 `skip_waiting_for_build_processing: true` and `skip_submission: true` and no `groups:`, so
@@ -284,9 +304,11 @@ TestFlight app. All three settings are load-bearing:
 
 | Setting | Value | Why |
 |---|---|---|
-| `skip_waiting_for_build_processing` | `false` | Fastlane does not distribute at all when this is `true` — distribution requires Apple to have finished processing. **This was the actual bug.** |
-| `skip_submission` | `false` | `true` uploads the binary and skips the distribute step, so `groups:` is silently ignored |
-| `distribute_external` | `false` | internal testers only; external would need Apple's beta review |
+| `skip_waiting_for_build_processing` | `false` | Fastlane does not distribute at all when this is `true`, and export compliance is settled during the wait |
+| `skip_submission` | `false` | `true` skips the whole distribute step, including compliance handling |
+| `distribute_external` | `false` | internal testers only |
+| `submit_beta_review` | `false` | **defaults to `true`** — must be pinned, or a build gets submitted for external Beta App Review |
+| `groups:` | **not passed** | Apple rejects build → internal-group assignment; see the box above |
 
 After distributing, the lane queries the group back from App Store Connect and **fails the
 job** if the build is not in it, so a green run means "testers can see it" rather than "the

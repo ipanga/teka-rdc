@@ -77,8 +77,16 @@ end
 class UploadLaneFlagsTest < Minitest::Test
   def setup
     @src = File.read(FASTFILE)
-    @lane = @src[/lane :upload_testflight do.*?\n  end/m]
-    raise "upload_testflight lane not found" if @lane.nil?
+    lane = @src[/lane :upload_testflight do.*?\n  end/m]
+    raise "upload_testflight lane not found" if lane.nil?
+
+    # CODE ONLY — comments stripped. The comments in this lane spell out every
+    # flag by name, so asserting against the raw text passes even when the real
+    # parameter has been deleted. (Caught exactly that way: removing
+    # `submit_beta_review: false` left the test green because the comment above
+    # it still said "submit_beta_review: false".) A guarantee protected only by
+    # a comment is not protected.
+    @lane = lane.lines.reject { |l| l =~ /^\s*#/ }.join
   end
 
   # The three flags that decide whether a tester ever sees the build. All three
@@ -102,7 +110,20 @@ class UploadLaneFlagsTest < Minitest::Test
     assert_match(/distribute_external:\s*false/, @lane)
   end
 
-  def test_passes_the_resolved_group
-    assert_match(/groups:\s*\[group\]/, @lane)
+  def test_never_submits_for_external_beta_review
+    # pilot's `submit_beta_review` DEFAULTS TO TRUE, and it submits whenever
+    # `submit_beta_review && (groups || distribute_external)`. The 2026-08-09
+    # release passed `groups:` without pinning this and triggered a real
+    # external Beta App Review submission, which failed on the seller with
+    # "Beta App Description is required to submit a build for external testing".
+    assert_match(/submit_beta_review:\s*false/, @lane)
+  end
+
+  def test_does_not_pass_groups
+    # Apple rejects POST /v1/builds/{id}/relationships/betaGroups for internal
+    # groups: "Cannot add internal group to a build." Passing `groups:` can
+    # only fail the release. Internal groups receive builds via their own
+    # hasAccessToAllBuilds setting instead.
+    refute_match(/^\s*groups:/, @lane)
   end
 end
