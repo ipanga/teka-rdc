@@ -129,6 +129,11 @@ jobs:
   release-config:
     name: Release Config
     runs-on: ubuntu-latest
+    # This job only reads the checkout and runs a Ruby script — no token use at
+    # all. Scoped explicitly (the other jobs in this file predate the
+    # convention and are left alone).
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
