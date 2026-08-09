@@ -307,6 +307,13 @@ for TestFlight). `ExportOptions-*.plist` set `uploadSymbols=false` on purpose �
 > apps (one Distribution cert + a profile per bundle id in `teka-ios-certs`), all secrets/env
 > are set, and a full `app=both` release run uploaded both apps to TestFlight. The steps below
 > are the reproduction/reference (e.g. rotating the PAT, re-running match, or a fresh machine).
+>
+> **Automatic distribution added 2026-08-09** (PR [#594](https://github.com/ipanga/teka-rdc/pull/594),
+> merged to `develop` as **`d9cf9fe`**). Until then the lane uploaded without distributing, so
+> five consecutive releases reached no tester — see *TestFlight tester groups* above for the
+> mapping and the three flags. **The first release after this change is the one that proves it
+> end-to-end**; builds `1785961399` (buyer) and `1785961365` (seller) predate it and were
+> assigned to their groups by hand in App Store Connect.
 
 1. **Apple Program License Agreement** — accept at developer.apple.com as Account Holder
    (the "Unable to process request - PLA Update available" block). Enable capabilities on
