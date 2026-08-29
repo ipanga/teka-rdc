@@ -1,4 +1,4 @@
-# Status — 2026-07-30
+# Status — 2026-08-29
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,9 +6,37 @@
 
 ## Active initiative
 
-**None.** The new-only catalog initiative closed 2026-07-30 — see below. Do not infer an active
-initiative from a plan file in `~/.claude/plans/`; cross-reference it against this section and git
-history first.
+**App Store 5.1.2(i) rejection + Android App Links never verifying** — branch
+`fix/testflight-internal-distribution-mechanism`. Code + docs complete and tested; **two operator steps
+remain** (neither is a code change):
+
+1. **Paste the Play App Signing SHA-256** into `apps/buyer-web/public/.well-known/assetlinks.json`.
+   Play Console → *Test and release → Setup → App signing* → *App signing key certificate*. The file
+   currently carries only the **upload** key (`08:AC:B5:…:21:F4`), which covers locally-signed release
+   APKs but **not** Play Store installs — and the reported failure was on a Play Store install. Then
+   deploy buyer-web and re-verify with `adb shell pm get-app-links com.tootiye.teka`.
+2. **Fix the App Store Connect privacy labels** — set *Used to Track You* = **No** for every data type
+   (matrix in `docs/mobile-release.md` → "App privacy"), reply to App Review, resubmit.
+
+**Root causes found.** (a) `assetlinks.json` shipped to production with the literal placeholder
+`REPLACE_WITH_PLAY_APP_SIGNING_SHA256_FINGERPRINT` — an operator step from the 2026-06-28 deep-linking
+initiative that was never completed. Android silently fails verification and falls back to the browser, so
+**Android App Links never worked in production**; iOS was fine because Universal Links need no cert
+fingerprint, which is why it looked Android-specific. (b) The Apple rejection was **not** a code defect —
+the app genuinely does not track (no IDFA/AdSupport/ad SDK/data broker; Sentry errors-only, PostHog
+first-party), so the privacy *labels* were simply wrong.
+
+**Shipped in this branch:** real upload-key fingerprint in `assetlinks.json`; `PrivacyInfo.xcprivacy` for
+**both** mobile apps (`NSPrivacyTracking=false`, empty `NSPrivacyTrackingDomains`) wired into the Runner
+targets via the new idempotent `scripts/ios-add-privacy-manifest.rb`; regression guards
+(`apps/buyer-web/src/lib/deep-link-association.test.ts` — proven to fail on the original placeholder — plus
+`test/core/privacy_manifest_test.dart` in both apps); `docs/deep-linking.md` + `docs/mobile-release.md`.
+**Deliberately not changed:** the Android manifest host list (adding `www.teka.cd` would break `teka.cd`
+verification — `www` 301s to apex and Android's verifier doesn't follow redirects, and one failing host
+fails them all on Android 12+).
+
+**Gates:** buyer-web vitest 10 files/63 tests · buyer-mobile 202 · seller-mobile 42 · `pnpm type-check`
+clean · `flutter analyze` 0 issues in `lib/`+`test/` for both apps.
 
 ## Closed 2026-07-30 — new-only catalog · internal stock · review titles + editing · PDP polish
 

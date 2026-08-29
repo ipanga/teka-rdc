@@ -58,10 +58,34 @@ Reading `deepLinkControllerProvider` in `app.dart` starts it (same read-once pat
   staging `staging.teka.cd`, dev `dev.teka.cd` — so non-prod builds never claim `teka.cd` on a device that also
   has prod.
 - **`assetlinks.json`** at `apps/buyer-web/public/.well-known/assetlinks.json` → served at
-  `https://teka.cd/.well-known/assetlinks.json` (`application/json`). **Operator:** replace
-  `REPLACE_WITH_PLAY_APP_SIGNING_SHA256_FINGERPRINT` with the **Play App Signing** cert SHA-256 (Play Console →
-  *App integrity → App signing key certificate*). Optionally add the upload-cert SHA-256 too (sideloaded APKs).
+  `https://teka.cd/.well-known/assetlinks.json` (`application/json`).
 - Verify: `adb shell pm get-app-links com.tootiye.teka` (after install) or the Play Console *Deep links* report.
+
+> **Regression, 2026-06-28 → 2026-08-29: Android App Links never worked in production.** The operator step above
+> was never completed, so `assetlinks.json` shipped with the literal string
+> `REPLACE_WITH_PLAY_APP_SIGNING_SHA256_FINGERPRINT` as its only fingerprint. Android silently fails domain
+> verification against an unparseable fingerprint and falls back to the browser, so **every** `https://teka.cd/…`
+> link opened buyer-web instead of the app — with no error surfaced anywhere. iOS was unaffected because
+> Universal Links match on team + bundle id and need no cert fingerprint, which is exactly why the symptom looked
+> Android-specific. Guarded since by `apps/buyer-web/src/lib/deep-link-association.test.ts`, which fails on any
+> placeholder or malformed fingerprint.
+
+**Which fingerprints belong in the file.** Android verifies against the certificate that actually signed the
+*installed* app, so the array must contain one entry per distribution channel in use:
+
+| Install source | Signing cert | Where to get the SHA-256 |
+|---|---|---|
+| Play Store (any track) | **Play App Signing** key | Play Console → *Test and release → Setup → App signing* → *App signing key certificate* |
+| Locally-built release APK | Upload keystore | `keytool -list -v -keystore apps/buyer-mobile/android/app/upload-keystore.jks -alias upload` |
+| `Build mobile APK` CI artifact | Ephemeral **debug** keystore | **Cannot be listed** — the runner regenerates `~/.android/debug.keystore` per job, so the fingerprint changes every build. App Links can never verify for these APKs; test deep links with a Play track or a locally-signed release build. |
+
+Format is uppercase hex bytes joined by colons. Multiple entries in one statement are valid and are OR'd.
+
+> **Do not add `www.teka.cd` to the `autoVerify` intent-filter.** nginx 301s `www` → apex
+> (`nginx/nginx.prod.conf`), Android's verifier does **not** follow redirects, and on Android 12+ a single failing
+> host fails verification for *every* host in the filter — adding it would break `teka.cd` too. `www` is a
+> non-issue in practice: `productWebUrl` and buyer-web canonicals both emit apex URLs. (iOS is unaffected: its
+> entitlement lists both hosts and `DeepLinkParser.allowedHosts` accepts both.)
 
 ## iOS Universal Links
 

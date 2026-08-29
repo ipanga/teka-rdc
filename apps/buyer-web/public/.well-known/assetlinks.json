@@ -5,7 +5,8 @@
       "namespace": "android_app",
       "package_name": "com.tootiye.teka",
       "sha256_cert_fingerprints": [
-        "REPLACE_WITH_PLAY_APP_SIGNING_SHA256_FINGERPRINT"
+        "43:ED:3F:21:1E:90:A0:66:AA:97:B7:F0:93:C6:39:A5:95:E8:80:20:6E:91:EA:A9:BF:43:E5:9B:61:74:6E:C4",
+        "08:AC:B5:D8:E8:B2:DA:9C:3E:20:CE:F7:F2:EA:96:1B:47:BB:2B:2E:01:9E:D2:16:20:A3:92:5B:CA:24:21:F4"
       ]
     }
   }
