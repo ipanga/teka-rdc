@@ -418,6 +418,47 @@ These were all found by running the pipeline for real; don't "simplify" them awa
   keeps automatic signing. `ExportOptions-*.plist` set `uploadSymbols=false` so Apple doesn't
   choke on the precompiled `Sentry.framework` dSYM (symbols go to Sentry, not Apple).
 
+## App privacy — labels, tracking, and the privacy manifest
+
+**Neither app tracks users**, in Apple's sense of the word (linking user data with *third-party* data for
+advertising, or sharing it with a data broker). Concretely: no `AdSupport`, no IDFA, no
+`ATTrackingManager`, no ad network, no attribution SDK, no data broker. The three SDKs that collect anything
+are all first-party sinks — **Sentry** (crash/errors only, `tracesSampleRate = 0`, phones scrubbed in
+`core/config/sentry_scrub.dart`), **PostHog** (`distinctId` = our own `user.id`; person properties carry
+`role` only), and **Firebase Cloud Messaging** (order push; not Analytics, not AdMob).
+
+Therefore the app must **not** ship an App Tracking Transparency prompt. Apple rejects apps that ask for
+tracking permission they don't need, and an ATT prompt would cost analytics opt-ins for nothing.
+
+**`ios/Runner/PrivacyInfo.xcprivacy`** (both apps) is the binary-side declaration of that posture —
+`NSPrivacyTracking = false`, empty `NSPrivacyTrackingDomains`, and every `NSPrivacyCollectedDataTypeTracking`
+set to `false`. It is wired into the Runner target's *Resources* build phase; a manifest that is only on disk
+is silently ignored. Re-wire with `ruby scripts/ios-add-privacy-manifest.rb apps/<app>-mobile` (idempotent) if
+the Xcode project is ever regenerated. Guarded by `test/core/privacy_manifest_test.dart` in both apps.
+
+**App Store Connect labels must agree with the manifest.** For every data type, *Used to Track You* = **No**:
+
+| Data type | Collected | Linked to user | Used to track | Why |
+|---|---|---|---|---|
+| Phone number | buyer | Yes | **No** | WhatsApp-OTP auth id + delivery contact |
+| Email address | both | Yes | **No** | seller login; buyer legacy account-claim |
+| Name | both | Yes | **No** | order / shop display |
+| Physical address | buyer | Yes | **No** | typed delivery address (**not** device location — no CoreLocation) |
+| Purchase history | buyer | Yes | **No** | the buyer's own orders |
+| Photos or videos | seller | Yes | **No** | product images |
+| User ID | both | Yes | **No** | our account id; PostHog `distinctId` |
+| Device ID | both | Yes | **No** | FCM push token + PostHog anonymous id |
+| Product interaction | both | Yes | **No** | PostHog screen views / storefront events |
+| Crash data | both | Yes | **No** | Sentry |
+| Other diagnostic data | both | Yes | **No** | Sentry breadcrumbs |
+
+> **Rejection history — guideline 5.1.2(i), 2026-08-18 (buyer-mobile 0.1.4).** The labels declared Crash Data,
+> Other Diagnostic Data, and Device ID as *used to track you* while the binary shipped no ATT prompt. Nothing in
+> the app was wrong — **the labels were**. Resolution: set *Used to Track You* = No per the table above (App
+> Store Connect → *App Privacy*; needs Account Holder or Admin), reply to App Review stating the app does not
+> track on any platform, and resubmit. If you ever add an ad/attribution SDK, this whole section changes and ATT
+> becomes mandatory.
+
 ## Not covered (deferred)
 
 - **staging/dev → TestFlight** — the release workflow ships production only. To add
