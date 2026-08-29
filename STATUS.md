@@ -6,17 +6,34 @@
 
 ## Active initiative
 
-**App Store 5.1.2(i) rejection + Android App Links never verifying** — branch
-`fix/testflight-internal-distribution-mechanism`. Code + docs complete and tested; **two operator steps
-remain** (neither is a code change):
+**App Store 5.1.2(i) rejection + Android App Links never verifying** — **shipped to prod 2026-08-29**
+(PRs #597 → develop, #598 → main/deploy, #599 back-merge, #600 version bump). **One operator step
+remains, and it is not a code change:**
 
-1. **Paste the Play App Signing SHA-256** into `apps/buyer-web/public/.well-known/assetlinks.json`.
-   Play Console → *Test and release → Setup → App signing* → *App signing key certificate*. The file
-   currently carries only the **upload** key (`08:AC:B5:…:21:F4`), which covers locally-signed release
-   APKs but **not** Play Store installs — and the reported failure was on a Play Store install. Then
-   deploy buyer-web and re-verify with `adb shell pm get-app-links com.tootiye.teka`.
-2. **Fix the App Store Connect privacy labels** — set *Used to Track You* = **No** for every data type
-   (matrix in `docs/mobile-release.md` → "App privacy"), reply to App Review, resubmit.
+- **Fix the App Store Connect privacy labels** — set *Used to Track You* = **No** for every data type
+  (matrix in `docs/mobile-release.md` → "App privacy"), reply to App Review, resubmit. The
+  `PrivacyInfo.xcprivacy` that backs those labels is already in both binaries; it reaches devices on the
+  next IPA build.
+
+**Android App Links are FIXED and verified live.** `assetlinks.json` now carries both certs — Play App
+Signing `43:ED:3F:…:6E:C4` (Play Store installs, which is how the failure was reported) and upload
+`08:AC:B5:…:21:F4` (locally-signed release APKs). Confirmed after deploy against Google's Digital Asset
+Links API (`digitalassetlinks.googleapis.com/v1/statements:list?source.web.site=https://teka.cd`), which
+returns both statements parsed cleanly. Remaining device check: `adb shell pm get-app-links
+com.tootiye.teka` → `verified` (Android only re-verifies on install/update).
+
+**Play Store release 0.1.5+7 built and ready to upload** (run `33274728803`, both apps). Signed AABs
+downloaded to `~/Desktop/teka-aab-0.1.5+7/`; buyer cert verified to be exactly the upload key in
+`assetlinks.json`, seller uses its own keystore as designed. Ships the accumulated work since `0.1.4+6`
+(buyer 50 lib files, seller 27) — **not** the App Links fix, which was server-side only and needed no app
+change. Upload is manual: Play Console → Test and release → track → Create release (two separate
+listings).
+
+**`Release mobile AAB` now works — it never had before.** Its first run (2026-07-04) and the first run
+today both failed on the workflow's own guard (`upload keystore secret is not set — refusing to build a
+debug-signed bundle`). The 8 Android signing secrets had been an open operator TODO since June. They are
+now set for both apps from the local keystores (each verified to open with its stored credentials before
+upload), so the workflow is repeatable from here.
 
 **Root causes found.** (a) `assetlinks.json` shipped to production with the literal placeholder
 `REPLACE_WITH_PLAY_APP_SIGNING_SHA256_FINGERPRINT` — an operator step from the 2026-06-28 deep-linking
@@ -26,7 +43,7 @@ fingerprint, which is why it looked Android-specific. (b) The Apple rejection wa
 the app genuinely does not track (no IDFA/AdSupport/ad SDK/data broker; Sentry errors-only, PostHog
 first-party), so the privacy *labels* were simply wrong.
 
-**Shipped in this branch:** real upload-key fingerprint in `assetlinks.json`; `PrivacyInfo.xcprivacy` for
+**Shipped:** both fingerprints in `assetlinks.json`; `PrivacyInfo.xcprivacy` for
 **both** mobile apps (`NSPrivacyTracking=false`, empty `NSPrivacyTrackingDomains`) wired into the Runner
 targets via the new idempotent `scripts/ios-add-privacy-manifest.rb`; regression guards
 (`apps/buyer-web/src/lib/deep-link-association.test.ts` — proven to fail on the original placeholder — plus
@@ -539,10 +556,11 @@ finalize prod `google-services.json`, run "Release mobile AAB" → upload to Pla
   keystores).
 - `docs/mobile-release.md` — keytool commands, the GitHub Secrets table, version-bump + build steps, and a
   full **Play Store submission checklist**. CLAUDE.md docs index + the APK-workflow note updated.
-**OPERATOR TODO (not code):** generate the two upload keystores (`docs/mobile-release.md § 1`), set the
-8 signing secrets (§ 2), finalize the production `google-services.json` per app, then run "Release mobile
-AAB". **Out of scope:** iOS (blocked on the deferred iOS scaffold), automated Play Console upload (manual
-for now).
+~~**OPERATOR TODO (not code):** generate the two upload keystores, set the 8 signing secrets, finalize the
+production `google-services.json` per app, then run "Release mobile AAB".~~ **DONE 2026-08-29** — keystores
+were generated 2026-07-01; the 8 signing secrets were set from them on 2026-08-29, and "Release mobile AAB"
+succeeded for the first time (run `33274728803`, 0.1.5+7, both apps). Play Console upload stays manual.
+**Still out of scope:** automated Play Console upload.
 
 **Initiative #1 — Real Catalog & Merchant Supply is now FULLY CLOSED** — P3c (demo-catalog
 retirement) SHIPPED + VERIFIED on prod 2026-06-09 (release #363; prod seed run created the
@@ -974,7 +992,7 @@ PRs in order:
 - **Staging backend infra.** Staging is hypothetical for now; `flavors/staging.json` carries the placeholder `https://staging.api.teka.cd/api`. When real infra lands, flip the URL + (optionally) provision a dedicated Firebase project + Sentry DSN.
 - **Per-flavor Firebase secrets (later).** Today one `google-services.json` per app covers all 3 packages. When separate Firebase projects per env exist, split into `_DEV` / `_STAGING` / `_PROD` GitHub secrets and select per `matrix.flavor` in the workflow. Flagged inline in `.github/workflows/build-mobile-apk.yml`.
 - **iOS flavors.** Blocked on the long-deferred PR C (iOS scaffold for both apps). When PR C lands, mirror the Android flavor shape: Xcode schemes per flavor, per-flavor `GoogleService-Info.plist`, bundle IDs matching Android.
-- **Real signing keystore.** Today release builds sign with the debug keystore (`signingConfig = signingConfigs.getByName("debug")` in both apps). Must replace before Play Store submission.
+- ~~**Real signing keystore.**~~ **RESOLVED.** Both apps have real upload keystores (generated 2026-07-01) and the release `signingConfig` loads `android/key.properties`, falling back to debug only when it is absent. The 8 CI signing secrets were set 2026-08-29 and `Release mobile AAB` verifies the bundle is not debug-signed before uploading the artifact.
 
 ## Open follow-ups from today's outage
 
