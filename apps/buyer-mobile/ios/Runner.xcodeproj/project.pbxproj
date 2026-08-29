@@ -11,6 +11,7 @@
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		33EF05B993175E28B472748C /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C131C9DF9F8732BFF0FF911B /* Pods_Runner.framework */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
+		70DCADBAE4F2DEED66276A36 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1919C41F625B306D9ACCBE6E /* PrivacyInfo.xcprivacy */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
@@ -53,6 +54,7 @@
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
 		16715A7ABECE163E6CF2C53B /* Pods-Runner.debug-staging.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug-staging.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug-staging.xcconfig"; sourceTree = "<group>"; };
 		176C8FEAE8289CC4D6E71342 /* Profile-production.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Profile-production.xcconfig"; path = "Flutter/Profile-production.xcconfig"; sourceTree = "<group>"; };
+		1919C41F625B306D9ACCBE6E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		25E0F668A508287D40172BEE /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
 		26E45186AF4D1140A0839546 /* Debug-staging.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Debug-staging.xcconfig"; path = "Flutter/Debug-staging.xcconfig"; sourceTree = "<group>"; };
 		298B0825A662E861DCB8488C /* Pods-Runner.profile-development.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile-development.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile-development.xcconfig"; sourceTree = "<group>"; };
@@ -226,6 +228,7 @@
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
 				6C7DE871CBD174A56842AF68 /* GoogleService-Info.plist */,
 				444523C136AA5EAFDB845156 /* Runner.entitlements */,
+				1919C41F625B306D9ACCBE6E /* PrivacyInfo.xcprivacy */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
@@ -336,6 +339,7 @@
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
 				F29BA0B36D095B27410D1071 /* GoogleService-Info.plist in Resources */,
+				70DCADBAE4F2DEED66276A36 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -495,7 +499,6 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				DEVELOPMENT_TEAM = YK6Z393A4D;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -504,6 +507,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.tootiye.teka.dev;
 				PRODUCT_DISPLAY_NAME = "Teka Dev";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -573,7 +577,6 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				DEVELOPMENT_TEAM = YK6Z393A4D;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -582,6 +585,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.tootiye.teka.dev;
 				PRODUCT_DISPLAY_NAME = "Teka Dev";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -600,7 +604,6 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				DEVELOPMENT_TEAM = YK6Z393A4D;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -609,6 +612,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.tootiye.teka;
 				PRODUCT_DISPLAY_NAME = Teka;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -644,7 +648,6 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				DEVELOPMENT_TEAM = YK6Z393A4D;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -653,6 +656,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.tootiye.teka.staging;
 				PRODUCT_DISPLAY_NAME = "Teka Stg";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -670,7 +674,6 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				DEVELOPMENT_TEAM = YK6Z393A4D;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -679,6 +682,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.tootiye.teka.dev;
 				PRODUCT_DISPLAY_NAME = "Teka Dev";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -925,7 +929,6 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				DEVELOPMENT_TEAM = YK6Z393A4D;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -934,6 +937,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.tootiye.teka;
 				PRODUCT_DISPLAY_NAME = Teka;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1124,7 +1128,6 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = "Runner/Runner-Release.entitlements";
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				DEVELOPMENT_TEAM = YK6Z393A4D;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -1133,6 +1136,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.tootiye.teka;
 				PRODUCT_DISPLAY_NAME = Teka;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1204,7 +1208,6 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				DEVELOPMENT_TEAM = YK6Z393A4D;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -1213,6 +1216,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.tootiye.teka.staging;
 				PRODUCT_DISPLAY_NAME = "Teka Stg";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1287,7 +1291,6 @@
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
-				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				DEVELOPMENT_TEAM = YK6Z393A4D;
 				ENABLE_BITCODE = NO;
 				INFOPLIST_FILE = Runner/Info.plist;
@@ -1296,6 +1299,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				MARKETING_VERSION = "$(FLUTTER_BUILD_NAME)";
 				PRODUCT_BUNDLE_IDENTIFIER = com.tootiye.teka.staging;
 				PRODUCT_DISPLAY_NAME = "Teka Stg";
 				PRODUCT_NAME = "$(TARGET_NAME)";

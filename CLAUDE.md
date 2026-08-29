@@ -31,9 +31,9 @@ pnpm dev:seller-web             # run seller dashboard on :5100
 pnpm dev:admin-web              # run admin panel on :5200
 pnpm dev:web                    # all three Next.js apps in parallel
 pnpm build                      # builds @teka/shared first, then all apps
-pnpm lint                       # recursive lint across all packages
-pnpm type-check                 # recursive tsc --noEmit
-pnpm test                       # recursive test (Jest in api/, none elsewhere yet)
+pnpm type-check                 # recursive tsc --noEmit — this is the real gate
+pnpm lint                       # ⚠️ REWRITES YOUR WORKING TREE — see warning below
+pnpm test                       # recursive: resolves in api (Jest) + buyer-web (Vitest) only
 pnpm db:push                    # prisma db push (schema sync, no migration file)
 pnpm db:migrate                 # prisma migrate dev
 pnpm db:seed                    # tsx prisma/seed.ts with .env.development
@@ -42,18 +42,28 @@ pnpm db:studio                  # open Prisma Studio
 pnpm clean                      # nuke node_modules / dist / .next / .turbo everywhere
 ```
 
-### Running a single API test
+> **⚠️ `pnpm lint` rewrites files.** `apps/api`'s lint script is `eslint … --fix`, so a root `pnpm lint` silently modifies ~28 api files you never touched — this is the recurring "modified files nobody edited". `apps/api` currently reports **943 errors / 218 warnings**: pre-existing debt, not something you broke. **`pnpm type-check` is the real gate** — CI's `ci.yml` job is *named* "Lint & Type Check" but runs type-check only, and root lint runs only in `pr-validation.yml`, where it is explicitly non-blocking. If you do run lint, `git checkout` the incidental churn before committing.
 
-The API uses Jest with `rootDir: "src"` and `testRegex: ".*\\.spec\\.ts$"` (see `apps/api/package.json`). From `apps/api/`:
+> **What the workspace actually covers.** `apps/{buyer,seller}-mobile` have **no `package.json`**, so they are not workspace members — `pnpm lint` / `type-check` / `test` never reach them regardless of `--recursive`. Their gates are `flutter analyze` + `flutter test`, run from each app directory. Likewise `pnpm test` resolves only in `api` and `buyer-web`; `seller-web`, `admin-web`, and `@teka/shared` define no `test` script and are skipped silently.
+
+### Running tests
+
+The API uses Jest with `rootDir: "src"` and `testRegex: ".*\\.spec\\.ts$"` (inline config in `apps/api/package.json`). From `apps/api/`:
 
 ```bash
 pnpm test                                  # all unit specs in src/
-pnpm test -- path/to/file.spec.ts          # single file
+pnpm test -- src/reviews/reviews.service.spec.ts   # single file — path is relative to apps/api
 pnpm test -- -t "should reject phone-only seller"  # filter by test name
 pnpm test:watch                            # watch mode
 pnpm test:e2e                              # jest --config ./test/jest-e2e.json
 pnpm test:cov                              # with coverage
 ```
+
+Jest matches the path argument against the *full* path, so a repo-root-relative path silently matches zero tests — always write it relative to `apps/api`.
+
+buyer-web has a **Vitest** suite (`pnpm --filter buyer-web test`; jsdom, `vitest.config.ts`) covering middleware, sitemap, URL helpers, and a few components. **CI does not run it** — run it yourself when touching those files.
+
+Green baseline as of 2026-07-30 (last closed initiative), for telling "I broke it" from "already red": **API 243 unit + 118 e2e · buyer-mobile 194 · seller-mobile 31.**
 
 ### Prisma workflow
 
@@ -67,7 +77,10 @@ DATABASE_URL=$(grep '^DATABASE_URL=' .env.development | cut -d= -f2-) \
 
 After editing `apps/api/prisma/schema.prisma`: run `pnpm db:push` (cloud DB, no migration files in dev) then `pnpm --filter api prisma:generate` if your IDE doesn't pick up new types.
 
-For production, schema-affecting changes ship as manual SQL files under `apps/api/prisma/migrations/manual/YYYY-MM-DD_*.sql` (idempotent — wrap in `IF NOT EXISTS` / guard data updates). Two apply paths (see `docs/deployment.md §5a`): **(1) auto-applied during deploy** — add the filename to `apps/api/prisma/migrations/manual/auto-apply.list` and `deploy.yml` runs it (via `apply-auto.sh`, tracked in `_manual_migrations`) **before the rolling swap** (expand→deploy); use only for additive/backward-compatible + idempotent migrations, since the old code keeps serving while it runs. **(2) manual** `Apply prod migration` GitHub Action (Actions tab → Run workflow → paste the filename) for destructive/contract-phase migrations that must not auto-apply — it docker-execs into the *running* api container (file must already be on `main`). The api image bundles `postgresql-client` (added 2026-05-21) so psql works inside the container.
+For production, schema changes ship as **idempotent** manual SQL under `apps/api/prisma/migrations/manual/YYYY-MM-DD_*.sql` (wrap in `IF NOT EXISTS`, guard data updates). Two apply paths — full detail in `docs/deployment.md §5a`:
+
+1. **Auto-applied during deploy** — add the filename to `manual/auto-apply.list`; `deploy.yml` runs `prisma/migrations/apply-auto.sh` (which sits *above* `manual/`, not inside it) **before the rolling swap**, tracking applied files in `_manual_migrations`. **Additive/backward-compatible only** — the old code keeps serving while it runs.
+2. **Manual** — the `Apply prod migration` Action (Actions tab → Run workflow → paste the filename) for destructive/contract-phase migrations. It docker-execs into the *running* api container, so the file must already be on `main`. The api image bundles `postgresql-client`.
 
 ### Docker
 
@@ -76,11 +89,11 @@ docker compose up               # 5 services: api, buyer-web, seller-web, admin-
 docker compose -f docker-compose.prod.yml up    # production stack (cloud DB, SSL via nginx.prod.conf)
 ```
 
-Note: there is **no local Postgres or Redis container** — the DB is cloud-hosted (Neon/Supabase/Railway) via `DATABASE_URL`. Redis was removed in March 2026; the OTP tables that briefly replaced it were themselves removed in May 2026 when phone-OTP auth was deleted.
+**No local Postgres or Redis container** — the DB is cloud-hosted via `DATABASE_URL`. Redis went in March 2026; the OTP tables that briefly replaced it went in May 2026 with phone-OTP auth.
 
 ### Flutter (mobile)
 
-Both apps ship **three Android product flavors** (`development` | `staging` | `production`) so dev/staging/prod builds co-install. `flutter run`/`build` without `--flavor` fails fast with `no matching variant` — always pass `--flavor` + the matching `--dart-define-from-file`. The flavor (incl. API base URL + Sentry DSN) is baked in at compile time via `lib/core/config/flavor.dart`. **Full reference: `docs/mobile-flavors.md`.**
+Both apps ship **three product flavors** (`development` | `staging` | `production`) so builds co-install. `flutter run`/`build` **without `--flavor` fails** with `no matching variant` — always pass `--flavor` *and* the matching `--dart-define-from-file`. The flavor (API base URL, Sentry DSN, …) is baked in at compile time via `lib/core/config/flavor.dart`. **Full reference: `docs/mobile-flavors.md`.**
 
 ```bash
 # Run (from apps/buyer-mobile or apps/seller-mobile):
@@ -92,7 +105,7 @@ flutter pub run build_runner build           # regenerate Riverpod / freezed cod
 
 Dev/staging APKs need per-flavor `google-services.json` (CI injects from secrets) or they fail at `:processGoogleServices*` — see `docs/mobile-flavors.md`.
 
-**Mobile release CI (manual `workflow_dispatch`, per app buyer/seller/both):** Android = `release-mobile-aab.yml` + `build-mobile-apk.yml`; iOS = `release-mobile-ipa.yml` (signed prod IPA via Fastlane `match` → dSYM→Sentry → `ios-testflight` approval gate → TestFlight) + `build-mobile-ipa.yml`. Load-bearing: both apps share Apple team `YK6Z393A4D`; certs live in the private `teka-ios-certs` match repo; committed pbxproj stays `CODE_SIGN_STYLE=Automatic` (CI flips to Manual ephemerally); each TestFlight upload needs a higher `CFBundleVersion`. **Full runbook + secrets + CI gotchas: `docs/mobile-release.md`.** Root `Gemfile`/`fastlane/` hold the Fastlane setup.
+**Mobile release CI** — all `workflow_dispatch`-only, per app buyer/seller/both. Android: `release-mobile-aab.yml` + `build-mobile-apk.yml`. iOS: `release-mobile-ipa.yml` (signed prod IPA via Fastlane `match` → dSYM→Sentry → `ios-testflight` approval gate → TestFlight) + `build-mobile-ipa.yml`. Load-bearing: both apps share Apple team `YK6Z393A4D`; certs live in the private `teka-ios-certs` match repo; the committed pbxproj stays `CODE_SIGN_STYLE=Automatic` (CI flips it to Manual ephemerally); every TestFlight upload needs a higher `CFBundleVersion`. **Full runbook + secrets + gotchas: `docs/mobile-release.md`** (root `Gemfile`/`fastlane/` hold the Fastlane setup).
 
 ### Branching (see CONTRIBUTING.md for full detail)
 
@@ -106,10 +119,10 @@ Before making ANY architectural or UX decision, internalize these constraints:
 
 - **Unreliable internet:** Most users are on 2G/3G with frequent drops. Pages must be lightweight (<200KB initial payload ideally), images lazy-loaded and aggressively compressed, and API responses paginated and minimal. Consider offline-first patterns for the mobile app (queue actions, sync when online).
 - **Low-end devices:** Target Android 8+ devices with 2GB RAM. Avoid heavy JS bundles on web. Flutter apps must be optimized for low memory.
-- **Cash on Delivery only:** The platform is COD-only since 2026-05-26 (Orange/AT/Flexpay removal initiative). Mobile Money via Flexpay was retired — `CheckoutService` writes `Transaction { provider: COD }` synchronously on order creation; `AdminOrdersService.markDelivered()` (Teka ops collects the cash on delivery) flips it to `COMPLETED`. The `PaymentMethod.MOBILE_MONEY` enum value stays on the schema for historical-row display. Re-introducing automated payments would mean adding a new provider abstraction — none currently exists.
-- **French.** All UI strings, seed data, error messages, and email templates are French, **written directly as literals — there is no localization layer anywhere.** Both Flutter apps had gen-l10n/`app_fr.arb` removed (buyer-mobile 2026-06-22, seller-mobile 2026-06-23); all three Next.js apps had **next-intl fully removed** (admin-web, seller-web, buyer-web — 2026-06-23). No `messages/fr.json`, no `src/i18n/`, no providers/plugins. DB stores translatable fields as plain TEXT. See Rule 1.
-- **Logistics are local:** No national postal system. Delivery is handled by local riders/drivers. Build a simple delivery zone system based on towns/neighborhoods, not postal codes. Support seller self-delivery + platform-managed delivery options.
-- **Auth identity is role-specific; phone is always the delivery contact.** Buyers log in with **phone + WhatsApp OTP** (Gupshup, since 2026-05-15); sellers + admins use **email + password**. Phone (`+243XXXXXXXXX`) is also collected at the address / delivery-contact / seller-profile surfaces for order notifications and rider contact. `User.phone` is nullable + globally unique — only the legacy 3-day email-buyer cohort has `null` until they claim. Full rules: **Rule 12 + Rule 13** (they win over any older description).
+- **Cash on Delivery only** since 2026-05-26. No payment provider abstraction exists — re-introducing automated payments means building one. Details: **Rule 11** + §2 Payments row.
+- **French, written as literals.** There is no localization layer anywhere — not in the three Next.js apps, not in the two Flutter apps, not in the DB (translatable fields are plain TEXT). Details: **Rule 1**.
+- **Logistics are local:** No national postal system. Delivery is handled by local riders/drivers. Delivery zones are based on towns/neighborhoods, not postal codes. Support seller self-delivery + platform-managed delivery options.
+- **Auth is role-specific; phone is always the delivery contact.** Buyers = phone + WhatsApp OTP; sellers + admins = email + password. Details: **Rule 12 + Rule 13** (they win over any older description).
 - **Power outages:** Users may lose connection mid-transaction. All critical flows (checkout, payment confirmation, order placement) must be idempotent and resumable. Use server-side state machines for order lifecycle.
 
 ---
@@ -120,9 +133,9 @@ Before making ANY architectural or UX decision, internalize these constraints:
 
 | Layer | Technology | Notes |
 |---|---|---|
-| Runtime | Node.js + NestJS | Enterprise-grade, modular, TypeScript-native |
-| Database | PostgreSQL | Cloud-hosted (Neon, Supabase, or Railway). Connection string in env files |
-| ORM | Prisma | Type-safe queries, migrations, seeding |
+| Runtime | Node.js + NestJS 11 | |
+| Database | PostgreSQL | Cloud-hosted (Neon/Supabase/Railway) — **no local instance**. `DATABASE_URL` in the root env files |
+| ORM | Prisma 6 | |
 | Cache & Queues | **None** (Redis removed Mar 2026) | API throttling via `@nestjs/throttler` (in-memory). |
 | Auth | JWT access + refresh; role-specific | Buyers = WhatsApp OTP (Gupshup); sellers/admins = email+password. See **Rule 12**. |
 | Media Storage | Cloudinary | Max 5MB, auto-compress to WebP. |
@@ -131,7 +144,7 @@ Before making ANY architectural or UX decision, internalize these constraints:
 | Payments | **COD only** | `CheckoutService` writes `Transaction{provider:COD}`; `markDelivered()` → `COMPLETED`. No provider/webhook. `MOBILE_MONEY`/`FLEXPAY` enums kept for historical rows. |
 | Reverse Proxy | NGINX | SSL, routing, rate limiting, gzip. `nginx/nginx.conf` (dev) / `nginx.prod.conf`. |
 | Containerization | Docker + Docker Compose | 5 dev services (api, 3 web, nginx). Cloud DB — no local Postgres. |
-| CI/CD | GitHub Actions | Lint → type-check → test → build → deploy. |
+| CI/CD | GitHub Actions | type-check → test → build → deploy. **Lint is not an enforced gate** — see the §0 warning. |
 | Monitoring | Prometheus + Grafana; Sentry | Health/latency/errors. Sentry: `docs/sentry.md`. |
 | Product analytics | PostHog (6 surfaces) + Clarity (web) | `distinctId=user.id`; identity = id+role only; one authoritative owner per event. Details: `docs/analytics.md` + `docs/clarity.md`. |
 
@@ -145,37 +158,30 @@ Before making ANY architectural or UX decision, internalize these constraints:
 | API | NestJS 11 + Prisma 6 | 5050 | `api.teka.cd` |
 | NGINX | Reverse proxy | 8080 | (terminates SSL on each subdomain in prod) |
 
-All three Next.js apps use **plain French string literals** — next-intl was fully removed (admin-web, seller-web, buyer-web). There is no `messages/fr.json`, no `src/i18n/request.ts`, no `NextIntlClientProvider`, no `createNextIntlPlugin` wrapper, no `[locale]` route segment, no middleware locale handling, and no language switcher — routes live directly under `src/app/` and navigation uses `next/link` + `next/navigation`. When adding UI copy, write the French string inline.
+No `[locale]` route segment, no middleware locale handling, no language switcher — routes live directly under `src/app/` and navigation uses `next/link` + `next/navigation` (Rule 1).
 
 > **IMPORTANT:** Ports 3000 and 4000 are already in use locally. Never use them.
 
 ### Deployment
 
-GitHub Actions handles CI/CD with **zero-downtime** deploys (lint → type-check → test → build → deploy). Every merge to `main` ships. `develop` is the integration branch; releases happen via real merge PRs `develop → main` (see CONTRIBUTING.md — never squash).
+Every merge to `main` ships via GitHub Actions, **zero-downtime**. `develop` is the integration branch; releases are real merge PRs `develop → main` (§0 Branching + CONTRIBUTING.md — never squash).
 
 ### Mobile (Flutter)
 
-| App | Notes |
-|---|---|
-| buyer-mobile | Consumer-facing app. Primary user interface for most customers |
-| seller-mobile | Seller dashboard: manage products, orders, earnings |
-
-Android ships via APK distribution + Play Store. **iOS ships to TestFlight** — both apps have a git-tracked native project under `apps/{buyer,seller}-mobile/ios/` (Runner workspace + Podfile + per-flavor `development`/`staging`/`production` xcschemes; `Pods/`, `Flutter/Generated.xcconfig`, and `Runner/GoogleService-Info.plist` stay gitignored) wired into CI (`build-mobile-ipa.yml` / `release-mobile-ipa.yml` + root `fastlane/`). iOS is newer than Android — verify tooling assumptions against `docs/mobile-release.md` rather than assuming full parity.
+**buyer-mobile** is the consumer app (the primary interface for most customers); **seller-mobile** is the seller dashboard (products, orders, earnings). Android ships via APK + Play Store; **iOS ships to TestFlight**. Both apps have a git-tracked native project under `apps/{buyer,seller}-mobile/ios/` — Runner workspace + Podfile + per-flavor xcschemes, with `Pods/`, `Flutter/Generated.xcconfig`, and `Runner/GoogleService-Info.plist` gitignored. iOS is newer than Android — **verify tooling assumptions against `docs/mobile-release.md` rather than assuming parity.**
 
 ### Repository Layout
 
 **pnpm workspace** monorepo — everything is under `apps/*` or `packages/*` (no flat `api/`, `buyer-web/`):
 
-- `apps/` — `api` (NestJS 11, :5050), `buyer-web` (Next 15, :5001/5000 → teka.cd), `seller-web` (:5100,
-  basePath `/seller`), `admin-web` (:5200, basePath `/admin`, Recharts), `buyer-mobile` + `seller-mobile`
-  (Flutter — Riverpod + go_router + dio). Each Next app's `src/` is App Router (`app/`, `components/`,
+- `apps/` — six apps (see the tables above). Each Next app's `src/` is App Router (`app/`, `components/`,
   `lib/`, `middleware.ts`); the api's `src/` is domain modules; `apps/api/prisma/` holds schema + seed +
-  migrations.
+  migrations. The two Flutter apps are Riverpod + go_router + dio, and are **not** pnpm workspace members.
 - `packages/shared` — `@teka/shared`: types, constants, Zod validators, `normalizeDrcPhone`, cookie names.
 - Root: `docker-compose{,.prod}.yml`, `.env.{development,production,test}` (root-level, NOT per-app),
-  `pnpm-workspace.yaml`, `nginx/`, `scripts/`, `Gemfile` + `fastlane/` (iOS release tooling), `tasks/`
-  (gitignored local trackers — not a backlog). Root `package.json` has a `pnpm.overrides` block pinning
-  security-patched transitive deps — don't strip it during dependency work.
+  `nginx/`, `scripts/`, `Gemfile` + `fastlane/` (iOS release tooling), `tasks/` (gitignored local trackers —
+  **not** a backlog). Root `package.json` has a `pnpm.overrides` block pinning security-patched transitive
+  deps — **don't strip it during dependency work.**
 
 **`docs/` index** (read `architecture.md` first):
 `architecture.md` (authoritative service architecture) · `product-spec.md` (feature spec + 8-phase
@@ -190,12 +196,12 @@ response-shape contract) · `push-notifications.md` (FCM) ·
 `session-management.md` (per-surface cookies + token rotation) · `sentry.md` ·
 `deep-linking.md` (App Links / Universal Links + DeepLinkParser) ·
 `town-architecture-refactor.md` + `town-switcher-ux.md` (data-driven town selection / switcher — see note below) ·
-`buyer-web-redesign.md` + `buyer-mobile-redesign.md` (buyer UI/UX polish initiatives) ·
-`mobile-guest-and-errors.md` (mobile guest-browsing + error-state UX) ·
-`app-review-login.md` (store-reviewer OTP bypass — ships disabled) · `mobile-navigation-audit.md`.
-Dated device-report fix trackers (`buyer-cart-help-notifications-account-deletion-review-login.md`,
-`buyer-mobile-cart-search-checkout-rating-fixes.md`, `seller-product-*-fixes.md`) are per-initiative
-history, not current-behaviour references — prefer `architecture.md` + the Rules below.
+`app-review-login.md` (store-reviewer OTP bypass — ships disabled).
+
+Everything else in `docs/` is a **dated initiative tracker** (`*-redesign.md`, `*-fixes.md`, `*-audit.md`,
+`product-condition-deprecation.md`, `review-title-and-editing.md`, …). Those are per-initiative history, not
+current-behaviour references — prefer `architecture.md` + the Rules below. **Deliberately not enumerated here:**
+the set grows with every initiative, and listing it re-trips the size warning. `ls docs/` when you need one.
 
 ---
 
@@ -206,17 +212,14 @@ history, not current-behaviour references — prefer `architecture.md` + the Rul
 Key categories (see `env.validation.ts` for the full list):
 
 - **Database** — `DATABASE_URL` (cloud Postgres; no local instance)
-- **Auth** — `JWT_SECRET`, `JWT_REFRESH_SECRET`, `JWT_EXPIRY`, `JWT_REFRESH_EXPIRY`, `COOKIE_DOMAIN` (empty in dev, `.teka.cd` in prod for cross-subdomain cookies). Cookies are **per-surface** since 2026-06-18 — `teka_{admin,seller,buyer}_{access,refresh,session}`, selected via the `X-Teka-Surface` header — so the three sessions stay isolated and logout is session-scoped. Refresh rotates with a 15s grace window (no revoke-all on benign races). Full model: `docs/session-management.md`.
-- **Password hashing & setup links** — `BCRYPT_ROUNDS`, `PASSWORD_RESET_EXPIRY_MINUTES`, `SELLER_SETUP_EXPIRY_HOURS`, `BUYER_SETUP_EXPIRY_HOURS`
-- **Payments** — no env vars; COD-only since 2026-05-26 (Flexpay removed)
-- **Media & email** — `CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET`, `RESEND_API_KEY`, `EMAIL_FROM`
-- **Service URLs & CORS** — `API_URL`, `BUYER_WEB_URL`, `SELLER_WEB_URL`, `ADMIN_WEB_URL`, `CORS_ORIGINS`
-- **Error monitoring** — `SENTRY_DSN` (empty in dev → init skipped, `captureException` a no-op), `SENTRY_RELEASE` (optional git short-sha for per-release grouping).
-- **Push notifications (FCM)** — `PushService` takes either `GOOGLE_APPLICATION_CREDENTIALS` (path to a service-account JSON) **or** the discrete trio `FIREBASE_PROJECT_ID`/`FIREBASE_PRIVATE_KEY`/`FIREBASE_CLIENT_EMAIL` (the trio wins when both are set). No-op when neither is configured. Never commit the JSON. **Full setup: `docs/push-notifications.md`.**
-- **WhatsApp OTP (Gupshup)** — `WHATSAPP_PROVIDER` + `GUPSHUP_*` (see Rule 14). Mobile keys are per-flavor.
-- **iOS release CI (GitHub Actions *repo* secrets, not env-file vars):** `MATCH_PASSWORD`, `MATCH_GIT_BASIC_AUTH`, per-app `{BUYER,SELLER}_ASC_API_KEY_ID`/`_ASC_API_ISSUER_ID`/`_ASC_API_KEY_P8_B64` (same team `YK6Z393A4D` → buyer==seller), plus Firebase-plist + Sentry secrets. **Full table + runbook: `docs/mobile-release.md`.**
-
-- **App-review login** — `APP_REVIEW_LOGIN_ENABLED` (default `false`) + `APP_REVIEW_BUYER_PHONE_E164`/`APP_REVIEW_BUYER_OTP`: a fixed-OTP bypass for Apple/Google store reviewers. **Prod stays `false`** — flip on only during an active review window, then off. See `docs/app-review-login.md`.
+- **Database** / **Media & email** / **Service URLs** — `DATABASE_URL`; `CLOUDINARY_*`, `RESEND_API_KEY`, `EMAIL_FROM`; `API_URL`, `{BUYER,SELLER,ADMIN}_WEB_URL`, `CORS_ORIGINS`
+- **Auth** — `JWT_SECRET`, `JWT_REFRESH_SECRET`, `JWT_EXPIRY`, `JWT_REFRESH_EXPIRY`, `COOKIE_DOMAIN` (empty in dev, `.teka.cd` in prod for cross-subdomain cookies), `BCRYPT_ROUNDS`, `*_EXPIRY_MINUTES`/`_HOURS`. Cookies are **per-surface** since 2026-06-18 — `teka_{admin,seller,buyer}_{access,refresh,session}`, chosen by the `X-Teka-Surface` header — so the three sessions stay isolated and logout is session-scoped. Refresh rotates with a 15s grace window (no revoke-all on benign races). → `docs/session-management.md`.
+- **Error monitoring** — `SENTRY_DSN` (empty in dev → init skipped, `captureException` a no-op), `SENTRY_RELEASE` (optional git short-sha for per-release grouping)
+- **Push (FCM)** — `PushService` takes either `GOOGLE_APPLICATION_CREDENTIALS` (path to a service-account JSON) **or** the trio `FIREBASE_PROJECT_ID`/`FIREBASE_PRIVATE_KEY`/`FIREBASE_CLIENT_EMAIL` (the trio wins when both are set); no-op when neither is set. **Never commit the JSON.** → `docs/push-notifications.md`.
+- **WhatsApp OTP** — `WHATSAPP_PROVIDER` + `GUPSHUP_*` (Rule 14). Mobile keys are per-flavor.
+- **App-review login** — `APP_REVIEW_LOGIN_ENABLED` (default `false`) + `APP_REVIEW_BUYER_PHONE_E164`/`APP_REVIEW_BUYER_OTP`: a fixed-OTP bypass for store reviewers. **Prod stays `false`** — flip on only during an active review window, then off. → `docs/app-review-login.md`.
+- **Payments** — none. COD-only since 2026-05-26.
+- **iOS release CI** uses GitHub Actions *repo secrets*, not env-file vars: `MATCH_PASSWORD`, `MATCH_GIT_BASIC_AUTH`, per-app `{BUYER,SELLER}_ASC_API_KEY_ID`/`_ASC_API_ISSUER_ID`/`_ASC_API_KEY_P8_B64` (same team → buyer==seller), plus Firebase-plist + Sentry secrets. → `docs/mobile-release.md`.
 
 Removed / not in use: `REDIS_URL`, `GOOGLE_*_CLIENT_ID`, all `ORANGE_*`/`FLEXPAY_*`/SMS vars. (`OTP_EXPIRY_MINUTES` is **not** removed — it was restored 2026-05-15 for buyer WhatsApp OTP.)
 
@@ -229,67 +232,58 @@ role-by-role feature spec is in **`docs/product-spec.md`** (historical reference
 behaviour the authoritative sources are §10 (Rules) below + `docs/architecture.md` — where the original
 spec and current behaviour differ (auth, payments, SMS), **the Rules win.**
 
-**Catalog taxonomy + brands (refactored 2026-06-24).** A **3-level taxonomy** — **Category → Subcategory →
-Product Type** (7 categories → 35 subcats → ~145 types) — built by **reusing the self-referential `Category`
-tree** (product types are `Category` nodes, `16000000-` UUID range; **no separate ProductType table**); defined
-in `apps/api/prisma/taxonomy-data.ts`. **Products link to the leaf (product type)**, with attributes + brands
-per type. Brands are a **first-class `Brand` library** (admin `/dashboard/brands`; `Product.brandId`; buyer
-`brandIds` facet), **not** a "Marque" attribute; **condition = `NEW`/`USED` enum only**. Seeded ids are
-non-RFC4122 → endpoints validate by DB lookup, not `@IsUUID`. Reset tooling: `pnpm db:reset-catalog` (dry-run /
-`-- --confirm`) + admin `DELETE /v1/admin/products/:id/hard`. Full model: `docs/architecture.md` → "Marketplace
-taxonomy + brands".
+The models below are the ones most often got wrong. Each is a one-line summary + the authoritative pointer —
+read the pointer before changing anything in that area.
 
-**Demo catalog + retirement (P3c).** A seeded "Teka RDC Officiel" demo catalog (`Product.isDemo=true`) keeps
-the storefront non-empty pre-merchants and always ranks below real products. Per-category auto-retirement is
-gated by two KV settings: `RETIRE_DEMO_CATALOG` (**default `false` — ships dormant; leave it off until real
-merchants populate categories**) and `DEMO_RETIRE_THRESHOLD` (default `3`). Full model: `docs/architecture.md`
-→ "Demo-catalog retirement (P3c)".
+**Catalog taxonomy + brands.** 3-level **Category → Subcategory → Product Type**, built by reusing the
+self-referential `Category` tree — **there is no `ProductType` table**, product types are `Category` nodes
+(`16000000-` UUID range), and **products link to the leaf**. Brands are a first-class `Brand` library
+(`Product.brandId`), **not** a "Marque" attribute. Seeded ids are non-RFC4122 → validate by DB lookup, never
+`@IsUUID`. Defined in `apps/api/prisma/taxonomy-data.ts`; reset via `pnpm db:reset-catalog`.
+→ `docs/architecture.md` → "Marketplace taxonomy + brands".
 
-**Per-product discounts (2026-06-23).** Sellers set optional `Product.discountPriceCDF`/`discountPriceUSD`
-(always-on, no admin approval) — separate from the admin `Promotion`/flash-deal model. Effective price =
-`discountPriceCDF ?? priceCDF` (% derived on display, never stored; `0 < discount < price`); `OrderItem.listUnitPriceCDF`
-snapshots the original. On ACTIVE products sellers may edit only price/discount/stock (no re-review). Full
-model: `docs/architecture.md` → "Per-product discounts".
+**Demo catalog + retirement (P3c).** Seeded "Teka RDC Officiel" products (`Product.isDemo=true`) keep the
+storefront non-empty and always rank below real ones. Auto-retirement ships **dormant** — `RETIRE_DEMO_CATALOG`
+defaults to `false`; leave it off until real merchants populate categories.
+→ `docs/architecture.md` → "Demo-catalog retirement (P3c)".
 
-**Broadcast notifications (2026-06-23).** Admin → buyers on the user-scoped `UserNotification` feed + FCM.
-`/v1/admin/broadcasts` targets all buyers or specific `recipientIds` + optional linked product; send is
-**fan-out on write** (opt-outs gate push/email delivery only, never the feed). Buyers read the unified
-**`/v1/notifications`** feed (web bell + mobile Notification Center). Full model: `docs/architecture.md` →
-"Notifications & broadcasts".
+**Per-product discounts.** Seller-set `Product.discountPriceCDF`/`discountPriceUSD`, always-on and separate
+from the admin `Promotion`/flash-deal model. Effective price = `discountPriceCDF ?? priceCDF`; the percentage
+is derived on display, **never stored**; `OrderItem.listUnitPriceCDF` snapshots the original.
+→ `docs/architecture.md` → "Per-product discounts".
 
-**Universal deep linking (2026-06-23, buyer-mobile).** `https://teka.cd/...` links open buyer-mobile when
-installed (Android App Links + iOS Universal Links), else the website — additive, no URL/SEO change. Single
-source of truth: `apps/buyer-mobile/lib/core/deep_link/deep_link_parser.dart`, which **mirrors** buyer-web
-`lib/urls.ts`. **When adding a deep-linkable route, update both `urls.ts` and `DeepLinkParser` + a test.** Full
-model: `docs/deep-linking.md`.
+**Broadcast notifications.** Admin → buyers via `/v1/admin/broadcasts`, **fan-out on write** onto the
+user-scoped `UserNotification` feed + FCM. Opt-outs gate push/email delivery only — **never the feed**. Buyers
+read the unified `/v1/notifications`. → `docs/architecture.md` → "Notifications & broadcasts".
+
+**Universal deep linking (buyer-mobile).** `https://teka.cd/...` opens the app when installed, else the
+website. `apps/buyer-mobile/lib/core/deep_link/deep_link_parser.dart` **mirrors** buyer-web `lib/urls.ts` —
+**adding a deep-linkable route means updating both, plus a test.** → `docs/deep-linking.md`.
 
 ---
 
 ## 5. DATABASE DESIGN PRINCIPLES
 
-- Use UUIDs for all primary keys (avoid sequential IDs for security)
-- Implement soft deletes (deletedAt timestamp) for all major entities
-- Every table has createdAt, updatedAt timestamps
+Conventions in force: UUID primary keys, soft deletes (`deletedAt`), `createdAt`/`updatedAt` everywhere,
+indexes on FKs + filtered columns (`status`, `categoryId`, `sellerId`) + full-text search columns. The
+non-obvious ones:
+
 - Translatable fields are stored as plain TEXT (French) — no JSONB shape, no per-locale columns
 - Location hierarchy: Country → Province → Town → Neighborhood (seeded for Haut-Katanga & Lualaba initially)
   - **Naming caveat (Town Architecture Refactor, Jun 2026):** the *data layer* still uses **`City`** — `model City`, `cityId`, `User.preferredCityId`, `GET /v1/cities`, `CitiesModule`, Flutter `features/city/`, web `useCityStore`. The *UX/URL/copy layer* renamed it to **"town / ville"** — header town selector, first-visit town modal, town-scoped browsing, `/{ville}` SEO landing pages. So a "town" in the UI maps to a `City` row in the DB; don't expect a `Town` model. Towns are **data-driven** (`City.heroImageUrl`/accent color/slug) — no hardcoded Lubumbashi/Kolwezi switches. Full model: `docs/town-architecture-refactor.md` + `docs/town-switcher-ux.md`.
-- Order state machine: Use an enum + transition log table for audit trail
-- Monetary values: Store in smallest unit (centimes for CDF) as BigInt to avoid floating point issues. Always store currency code alongside amount
-- Indexes: On all foreign keys, frequently filtered columns (status, categoryId, sellerId), and full-text search columns
+- Order state machine: enum + transition log table for audit trail. See `docs/order-workflow.md`
+- **Monetary values: smallest unit (centimes for CDF) as BigInt**, never float. Always store the currency code alongside the amount. Serialized as strings in API responses
 
 ---
 
 ## 6. API DESIGN PRINCIPLES
 
-- RESTful with consistent naming: `GET /api/v1/products`, `POST /api/v1/orders`
-- API versioning from day one (`/api/v1/`)
-- Standard response envelope (as actually emitted): success → `{ success: true, data: T }`; error → `{ success: false, error: { status, message, errors?: [{ field, message }] } }`. `ResponseInterceptor` wraps any return value lacking a `success` key (so a controller returning `{ data, meta }` passes through with `meta` intact — there is no global meta-hoisting); `HttpExceptionFilter` builds the error shape. Note `error.status` (HTTP code), not `error.code`.
-- Pagination: cursor-based for feeds, offset for admin tables
-- Rate limiting: Per IP and per user, stricter on auth endpoints (login + password-reset flood protection)
-- Input validation: Use class-validator + class-transformer in NestJS, Zod schemas in shared/
-- Error codes: Consistent error code enum shared between frontend and backend
-- File uploads: Multipart to backend → backend uploads to Cloudinary → returns URL. Never store files locally
-- Webhooks: Signed webhook endpoints for payment callbacks, with idempotency keys
+Routes are REST under a global `api` prefix, so controllers declare `v1/...` (not `api/v1/...`). Validation is
+class-validator + class-transformer on DTOs, Zod in `@teka/shared`. Pagination: cursor for feeds, offset for
+admin tables. Uploads go multipart → backend → Cloudinary, never to local disk. The part worth memorizing:
+
+- **Response envelope (as actually emitted):** success → `{ success: true, data: T }`; error → `{ success: false, error: { status, message, errors?: [{ field, message }] } }`. `ResponseInterceptor` wraps any return value lacking a `success` key — so a controller returning `{ data, meta }` passes through with `meta` intact, and **there is no global meta-hoisting**. `HttpExceptionFilter` builds the error shape. Note `error.status` (the HTTP code), **not** `error.code`.
+- Rate limiting is in-memory `@nestjs/throttler`, stricter on auth endpoints; `@SkipThrottle()` on health.
 
 ---
 
@@ -297,7 +291,10 @@ model: `docs/deep-linking.md`.
 
 ### 7.1 Progress Tracking (CRITICAL)
 
-Maintain a `PROGRESS.md` file at the project root. Update it after completing each task.
+Three files carry state, and they have distinct jobs: **`STATUS.md`** = what is in flight *right now*
+(rewritten in the same commit that starts or ends an initiative); **`PROGRESS.md`** = the append-only
+chronological record; **`CLAUDE.md`** = durable rules only, never history (§8). Update `PROGRESS.md` after
+each completed task and `STATUS.md` at initiative boundaries.
 
 ### 7.2 Resumption Protocol
 
@@ -312,19 +309,12 @@ When resuming work (after interruption or new session):
 
 Plan files in `~/.claude/plans/*.md` are session artifacts that may persist after the plan has shipped. Cross-reference any plan you find against `STATUS.md` and git history before executing it — don't treat the file's existence as evidence the work is pending.
 
-### 7.3 Git Discipline
+### 7.3 Git & testing discipline
 
-- Commit after every completed sub-task with descriptive messages
-- Format: `feat(module): description` / `fix(module): description` / `chore: description`
-- Never commit broken code. Run tests before committing
-- Use feature branches for major features: `feature/auth`, `feature/products`, `feature/orders`
-
-### 7.4 Testing Strategy
-
-- **Unit tests:** For all service methods, utility functions, validators
-- **Integration tests:** For all API endpoints (use NestJS testing module + test DB)
-- **Test before moving on:** Every feature must have passing tests before starting the next task
-- **Seed data:** Create a comprehensive seed script (`prisma/seed.ts`) with realistic Congolese data (French names, Lubumbashi addresses, CDF prices)
+Commit per completed sub-task as `feat|fix|chore|docs|refactor(scope): description` (scopes in
+CONTRIBUTING.md); never commit a red tree. Services, validators, and utils get unit specs; API endpoints get
+e2e specs via the NestJS testing module (`apps/api/test/`). Seed data stays realistically Congolese — French
+names, Lubumbashi addresses, CDF prices — because it is what every screenshot and demo runs on.
 
 ---
 
@@ -342,73 +332,71 @@ The load-bearing constraints those initiatives created live as Rules in §10 —
 
 ## 9. DESIGN GUIDELINES
 
-- Follow latest **Google Material Design 3** guidelines for mobile apps
-- Web UI: Clean, modern, fast-loading. Reference Jumia's layout but make it feel premium
-- **Color palette:** Define brand colors early (suggest warm red or blue for DRC market feel)
-- **Typography:** Use system fonts + Google Fonts that support French characters (accents)
-- **Responsive:** Mobile-first for buyer-web (most traffic will be mobile browser)
-- **Accessibility:** WCAG 2.1 AA minimum. Proper contrast ratios, alt text, keyboard navigation
-- **Image placeholders:** Always show skeleton loaders while images load (critical for slow connections)
-- **Empty states:** Design meaningful empty states with CTAs (no products? → browse categories)
-- **Error states:** User-friendly error messages in French, with retry actions
+Material Design 3 on mobile; clean, premium, fast-loading on web (Jumia's layout as reference, not its feel).
+Mobile-first for buyer-web — most traffic is a phone browser. WCAG 2.1 AA minimum. Two that are easy to skip
+and matter more here than elsewhere: **always skeleton-load images** (critical on 2G/3G, not a nicety), and
+give **empty states a CTA** / **error states French copy + a retry action**.
 
 ### Design system (web + mobile)
 
-The brand red is **`#BF0000`** (Rakuten France official, PANTONE 485 C). The tonal scale is `--color-primary-50` … `--color-primary-900` in `apps/buyer-web/src/app/globals.css`; `--color-primary` always points at the 600 step. **Don't introduce new hex literals for the brand color** — use the token (`bg-primary`, `text-primary`, `--color-primary-700` for hover states, etc.).
+The brand red is **`#C8102E`** — "Modern Ruby", set in the 2026-06-21 buyer-web redesign. The tonal scale is `--color-primary-50` … `--color-primary-900` in `apps/buyer-web/src/app/globals.css`; `--color-primary` always points at the 600 step (hover = 700, pressed = 800, subtle = 50/100). **Don't introduce new hex literals for the brand color** — use the token (`bg-primary`, `text-primary`, `--color-primary-700`, etc.).
+
+> The older `#BF0000` was superseded. It still appears hard-coded in `apps/api/src/email/templates/*.template.ts` (inline-styled email HTML) — **those templates are the stale ones**; don't "correct" the design token to match them.
+
+Town accents (`lib/city-accent.ts`) are subtle badge/chip accents only — **not** per-city themes.
 
 **Authoritative token sources (keep in sync when adjusting):**
 - Web: `apps/buyer-web/src/app/globals.css` — `@theme inline {}` block. Defines color scale, neutrals, status colors, radius (sm/md/lg/xl/2xl/full), shadow (xs/sm/md/lg/xl), typography vars.
 - Mobile: `apps/buyer-mobile/lib/core/theme/teka_colors.dart` + `app_theme.dart`.
 
-**Web UI primitives:** `apps/buyer-web/src/components/ui/` — small in-repo set built on Tailwind v4 + `class-variance-authority`. Exports: `Button`, `Badge`, `Card`/`CardHeader`/`CardContent`/`CardFooter`, `Input`, `Label`, `Container`, `SectionHeader`. **No shadcn** — these primitives are intentionally minimal; add new ones only when a pattern repeats ≥3 times. Domain components (`ProductCard`, `CartItemRow`, etc.) live under `components/{product,cart,...}/` and consume these primitives.
+**Web UI primitives:** `apps/buyer-web/src/components/ui/` — small in-repo set built on Tailwind v4 + `class-variance-authority`. Exports: `Button`, `Badge`, `Card`/`CardHeader`/`CardTitle`/`CardDescription`/`CardContent`/`CardFooter`, `Input`, `Label`, `Container`, `SectionHeader`, the `buttonVariants`/`badgeVariants`/`cardVariants` helpers, and `cn`. **No shadcn** — these primitives are intentionally minimal; add new ones only when a pattern repeats ≥3 times. Domain components (`ProductCard`, `CartItemRow`, etc.) live under `components/{product,cart,...}/` and consume these primitives.
 
 ---
 
 ## 10. IMPORTANT RULES
 
-1. **All user-facing text is French — written directly, not localized.** **Both Flutter apps (buyer-mobile + seller-mobile)** have no localization layer: write French string literals straight in the Dart widgets. The `flutter_localizations`/gen-l10n stack (`app_fr.arb`, generated `AppLocalizations`, `l10n.yaml`) was removed (buyer-mobile 2026-06-22, seller-mobile 2026-06-23) — do **not** add an ARB/l10n key for new strings, and do not re-introduce gen-l10n. **Web:** all three Next.js apps had **next-intl fully removed** (admin-web, seller-web, buyer-web — 2026-06-23) — write French literals inline; do **not** re-introduce `next-intl`, `messages/fr.json`, `src/i18n/`, `NextIntlClientProvider`, or the `createNextIntlPlugin` wrapper. (Framework `GlobalMaterialLocalizations`/`GlobalWidgetsLocalizations` stay pinned to `fr` — that's Flutter rendering built-in widgets, not our layer.)
+1. **All user-facing text is French — written directly, not localized.** No localization layer exists on any of the six surfaces. **Flutter:** write French literals straight in the Dart widgets; the gen-l10n stack (`app_fr.arb`, generated `AppLocalizations`, `l10n.yaml`) was removed (buyer-mobile 2026-06-22, seller-mobile 2026-06-23) — never add an ARB key or re-introduce gen-l10n. **Web:** next-intl was fully removed from all three Next.js apps (2026-06-23) — never re-introduce `next-intl`, `messages/fr.json`, `src/i18n/`, `NextIntlClientProvider`, or the `createNextIntlPlugin` wrapper. (Framework `GlobalMaterialLocalizations`/`GlobalWidgetsLocalizations` stay pinned to `fr` — that's Flutter rendering its own widgets, not our layer.)
 2. **Never use ports 3000 or 4000.**
-3. **Always keep all platforms in sync.** If a feature is implemented on web, create the corresponding mobile screens (even if simplified). Update PROGRESS.md to track parity.
-4. **French only.** No language switcher, no `/en/` URLs, no per-locale columns. All user-facing copy, seed data, error messages, and email/SMS templates are French.
-5. **Test before moving on.** No phase is complete without passing tests.
-6. **Commit frequently.** After every meaningful sub-task.
-7. **Update PROGRESS.md after every completed task.**
-8. **Use CDF (Congolese Franc) as primary currency.** Support USD as secondary (many transactions in Katanga use USD informally). Always show both when possible.
-9. **Phone number format:** Always store as international format (+243XXXXXXXXX). Display with local formatting. Phone is delivery contact info, not an auth identifier.
-10. **For anything not specified:** Optimize for the DRC context (low bandwidth, COD payments, email-based auth, phone for delivery only — buyer auth also uses phone via WhatsApp OTP). Reference `docs/architecture.md` for the authoritative service architecture.
-11. **SMS is gone (2026-05-26).** The provider abstraction at `apps/api/src/sms/` (Orange DRC, Africa's Talking, mock) was deleted in PR C2 of the Orange/AT/Flexpay removal initiative. Order events ride **Push (FCM) primary + Email (Resend) fallback** via `OrderNotificationService` (PR A2). Admin broadcasts ride **Push + Email** with a per-broadcast `channels` toggle via `BroadcastsService` (PR A3 + C2). Buyer OTP rides **WhatsApp via Gupshup** via `WhatsappService` (see Rule 14). **Do not re-introduce SMS** without a written architecture decision — the removal closed a load-bearing outage gap (operator-stripped env vars + missing Joi tolerance → 2026-05-24 crash loop).
+3. **Keep all platforms in sync.** A feature shipped on web gets its mobile counterpart — simplified is fine — in the same initiative. Track parity in `PROGRESS.md`.
+4. **French only.** No language switcher, no `/en/` URLs, no per-locale columns. See Rule 1.
+5. **Test before moving on.** Nothing is complete without passing tests.
+6. **Commit per sub-task**, never on a red tree.
+7. **Update `PROGRESS.md` after every completed task**; `STATUS.md` at initiative boundaries.
+8. **CDF is the primary currency**, USD secondary (Katanga trades informally in USD) — show both where you can.
+9. **Phone format:** store international `+243XXXXXXXXX`, display with local formatting. It is the delivery contact for every role and *also* the auth identifier for buyers — see Rule 13.
+10. **For anything unspecified:** optimize for the DRC context (low bandwidth, COD, WhatsApp-OTP buyers). `docs/architecture.md` is the authoritative service architecture.
+11. **SMS is gone (2026-05-26)** — `apps/api/src/sms/` (Orange DRC, Africa's Talking, mock) was deleted. Order events ride **Push (FCM) primary + Email (Resend) fallback** via `OrderNotificationService`; admin broadcasts ride **Push + Email** with a per-broadcast `channels` toggle via `BroadcastsService`; buyer OTP rides **WhatsApp/Gupshup** (Rule 14). **Do not re-introduce SMS** without a written architecture decision — the removal closed a load-bearing outage gap (operator-stripped env vars + missing Joi tolerance → 2026-05-24 crash loop). Payments are COD-only from the same initiative: no provider abstraction exists, and `MOBILE_MONEY`/`FLEXPAY` enum values survive only to render historical rows.
 12. **Authentication is role-specific (since 2026-05-15).** Sellers + admins use **email + password**. Buyers use **WhatsApp OTP via Gupshup**. Role mapping:
-    - **Buyers** — `POST /v1/auth/buyer/otp/{request, verify, resend}`. The verify endpoint either signs into an existing User matched by phone (any role — see decision below) or creates a new BUYER. Optional `firstName/lastName` captured on first verify. Email-only legacy buyers from the 2026-05-12 → 2026-05-15 cohort use the claim flow `POST /v1/auth/buyer/claim/{request, verify}`: enter email → magic link → enter phone → WhatsApp OTP → phone attached.
-    - **Sellers** — self-service register at `POST /v1/auth/register/email` → admin approval. Login at `POST /v1/auth/login/email`. Legacy sellers migrate via `/v1/auth/seller/{migrate-check, migrate-link-email, setup-password}`.
+    - **Buyers** — `POST /v1/auth/buyer/otp/{request, verify, resend}`. Verify either signs into the User matched by phone (any role — see below) or creates a new BUYER, capturing optional `firstName/lastName` on first verify. The legacy 2026-05-12 → 2026-05-15 email-only cohort claims via `POST /v1/auth/buyer/claim/{request, verify}` (email → magic link → phone → OTP → phone attached).
+    - **Sellers** — self-service register at `POST /v1/auth/register/email` → admin approval. Login at `POST /v1/auth/login/email`.
     - **Admins** — seeded out-of-band (see `docs/deployment.md § 5b`). Login at `POST /v1/auth/login/email`. Password bootstrap via `/v1/auth/password-reset/request`.
+    - **All roles** — `POST /v1/auth/{refresh, logout, password/change, email/send-verification}`, `GET /v1/auth/{me, email/verify}`.
 
-    **Phone uniqueness is global** (`User.phone @unique`). If a phone is already attached to a seller account, the buyer-side OTP flow signs the user into that seller account. The buyer-web detects `user.role === 'SELLER'` after verify and redirects to `SELLER_WEB_URL`.
+    **Phone uniqueness is global** (`User.phone @unique`) — so if a phone already belongs to a seller, the buyer OTP flow signs into *that seller account*; buyer-web detects `user.role === 'SELLER'` post-verify and redirects to `SELLER_WEB_URL`.
 
-    Password reset is sellers + admins only (`/v1/auth/password-reset/{request, confirm}`). Buyers have no password; a password-reset request from a buyer email returns a neutral 200 but creates no token. The 3-day-window email+password buyer cohort uses `/reclamer-compte` instead.
+    **Password reset is sellers + admins only.** Buyers have no password: a reset request from a buyer email returns a neutral 200 but creates no token. The 3-day email+password cohort uses `/reclamer-compte` instead.
 
-    Removed endpoints (return 404):
-    - `/v1/auth/otp/request`, `/v1/auth/otp/verify`, `/v1/auth/register`, `/v1/auth/login`, `/v1/auth/login/google`, `/v1/auth/otp/request-email` (legacy phone-OTP + Google).
-    - `/v1/auth/register/buyer`, `/v1/auth/buyer/{migrate-check, migrate-link-email, setup-password}` (legacy email-password buyer + migration, deleted 2026-05-15).
+    **Removed endpoints — all return 404, by design:** `/v1/auth/{otp/request, otp/verify, otp/request-email, register, login, login/google}` (legacy phone-OTP + Google); `/v1/auth/register/buyer` + `/v1/auth/buyer/{migrate-check, migrate-link-email, setup-password}` (deleted 2026-05-15); `/v1/auth/seller/{migrate-check, migrate-link-email, setup-password}` (**retired 2026-05-18** — the only seller account that ever existed was data-migrated directly; the `SellerMigration` model and some `auth.service.ts` helpers are residual). Leaving the routes unregistered *is* the deprecation signal — don't restore them.
 
-    The `PHONE_OTP`, `EMAIL_PASSWORD`, and `GOOGLE` enum values all stay on `AuthProvider`. Current code paths create `PHONE_OTP` (buyers via OTP) and `EMAIL_PASSWORD` (sellers, admins, plus the 3-day email-buyer cohort whose accounts persist until claim).
+    `AuthProvider` keeps `PHONE_OTP`, `EMAIL_PASSWORD`, and `GOOGLE`; live code creates only `PHONE_OTP` (OTP buyers) and `EMAIL_PASSWORD` (sellers, admins, and the unclaimed email-buyer cohort).
 
 13. **Phone is buyer auth identifier AND delivery contact.** For sellers + admins, phone stays delivery-only (collected at the address / seller-profile surfaces). For buyers since 2026-05-15, phone is *also* the auth identifier — set on first WhatsApp OTP verify and required from that point. Users type 9 digits (or 10 with leading `0`); `+243` is added by the system. Single source of truth: `normalizeDrcPhone()` in `packages/shared/src/utils/phone.ts` (web) and `apps/buyer-mobile/lib/core/utils/phone.dart` (Flutter). Backend DTOs that store phone enforce `^\+243\d{9}$`. `User.phone` is `String? @unique` globally; email-only buyers (the 3-day claim cohort) have `null` until they complete `/reclamer-compte`.
 
 14. **Three messaging surfaces, three providers.** Each has a single, narrowly-scoped responsibility:
-    - **`PushService`** (`apps/api/src/push/`, Firebase Cloud Messaging) — primary channel for buyer + seller order events and admin broadcasts. Multicast per user (one user can have many active `DeviceToken` rows). Auto-invalidates rejected tokens on send. **No env-driven provider selection** — there's only one push backend.
-    - **`EmailService`** (`apps/api/src/email/`, Resend) — fallback for buyer order events when push has 0 active tokens; also transactional email (verification, password reset, seller setup, buyer claim, contact-form forwarding) and admin broadcasts. Dev mode logs to console instead of calling Resend.
-    - **`WhatsappService`** (`apps/api/src/whatsapp/`, Gupshup) — **buyer OTP only** (login + register + account claim). Never used for notifications or broadcasts. Provider is selected via `WHATSAPP_PROVIDER` env (`gupshup` | `mock`); the factory refuses to silently mock in production (loud `[GupshupWhatsappProvider] ERROR` at startup). OTP code is generated locally with `crypto.randomInt`, stored as `sha256` hex, sent via Gupshup's WhatsApp template-message API.
+    - **`PushService`** (`apps/api/src/push/`, FCM) — primary channel for buyer + seller order events and admin broadcasts. Multicast per user (many `DeviceToken` rows each); auto-invalidates rejected tokens. **No env-driven provider selection** — one backend only.
+    - **`EmailService`** (`apps/api/src/email/`, Resend) — fallback for buyer order events when push has 0 active tokens; plus transactional email (verification, password reset, seller setup, buyer claim, contact-form) and broadcasts. Dev mode logs to console.
+    - **`WhatsappService`** (`apps/api/src/whatsapp/`, Gupshup) — **buyer OTP only** (login + register + claim). Never notifications or broadcasts. `WHATSAPP_PROVIDER` selects `gupshup` | `mock`; the factory **refuses to silently mock in production**. OTP is generated with `crypto.randomInt`, stored as `sha256` hex.
 
-    The three stacks never call each other — adding an email template must not touch Push or WhatsApp code, and vice versa. The legacy `SmsService` was deleted 2026-05-26 in PR C2 (see Rule 11).
+    The three stacks never call each other — adding an email template must not touch Push or WhatsApp code, and vice versa.
 
 15. **Mobile connectivity discipline (since 2026-05-27).** Both Flutter apps ship a centralized 5-state connectivity machine (`connected | unstable | noInternet | disconnected | reconnecting`) at `apps/{buyer,seller}-mobile/lib/core/connectivity/` + interceptor stack at `…/core/network/`. **Full reference: `docs/mobile-connectivity.md`** — read it before touching anything below.
 
     Hard rules when adding or modifying network code in either Flutter app:
-    - **Never bypass the Dio chain.** Always go through `apps/{buyer,seller}-mobile/lib/core/network/api_client.dart`. The chain order — `OfflineAware → Auth → Retry → Log` — is load-bearing; retries must flow through auth attach.
-    - **Never set `Options(extra: {'retryable': true})` on a non-idempotent call.** The retryable-by-default set is `GET` + `HEAD`. Checkout, OTP request/verify/resend, buyer claim, seller login, seller order transitions, payouts, and product publish/update are explicitly non-retry-safe — replaying them races state.
-    - **Never call a SMS / OTP / payment vendor directly from app code.** Those are server concerns; the app talks to `${baseUrl}/v1/…` only.
-    - **Always mirror buyer-mobile changes into seller-mobile (and vice versa) in the same PR.** The two trees are kept byte-for-byte identical for the connectivity layer.
-    - **Always surface network errors with the shared helper** at `apps/{buyer,seller}-mobile/lib/core/network/dio_error_messages.dart`. No per-feature copies of `_extractErrorMessage(DioException)` — the helper covers timeout / connection-error / API-envelope / fallback in French. It passes an API 4xx `message` through **verbatim**, so anything a controller can throw must be French: use `UuidParam` (`apps/api/src/common/pipes/uuid-param.pipe.ts`), not the raw `ParseUUIDPipe`, on buyer-facing params.
-    - **Always show new snackbars via `showAppSnackbar`** (`apps/{buyer,seller}-mobile/lib/core/widgets/app_snackbar.dart`). It fixes behaviour/margin/shape on the `SnackBar` itself, so the two apps render identically despite only seller-mobile having a `snackBarTheme`. Connectivity itself is announced by `ConnectivityToastHost` — **never re-introduce a banner in the widget tree**; it shifts every route's layout (see `docs/mobile-connectivity.md` § UI).
-    - **Never log credentials, tokens, phone numbers, or query strings** from the connectivity layer or the Sentry reporter. The existing `core/config/sentry_scrub.dart` `beforeSend` scrubs phones globally; don't undo it.
-    - **State mutations are hard-blocked offline** by `OfflineAwareInterceptor`. Do not add a "queue and replay" fallback without an architecture decision — the original design intentionally rejected it (replay races price + stock during the offline window).
+    - **Never bypass the Dio chain** — always go through `core/network/api_client.dart`. The order `OfflineAware → Auth → Retry → Log` is load-bearing; retries must flow through auth attach.
+    - **Never set `Options(extra: {'retryable': true})` on a non-idempotent call.** Retryable-by-default is `GET` + `HEAD` only. Checkout, OTP request/verify/resend, buyer claim, seller login, seller order transitions, payouts, and product publish/update are **not** retry-safe — replaying them races state.
+    - **Never call an OTP / payment vendor directly from app code.** Those are server concerns; the app talks to `${baseUrl}/v1/…` only.
+    - **Always mirror buyer-mobile changes into seller-mobile (and vice versa) in the same PR.** The layer is kept in lockstep — today the only divergence is doc-comment wording in `offline_aware_interceptor.dart` and `sentry_scrub.dart`, and **behaviour must never diverge**. `diff -r` the two `lib/core/{connectivity,network}/` dirs before calling a mirroring PR done.
+    - **Always surface network errors via `core/network/dio_error_messages.dart`** — no per-feature `_extractErrorMessage(DioException)` copies. It passes an API 4xx `message` through **verbatim**, so anything a controller can throw must be French: use `UuidParam` (`apps/api/src/common/pipes/uuid-param.pipe.ts`), never raw `ParseUUIDPipe`, on buyer-facing params.
+    - **Always show snackbars via `showAppSnackbar`** (`core/widgets/app_snackbar.dart`) — it pins behaviour/margin/shape so both apps render identically despite only seller-mobile having a `snackBarTheme`. Connectivity is announced by `ConnectivityToastHost`; **never re-introduce a banner in the widget tree** — it shifts every route's layout.
+    - **Never log credentials, tokens, phone numbers, or query strings** from the connectivity layer or the Sentry reporter. `core/config/sentry_scrub.dart`'s `beforeSend` scrubs phones globally — don't undo it.
+    - **State mutations are hard-blocked offline** by `OfflineAwareInterceptor`. Do not add a "queue and replay" fallback without an architecture decision — the original design rejected it deliberately (replay races price + stock during the offline window).
