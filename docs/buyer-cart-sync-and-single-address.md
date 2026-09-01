@@ -1,7 +1,7 @@
-# Buyer cart sync + single editable address — 🟡 IN PROGRESS
+# Buyer cart sync + single editable address — ✅ MERGED TO `develop` 2026-09-01
 
 **Started:** 2026-09-01
-**Branches/PRs:** #603, #604, #605, #606, #607, #608 (all open, none merged)
+**Merged into `develop`:** #603, #604, #605, #607, #608 (+ #606, this doc). **Not on `main`** — production is unchanged until a `develop → main` release PR.
 
 ## Scope
 
@@ -91,6 +91,15 @@ To close this gap, either grant Accessibility permission to the terminal (enable
 1. **The dev DB was missing `users.deletionRequestedAt`** — buyer login 500s with a Prisma error. `2026-07-24_account_deletion_pending.sql` is in `auto-apply.list` but had never been applied to dev. Applied it (idempotent, additive) to unblock local verification.
 2. **The dev DB has significant schema drift.** `prisma migrate diff` shows `pnpm db:push` would **DROP** `products.search_vector`, `products_title_trgm_idx`, `search_synonyms_terms_idx` and three foreign keys — search infrastructure created by manual SQL that `schema.prisma` does not model. **Do not run `pnpm db:push` against dev.** Not run here.
 3. **`flutter analyze` is not at 0 issues** (STATUS.md claimed it was): 8 pre-existing info-level SDK deprecations, now 7 after this work removed one `withOpacity` call.
+
+## Caught at review / CI (2026-09-01)
+
+Two defects in my own PRs, found after opening them:
+
+1. **`unused_import` warning failed CI on #607.** Lifting the address form out of `checkout_screen.dart` orphaned *both* city model imports; I removed only `commune_model`. Reading `flutter analyze` by its tail and its total count (8 → 7), I took the remainder for the pre-existing infos — but one was a new **warning**, and CI runs `flutter analyze --no-fatal-infos`, which tolerates infos and fails on warnings. Now 6 issues, all infos. **Lesson: read analyze output by severity, not by count.**
+2. **buyer-web would not re-price delivery after an address edit.** The quote effect keys on the address *id*, which was correct when the only way to change address was picking a different one. With one editable address an edit keeps the same id, so changing town would not re-quote — the buyer could be shown, and charged, a stale fee. Fixed with a revision counter in the effect deps. buyer-mobile already handled this (`clearDeliveryFee` + `_fetchQuote`); the web lacked the parity.
+
+Neither was caught by the test suites: the first is analyzer-only, the second needs a quote-refetch assertion buyer-web does not have.
 
 ## Open questions / follow-ups
 

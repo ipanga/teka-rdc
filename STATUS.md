@@ -6,13 +6,18 @@
 
 ## Active initiative
 
-**Buyer cart synchronization + single editable address** — in progress, started 2026-09-01.
+**Buyer cart synchronization + single editable address** — **merged into `develop` 2026-09-01**
+(PRs #603, #604, #605, #607, #608). **Not yet on `main`** — production is unchanged until a
+`develop → main` release PR. Two operator steps are queued behind that release (see below).
 Granular checklist: `docs/buyer-cart-sync-and-single-address.md` (read it next).
 
-Three PRs open into `develop`, none merged: **#603** `fix(mobile)` cart clears on checkout success ·
-**#604** `fix(api,buyer-mobile,buyer-web)` address field names · **#605** `feat(api)` one address per
-buyer + order delivery-address snapshot. Remaining: the two client UI PRs, iOS-Simulator runtime
-verification, and close-out.
+**Operator steps, in order, on the next release to `main`:**
+1. `2026-09-01_order_delivery_address_snapshot.sql` **auto-applies** before the rolling swap — no action.
+2. **After** verifying that in prod, run `2026-09-01_archive_duplicate_buyer_addresses.sql` **by hand**
+   via the `Apply prod migration` Action. It is data-mutating (soft-delete, BUYER-only, reversible).
+   Production currently has **1 buyer holding 2 addresses**; that row gets archived, not deleted.
+3. Mobile UI reaches devices only on the next store build — the one-address rule is enforced
+   server-side precisely so the web cannot bypass it in the meantime.
 
 **Root causes.** (a) The stale cart was never a backend bug — the API clears the cart inside the order
 transaction; buyer-mobile's long-lived `cartProvider` was simply never told, and its 30-day
@@ -28,7 +33,7 @@ auto-applies before the rolling swap. `2026-09-01_archive_duplicate_buyer_addres
 data-mutating, BUYER-only and soft-delete — run it **by hand** via `Apply prod migration` only after the
 snapshot is live and its detection query has been reviewed.
 
-**Gates:** API 263 + 118 e2e · buyer-mobile 209 · buyer-web 63 · `pnpm type-check` clean.
+**Gates on `develop` after merge:** API 271 + 118 e2e · buyer-mobile 218 · buyer-web 68 · `pnpm type-check` clean · CI green on every PR.
 (`flutter analyze` shows 8 **pre-existing** info-level SDK deprecations in untouched files — the earlier
 "0 issues" line below is stale.)
 
