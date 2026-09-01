@@ -6,36 +6,46 @@
 
 ## Active initiative
 
-**Buyer cart synchronization + single editable address** — **merged into `develop` 2026-09-01**
-(PRs #603, #604, #605, #607, #608). **Not yet on `main`** — production is unchanged until a
-`develop → main` release PR. Two operator steps are queued behind that release (see below).
-Granular checklist: `docs/buyer-cart-sync-and-single-address.md` (read it next).
+**None.** The buyer cart + single-address initiative shipped to production on 2026-09-01 and is closed —
+full narrative in `PROGRESS.md`, detail in `docs/buyer-cart-sync-and-single-address.md`.
 
-**Operator steps, in order, on the next release to `main`:**
-1. `2026-09-01_order_delivery_address_snapshot.sql` **auto-applies** before the rolling swap — no action.
-2. **After** verifying that in prod, run `2026-09-01_archive_duplicate_buyer_addresses.sql` **by hand**
-   via the `Apply prod migration` Action. It is data-mutating (soft-delete, BUYER-only, reversible).
-   Production currently has **1 buyer holding 2 addresses**; that row gets archived, not deleted.
-3. Mobile UI reaches devices only on the next store build — the one-address rule is enforced
-   server-side precisely so the web cannot bypass it in the meantime.
+**Released 2026-09-01** — PRs #603, #604, #605, #607, #608 (+ #606/#609 docs) via release PR **#610**
+(`develop → main`, merge commit `b331f85d`). Deploy run `33519392499`: all 5 jobs green.
 
-**Root causes.** (a) The stale cart was never a backend bug — the API clears the cart inside the order
-transaction; buyer-mobile's long-lived `cartProvider` was simply never told, and its 30-day
-SharedPreferences snapshot meant the stale items survived an app relaunch. (b) `Order.deliveryAddressId`
-was a bare FK with no snapshot, so making the address editable would have retroactively rewritten the
-delivery address of past orders — production already has 2 addresses each referenced by more than one
-order. (c) Found in passing: both clients posted `details`/`phone` while the DTO accepts
-`reference`/`recipientPhone`, which under `forbidNonWhitelisted` is a hard 400 — so an address failed to
-save whenever the buyer filled in the landmark or recipient phone.
+**Both migrations are applied and verified in production. Nothing is outstanding.**
 
-**Deploy order matters.** `2026-09-01_order_delivery_address_snapshot.sql` is additive/idempotent and
-auto-applies before the rolling swap. `2026-09-01_archive_duplicate_buyer_addresses.sql` is
-data-mutating, BUYER-only and soft-delete — run it **by hand** via `Apply prod migration` only after the
-snapshot is live and its detection query has been reviewed.
+1. `2026-09-01_order_delivery_address_snapshot.sql` — auto-applied during deploy, recorded in
+   `_manual_migrations` at 14:29:02Z (before the rolling swap). Backfill 9/9 orders.
+2. `2026-09-01_archive_duplicate_buyer_addresses.sql` — run by hand via `Apply prod migration`
+   (run `33554264282`, success). The one buyer holding 2 addresses now has exactly **1** active; the
+   other row is **soft-deleted, not removed** (`deletedAt` set, still present, FKs intact).
 
-**Gates on `develop` after merge:** API 271 + 118 e2e · buyer-mobile 218 · buyer-web 68 · `pnpm type-check` clean · CI green on every PR.
-(`flutter analyze` shows 8 **pre-existing** info-level SDK deprecations in untouched files — the earlier
-"0 issues" line below is stale.)
+**The snapshot earned itself immediately.** 6 of the 9 production orders pointed at the address the
+archive step soft-deleted. They still read `Lubumbashi` from their own snapshot columns while the
+buyer's only address is now `Kolwezi` — 0 orders lost a snapshot, 0 FKs broke. Reading through the FK,
+as the code did before this initiative, would have silently rewritten six orders' delivery town.
+
+**Post-release health:** API `/v1/health{,/ready,/live}` 200 (`database: ok`) · teka.cd, seller., admin.
+200 · Sentry `teka-api` 5 unresolved, **0 since the deploy**; the three web projects 0 unresolved.
+
+**Rollback for the archive step**, if ever needed:
+`UPDATE addresses SET "deletedAt" = NULL WHERE id = 'a1adcebf-ed41-4a07-963f-73bfc11d31c1';`
+
+## Open follow-ups (not blocking)
+
+- **buyer-mobile UI reaches devices only on the next store build.** The API and web changes are live now;
+  the one-address rule is enforced server-side precisely so an older app build cannot bypass it. Old
+  builds keep working — `POST /v1/addresses` still succeeds, it just upserts.
+- **The on-device cart sequence was never verified on real hardware.** No UI automation was available
+  (`osascript` denied assistive access, no `idb`/`cliclick`, no `integration_test/` harness). It rests on
+  a `ProviderContainer` test proven to fail without the fix. Worth a manual pass on the next
+  TestFlight/Play build; an `integration_test/` harness would close the gap for good.
+- **Development DB drift — do NOT run `pnpm db:push` against it.** `prisma migrate diff` shows it would
+  DROP `products.search_vector`, `products_title_trgm_idx`, `search_synonyms_terms_idx` and three foreign
+  keys — search infrastructure created by manual SQL that `schema.prisma` does not model. Production is
+  unaffected. Separately, dev was missing `2026-07-24_account_deletion_pending.sql` (buyer login 500'd
+  locally until it was applied) — worth auditing dev against `auto-apply.list` generally.
+- **CLAUDE.md is ~38.4k chars**, close to the 40k performance warning it documents. Due a trim pass.
 
 ## Previous initiative
 
