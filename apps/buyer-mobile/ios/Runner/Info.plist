@@ -82,7 +82,5 @@
 		     flutter_deeplinking_enabled=false. -->
 		<key>FlutterDeepLinkingEnabled</key>
 		<false/>
-		<key>UIStatusBarHidden</key>
-		<true/>
 	</dict>
 </plist>

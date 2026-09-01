@@ -107,4 +107,4 @@ flutter_native_splash:
     icon_background_color: "#C8102E"
   android: true
   ios: true
-  fullscreen: true
+  fullscreen: false
