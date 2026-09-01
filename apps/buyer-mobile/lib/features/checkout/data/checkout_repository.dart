@@ -83,6 +83,18 @@ class CheckoutRepository {
     return AddressModel.fromJson(resultJson);
   }
 
+  /// Edit the buyer's address in place. Not retry-safe (state mutation), so it
+  /// deliberately does not opt into the retry interceptor.
+  Future<AddressModel> updateAddress(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    final response = await _dio.patch('/v1/addresses/$id', data: data);
+    final body = response.data as Map<String, dynamic>;
+    final payload = body['data'] ?? body;
+    return AddressModel.fromJson(payload as Map<String, dynamic>);
+  }
+
   Future<AddressModel> setDefaultAddress(String id) async {
     final response = await _dio.patch('/v1/addresses/$id/default');
     final responseData = response.data;

@@ -103,6 +103,10 @@ class AddressModel {
   /// Landmark. Named `reference` to match the API column; the client used to
   /// read/write `details`, which silently never populated.
   final String? reference;
+  /// Taxonomy ids behind town/neighborhood. Needed to preselect the dropdowns
+  /// when editing; the free-text names alone would force a name match.
+  final String? cityId;
+  final String? communeId;
   final bool isDefault;
 
   const AddressModel({
@@ -115,6 +119,8 @@ class AddressModel {
     this.neighborhood,
     this.avenue,
     this.reference,
+    this.cityId,
+    this.communeId,
     this.isDefault = false,
   });
 
@@ -129,6 +135,8 @@ class AddressModel {
       neighborhood: json['neighborhood'] as String?,
       avenue: json['avenue'] as String?,
       reference: json['reference'] as String?,
+      cityId: json['cityId'] as String?,
+      communeId: json['communeId'] as String?,
       isDefault: json['isDefault'] as bool? ?? false,
     );
   }

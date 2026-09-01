@@ -208,6 +208,33 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     }
   }
 
+  /// Edit the buyer's single address in place, then re-quote.
+  ///
+  /// The town can change, which changes the delivery fee — so the fee is
+  /// cleared and re-fetched. `canPlaceOrder` gates on `deliveryAvailable ==
+  /// true`, so the confirm button stays disabled until the new quote lands
+  /// rather than charging a stale fee.
+  Future<bool> updateAddress(String id, Map<String, dynamic> data) async {
+    state = state.copyWith(clearError: true);
+    try {
+      final updated = await _repository.updateAddress(id, data);
+      final addresses = await _repository.getAddresses();
+      state = state.copyWith(
+        addresses: addresses,
+        selectedAddress: updated,
+        clearDeliveryFee: true,
+      );
+      _fetchQuote();
+      return true;
+    } on DioException catch (e) {
+      state = state.copyWith(error: extractDioErrorMessage(e));
+      return false;
+    } catch (e) {
+      state = state.copyWith(error: friendlyErrorMessage(e));
+      return false;
+    }
+  }
+
   void selectPaymentMethod(String method) {
     state = state.copyWith(paymentMethod: method, clearError: true);
   }
