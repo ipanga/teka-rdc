@@ -10,16 +10,15 @@ import { useCartStore } from '@/lib/cart-store';
 import { apiFetch } from '@/lib/api-client';
 import { track } from '@/lib/analytics';
 import { formatCDF, effectiveCentimes } from '@/lib/format';
-import { Badge, Button, Card, Container, Input, Label, buttonVariants, cn } from '@/components/ui';
+import { Button, Card, Container, Label, buttonVariants, cn } from '@/components/ui';
+import { AddressForm } from '@/components/address/address-form';
 import type {
   Address,
   CartItem,
   PaymentMethod,
   CheckoutRequest,
   CheckoutResponse,
-  Commune,
 } from '@/lib/types';
-import type { City } from '@/lib/city-store';
 
 type CheckoutStep = 'address' | 'payment' | 'review';
 
@@ -34,6 +33,10 @@ export default function CheckoutPage() {
   const [step, setStep] = useState<CheckoutStep>('address');
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
+  // Bumped whenever the address is saved. The quote effect keys on the address
+  // id, but editing keeps the same id — without this, changing town would not
+  // re-price and the buyer could be charged a stale delivery fee.
+  const [addressRevision, setAddressRevision] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
   const [buyerNote, setBuyerNote] = useState('');
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(true);
@@ -53,23 +56,7 @@ export default function CheckoutPage() {
   // timeout resolves to the same server-side order instead of duplicating it.
   const idempotencyKeyRef = useRef<string | null>(null);
 
-  const [showNewAddressForm, setShowNewAddressForm] = useState(false);
-  const [cities, setCities] = useState<City[]>([]);
-  const [communes, setCommunes] = useState<Commune[]>([]);
-  const [isLoadingCities, setIsLoadingCities] = useState(false);
-  const [isLoadingCommunes, setIsLoadingCommunes] = useState(false);
-  const [isSavingAddress, setIsSavingAddress] = useState(false);
-  const [newAddr, setNewAddr] = useState({
-    cityId: '',
-    communeId: '',
-    province: '',
-    town: '',
-    neighborhood: '',
-    avenue: '',
-    reference: '',
-    recipientName: '',
-    recipientPhone: '',
-  });
+  const [showAddressForm, setShowAddressForm] = useState(false);
 
   useEffect(() => {
     fetchCart();
@@ -107,91 +94,6 @@ export default function CheckoutPage() {
       // silent
     } finally {
       setIsLoadingAddresses(false);
-    }
-  }
-
-  useEffect(() => {
-    if (showNewAddressForm && cities.length === 0) {
-      setIsLoadingCities(true);
-      apiFetch<City[]>('/v1/cities')
-        .then((res) => setCities(res.data))
-        .catch(() => {})
-        .finally(() => setIsLoadingCities(false));
-    }
-  }, [showNewAddressForm, cities.length]);
-
-  useEffect(() => {
-    if (!newAddr.cityId) {
-      setCommunes([]);
-      return;
-    }
-    setIsLoadingCommunes(true);
-    setCommunes([]);
-    apiFetch<Commune[]>(`/v1/cities/${newAddr.cityId}/communes`)
-      .then((res) => setCommunes(res.data))
-      .catch(() => {})
-      .finally(() => setIsLoadingCommunes(false));
-  }, [newAddr.cityId]);
-
-  function handleCityChange(cityId: string) {
-    const city = cities.find((c) => c.id === cityId);
-    setNewAddr((prev) => ({
-      ...prev,
-      cityId,
-      communeId: '',
-      province: city?.province || '',
-      town: city?.name || '',
-      neighborhood: '',
-    }));
-  }
-
-  function handleCommuneChange(communeId: string) {
-    const commune = communes.find((c) => c.id === communeId);
-    setNewAddr((prev) => ({
-      ...prev,
-      communeId,
-      neighborhood: commune?.name || '',
-    }));
-  }
-
-  async function handleSaveNewAddress() {
-    if (!newAddr.cityId || !newAddr.communeId) return;
-    setIsSavingAddress(true);
-    setError(null);
-    try {
-      const body = {
-        province: newAddr.province,
-        town: newAddr.town,
-        neighborhood: newAddr.neighborhood,
-        avenue: newAddr.avenue || undefined,
-        reference: newAddr.reference || undefined,
-        recipientName: newAddr.recipientName || undefined,
-        recipientPhone: newAddr.recipientPhone || undefined,
-        cityId: newAddr.cityId,
-        communeId: newAddr.communeId,
-      };
-      await apiFetch('/v1/addresses', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      });
-      await loadAddresses();
-      setShowNewAddressForm(false);
-      setNewAddr({
-        cityId: '',
-        communeId: '',
-        province: '',
-        town: '',
-        neighborhood: '',
-        avenue: '',
-        reference: '',
-        recipientName: '',
-        recipientPhone: '',
-      });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erreur lors de l'enregistrement";
-      setError(message);
-    } finally {
-      setIsSavingAddress(false);
     }
   }
 
@@ -291,7 +193,7 @@ export default function CheckoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedAddressId]);
+  }, [selectedAddressId, addressRevision]);
 
   async function handlePlaceOrder() {
     if (!selectedAddressId || isPlacing) return;
@@ -454,207 +356,64 @@ export default function CheckoutPage() {
               {isLoadingAddresses ? (
                 <div className="animate-pulse space-y-3">
                   <div className="h-24 bg-muted rounded-xl" />
-                  <div className="h-24 bg-muted rounded-xl" />
+                </div>
+              ) : showAddressForm ? (
+                <Card padding="md" className="border-primary/30 bg-primary-subtle/40">
+                  <AddressForm
+                    initial={selectedAddress}
+                    onSaved={(saved) => {
+                      // The API upserts, so this is the buyer's one address
+                      // whether it was just created or edited.
+                      setAddresses([saved]);
+                      setSelectedAddressId(saved.id);
+                      // Force a re-quote: an edit keeps the same id, so the
+                      // effect above would not otherwise re-price a town change.
+                      setAddressRevision((n) => n + 1);
+                      setShowAddressForm(false);
+                    }}
+                    onCancel={() => setShowAddressForm(false)}
+                  />
+                </Card>
+              ) : selectedAddress ? (
+                <div className="space-y-3">
+                  <div className="p-4 rounded-xl border border-border bg-surface">
+                    <p className="text-sm font-semibold text-foreground">
+                      {selectedAddress.recipientName}
+                    </p>
+                    {selectedAddress.recipientPhone && (
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        {selectedAddress.recipientPhone}
+                      </p>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                      {selectedAddress.neighborhood}, {selectedAddress.town}
+                      {selectedAddress.avenue ? `, ${selectedAddress.avenue}` : ''}
+                    </p>
+                    {selectedAddress.reference && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {selectedAddress.reference}
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="md"
+                    onClick={() => setShowAddressForm(true)}
+                  >
+                    {"Modifier"}
+                  </Button>
                 </div>
               ) : (
-                <>
-                  {addresses.length === 0 && !showNewAddressForm ? (
-                    <Card padding="lg" className="text-center">
-                      <p className="text-muted-foreground mb-3">{"Aucune adresse enregistrée"}</p>
-                      <Button
-                        variant="default"
-                        size="md"
-                        onClick={() => setShowNewAddressForm(true)}
-                      >
-                        + {"Ajouter une adresse"}
-                      </Button>
-                    </Card>
-                  ) : (
-                    <div className="space-y-3">
-                      {addresses.map((addr) => (
-                        <label
-                          key={addr.id}
-                          className={cn(
-                            'flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all',
-                            selectedAddressId === addr.id
-                              ? 'border-primary bg-primary-subtle ring-1 ring-primary/30 shadow-xs'
-                              : 'border-border bg-surface hover:border-border-strong hover:shadow-xs',
-                          )}
-                        >
-                          <input
-                            type="radio"
-                            name="address"
-                            value={addr.id}
-                            checked={selectedAddressId === addr.id}
-                            onChange={(e) => setSelectedAddressId(e.target.value)}
-                            className="mt-1 accent-primary"
-                          />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="text-sm font-semibold text-foreground">
-                                {addr.recipientName}
-                              </p>
-                              {addr.isDefault && (
-                                <Badge variant="info" size="sm">
-                                  Par défaut
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-0.5">{addr.recipientPhone}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {addr.neighborhood}, {addr.town}
-                              {addr.avenue ? `, ${addr.avenue}` : ''}
-                            </p>
-                            {addr.reference && (
-                              <p className="text-xs text-muted-foreground mt-1">{addr.reference}</p>
-                            )}
-                          </div>
-                        </label>
-                      ))}
-
-                      {!showNewAddressForm && (
-                        <button
-                          type="button"
-                          onClick={() => setShowNewAddressForm(true)}
-                          className="w-full py-3.5 border-2 border-dashed border-primary/40 rounded-xl text-sm font-semibold text-primary hover:bg-primary-subtle hover:border-primary transition-colors"
-                        >
-                          + {"Ajouter une adresse"}
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* New address form */}
-                  {showNewAddressForm && (
-                    <Card padding="md" className="mt-4 border-primary/30 bg-primary-subtle/40">
-                      <h3 className="text-sm font-semibold text-foreground mb-4 tracking-tight">
-                        {"Nouvelle adresse"}
-                      </h3>
-                      <div className="space-y-4">
-                        {/* City */}
-                        <div>
-                          <Label htmlFor="ck-city">
-                            {"Ville"} <span className="text-destructive">*</span>
-                          </Label>
-                          {isLoadingCities ? (
-                            <p className="text-sm text-muted-foreground py-2">{"Chargement des villes..."}</p>
-                          ) : (
-                            <select
-                              id="ck-city"
-                              value={newAddr.cityId}
-                              onChange={(e) => handleCityChange(e.target.value)}
-                              className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            >
-                              <option value="">{"Sélectionnez une ville"}</option>
-                              {cities.map((city) => (
-                                <option key={city.id} value={city.id}>
-                                  {city.name} ({city.province})
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        </div>
-
-                        {/* Commune */}
-                        {newAddr.cityId && (
-                          <div>
-                            <Label htmlFor="ck-commune">
-                              {"Commune"} <span className="text-destructive">*</span>
-                            </Label>
-                            {isLoadingCommunes ? (
-                              <p className="text-sm text-muted-foreground py-2">
-                                {"Chargement des communes..."}
-                              </p>
-                            ) : (
-                              <select
-                                id="ck-commune"
-                                value={newAddr.communeId}
-                                onChange={(e) => handleCommuneChange(e.target.value)}
-                                className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                              >
-                                <option value="">{"Sélectionnez une commune"}</option>
-                                {communes.map((commune) => (
-                                  <option key={commune.id} value={commune.id}>
-                                    {commune.name}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
-                          </div>
-                        )}
-
-                        <div>
-                          <Label htmlFor="ck-avenue">{"Avenue / Rue"}</Label>
-                          <Input
-                            id="ck-avenue"
-                            value={newAddr.avenue}
-                            onChange={(e) =>
-                              setNewAddr((prev) => ({ ...prev, avenue: e.target.value }))
-                            }
-                            placeholder={"Ex: Av. Lumumba n°24"}
-                          />
-                        </div>
-
-                        <div>
-                          <Label htmlFor="ck-details">{"Point de repère"}</Label>
-                          <Input
-                            id="ck-details"
-                            value={newAddr.reference}
-                            onChange={(e) =>
-                              setNewAddr((prev) => ({ ...prev, reference: e.target.value }))
-                            }
-                            placeholder={"Ex: En face de la pharmacie"}
-                          />
-                        </div>
-
-                        <div>
-                          <Label htmlFor="ck-recipient">{"Nom du destinataire"}</Label>
-                          <Input
-                            id="ck-recipient"
-                            value={newAddr.recipientName}
-                            onChange={(e) =>
-                              setNewAddr((prev) => ({ ...prev, recipientName: e.target.value }))
-                            }
-                            placeholder={"Nom complet"}
-                          />
-                        </div>
-
-                        <div>
-                          <Label htmlFor="ck-recipient-phone">{"Téléphone du destinataire"}</Label>
-                          <Input
-                            id="ck-recipient-phone"
-                            type="tel"
-                            value={newAddr.recipientPhone}
-                            onChange={(e) =>
-                              setNewAddr((prev) => ({ ...prev, recipientPhone: e.target.value }))
-                            }
-                            placeholder={"+243..."}
-                          />
-                        </div>
-
-                        <div className="flex gap-3 pt-2">
-                          <Button
-                            variant="outline"
-                            size="md"
-                            className="flex-1"
-                            onClick={() => setShowNewAddressForm(false)}
-                          >
-                            {"Annuler"}
-                          </Button>
-                          <Button
-                            variant="default"
-                            size="md"
-                            className="flex-1"
-                            onClick={handleSaveNewAddress}
-                            disabled={!newAddr.cityId || !newAddr.communeId || isSavingAddress}
-                          >
-                            {isSavingAddress ? "Enregistrement..." : "Enregistrer l'adresse"}
-                          </Button>
-                        </div>
-                      </div>
-                    </Card>
-                  )}
-                </>
+                <Card padding="lg" className="text-center">
+                  <p className="text-muted-foreground mb-3">{"Aucune adresse enregistrée"}</p>
+                  <Button
+                    variant="default"
+                    size="md"
+                    onClick={() => setShowAddressForm(true)}
+                  >
+                    {"Ajouter mon adresse"}
+                  </Button>
+                </Card>
               )}
 
               <div className="flex justify-end pt-4">
