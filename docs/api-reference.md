@@ -29,11 +29,11 @@ All responses follow a standard envelope format.
 
 ## Authentication
 
-All endpoints require a valid JWT access token via `Authorization: Bearer <token>` header or `teka_access_token` httpOnly cookie, unless marked as **Public**.
+All endpoints require a valid JWT access token via `Authorization: Bearer <token>` header or the surface's httpOnly access cookie (`teka_{admin,seller,buyer}_access`, selected by the `X-Teka-Surface` header), unless marked as **Public**.
 
 Token lifecycle:
 - Access token: 15-minute expiry
-- Refresh token: 7-day expiry (stored as httpOnly cookie `teka_refresh_token`)
+- Refresh token: 7-day expiry (stored as the per-surface httpOnly cookie `teka_{admin,seller,buyer}_refresh`)
 - Tokens are also returned in the response body for mobile app usage
 
 ---
@@ -65,10 +65,8 @@ Authentication is role-specific since 2026-05-15: **sellers + admins use email +
 | POST | `/v1/auth/login/email` | Public | Login with email + password (sellers + admins; soft-deprecated edge case for legacy email-buyer cohort 2026-05-12 → 2026-05-15). |
 | POST | `/v1/auth/password-reset/request` | Public | Always 200. Sends reset link only for ADMIN/SELLER; buyers have no password to reset (use `/v1/auth/buyer/claim/request` instead). |
 | POST | `/v1/auth/password-reset/confirm` | Public | Consume reset token + set new password; revokes all refresh tokens. |
-| POST | `/v1/auth/seller/migrate-check` | Public | Email lookup → `email_setup_sent` / `email_required` / `already_migrated`. |
-| POST | `/v1/auth/seller/migrate-link-email` | Public | Phone + email → setup link to email. No OTP step (removed May 2026). |
-| POST | `/v1/auth/seller/setup-password` | Public | Consume 24h setup JWT, set password, issue cookies. |
-| POST | `/v1/auth/refresh` | Public | Refresh tokens. Replay-safe: revokes all tokens on replay. |
+| POST | `/v1/auth/password/change` | Bearer | Change password for the signed-in user (sellers + admins). |
+| POST | `/v1/auth/refresh` | Public | Rotate tokens. A replay inside the 15s grace window is treated as a benign race; outside it, all sessions are revoked. |
 | POST | `/v1/auth/logout` | Bearer | Logout and invalidate refresh token. |
 | GET | `/v1/auth/me` | Bearer | Get current user profile. |
 | POST | `/v1/auth/email/send-verification` | Bearer | Send email verification link. |
@@ -82,6 +80,7 @@ Authentication is role-specific since 2026-05-15: **sellers + admins use email +
 > - `POST /v1/auth/otp/request-email` — email-OTP fallback (April 2026).
 > - `POST /v1/auth/register/buyer` — email+password buyer register (2026-05-15; replaced by WhatsApp OTP).
 > - `POST /v1/auth/buyer/migrate-check`, `POST /v1/auth/buyer/migrate-link-email`, `POST /v1/auth/buyer/setup-password` — phone→email migration (2026-05-15; replaced by `/v1/auth/buyer/claim/*`).
+> - `POST /v1/auth/seller/migrate-check`, `POST /v1/auth/seller/migrate-link-email`, `POST /v1/auth/seller/setup-password` — legacy seller phone→email migration (**retired 2026-05-18**). The only seller account that ever existed was data-migrated directly. `SellerMigration` (schema), `SELLER_SETUP_EXPIRY_HOURS`, and the seller-setup email template are residual — leaving the routes unregistered *is* the deprecation signal.
 
 ### Buyer WhatsApp OTP (since 2026-05-15)
 ```json
@@ -166,30 +165,12 @@ POST /v1/auth/password-reset/confirm
 Token TTL controlled by `PASSWORD_RESET_EXPIRY_MINUTES` (default 60).
 On confirm, all of the user's refresh tokens are revoked and `authProvider` is set to `EMAIL_PASSWORD`.
 
-### Seller migration (legacy PHONE_OTP sellers)
-```json
-POST /v1/auth/seller/migrate-check
-{ "email": "vendeur@example.com" }
-// → { "migration": "email_setup_sent" }
-// or { "migration": "email_required", "maskedPhone": null }
-// or { "migration": "already_migrated" }
-
-// If email_required — seller provides phone + new email (no OTP step since May 2026)
-POST /v1/auth/seller/migrate-link-email
-{ "phone": "+243XXXXXXXXX", "email": "vendeur@example.com" }
-// → { "migration": "email_setup_sent" }
-
-POST /v1/auth/seller/setup-password
-{ "token": "<24h seller_password_setup JWT>", "password": "NewSecret123" }
-```
-Setup token TTL controlled by `SELLER_SETUP_EXPIRY_HOURS` (default 24).
-
 ### Refresh Token
 ```json
 POST /v1/auth/refresh
 { "refreshToken": "eyJhbGciOiJIUzI1NiIs..." }
 ```
-Also accepts refresh token from `teka_refresh_token` cookie.
+Also accepts the refresh token from the per-surface cookie chosen by the `X-Teka-Surface` header — `teka_{admin,seller,buyer}_refresh` (see `docs/session-management.md`).
 
 ---
 
