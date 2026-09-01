@@ -7,9 +7,9 @@ import '../../../../core/connectivity/connectivity_provider.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
+import '../../../address/presentation/widgets/address_form_sheet.dart';
 import '../../../city/data/city_repository.dart';
 import '../../../city/data/models/city_model.dart';
-import '../../../city/data/models/commune_model.dart';
 import '../../data/models/checkout_model.dart';
 import '../providers/checkout_provider.dart';
 
@@ -122,12 +122,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     switch (checkoutState.step) {
       case CheckoutStep.address:
         return _AddressStep(
-          addresses: checkoutState.addresses,
-          selectedAddress: checkoutState.selectedAddress,
+          address: checkoutState.selectedAddress,
           isLoading: checkoutState.isLoadingAddresses,
-          onSelect: (address) =>
-              ref.read(checkoutProvider.notifier).selectAddress(address),
-          onAddAddress: () => _showAddAddressSheet(context),
+          onEditAddress: () => _showAddressSheet(
+            context,
+            existing: checkoutState.selectedAddress,
+          ),
         );
       case CheckoutStep.payment:
         return _PaymentStep(
@@ -169,19 +169,23 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     }
   }
 
-  void _showAddAddressSheet(BuildContext context) {
+  /// One sheet for both cases. `existing == null` creates; otherwise it edits
+  /// in place, so checkout never offers a second address.
+  void _showAddressSheet(BuildContext context, {AddressModel? existing}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (_) => _AddAddressSheet(
+      builder: (_) => AddressFormSheet(
         cityRepository: ref.read(cityRepositoryProvider),
+        initial: existing,
         onSave: (data) async {
-          final success =
-              await ref.read(checkoutProvider.notifier).createAddress(data);
-          return success;
+          final notifier = ref.read(checkoutProvider.notifier);
+          return existing == null
+              ? notifier.createAddress(data)
+              : notifier.updateAddress(existing.id, data);
         },
       ),
     );
@@ -380,19 +384,21 @@ class _StepIndicator extends StatelessWidget {
   }
 }
 
+/// The buyer's single delivery address, shown for confirmation.
+///
+/// Was a radio list over every saved address plus an "Ajouter une adresse"
+/// button, which let buyers accumulate addresses indefinitely from checkout.
+/// A buyer now has exactly one, so there is nothing to choose between — the
+/// address is displayed with a « Modifier » action instead.
 class _AddressStep extends StatelessWidget {
-  final List<AddressModel> addresses;
-  final AddressModel? selectedAddress;
+  final AddressModel? address;
   final bool isLoading;
-  final ValueChanged<AddressModel> onSelect;
-  final VoidCallback onAddAddress;
+  final VoidCallback onEditAddress;
 
   const _AddressStep({
-    required this.addresses,
-    required this.selectedAddress,
+    required this.address,
     required this.isLoading,
-    required this.onSelect,
-    required this.onAddAddress,
+    required this.onEditAddress,
   });
 
   @override
@@ -403,7 +409,8 @@ class _AddressStep extends StatelessWidget {
       );
     }
 
-    if (addresses.isEmpty) {
+    final current = address;
+    if (current == null) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -425,9 +432,9 @@ class _AddressStep extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               OutlinedButton.icon(
-                onPressed: onAddAddress,
+                onPressed: onEditAddress,
                 icon: const Icon(Icons.add_location_alt_outlined),
-                label: Text("Ajouter une adresse"),
+                label: const Text("Ajouter mon adresse"),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: TekaColors.tekaRed,
                   side: const BorderSide(color: TekaColors.tekaRed),
@@ -450,111 +457,66 @@ class _AddressStep extends StatelessWidget {
               ),
         ),
         const SizedBox(height: 12),
-        ...addresses.map((address) {
-          final isSelected = selectedAddress?.id == address.id;
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: InkWell(
-              onTap: () => onSelect(address),
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: isSelected ? TekaColors.tekaRed : TekaColors.border,
-                    width: isSelected ? 2 : 1,
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                  color: isSelected
-                      ? TekaColors.tekaRed.withOpacity(0.04)
-                      : null,
-                ),
-                child: Row(
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            border: Border.all(color: TekaColors.border),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(
+                Icons.location_on_outlined,
+                color: TekaColors.tekaRed,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
-                      isSelected
-                          ? Icons.radio_button_checked
-                          : Icons.radio_button_off,
-                      color: isSelected
-                          ? TekaColors.tekaRed
-                          : TekaColors.mutedForeground,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (address.label != null &&
-                              address.label!.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Text(
-                                address.label!,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                  color: TekaColors.foreground,
-                                ),
-                              ),
-                            ),
-                          Text(
-                            address.displayAddress,
-                            style: const TextStyle(
-                              color: TekaColors.foreground,
-                              fontSize: 13,
-                            ),
-                          ),
-                          if (address.displayRecipient.isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Text(
-                                address.displayRecipient,
-                                style: const TextStyle(
-                                  color: TekaColors.mutedForeground,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          if (address.isDefault)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: TekaColors.success.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  'Par defaut',
-                                  style: TextStyle(
-                                    color: TekaColors.success,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
+                    Text(
+                      current.displayAddress,
+                      style: const TextStyle(
+                        color: TekaColors.foreground,
+                        fontSize: 13,
                       ),
                     ),
+                    if (current.reference != null &&
+                        current.reference!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          current.reference!,
+                          style: const TextStyle(
+                            color: TekaColors.mutedForeground,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    if (current.displayRecipient.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          current.displayRecipient,
+                          style: const TextStyle(
+                            color: TekaColors.mutedForeground,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
-            ),
-          );
-        }),
-
-        // Add new address button
+            ],
+          ),
+        ),
         const SizedBox(height: 8),
         OutlinedButton.icon(
-          onPressed: onAddAddress,
-          icon: const Icon(Icons.add_location_alt_outlined, size: 18),
-          label: Text("Ajouter une adresse"),
+          onPressed: onEditAddress,
+          icon: const Icon(Icons.edit_outlined, size: 18),
+          label: const Text("Modifier"),
           style: OutlinedButton.styleFrom(
             foregroundColor: TekaColors.tekaRed,
             side: const BorderSide(color: TekaColors.tekaRed),
@@ -1076,419 +1038,3 @@ class _SummarySection extends StatelessWidget {
 }
 
 /// Bottom sheet for creating a new address with city/commune dropdowns.
-class _AddAddressSheet extends StatefulWidget {
-  final CityRepository cityRepository;
-  final Future<bool> Function(Map<String, dynamic> data) onSave;
-
-  const _AddAddressSheet({
-    required this.cityRepository,
-    required this.onSave,
-  });
-
-  @override
-  State<_AddAddressSheet> createState() => _AddAddressSheetState();
-}
-
-class _AddAddressSheetState extends State<_AddAddressSheet> {
-  List<CityModel> _cities = [];
-  List<CommuneModel> _communes = [];
-  bool _isLoadingCities = true;
-  bool _isLoadingCommunes = false;
-  bool _isSaving = false;
-
-  CityModel? _selectedCity;
-  CommuneModel? _selectedCommune;
-
-  final _avenueController = TextEditingController();
-  final _referenceController = TextEditingController();
-  final _recipientNameController = TextEditingController();
-  final _recipientPhoneController = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    _loadCities();
-  }
-
-  @override
-  void dispose() {
-    _avenueController.dispose();
-    _referenceController.dispose();
-    _recipientNameController.dispose();
-    _recipientPhoneController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _loadCities() async {
-    try {
-      final cities = await widget.cityRepository.getCities();
-      if (mounted) {
-        setState(() {
-          _cities = cities.where((c) => c.isActive).toList()
-            ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-          _isLoadingCities = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _isLoadingCities = false);
-    }
-  }
-
-  Future<void> _loadCommunes(String cityId) async {
-    setState(() {
-      _isLoadingCommunes = true;
-      _communes = [];
-      _selectedCommune = null;
-    });
-    try {
-      final communes = await widget.cityRepository.getCommunes(cityId);
-      if (mounted) {
-        setState(() {
-          _communes = communes;
-          _isLoadingCommunes = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) setState(() => _isLoadingCommunes = false);
-    }
-  }
-
-  Future<void> _save() async {
-    if (_selectedCity == null || _selectedCommune == null) return;
-
-    setState(() => _isSaving = true);
-
-    final data = <String, dynamic>{
-      'province': _selectedCity!.province,
-      'town': _selectedCity!.name,
-      'neighborhood': _selectedCommune!.name,
-      'cityId': _selectedCity!.id,
-      'communeId': _selectedCommune!.id,
-    };
-    if (_avenueController.text.trim().isNotEmpty) {
-      data['avenue'] = _avenueController.text.trim();
-    }
-    if (_referenceController.text.trim().isNotEmpty) {
-      data['reference'] = _referenceController.text.trim();
-    }
-    if (_recipientNameController.text.trim().isNotEmpty) {
-      data['recipientName'] = _recipientNameController.text.trim();
-    }
-    if (_recipientPhoneController.text.trim().isNotEmpty) {
-      data['recipientPhone'] = _recipientPhoneController.text.trim();
-    }
-
-    final success = await widget.onSave(data);
-    if (mounted) {
-      setState(() => _isSaving = false);
-      if (success) {
-        Navigator.of(context).pop();
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 16,
-        bottom: 16 + MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Handle
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: TekaColors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            Text(
-              "Nouvelle adresse",
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: TekaColors.foreground,
-                  ),
-            ),
-            const SizedBox(height: 16),
-
-            // City dropdown
-            Text(
-              'Ville *',
-              style: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: TekaColors.foreground,
-              ),
-            ),
-            const SizedBox(height: 6),
-            if (_isLoadingCities)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
-                child: Center(
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-              )
-            else
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  border: Border.all(color: TekaColors.border),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _selectedCity?.id,
-                    hint: Text(
-                      "Selectionnez une ville",
-                      style: const TextStyle(
-                        color: TekaColors.mutedForeground,
-                        fontSize: 14,
-                      ),
-                    ),
-                    isExpanded: true,
-                    items: _cities
-                        .map((city) => DropdownMenuItem(
-                              value: city.id,
-                              child: Text(
-                                '${city.name} (${city.province})',
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      final city = _cities.firstWhere((c) => c.id == value);
-                      setState(() => _selectedCity = city);
-                      _loadCommunes(value);
-                    },
-                  ),
-                ),
-              ),
-            const SizedBox(height: 12),
-
-            // Commune dropdown
-            if (_selectedCity != null) ...[
-              Text(
-                'Commune *',
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: TekaColors.foreground,
-                ),
-              ),
-              const SizedBox(height: 6),
-              if (_isLoadingCommunes)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-                )
-              else
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: TekaColors.border),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _selectedCommune?.id,
-                      hint: Text(
-                        "Selectionnez une commune",
-                        style: const TextStyle(
-                          color: TekaColors.mutedForeground,
-                          fontSize: 14,
-                        ),
-                      ),
-                      isExpanded: true,
-                      items: _communes
-                          .map((commune) => DropdownMenuItem(
-                                value: commune.id,
-                                child: Text(
-                                  commune.name,
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                              ))
-                          .toList(),
-                      onChanged: (value) {
-                        if (value == null) return;
-                        final commune =
-                            _communes.firstWhere((c) => c.id == value);
-                        setState(() => _selectedCommune = commune);
-                      },
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 12),
-            ],
-
-            // Avenue
-            TextField(
-              controller: _avenueController,
-              decoration: InputDecoration(
-                labelText: "Avenue / Rue",
-                hintText: "Ex: Av. Lumumba n24",
-                prefixIcon: const Icon(Icons.signpost_outlined, size: 20),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: TekaColors.border),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: TekaColors.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: TekaColors.tekaRed),
-                ),
-                contentPadding: const EdgeInsets.all(12),
-              ),
-              style: const TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 12),
-
-            // Reference
-            TextField(
-              controller: _referenceController,
-              decoration: InputDecoration(
-                labelText: "Point de repere",
-                hintText: "Ex: En face de la pharmacie",
-                prefixIcon: const Icon(Icons.place_outlined, size: 20),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: TekaColors.border),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: TekaColors.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: TekaColors.tekaRed),
-                ),
-                contentPadding: const EdgeInsets.all(12),
-              ),
-              style: const TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 12),
-
-            // Recipient name
-            TextField(
-              controller: _recipientNameController,
-              textCapitalization: TextCapitalization.words,
-              decoration: InputDecoration(
-                labelText: "Nom du destinataire",
-                hintText: "Nom complet",
-                prefixIcon: const Icon(Icons.person_outline, size: 20),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: TekaColors.border),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: TekaColors.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: TekaColors.tekaRed),
-                ),
-                contentPadding: const EdgeInsets.all(12),
-              ),
-              style: const TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 12),
-
-            // Recipient phone
-            TextField(
-              controller: _recipientPhoneController,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                labelText: "Telephone du destinataire",
-                hintText: "+243...",
-                prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: TekaColors.border),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: TekaColors.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: TekaColors.tekaRed),
-                ),
-                contentPadding: const EdgeInsets.all(12),
-              ),
-              style: const TextStyle(fontSize: 14),
-            ),
-            const SizedBox(height: 20),
-
-            // Save button
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      side: const BorderSide(color: TekaColors.border),
-                    ),
-                    child: Text("Annuler"),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: (_selectedCity != null &&
-                            _selectedCommune != null &&
-                            !_isSaving)
-                        ? _save
-                        : null,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: TekaColors.tekaRed,
-                      disabledBackgroundColor: TekaColors.muted,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Text("Enregistrer"),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-          ],
-        ),
-      ),
-    );
-  }
-}
