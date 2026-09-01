@@ -94,6 +94,23 @@ Order **LIST** endpoints (`/v1/orders`, `/v1/sellers/orders`, `/v1/admin/orders`
 pagination } }`**. Clients read **`res.data.data`** + **`res.data.pagination`**. Order **DETAIL** endpoints
 return the single object at `res.data`.
 
+## Delivery address — snapshot, not the live row (2026-09-01)
+
+`Order.deliveryAddressId` is kept for provenance, but it is **not** the read source. Buyers hold a single
+editable address, so reading through the FK meant every edit retroactively rewrote the delivery address of
+every past order pointing at that row — production already had two addresses each referenced by more than
+one order. Orders now carry their own snapshot (`deliveryLabel`, `deliveryProvince`, `deliveryTown`,
+`deliveryNeighborhood`, `deliveryAvenue`, `deliveryReference`, `deliveryRecipientName`,
+`deliveryRecipientPhone`), written at checkout — the same thing `OrderItem` already does for
+`productTitle`/`unitPriceCDF`.
+
+**The response shape is unchanged.** All three read paths funnel through `resolveDeliveryAddress()`
+(`apps/api/src/orders/delivery-address.util.ts`), which serves the snapshot under the existing
+`deliveryAddress` key and strips the flat `delivery*` columns. It falls back to the Address relation when
+the snapshot is null — orders predating the backfill, and any created during a deploy window while the
+previous container was still serving. **Read the snapshot; never join to `addresses` for a historical
+value.**
+
 ## Surfaces
 
 | Surface | List | Detail | Actions |

@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { resolveDeliveryAddress } from './delivery-address.util';
 import { OrderNotificationService } from '../notifications/order-notification.service';
 import { EarningsService } from '../payments/earnings.service';
 import { PostHogService } from '../analytics/posthog.service';
@@ -124,7 +125,7 @@ export class SellerOrdersService {
     ]);
 
     return {
-      data,
+      data: data.map(resolveDeliveryAddress),
       pagination: {
         page,
         limit,
@@ -271,7 +272,7 @@ export class SellerOrdersService {
         })();
 
     return {
-      ...order,
+      ...resolveDeliveryAddress(order),
       financials: {
         grossCDF: b.grossCDF.toString(),
         commissionCDF: b.commissionCDF.toString(),

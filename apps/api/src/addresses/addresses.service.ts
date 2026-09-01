@@ -18,17 +18,81 @@ export class AddressesService {
     });
   }
 
+  /**
+   * Create-or-update the caller's address.
+   *
+   * A BUYER holds exactly one current delivery address, enforced here rather
+   * than in the clients so the rule cannot be bypassed from the web. POST is
+   * therefore an upsert: with an address already on file it updates that row
+   * instead of accumulating another. Sellers and admins are deliberately left
+   * on the original multi-address behaviour — the single-address rule is a
+   * buyer product decision, and capping them would be an unrelated change.
+   *
+   * Concurrency: the whole thing runs in one transaction that first takes a row
+   * lock on the owning user, so two simultaneous POSTs from the same buyer
+   * serialize and the second sees the first's address. A partial unique index
+   * on addresses("userId") would be the stronger guard, but Postgres cannot
+   * scope a partial index by a column on another table, so it would silently
+   * cap sellers too.
+   *
+   * The update is a full replace: optional fields absent from the payload are
+   * explicitly nulled, so clearing the landmark actually clears it rather than
+   * silently keeping the previous value (Prisma ignores `undefined`).
+   */
   async create(userId: string, dto: CreateAddressDto) {
-    // If setting as default, unset existing default
-    if (dto.isDefault) {
-      await this.prisma.address.updateMany({
-        where: { userId, isDefault: true, deletedAt: null },
-        data: { isDefault: false },
-      });
-    }
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
 
-    return this.prisma.address.create({
-      data: { ...dto, userId },
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+
+      const fields = {
+        label: dto.label ?? null,
+        province: dto.province,
+        town: dto.town,
+        neighborhood: dto.neighborhood,
+        cityId: dto.cityId ?? null,
+        communeId: dto.communeId ?? null,
+        avenue: dto.avenue ?? null,
+        reference: dto.reference ?? null,
+        recipientName: dto.recipientName ?? null,
+        recipientPhone: dto.recipientPhone ?? null,
+      };
+
+      if (user?.role === 'BUYER') {
+        // Legacy buyers may still hold more than one active row (they are
+        // archived by a separate, reported migration — never silently here).
+        // Prefer the default, else the most recent: the same row findAll and
+        // checkout already treat as current.
+        const current = await tx.address.findFirst({
+          where: { userId, deletedAt: null },
+          orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
+        });
+
+        if (current) {
+          return tx.address.update({
+            where: { id: current.id },
+            data: { ...fields, isDefault: true },
+          });
+        }
+
+        return tx.address.create({
+          data: { ...fields, userId, isDefault: true },
+        });
+      }
+
+      if (dto.isDefault) {
+        await tx.address.updateMany({
+          where: { userId, isDefault: true, deletedAt: null },
+          data: { isDefault: false },
+        });
+      }
+
+      return tx.address.create({
+        data: { ...fields, userId, isDefault: dto.isDefault ?? false },
+      });
     });
   }
 
