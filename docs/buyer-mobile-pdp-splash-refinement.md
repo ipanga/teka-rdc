@@ -49,9 +49,9 @@ rules, navigation contracts, analytics, cart behavior, checkout, address behavio
 - [x] Investigation, source audit, and live iOS baseline
 - [x] PDP implementation and widget regression coverage
 - [x] PDP iOS visual review (standard + small viewport)
-- [ ] Splash asset/configuration implementation
-- [ ] iOS cold-launch review
-- [ ] Android PDP and splash review
+- [x] Splash asset/configuration implementation
+- [x] iOS cold-launch review
+- [x] Android PDP and splash review
 - [ ] Full Buyer Mobile analyzer/test regression pass
 - [ ] Cart-clear and single-address regression tests
 - [ ] Final diff review and initiative closure
@@ -73,6 +73,15 @@ rules, navigation contracts, analytics, cart behavior, checkout, address behavio
 - 2026-09-01: rendered the refined live PDP on iPhone 16 Pro and iPhone SE simulators. The small viewport
   keeps the gallery, long title, rating/actions, complete discounted price, savings, and stock action
   legible in the first screen without overflow.
+- 2026-09-01: replaced the oversized native wordmark input with a 1200 px square density source whose
+  visible mark is about 160 logical pixels wide. Regenerated iOS and Android assets; the density outputs
+  remain 300/600/900 px on iOS and 300–1200 px on Android.
+- 2026-09-01: fresh-install cold-launch recordings on iPhone 17 Pro and iPhone SE confirmed a sharp,
+  centered, proportionate wordmark and a direct transition to Flutter with no second splash or delay.
+- 2026-09-01: Android 14 visual inspection exposed the OS's Android 13+ default to permit an empty splash
+  even when an icon is configured. Added the platform `icon_preferred` override for light and dark themes;
+  the held system splash then visibly rendered the white T on Modern Ruby. A normal cold launch transitioned
+  directly into the app, and the live long-title PDP rendered without clipping or sticky-action issues.
 
 ## Known constraints and risks
 
