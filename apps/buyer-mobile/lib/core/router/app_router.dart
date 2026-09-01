@@ -23,7 +23,7 @@ import '../../features/home/presentation/home_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/orders/presentation/screens/order_detail_screen.dart';
 import '../../features/orders/presentation/screens/orders_screen.dart';
-import '../../features/profile/presentation/screens/address_book_screen.dart';
+import '../../features/profile/presentation/screens/my_address_screen.dart';
 import '../../features/profile/presentation/screens/notification_settings_screen.dart';
 import '../../features/profile/presentation/screens/personal_info_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
@@ -245,7 +245,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/profile/addresses',
-        builder: (context, state) => const AddressBookScreen(),
+        builder: (context, state) => const MyAddressScreen(),
       ),
       GoRoute(
         path: '/profile/notifications',

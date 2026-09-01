@@ -11,7 +11,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Language:** French.
 **Launch Markets:** Haut-Katanga and Lualaba provinces — specifically Lubumbashi, Likasi, and Kolwezi. Architecture must support future expansion to other provinces and towns without structural refactoring.
 
-**Status (Jul 2026):** Feature-complete across web + mobile. All 8 build phases shipped; day-to-day work is maintenance, refactors, and incremental features — not greenfield phase work. Original feature spec + phase history live in `docs/product-spec.md`; chronological initiative history in `PROGRESS.md`; in-flight work in `STATUS.md`.
+**Status (Sep 2026):** Feature-complete across web + mobile. All 8 build phases shipped; day-to-day work is maintenance, refactors, and incremental features — not greenfield phase work. Original feature spec + phase history live in `docs/product-spec.md`; chronological initiative history in `PROGRESS.md`; in-flight work in `STATUS.md`.
 
 ---
 
@@ -42,7 +42,7 @@ pnpm db:studio                  # open Prisma Studio
 pnpm clean                      # nuke node_modules / dist / .next / .turbo everywhere
 ```
 
-> **⚠️ `pnpm lint` rewrites files.** `apps/api`'s lint script is `eslint … --fix`, so a root `pnpm lint` silently modifies ~28 api files you never touched — this is the recurring "modified files nobody edited". `apps/api` currently reports **943 errors / 218 warnings**: pre-existing debt, not something you broke. **`pnpm type-check` is the real gate** — CI's `ci.yml` job is *named* "Lint & Type Check" but runs type-check only, and root lint runs only in `pr-validation.yml`, where it is explicitly non-blocking. If you do run lint, `git checkout` the incidental churn before committing.
+> **⚠️ `pnpm lint` rewrites files.** `apps/api`'s lint script is `eslint … --fix`, so a root `pnpm lint` silently modifies ~28 api files you never touched — this is the recurring "modified files nobody edited". `apps/api` currently reports **1,044 errors / 218 warnings** raw (≈948 errors after the script's own `--fix` pass): pre-existing debt, not something you broke. **`pnpm type-check` is the real gate** — CI's `ci.yml` job is *named* "Lint & Type Check" but runs type-check only, and root lint runs only in `pr-validation.yml`, where it is explicitly non-blocking. If you do run lint, `git checkout` the incidental churn before committing.
 
 > **What the workspace actually covers.** `apps/{buyer,seller}-mobile` have **no `package.json`**, so they are not workspace members — `pnpm lint` / `type-check` / `test` never reach them regardless of `--recursive`. Their gates are `flutter analyze` + `flutter test`, run from each app directory. Likewise `pnpm test` resolves only in `api` and `buyer-web`; `seller-web`, `admin-web`, and `@teka/shared` define no `test` script and are skipped silently.
 
@@ -63,7 +63,9 @@ Jest matches the path argument against the *full* path, so a repo-root-relative 
 
 buyer-web has a **Vitest** suite (`pnpm --filter buyer-web test`; jsdom, `vitest.config.ts`) covering middleware, sitemap, URL helpers, and a few components. **CI does not run it** — run it yourself when touching those files.
 
-Green baseline as of 2026-07-30 (last closed initiative), for telling "I broke it" from "already red": **API 243 unit + 118 e2e · buyer-mobile 194 · seller-mobile 31.**
+Green baseline, all re-run and verified green on 2026-09-01, for telling "I broke it" from "already red": **API 271 unit + 118 e2e · buyer-mobile 218 · seller-mobile 42 · buyer-web 68 (vitest).**
+
+`flutter analyze` is **not** at zero: buyer-mobile carries **6 info-level SDK deprecations** in `secure_storage.dart`, `filter_bottom_sheet.dart` and `checkout_screen.dart`. CI runs `flutter analyze --no-fatal-infos`, so infos pass and **warnings fail** — read the output by severity, not by the total count.
 
 ### Prisma workflow
 
@@ -168,7 +170,7 @@ Every merge to `main` ships via GitHub Actions, **zero-downtime**. `develop` is 
 
 ### Mobile (Flutter)
 
-**buyer-mobile** is the consumer app (the primary interface for most customers); **seller-mobile** is the seller dashboard (products, orders, earnings). Android ships via APK + Play Store; **iOS ships to TestFlight**. Both apps have a git-tracked native project under `apps/{buyer,seller}-mobile/ios/` — Runner workspace + Podfile + per-flavor xcschemes, with `Pods/`, `Flutter/Generated.xcconfig`, and `Runner/GoogleService-Info.plist` gitignored. iOS is newer than Android — **verify tooling assumptions against `docs/mobile-release.md` rather than assuming parity.**
+**buyer-mobile** is the consumer app (the primary interface for most customers); **seller-mobile** is the seller dashboard (products, orders, earnings). Android ships via APK + Play Store; **iOS ships to TestFlight**. Both apps have a git-tracked native `ios/` project (Runner workspace + Podfile + per-flavor xcschemes; `Pods/`, `Generated.xcconfig`, `GoogleService-Info.plist` gitignored). iOS is newer than Android — **verify tooling assumptions against `docs/mobile-release.md` rather than assuming parity.**
 
 ### Repository Layout
 
@@ -219,7 +221,7 @@ Key categories (see `env.validation.ts` for the full list):
 - **WhatsApp OTP** — `WHATSAPP_PROVIDER` + `GUPSHUP_*` (Rule 14). Mobile keys are per-flavor.
 - **App-review login** — `APP_REVIEW_LOGIN_ENABLED` (default `false`) + `APP_REVIEW_BUYER_PHONE_E164`/`APP_REVIEW_BUYER_OTP`: a fixed-OTP bypass for store reviewers. **Prod stays `false`** — flip on only during an active review window, then off. → `docs/app-review-login.md`.
 - **Payments** — none. COD-only since 2026-05-26.
-- **iOS release CI** uses GitHub Actions *repo secrets*, not env-file vars: `MATCH_PASSWORD`, `MATCH_GIT_BASIC_AUTH`, per-app `{BUYER,SELLER}_ASC_API_KEY_ID`/`_ASC_API_ISSUER_ID`/`_ASC_API_KEY_P8_B64` (same team → buyer==seller), plus Firebase-plist + Sentry secrets. → `docs/mobile-release.md`.
+- **Mobile release CI** (iOS *and* Android signing) uses GitHub Actions *repo secrets*, not env-file vars — don't add them to the root env files. Full inventory → `docs/mobile-release.md`.
 
 Removed / not in use: `REDIS_URL`, `GOOGLE_*_CLIENT_ID`, all `ORANGE_*`/`FLEXPAY_*`/SMS vars. (`OTP_EXPIRY_MINUTES` is **not** removed — it was restored 2026-05-15 for buyer WhatsApp OTP.)
 
@@ -272,6 +274,16 @@ non-obvious ones:
 - Location hierarchy: Country → Province → Town → Neighborhood (seeded for Haut-Katanga & Lualaba initially)
   - **Naming caveat (Town Architecture Refactor, Jun 2026):** the *data layer* still uses **`City`** — `model City`, `cityId`, `User.preferredCityId`, `GET /v1/cities`, `CitiesModule`, Flutter `features/city/`, web `useCityStore`. The *UX/URL/copy layer* renamed it to **"town / ville"** — header town selector, first-visit town modal, town-scoped browsing, `/{ville}` SEO landing pages. So a "town" in the UI maps to a `City` row in the DB; don't expect a `Town` model. Towns are **data-driven** (`City.heroImageUrl`/accent color/slug) — no hardcoded Lubumbashi/Kolwezi switches. Full model: `docs/town-architecture-refactor.md` + `docs/town-switcher-ux.md`.
 - Order state machine: enum + transition log table for audit trail. See `docs/order-workflow.md`
+- **One address per buyer, enforced server-side.** `POST /v1/addresses` is an **upsert**: with an address
+  on file it updates that row rather than creating a second, inside a transaction that row-locks the owner.
+  Buyers only — sellers/admins keep multi-address. There is no DB unique constraint, because a partial index
+  on `addresses("userId")` cannot be scoped by `users.role` and would silently cap sellers too. Neither buyer
+  client exposes an address book. → `docs/buyer-cart-sync-and-single-address.md`
+- **An order's delivery address is a SNAPSHOT, not the FK.** `Order` carries its own `delivery*` columns,
+  written at checkout, because a buyer's single address is editable and reading through
+  `deliveryAddressId` would retroactively rewrite past orders. All reads go through
+  `resolveDeliveryAddress()`; **never join to `addresses` for a historical value.**
+  → `docs/order-workflow.md` → "Delivery address — snapshot, not the live row"
 - **Monetary values: smallest unit (centimes for CDF) as BigInt**, never float. Always store the currency code alongside the amount. Serialized as strings in API responses
 
 ---
@@ -366,17 +378,12 @@ Town accents (`lib/city-accent.ts`) are subtle badge/chip accents only — **not
 9. **Phone format:** store international `+243XXXXXXXXX`, display with local formatting. It is the delivery contact for every role and *also* the auth identifier for buyers — see Rule 13.
 10. **For anything unspecified:** optimize for the DRC context (low bandwidth, COD, WhatsApp-OTP buyers). `docs/architecture.md` is the authoritative service architecture.
 11. **SMS is gone (2026-05-26)** — `apps/api/src/sms/` (Orange DRC, Africa's Talking, mock) was deleted. Order events ride **Push (FCM) primary + Email (Resend) fallback** via `OrderNotificationService`; admin broadcasts ride **Push + Email** with a per-broadcast `channels` toggle via `BroadcastsService`; buyer OTP rides **WhatsApp/Gupshup** (Rule 14). **Do not re-introduce SMS** without a written architecture decision — the removal closed a load-bearing outage gap (operator-stripped env vars + missing Joi tolerance → 2026-05-24 crash loop). Payments are COD-only from the same initiative: no provider abstraction exists, and `MOBILE_MONEY`/`FLEXPAY` enum values survive only to render historical rows.
-12. **Authentication is role-specific (since 2026-05-15).** Sellers + admins use **email + password**. Buyers use **WhatsApp OTP via Gupshup**. Role mapping:
-    - **Buyers** — `POST /v1/auth/buyer/otp/{request, verify, resend}`. Verify either signs into the User matched by phone (any role — see below) or creates a new BUYER, capturing optional `firstName/lastName` on first verify. The legacy 2026-05-12 → 2026-05-15 email-only cohort claims via `POST /v1/auth/buyer/claim/{request, verify}` (email → magic link → phone → OTP → phone attached).
-    - **Sellers** — self-service register at `POST /v1/auth/register/email` → admin approval. Login at `POST /v1/auth/login/email`.
-    - **Admins** — seeded out-of-band (see `docs/deployment.md § 5b`). Login at `POST /v1/auth/login/email`. Password bootstrap via `/v1/auth/password-reset/request`.
-    - **All roles** — `POST /v1/auth/{refresh, logout, password/change, email/send-verification}`, `GET /v1/auth/{me, email/verify}`.
+12. **Authentication is role-specific (since 2026-05-15).** **Sellers + admins = email + password** (`/v1/auth/{register/email, login/email}`; sellers self-register → admin approval, admins are seeded out-of-band per `docs/deployment.md § 5b`). **Buyers = WhatsApp OTP via Gupshup** (`/v1/auth/buyer/otp/*`) — verify either signs into the User matched by phone or creates a new BUYER, capturing optional `firstName/lastName` on first verify; the legacy 2026-05-12 → 2026-05-15 email-only cohort claims via `/v1/auth/buyer/claim/*`. **Full endpoint table + payloads: `docs/api-reference.md § Auth`; cookies + rotation: `docs/session-management.md`.**
 
-    **Phone uniqueness is global** (`User.phone @unique`) — so if a phone already belongs to a seller, the buyer OTP flow signs into *that seller account*; buyer-web detects `user.role === 'SELLER'` post-verify and redirects to `SELLER_WEB_URL`.
-
-    **Password reset is sellers + admins only.** Buyers have no password: a reset request from a buyer email returns a neutral 200 but creates no token. The 3-day email+password cohort uses `/reclamer-compte` instead.
-
-    **Removed endpoints — all return 404, by design:** `/v1/auth/{otp/request, otp/verify, otp/request-email, register, login, login/google}` (legacy phone-OTP + Google); `/v1/auth/register/buyer` + `/v1/auth/buyer/{migrate-check, migrate-link-email, setup-password}` (deleted 2026-05-15); `/v1/auth/seller/{migrate-check, migrate-link-email, setup-password}` (**retired 2026-05-18** — the only seller account that ever existed was data-migrated directly; the `SellerMigration` model and some `auth.service.ts` helpers are residual). Leaving the routes unregistered *is* the deprecation signal — don't restore them.
+    Three consequences that bite:
+    - **Phone uniqueness is global** (`User.phone @unique`) — so if a phone already belongs to a seller, the buyer OTP flow signs into *that seller account*; buyer-web detects `user.role === 'SELLER'` post-verify and redirects to `SELLER_WEB_URL`.
+    - **Password reset is sellers + admins only.** Buyers have no password: a reset request from a buyer email returns a neutral 200 but creates no token. The 3-day email+password cohort uses `/reclamer-compte` instead.
+    - **Retired auth routes return 404 by design** — legacy phone-OTP + Google, the email+password buyer register, and both the buyer and seller migration flows (seller retired 2026-05-18; `SellerMigration` + `SELLER_SETUP_EXPIRY_HOURS` are residual). Leaving them unregistered *is* the deprecation signal — **don't restore them.** Full list + dates in `docs/api-reference.md`.
 
     `AuthProvider` keeps `PHONE_OTP`, `EMAIL_PASSWORD`, and `GOOGLE`; live code creates only `PHONE_OTP` (OTP buyers) and `EMAIL_PASSWORD` (sellers, admins, and the unclaimed email-buyer cohort).
 

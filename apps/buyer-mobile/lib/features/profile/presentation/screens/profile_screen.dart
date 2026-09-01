@@ -151,8 +151,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               children: [
                 _AccountMenuTile(
                   icon: Icons.location_on_outlined,
-                  title: "Carnet d'adresses",
-                  subtitle: 'Adresses de livraison enregistrées',
+                  title: 'Mon adresse',
+                  subtitle: 'Votre adresse de livraison',
                   onTap: () => _open('/profile/addresses', 'addresses'),
                 ),
                 _AccountMenuTile(

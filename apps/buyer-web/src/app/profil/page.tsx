@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { useAuthStore } from '@/lib/auth-store';
 import { DeleteAccountSection } from '@/components/account/delete-account-section';
+import { DeliveryAddressSection } from '@/components/address/delivery-address-section';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { Container } from '@/components/ui';
@@ -353,6 +354,8 @@ export default function BuyerProfilePage() {
           </button>
         </form>
       </section>
+
+      <DeliveryAddressSection />
 
       {/* Notifications */}
       <section className="mb-6 bg-white rounded-xl border border-border p-6">

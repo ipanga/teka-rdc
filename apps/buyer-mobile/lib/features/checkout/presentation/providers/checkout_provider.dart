@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../../../core/network/dio_error_messages.dart';
+import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../data/checkout_repository.dart';
 import '../../data/models/checkout_model.dart';
 
@@ -107,6 +108,12 @@ class CheckoutState {
 class CheckoutNotifier extends StateNotifier<CheckoutState> {
   final CheckoutRepository _repository;
 
+  /// Used only to reach [cartProvider] once an order is confirmed. Keeping the
+  /// cart transition here (rather than in a widget's `ref.listen`) means it
+  /// runs exactly once per successful checkout and cannot be skipped by a
+  /// screen being disposed mid-flight.
+  final Ref _ref;
+
   /// Stable idempotency key for THIS checkout intent. Generated once on the
   /// first placeOrder attempt and reused on every retry, so a double-tap or a
   /// retry-after-timeout resolves to the same server-side order instead of
@@ -114,7 +121,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
   /// screen gets a fresh notifier (and key); we also clear it on success.
   String? _idempotencyKey;
 
-  CheckoutNotifier(this._repository) : super(const CheckoutState()) {
+  CheckoutNotifier(this._repository, this._ref) : super(const CheckoutState()) {
     _loadAddresses();
   }
 
@@ -201,6 +208,33 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     }
   }
 
+  /// Edit the buyer's single address in place, then re-quote.
+  ///
+  /// The town can change, which changes the delivery fee — so the fee is
+  /// cleared and re-fetched. `canPlaceOrder` gates on `deliveryAvailable ==
+  /// true`, so the confirm button stays disabled until the new quote lands
+  /// rather than charging a stale fee.
+  Future<bool> updateAddress(String id, Map<String, dynamic> data) async {
+    state = state.copyWith(clearError: true);
+    try {
+      final updated = await _repository.updateAddress(id, data);
+      final addresses = await _repository.getAddresses();
+      state = state.copyWith(
+        addresses: addresses,
+        selectedAddress: updated,
+        clearDeliveryFee: true,
+      );
+      _fetchQuote();
+      return true;
+    } on DioException catch (e) {
+      state = state.copyWith(error: extractDioErrorMessage(e));
+      return false;
+    } catch (e) {
+      state = state.copyWith(error: friendlyErrorMessage(e));
+      return false;
+    }
+  }
+
   void selectPaymentMethod(String method) {
     state = state.copyWith(paymentMethod: method, clearError: true);
   }
@@ -270,6 +304,21 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 
       final response = await _repository.checkout(request);
 
+      // The order is committed. The server emptied the cart inside that same
+      // transaction, so bring local cart state in line BEFORE flipping to
+      // success: the success screen and the tab badge are then already correct
+      // on first paint, with no pull-to-refresh. This also covers the
+      // idempotent-replay response, which reports orders without re-clearing
+      // anything server-side.
+      //
+      // Guarded on purpose — the order exists either way, so a cart-sync
+      // hiccup must never be reported to the buyer as a failed checkout.
+      try {
+        await _ref.read(cartProvider.notifier).onOrderPlaced();
+      } catch (_) {
+        // Cart reconciles on its next fetch; the order is unaffected.
+      }
+
       // Success → drop the key so a subsequent (distinct) checkout starts fresh.
       _idempotencyKey = null;
       state = state.copyWith(
@@ -301,7 +350,7 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
 
 final checkoutProvider =
     StateNotifierProvider.autoDispose<CheckoutNotifier, CheckoutState>((ref) {
-  return CheckoutNotifier(ref.read(checkoutRepositoryProvider));
+  return CheckoutNotifier(ref.read(checkoutRepositoryProvider), ref);
 });
 
 /// Provider to fetch addresses (reusable)

@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { resolveDeliveryAddress } from './delivery-address.util';
 import { OrderNotificationService } from '../notifications/order-notification.service';
 import { PostHogService } from '../analytics/posthog.service';
 import { OrderQueryDto } from './dto/order-query.dto';
@@ -93,7 +94,7 @@ export class OrdersService {
     ]);
 
     return {
-      data,
+      data: data.map(resolveDeliveryAddress),
       pagination: {
         page,
         limit,
@@ -181,7 +182,7 @@ export class OrdersService {
       throw new ForbiddenException("Vous n'avez pas accès à cette commande");
     }
 
-    return order;
+    return resolveDeliveryAddress(order);
   }
 
   /**
