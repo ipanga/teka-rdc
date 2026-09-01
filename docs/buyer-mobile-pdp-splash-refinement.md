@@ -47,8 +47,8 @@ rules, navigation contracts, analytics, cart behavior, checkout, address behavio
 ## Phases
 
 - [x] Investigation, source audit, and live iOS baseline
-- [ ] PDP implementation and widget regression coverage
-- [ ] PDP iOS visual review (standard + small viewport)
+- [x] PDP implementation and widget regression coverage
+- [x] PDP iOS visual review (standard + small viewport)
 - [ ] Splash asset/configuration implementation
 - [ ] iOS cold-launch review
 - [ ] Android PDP and splash review
@@ -64,6 +64,15 @@ rules, navigation contracts, analytics, cart behavior, checkout, address behavio
   long-title, discounted, multi-image, reviewed, out-of-stock product.
 - 2026-09-01: timed cold-launch stills and a short simulator recording captured the current oversized
   wordmark before any asset change.
+- 2026-09-01: refined the PDP with a shorter uncropped gallery, overlaid image count, responsive summary,
+  scrollable fulfilment assurances, a content-shaped reduced-motion-aware skeleton, and a compact
+  cart-only sticky action area. Breadcrumbs were removed from Buyer Mobile only.
+- 2026-09-01: focused PDP, section-order, skeleton, price, cart-clear, checkout, and address-management
+  regression tests passed. A deliberate 320 px viewport at 2× text scaling exposed responsive issues in
+  the rating, stock, seller, and review layouts; each was corrected and the accessibility test now passes.
+- 2026-09-01: rendered the refined live PDP on iPhone 16 Pro and iPhone SE simulators. The small viewport
+  keeps the gallery, long title, rating/actions, complete discounted price, savings, and stock action
+  legible in the first screen without overflow.
 
 ## Known constraints and risks
 
@@ -71,4 +80,3 @@ rules, navigation contracts, analytics, cart behavior, checkout, address behavio
 - Product-state coverage beyond live catalog examples will use widget tests with controlled models.
 - Native splash assets must be regenerated from configuration and checked into both platform projects;
   editing only the source PNG is insufficient.
-

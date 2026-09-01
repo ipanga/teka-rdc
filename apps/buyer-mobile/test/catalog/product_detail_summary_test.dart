@@ -79,6 +79,10 @@ const _product = ProductDetailModel(
     id: 'seller-1',
     businessName: 'Teka RDC Officiel',
   ),
+  breadcrumb: [
+    BreadcrumbItem(id: 'category-1', name: 'Téléphones'),
+    BreadcrumbItem(id: 'category-2', name: 'Smartphones'),
+  ],
   slug: 'telephone-intelligent',
   shortCode: 'a1b2c3',
   citySlug: 'lubumbashi',
@@ -126,6 +130,23 @@ Future<Widget> _harness(ReviewStatsModel stats) async {
 void main() {
   setUpAll(FlavorConfig.initialize);
 
+  testWidgets('PDP shows a content-shaped loading state', (tester) async {
+    await tester.pumpWidget(
+      await _harness(
+        const ReviewStatsModel(
+          avgRating: 0,
+          totalReviews: 0,
+          distribution: {1: 0, 2: 0, 3: 0, 4: 0, 5: 0},
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('pdp-loading-skeleton')), findsOneWidget);
+    expect(find.bySemanticsLabel('Chargement du produit'), findsOneWidget);
+
+    await tester.pumpAndSettle();
+  });
+
   test('share URL is canonical and never falls back to the database UUID', () {
     expect(
       productWebUrl(_product),
@@ -163,11 +184,47 @@ void main() {
     expect(find.byTooltip('Partager ce produit'), findsOneWidget);
     expect(find.text('Favoris'), findsNothing);
     expect(find.text('Partager'), findsNothing);
-    expect(find.text('4,6'), findsOneWidget);
-    expect(find.text('128 avis'), findsNWidgets(2));
+    expect(find.text('4,6 · 128 avis'), findsOneWidget);
+    expect(find.text('128 avis'), findsOneWidget);
+    expect(find.text('Téléphones'), findsNothing,
+        reason: 'Buyer Mobile PDP must not render web-style breadcrumbs');
+    expect(find.text('Smartphones'), findsNothing);
+    expect(find.text('Paiement à la livraison'), findsOneWidget);
+    expect(find.text('Livraison assurée par Teka'), findsOneWidget);
+
+    final purchaseBar = tester.getRect(
+      find.byKey(const Key('pdp-purchase-bar')),
+    );
+    expect(purchaseBar.height, lessThan(80));
+    expect(
+      find.ancestor(
+        of: find.text('Paiement à la livraison'),
+        matching: find.byKey(const Key('pdp-fulfilment-highlights')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.ancestor(
+        of: find.text('Paiement à la livraison'),
+        matching: find.byKey(const Key('pdp-purchase-bar')),
+      ),
+      findsNothing,
+      reason: 'delivery assurances belong in scrollable product content, '
+          'not in the sticky purchase bar',
+    );
+
+    final disabledButton = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Rupture de stock'),
+    );
+    expect(
+      disabledButton.style?.foregroundColor?.resolve(
+        const {WidgetState.disabled},
+      ),
+      TekaColors.mutedForeground,
+    );
 
     final titleBottom = tester.getRect(find.text(_product.title)).bottom;
-    final ratingCenter = tester.getCenter(find.text('4,6'));
+    final ratingCenter = tester.getCenter(find.text('4,6 · 128 avis'));
     final favoriteCenter = tester.getCenter(find.byIcon(Icons.favorite_border));
     final shareCenter = tester.getCenter(find.byIcon(Icons.ios_share_outlined));
     expect(titleBottom, lessThan(favoriteCenter.dy));
@@ -179,8 +236,8 @@ void main() {
         tester.widget<Text>(find.text('1.599.999 FC').first);
     expect(discountedPrice.style?.color, TekaColors.foreground);
 
-    await tester.ensureVisible(find.text('128 avis').first);
-    await tester.tap(find.text('128 avis').first);
+    await tester.ensureVisible(find.text('4,6 · 128 avis'));
+    await tester.tap(find.text('4,6 · 128 avis'));
     await tester.pumpAndSettle();
     expect(find.text('Écran des avis'), findsOneWidget);
   });
@@ -201,5 +258,30 @@ void main() {
     expect(find.text('Aucun avis'), findsOneWidget);
     expect(find.text('0,0'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('PDP remains overflow-free on a small phone with large text',
+      (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    await tester.pumpWidget(
+      await _harness(
+        const ReviewStatsModel(
+          avgRating: 4.6,
+          totalReviews: 128,
+          distribution: {1: 0, 2: 1, 3: 4, 4: 40, 5: 83},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text(_product.title), findsOneWidget);
+    expect(find.byKey(const Key('pdp-purchase-bar')), findsOneWidget);
   });
 }

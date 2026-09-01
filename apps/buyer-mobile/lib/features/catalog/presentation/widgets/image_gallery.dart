@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/product_skeletons.dart';
 import '../../data/models/product_model.dart';
 
 class ImageGallery extends StatefulWidget {
@@ -32,26 +33,29 @@ class _ImageGalleryState extends State<ImageGallery> {
   Widget build(BuildContext context) {
     if (widget.images.isEmpty) {
       return AspectRatio(
-        aspectRatio: 1,
+        aspectRatio: kProductDetailGalleryAspectRatio,
         child: Container(
-          color: TekaColors.muted,
-          child: const Center(
-            child: Icon(
-              Icons.image_outlined,
-              size: 64,
-              color: TekaColors.mutedForeground,
+          color: TekaColors.surface,
+          child: Semantics(
+            label: 'Aucune image disponible pour ce produit',
+            child: const Center(
+              child: Icon(
+                Icons.image_outlined,
+                size: 56,
+                color: TekaColors.mutedForeground,
+              ),
             ),
           ),
         ),
       );
     }
 
-    return Column(
-      children: [
-        // Page view
-        AspectRatio(
-          aspectRatio: 1,
-          child: PageView.builder(
+    return AspectRatio(
+      aspectRatio: kProductDetailGalleryAspectRatio,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          PageView.builder(
             controller: _pageController,
             itemCount: widget.images.length,
             onPageChanged: (page) {
@@ -59,52 +63,85 @@ class _ImageGalleryState extends State<ImageGallery> {
             },
             itemBuilder: (context, index) {
               final image = widget.images[index];
-              return GestureDetector(
-                onTap: () => _showFullScreenImage(context, index),
-                child: CachedNetworkImage(
-                  imageUrl: image.url,
-                  fit: BoxFit.contain,
-                  placeholder: (context, url) => Container(
-                    color: TekaColors.muted,
-                    child: const Center(
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    color: TekaColors.muted,
-                    child: const Icon(
-                      Icons.image_not_supported_outlined,
-                      size: 48,
-                      color: TekaColors.mutedForeground,
+              final logicalWidth = MediaQuery.sizeOf(context).width;
+              final pixelRatio = MediaQuery.devicePixelRatioOf(context);
+              final decodeWidth = (logicalWidth * pixelRatio).round();
+
+              return Semantics(
+                button: true,
+                label:
+                    'Image ${index + 1} sur ${widget.images.length}. Ouvrir en plein écran.',
+                excludeSemantics: true,
+                child: GestureDetector(
+                  onTap: () => _showFullScreenImage(context, index),
+                  child: ColoredBox(
+                    color: TekaColors.surface,
+                    child: CachedNetworkImage(
+                      imageUrl: image.url,
+                      fit: BoxFit.contain,
+                      memCacheWidth: decodeWidth,
+                      placeholder: (context, url) => const ShimmerBox(
+                        height: double.infinity,
+                        radius: 0,
+                      ),
+                      errorWidget: (context, url, error) => const Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.image_not_supported_outlined,
+                              size: 44,
+                              color: TekaColors.mutedForeground,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Image indisponible',
+                              style: TextStyle(
+                                color: TekaColors.mutedForeground,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
               );
             },
           ),
-        ),
-        // Dots indicator
-        if (widget.images.length > 1) ...[
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(
-              widget.images.length,
-              (index) => Container(
-                margin: const EdgeInsets.symmetric(horizontal: 3),
-                width: _currentPage == index ? 8 : 6,
-                height: _currentPage == index ? 8 : 6,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _currentPage == index
-                      ? TekaColors.tekaRed
-                      : TekaColors.border,
+          if (widget.images.length > 1)
+            Positioned(
+              right: 12,
+              bottom: 12,
+              child: Semantics(
+                liveRegion: true,
+                label: 'Image ${_currentPage + 1} sur ${widget.images.length}',
+                child: ExcludeSemantics(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: TekaColors.foreground.withValues(alpha: 0.72),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Text(
+                      '${_currentPage + 1} / ${widget.images.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
-          ),
         ],
-      ],
+      ),
     );
   }
 

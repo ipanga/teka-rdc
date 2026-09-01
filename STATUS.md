@@ -9,7 +9,8 @@
 **Buyer Mobile PDP + splash refinement — in progress.** Baseline, decisions, validation evidence, and
 the incremental checklist live in `docs/buyer-mobile-pdp-splash-refinement.md`.
 
-Current phase: live iOS baseline is complete; PDP implementation is next. Scope is Buyer Mobile UI and
+Current phase: PDP implementation, regression coverage, and standard/small iOS visual review are complete;
+native splash refinement is next. Scope is Buyer Mobile UI and
 native splash assets only. No API, database, Buyer Web, seller/admin, route, analytics, cart, checkout,
 or address behavior change is planned.
 
