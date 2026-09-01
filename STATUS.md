@@ -1,10 +1,38 @@
-# Status — 2026-08-29
+# Status — 2026-09-01
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
 > **Update rule.** Touch this file in the same commit that starts or ends an initiative. No drift window.
 
 ## Active initiative
+
+**Buyer cart synchronization + single editable address** — in progress, started 2026-09-01.
+Granular checklist: `docs/buyer-cart-sync-and-single-address.md` (read it next).
+
+Three PRs open into `develop`, none merged: **#603** `fix(mobile)` cart clears on checkout success ·
+**#604** `fix(api,buyer-mobile,buyer-web)` address field names · **#605** `feat(api)` one address per
+buyer + order delivery-address snapshot. Remaining: the two client UI PRs, iOS-Simulator runtime
+verification, and close-out.
+
+**Root causes.** (a) The stale cart was never a backend bug — the API clears the cart inside the order
+transaction; buyer-mobile's long-lived `cartProvider` was simply never told, and its 30-day
+SharedPreferences snapshot meant the stale items survived an app relaunch. (b) `Order.deliveryAddressId`
+was a bare FK with no snapshot, so making the address editable would have retroactively rewritten the
+delivery address of past orders — production already has 2 addresses each referenced by more than one
+order. (c) Found in passing: both clients posted `details`/`phone` while the DTO accepts
+`reference`/`recipientPhone`, which under `forbidNonWhitelisted` is a hard 400 — so an address failed to
+save whenever the buyer filled in the landmark or recipient phone.
+
+**Deploy order matters.** `2026-09-01_order_delivery_address_snapshot.sql` is additive/idempotent and
+auto-applies before the rolling swap. `2026-09-01_archive_duplicate_buyer_addresses.sql` is
+data-mutating, BUYER-only and soft-delete — run it **by hand** via `Apply prod migration` only after the
+snapshot is live and its detection query has been reviewed.
+
+**Gates:** API 263 + 118 e2e · buyer-mobile 209 · buyer-web 63 · `pnpm type-check` clean.
+(`flutter analyze` shows 8 **pre-existing** info-level SDK deprecations in untouched files — the earlier
+"0 issues" line below is stale.)
+
+## Previous initiative
 
 **App Store 5.1.2(i) rejection + Android App Links never verifying** — **shipped to prod 2026-08-29**
 (PRs #597 → develop, #598 → main/deploy, #599 back-merge, #600 version bump). **One operator step
