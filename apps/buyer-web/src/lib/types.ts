@@ -239,11 +239,11 @@ export interface Order {
   deliveryAddress: {
     id: string;
     recipientName: string;
-    phone: string;
+    recipientPhone?: string | null;
     town: string;
     neighborhood: string;
     avenue?: string | null;
-    details?: string | null;
+    reference?: string | null;
   };
   statusLogs: OrderStatusLog[];
   createdAt: string;
@@ -266,12 +266,15 @@ export interface PaginatedOrders {
 export interface Address {
   id: string;
   recipientName: string;
-  phone: string;
+  /** Contract names: the API column is `recipientPhone`, the landmark is
+   *  `reference`. The client previously declared `phone`/`details`, which
+   *  never populated on read and were a hard 400 on write. */
+  recipientPhone?: string | null;
   province?: string;
   town: string;
   neighborhood: string;
   avenue?: string | null;
-  details?: string | null;
+  reference?: string | null;
   isDefault: boolean;
   cityId?: string | null;
   communeId?: string | null;

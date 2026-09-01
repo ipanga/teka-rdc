@@ -362,13 +362,13 @@ export default function OrderDetailPage() {
               </h2>
               <div className="text-sm text-muted-foreground space-y-0.5">
                 <p className="font-medium text-foreground">{order.deliveryAddress.recipientName}</p>
-                <p>{order.deliveryAddress.phone}</p>
+                <p>{order.deliveryAddress.recipientPhone}</p>
                 <p>
                   {order.deliveryAddress.neighborhood}, {order.deliveryAddress.town}
                   {order.deliveryAddress.avenue ? `, ${order.deliveryAddress.avenue}` : ''}
                 </p>
-                {order.deliveryAddress.details && (
-                  <p className="text-xs">{order.deliveryAddress.details}</p>
+                {order.deliveryAddress.reference && (
+                  <p className="text-xs">{order.deliveryAddress.reference}</p>
                 )}
               </div>
             </Card>
