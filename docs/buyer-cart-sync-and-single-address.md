@@ -1,7 +1,7 @@
 # Buyer cart sync + single editable address — 🟡 IN PROGRESS
 
 **Started:** 2026-09-01
-**Branches/PRs:** #603, #604, #605 (all open into `develop`, none merged)
+**Branches/PRs:** #603, #604, #605, #606, #607, #608 (all open, none merged)
 
 ## Scope
 
@@ -37,9 +37,9 @@ Both hazards are real in production, which is what justified the snapshot + the 
 - [x] **PR #603 — `fix(mobile)`: clear cart on checkout success.** `CartNotifier.onOrderPlaced()` (empty → evict cache → authoritative refetch); `CheckoutNotifier` holds a `Ref` and runs it before flipping to `success`. Deliberately not `clearCart()` (redundant DELETE + rolls back on failure). Covers the idempotent-replay response. **7 tests, 202 → 209.** Verified to fail without the wiring.
 - [x] **PR #604 — `fix(api,buyer-mobile,buyer-web)`: address field names.** Both clients aligned to `reference`/`recipientPhone`, read and write. No API change. **8 API + 2 mobile tests.**
 - [x] **PR #605 — `feat(api)`: one address per buyer + order snapshot.** Upsert with row lock (buyers only); snapshot columns + `resolveDeliveryAddress()` at all 6 read paths; 2 migrations. **18 tests, 245 → 263.**
-- [ ] **PR 4 — `feat(mobile)`: single editable address.** Convert `address_book_screen.dart` into "Mon adresse" (empty → « Ajouter mon adresse »; present → card + « Modifier »). Reuse `_AddAddressSheet` for create + edit, prefilled; lift it out of `checkout_screen.dart` so profile and checkout share one form. Drop set-default/delete/multi-card.
-- [ ] **PR 5 — `feat(buyer-web)`: single editable address.** Address section on `/profil` with add/edit; checkout step reduced from a radio list to the current address + edit.
-- [ ] **Runtime verification on iOS Simulator** (see below).
+- [x] **PR #607 — `feat(mobile)`: single editable address.** Convert `address_book_screen.dart` into "Mon adresse" (empty → « Ajouter mon adresse »; present → card + « Modifier »). Reuse `_AddAddressSheet` for create + edit, prefilled; lift it out of `checkout_screen.dart` so profile and checkout share one form. Drop set-default/delete/multi-card.
+- [x] **PR #608 — `feat(buyer-web)`: single editable address.** Address section on `/profil` with add/edit; checkout step reduced from a radio list to the current address + edit.
+- [x] **Runtime verification** — live API end-to-end done; iOS Simulator tap-through blocked (see above).
 - [ ] Close out: STATUS.md + PROGRESS.md.
 
 ## Migrations
@@ -59,6 +59,38 @@ Baseline re-verified green 2026-08-31: API 245 + 118 e2e · buyer-mobile 202 · 
 Current: **API 263 + 118 · buyer-mobile 209 (#603) / 204 (#604) · buyer-web 63 · `pnpm type-check` clean.**
 
 `flutter analyze` reports **8 pre-existing info-level SDK deprecations** in untouched files (`secure_storage.dart`, `filter_bottom_sheet.dart`, `checkout_screen.dart` `withOpacity`). STATUS.md's "0 issues" claim is stale — these predate this work.
+
+## Verification performed (2026-09-01)
+
+### Live, against a running API + the dev database
+
+All five PRs merged into a local `verify/integration` branch first: **buyer-mobile 218 · API 271 + 118 e2e · `flutter analyze` 7 · `pnpm type-check` clean.** They compose without conflict.
+
+Then exercised end-to-end with a real buyer session (mock WhatsApp OTP):
+
+| Check | Result |
+|---|---|
+| `POST /v1/addresses` with legacy `details` | **400** — `property details should not exist` |
+| `POST` with `reference` + `recipientPhone` | Accepted and persisted |
+| `POST` a second time | **Upserted the same row id**; address count stayed **1** |
+| Cart after `POST /v1/checkout` | `totalItems: 0` |
+| Address edited Lubumbashi → Kolwezi | Existing order still reads `Lubumbashi / Av. Lumumba 24` — **snapshot held** |
+
+The last row is the data-integrity guarantee behind the snapshot migration, demonstrated rather than argued.
+
+### iOS Simulator — partial
+
+buyer-mobile **builds and runs** on iPhone 16 Pro / iOS 18.0 against the local API (dev flavor, `API_BASE_URL` overridden to `http://localhost:5050/api` — the committed `10.0.2.2` is the *Android* emulator alias and does not resolve on iOS). Screenshot confirms the French town picker rendering live API data.
+
+**A tap-driven walkthrough was NOT performed.** No UI automation is available in this environment: `osascript` is denied assistive access, `idb` and `cliclick` are not installed, and the repo has no `integration_test/` harness. So the on-device sequence *place order → cart empties without pull-to-refresh → badge correct → navigate away and back → relaunch* is **unverified on a device**. What stands in for it: the `ProviderContainer` test in `test/cart/cart_clear_after_order_test.dart`, which drives the real `CheckoutNotifier` → `cartProvider` transition and was confirmed to fail (`Expected: empty, Actual: [CartItemModel]`) with only the `onOrderPlaced()` call removed.
+
+To close this gap, either grant Accessibility permission to the terminal (enables `osascript` taps) or add an `integration_test/` suite.
+
+## Pre-existing problems found (not caused by this work)
+
+1. **The dev DB was missing `users.deletionRequestedAt`** — buyer login 500s with a Prisma error. `2026-07-24_account_deletion_pending.sql` is in `auto-apply.list` but had never been applied to dev. Applied it (idempotent, additive) to unblock local verification.
+2. **The dev DB has significant schema drift.** `prisma migrate diff` shows `pnpm db:push` would **DROP** `products.search_vector`, `products_title_trgm_idx`, `search_synonyms_terms_idx` and three foreign keys — search infrastructure created by manual SQL that `schema.prisma` does not model. **Do not run `pnpm db:push` against dev.** Not run here.
+3. **`flutter analyze` is not at 0 issues** (STATUS.md claimed it was): 8 pre-existing info-level SDK deprecations, now 7 after this work removed one `withOpacity` call.
 
 ## Open questions / follow-ups
 
