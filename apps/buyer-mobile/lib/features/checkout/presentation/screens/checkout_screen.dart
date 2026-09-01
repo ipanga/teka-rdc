@@ -9,7 +9,6 @@ import '../../../../core/utils/price_formatter.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../address/presentation/widgets/address_form_sheet.dart';
 import '../../../city/data/city_repository.dart';
-import '../../../city/data/models/city_model.dart';
 import '../../data/models/checkout_model.dart';
 import '../providers/checkout_provider.dart';
 
