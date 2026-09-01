@@ -105,7 +105,7 @@ Authentication is **role-specific since 2026-05-15**: sellers + admins authentic
 | **Seller** | `POST /v1/auth/register/email` → admin approval | `POST /v1/auth/login/email` |
 | **Admin** | Seeded out-of-band (see `docs/deployment.md § 5b`) | `POST /v1/auth/login/email` |
 
-`User.authProvider` is `PHONE_OTP` for buyers created via OTP, `EMAIL_PASSWORD` for sellers + admins + the 3-day-window legacy email-buyer cohort. The `GOOGLE` enum value remains on historical accounts only. Refresh-token replay detection and cookie semantics (`teka_access_token`, `teka_refresh_token`) are uniform across roles.
+`User.authProvider` is `PHONE_OTP` for buyers created via OTP, `EMAIL_PASSWORD` for sellers + admins + the 3-day-window legacy email-buyer cohort. The `GOOGLE` enum value remains on historical accounts only. Refresh-token replay detection is uniform across roles; cookies are **per-surface** since 2026-06-18 — `teka_{admin,seller,buyer}_{access,refresh,session}`, selected by the `X-Teka-Surface` header (see `docs/session-management.md`).
 
 **Phone uniqueness is global** (`User.phone @unique`). If a buyer enters a phone that is already attached to a seller, the OTP verify signs them into the seller account; buyer-web detects `role === 'SELLER'` and redirects to `SELLER_WEB_URL`.
 
@@ -196,24 +196,11 @@ The 2026-05-12 → 2026-05-15 email+password buyer window left some buyers with 
      flip authProvider to EMAIL_PASSWORD + emailVerified=true
 ```
 
-### Authentication — Seller migration (legacy PHONE_OTP → EMAIL_PASSWORD)
+### Authentication — Seller migration (RETIRED 2026-05-18)
 
-The OTP step that existed in the original seller migration was removed when OTP infrastructure was first deleted (May 2026). The chosen email is stashed on `SellerMigration.tempEmail` and only committed to `User.email` when the setup link is clicked (limits hijack risk).
+**All three routes (`/v1/auth/seller/{migrate-check, migrate-link-email, setup-password}`) are unregistered and return 404.** The only seller account that ever existed was data-migrated directly, so the flow was retired rather than maintained. `SellerMigration` (schema), `SELLER_SETUP_EXPIRY_HOURS`, and the seller-setup email template survive as residue — **do not restore the routes**; leaving them unregistered *is* the deprecation signal.
 
-```
-1. POST /v1/auth/seller/migrate-check { email }
-   → { migration: 'email_setup_sent' | 'already_migrated' | 'email_required' }
-2. POST /v1/auth/seller/migrate-link-email { phone, email }
-   → SellerMigration.tempEmail = email; sendSellerSetupEmail(email, 24h JWT)
-   → { migration: 'email_setup_sent' } (neutral 200 regardless of existence)
-3. User clicks email → /seller/setup-password?token=...
-4. POST /v1/auth/seller/setup-password { token, password }
-   → Transaction: set User.email = tempEmail, passwordHash, passwordSetAt,
-     authProvider=EMAIL_PASSWORD, emailVerified=true; clear tempEmail;
-     mark SellerMigration.setupCompleted; revoke all refresh tokens; issue cookies.
-```
-
-(The previous buyer migration flow at `/v1/auth/buyer/migrate-*` was deleted on 2026-05-15. Email-only legacy buyers now use the claim flow above.)
+The buyer equivalent at `/v1/auth/buyer/migrate-*` was deleted earlier, on 2026-05-15; email-only legacy buyers use the claim flow above.
 
 ### OTP storage (PostgreSQL — restored 2026-05-15)
 
@@ -488,7 +475,7 @@ Expired entries are cleaned up on each OTP request. This approach eliminates the
 ### Authentication
 - **JWT Access Token**: 15-minute expiry, signed with `JWT_SECRET`
 - **JWT Refresh Token**: 7-day expiry, signed with `JWT_REFRESH_SECRET`
-- **Token Storage**: httpOnly cookies (`teka_access_token`, `teka_refresh_token`) + response body
+- **Token Storage**: per-surface httpOnly cookies (`teka_{admin,seller,buyer}_{access,refresh}`, chosen by `X-Teka-Surface`) + response body
 - **Refresh Rotation**: Old refresh token hash is replaced on each refresh
 - **Password Hashing**: bcrypt (for optional email+password auth)
 
