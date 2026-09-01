@@ -5,6 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { deliveryAddressSnapshot } from '../orders/delivery-address.util';
 import { CartService } from '../cart/cart.service';
 import { DeliveryZonesService } from '../delivery-zones/delivery-zones.service';
 import { OrderNotificationService } from '../notifications/order-notification.service';
@@ -248,6 +249,10 @@ export class CheckoutService {
               paymentMethod: dto.paymentMethod,
               paymentStatus,
               deliveryAddressId: address.id,
+              // Freeze the address as it is right now. The buyer has a single
+              // editable address, so without this every later edit would
+              // retroactively rewrite this order's delivery address.
+              ...deliveryAddressSnapshot(address),
               deliveryFeeCDF,
               deliveryFeeUSD: deliveryFeeUSD,
               subtotalCDF,

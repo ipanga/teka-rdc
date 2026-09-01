@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:buyer_mobile/features/checkout/data/checkout_repository.dart';
+import 'package:buyer_mobile/features/checkout/data/models/checkout_model.dart';
 
 /// Short-circuits every request with a canned response while recording the
 /// method + path the repository actually issued. Lets us assert the new
@@ -65,6 +66,37 @@ void main() {
 
       expect(interceptor.captured!.method, 'DELETE');
       expect(interceptor.captured!.path, '/v1/addresses/addr-9');
+    });
+  });
+
+  group('AddressModel field contract', () {
+    // The client used to read `details` and write `details`/`phone`, while the
+    // API has always used `reference`/`recipientPhone`. On the read side the
+    // landmark simply never appeared; on the write side it was a hard 400,
+    // because the API runs ValidationPipe with forbidNonWhitelisted.
+    test('parses the landmark from `reference`, not `details`', () {
+      final model = AddressModel.fromJson(const {
+        'id': 'addr-1',
+        'town': 'Lubumbashi',
+        'neighborhood': 'Kampemba',
+        'reference': 'En face de la pharmacie',
+        'recipientPhone': '+243990000001',
+        'isDefault': true,
+      });
+
+      expect(model.reference, 'En face de la pharmacie');
+      expect(model.recipientPhone, '+243990000001');
+    });
+
+    test('ignores a legacy `details` key rather than surfacing it', () {
+      final model = AddressModel.fromJson(const {
+        'id': 'addr-1',
+        'town': 'Lubumbashi',
+        'neighborhood': 'Kampemba',
+        'details': 'valeur héritée',
+      });
+
+      expect(model.reference, isNull);
     });
   });
 }
