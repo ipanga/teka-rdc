@@ -1,8 +1,8 @@
 # Buyer Mobile PDP + Splash Refinement
 
-**Started:** 2026-09-01  
-**Primary surface:** `apps/buyer-mobile`  
-**Status:** In progress
+**Started:** 2026-09-01
+**Primary surface:** `apps/buyer-mobile`
+**Status:** Complete on `develop`; not released
 
 ## Objective
 
@@ -52,9 +52,9 @@ rules, navigation contracts, analytics, cart behavior, checkout, address behavio
 - [x] Splash asset/configuration implementation
 - [x] iOS cold-launch review
 - [x] Android PDP and splash review
-- [ ] Full Buyer Mobile analyzer/test regression pass
-- [ ] Cart-clear and single-address regression tests
-- [ ] Final diff review and initiative closure
+- [x] Full Buyer Mobile analyzer/test regression pass
+- [x] Cart-clear and single-address regression tests
+- [x] Final diff review and initiative closure
 
 ## Validation log
 
@@ -82,10 +82,19 @@ rules, navigation contracts, analytics, cart behavior, checkout, address behavio
   even when an icon is configured. Added the platform `icon_preferred` override for light and dark themes;
   the held system splash then visibly rendered the white T on Modern Ruby. A normal cold launch transitioned
   directly into the app, and the live long-title PDP rendered without clipping or sticky-action issues.
+- 2026-09-01: the full Buyer Mobile suite passed: 225 tests, including cart-clear, checkout, and
+  address-management coverage. `flutter analyze --no-fatal-infos lib test` passed with the repository's
+  six known info-level deprecations; all seven changed Dart files are formatter-clean.
+- 2026-09-01: final review caught `flutter_native_splash` regenerating explicit fullscreen/status-bar
+  keys. The source config now keeps fullscreen disabled, generated keys were removed to preserve the
+  existing system-UI contract, and the focused native tests plus the full suite passed afterward.
+- 2026-09-01: final diff is Buyer Mobile-only: no API, database, Buyer Web, seller/admin, route,
+  analytics, pricing, cart, checkout, or address logic changed. Buyer Web SEO is unaffected.
 
 ## Known constraints and risks
 
 - Production data is read-only during QA; no review, cart, checkout, or address writes will be made.
 - Product-state coverage beyond live catalog examples will use widget tests with controlled models.
 - Native splash assets must be regenerated from configuration and checked into both platform projects;
-  editing only the source PNG is insufficient.
+  editing only the source PNG is insufficient. After generation, keep the explicit status-bar keys absent
+  and retain the API 33+ `icon_preferred` sidecar themes; regression tests enforce both requirements.

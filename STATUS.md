@@ -6,15 +6,19 @@
 
 ## Active initiative
 
-**Buyer Mobile PDP + splash refinement — in progress.** Baseline, decisions, validation evidence, and
-the incremental checklist live in `docs/buyer-mobile-pdp-splash-refinement.md`.
-
-Current phase: PDP and native splash implementation are complete and visually reviewed on standard/small
-iOS simulators plus Android 14; the full regression and final-review gates are next. Scope is Buyer Mobile UI and
-native splash assets only. No API, database, Buyer Web, seller/admin, route, analytics, cart, checkout,
-or address behavior change is planned.
+**None.** Buyer Mobile PDP + splash refinement is complete on `develop`; it has not been released.
 
 ## Most recently completed initiative
+
+**Buyer Mobile PDP + native splash refinement — complete on `develop`, not released.** Buyer Mobile only:
+the PDP breadcrumb is gone, the gallery/summary/sticky action/loading and responsive accessibility states
+are refined, and native launch branding is sharp and proportionate on iOS and Android. Visual QA covered
+iPhone 16 Pro, iPhone SE, and Android 14 against live read-only production catalog data. All **225** Buyer
+Mobile tests pass, including cart-clear and address management; analyzer passes the repository gate with
+six known info-only deprecations. No API, database, Buyer Web, seller/admin, route, analytics, cart,
+checkout, address, or SEO changes. Detail: `docs/buyer-mobile-pdp-splash-refinement.md`.
+
+## Previous completed initiative
 
 The buyer cart + single-address initiative shipped to production on 2026-09-01 and is closed — full
 narrative in `PROGRESS.md`, detail in `docs/buyer-cart-sync-and-single-address.md`.
