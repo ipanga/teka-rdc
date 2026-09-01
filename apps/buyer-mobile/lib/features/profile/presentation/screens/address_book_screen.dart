@@ -257,10 +257,10 @@ class _AddressCard extends StatelessWidget {
                 ),
               ),
             ],
-            if (address.details != null && address.details!.isNotEmpty) ...[
+            if (address.reference != null && address.reference!.isNotEmpty) ...[
               const SizedBox(height: 6),
               Text(
-                address.details!,
+                address.reference!,
                 style: const TextStyle(
                   color: TekaColors.mutedForeground,
                   fontSize: 13,

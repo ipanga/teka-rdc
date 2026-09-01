@@ -100,7 +100,9 @@ class AddressModel {
   final String? town;
   final String? neighborhood;
   final String? avenue;
-  final String? details;
+  /// Landmark. Named `reference` to match the API column; the client used to
+  /// read/write `details`, which silently never populated.
+  final String? reference;
   final bool isDefault;
 
   const AddressModel({
@@ -112,7 +114,7 @@ class AddressModel {
     this.town,
     this.neighborhood,
     this.avenue,
-    this.details,
+    this.reference,
     this.isDefault = false,
   });
 
@@ -126,7 +128,7 @@ class AddressModel {
       town: json['town'] as String?,
       neighborhood: json['neighborhood'] as String?,
       avenue: json['avenue'] as String?,
-      details: json['details'] as String?,
+      reference: json['reference'] as String?,
       isDefault: json['isDefault'] as bool? ?? false,
     );
   }

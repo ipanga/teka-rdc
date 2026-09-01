@@ -1169,13 +1169,13 @@ class _AddAddressSheetState extends State<_AddAddressSheet> {
       data['avenue'] = _avenueController.text.trim();
     }
     if (_referenceController.text.trim().isNotEmpty) {
-      data['details'] = _referenceController.text.trim();
+      data['reference'] = _referenceController.text.trim();
     }
     if (_recipientNameController.text.trim().isNotEmpty) {
       data['recipientName'] = _recipientNameController.text.trim();
     }
     if (_recipientPhoneController.text.trim().isNotEmpty) {
-      data['phone'] = _recipientPhoneController.text.trim();
+      data['recipientPhone'] = _recipientPhoneController.text.trim();
     }
 
     final success = await widget.onSave(data);

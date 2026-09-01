@@ -66,9 +66,9 @@ export default function CheckoutPage() {
     town: '',
     neighborhood: '',
     avenue: '',
-    details: '',
+    reference: '',
     recipientName: '',
-    phone: '',
+    recipientPhone: '',
   });
 
   useEffect(() => {
@@ -164,9 +164,9 @@ export default function CheckoutPage() {
         town: newAddr.town,
         neighborhood: newAddr.neighborhood,
         avenue: newAddr.avenue || undefined,
-        details: newAddr.details || undefined,
+        reference: newAddr.reference || undefined,
         recipientName: newAddr.recipientName || undefined,
-        phone: newAddr.phone || undefined,
+        recipientPhone: newAddr.recipientPhone || undefined,
         cityId: newAddr.cityId,
         communeId: newAddr.communeId,
       };
@@ -183,9 +183,9 @@ export default function CheckoutPage() {
         town: '',
         neighborhood: '',
         avenue: '',
-        details: '',
+        reference: '',
         recipientName: '',
-        phone: '',
+        recipientPhone: '',
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur lors de l'enregistrement";
@@ -500,13 +500,13 @@ export default function CheckoutPage() {
                                 </Badge>
                               )}
                             </div>
-                            <p className="text-sm text-muted-foreground mt-0.5">{addr.phone}</p>
+                            <p className="text-sm text-muted-foreground mt-0.5">{addr.recipientPhone}</p>
                             <p className="text-sm text-muted-foreground">
                               {addr.neighborhood}, {addr.town}
                               {addr.avenue ? `, ${addr.avenue}` : ''}
                             </p>
-                            {addr.details && (
-                              <p className="text-xs text-muted-foreground mt-1">{addr.details}</p>
+                            {addr.reference && (
+                              <p className="text-xs text-muted-foreground mt-1">{addr.reference}</p>
                             )}
                           </div>
                         </label>
@@ -599,9 +599,9 @@ export default function CheckoutPage() {
                           <Label htmlFor="ck-details">{"Point de repère"}</Label>
                           <Input
                             id="ck-details"
-                            value={newAddr.details}
+                            value={newAddr.reference}
                             onChange={(e) =>
-                              setNewAddr((prev) => ({ ...prev, details: e.target.value }))
+                              setNewAddr((prev) => ({ ...prev, reference: e.target.value }))
                             }
                             placeholder={"Ex: En face de la pharmacie"}
                           />
@@ -624,9 +624,9 @@ export default function CheckoutPage() {
                           <Input
                             id="ck-recipient-phone"
                             type="tel"
-                            value={newAddr.phone}
+                            value={newAddr.recipientPhone}
                             onChange={(e) =>
-                              setNewAddr((prev) => ({ ...prev, phone: e.target.value }))
+                              setNewAddr((prev) => ({ ...prev, recipientPhone: e.target.value }))
                             }
                             placeholder={"+243..."}
                           />
@@ -755,7 +755,7 @@ export default function CheckoutPage() {
                 {selectedAddress && (
                   <div className="text-sm text-muted-foreground">
                     <p className="font-medium text-foreground">{selectedAddress.recipientName}</p>
-                    <p>{selectedAddress.phone}</p>
+                    <p>{selectedAddress.recipientPhone}</p>
                     <p>
                       {selectedAddress.neighborhood}, {selectedAddress.town}
                       {selectedAddress.avenue ? `, ${selectedAddress.avenue}` : ''}
