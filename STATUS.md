@@ -6,8 +6,17 @@
 
 ## Active initiative
 
-**None.** The buyer cart + single-address initiative shipped to production on 2026-09-01 and is closed —
-full narrative in `PROGRESS.md`, detail in `docs/buyer-cart-sync-and-single-address.md`.
+**Buyer Mobile PDP + splash refinement — in progress.** Baseline, decisions, validation evidence, and
+the incremental checklist live in `docs/buyer-mobile-pdp-splash-refinement.md`.
+
+Current phase: live iOS baseline is complete; PDP implementation is next. Scope is Buyer Mobile UI and
+native splash assets only. No API, database, Buyer Web, seller/admin, route, analytics, cart, checkout,
+or address behavior change is planned.
+
+## Most recently completed initiative
+
+The buyer cart + single-address initiative shipped to production on 2026-09-01 and is closed — full
+narrative in `PROGRESS.md`, detail in `docs/buyer-cart-sync-and-single-address.md`.
 
 **Released 2026-09-01** — PRs #603, #604, #605, #607, #608 (+ #606/#609 docs) via release PR **#610**
 (`develop → main`, merge commit `b331f85d`). Deploy run `33519392499`: all 5 jobs green.
