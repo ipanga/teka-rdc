@@ -33,6 +33,10 @@ export default function CheckoutPage() {
   const [step, setStep] = useState<CheckoutStep>('address');
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>('');
+  // Bumped whenever the address is saved. The quote effect keys on the address
+  // id, but editing keeps the same id — without this, changing town would not
+  // re-price and the buyer could be charged a stale delivery fee.
+  const [addressRevision, setAddressRevision] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('COD');
   const [buyerNote, setBuyerNote] = useState('');
   const [isLoadingAddresses, setIsLoadingAddresses] = useState(true);
@@ -189,7 +193,7 @@ export default function CheckoutPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedAddressId]);
+  }, [selectedAddressId, addressRevision]);
 
   async function handlePlaceOrder() {
     if (!selectedAddressId || isPlacing) return;
@@ -362,6 +366,9 @@ export default function CheckoutPage() {
                       // whether it was just created or edited.
                       setAddresses([saved]);
                       setSelectedAddressId(saved.id);
+                      // Force a re-quote: an edit keeps the same id, so the
+                      // effect above would not otherwise re-price a town change.
+                      setAddressRevision((n) => n + 1);
                       setShowAddressForm(false);
                     }}
                     onCancel={() => setShowAddressForm(false)}
