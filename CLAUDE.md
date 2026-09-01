@@ -189,21 +189,19 @@ Every merge to `main` ships via GitHub Actions, **zero-downtime**. `develop` is 
 `architecture.md` (authoritative service architecture) · `product-spec.md` (feature spec + 8-phase
 history) · `url-and-seo-strategy.md` (city-first URLs/slugs/redirects) · `analytics.md` (PostHog) ·
 `clarity.md` (Microsoft Clarity) · `api-reference.md` · `deployment.md` (§5b admin seeding) ·
-`mobile-connectivity.md` (Rule 15) · `mobile-flavors.md` · `mobile-release.md` (Android signing + Play
-Store; **iOS TestFlight CI/CD** — match signing + dSYM→Sentry + approval gate) ·
+`mobile-connectivity.md` (Rule 15) · `mobile-flavors.md` · `mobile-release.md` (Android signing + Play Store;
+**iOS TestFlight CI/CD** — match signing, dSYM→Sentry, approval gate) ·
 `payouts.md` (seller payouts + settlement) · `delivery-fees-and-currency.md` (zone-based delivery fees +
-FC display + money convention) · `order-workflow.md` (**Teka-managed** order lifecycle: collection → delivery →
-COD cash → 2-day return window → payout; commission/financials + lazy payout eligibility + returns + list
-response-shape contract) · `push-notifications.md` (FCM) ·
+FC display + money convention) · `order-workflow.md` (**Teka-managed** lifecycle: collection → delivery → COD cash →
+2-day return window → payout; financials, returns, response-shape contract, **delivery-address snapshot**) · `push-notifications.md` (FCM) ·
 `session-management.md` (per-surface cookies + token rotation) · `sentry.md` ·
 `deep-linking.md` (App Links / Universal Links + DeepLinkParser) ·
-`town-architecture-refactor.md` + `town-switcher-ux.md` (data-driven town selection / switcher — see note below) ·
+`town-architecture-refactor.md` + `town-switcher-ux.md` (data-driven town selection) ·
 `app-review-login.md` (store-reviewer OTP bypass — ships disabled).
 
-Everything else in `docs/` is a **dated initiative tracker** (`*-redesign.md`, `*-fixes.md`, `*-audit.md`,
-`product-condition-deprecation.md`, `review-title-and-editing.md`, …). Those are per-initiative history, not
-current-behaviour references — prefer `architecture.md` + the Rules below. **Deliberately not enumerated here:**
-the set grows with every initiative, and listing it re-trips the size warning. `ls docs/` when you need one.
+Everything else in `docs/` is a **dated initiative tracker** (`*-redesign.md`, `*-fixes.md`, `*-audit.md`, …)
+— per-initiative history, not current behaviour. Prefer `architecture.md` + the Rules below. Not enumerated
+here on purpose: the set grows every initiative and listing it re-trips the size warning. `ls docs/`.
 
 ---
 
@@ -301,44 +299,43 @@ admin tables. Uploads go multipart → backend → Cloudinary, never to local di
 
 ## 7. DEVELOPMENT WORKFLOW & CONTINUITY SYSTEM
 
-### 7.1 Progress Tracking (CRITICAL)
+### 7.1 Progress tracking (CRITICAL)
 
-Three files carry state, and they have distinct jobs: **`STATUS.md`** = what is in flight *right now*
-(rewritten in the same commit that starts or ends an initiative); **`PROGRESS.md`** = the append-only
-chronological record; **`CLAUDE.md`** = durable rules only, never history (§8). Update `PROGRESS.md` after
-each completed task and `STATUS.md` at initiative boundaries.
+Three files, distinct jobs: **`STATUS.md`** = what is in flight *right now* (rewritten in the same commit
+that starts or ends an initiative — no drift window); **`PROGRESS.md`** = the append-only chronological
+record; **`CLAUDE.md`** = durable rules only, never history. Update `PROGRESS.md` after each completed
+task, `STATUS.md` at initiative boundaries.
 
-### 7.2 Resumption Protocol
+### 7.2 Resumption protocol
 
-When resuming work (after interruption or new session):
+**Read `STATUS.md` first** — before this file, before `PROGRESS.md`. If `## Active initiative` says
+"None", there is no in-flight work: don't infer one from a stale plan file or from memory. If it names a
+per-initiative tracker (they live in **`docs/`** — note `tasks/` is gitignored, so nothing there survives
+for the next session), read that next. Then `CLAUDE.md` for context, `PROGRESS.md` for history,
+`git log --oneline -20`, and the test suites to confirm the current state before changing anything.
 
-1. **Read `STATUS.md`** at repo root *first*. It is the single source of truth for what is in-flight right now (active initiative, open PRs, next candidates). Updated in the same commit that starts or ends an initiative — so it should never drift. If `## Active initiative` says "None," there is no in-flight work; don't infer one from stale plan files or memory. If the active initiative points to a `tasks/*-progress.md` tracker, read it next — that file holds the granular sub-task checklist STATUS.md summarizes.
-2. **Read `CLAUDE.md`** (this file) for full project context if `STATUS.md` didn't make the situation clear.
-3. **Read `PROGRESS.md`** for the chronological history of completed work.
-4. **Check git log** (`git log --oneline -20`) for recent commits.
-5. **Run tests** (`pnpm test` in `apps/api`) to verify current state.
-6. **Continue from the next uncompleted sub-task** — or, if `STATUS.md` says no active initiative, ask the user what to start.
-
-Plan files in `~/.claude/plans/*.md` are session artifacts that may persist after the plan has shipped. Cross-reference any plan you find against `STATUS.md` and git history before executing it — don't treat the file's existence as evidence the work is pending.
+Plan files under `~/.claude/plans/*.md` are session artifacts that outlive the work. Cross-reference any
+plan against `STATUS.md` and git history before executing it — its existence is not evidence it is pending.
 
 ### 7.3 Git & testing discipline
 
 Commit per completed sub-task as `feat|fix|chore|docs|refactor(scope): description` (scopes in
-CONTRIBUTING.md); never commit a red tree. Services, validators, and utils get unit specs; API endpoints get
-e2e specs via the NestJS testing module (`apps/api/test/`). Seed data stays realistically Congolese — French
-names, Lubumbashi addresses, CDF prices — because it is what every screenshot and demo runs on.
+CONTRIBUTING.md; multi-scope like `fix(api,buyer-mobile,buyer-web)` is established practice). Never commit
+a red tree. Services, validators and utils get unit specs; API endpoints get e2e specs via the NestJS
+testing module (`apps/api/test/`). Seed data stays realistically Congolese — French names, Lubumbashi
+addresses, CDF prices — because it is what every screenshot and demo runs on.
 
 ---
 
 ## 8. IMPLEMENTATION HISTORY
 
 Built in 8 sequential phases (all shipped); post-phase work continues as discrete initiatives. The
-**8-phase table** is in `docs/product-spec.md`; the **chronological initiative history** is in
-**`PROGRESS.md`** ("Post-phase chronology — condensed index"); **in-flight work** is in **`STATUS.md`**.
-The load-bearing constraints those initiatives created live as Rules in §10 — read those for what to *do*.
+**8-phase table** is in `docs/product-spec.md`, the **chronological history** in `PROGRESS.md`
+("Post-phase chronology"). The load-bearing constraints those initiatives created live as Rules in §10 —
+read those for what to *do*.
 
-> **Do not append initiative history to this file.** `PROGRESS.md` is the chronological record; logging
-> initiatives here re-trips the 40k-char CLAUDE.md performance warning. Record them in `PROGRESS.md`.
+> **Do not append initiative history to this file** — it re-trips the 40k-char performance warning.
+> `PROGRESS.md` is the chronological record.
 
 ---
 
