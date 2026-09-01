@@ -234,6 +234,30 @@ class CartNotifier extends StateNotifier<CartState> {
     }
   }
 
+  /// Resets the cart after checkout has definitively succeeded.
+  ///
+  /// The server already emptied the cart inside the same transaction that
+  /// created the order (`checkout.service.ts`), so this is a client-state
+  /// catch-up, not a mutation. Deliberately NOT [clearCart]: that one issues
+  /// `DELETE /v1/cart` (redundant here) and — worse — restores the items if
+  /// the request fails, which would resurrect products the buyer has already
+  /// bought.
+  ///
+  /// Evicting the cache matters as much as clearing state: [_persistToCache]
+  /// has already written these items to SharedPreferences with a 30-day TTL,
+  /// so without the evict [_hydrateFromCache] would re-surface the ordered
+  /// products on the next app launch.
+  ///
+  /// The trailing [fetchCart] reconciles against the server (a cart is not
+  /// necessarily empty after checkout — a concurrent add from another device
+  /// would still be there). It is intentionally awaited so callers can
+  /// sequence navigation after the authoritative state has landed; if it
+  /// fails offline it leaves the emptied state alone rather than reverting.
+  Future<void> onOrderPlaced() async {
+    state = state.copyWith(items: [], clearError: true);
+    await _cache.evict(CacheKeys.buyerCart);
+    await fetchCart();
+  }
 }
 
 final cartProvider = StateNotifierProvider<CartNotifier, CartState>((ref) {
