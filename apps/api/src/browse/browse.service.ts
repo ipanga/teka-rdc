@@ -1165,6 +1165,23 @@ export class BrowseService {
       throw new NotFoundException('Catégorie non trouvée');
     }
 
+    // Leaf-only, ENFORCED (not merely assumed). Intermediate nodes still carry
+    // legacy pre-refactor attribute rows — « Mode > Homme » holds "Type de peau",
+    // « Mode > Enfants » holds "Type de cheveux" — so serving a non-leaf node's
+    // own rows is what put cosmetics attributes on a men's shirt. A non-leaf has
+    // no legitimate attribute set of its own: return nothing rather than junk.
+    //
+    // This does NOT delete or hide stored values: a legacy product's existing
+    // ProductSpecification rows are untouched, and update() no longer clears
+    // specifications it did not serve. See assertLeafCategory in ProductsService.
+    const childCount = await this.prisma.category.count({
+      where: { parentCategoryId: categoryId, deletedAt: null },
+    });
+
+    if (childCount > 0) {
+      return [];
+    }
+
     const attributes = await this.prisma.productAttribute.findMany({
       where: { categoryId },
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],

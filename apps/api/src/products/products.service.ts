@@ -100,6 +100,65 @@ export class ProductsService {
   /**
    * Creates a new product in DRAFT status.
    */
+  /**
+   * Enforces the leaf-category invariant for product↔category assignment.
+   *
+   * The 3-level taxonomy (Catégorie → Sous-catégorie → Type de produit) attaches
+   * attributes to the LEAF, and products are meant to link to the leaf. That was
+   * documented but never enforced, so products drifted onto intermediate nodes —
+   * where they pick up whatever legacy attribute rows those nodes still carry
+   * (e.g. a men's shirt on « Mode > Homme » rendering "Type de peau").
+   *
+   * Deliberately a hard error rather than a silent re-map: a parent like
+   * « Homme » contains shirts, trousers, shoes and accessories, so the correct
+   * leaf CANNOT be inferred from the parent. The seller must choose.
+   *
+   * Only called when a category is being ASSIGNED (create, or an update that
+   * actually changes categoryId). Legacy products already sitting on a non-leaf
+   * node stay editable — price, stock, images and title edits never trip this.
+   */
+  private async assertLeafCategory(
+    categoryId: string,
+    categoryName: string,
+  ): Promise<void> {
+    const childCount = await this.prisma.category.count({
+      where: { parentCategoryId: categoryId, deletedAt: null },
+    });
+
+    if (childCount > 0) {
+      throw new BadRequestException(
+        `« ${categoryName} » est une catégorie intermédiaire. Choisissez une sous-catégorie plus précise.`,
+      );
+    }
+  }
+
+  /**
+   * Attribute ids an update is allowed to clear: those the API would serve for
+   * the target category (leaf-only, same rule as getCategoryAttributes) plus any
+   * the payload names outright. Legacy specifications pointing at attributes
+   * outside this set are preserved — never silently deleted.
+   */
+  private async resolveReplaceableAttributeIds(
+    categoryId: string,
+    incomingAttributeIds: string[],
+  ): Promise<string[]> {
+    const childCount = await this.prisma.category.count({
+      where: { parentCategoryId: categoryId, deletedAt: null },
+    });
+
+    const servable =
+      childCount > 0
+        ? []
+        : await this.prisma.productAttribute.findMany({
+            where: { categoryId },
+            select: { id: true },
+          });
+
+    return [
+      ...new Set([...servable.map((a) => a.id), ...incomingAttributeIds]),
+    ];
+  }
+
   async create(sellerId: string, dto: CreateProductDto) {
     // Validate category exists and is active
     const category = await this.prisma.category.findUnique({
@@ -113,6 +172,8 @@ export class ProductsService {
     if (!category.isActive) {
       throw new BadRequestException("Cette catégorie n'est plus active");
     }
+
+    await this.assertLeafCategory(category.id, category.name);
 
     // Validate brand if provided (clearer error than a Prisma FK violation).
     if (dto.brandId) {
@@ -390,6 +451,8 @@ export class ProductsService {
       if (!category.isActive) {
         throw new BadRequestException("Cette catégorie n'est plus active");
       }
+
+      await this.assertLeafCategory(category.id, category.name);
     }
 
     // Validate brand if a (non-null) brand is being set.
@@ -426,21 +489,30 @@ export class ProductsService {
       discountPriceUSD,
     );
 
-    // Handle specifications update: delete old ones and create new ones
-    const specOps =
+    // Specifications are replaced, but ONLY within the set the client could
+    // actually see. The old code deleted every row for the product, so any
+    // caller that posted `specifications` silently destroyed values it was
+    // never served — which is exactly the legacy case: this product's stored
+    // Taille/Couleur/Matière hang off attribute rows belonging to a DIFFERENT
+    // category, so no seller form renders them, yet one quantity edit would
+    // have wiped them.
+    //
+    // Replaceable = what the API would serve for the effective category
+    // (leaf-only, mirroring getCategoryAttributes) ∪ whatever the payload
+    // explicitly addresses. Everything else is preserved untouched.
+    const effectiveCategoryId = dto.categoryId ?? product.categoryId;
+    const replaceableAttributeIds =
       dto.specifications !== undefined
-        ? [
-            this.prisma.productSpecification.deleteMany({
-              where: { productId },
-            }),
-          ]
+        ? await this.resolveReplaceableAttributeIds(
+            effectiveCategoryId,
+            dto.specifications.map((spec) => spec.attributeId),
+          )
         : [];
 
     const updatedProduct = await this.prisma.$transaction(async (tx) => {
-      // Delete old specifications if new ones are provided
-      if (dto.specifications !== undefined) {
+      if (dto.specifications !== undefined && replaceableAttributeIds.length) {
         await tx.productSpecification.deleteMany({
-          where: { productId },
+          where: { productId, attributeId: { in: replaceableAttributeIds } },
         });
       }
 

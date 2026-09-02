@@ -145,6 +145,8 @@ describe('BrowseService.getCategoryAttributes — leaf-only', () => {
     const prisma = {
       category: {
         findUnique: jest.fn().mockResolvedValue({ id: 'leaf1' }),
+        // 0 live children => leaf, which is what this block already assumed.
+        count: jest.fn().mockResolvedValue(0),
       },
       productAttribute: { findMany: attrFindMany },
     };
@@ -242,5 +244,71 @@ describe('BrowseService.getProductDetail — specification labels', () => {
     )) as unknown as { specifications: Array<Record<string, unknown>> };
 
     expect(result.specifications.map((s) => s.name)).toEqual(['Taille']);
+  });
+});
+
+// ── getCategoryAttributes: leaf-only, ENFORCED ─────────────────────────────
+// Reproduces the reported defect: « Mode > Homme » (an intermediate node) still
+// carries legacy rows "Type" and "Type de peau", so a men's shirt attached to it
+// rendered a skin-type field under « Caractéristiques du produit ».
+const HOMME = '13000000-0000-0000-0000-000000000501';
+const CHEMISES = '16000000-0000-0000-0000-000000050102';
+
+const LEGACY_NON_LEAF_ROWS = [
+  { id: '14000000-0000-0000-0000-000000050101', name: 'Type' },
+  { id: '14000000-0000-0000-0000-000000050102', name: 'Type de peau' },
+];
+const CHEMISES_ROWS = [
+  { id: '14000000-0000-0000-0000-000005010201', name: 'Taille' },
+  { id: '14000000-0000-0000-0000-000005010202', name: 'Couleur' },
+  { id: '14000000-0000-0000-0000-000005010203', name: 'Matière' },
+];
+
+function makeAttrService(childCount: number, rows: Array<Record<string, string>>) {
+  const attrFindMany = jest.fn().mockResolvedValue(rows);
+  const prisma = {
+    category: {
+      findUnique: jest.fn().mockResolvedValue({ id: 'c' }),
+      count: jest.fn().mockResolvedValue(childCount),
+    },
+    productAttribute: { findMany: attrFindMany },
+  };
+  return { service: new BrowseService(prisma as never), attrFindMany, prisma };
+}
+
+describe('BrowseService.getCategoryAttributes — leaf-only invariant', () => {
+  it('returns no attributes for an intermediate category', async () => {
+    const { service } = makeAttrService(8, LEGACY_NON_LEAF_ROWS);
+    await expect(service.getCategoryAttributes(HOMME)).resolves.toEqual([]);
+  });
+
+  it('never leaks "Type de peau" onto a menswear node', async () => {
+    const { service } = makeAttrService(8, LEGACY_NON_LEAF_ROWS);
+    const out = await service.getCategoryAttributes(HOMME);
+    expect(out.map((a: { name: string }) => a.name)).not.toContain('Type de peau');
+  });
+
+  it('does not even query attribute rows for an intermediate category', async () => {
+    const { service, attrFindMany } = makeAttrService(8, LEGACY_NON_LEAF_ROWS);
+    await service.getCategoryAttributes(HOMME);
+    expect(attrFindMany).not.toHaveBeenCalled();
+  });
+
+  it('still returns the full attribute set for a leaf', async () => {
+    const { service } = makeAttrService(0, CHEMISES_ROWS);
+    const out = await service.getCategoryAttributes(CHEMISES);
+    expect(out.map((a: { name: string }) => a.name)).toEqual([
+      'Taille',
+      'Couleur',
+      'Matière',
+    ]);
+  });
+
+  it('counts only live children (soft-deleted ones must not make a leaf look intermediate)', async () => {
+    const { service, prisma } = makeAttrService(0, CHEMISES_ROWS);
+    await service.getCategoryAttributes(CHEMISES);
+    expect(prisma.category.count).toHaveBeenCalledWith({
+      where: { parentCategoryId: CHEMISES, deletedAt: null },
+    });
   });
 });

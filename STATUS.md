@@ -6,8 +6,14 @@
 
 ## Active initiative
 
-**None.** The Buyer Mobile PDP + native splash refinement shipped to production on 2026-09-02 via
-release PR **#613**. Fresh buyer test builds at **0.1.6+8** are the only work still in motion.
+**Seller Catalog Taxonomy — Phase 1 (leaf-category invariant).** PR **#615** open against `develop`,
+green, **not merged**. Root cause of the « Type de peau » on a men's shirt found and fixed; no production
+data touched and no migration written. Tracker: `docs/seller-catalog-taxonomy.md`.
+Workstreams B/C/D (search analytics, sales analytics, CSV) deliberately **not started**.
+
+The Buyer Mobile PDP + native splash refinement shipped to production on 2026-09-02 via release PR
+**#613**; buyer test builds **0.1.6+8** are out (TestFlight distributed, Play AAB awaiting manual upload)
+and await on-device validation.
 
 ## Most recently completed initiative
 
