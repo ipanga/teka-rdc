@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ProductStatus, Prisma } from '@prisma/client';
 import { BrowseProductsQueryDto } from './dto/browse-products-query.dto';
 import { isShortCode } from '../common/utils/slugify';
+import { dedupeSpecificationsByName } from '../common/utils/product-specifications';
 
 // Lowercase + strip French accents (JS-side), mirroring the DB's f_unaccent so
 // synonym matching ("téléphone" ⇄ "telephone") is consistent on both sides.
@@ -1044,66 +1045,21 @@ export class BrowseService {
     // "Caractéristiques" table rendered values with blank labels ("M" instead
     // of "Taille : M"). Rows with no label or no value are dropped rather than
     // rendered half-empty.
-    const specsFlat = specifications
-      .filter((s) => s.attribute?.name && s.value?.trim())
+    // Canonical characteristics: foreign rows are preserved, duplicates by name
+    // collapse to one, and the product's own category wins. Shared with the
+    // seller and admin detail endpoints — see common/utils/product-specifications.
+    const deduped = dedupeSpecificationsByName(
+      specifications,
+      product.categoryId,
+    )
+      .filter((s) => s.value?.trim())
       .map((s) => ({
         id: s.id,
         attributeId: s.attributeId,
         name: s.attribute.name,
         value: s.value,
         sortOrder: s.attribute.sortOrder,
-        // internal only, stripped below
-        ownedByProductCategory: s.attribute.categoryId === product.categoryId,
       }));
-
-    // De-duplicate by characteristic NAME, preferring the attribute that
-    // belongs to the product's own category.
-    //
-    // Products legitimately carry specifications whose attribute lives on an
-    // ANCESTOR category — that is how the pre-3-level taxonomy modelled them
-    // (a 10 kg bag of rice holds « Poids » from « Supermarché > Alimentation »;
-    // an Android phone holds RAM/Mémoire interne from « … > Smartphones »).
-    // Production has 18 such rows across 9 live products, 7 of which would be
-    // left with NO characteristics at all if foreign rows were simply dropped.
-    // So they are kept.
-    //
-    // What must not happen is the same label twice. No live product has a
-    // duplicate attribute name today; the collision is introduced by category
-    // remediation, which adds the correct leaf's Taille/Couleur/Matière beside
-    // identically named rows owned by the product's previous category. Keeping
-    // the own-category row resolves it and leaves every other product untouched.
-    // Names are compared with stripAccents — the same normalisation this file
-    // already uses for search terms, mirroring the DB's f_unaccent — so
-    // "Matière"/"matiere" and stray case or whitespace cannot slip through as
-    // two characteristics. Exact (normalised) names only: no fuzzy or synonym
-    // matching, which belongs in the taxonomy audit, not a remediation.
-    //
-    // Ordering is fully deterministic and never depends on database row order:
-    // own-category first, then sortOrder, then attributeId as a stable, unique
-    // final tiebreaker.
-    const byPrecedence = (
-      a: (typeof specsFlat)[number],
-      b: (typeof specsFlat)[number],
-    ) =>
-      Number(b.ownedByProductCategory) - Number(a.ownedByProductCategory) ||
-      a.sortOrder - b.sortOrder ||
-      a.attributeId.localeCompare(b.attributeId);
-
-    const seenName = new Set<string>();
-    const deduped = [...specsFlat]
-      .sort(byPrecedence)
-      .filter((s) => {
-        const key = stripAccents(s.name);
-        if (seenName.has(key)) return false;
-        seenName.add(key);
-        return true;
-      })
-      .sort(
-        (a, b) =>
-          a.sortOrder - b.sortOrder ||
-          a.attributeId.localeCompare(b.attributeId),
-      )
-      .map(({ ownedByProductCategory: _drop, ...rest }) => rest);
 
     // Demo retirement (P3c): a demo product in a retired category should 301 to
     // its category page. The buyer-web PDP reads this flag and redirects.

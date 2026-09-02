@@ -481,3 +481,63 @@ describe('ProductsService.update — legacy specification preservation', () => {
     expect(ids).not.toContain(KITCHEN_TAILLE); // foreign row still preserved
   });
 });
+
+// ── Seller product detail returns canonical characteristics ────────────────
+// GET /v1/sellers/products/:id returned the RAW Prisma rows, so the
+// seller-mobile detail screen — which renders every row — showed each
+// characteristic twice once a remediated product carried both its correct leaf
+// specs and its preserved legacy ones.
+describe('ProductsService.findById — canonical characteristics', () => {
+  const OWN = '16000000-0000-0000-0000-000000050102';
+  const KITCHEN = '13000000-0000-0000-0000-000000000401';
+  const sp = (attributeId: string, categoryId: string, name: string, value: string, sortOrder = 0) => ({
+    id: `s-${attributeId}`, attributeId, value, attribute: { name, categoryId, sortOrder },
+  });
+
+  function serviceWithSpecs(specs: unknown[], categoryId = OWN) {
+    const prisma = {
+      product: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'p1', sellerId: 'seller1', categoryId, specifications: specs,
+          images: [], category: { id: categoryId }, brand: null,
+        }),
+      },
+    };
+    return new ProductsService(prisma as never, {} as never, { capture: jest.fn() } as never, { create: jest.fn() } as never);
+  }
+
+  it('collapses the duplicate labels a remediated product carries', async () => {
+    const service = serviceWithSpecs([
+      sp('k1', KITCHEN, 'Taille', 'M'), sp('k2', KITCHEN, 'Couleur', 'Bleu'), sp('k3', KITCHEN, 'Matière', 'Coton'),
+      sp('c1', OWN, 'Taille', 'M', 0), sp('c2', OWN, 'Couleur', 'Bleu', 1), sp('c3', OWN, 'Matière', 'Coton', 2),
+    ]);
+    const out = (await service.findById('seller1', 'p1')) as unknown as {
+      specifications: Array<{ attributeId: string; attributeName: string }>;
+    };
+    expect(out.specifications).toHaveLength(3);
+    expect(out.specifications.map((s) => s.attributeId)).toEqual(['c1', 'c2', 'c3']);
+  });
+
+  it('exposes attributeName, which the Flutter client reads', async () => {
+    const service = serviceWithSpecs([sp('c1', OWN, 'Taille', 'M')]);
+    const out = (await service.findById('seller1', 'p1')) as unknown as {
+      specifications: Array<{ attributeName: string; value: string }>;
+    };
+    expect(out.specifications[0]).toMatchObject({ attributeName: 'Taille', value: 'M' });
+  });
+
+  it('keeps a foreign characteristic that is the only source', async () => {
+    const service = serviceWithSpecs([sp('legacy', 'other-cat', 'Type', 'Savon de lessive')]);
+    const out = (await service.findById('seller1', 'p1')) as unknown as {
+      specifications: Array<{ value: string }>;
+    };
+    expect(out.specifications).toHaveLength(1);
+    expect(out.specifications[0].value).toBe('Savon de lessive');
+  });
+
+  it('leaves an ordinary product unchanged', async () => {
+    const service = serviceWithSpecs([sp('a', OWN, 'Taille', 'M', 0), sp('b', OWN, 'Couleur', 'Bleu', 1)]);
+    const out = (await service.findById('seller1', 'p1')) as unknown as { specifications: unknown[] };
+    expect(out.specifications).toHaveLength(2);
+  });
+});
