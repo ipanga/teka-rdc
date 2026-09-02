@@ -1072,16 +1072,37 @@ export class BrowseService {
     // remediation, which adds the correct leaf's Taille/Couleur/Matière beside
     // identically named rows owned by the product's previous category. Keeping
     // the own-category row resolves it and leaves every other product untouched.
+    // Names are compared with stripAccents — the same normalisation this file
+    // already uses for search terms, mirroring the DB's f_unaccent — so
+    // "Matière"/"matiere" and stray case or whitespace cannot slip through as
+    // two characteristics. Exact (normalised) names only: no fuzzy or synonym
+    // matching, which belongs in the taxonomy audit, not a remediation.
+    //
+    // Ordering is fully deterministic and never depends on database row order:
+    // own-category first, then sortOrder, then attributeId as a stable, unique
+    // final tiebreaker.
+    const byPrecedence = (
+      a: (typeof specsFlat)[number],
+      b: (typeof specsFlat)[number],
+    ) =>
+      Number(b.ownedByProductCategory) - Number(a.ownedByProductCategory) ||
+      a.sortOrder - b.sortOrder ||
+      a.attributeId.localeCompare(b.attributeId);
+
     const seenName = new Set<string>();
     const deduped = [...specsFlat]
-      .sort((a, b) => Number(b.ownedByProductCategory) - Number(a.ownedByProductCategory))
+      .sort(byPrecedence)
       .filter((s) => {
-        const key = s.name.trim().toLowerCase();
+        const key = stripAccents(s.name);
         if (seenName.has(key)) return false;
         seenName.add(key);
         return true;
       })
-      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .sort(
+        (a, b) =>
+          a.sortOrder - b.sortOrder ||
+          a.attributeId.localeCompare(b.attributeId),
+      )
       .map(({ ownedByProductCategory: _drop, ...rest }) => rest);
 
     // Demo retirement (P3c): a demo product in a retired category should 301 to

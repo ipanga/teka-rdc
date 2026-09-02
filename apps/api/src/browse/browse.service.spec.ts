@@ -408,3 +408,63 @@ describe('BrowseService.getProductDetail — specification scoping', () => {
     expect(out.specifications).toHaveLength(3);
   });
 });
+
+// ── Deterministic precedence + normalisation ──────────────────────────────
+describe('BrowseService.getProductDetail — precedence and normalisation', () => {
+  const OWN = CHEMISES_CAT;
+
+  it('current-category value WINS over a same-named foreign one', async () => {
+    const { service } = makePdpService([
+      spec('foreign', KITCHEN_CAT, 'Taille', 'XXL'), // stale
+      spec('own', OWN, 'Taille', 'M'), // correct
+    ]);
+    const out = await service.getProductDetail('p');
+    expect(out.specifications).toHaveLength(1);
+    expect(out.specifications[0]).toMatchObject({ attributeId: 'own', value: 'M' });
+  });
+
+  it('wins regardless of the order rows arrive in from the database', async () => {
+    const rows = [
+      spec('own', OWN, 'Taille', 'M'),
+      spec('foreign', KITCHEN_CAT, 'Taille', 'XXL'),
+    ];
+    for (const order of [rows, [...rows].reverse()]) {
+      const { service } = makePdpService(order);
+      const out = await service.getProductDetail('p');
+      expect(out.specifications).toHaveLength(1);
+      expect(out.specifications[0].value).toBe('M');
+    }
+  });
+
+  it('treats accent/case/whitespace variants as the same characteristic', async () => {
+    const { service } = makePdpService([
+      spec('foreign', KITCHEN_CAT, '  matiere ', 'Polyester'),
+      spec('own', OWN, 'Matière', 'Coton'),
+    ]);
+    const out = await service.getProductDetail('p');
+    expect(out.specifications).toHaveLength(1);
+    expect(out.specifications[0].value).toBe('Coton');
+  });
+
+  it('is deterministic when several FOREIGN rows share a name and none is own-category', async () => {
+    const rows = [
+      spec('bbb', 'cat-x', 'Type', 'B'),
+      spec('aaa', 'cat-y', 'Type', 'A'),
+    ];
+    const first = await (await makePdpService(rows).service).getProductDetail('p');
+    const second = await (await makePdpService([...rows].reverse()).service).getProductDetail('p');
+    expect(first.specifications).toHaveLength(1);
+    // attributeId is the stable final tiebreaker, so both orders agree.
+    expect(first.specifications[0].attributeId).toBe('aaa');
+    expect(second.specifications[0].attributeId).toBe('aaa');
+  });
+
+  it('keeps both when a current and a foreign row have DIFFERENT names', async () => {
+    const { service } = makePdpService([
+      spec('own', OWN, 'Taille', 'M'),
+      spec('foreign', KITCHEN_CAT, 'Poids', '1kg'),
+    ]);
+    const out = await service.getProductDetail('p');
+    expect(out.specifications.map((s: { name: string }) => s.name).sort()).toEqual(['Poids', 'Taille']);
+  });
+});
