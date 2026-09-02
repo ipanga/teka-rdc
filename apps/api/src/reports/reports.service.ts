@@ -2,6 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import { ReportQueryDto } from './dto/report-query.dto';
+import {
+  csvNumber,
+  csvText,
+  writeCsvResponse,
+} from '../common/utils/csv.util';
 import type { Response } from 'express';
 
 @Injectable()
@@ -58,27 +63,27 @@ export class ReportsService {
   async generateSalesCsv(query: ReportQueryDto, res: Response) {
     const data = await this.getSalesReport(query);
 
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename=sales-report-${this.formatDate(new Date())}.csv`,
-    );
-
-    // BOM for Excel UTF-8 compatibility
-    res.write('\uFEFF');
-
-    // Header row
-    res.write(
-      'Date,Order Number,Buyer,Seller,Items,Subtotal CDF,Delivery Fee CDF,Total CDF,Payment Method,Payment Status,Status\n',
-    );
-
-    for (const row of data) {
-      res.write(
-        `${row.date},${this.escapeCsv(row.orderNumber)},${this.escapeCsv(row.buyerName)},${this.escapeCsv(row.sellerName)},${row.itemsCount},${row.subtotalCDF},${row.deliveryFeeCDF},${row.totalCDF},${row.paymentMethod},${row.paymentStatus},${row.orderStatus}\n`,
-      );
-    }
-
-    res.end();
+    writeCsvResponse(res, {
+      filename: `sales-report-${this.formatDate(new Date())}.csv`,
+      headers: [
+        'Date', 'Order Number', 'Buyer', 'Seller', 'Items', 'Subtotal CDF',
+        'Delivery Fee CDF', 'Total CDF', 'Payment Method', 'Payment Status',
+        'Status',
+      ],
+      rows: data.map((row) => [
+        csvText(row.date),
+        csvText(row.orderNumber),
+        csvText(row.buyerName),
+        csvText(row.sellerName),
+        csvNumber(row.itemsCount),
+        csvNumber(row.subtotalCDF),
+        csvNumber(row.deliveryFeeCDF),
+        csvNumber(row.totalCDF),
+        csvText(row.paymentMethod),
+        csvText(row.paymentStatus),
+        csvText(row.orderStatus),
+      ]),
+    });
   }
 
   // ─── Financial Report ────────────────────────────────────────────────
@@ -129,25 +134,21 @@ export class ReportsService {
   async generateFinancialCsv(query: ReportQueryDto, res: Response) {
     const data = await this.getFinancialReport(query);
 
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename=financial-report-${this.formatDate(new Date())}.csv`,
-    );
-
-    res.write('\uFEFF');
-
-    res.write(
-      'Date,Order Number,Total CDF,Commission CDF,Seller Earning CDF,Payout Status\n',
-    );
-
-    for (const row of data) {
-      res.write(
-        `${row.date},${this.escapeCsv(row.orderNumber)},${row.totalCDF},${row.commissionCDF},${row.sellerEarningCDF},${row.payoutStatus}\n`,
-      );
-    }
-
-    res.end();
+    writeCsvResponse(res, {
+      filename: `financial-report-${this.formatDate(new Date())}.csv`,
+      headers: [
+        'Date', 'Order Number', 'Total CDF', 'Commission CDF',
+        'Seller Earning CDF', 'Payout Status',
+      ],
+      rows: data.map((row) => [
+        csvText(row.date),
+        csvText(row.orderNumber),
+        csvNumber(row.totalCDF),
+        csvNumber(row.commissionCDF),
+        csvNumber(row.sellerEarningCDF),
+        csvText(row.payoutStatus),
+      ]),
+    });
   }
 
   // ─── Seller Performance Report ───────────────────────────────────────
@@ -244,25 +245,24 @@ export class ReportsService {
   async generateSellerPerformanceCsv(query: ReportQueryDto, res: Response) {
     const data = await this.getSellerPerformanceReport(query);
 
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename=seller-performance-report-${this.formatDate(new Date())}.csv`,
-    );
-
-    res.write('\uFEFF');
-
-    res.write(
-      'Seller,Business Name,Total Orders,Delivered,Cancelled,Revenue CDF,Commission CDF,Avg Rating,Total Reviews\n',
-    );
-
-    for (const row of data) {
-      res.write(
-        `${this.escapeCsv(row.sellerName)},${this.escapeCsv(row.businessName)},${row.totalOrders},${row.deliveredOrders},${row.cancelledOrders},${row.totalRevenueCDF},${row.totalCommissionCDF},${row.avgRating},${row.totalReviews}\n`,
-      );
-    }
-
-    res.end();
+    writeCsvResponse(res, {
+      filename: `seller-performance-report-${this.formatDate(new Date())}.csv`,
+      headers: [
+        'Seller', 'Business Name', 'Total Orders', 'Delivered', 'Cancelled',
+        'Revenue CDF', 'Commission CDF', 'Avg Rating', 'Total Reviews',
+      ],
+      rows: data.map((row) => [
+        csvText(row.sellerName),
+        csvText(row.businessName),
+        csvNumber(row.totalOrders),
+        csvNumber(row.deliveredOrders),
+        csvNumber(row.cancelledOrders),
+        csvNumber(row.totalRevenueCDF),
+        csvNumber(row.totalCommissionCDF),
+        csvNumber(row.avgRating),
+        csvNumber(row.totalReviews),
+      ]),
+    });
   }
 
   // ─── Private Helpers ─────────────────────────────────────────────────
@@ -365,42 +365,27 @@ export class ReportsService {
   async generatePayoutsCsv(query: ReportQueryDto, res: Response) {
     const data = await this.getPayoutsReport(query);
 
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename=payouts-report-${this.formatDate(new Date())}.csv`,
-    );
-
-    // BOM for Excel UTF-8 compatibility
-    res.write('\uFEFF');
-
-    res.write(
-      'Date,Seller,Business,Amount CDF,Method,Phone,Status,Reference,Processed At,Rejection Reason\n',
-    );
-
-    for (const row of data) {
-      res.write(
-        `${row.date},${this.escapeCsv(row.sellerName)},${this.escapeCsv(row.businessName)},${row.amountCDF},${row.method},${this.escapeCsv(row.phone)},${row.status},${this.escapeCsv(row.reference)},${row.processedAt},${this.escapeCsv(row.rejectionReason)}\n`,
-      );
-    }
-
-    res.end();
-  }
-
-  /**
-   * Escapes a value for CSV output.
-   * Wraps in double quotes if it contains commas, quotes, or newlines.
-   */
-  private escapeCsv(value: string): string {
-    if (!value) return '';
-    if (
-      value.includes(',') ||
-      value.includes('"') ||
-      value.includes('\n') ||
-      value.includes('\r')
-    ) {
-      return `"${value.replace(/"/g, '""')}"`;
-    }
-    return value;
+    writeCsvResponse(res, {
+      filename: `payouts-report-${this.formatDate(new Date())}.csv`,
+      headers: [
+        'Date', 'Seller', 'Business', 'Amount CDF', 'Method', 'Phone', 'Status',
+        'Reference', 'Processed At', 'Rejection Reason',
+      ],
+      // `phone` is a +243… number. csvText neutralises the leading `+`, which
+      // Excel would otherwise evaluate as a formula and render as the bare
+      // integer 243970000001 — so this also fixes a long-standing display bug.
+      rows: data.map((row) => [
+        csvText(row.date),
+        csvText(row.sellerName),
+        csvText(row.businessName),
+        csvNumber(row.amountCDF),
+        csvText(row.method),
+        csvText(row.phone),
+        csvText(row.status),
+        csvText(row.reference),
+        csvText(row.processedAt),
+        csvText(row.rejectionReason),
+      ]),
+    });
   }
 }
