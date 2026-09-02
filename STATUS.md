@@ -120,11 +120,17 @@ as the code did before this initiative, would have silently rewritten six orders
   It sits on the intermediate « Supermarché > Boissons » with an incorrect `Type = Bière`. Decide
   whether to permit alcohol *with* the necessary policy/age/moderation controls, or prohibit it and
   archive the product.
-- **Manually-applied migrations are tracked nowhere central.** `_manual_migrations` records only
-  auto-applied files; `apply-migration.yml` writes no row, so the two 2026-09-02/03 taxonomy
-  migrations (and `2026-09-01_archive_duplicate_buyer_addresses.sql` before them) do not appear
-  there. Each self-records via its own archive/journal table, but adding a tracking write to
-  `apply-migration.yml` would close the gap.
+- ~~**Manually-applied migrations are tracked nowhere central.**~~ **RESOLVED** —
+  `apply-migration.yml` now records the filename in the same `_manual_migrations` table the
+  auto-apply path uses, written only after the file succeeds. It also gained
+  `ON_ERROR_STOP=1`, which it had been missing: psql exits 0 on SQL errors without it, so a
+  half-applied migration used to print "✓ migration applied". **Remaining:** the three
+  migrations applied before this change are still absent from the table —
+  `2026-09-01_archive_duplicate_buyer_addresses.sql`,
+  `2026-09-02_prune_invalid_brand_category_links.sql`,
+  `2026-09-03_remediate_legacy_category_products.sql`. All three are idempotent and
+  self-recording via their own archive/journal tables; a one-line backfill INSERT would
+  complete the record if wanted.
 - **117 unreferenced legacy `ProductAttribute` rows** remain (of 200 suspects; the other 83 are
   referenced and must be preserved). Deliberately deferred until after the product remediation, which
   is now done — so this is unblocked whenever it is wanted.
