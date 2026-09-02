@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ProductStatus, Prisma } from '@prisma/client';
 import { BrowseProductsQueryDto } from './dto/browse-products-query.dto';
 import { isShortCode } from '../common/utils/slugify';
+import { dedupeSpecificationsByName } from '../common/utils/product-specifications';
 
 // Lowercase + strip French accents (JS-side), mirroring the DB's f_unaccent so
 // synonym matching ("téléphone" ⇄ "telephone") is consistent on both sides.
@@ -1044,8 +1045,14 @@ export class BrowseService {
     // "Caractéristiques" table rendered values with blank labels ("M" instead
     // of "Taille : M"). Rows with no label or no value are dropped rather than
     // rendered half-empty.
-    const specsFlat = specifications
-      .filter((s) => s.attribute?.name && s.value?.trim())
+    // Canonical characteristics: foreign rows are preserved, duplicates by name
+    // collapse to one, and the product's own category wins. Shared with the
+    // seller and admin detail endpoints — see common/utils/product-specifications.
+    const deduped = dedupeSpecificationsByName(
+      specifications,
+      product.categoryId,
+    )
+      .filter((s) => s.value?.trim())
       .map((s) => ({
         id: s.id,
         attributeId: s.attributeId,
@@ -1063,7 +1070,7 @@ export class BrowseService {
     return {
       ...rest,
       seller: sellerFlat,
-      specifications: specsFlat,
+      specifications: deduped,
       breadcrumb,
       isRetired,
     };
@@ -1163,6 +1170,23 @@ export class BrowseService {
 
     if (!category) {
       throw new NotFoundException('Catégorie non trouvée');
+    }
+
+    // Leaf-only, ENFORCED (not merely assumed). Intermediate nodes still carry
+    // legacy pre-refactor attribute rows — « Mode > Homme » holds "Type de peau",
+    // « Mode > Enfants » holds "Type de cheveux" — so serving a non-leaf node's
+    // own rows is what put cosmetics attributes on a men's shirt. A non-leaf has
+    // no legitimate attribute set of its own: return nothing rather than junk.
+    //
+    // This does NOT delete or hide stored values: a legacy product's existing
+    // ProductSpecification rows are untouched, and update() no longer clears
+    // specifications it did not serve. See assertLeafCategory in ProductsService.
+    const childCount = await this.prisma.category.count({
+      where: { parentCategoryId: categoryId, deletedAt: null },
+    });
+
+    if (childCount > 0) {
+      return [];
     }
 
     const attributes = await this.prisma.productAttribute.findMany({

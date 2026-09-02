@@ -6,8 +6,52 @@
 
 ## Active initiative
 
-**None.** The Buyer Mobile PDP + native splash refinement shipped to production on 2026-09-02 via
-release PR **#613**. Fresh buyer test builds at **0.1.6+8** are the only work still in motion.
+**Seller Catalog Taxonomy — Phase 2b MERGED to `develop`; production remediation NOT yet run.**
+
+PR **#617**, merge commit `6169201`, CI + CodeQL green. Adds
+`manual/2026-09-03_remediate_legacy_category_products.sql` (self-validating, idempotent,
+reversible, **not** in `auto-apply.list`) plus the PDP de-duplication invariant.
+`h0d799` → Chemises with Taille/Couleur/Matière; `vnkqce` → Lessive with no invented
+mapping; `rb7t4r` untouched and blocked on the alcohol decision.
+
+**A production read-only audit rejected the first PDP rule.** Scoping characteristics to
+the product's own category would have blanked **7 live products** (18 foreign specs across
+9). The rule in force preserves foreign rows and de-duplicates by name, preferring the
+current category — details in `docs/seller-catalog-taxonomy.md`.
+
+⚠️ **Ordering requirement:** the de-duplication code must reach production **before** the
+migration runs, or buyers see doubled characteristics on `h0d799`.
+
+**Phase 2a (brand cleanup) is MERGED into `develop`** — PR **#616**, merge commit `7fc0ddb`, CI + CodeQL
+green. Adds `manual/2026-09-02_prune_invalid_brand_category_links.sql`: idempotent, reversible, **not**
+in `auto-apply.list`, and **not yet applied to production**. It removes the 121 `BrandCategory` links
+whose target is not a live leaf (68 intermediate + 53 soft-deleted), leaving 314. Verified twice against
+dev (435 → 314, second run a no-op); leaf-level coverage unchanged. `Lacoste → Beauté & Santé > Parfums`
+is deliberately KEPT — Lacoste is a genuine fragrance brand, so the earlier "semantically wrong" flag was
+incorrect for those two links.
+
+**Open business decision — `rb7t4r` (Johnnie Walker).** Teka has **no** restricted-product policy, **no**
+age-verification field or gate, **no** admin moderation for restricted goods, and **no** alcohol mention
+in the seller rules. The current taxonomy has no alcohol leaf: the June 2026 refactor dropped the legacy
+`Type` option list (Bière/Vin/Spiritueux, still visible at `seed.ts:844`). Creating a
+« Boissons alcoolisées » leaf is therefore a **business/legal decision, not a taxonomy fix** — held.
+
+**Phase 1 is MERGED into `develop`** — PR **#615**, merge commit `9ecac4b`, CI + CodeQL green.
+Root cause: products may attach to an *intermediate* category, which still carries legacy pre-refactor
+attribute rows (« Mode > Homme » holds `Type de peau`), and the leaf-only rule was documented but
+enforced nowhere. Shipped: an API leaf-category invariant (`create()` always; `update()` only when
+`categoryId` changes, so legacy products stay editable), leaf-only selection in the seller-web combobox,
+server-side preservation of foreign/legacy `ProductSpecification` rows, and a legacy-category warning.
+Gates: **API 287 unit + 118 e2e**, type-check clean. Seller Web verified in the browser end to end;
+Seller Mobile built, launched and 42 tests green, but its **interactive create/edit flows remain
+unverified** — UI automation was unavailable. Tracker: `docs/seller-catalog-taxonomy.md`.
+
+**Not released.** `develop` is 4 ahead of `main`; no production deploy and no data change.
+Workstreams B/C/D (search analytics, sales analytics, CSV) remain **on hold**.
+
+The Buyer Mobile PDP + native splash refinement shipped to production on 2026-09-02 via release PR
+**#613**; buyer test builds **0.1.6+8** are out (TestFlight distributed, Play AAB awaiting manual upload)
+and await on-device validation.
 
 ## Most recently completed initiative
 
