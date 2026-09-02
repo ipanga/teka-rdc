@@ -6,11 +6,20 @@
 
 ## Active initiative
 
-**None.** Buyer Mobile PDP targeted layout adjustment is complete on `develop`; not released.
+**None.** The Buyer Mobile PDP + native splash refinement shipped to production on 2026-09-02 via
+release PR **#613**. Fresh buyer test builds at **0.1.6+8** are the only work still in motion.
 
 ## Most recently completed initiative
 
-**Buyer Mobile PDP targeted layout adjustment — complete 2026-09-02 on `develop`, not released.**
+**Buyer Mobile PDP + native splash refinement — RELEASED to production 2026-09-02.**
+Release PR **#613** (`develop → main`, merge commit `8b27d1a`, 11 commits / 28 files / +1,263 −501),
+back-merged so `main == develop`. Deploy run `33614141448`: all 5 jobs green. Post-deploy health
+verified — API `/v1/health{,/ready,/live}` 200 with `database: ok` (uptime 86s, confirming the swap),
+and teka.cd / seller. / admin. all 200. **No migration, no new env var, no API/web/seller/admin change**,
+so production behaviour is unchanged; the work reaches users only on the next store build.
+App Store Connect privacy labels were corrected manually and are no longer outstanding.
+
+The final follow-up in that initiative:
 Removed only the monetary-savings message and moved the existing rating/favorite/share row below
 stock status. Current/original prices, percentage badge, money format, actions, and business logic
 are unchanged. All **231** Buyer Mobile tests pass; analyzer passes with six known info-level
