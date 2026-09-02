@@ -1,4 +1,4 @@
-# Status — 2026-09-01
+# Status — 2026-09-02
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,9 +6,20 @@
 
 ## Active initiative
 
-**None.** Buyer Mobile PDP + splash refinement is complete on `develop`; it has not been released.
+**None.** Buyer Mobile PDP targeted layout adjustment is complete on `develop`; not released.
 
 ## Most recently completed initiative
+
+**Buyer Mobile PDP targeted layout adjustment — complete 2026-09-02 on `develop`, not released.**
+Removed only the monetary-savings message and moved the existing rating/favorite/share row below
+stock status. Current/original prices, percentage badge, money format, actions, and business logic
+are unchanged. All **231** Buyer Mobile tests pass; analyzer passes with six known info-level
+deprecations. Rendered and inspected all discount/stock combinations on iPhone 16 Pro, plus long
+titles, scrolling, SafeArea, and 2× text on iPhone SE. Favorite/review/native-share interactions were
+verified with isolated fixtures; no production writes. No other surface, shared component, or splash
+changes. Detail: `docs/buyer-mobile-pdp-splash-refinement.md` → "2026-09-02 targeted layout follow-up".
+
+## Previous completed initiative
 
 **Buyer Mobile PDP + native splash refinement — complete on `develop`, not released.** Buyer Mobile only:
 the PDP breadcrumb is gone, the gallery/summary/sticky action/loading and responsive accessibility states
@@ -18,7 +29,7 @@ Mobile tests pass, including cart-clear and address management; analyzer passes 
 six known info-only deprecations. No API, database, Buyer Web, seller/admin, route, analytics, cart,
 checkout, address, or SEO changes. Detail: `docs/buyer-mobile-pdp-splash-refinement.md`.
 
-## Previous completed initiative
+## Earlier completed initiative — buyer cart and address
 
 The buyer cart + single-address initiative shipped to production on 2026-09-01 and is closed — full
 narrative in `PROGRESS.md`, detail in `docs/buyer-cart-sync-and-single-address.md`.

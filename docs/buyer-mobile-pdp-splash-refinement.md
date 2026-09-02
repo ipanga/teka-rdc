@@ -98,3 +98,42 @@ rules, navigation contracts, analytics, cart behavior, checkout, address behavio
 - Native splash assets must be regenerated from configuration and checked into both platform projects;
   editing only the source PNG is insufficient. After generation, keep the explicit status-bar keys absent
   and retain the API 33+ `icon_preferred` sidecar themes; regression tests enforce both requirements.
+
+## 2026-09-02 targeted layout follow-up
+
+**Status:** Complete on `develop`; not released.
+
+This follow-up intentionally changes only two PDP presentation details. The savings message and its
+own padding are removed; current/original prices, the percentage badge, formatting, and calculations
+stay intact. The existing rating/favorite/share row moves below stock status without changing any
+action, provider, route, analytics, or shared component. Splash and other surfaces are untouched.
+
+- [x] Inspect current PDP, state management, and existing widget coverage.
+- [x] Remove the monetary-savings block; preserve an 8 px title-to-price gap and 12 px price-to-stock gap.
+- [x] Move the single rating/actions row below stock with an 8 px gap; preserve touch targets.
+- [x] Add six widget cases: discounted/regular × available/unavailable, favorite add/remove, native share payload/origin.
+- [x] Format both changed Dart files; analyzer passes with the same six known info-level deprecations.
+- [x] All 231 Buyer Mobile tests pass, including review navigation, cart, checkout, and address coverage.
+- [x] Render and inspect discounted/regular, in/out-of-stock, and long-title states in iOS Simulator.
+- [x] Verify moved favorite/share/review interactions and scrolling in the simulator.
+- [x] Final diff review and scoped commit.
+
+Visual QA used the real PDP and theme on iPhone 16 Pro (iOS 18.5) and iPhone SE (iOS 18.2), with
+isolated in-memory catalog/review/wishlist/cart fixtures and a public product image. All four
+discount/stock combinations rendered correctly; the small phone was also checked at 2× text scale.
+No overflow or spacing regression was observed. The favorite icon toggled on/off, the rating opened
+the actual reviews screen, and Share opened the native iOS sheet (nothing was sent). Scrolling and
+the sticky action's SafeArea were inspected. Fixture instrumentation reported zero Flutter errors.
+The temporary simulator-only entrypoint was removed after QA; no production data was changed.
+
+Local screenshot evidence (ephemeral): `/tmp/teka-pdp-layout-discount-in-stock-iphone16.png`,
+`/tmp/teka-pdp-layout-regular-in-stock-iphone16.png`,
+`/tmp/teka-pdp-layout-discount-out-stock-iphone16.png`,
+`/tmp/teka-pdp-layout-regular-out-stock-iphone16.png`,
+`/tmp/teka-pdp-layout-discount-in-stock-iphone-se-scrolled.png`,
+`/tmp/teka-pdp-layout-large-text-iphone-se.png`, and
+`/tmp/teka-pdp-layout-share-sheet-iphone16.png`.
+
+Final source comparison confirmed the moved row is identical except for its widget-test key and
+occurs exactly once. No shared component, pricing model, API, Buyer Web/SEO, seller/admin, splash,
+cart, checkout, address, or analytics code changed.

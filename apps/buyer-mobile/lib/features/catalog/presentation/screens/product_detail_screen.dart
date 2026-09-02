@@ -208,63 +208,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                       color: TekaColors.foreground,
                                     ),
                               ),
-                              const SizedBox(height: 6),
-
-                              // Uses the exact same reviewsProvider instance as
-                              // the detailed section below, so no client-side
-                              // recalculation or duplicate request is created.
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: _PdpRatingSummary(
-                                        productId: product.id,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _PdpActionSurface(
-                                    child: WishlistButton(
-                                      // Wishlist routes require the resolved
-                                      // UUID, never the route slug/shortCode.
-                                      productId: product.id,
-                                      size: 20,
-                                      inactiveColor: TekaColors.foreground,
-                                      padding: EdgeInsets.zero,
-                                      constraints:
-                                          const BoxConstraints.tightFor(
-                                        width: 44,
-                                        height: 44,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _PdpActionSurface(
-                                    child: IconButton(
-                                      key: _shareButtonKey,
-                                      onPressed: () => _shareProduct(product),
-                                      tooltip: 'Partager ce produit',
-                                      padding: EdgeInsets.zero,
-                                      constraints:
-                                          const BoxConstraints.tightFor(
-                                        width: 44,
-                                        height: 44,
-                                      ),
-                                      icon: const Icon(
-                                        Icons.ios_share_outlined,
-                                        size: 20,
-                                        color: TekaColors.foreground,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
                               const SizedBox(height: 8),
 
                               // Price — effective price prominent; when on
-                              // promo, show the original struck through, a −X%
-                              // badge, and the savings.
+                              // promo, show the original struck through and
+                              // a −X% badge.
                               Wrap(
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 spacing: 10,
@@ -311,20 +259,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                   ],
                                 ],
                               ),
-                              if (hasDiscount)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Text(
-                                    "Vous économisez ${formatCDF(product.savingsCentimes.toString())}",
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(
-                                          color: TekaColors.success,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                  ),
-                                ),
                               if (priceUSD != null)
                                 Padding(
                                   padding: const EdgeInsets.only(top: 2),
@@ -348,6 +282,59 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                               // JSON-LD on the web — see
                               // docs/product-condition-deprecation.md.
                               _PdpStockStatus(product: product),
+                              const SizedBox(height: 8),
+
+                              // Uses the exact same reviewsProvider instance as
+                              // the detailed section below, so no client-side
+                              // recalculation or duplicate request is created.
+                              Row(
+                                key: const Key('pdp-rating-actions'),
+                                children: [
+                                  Expanded(
+                                    child: Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: _PdpRatingSummary(
+                                        productId: product.id,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _PdpActionSurface(
+                                    child: WishlistButton(
+                                      // Wishlist routes require the resolved
+                                      // UUID, never the route slug/shortCode.
+                                      productId: product.id,
+                                      size: 20,
+                                      inactiveColor: TekaColors.foreground,
+                                      padding: EdgeInsets.zero,
+                                      constraints:
+                                          const BoxConstraints.tightFor(
+                                        width: 44,
+                                        height: 44,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _PdpActionSurface(
+                                    child: IconButton(
+                                      key: _shareButtonKey,
+                                      onPressed: () => _shareProduct(product),
+                                      tooltip: 'Partager ce produit',
+                                      padding: EdgeInsets.zero,
+                                      constraints:
+                                          const BoxConstraints.tightFor(
+                                        width: 44,
+                                        height: 44,
+                                      ),
+                                      icon: const Icon(
+                                        Icons.ios_share_outlined,
+                                        size: 20,
+                                        color: TekaColors.foreground,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
                               const SizedBox(height: 14),
                               const _PdpFulfilmentHighlights(),
 
