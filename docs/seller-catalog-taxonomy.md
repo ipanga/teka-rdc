@@ -2,7 +2,7 @@
 
 **Started:** 2026-09-02
 **Surfaces:** `apps/api`, `apps/seller-web` (seller-mobile needed no change)
-**Status:** Phase 1 complete on `fix/leaf-category-invariant`; PR #615 open against `develop`, not merged
+**Status:** Phase 1 **merged into `develop`** — PR #615, merge commit `9ecac4b` (true merge commit, not squashed). Not released to `main`.
 **Scope note:** Phase 1 only. Workstreams B (search analytics), C (sales analytics) and D (CSV) are
 deliberately NOT started — see "Next phase".
 

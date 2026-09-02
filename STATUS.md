@@ -6,10 +6,21 @@
 
 ## Active initiative
 
-**Seller Catalog Taxonomy — Phase 1 (leaf-category invariant).** PR **#615** open against `develop`,
-green, **not merged**. Root cause of the « Type de peau » on a men's shirt found and fixed; no production
-data touched and no migration written. Tracker: `docs/seller-catalog-taxonomy.md`.
-Workstreams B/C/D (search analytics, sales analytics, CSV) deliberately **not started**.
+**Seller Catalog Taxonomy — Phase 2 (production catalog audit + brand relevance), audit stage.**
+No catalog data may be mutated during this stage.
+
+**Phase 1 is MERGED into `develop`** — PR **#615**, merge commit `9ecac4b`, CI + CodeQL green.
+Root cause: products may attach to an *intermediate* category, which still carries legacy pre-refactor
+attribute rows (« Mode > Homme » holds `Type de peau`), and the leaf-only rule was documented but
+enforced nowhere. Shipped: an API leaf-category invariant (`create()` always; `update()` only when
+`categoryId` changes, so legacy products stay editable), leaf-only selection in the seller-web combobox,
+server-side preservation of foreign/legacy `ProductSpecification` rows, and a legacy-category warning.
+Gates: **API 287 unit + 118 e2e**, type-check clean. Seller Web verified in the browser end to end;
+Seller Mobile built, launched and 42 tests green, but its **interactive create/edit flows remain
+unverified** — UI automation was unavailable. Tracker: `docs/seller-catalog-taxonomy.md`.
+
+**Not released.** `develop` is 4 ahead of `main`; no production deploy and no data change.
+Workstreams B/C/D (search analytics, sales analytics, CSV) remain **on hold**.
 
 The Buyer Mobile PDP + native splash refinement shipped to production on 2026-09-02 via release PR
 **#613**; buyer test builds **0.1.6+8** are out (TestFlight distributed, Play AAB awaiting manual upload)
