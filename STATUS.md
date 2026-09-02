@@ -1,4 +1,4 @@
-# Status — 2026-09-02
+# Status — 2026-09-03
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,8 +6,49 @@
 
 ## Active initiative
 
-**None.** The Seller Catalog Taxonomy initiative shipped to production on 2026-09-02 and both manual
-data migrations have been applied and verified. Open follow-ups are listed below; none is in flight.
+**Search & Sales Analytics (Workstreams B, C, D) — IN FLIGHT on `develop`.**
+Tracker: `docs/search-sales-analytics.md`. **Nothing merged, nothing deployed, no production
+migration run.**
+
+The Seller Catalog Taxonomy initiative completed **Workstream A only** — its own tracker says so at
+`docs/seller-catalog-taxonomy.md:6`. This initiative picks up the three that were never started.
+
+**Measured baseline on `develop` (2026-09-02): API 313 unit + 118 e2e · buyer-web 68 (vitest).**
+CLAUDE.md (271) and `docs/seller-catalog-taxonomy.md:92` (287) are both **stale** — re-measure, do
+not trust either.
+
+| PR | Branch | State |
+|---|---|---|
+| 1 — shared CSV writer + formula-injection guard | `refactor/csv-writer-injection-guard` | **#625 open**, green |
+| 2 — report windows, DTO bounds, pagination, N+1 | `fix/report-window-bounds-and-n1` | **open**, green (stacked on PR 1) |
+| 3 — sales analytics breakdown | — | not started |
+| 4 — search `source` + `searchIntent` | — | not started |
+| 5 — admin search analytics | — | not started |
+
+PR 2 is **stacked on PR 1's branch** (both edit `reports.service.ts`); its base retargets to
+`develop` automatically once PR 1 merges.
+
+**Three constraints that will bite whoever resumes this:**
+
+1. **`forbidNonWhitelisted: true` (`main.ts:94`)** — an undeclared query param is a hard **400**, not
+   a silent drop. The API half of PR 4 must deploy no later than either buyer client.
+2. **CORS `allowedHeaders` is an explicit allowlist (`main.ts:87`)** — which is half of why `source`
+   travels as a query param. The other half: `surface.util.ts:18` defaults `X-Teka-Surface` to
+   `'buyer'`, so reusing it would label every mobile search `BUYER_WEB`.
+3. **Guards run before pipes in Nest** — an unauthenticated request to an `@Roles('ADMIN')` route
+   returns 401 and never reaches validation, so DTO rules are **not** e2e-testable. They live in
+   `dto/report-query.dto.spec.ts`.
+
+**Known and deliberately not fixed here:** `HttpExceptionFilter` hardcodes `field: 'unknown'` on every
+validation error (`http-exception.filter.ts:36`), so French messages arrive without a field name.
+Pre-existing, affects every DTO in the API.
+
+**The e2e suite is flaky and it is NOT this initiative's doing.** An unauthenticated-401 assertion
+fails intermittently — seen as `auth/me` with `Parse Error: Expected HTTP/, RTSP/ or ICE/` and as
+`GET /v1/cart` with `expected 401, got 501`. Measured on both branches: **2 failures / 38 runs on
+clean `develop`** vs 3 / ~42 on the PR branch, hitting a different spec each time. Re-run before
+blaming your branch; a single green run proves nothing. Details in
+`docs/search-sales-analytics.md`.
 
 ## Most recently completed initiative
 

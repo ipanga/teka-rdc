@@ -12,6 +12,15 @@ interface ReportRow {
   [key: string]: string | number | null;
 }
 
+interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+const PAGE_SIZE = 50;
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5050/api';
 
 export default function ReportsPage() {
@@ -23,34 +32,44 @@ export default function ReportsPage() {
   const [columns, setColumns] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
-  const fetchReport = useCallback(async () => {
-    setIsLoading(true);
-    setHasLoaded(false);
-    try {
-      const params = new URLSearchParams();
-      if (dateFrom) params.set('dateFrom', dateFrom);
-      if (dateTo) params.set('dateTo', dateTo);
-      if (SELLER_FILTERABLE.includes(activeTab) && sellerId) params.set('sellerId', sellerId);
+  // The API paginates every report as { data, pagination } — the same envelope
+  // the other admin lists use. Reading `res.data` as a bare array (as this page
+  // did before) silently yields an empty table.
+  const fetchReport = useCallback(
+    async (page = 1) => {
+      setIsLoading(true);
+      setHasLoaded(false);
+      setLoadError(false);
+      try {
+        const params = new URLSearchParams();
+        if (dateFrom) params.set('dateFrom', dateFrom);
+        if (dateTo) params.set('dateTo', dateTo);
+        if (SELLER_FILTERABLE.includes(activeTab) && sellerId) params.set('sellerId', sellerId);
+        params.set('page', String(page));
+        params.set('limit', String(PAGE_SIZE));
 
-      const endpoint = `/v1/admin/reports/${activeTab}?${params}`;
-      const res = await apiFetch<ReportRow[]>(endpoint);
-      const rows = Array.isArray(res.data) ? res.data : [];
-      setData(rows);
-      if (rows.length > 0) {
-        setColumns(Object.keys(rows[0]));
-      } else {
+        const endpoint = `/v1/admin/reports/${activeTab}?${params}`;
+        const res = await apiFetch<{ data: ReportRow[]; pagination: Pagination }>(endpoint);
+        const rows = res.data?.data ?? [];
+        setData(rows);
+        setPagination(res.data?.pagination ?? null);
+        setColumns(rows.length > 0 ? Object.keys(rows[0]) : []);
+        setHasLoaded(true);
+      } catch {
+        setData([]);
         setColumns([]);
+        setPagination(null);
+        setLoadError(true);
+        setHasLoaded(true);
+      } finally {
+        setIsLoading(false);
       }
-      setHasLoaded(true);
-    } catch {
-      setData([]);
-      setColumns([]);
-      setHasLoaded(true);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeTab, dateFrom, dateTo, sellerId]);
+    },
+    [activeTab, dateFrom, dateTo, sellerId],
+  );
 
   const handleDownloadCsv = async () => {
     try {
@@ -108,7 +127,14 @@ export default function ReportsPage() {
         {tabs.map((tab) => (
           <button
             key={tab.key}
-            onClick={() => { setActiveTab(tab.key); setData([]); setColumns([]); setHasLoaded(false); }}
+            onClick={() => {
+              setActiveTab(tab.key);
+              setData([]);
+              setColumns([]);
+              setPagination(null);
+              setHasLoaded(false);
+              setLoadError(false);
+            }}
             className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
               activeTab === tab.key
                 ? 'bg-primary text-primary-foreground border-primary'
@@ -154,7 +180,7 @@ export default function ReportsPage() {
             </div>
           )}
           <button
-            onClick={fetchReport}
+            onClick={() => fetchReport(1)}
             disabled={isLoading}
             className="px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -177,7 +203,19 @@ export default function ReportsPage() {
           Chargement...
         </div>
       ) : hasLoaded ? (
-        data.length === 0 ? (
+        loadError ? (
+          <div className="bg-white rounded-xl border border-border p-8 text-center">
+            <p className="text-muted-foreground">
+              Le rapport n&apos;a pas pu être chargé.
+            </p>
+            <button
+              onClick={() => fetchReport(1)}
+              className="mt-3 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Réessayer
+            </button>
+          </div>
+        ) : data.length === 0 ? (
           <div className="bg-white rounded-xl border border-border p-8 text-center text-muted-foreground">
             Aucune donnée pour cette période
           </div>
@@ -197,7 +235,7 @@ export default function ReportsPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.slice(0, 50).map((row, idx) => (
+                {data.map((row, idx) => (
                   <tr key={idx} className="border-b border-border last:border-0 hover:bg-muted/50">
                     {columns.map((col) => (
                       <td
@@ -211,9 +249,27 @@ export default function ReportsPage() {
                 ))}
               </tbody>
             </table>
-            {data.length > 50 && (
-              <div className="px-4 py-3 text-sm text-muted-foreground border-t border-border">
-                {`Affichage de ${50} lignes sur ${data.length}`}
+            {pagination && (
+              <div className="flex items-center justify-between gap-4 px-4 py-3 text-sm text-muted-foreground border-t border-border">
+                <span>
+                  {`Page ${pagination.page} sur ${Math.max(pagination.totalPages, 1)} — ${pagination.total} ligne${pagination.total > 1 ? 's' : ''}`}
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => fetchReport(pagination.page - 1)}
+                    disabled={isLoading || pagination.page <= 1}
+                    className="px-3 py-1.5 rounded-lg border border-border text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Précédent
+                  </button>
+                  <button
+                    onClick={() => fetchReport(pagination.page + 1)}
+                    disabled={isLoading || pagination.page >= pagination.totalPages}
+                    className="px-3 py-1.5 rounded-lg border border-border text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Suivant
+                  </button>
+                </div>
               </div>
             )}
           </div>
