@@ -9,6 +9,7 @@ import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { ProductStatus, Prisma } from '@prisma/client';
 import { SellerNotificationService } from '../notifications/seller-notification.service';
 import { PostHogService } from '../analytics/posthog.service';
+import { dedupeSpecificationsByName } from '../common/utils/product-specifications';
 
 @Injectable()
 export class AdminProductsService {
@@ -163,7 +164,10 @@ export class AdminProductsService {
     const { specifications, ...rest } = product;
     return {
       ...rest,
-      specifications: specifications.map((s) => ({
+      specifications: dedupeSpecificationsByName(
+        specifications,
+        product.categoryId,
+      ).map((s) => ({
         id: s.id,
         attributeId: s.attributeId,
         name: s.attribute.name,

@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { dedupeSpecificationsByName } from '../common/utils/product-specifications';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductQueryDto } from './dto/product-query.dto';
@@ -375,7 +376,26 @@ export class ProductsService {
       throw new NotFoundException('Produit non trouvé');
     }
 
-    return product;
+    // Same canonical characteristics the buyer PDP and admin review page use:
+    // foreign legacy rows stay stored and remain visible when they are the only
+    // source, but a duplicate name collapses to the product's own-category row.
+    // Without this the seller-mobile detail screen, which renders every row,
+    // showed each characteristic twice after a category remediation.
+    const { specifications, ...rest } = product;
+    return {
+      ...rest,
+      specifications: dedupeSpecificationsByName(
+        specifications,
+        product.categoryId,
+      ).map((s) => ({
+        id: s.id,
+        attributeId: s.attributeId,
+        attributeName: s.attribute.name,
+        name: s.attribute.name,
+        value: s.value,
+        sortOrder: s.attribute.sortOrder,
+      })),
+    };
   }
 
   // On a PUBLISHED product (status not DRAFT/REJECTED) sellers may adjust only
