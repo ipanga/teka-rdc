@@ -316,13 +316,14 @@ describe('BrowseService.getCategoryAttributes — leaf-only invariant', () => {
   });
 });
 
-// ── PDP characteristics belong to the product's own category ───────────────
-// Legacy specifications are preserved in the database when a product is
-// remediated onto its correct leaf, but they must not surface. « Électroménager
-// > Cuisine » also owns attributes named Taille/Couleur/Matière, so rendering
-// every row printed each characteristic TWICE on the buyer PDP; and a stale
-// « Type » from a soft-deleted category showed on a product whose new leaf has
-// no Type attribute at all.
+// ── PDP characteristics are de-duplicated by name ──────────────────────────
+// Remediating a product onto its correct leaf adds Taille/Couleur/Matière from
+// that leaf beside identically named rows owned by its PREVIOUS category, so
+// the buyer PDP printed each characteristic twice. Foreign rows are NOT dropped
+// wholesale: production has 18 of them across 9 live products (a 10 kg bag of
+// rice holds « Poids » from its parent category; an Android phone holds
+// RAM/Mémoire interne from « … > Smartphones »), and 7 of those products would
+// otherwise be left with no characteristics at all.
 const CHEMISES_CAT = '16000000-0000-0000-0000-000000050102';
 const KITCHEN_CAT = '13000000-0000-0000-0000-000000000401';
 
@@ -382,11 +383,23 @@ describe('BrowseService.getProductDetail — specification scoping', () => {
       .toEqual(['a1', 'a2', 'a3']);
   });
 
-  it('hides a stale legacy characteristic the new leaf does not define', async () => {
-    // vnkqce: « Type = Savon de lessive » owned by a soft-deleted category.
-    const { service } = makePdpService([spec('z1', 'dead-cat', 'Type', 'Savon de lessive')]);
-    const out = await service.getProductDetail('vnkqce');
-    expect(out.specifications).toEqual([]);
+  it('KEEPS a foreign characteristic when no own-category row shares its name', async () => {
+    // A 10 kg bag of rice legitimately carries « Poids » from its PARENT
+    // category. Dropping foreign rows would blank 7 live products in production.
+    const { service } = makePdpService([spec('z1', 'parent-cat', 'Poids', '10kg')]);
+    const out = await service.getProductDetail('2mjco7');
+    expect(out.specifications).toHaveLength(1);
+    expect(out.specifications[0]).toMatchObject({ name: 'Poids', value: '10kg' });
+  });
+
+  it('keeps every foreign row when names do not collide', async () => {
+    const { service } = makePdpService([
+      spec('p1', 'other-cat', 'Mémoire interne', '16Go'),
+      spec('p2', 'other-cat', 'RAM', '4Go'),
+      spec('p3', 'other-cat', 'État', 'Neuf'),
+    ]);
+    const out = await service.getProductDetail('foyug0');
+    expect(out.specifications).toHaveLength(3);
   });
 
   it('is a no-op for a product whose specifications all match its category', async () => {

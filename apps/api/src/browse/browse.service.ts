@@ -1045,15 +1045,6 @@ export class BrowseService {
     // of "Taille : M"). Rows with no label or no value are dropped rather than
     // rendered half-empty.
     const specsFlat = specifications
-      // Only characteristics that belong to THIS product's category are shown.
-      // Legacy rows are preserved in the database but must not surface: a
-      // product remediated onto its correct leaf keeps its old foreign
-      // specifications, and those old attributes are often named identically
-      // (« Électroménager > Cuisine » also has Taille/Couleur/Matière), so
-      // rendering every row printed each characteristic twice. It also hid the
-      // reverse problem — a stale « Type » from a soft-deleted category showing
-      // on a product that no longer has a Type attribute at all.
-      .filter((s) => s.attribute?.categoryId === product.categoryId)
       .filter((s) => s.attribute?.name && s.value?.trim())
       .map((s) => ({
         id: s.id,
@@ -1061,7 +1052,37 @@ export class BrowseService {
         name: s.attribute.name,
         value: s.value,
         sortOrder: s.attribute.sortOrder,
+        // internal only, stripped below
+        ownedByProductCategory: s.attribute.categoryId === product.categoryId,
       }));
+
+    // De-duplicate by characteristic NAME, preferring the attribute that
+    // belongs to the product's own category.
+    //
+    // Products legitimately carry specifications whose attribute lives on an
+    // ANCESTOR category — that is how the pre-3-level taxonomy modelled them
+    // (a 10 kg bag of rice holds « Poids » from « Supermarché > Alimentation »;
+    // an Android phone holds RAM/Mémoire interne from « … > Smartphones »).
+    // Production has 18 such rows across 9 live products, 7 of which would be
+    // left with NO characteristics at all if foreign rows were simply dropped.
+    // So they are kept.
+    //
+    // What must not happen is the same label twice. No live product has a
+    // duplicate attribute name today; the collision is introduced by category
+    // remediation, which adds the correct leaf's Taille/Couleur/Matière beside
+    // identically named rows owned by the product's previous category. Keeping
+    // the own-category row resolves it and leaves every other product untouched.
+    const seenName = new Set<string>();
+    const deduped = [...specsFlat]
+      .sort((a, b) => Number(b.ownedByProductCategory) - Number(a.ownedByProductCategory))
+      .filter((s) => {
+        const key = s.name.trim().toLowerCase();
+        if (seenName.has(key)) return false;
+        seenName.add(key);
+        return true;
+      })
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(({ ownedByProductCategory: _drop, ...rest }) => rest);
 
     // Demo retirement (P3c): a demo product in a retired category should 301 to
     // its category page. The buyer-web PDP reads this flag and redirects.
@@ -1072,7 +1093,7 @@ export class BrowseService {
     return {
       ...rest,
       seller: sellerFlat,
-      specifications: specsFlat,
+      specifications: deduped,
       breadcrumb,
       isRetired,
     };
