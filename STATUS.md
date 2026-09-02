@@ -6,8 +6,21 @@
 
 ## Active initiative
 
-**Seller Catalog Taxonomy — Phase 2b (product/taxonomy remediation), design stage.**
-No product data may be mutated until the plan below is approved.
+**Seller Catalog Taxonomy — Phase 2b MERGED to `develop`; production remediation NOT yet run.**
+
+PR **#617**, merge commit `6169201`, CI + CodeQL green. Adds
+`manual/2026-09-03_remediate_legacy_category_products.sql` (self-validating, idempotent,
+reversible, **not** in `auto-apply.list`) plus the PDP de-duplication invariant.
+`h0d799` → Chemises with Taille/Couleur/Matière; `vnkqce` → Lessive with no invented
+mapping; `rb7t4r` untouched and blocked on the alcohol decision.
+
+**A production read-only audit rejected the first PDP rule.** Scoping characteristics to
+the product's own category would have blanked **7 live products** (18 foreign specs across
+9). The rule in force preserves foreign rows and de-duplicates by name, preferring the
+current category — details in `docs/seller-catalog-taxonomy.md`.
+
+⚠️ **Ordering requirement:** the de-duplication code must reach production **before** the
+migration runs, or buyers see doubled characteristics on `h0d799`.
 
 **Phase 2a (brand cleanup) is MERGED into `develop`** — PR **#616**, merge commit `7fc0ddb`, CI + CodeQL
 green. Adds `manual/2026-09-02_prune_invalid_brand_category_links.sql`: idempotent, reversible, **not**

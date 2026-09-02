@@ -108,3 +108,57 @@ parallel subsystems.
 
 **Note:** `Supermarché > Boissons` carries the same defect *invisibly* — its legacy rows (`Volume`,
 `Type`) look plausible, so no one will report it.
+
+## Phase 2b — legacy product remediation (PR #617, merge commit `6169201`)
+
+**Merged into `develop`. The migration has NOT been run against production.**
+
+`manual/2026-09-03_remediate_legacy_category_products.sql` — self-validating,
+idempotent, reversible, and deliberately absent from `auto-apply.list`.
+
+| Product | From → To | Specifications |
+|---|---|---|
+| `h0d799` | `Mode > Homme` → `Mode > Homme > Chemises` | +3 on the Chemises attributes (Taille=M, Couleur=Bleu, Matière=Coton); the 3 original « Électroménager > Cuisine » rows are preserved |
+| `vnkqce` | `Supermarché > Entretien Maison` → `… > Lessive` | none transferred; legacy « Type = Savon de lessive » preserved |
+| `rb7t4r` | — | untouched; blocked on the alcohol/restricted-product decision |
+
+### The PDP rendering invariant — and the rule that was REJECTED
+
+The first attempt scoped PDP characteristics to `attribute.categoryId ===
+product.categoryId`. A read-only production audit **disconfirmed** it: 18 foreign
+specification rows exist across 9 live products, and **7 would have been left with
+no characteristics at all** — a 10 kg bag of rice losing « Poids », an Android
+phone losing RAM / Mémoire interne / État. Those rows are legitimate: the
+pre-3-level taxonomy attached attributes at *subcategory* level and products still
+reference them. Classified: 6 owned by an ancestor category, 6 by a soft-deleted
+category, 6 by an unrelated live category.
+
+The decisive measurement: **no live product has a duplicate attribute name today.**
+The collision is *created* by remediation, which adds the correct leaf's
+Taille/Couleur/Matière beside identically named rows from the product's previous
+category.
+
+**The invariant in force is therefore:** foreign specifications are preserved and
+rendered; characteristics are de-duplicated **by name**, preferring the row whose
+attribute belongs to the product's current category. Names are normalised with
+`stripAccents()` (the same helper this file already uses for search terms,
+mirroring the DB's `f_unaccent`) — exact normalised names only, no fuzzy or synonym
+matching. Precedence is deterministic and independent of database row order:
+own-category → `sortOrder` → `attributeId`.
+
+### Taxonomy debt recorded here, deliberately not fixed in #617
+
+1. **`vnkqce` still displays « Type = Savon de lessive ».** The Lessive leaf has no
+   equivalent `Type` characteristic, so the legacy row remains the only source and
+   stays visible. Hiding it would require dropping foreign rows — exactly the rule
+   that blanks the 7 products above. Revisit during the systematic
+   leaf-characteristics audit.
+2. **`Lessive` exposes `Volume`, but the product is sold by weight (1,5 kg).**
+   `Poids` is probably the more appropriate characteristic for laundry products.
+   Not solved in #617.
+
+### Production ordering requirement
+
+The de-duplication code **must reach production before** the data migration runs.
+Running the migration first would show buyers doubled characteristics on `h0d799`
+until the next deploy.
