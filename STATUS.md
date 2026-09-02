@@ -6,8 +6,22 @@
 
 ## Active initiative
 
-**Seller Catalog Taxonomy — Phase 2 (production catalog audit + brand relevance), audit stage.**
-No catalog data may be mutated during this stage.
+**Seller Catalog Taxonomy — Phase 2b (product/taxonomy remediation), design stage.**
+No product data may be mutated until the plan below is approved.
+
+**Phase 2a (brand cleanup) is MERGED into `develop`** — PR **#616**, merge commit `7fc0ddb`, CI + CodeQL
+green. Adds `manual/2026-09-02_prune_invalid_brand_category_links.sql`: idempotent, reversible, **not**
+in `auto-apply.list`, and **not yet applied to production**. It removes the 121 `BrandCategory` links
+whose target is not a live leaf (68 intermediate + 53 soft-deleted), leaving 314. Verified twice against
+dev (435 → 314, second run a no-op); leaf-level coverage unchanged. `Lacoste → Beauté & Santé > Parfums`
+is deliberately KEPT — Lacoste is a genuine fragrance brand, so the earlier "semantically wrong" flag was
+incorrect for those two links.
+
+**Open business decision — `rb7t4r` (Johnnie Walker).** Teka has **no** restricted-product policy, **no**
+age-verification field or gate, **no** admin moderation for restricted goods, and **no** alcohol mention
+in the seller rules. The current taxonomy has no alcohol leaf: the June 2026 refactor dropped the legacy
+`Type` option list (Bière/Vin/Spiritueux, still visible at `seed.ts:844`). Creating a
+« Boissons alcoolisées » leaf is therefore a **business/legal decision, not a taxonomy fix** — held.
 
 **Phase 1 is MERGED into `develop`** — PR **#615**, merge commit `9ecac4b`, CI + CodeQL green.
 Root cause: products may attach to an *intermediate* category, which still carries legacy pre-refactor
