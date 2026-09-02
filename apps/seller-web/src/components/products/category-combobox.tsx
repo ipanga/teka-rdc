@@ -34,8 +34,14 @@ function flatten(
   const out: FlatNode[] = [];
   for (const c of cats) {
     const label = c.name || '---';
-    out.push({ id: c.id, label, parentLabel, depth });
     const kids = c.children || c.subcategories || [];
+    // LEAF-ONLY: only product types are selectable. Branches are traversed for
+    // their children but never offered as options — attributes attach to the
+    // leaf, so a product on an intermediate node inherits that node's legacy
+    // rows instead (« Mode > Homme » still carries "Type de peau"). seller-mobile
+    // already behaved this way; this closes the web/mobile divergence that let
+    // an intermediate category be chosen. The API rejects it either way.
+    if (!kids.length) out.push({ id: c.id, label, parentLabel, depth });
     // Pass the FULL path down so a product type reads e.g.
     // "Téléphones & Accessoires › Smartphones › Android" (not just its parent).
     const path = parentLabel ? `${parentLabel} › ${label}` : label;

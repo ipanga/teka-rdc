@@ -5,7 +5,13 @@ const APPROVED_SELLER = { userId: 'seller1', applicationStatus: 'APPROVED', city
 
 function makeService(over: Record<string, any> = {}) {
   const prisma = {
-    category: { findUnique: jest.fn().mockResolvedValue({ id: 'cat1', isActive: true, deletedAt: null }) },
+    // count = number of live child categories. 0 => leaf, which is what every
+    // pre-existing test assumes (products may only attach to a leaf).
+    category: {
+      findUnique: jest.fn().mockResolvedValue({ id: 'cat1', name: 'Chemises', isActive: true, deletedAt: null }),
+      count: jest.fn().mockResolvedValue(0),
+    },
+    productAttribute: { findMany: jest.fn().mockResolvedValue([]) },
     sellerProfile: { findUnique: jest.fn().mockResolvedValue(APPROVED_SELLER) },
     brand: { findFirst: jest.fn().mockResolvedValue({ id: 'brand1' }) },
     product: {
@@ -302,5 +308,55 @@ describe('ProductsService lifecycle transitions', () => {
     await service.submitForReview('seller1', 'p1');
     expect(updateMock.mock.calls[0][0].data.status).toBe('PENDING_REVIEW');
     expect(prisma.productStatusLog.create).toHaveBeenCalled();
+  });
+});
+
+// ── Leaf-category invariant (Seller Catalog Taxonomy initiative) ────────────
+// A men's shirt sat on « Mode > Homme » (an intermediate node) and therefore
+// rendered that node's legacy rows — including "Type de peau". The taxonomy
+// assumed leaf-only but enforced it nowhere.
+const HOMME = '13000000-0000-0000-0000-000000000501';
+const CHEMISES = '16000000-0000-0000-0000-000000050102';
+
+function nonLeaf(name = 'Homme', id = HOMME) {
+  return {
+    category: {
+      findUnique: jest.fn().mockResolvedValue({ id, name, isActive: true, deletedAt: null }),
+      count: jest.fn().mockResolvedValue(8), // 8 live children => intermediate
+    },
+    productAttribute: { findMany: jest.fn().mockResolvedValue([]) },
+  };
+}
+
+describe('ProductsService.create — leaf-category invariant', () => {
+  it('rejects a product assigned to an intermediate category', async () => {
+    const { service } = makeService(nonLeaf());
+    await expect(
+      service.create('seller1', { ...baseDto, categoryId: HOMME } as never),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('does not create the product when the category is intermediate', async () => {
+    const { service, prisma } = makeService(nonLeaf());
+    await service
+      .create('seller1', { ...baseDto, categoryId: HOMME } as never)
+      .catch(() => undefined);
+    expect(prisma.product.create).not.toHaveBeenCalled();
+  });
+
+  it('names the offending category and does NOT guess a child leaf', async () => {
+    const { service } = makeService(nonLeaf());
+    const err = await service
+      .create('seller1', { ...baseDto, categoryId: HOMME } as never)
+      .catch((e: Error) => e);
+    // « Homme » holds shirts, trousers, shoes… the leaf is not inferable.
+    expect((err as Error).message).toContain('Homme');
+    expect((err as Error).message).not.toContain('Chemises');
+  });
+
+  it('accepts a leaf category', async () => {
+    const { service, prisma } = makeService();
+    await service.create('seller1', { ...baseDto, categoryId: CHEMISES } as never);
+    expect(prisma.product.create).toHaveBeenCalled();
   });
 });
