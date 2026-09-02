@@ -162,12 +162,22 @@ see each other: a migration applied by hand is skipped by a later auto-apply run
 and vice versa. The step reports whether it recorded a first application or
 re-ran an already-recorded one.
 
-> Migrations applied before 2026-09-02 by this workflow predate the tracking write
-> and are therefore **absent** from `_manual_migrations` —
-> `2026-09-01_archive_duplicate_buyer_addresses.sql`,
-> `2026-09-02_prune_invalid_brand_category_links.sql` and
-> `2026-09-03_remediate_legacy_category_products.sql`. Each is self-recording via
-> its own archive/journal table, and all three are idempotent.
+**The skip is one-directional.** A migration applied by hand is recorded, so a
+later auto-apply run skips it (`apply-auto.sh` checks the table first). The
+reverse is not true: this workflow has no pre-check and always re-runs the file
+it is given, because dispatching it is an explicit operator action and
+deliberately replaying an idempotent migration is legitimate. Safety in that
+direction comes from the migrations being idempotent, not from a skip.
+
+> **Historical backfill — done 2026-09-02.** Migrations applied by this workflow
+> before the tracking write were absent from `_manual_migrations`. They were
+> restored by `2026-09-04_backfill_manual_migrations.sql` (run `33679262957`,
+> `INSERT 0 26`), which also recorded itself. The table now holds **31** rows:
+> 4 auto-applied + 26 historical + 1 self-record. Nine migrations are
+> deliberately **not** recorded — eight predate this workflow entirely and
+> `2026-06-23_translatable_jsonstring_to_fr.sql` is dev-only — because absence of
+> evidence is not evidence of application, and a false "applied" row would make a
+> future auto-apply run skip a migration that never ran.
 
 _(The `prisma migrate deploy` line below is the legacy Prisma-Migrate path, kept
 for reference; day-to-day schema changes use the manual-SQL + auto-apply flow

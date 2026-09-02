@@ -125,23 +125,19 @@ as the code did before this initiative, would have silently rewritten six orders
   auto-apply path uses, written only after the file succeeds. It also gained
   `ON_ERROR_STOP=1`, which it had been missing: psql exits 0 on SQL errors without it, so a
   half-applied migration used to print "✓ migration applied". Merged as `6dfaed6` (PR #621).
-- **Backfill of `_manual_migrations` is PENDING approval — and it is 26 files, not 3.**
-  Auditing every `Apply prod migration` run (27 runs, 26 successful) by parsing
-  "▶ applying …" out of each log gives the definitive list: **26 migrations were applied
-  through that workflow and none of them is recorded.** Of the 39 files in `manual/`,
-  4 are auto-applied and recorded, 26 were workflow-applied and unrecorded, and **9 were
-  applied through neither** — 8 predate the workflow (its first run is 2026-05-21) and
-  `2026-06-23_translatable_jsonstring_to_fr.sql` was **dev-only** (CLAUDE.md: "prod was
-  already clean"). Backfill only the 26 with run-log evidence; asserting "applied" for the
-  other 9 without evidence would make a future auto-apply run skip a migration that never
-  ran. Proposed SQL is in the report — idempotent, `ON CONFLICT DO NOTHING`, `applied_at`
-  set to each run's real date. **Prepared as
-  `manual/2026-09-04_backfill_manual_migrations.sql` (PR #622) — not yet applied to production.**
-  Independent re-verification of all 26 runs caught **two** filename/execution-date mismatches:
-  `2026-07-23_prune-non-leaf-attributes.sql` actually ran 2026-07-24, and
-  `2026-09-03_remediate_legacy_category_products.sql` actually ran 2026-09-02. The run timestamp is
-  authoritative in both. Tested twice on dev: 0 → 26 rows, second run a no-op, application tables
-  byte-identical throughout.
+- ~~**Backfill of `_manual_migrations`.**~~ **COMPLETE — executed in production 2026-09-02
+  20:26 UTC**, run `33679262957`, `INSERT 0 26`, via `Apply prod migration` from `main`.
+  The table went **4 → 31** (4 auto-applied + 26 evidence-backed historical + the backfill's own
+  self-record). Verified directly against the database, not inferred from a green check: all 26
+  historical filenames present, self-record exactly once, the 9 unproven migrations still absent,
+  no duplicates, and the two corrected timestamps intact
+  (`2026-07-23_prune-non-leaf-attributes.sql` → 2026-07-24 19:55:00Z,
+  `2026-09-03_remediate_legacy_category_products.sql` → 2026-09-02 18:41:42Z). Application tables
+  unchanged: products 495, specs 337, brand_categories 314, categories 348, brands 51 — identical
+  before and after. **Migration tracking is now operational and this initiative is closed.**
+  One asymmetry worth knowing: the skip is **one-directional**. A hand-applied migration is
+  recorded and a later auto-apply run skips it; the manual workflow has no pre-check and always
+  re-runs the file it is given, by design. Safety there rests on the migrations being idempotent.
 - **117 unreferenced legacy `ProductAttribute` rows** remain (of 200 suspects; the other 83 are
   referenced and must be preserved). Deliberately deferred until after the product remediation, which
   is now done — so this is unblocked whenever it is wanted.

@@ -122,9 +122,16 @@ jobs:
 
               # Bookkeeping, mirroring prisma/migrations/apply-auto.sh: the same
               # `_manual_migrations` table, the same ON CONFLICT DO NOTHING, and
-              # written only AFTER the file succeeded. Sharing one table means
-              # the two paths see each other: a migration applied by hand here
-              # is skipped by a later auto-apply run, and vice versa.
+              # written only AFTER the file succeeded.
+              #
+              # The skip is ONE-DIRECTIONAL, deliberately. A migration applied by
+              # hand here is recorded, so a later auto-apply run SKIPS it
+              # (apply-auto.sh checks the table first). The reverse is not true:
+              # this workflow has no pre-check and always re-runs the file it is
+              # given, because dispatching it is an explicit operator action and
+              # re-running an idempotent migration on purpose is legitimate.
+              # Safety in that direction comes from the migrations themselves
+              # being idempotent, not from a skip.
               #
               # DO NOTHING keeps the FIRST applied_at. These migrations are
               # idempotent and re-running one by hand is legitimate, so the
