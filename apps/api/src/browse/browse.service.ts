@@ -1045,6 +1045,15 @@ export class BrowseService {
     // of "Taille : M"). Rows with no label or no value are dropped rather than
     // rendered half-empty.
     const specsFlat = specifications
+      // Only characteristics that belong to THIS product's category are shown.
+      // Legacy rows are preserved in the database but must not surface: a
+      // product remediated onto its correct leaf keeps its old foreign
+      // specifications, and those old attributes are often named identically
+      // (« Électroménager > Cuisine » also has Taille/Couleur/Matière), so
+      // rendering every row printed each characteristic twice. It also hid the
+      // reverse problem — a stale « Type » from a soft-deleted category showing
+      // on a product that no longer has a Type attribute at all.
+      .filter((s) => s.attribute?.categoryId === product.categoryId)
       .filter((s) => s.attribute?.name && s.value?.trim())
       .map((s) => ({
         id: s.id,

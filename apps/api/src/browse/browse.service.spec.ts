@@ -195,11 +195,14 @@ describe('BrowseService.getProductDetail — specification labels', () => {
     return new BrowseService(prisma as never);
   }
 
+  // categoryId matches the product's own category ('c1'): these fixtures model
+  // an ordinary product, whose characteristics all belong to its category. The
+  // PDP now scopes specifications to that category, so the field is required.
   const spec = (name: string, value: string, sortOrder = 0, id = name) => ({
     id,
     attributeId: `attr-${id}`,
     value,
-    attribute: { name, sortOrder },
+    attribute: { name, sortOrder, categoryId: 'c1' },
   });
 
   it('flattens attribute.name onto the spec', async () => {
@@ -310,5 +313,85 @@ describe('BrowseService.getCategoryAttributes — leaf-only invariant', () => {
     expect(prisma.category.count).toHaveBeenCalledWith({
       where: { parentCategoryId: CHEMISES, deletedAt: null },
     });
+  });
+});
+
+// ── PDP characteristics belong to the product's own category ───────────────
+// Legacy specifications are preserved in the database when a product is
+// remediated onto its correct leaf, but they must not surface. « Électroménager
+// > Cuisine » also owns attributes named Taille/Couleur/Matière, so rendering
+// every row printed each characteristic TWICE on the buyer PDP; and a stale
+// « Type » from a soft-deleted category showed on a product whose new leaf has
+// no Type attribute at all.
+const CHEMISES_CAT = '16000000-0000-0000-0000-000000050102';
+const KITCHEN_CAT = '13000000-0000-0000-0000-000000000401';
+
+function makePdpService(specs: Array<Record<string, unknown>>) {
+  const prisma = {
+    product: {
+      findFirst: jest.fn().mockResolvedValue({
+        id: 'p1',
+        categoryId: CHEMISES_CAT,
+        isDemo: false,
+        specifications: specs,
+        images: [],
+        seller: { id: 's1', sellerProfile: null },
+        category: { id: CHEMISES_CAT, name: 'Chemises', parentCategory: null },
+      }),
+      findUnique: jest.fn().mockResolvedValue(null),
+    },
+    systemSetting: { findUnique: jest.fn().mockResolvedValue(null) },
+  };
+  return { service: new BrowseService(prisma as never), prisma };
+}
+
+const spec = (attributeId: string, categoryId: string, name: string, value: string) => ({
+  id: `s-${attributeId}`,
+  attributeId,
+  value,
+  attribute: { id: attributeId, name, categoryId, sortOrder: 0 },
+});
+
+describe('BrowseService.getProductDetail — specification scoping', () => {
+  const own = [
+    spec('a1', CHEMISES_CAT, 'Taille', 'M'),
+    spec('a2', CHEMISES_CAT, 'Couleur', 'Bleu'),
+    spec('a3', CHEMISES_CAT, 'Matière', 'Coton'),
+  ];
+  const foreign = [
+    spec('b1', KITCHEN_CAT, 'Taille', 'M'),
+    spec('b2', KITCHEN_CAT, 'Couleur', 'Bleu'),
+    spec('b3', KITCHEN_CAT, 'Matière', 'Coton'),
+  ];
+
+  it('renders each characteristic once when legacy foreign rows are preserved', async () => {
+    const { service } = makePdpService([...foreign, ...own]);
+    const out = await service.getProductDetail('h0d799');
+    expect(out.specifications).toHaveLength(3);
+    expect(out.specifications.map((s: { name: string }) => s.name)).toEqual([
+      'Taille',
+      'Couleur',
+      'Matière',
+    ]);
+  });
+
+  it('keeps the values from the product\'s OWN category attributes', async () => {
+    const { service } = makePdpService([...foreign, ...own]);
+    const out = await service.getProductDetail('h0d799');
+    expect(out.specifications.map((s: { attributeId: string }) => s.attributeId))
+      .toEqual(['a1', 'a2', 'a3']);
+  });
+
+  it('hides a stale legacy characteristic the new leaf does not define', async () => {
+    // vnkqce: « Type = Savon de lessive » owned by a soft-deleted category.
+    const { service } = makePdpService([spec('z1', 'dead-cat', 'Type', 'Savon de lessive')]);
+    const out = await service.getProductDetail('vnkqce');
+    expect(out.specifications).toEqual([]);
+  });
+
+  it('is a no-op for a product whose specifications all match its category', async () => {
+    const { service } = makePdpService(own);
+    const out = await service.getProductDetail('normal');
+    expect(out.specifications).toHaveLength(3);
   });
 });
