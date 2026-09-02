@@ -157,8 +157,80 @@ own-category → `sortOrder` → `attributeId`.
    `Poids` is probably the more appropriate characteristic for laundry products.
    Not solved in #617.
 
-### Production ordering requirement
+### Production ordering requirement — SATISFIED
 
-The de-duplication code **must reach production before** the data migration runs.
-Running the migration first would show buyers doubled characteristics on `h0d799`
-until the next deploy.
+The de-duplication code had to reach production **before** the data migration ran, or
+buyers would have seen doubled characteristics on `h0d799`. That ordering was honoured:
+code first (release #618), then the two migrations, each verified before the next.
+
+## RELEASED to production — 2026-09-02
+
+Release PR **#618** (`develop → main`, merge commit `ce76525`, 16 commits / 14 files /
++1,632 −23), back-merged so `main == develop == ce76525`. Deploy run `33667591201`: all
+5 jobs green. Carried Phases 1 (#615), 2a (#616), 2b (#617) and the seller/admin
+consistency fix (#619).
+
+**Neither migration ran during the deploy.** The expand phase read `auto-apply.list` and
+skipped its four already-applied entries; the two taxonomy files are not listed, so
+`apply-auto.sh` never saw them.
+
+**The new code was proven live behaviourally**, not from CI: `GET
+/v1/browse/categories/13000000-…-000000000501/attributes` (« Mode > Homme ») returned
+`[]`, where production had previously returned `Type, Type de peau`.
+
+**Compatibility confirmed before any data mutation** — the products that would have been
+blanked by the rejected rule still render their characteristics: `2mjco7` Riz
+« Poids = 10kg », `foyug0` Android « Mémoire interne / RAM / État », `pocc99` Huiles,
+`d3k7ei` Mixeurs.
+
+### Migrations applied — by hand, via `Apply prod migration`
+
+**1. `2026-09-02_prune_invalid_brand_category_links.sql`** — run `33668468256`,
+`INSERT 0 121 / DELETE 121`.
+
+| | Before | After |
+|---|---|---|
+| Brands | 49 | 49 *(none deleted)* |
+| Links (live brands) | 433 | **314** |
+| → leaf | 314 | **314** *(none removed)* |
+| → intermediate | 66 | **0** |
+| → soft-deleted | 53 | **0** |
+
+Leaf coverage identical in every top-level category. Seller dropdowns verified in
+production: Chemises → Autre/Nike/Lacoste · Soins du corps → Autre/Nivea · Moniteurs →
+Autre/HP/Dell/Asus/Acer · Parfums Homme → Autre/**Lacoste** (the deliberately kept link
+survived) · « Mode > Homme » (intermediate) → 0. `Autre` intact; `brandId = NULL`
+products unaffected; a branded product still resolves its brand.
+
+**2. `2026-09-03_remediate_legacy_category_products.sql`** — run `33668783372`.
+
+```
+NOTICE: h0d799: remediated → Chemises (3 specs created, legacy specs preserved)
+NOTICE: vnkqce: remediated → Lessive (1 legacy specs preserved, none transferred)
+```
+
+`h0d799` → « Mode > Homme > Chemises »; the buyer PDP renders Taille=M / Couleur=Bleu /
+Matière=Coton exactly once each, while **all 6 rows remain stored** (3 new Chemises rows
+plus the 3 original « Électroménager > Cuisine » rows, preserved). `vnkqce` → « … >
+Lessive », legacy `Type = Savon de lessive` preserved and visible, no mapping invented.
+`rb7t4r` untouched — `updatedAt` is still 2026-07-27, weeks before these migrations.
+
+### Migration tracking — a gap worth knowing
+
+`_manual_migrations` records **only auto-applied** files; `apply-migration.yml` writes no
+tracking row, so neither migration above appears there. The same is true of
+`2026-09-01_archive_duplicate_buyer_addresses.sql`, so this is pre-existing rather than
+new. Both are nonetheless self-recording, and both were verified in production:
+
+- `brand_categories_archive_20260902` — `intermediate_category=68, soft_deleted_category=53`
+- `product_remediation_20260903` — `category_repointed=2, spec_inserted=3`
+
+Neither was re-run in production to test idempotency; the dev double-runs stand as that
+proof. **Adding a tracking write to `apply-migration.yml` is a sensible follow-up.**
+
+### Not verified
+
+Sentry was **not** checked — no `sentry-cli` and no auth token available from the working
+environment. Health endpoints and all three web surfaces were verified instead.
+seller-mobile was never interactively exercised (`osascript` returns `-1719`, no
+`idb`/`cliclick`); the API response it consumes was verified.

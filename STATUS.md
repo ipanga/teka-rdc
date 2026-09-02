@@ -6,54 +6,56 @@
 
 ## Active initiative
 
-**Seller Catalog Taxonomy — Phase 2b MERGED to `develop`; production remediation NOT yet run.**
-
-PR **#617**, merge commit `6169201`, CI + CodeQL green. Adds
-`manual/2026-09-03_remediate_legacy_category_products.sql` (self-validating, idempotent,
-reversible, **not** in `auto-apply.list`) plus the PDP de-duplication invariant.
-`h0d799` → Chemises with Taille/Couleur/Matière; `vnkqce` → Lessive with no invented
-mapping; `rb7t4r` untouched and blocked on the alcohol decision.
-
-**A production read-only audit rejected the first PDP rule.** Scoping characteristics to
-the product's own category would have blanked **7 live products** (18 foreign specs across
-9). The rule in force preserves foreign rows and de-duplicates by name, preferring the
-current category — details in `docs/seller-catalog-taxonomy.md`.
-
-⚠️ **Ordering requirement:** the de-duplication code must reach production **before** the
-migration runs, or buyers see doubled characteristics on `h0d799`.
-
-**Phase 2a (brand cleanup) is MERGED into `develop`** — PR **#616**, merge commit `7fc0ddb`, CI + CodeQL
-green. Adds `manual/2026-09-02_prune_invalid_brand_category_links.sql`: idempotent, reversible, **not**
-in `auto-apply.list`, and **not yet applied to production**. It removes the 121 `BrandCategory` links
-whose target is not a live leaf (68 intermediate + 53 soft-deleted), leaving 314. Verified twice against
-dev (435 → 314, second run a no-op); leaf-level coverage unchanged. `Lacoste → Beauté & Santé > Parfums`
-is deliberately KEPT — Lacoste is a genuine fragrance brand, so the earlier "semantically wrong" flag was
-incorrect for those two links.
-
-**Open business decision — `rb7t4r` (Johnnie Walker).** Teka has **no** restricted-product policy, **no**
-age-verification field or gate, **no** admin moderation for restricted goods, and **no** alcohol mention
-in the seller rules. The current taxonomy has no alcohol leaf: the June 2026 refactor dropped the legacy
-`Type` option list (Bière/Vin/Spiritueux, still visible at `seed.ts:844`). Creating a
-« Boissons alcoolisées » leaf is therefore a **business/legal decision, not a taxonomy fix** — held.
-
-**Phase 1 is MERGED into `develop`** — PR **#615**, merge commit `9ecac4b`, CI + CodeQL green.
-Root cause: products may attach to an *intermediate* category, which still carries legacy pre-refactor
-attribute rows (« Mode > Homme » holds `Type de peau`), and the leaf-only rule was documented but
-enforced nowhere. Shipped: an API leaf-category invariant (`create()` always; `update()` only when
-`categoryId` changes, so legacy products stay editable), leaf-only selection in the seller-web combobox,
-server-side preservation of foreign/legacy `ProductSpecification` rows, and a legacy-category warning.
-Gates: **API 287 unit + 118 e2e**, type-check clean. Seller Web verified in the browser end to end;
-Seller Mobile built, launched and 42 tests green, but its **interactive create/edit flows remain
-unverified** — UI automation was unavailable. Tracker: `docs/seller-catalog-taxonomy.md`.
-
-**Not released.** `develop` is 4 ahead of `main`; no production deploy and no data change.
-Workstreams B/C/D (search analytics, sales analytics, CSV) remain **on hold**.
-
-The Buyer Mobile PDP + native splash refinement shipped to production on 2026-09-02 via release PR
-**#613**; buyer test builds **0.1.6+8** are out (TestFlight distributed, Play AAB awaiting manual upload)
-and await on-device validation.
+**None.** The Seller Catalog Taxonomy initiative shipped to production on 2026-09-02 and both manual
+data migrations have been applied and verified. Open follow-ups are listed below; none is in flight.
 
 ## Most recently completed initiative
+
+**Seller Catalog Taxonomy — RELEASED to production 2026-09-02, both data migrations applied.**
+Release PR **#618** (`develop → main`, merge commit `ce76525`, 16 commits / 14 files / +1,632 −23),
+back-merged so `main == develop == ce76525`. Deploy run `33667591201`: all 5 jobs green. The release
+carried Phases 1 (#615), 2a (#616), 2b (#617) and the seller/admin consistency fix (#619).
+
+**Root cause.** Products could attach to an *intermediate* category, which still carries legacy
+pre-refactor attribute rows (« Mode > Homme » holds `Type de peau`), and the leaf-only rule was
+documented but enforced nowhere. Shipped: the API leaf-category invariant (`create()` always;
+`update()` only when `categoryId` changes, so legacy products stay editable); leaf-only selection in
+the seller-web combobox plus a legacy-category warning; server-side preservation of foreign
+`ProductSpecification` rows (a quantity edit used to wipe values the seller was never shown); and one
+shared canonical characteristics representation used by the buyer, seller and admin detail endpoints.
+
+**The PDP rule that was REJECTED, and why it matters.** Scoping characteristics to
+`attribute.categoryId === product.categoryId` was tried first and **disconfirmed by a read-only
+production audit**: 18 foreign specification rows exist across 9 live products and **7 would have been
+left with no characteristics at all** (a 10 kg bag of rice losing « Poids », an Android phone losing
+RAM / Mémoire interne). Those rows are legitimate — the pre-3-level taxonomy attached attributes at
+subcategory level. The rule in force **preserves** foreign rows and de-duplicates **by name**,
+preferring the product's current category, normalised with `stripAccents()`, with deterministic
+precedence (own-category → `sortOrder` → `attributeId`).
+
+**Migrations applied to production** — both by hand via the `Apply prod migration` workflow, in this
+order, each verified before the next:
+
+1. `2026-09-02_prune_invalid_brand_category_links.sql` — run `33668468256`, `INSERT 0 121 / DELETE 121`.
+   Live-brand links **433 → 314**; leaf links unchanged at 314; intermediate 66 → 0; soft-deleted
+   53 → 0; 49 brands, none deleted; **leaf coverage identical in every category**. Reversible via
+   `brand_categories_archive_20260902` (68 + 53 = 121 rows).
+2. `2026-09-03_remediate_legacy_category_products.sql` — run `33668783372`.
+   `h0d799` → « Mode > Homme > Chemises »; the buyer PDP shows Taille=M / Couleur=Bleu / Matière=Coton
+   exactly once each, with all **6 rows still stored** (3 new + 3 original Électroménager preserved).
+   `vnkqce` → « … > Lessive », legacy `Type = Savon de lessive` preserved and visible, no mapping
+   invented. `rb7t4r` untouched — its `updatedAt` is still 2026-07-27. Reversible via
+   `product_remediation_20260903` (`category_repointed=2, spec_inserted=3`).
+
+**Verified live before touching data:** the new API was proven deployed behaviourally —
+`GET /v1/browse/categories/…000000000501/attributes` (« Mode > Homme ») returns `[]` where production
+previously returned `Type, Type de peau` — and the legitimate foreign characteristics above were
+confirmed intact both before and after each migration. **Sentry was NOT checked** (no `sentry-cli`, no
+auth token available); health endpoints and all three surfaces were.
+
+Tracker: `docs/seller-catalog-taxonomy.md`.
+
+## Previous completed initiative
 
 **Buyer Mobile PDP + native splash refinement — RELEASED to production 2026-09-02.**
 Release PR **#613** (`develop → main`, merge commit `8b27d1a`, 11 commits / 28 files / +1,263 −501),
@@ -72,7 +74,7 @@ titles, scrolling, SafeArea, and 2× text on iPhone SE. Favorite/review/native-s
 verified with isolated fixtures; no production writes. No other surface, shared component, or splash
 changes. Detail: `docs/buyer-mobile-pdp-splash-refinement.md` → "2026-09-02 targeted layout follow-up".
 
-## Previous completed initiative
+## Earlier completed initiative — buyer mobile PDP (pre-release state)
 
 **Buyer Mobile PDP + native splash refinement — complete on `develop`, not released.** Buyer Mobile only:
 the PDP breadcrumb is gone, the gallery/summary/sticky action/loading and responsive accessibility states
@@ -111,6 +113,35 @@ as the code did before this initiative, would have silently rewritten six orders
 
 ## Open follow-ups (not blocking)
 
+- **`rb7t4r` (Johnnie Walker) is BLOCKED on a business decision**, not on engineering. Teka has no
+  restricted-product policy, no age-verification field or gate, no admin moderation for restricted
+  goods, and no alcohol mention in the seller rules; the current taxonomy has no alcohol leaf (the
+  June 2026 refactor dropped the legacy Bière/Vin/Spiritueux options, still visible at `seed.ts:844`).
+  It sits on the intermediate « Supermarché > Boissons » with an incorrect `Type = Bière`. Decide
+  whether to permit alcohol *with* the necessary policy/age/moderation controls, or prohibit it and
+  archive the product.
+- **Manually-applied migrations are tracked nowhere central.** `_manual_migrations` records only
+  auto-applied files; `apply-migration.yml` writes no row, so the two 2026-09-02/03 taxonomy
+  migrations (and `2026-09-01_archive_duplicate_buyer_addresses.sql` before them) do not appear
+  there. Each self-records via its own archive/journal table, but adding a tracking write to
+  `apply-migration.yml` would close the gap.
+- **117 unreferenced legacy `ProductAttribute` rows** remain (of 200 suspects; the other 83 are
+  referenced and must be preserved). Deliberately deferred until after the product remediation, which
+  is now done — so this is unblocked whenever it is wanted.
+- **Taxonomy debt on `vnkqce`:** it still displays « Type = Savon de lessive » because the Lessive
+  leaf defines no equivalent `Type`; and Lessive exposes `Volume` although the product is sold by
+  weight (1,5 kg), where `Poids` would fit better. Both belong to a systematic leaf-characteristics
+  audit, not a one-off fix.
+- **Brand coverage is thin where it matters least so far:** Maison & Cuisine has 25 of 26 leaves with
+  no real brand, Supermarché 19/29, Mode 17/29. Absence of a brand is not automatically a defect —
+  decide per product type which genuinely benefit before adding any.
+- **Search analytics measured, deliberately not built:** production `SearchQuery` holds 53 rows over
+  ~70 days (13/30d, 2/7d, 1/24h) — far too little to justify retention or aggregation infrastructure.
+  **33 of 53 (62%) returned zero results**, which is the signal worth acting on when that workstream
+  starts.
+- **seller-mobile detail screen renders raw specification rows.** The API now returns the canonical
+  de-duplicated set, so this is correct today; but the screen has no client-side guard of its own and
+  the fix reaches devices only on the next store build.
 - **buyer-mobile UI reaches devices only on the next store build.** The API and web changes are live now;
   the one-address rule is enforced server-side precisely so an older app build cannot bypass it. Old
   builds keep working — `POST /v1/addresses` still succeeds, it just upserts.
