@@ -135,7 +135,13 @@ as the code did before this initiative, would have silently rewritten six orders
   already clean"). Backfill only the 26 with run-log evidence; asserting "applied" for the
   other 9 without evidence would make a future auto-apply run skip a migration that never
   ran. Proposed SQL is in the report — idempotent, `ON CONFLICT DO NOTHING`, `applied_at`
-  set to each run's real date.
+  set to each run's real date. **Prepared as
+  `manual/2026-09-04_backfill_manual_migrations.sql` (PR #622) — not yet applied to production.**
+  Independent re-verification of all 26 runs caught **two** filename/execution-date mismatches:
+  `2026-07-23_prune-non-leaf-attributes.sql` actually ran 2026-07-24, and
+  `2026-09-03_remediate_legacy_category_products.sql` actually ran 2026-09-02. The run timestamp is
+  authoritative in both. Tested twice on dev: 0 → 26 rows, second run a no-op, application tables
+  byte-identical throughout.
 - **117 unreferenced legacy `ProductAttribute` rows** remain (of 200 suspects; the other 83 are
   referenced and must be preserved). Deliberately deferred until after the product remediation, which
   is now done — so this is unblocked whenever it is wanted.
