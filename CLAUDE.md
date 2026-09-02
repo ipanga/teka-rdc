@@ -44,7 +44,7 @@ pnpm clean                      # nuke node_modules / dist / .next / .turbo ever
 
 > **⚠️ `pnpm lint` rewrites files.** `apps/api`'s lint script is `eslint … --fix`, so a root `pnpm lint` silently modifies ~28 api files you never touched — this is the recurring "modified files nobody edited". `apps/api` currently reports **1,044 errors / 218 warnings** raw (≈948 errors after the script's own `--fix` pass): pre-existing debt, not something you broke. **`pnpm type-check` is the real gate** — CI's `ci.yml` job is *named* "Lint & Type Check" but runs type-check only, and root lint runs only in `pr-validation.yml`, where it is explicitly non-blocking. If you do run lint, `git checkout` the incidental churn before committing.
 
-> **What the workspace actually covers.** `apps/{buyer,seller}-mobile` have **no `package.json`**, so they are not workspace members — `pnpm lint` / `type-check` / `test` never reach them regardless of `--recursive`. Their gates are `flutter analyze` + `flutter test`, run from each app directory. Likewise `pnpm test` resolves only in `api` and `buyer-web`; `seller-web`, `admin-web`, and `@teka/shared` define no `test` script and are skipped silently.
+> **What the workspace actually covers.** `apps/{buyer,seller}-mobile` have **no `package.json`**, so they are not workspace members — `pnpm lint` / `type-check` / `test` never reach them regardless of `--recursive`. Their gates are `flutter analyze` + `flutter test`, run from each app directory — and CI runs **only `flutter analyze`** on both apps, never `flutter test`, so the mobile suites are yours to run. Likewise `pnpm test` resolves only in `api` and `buyer-web`; `seller-web`, `admin-web`, and `@teka/shared` define no `test` script and are skipped silently.
 
 ### Running tests
 
@@ -63,9 +63,9 @@ Jest matches the path argument against the *full* path, so a repo-root-relative 
 
 buyer-web has a **Vitest** suite (`pnpm --filter buyer-web test`; jsdom, `vitest.config.ts`) covering middleware, sitemap, URL helpers, and a few components. **CI does not run it** — run it yourself when touching those files.
 
-Green baseline, all re-run and verified green on 2026-09-01, for telling "I broke it" from "already red": **API 271 unit + 118 e2e · buyer-mobile 218 · seller-mobile 42 · buyer-web 68 (vitest).**
+Green baseline for telling "I broke it" from "already red": **API 271 unit + 118 e2e · buyer-mobile 231 · seller-mobile 42 · buyer-web 68 (vitest).** buyer-mobile was re-run 2026-09-02 (after the PDP work); the other three were last re-run 2026-09-01.
 
-`flutter analyze` is **not** at zero: buyer-mobile carries **6 info-level SDK deprecations** in `secure_storage.dart`, `filter_bottom_sheet.dart` and `checkout_screen.dart`. CI runs `flutter analyze --no-fatal-infos`, so infos pass and **warnings fail** — read the output by severity, not by the total count.
+`flutter analyze` is **not** at zero: buyer-mobile carries **6 info-level SDK deprecations** in `secure_storage.dart`, `filter_bottom_sheet.dart` and `checkout_screen.dart`. CI runs `flutter analyze --no-fatal-infos`, so infos pass and **warnings fail** — read the output by severity, not by the total count. Locally, scope it (`flutter analyze --no-fatal-infos lib test`): once an iOS build has populated the gitignored `build/`, a bare run adds ~74 *error*-level hits from vendored SDK sources that CI's fresh checkout never sees.
 
 ### Prisma workflow
 
@@ -79,10 +79,14 @@ DATABASE_URL=$(grep '^DATABASE_URL=' .env.development | cut -d= -f2-) \
 
 After editing `apps/api/prisma/schema.prisma`: run `pnpm db:push` (cloud DB, no migration files in dev) then `pnpm --filter api prisma:generate` if your IDE doesn't pick up new types.
 
+`apps/api` also defines `prisma:seed:prod` and `prisma:reset-catalog:prod` (both `--env-file=../../.env.production`); neither has a root alias.
+
 For production, schema changes ship as **idempotent** manual SQL under `apps/api/prisma/migrations/manual/YYYY-MM-DD_*.sql` (wrap in `IF NOT EXISTS`, guard data updates). Two apply paths — full detail in `docs/deployment.md §5a`:
 
 1. **Auto-applied during deploy** — add the filename to `manual/auto-apply.list`; `deploy.yml` runs `prisma/migrations/apply-auto.sh` (which sits *above* `manual/`, not inside it) **before the rolling swap**, tracking applied files in `_manual_migrations`. **Additive/backward-compatible only** — the old code keeps serving while it runs.
 2. **Manual** — the `Apply prod migration` Action (Actions tab → Run workflow → paste the filename) for destructive/contract-phase migrations. It docker-execs into the *running* api container, so the file must already be on `main`. The api image bundles `postgresql-client`.
+
+Two further `workflow_dispatch` prod-ops Actions exist: **`Run prod seed`** (`SEED_MODE=prod` — foundational data only, never real users/orders) and **`Run prod notification backfill`**. Both require typing `RUN` and are concurrency-locked against the deploy group, so neither can race a rollout.
 
 ### Docker
 
@@ -107,7 +111,7 @@ flutter pub run build_runner build           # regenerate Riverpod / freezed cod
 
 Dev/staging APKs need per-flavor `google-services.json` (CI injects from secrets) or they fail at `:processGoogleServices*` — see `docs/mobile-flavors.md`.
 
-**Mobile release CI** — all `workflow_dispatch`-only, per app buyer/seller/both. Android: `release-mobile-aab.yml` + `build-mobile-apk.yml`. iOS: `release-mobile-ipa.yml` (signed prod IPA via Fastlane `match` → dSYM→Sentry → `ios-testflight` approval gate → TestFlight) + `build-mobile-ipa.yml`. Load-bearing: both apps share Apple team `YK6Z393A4D`; certs live in the private `teka-ios-certs` match repo; the committed pbxproj stays `CODE_SIGN_STYLE=Automatic` (CI flips it to Manual ephemerally); every TestFlight upload needs a higher `CFBundleVersion`. **Full runbook + secrets + gotchas: `docs/mobile-release.md`** (root `Gemfile`/`fastlane/` hold the Fastlane setup).
+**Mobile release CI** — all `workflow_dispatch`-only, per app buyer/seller/both. Android: `release-mobile-aab.yml` + `build-mobile-apk.yml`. iOS: `release-mobile-ipa.yml` (signed prod IPA via Fastlane `match` → dSYM→Sentry → `ios-testflight` approval gate → TestFlight) + `build-mobile-ipa.yml`. Load-bearing: both apps share Apple team `YK6Z393A4D`; certs live in the private `teka-ios-certs` match repo; the committed pbxproj stays `CODE_SIGN_STYLE=Automatic` (CI flips it to Manual ephemerally); every TestFlight upload needs a higher `CFBundleVersion`. `ci.yml`'s **`Release Config`** job guards the app → tester-group mapping via `fastlane/testflight_groups_test.rb` — it exists because five releases once uploaded cleanly and reached nobody. **Full runbook + secrets + gotchas: `docs/mobile-release.md`** (root `Gemfile`/`fastlane/` hold the Fastlane setup).
 
 ### Branching (see CONTRIBUTING.md for full detail)
 

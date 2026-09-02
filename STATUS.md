@@ -70,7 +70,17 @@ as the code did before this initiative, would have silently rewritten six orders
   keys — search infrastructure created by manual SQL that `schema.prisma` does not model. Production is
   unaffected. Separately, dev was missing `2026-07-24_account_deletion_pending.sql` (buyer login 500'd
   locally until it was applied) — worth auditing dev against `auto-apply.list` generally.
-- **CLAUDE.md is ~38.4k chars**, close to the 40k performance warning it documents. Due a trim pass.
+- **CLAUDE.md headroom is thin.** The trim pass is done (`6cbf6a7`, 2026-09-01); the file now sits at
+  ~38.7k chars against the 40k performance warning it documents. Prefer *replacing* stale text over
+  appending — the next initiative that appends freely will trip the warning.
+- **buyer-mobile `values-v33` splash themes keep `windowDrawsSystemBarBackgrounds">true`** while the four
+  generator-managed theme files had it stripped in `c7207e5`. It is residue from the abandoned
+  `fullscreen: true` config: `flutter_native_splash` writes that key and `windowFullscreen` from the
+  *same* flag, and the hand-written v33 sidecars were copied off v31 before the cleanup (the generator
+  knows nothing about v33, so it never corrects them). **Harmless** — `windowFullscreen` is what hid the
+  status bar and it is gone everywhere; the Android 14 QA that validated the fix ran in the v33 bucket
+  and was clean. Worth a two-line deletion for consistency with this tracker's own "keep the explicit
+  status-bar keys absent" rule, plus a v33 assertion in `native_splash_assets_test.dart`.
 
 ## Previous initiative
 
