@@ -124,13 +124,18 @@ as the code did before this initiative, would have silently rewritten six orders
   `apply-migration.yml` now records the filename in the same `_manual_migrations` table the
   auto-apply path uses, written only after the file succeeds. It also gained
   `ON_ERROR_STOP=1`, which it had been missing: psql exits 0 on SQL errors without it, so a
-  half-applied migration used to print "✓ migration applied". **Remaining:** the three
-  migrations applied before this change are still absent from the table —
-  `2026-09-01_archive_duplicate_buyer_addresses.sql`,
-  `2026-09-02_prune_invalid_brand_category_links.sql`,
-  `2026-09-03_remediate_legacy_category_products.sql`. All three are idempotent and
-  self-recording via their own archive/journal tables; a one-line backfill INSERT would
-  complete the record if wanted.
+  half-applied migration used to print "✓ migration applied". Merged as `6dfaed6` (PR #621).
+- **Backfill of `_manual_migrations` is PENDING approval — and it is 26 files, not 3.**
+  Auditing every `Apply prod migration` run (27 runs, 26 successful) by parsing
+  "▶ applying …" out of each log gives the definitive list: **26 migrations were applied
+  through that workflow and none of them is recorded.** Of the 39 files in `manual/`,
+  4 are auto-applied and recorded, 26 were workflow-applied and unrecorded, and **9 were
+  applied through neither** — 8 predate the workflow (its first run is 2026-05-21) and
+  `2026-06-23_translatable_jsonstring_to_fr.sql` was **dev-only** (CLAUDE.md: "prod was
+  already clean"). Backfill only the 26 with run-log evidence; asserting "applied" for the
+  other 9 without evidence would make a future auto-apply run skip a migration that never
+  ran. Proposed SQL is in the report — idempotent, `ON CONFLICT DO NOTHING`, `applied_at`
+  set to each run's real date.
 - **117 unreferenced legacy `ProductAttribute` rows** remain (of 200 suspects; the other 83 are
   referenced and must be preserved). Deliberately deferred until after the product remediation, which
   is now done — so this is unblocked whenever it is wanted.
