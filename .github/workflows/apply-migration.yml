@@ -96,7 +96,14 @@ jobs:
             # unambiguous PG* env vars instead of the URL. Without this
             # detour, prod DBs with `@` in the password parse psql's
             # host as `<password-tail>@<real-host>` and fail to resolve.
-            $COMPOSE exec -T api sh -c '
+            #
+            # REL_PATH / MIGRATION_FILE are passed in as container env vars
+            # rather than interpolated into the single-quoted script, which
+            # keeps the quoting readable and leaves no shell-expansion seam.
+            $COMPOSE exec -T \
+              -e REL_PATH="$REL_PATH" \
+              -e MIGRATION_FILE="$MIGRATION_FILE" \
+              api sh -c '
               set -e
               eval "$(node -e "
                 const u = new URL(process.env.DATABASE_URL);
@@ -106,7 +113,33 @@ jobs:
                 console.log(\"export PGPASSWORD=\" + JSON.stringify(decodeURIComponent(u.password)));
                 console.log(\"export PGDATABASE=\" + JSON.stringify(u.pathname.slice(1).replace(/\\?.*/, \"\")));
               ")"
-              psql -f '"$REL_PATH"'
+
+              # ON_ERROR_STOP is load-bearing. Without it psql reports the SQL
+              # error but still exits 0, so a half-applied migration printed
+              # "✓ migration applied" and — worse, now — would be recorded as
+              # successful. With it, any error aborts before the record below.
+              psql -v ON_ERROR_STOP=1 -f "$REL_PATH"
+
+              # Bookkeeping, mirroring prisma/migrations/apply-auto.sh: the same
+              # `_manual_migrations` table, the same ON CONFLICT DO NOTHING, and
+              # written only AFTER the file succeeded. Sharing one table means
+              # the two paths see each other: a migration applied by hand here
+              # is skipped by a later auto-apply run, and vice versa.
+              #
+              # DO NOTHING keeps the FIRST applied_at. These migrations are
+              # idempotent and re-running one by hand is legitimate, so the
+              # useful fact is "this file has been applied to this database",
+              # not when it was last replayed. RETURNING lets us say which
+              # happened.
+              psql -v ON_ERROR_STOP=1 -q -c \
+                "CREATE TABLE IF NOT EXISTS _manual_migrations (filename text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now());"
+              recorded=$(psql -v ON_ERROR_STOP=1 -tAq -c \
+                "INSERT INTO _manual_migrations (filename) VALUES ('"'"'$MIGRATION_FILE'"'"') ON CONFLICT (filename) DO NOTHING RETURNING 1;")
+              if [ "$recorded" = "1" ]; then
+                echo "  ✓ recorded in _manual_migrations: $MIGRATION_FILE"
+              else
+                echo "  ✓ already recorded in _manual_migrations (re-run): $MIGRATION_FILE"
+              fi
             '
 
             echo "✓ migration applied"
