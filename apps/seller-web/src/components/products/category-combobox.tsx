@@ -14,6 +14,8 @@ interface FlatNode {
   label: string;
   parentLabel: string | null;
   depth: number;
+  /** Product type. Only leaves are selectable; branches exist for labelling. */
+  isLeaf: boolean;
 }
 
 // Accent + case insensitive so "tele" matches "Téléphones", "chauss" matches
@@ -35,13 +37,11 @@ function flatten(
   for (const c of cats) {
     const label = c.name || '---';
     const kids = c.children || c.subcategories || [];
-    // LEAF-ONLY: only product types are selectable. Branches are traversed for
-    // their children but never offered as options — attributes attach to the
-    // leaf, so a product on an intermediate node inherits that node's legacy
-    // rows instead (« Mode > Homme » still carries "Type de peau"). seller-mobile
-    // already behaved this way; this closes the web/mobile divergence that let
-    // an intermediate category be chosen. The API rejects it either way.
-    if (!kids.length) out.push({ id: c.id, label, parentLabel, depth });
+    // Every node is flattened, but only leaves are SELECTABLE (see `options`).
+    // Branches must stay in the list so a legacy product already sitting on an
+    // intermediate node can still show its category name instead of falling
+    // back to the "Sélectionner une catégorie" placeholder.
+    out.push({ id: c.id, label, parentLabel, depth, isLeaf: !kids.length });
     // Pass the FULL path down so a product type reads e.g.
     // "Téléphones & Accessoires › Smartphones › Android" (not just its parent).
     const path = parentLabel ? `${parentLabel} › ${label}` : label;
@@ -88,15 +88,21 @@ export default function CategoryCombobox({
     [flat, value],
   );
 
+  // LEAF-ONLY selection: attributes attach to the product type, so a product on
+  // an intermediate node inherits that node's legacy rows instead (« Mode >
+  // Homme » still carries "Type de peau"). seller-mobile already restricted to
+  // leaves; this closes the divergence. The API rejects a non-leaf either way.
+  const options = useMemo(() => flat.filter((n) => n.isLeaf), [flat]);
+
   const results = useMemo(() => {
     const q = normalize(query);
-    if (!q) return flat;
-    return flat.filter(
+    if (!q) return options;
+    return options.filter(
       (n) =>
         normalize(n.label).includes(q) ||
         (n.parentLabel ? normalize(n.parentLabel).includes(q) : false),
     );
-  }, [flat, query]);
+  }, [options, query]);
 
   // Close on outside click.
   useEffect(() => {
@@ -177,6 +183,18 @@ export default function CategoryCombobox({
           ▾
         </span>
       </button>
+
+      {/* Legacy products still sit on an intermediate node. Their category is
+          shown (so the field is never mysteriously blank) but it is no longer a
+          valid choice, and the API serves no attributes for it — so the
+          « Caractéristiques » block reads "Aucune caractéristique" with no
+          explanation unless we say why here. */}
+      {selected && !selected.isLeaf && (
+        <p className="mt-1 text-xs text-amber-700" role="status">
+          Ce produit utilise une ancienne catégorie. Sélectionnez une catégorie
+          plus précise pour modifier ses caractéristiques.
+        </p>
+      )}
 
       {open && (
         <div className="absolute z-50 mt-1 w-full bg-white border border-border rounded-lg shadow-lg">
