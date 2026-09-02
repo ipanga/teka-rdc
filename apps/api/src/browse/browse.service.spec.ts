@@ -195,11 +195,14 @@ describe('BrowseService.getProductDetail — specification labels', () => {
     return new BrowseService(prisma as never);
   }
 
+  // categoryId matches the product's own category ('c1'): these fixtures model
+  // an ordinary product, whose characteristics all belong to its category. The
+  // PDP now scopes specifications to that category, so the field is required.
   const spec = (name: string, value: string, sortOrder = 0, id = name) => ({
     id,
     attributeId: `attr-${id}`,
     value,
-    attribute: { name, sortOrder },
+    attribute: { name, sortOrder, categoryId: 'c1' },
   });
 
   it('flattens attribute.name onto the spec', async () => {
@@ -310,5 +313,158 @@ describe('BrowseService.getCategoryAttributes — leaf-only invariant', () => {
     expect(prisma.category.count).toHaveBeenCalledWith({
       where: { parentCategoryId: CHEMISES, deletedAt: null },
     });
+  });
+});
+
+// ── PDP characteristics are de-duplicated by name ──────────────────────────
+// Remediating a product onto its correct leaf adds Taille/Couleur/Matière from
+// that leaf beside identically named rows owned by its PREVIOUS category, so
+// the buyer PDP printed each characteristic twice. Foreign rows are NOT dropped
+// wholesale: production has 18 of them across 9 live products (a 10 kg bag of
+// rice holds « Poids » from its parent category; an Android phone holds
+// RAM/Mémoire interne from « … > Smartphones »), and 7 of those products would
+// otherwise be left with no characteristics at all.
+const CHEMISES_CAT = '16000000-0000-0000-0000-000000050102';
+const KITCHEN_CAT = '13000000-0000-0000-0000-000000000401';
+
+function makePdpService(specs: Array<Record<string, unknown>>) {
+  const prisma = {
+    product: {
+      findFirst: jest.fn().mockResolvedValue({
+        id: 'p1',
+        categoryId: CHEMISES_CAT,
+        isDemo: false,
+        specifications: specs,
+        images: [],
+        seller: { id: 's1', sellerProfile: null },
+        category: { id: CHEMISES_CAT, name: 'Chemises', parentCategory: null },
+      }),
+      findUnique: jest.fn().mockResolvedValue(null),
+    },
+    systemSetting: { findUnique: jest.fn().mockResolvedValue(null) },
+  };
+  return { service: new BrowseService(prisma as never), prisma };
+}
+
+const spec = (attributeId: string, categoryId: string, name: string, value: string) => ({
+  id: `s-${attributeId}`,
+  attributeId,
+  value,
+  attribute: { id: attributeId, name, categoryId, sortOrder: 0 },
+});
+
+describe('BrowseService.getProductDetail — specification scoping', () => {
+  const own = [
+    spec('a1', CHEMISES_CAT, 'Taille', 'M'),
+    spec('a2', CHEMISES_CAT, 'Couleur', 'Bleu'),
+    spec('a3', CHEMISES_CAT, 'Matière', 'Coton'),
+  ];
+  const foreign = [
+    spec('b1', KITCHEN_CAT, 'Taille', 'M'),
+    spec('b2', KITCHEN_CAT, 'Couleur', 'Bleu'),
+    spec('b3', KITCHEN_CAT, 'Matière', 'Coton'),
+  ];
+
+  it('renders each characteristic once when legacy foreign rows are preserved', async () => {
+    const { service } = makePdpService([...foreign, ...own]);
+    const out = await service.getProductDetail('h0d799');
+    expect(out.specifications).toHaveLength(3);
+    expect(out.specifications.map((s: { name: string }) => s.name)).toEqual([
+      'Taille',
+      'Couleur',
+      'Matière',
+    ]);
+  });
+
+  it('keeps the values from the product\'s OWN category attributes', async () => {
+    const { service } = makePdpService([...foreign, ...own]);
+    const out = await service.getProductDetail('h0d799');
+    expect(out.specifications.map((s: { attributeId: string }) => s.attributeId))
+      .toEqual(['a1', 'a2', 'a3']);
+  });
+
+  it('KEEPS a foreign characteristic when no own-category row shares its name', async () => {
+    // A 10 kg bag of rice legitimately carries « Poids » from its PARENT
+    // category. Dropping foreign rows would blank 7 live products in production.
+    const { service } = makePdpService([spec('z1', 'parent-cat', 'Poids', '10kg')]);
+    const out = await service.getProductDetail('2mjco7');
+    expect(out.specifications).toHaveLength(1);
+    expect(out.specifications[0]).toMatchObject({ name: 'Poids', value: '10kg' });
+  });
+
+  it('keeps every foreign row when names do not collide', async () => {
+    const { service } = makePdpService([
+      spec('p1', 'other-cat', 'Mémoire interne', '16Go'),
+      spec('p2', 'other-cat', 'RAM', '4Go'),
+      spec('p3', 'other-cat', 'État', 'Neuf'),
+    ]);
+    const out = await service.getProductDetail('foyug0');
+    expect(out.specifications).toHaveLength(3);
+  });
+
+  it('is a no-op for a product whose specifications all match its category', async () => {
+    const { service } = makePdpService(own);
+    const out = await service.getProductDetail('normal');
+    expect(out.specifications).toHaveLength(3);
+  });
+});
+
+// ── Deterministic precedence + normalisation ──────────────────────────────
+describe('BrowseService.getProductDetail — precedence and normalisation', () => {
+  const OWN = CHEMISES_CAT;
+
+  it('current-category value WINS over a same-named foreign one', async () => {
+    const { service } = makePdpService([
+      spec('foreign', KITCHEN_CAT, 'Taille', 'XXL'), // stale
+      spec('own', OWN, 'Taille', 'M'), // correct
+    ]);
+    const out = await service.getProductDetail('p');
+    expect(out.specifications).toHaveLength(1);
+    expect(out.specifications[0]).toMatchObject({ attributeId: 'own', value: 'M' });
+  });
+
+  it('wins regardless of the order rows arrive in from the database', async () => {
+    const rows = [
+      spec('own', OWN, 'Taille', 'M'),
+      spec('foreign', KITCHEN_CAT, 'Taille', 'XXL'),
+    ];
+    for (const order of [rows, [...rows].reverse()]) {
+      const { service } = makePdpService(order);
+      const out = await service.getProductDetail('p');
+      expect(out.specifications).toHaveLength(1);
+      expect(out.specifications[0].value).toBe('M');
+    }
+  });
+
+  it('treats accent/case/whitespace variants as the same characteristic', async () => {
+    const { service } = makePdpService([
+      spec('foreign', KITCHEN_CAT, '  matiere ', 'Polyester'),
+      spec('own', OWN, 'Matière', 'Coton'),
+    ]);
+    const out = await service.getProductDetail('p');
+    expect(out.specifications).toHaveLength(1);
+    expect(out.specifications[0].value).toBe('Coton');
+  });
+
+  it('is deterministic when several FOREIGN rows share a name and none is own-category', async () => {
+    const rows = [
+      spec('bbb', 'cat-x', 'Type', 'B'),
+      spec('aaa', 'cat-y', 'Type', 'A'),
+    ];
+    const first = await (await makePdpService(rows).service).getProductDetail('p');
+    const second = await (await makePdpService([...rows].reverse()).service).getProductDetail('p');
+    expect(first.specifications).toHaveLength(1);
+    // attributeId is the stable final tiebreaker, so both orders agree.
+    expect(first.specifications[0].attributeId).toBe('aaa');
+    expect(second.specifications[0].attributeId).toBe('aaa');
+  });
+
+  it('keeps both when a current and a foreign row have DIFFERENT names', async () => {
+    const { service } = makePdpService([
+      spec('own', OWN, 'Taille', 'M'),
+      spec('foreign', KITCHEN_CAT, 'Poids', '1kg'),
+    ]);
+    const out = await service.getProductDetail('p');
+    expect(out.specifications.map((s: { name: string }) => s.name).sort()).toEqual(['Poids', 'Taille']);
   });
 });
