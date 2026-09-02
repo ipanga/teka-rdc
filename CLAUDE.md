@@ -44,7 +44,7 @@ pnpm clean                      # nuke node_modules / dist / .next / .turbo ever
 
 > **⚠️ `pnpm lint` rewrites files.** `apps/api`'s lint script is `eslint … --fix`, so a root `pnpm lint` silently modifies ~28 api files you never touched — this is the recurring "modified files nobody edited". `apps/api` currently reports **1,044 errors / 218 warnings** raw (≈948 errors after the script's own `--fix` pass): pre-existing debt, not something you broke. **`pnpm type-check` is the real gate** — CI's `ci.yml` job is *named* "Lint & Type Check" but runs type-check only, and root lint runs only in `pr-validation.yml`, where it is explicitly non-blocking. If you do run lint, `git checkout` the incidental churn before committing.
 
-> **What the workspace actually covers.** `apps/{buyer,seller}-mobile` have **no `package.json`**, so they are not workspace members — `pnpm lint` / `type-check` / `test` never reach them regardless of `--recursive`. Their gates are `flutter analyze` + `flutter test`, run from each app directory. Likewise `pnpm test` resolves only in `api` and `buyer-web`; `seller-web`, `admin-web`, and `@teka/shared` define no `test` script and are skipped silently.
+> **What the workspace actually covers.** `apps/{buyer,seller}-mobile` have **no `package.json`**, so they are not workspace members — `pnpm lint` / `type-check` / `test` never reach them regardless of `--recursive`. Their gates are `flutter analyze` + `flutter test`, run from each app directory — and CI runs **only `flutter analyze`** on both apps, never `flutter test`, so the mobile suites are yours to run. Likewise `pnpm test` resolves only in `api` and `buyer-web`; `seller-web`, `admin-web`, and `@teka/shared` define no `test` script and are skipped silently.
 
 ### Running tests
 
@@ -63,9 +63,9 @@ Jest matches the path argument against the *full* path, so a repo-root-relative 
 
 buyer-web has a **Vitest** suite (`pnpm --filter buyer-web test`; jsdom, `vitest.config.ts`) covering middleware, sitemap, URL helpers, and a few components. **CI does not run it** — run it yourself when touching those files.
 
-Green baseline, all re-run and verified green on 2026-09-01, for telling "I broke it" from "already red": **API 271 unit + 118 e2e · buyer-mobile 218 · seller-mobile 42 · buyer-web 68 (vitest).**
+Green baseline for telling "I broke it" from "already red": **API 271 unit + 118 e2e · buyer-mobile 231 · seller-mobile 42 · buyer-web 68 (vitest).** buyer-mobile was re-run 2026-09-02 (after the PDP work); the other three were last re-run 2026-09-01.
 
-`flutter analyze` is **not** at zero: buyer-mobile carries **6 info-level SDK deprecations** in `secure_storage.dart`, `filter_bottom_sheet.dart` and `checkout_screen.dart`. CI runs `flutter analyze --no-fatal-infos`, so infos pass and **warnings fail** — read the output by severity, not by the total count.
+`flutter analyze` is **not** at zero: buyer-mobile carries **6 info-level SDK deprecations** in `secure_storage.dart`, `filter_bottom_sheet.dart` and `checkout_screen.dart`. CI runs `flutter analyze --no-fatal-infos`, so infos pass and **warnings fail** — read the output by severity, not by the total count. Locally, scope it (`flutter analyze --no-fatal-infos lib test`): once an iOS build has populated the gitignored `build/`, a bare run adds ~74 *error*-level hits from vendored SDK sources that CI's fresh checkout never sees.
 
 ### Prisma workflow
 
@@ -79,10 +79,14 @@ DATABASE_URL=$(grep '^DATABASE_URL=' .env.development | cut -d= -f2-) \
 
 After editing `apps/api/prisma/schema.prisma`: run `pnpm db:push` (cloud DB, no migration files in dev) then `pnpm --filter api prisma:generate` if your IDE doesn't pick up new types.
 
+`apps/api` also defines `prisma:seed:prod` and `prisma:reset-catalog:prod` (both `--env-file=../../.env.production`); neither has a root alias.
+
 For production, schema changes ship as **idempotent** manual SQL under `apps/api/prisma/migrations/manual/YYYY-MM-DD_*.sql` (wrap in `IF NOT EXISTS`, guard data updates). Two apply paths — full detail in `docs/deployment.md §5a`:
 
 1. **Auto-applied during deploy** — add the filename to `manual/auto-apply.list`; `deploy.yml` runs `prisma/migrations/apply-auto.sh` (which sits *above* `manual/`, not inside it) **before the rolling swap**, tracking applied files in `_manual_migrations`. **Additive/backward-compatible only** — the old code keeps serving while it runs.
 2. **Manual** — the `Apply prod migration` Action (Actions tab → Run workflow → paste the filename) for destructive/contract-phase migrations. It docker-execs into the *running* api container, so the file must already be on `main`. The api image bundles `postgresql-client`.
+
+Two further `workflow_dispatch` prod-ops Actions exist: **`Run prod seed`** (`SEED_MODE=prod` — foundational data only, never real users/orders) and **`Run prod notification backfill`**. Both require typing `RUN` and are concurrency-locked against the deploy group, so neither can race a rollout.
 
 ### Docker
 
@@ -107,7 +111,7 @@ flutter pub run build_runner build           # regenerate Riverpod / freezed cod
 
 Dev/staging APKs need per-flavor `google-services.json` (CI injects from secrets) or they fail at `:processGoogleServices*` — see `docs/mobile-flavors.md`.
 
-**Mobile release CI** — all `workflow_dispatch`-only, per app buyer/seller/both. Android: `release-mobile-aab.yml` + `build-mobile-apk.yml`. iOS: `release-mobile-ipa.yml` (signed prod IPA via Fastlane `match` → dSYM→Sentry → `ios-testflight` approval gate → TestFlight) + `build-mobile-ipa.yml`. Load-bearing: both apps share Apple team `YK6Z393A4D`; certs live in the private `teka-ios-certs` match repo; the committed pbxproj stays `CODE_SIGN_STYLE=Automatic` (CI flips it to Manual ephemerally); every TestFlight upload needs a higher `CFBundleVersion`. **Full runbook + secrets + gotchas: `docs/mobile-release.md`** (root `Gemfile`/`fastlane/` hold the Fastlane setup).
+**Mobile release CI** — all `workflow_dispatch`-only, per app buyer/seller/both. Android: `release-mobile-aab.yml` + `build-mobile-apk.yml`. iOS: `release-mobile-ipa.yml` (signed prod IPA via Fastlane `match` → dSYM→Sentry → `ios-testflight` approval gate → TestFlight) + `build-mobile-ipa.yml`. Load-bearing: both apps share Apple team `YK6Z393A4D`; certs live in the private `teka-ios-certs` match repo; the committed pbxproj stays `CODE_SIGN_STYLE=Automatic` (CI flips it to Manual ephemerally); every TestFlight upload needs a higher `CFBundleVersion`. `ci.yml`'s **`Release Config`** job guards the app → tester-group mapping via `fastlane/testflight_groups_test.rb` — it exists because five releases once uploaded cleanly and reached nobody. **Full runbook + secrets + gotchas: `docs/mobile-release.md`** (root `Gemfile`/`fastlane/` hold the Fastlane setup).
 
 ### Branching (see CONTRIBUTING.md for full detail)
 
@@ -189,21 +193,19 @@ Every merge to `main` ships via GitHub Actions, **zero-downtime**. `develop` is 
 `architecture.md` (authoritative service architecture) · `product-spec.md` (feature spec + 8-phase
 history) · `url-and-seo-strategy.md` (city-first URLs/slugs/redirects) · `analytics.md` (PostHog) ·
 `clarity.md` (Microsoft Clarity) · `api-reference.md` · `deployment.md` (§5b admin seeding) ·
-`mobile-connectivity.md` (Rule 15) · `mobile-flavors.md` · `mobile-release.md` (Android signing + Play
-Store; **iOS TestFlight CI/CD** — match signing + dSYM→Sentry + approval gate) ·
+`mobile-connectivity.md` (Rule 15) · `mobile-flavors.md` · `mobile-release.md` (Android signing + Play Store;
+**iOS TestFlight CI/CD** — match signing, dSYM→Sentry, approval gate) ·
 `payouts.md` (seller payouts + settlement) · `delivery-fees-and-currency.md` (zone-based delivery fees +
-FC display + money convention) · `order-workflow.md` (**Teka-managed** order lifecycle: collection → delivery →
-COD cash → 2-day return window → payout; commission/financials + lazy payout eligibility + returns + list
-response-shape contract) · `push-notifications.md` (FCM) ·
+FC display + money convention) · `order-workflow.md` (**Teka-managed** lifecycle: collection → delivery → COD cash →
+2-day return window → payout; financials, returns, response-shape contract, **delivery-address snapshot**) · `push-notifications.md` (FCM) ·
 `session-management.md` (per-surface cookies + token rotation) · `sentry.md` ·
 `deep-linking.md` (App Links / Universal Links + DeepLinkParser) ·
-`town-architecture-refactor.md` + `town-switcher-ux.md` (data-driven town selection / switcher — see note below) ·
+`town-architecture-refactor.md` + `town-switcher-ux.md` (data-driven town selection) ·
 `app-review-login.md` (store-reviewer OTP bypass — ships disabled).
 
-Everything else in `docs/` is a **dated initiative tracker** (`*-redesign.md`, `*-fixes.md`, `*-audit.md`,
-`product-condition-deprecation.md`, `review-title-and-editing.md`, …). Those are per-initiative history, not
-current-behaviour references — prefer `architecture.md` + the Rules below. **Deliberately not enumerated here:**
-the set grows with every initiative, and listing it re-trips the size warning. `ls docs/` when you need one.
+Everything else in `docs/` is a **dated initiative tracker** (`*-redesign.md`, `*-fixes.md`, `*-audit.md`, …)
+— per-initiative history, not current behaviour. Prefer `architecture.md` + the Rules below. Not enumerated
+here on purpose: the set grows every initiative and listing it re-trips the size warning. `ls docs/`.
 
 ---
 
@@ -301,44 +303,43 @@ admin tables. Uploads go multipart → backend → Cloudinary, never to local di
 
 ## 7. DEVELOPMENT WORKFLOW & CONTINUITY SYSTEM
 
-### 7.1 Progress Tracking (CRITICAL)
+### 7.1 Progress tracking (CRITICAL)
 
-Three files carry state, and they have distinct jobs: **`STATUS.md`** = what is in flight *right now*
-(rewritten in the same commit that starts or ends an initiative); **`PROGRESS.md`** = the append-only
-chronological record; **`CLAUDE.md`** = durable rules only, never history (§8). Update `PROGRESS.md` after
-each completed task and `STATUS.md` at initiative boundaries.
+Three files, distinct jobs: **`STATUS.md`** = what is in flight *right now* (rewritten in the same commit
+that starts or ends an initiative — no drift window); **`PROGRESS.md`** = the append-only chronological
+record; **`CLAUDE.md`** = durable rules only, never history. Update `PROGRESS.md` after each completed
+task, `STATUS.md` at initiative boundaries.
 
-### 7.2 Resumption Protocol
+### 7.2 Resumption protocol
 
-When resuming work (after interruption or new session):
+**Read `STATUS.md` first** — before this file, before `PROGRESS.md`. If `## Active initiative` says
+"None", there is no in-flight work: don't infer one from a stale plan file or from memory. If it names a
+per-initiative tracker (they live in **`docs/`** — note `tasks/` is gitignored, so nothing there survives
+for the next session), read that next. Then `CLAUDE.md` for context, `PROGRESS.md` for history,
+`git log --oneline -20`, and the test suites to confirm the current state before changing anything.
 
-1. **Read `STATUS.md`** at repo root *first*. It is the single source of truth for what is in-flight right now (active initiative, open PRs, next candidates). Updated in the same commit that starts or ends an initiative — so it should never drift. If `## Active initiative` says "None," there is no in-flight work; don't infer one from stale plan files or memory. If the active initiative points to a `tasks/*-progress.md` tracker, read it next — that file holds the granular sub-task checklist STATUS.md summarizes.
-2. **Read `CLAUDE.md`** (this file) for full project context if `STATUS.md` didn't make the situation clear.
-3. **Read `PROGRESS.md`** for the chronological history of completed work.
-4. **Check git log** (`git log --oneline -20`) for recent commits.
-5. **Run tests** (`pnpm test` in `apps/api`) to verify current state.
-6. **Continue from the next uncompleted sub-task** — or, if `STATUS.md` says no active initiative, ask the user what to start.
-
-Plan files in `~/.claude/plans/*.md` are session artifacts that may persist after the plan has shipped. Cross-reference any plan you find against `STATUS.md` and git history before executing it — don't treat the file's existence as evidence the work is pending.
+Plan files under `~/.claude/plans/*.md` are session artifacts that outlive the work. Cross-reference any
+plan against `STATUS.md` and git history before executing it — its existence is not evidence it is pending.
 
 ### 7.3 Git & testing discipline
 
 Commit per completed sub-task as `feat|fix|chore|docs|refactor(scope): description` (scopes in
-CONTRIBUTING.md); never commit a red tree. Services, validators, and utils get unit specs; API endpoints get
-e2e specs via the NestJS testing module (`apps/api/test/`). Seed data stays realistically Congolese — French
-names, Lubumbashi addresses, CDF prices — because it is what every screenshot and demo runs on.
+CONTRIBUTING.md; multi-scope like `fix(api,buyer-mobile,buyer-web)` is established practice). Never commit
+a red tree. Services, validators and utils get unit specs; API endpoints get e2e specs via the NestJS
+testing module (`apps/api/test/`). Seed data stays realistically Congolese — French names, Lubumbashi
+addresses, CDF prices — because it is what every screenshot and demo runs on.
 
 ---
 
 ## 8. IMPLEMENTATION HISTORY
 
 Built in 8 sequential phases (all shipped); post-phase work continues as discrete initiatives. The
-**8-phase table** is in `docs/product-spec.md`; the **chronological initiative history** is in
-**`PROGRESS.md`** ("Post-phase chronology — condensed index"); **in-flight work** is in **`STATUS.md`**.
-The load-bearing constraints those initiatives created live as Rules in §10 — read those for what to *do*.
+**8-phase table** is in `docs/product-spec.md`, the **chronological history** in `PROGRESS.md`
+("Post-phase chronology"). The load-bearing constraints those initiatives created live as Rules in §10 —
+read those for what to *do*.
 
-> **Do not append initiative history to this file.** `PROGRESS.md` is the chronological record; logging
-> initiatives here re-trips the 40k-char CLAUDE.md performance warning. Record them in `PROGRESS.md`.
+> **Do not append initiative history to this file** — it re-trips the 40k-char performance warning.
+> `PROGRESS.md` is the chronological record.
 
 ---
 

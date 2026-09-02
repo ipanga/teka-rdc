@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/teka_colors.dart';
 
 const double kProductGridSpacing = 12;
+const double kProductDetailGalleryAspectRatio = 1.25;
 
 /// A lightweight shimmer placeholder block — a muted rounded rectangle with a
 /// sliding highlight. Dependency-free (no `shimmer` package); used to build the
@@ -31,6 +32,16 @@ class _ShimmerBoxState extends State<ShimmerBox>
   )..repeat();
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -38,6 +49,17 @@ class _ShimmerBoxState extends State<ShimmerBox>
 
   @override
   Widget build(BuildContext context) {
+    if (MediaQuery.disableAnimationsOf(context)) {
+      return Container(
+        width: widget.width,
+        height: widget.height,
+        decoration: BoxDecoration(
+          color: TekaColors.surfaceMuted,
+          borderRadius: BorderRadius.circular(widget.radius),
+        ),
+      );
+    }
+
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
@@ -60,6 +82,65 @@ class _ShimmerBoxState extends State<ShimmerBox>
           ),
         );
       },
+    );
+  }
+}
+
+/// A content-shaped Product Detail placeholder. It preserves the gallery and
+/// summary geometry while the product request is in flight, preventing the
+/// bare-spinner-to-full-page layout jump that is especially noticeable on
+/// slower mobile connections.
+class ProductDetailSkeleton extends StatelessWidget {
+  const ProductDetailSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      container: true,
+      label: 'Chargement du produit',
+      child: ExcludeSemantics(
+        child: SingleChildScrollView(
+          physics: const NeverScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const AspectRatio(
+                aspectRatio: kProductDetailGalleryAspectRatio,
+                child: ShimmerBox(height: double.infinity, radius: 0),
+              ),
+              Container(
+                width: double.infinity,
+                color: TekaColors.surface,
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ShimmerBox(height: 20, radius: 5),
+                    SizedBox(height: 8),
+                    ShimmerBox(width: 230, height: 20, radius: 5),
+                    SizedBox(height: 18),
+                    Row(
+                      children: [
+                        ShimmerBox(width: 120, height: 16, radius: 5),
+                        Spacer(),
+                        ShimmerBox(width: 44, height: 44, radius: 22),
+                        SizedBox(width: 8),
+                        ShimmerBox(width: 44, height: 44, radius: 22),
+                      ],
+                    ),
+                    SizedBox(height: 18),
+                    ShimmerBox(width: 170, height: 28, radius: 6),
+                    SizedBox(height: 12),
+                    ShimmerBox(width: 110, height: 16, radius: 5),
+                    SizedBox(height: 20),
+                    ShimmerBox(height: 72, radius: 10),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
