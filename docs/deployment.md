@@ -154,6 +154,21 @@ Run workflow → paste the filename. It runs the file inside the running api
 container over `docker exec` (so the file must already be in the deployed image —
 i.e. merged to `main` first).
 
+It runs psql with `ON_ERROR_STOP=1` and, **only after the file succeeds**, records
+the filename in the same `_manual_migrations` table the auto-apply path uses
+(`ON CONFLICT DO NOTHING`, so the first `applied_at` is kept and re-running an
+idempotent migration by hand is harmless). Sharing one table means the two paths
+see each other: a migration applied by hand is skipped by a later auto-apply run,
+and vice versa. The step reports whether it recorded a first application or
+re-ran an already-recorded one.
+
+> Migrations applied before 2026-09-02 by this workflow predate the tracking write
+> and are therefore **absent** from `_manual_migrations` —
+> `2026-09-01_archive_duplicate_buyer_addresses.sql`,
+> `2026-09-02_prune_invalid_brand_category_links.sql` and
+> `2026-09-03_remediate_legacy_category_products.sql`. Each is self-recording via
+> its own archive/journal table, and all three are idempotent.
+
 _(The `prisma migrate deploy` line below is the legacy Prisma-Migrate path, kept
 for reference; day-to-day schema changes use the manual-SQL + auto-apply flow
 above.)_
