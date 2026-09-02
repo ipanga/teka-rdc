@@ -1,8 +1,8 @@
 # Teka RDC — Development Progress
 
-## Current Phase: None — maintenance. Last release shipped to production 2026-09-01.
-## Last completed: Buyer Mobile PDP targeted layout adjustment (2026-09-02, complete on `develop`)
-## Status: code-complete and verified; not released. Tracker: `docs/buyer-mobile-pdp-splash-refinement.md`.
+## Current Phase: None — maintenance. Last release shipped to production 2026-09-02.
+## Last completed: Buyer Mobile PDP + native splash refinement (2026-09-02, released via #613)
+## Status: released and verified in production. Tracker: `docs/buyer-mobile-pdp-splash-refinement.md`.
 ## Last Updated: 2026-09-02
 
 ## Post-phase chronology — condensed index (moved out of CLAUDE.md §8 on 2026-06-03)
