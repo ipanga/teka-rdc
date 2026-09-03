@@ -169,3 +169,106 @@ describe('SalesBreakdownQueryDto', () => {
     }
   });
 });
+
+// ─── Search analytics filters ────────────────────────────────────────────
+
+import {
+  SearchAnalyticsQueryDto,
+  SearchBreakdownQueryDto,
+} from './search-analytics-query.dto';
+
+const searchMeta: ArgumentMetadata = {
+  type: 'query',
+  metatype: SearchAnalyticsQueryDto,
+};
+const searchBreakdownMeta: ArgumentMetadata = {
+  type: 'query',
+  metatype: SearchBreakdownQueryDto,
+};
+
+async function rejects(value: Record<string, unknown>, meta: ArgumentMetadata) {
+  try {
+    await pipe.transform(value, meta);
+    throw new Error('expected validation to fail');
+  } catch (e) {
+    if (!(e instanceof BadRequestException)) throw e;
+    return JSON.stringify(e.getResponse());
+  }
+}
+
+describe('SearchAnalyticsQueryDto', () => {
+  it('accepts an empty query with the inherited defaults', async () => {
+    const out = await pipe.transform({}, searchMeta);
+    expect(out.page).toBe(1);
+    expect(out.limit).toBe(50);
+  });
+
+  it('accepts every real source, UNKNOWN included', async () => {
+    for (const source of ['BUYER_WEB', 'BUYER_MOBILE', 'UNKNOWN']) {
+      const out = await pipe.transform({ source }, searchMeta);
+      expect(out.source).toBe(source);
+    }
+  });
+
+  it('accepts both stored intents', async () => {
+    for (const intent of ['SUBMIT', 'SUGGESTION']) {
+      const out = await pipe.transform({ intent }, searchMeta);
+      expect(out.intent).toBe(intent);
+    }
+  });
+
+  // REFINE is never persisted, so filtering by it could only ever return zero
+  // rows. Rejecting it is clearer than silently returning nothing.
+  it('rejects REFINE, which the write path never stores', async () => {
+    expect(await rejects({ intent: 'REFINE' }, searchMeta)).toContain(
+      'Intention invalide',
+    );
+  });
+
+  it('rejects an unknown source with a French message', async () => {
+    expect(await rejects({ source: 'WEB' }, searchMeta)).toContain('Source invalide');
+  });
+
+  it('rejects a malformed town id', async () => {
+    expect(await rejects({ cityId: 'nope' }, searchMeta)).toContain('ID ville invalide');
+  });
+
+  it('rejects a non-boolean zeroResultsOnly', async () => {
+    expect(await rejects({ zeroResultsOnly: 'maybe' }, searchMeta)).toContain(
+      'zeroResultsOnly',
+    );
+  });
+
+  it('still inherits the date-range and pagination bounds', async () => {
+    expect(
+      await rejects({ dateFrom: '2026-06-30', dateTo: '2026-06-01' }, searchMeta),
+    ).toContain('La date de début doit précéder la date de fin.');
+    expect(await rejects({ limit: 500 }, searchMeta)).toContain(
+      'La limite ne peut pas dépasser 200',
+    );
+  });
+
+  it('rejects an undeclared filter (forbidNonWhitelisted)', async () => {
+    await expect(pipe.transform({ nope: '1' }, searchMeta)).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+});
+
+describe('SearchBreakdownQueryDto', () => {
+  it('defaults to the day dimension', async () => {
+    const out = await pipe.transform({}, searchBreakdownMeta);
+    expect(out.by).toBe('day');
+  });
+
+  it.each(['source', 'intent', 'town', 'day'])('accepts by=%s', async (by) => {
+    const out = await pipe.transform({ by }, searchBreakdownMeta);
+    expect(out.by).toBe(by);
+  });
+
+  it('rejects an unknown dimension', async () => {
+    expect(await rejects({ by: 'galaxy' }, searchBreakdownMeta)).toContain(
+      'Dimension invalide',
+    );
+  });
+});

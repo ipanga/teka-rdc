@@ -2,8 +2,9 @@
 
 **Started:** 2026-09-03
 **Surfaces:** `apps/api`, `apps/admin-web`, `apps/buyer-web`, `apps/buyer-mobile`, `apps/seller-mobile`
-**Status:** PRs 1 (#625), 2 (#626), 3 (#627) and 4 open against `develop`, plus the independent
-prerequisite #628. **Nothing merged, nothing deployed, no migration run against production.**
+**Status:** PRs 1 (#625), 2 (#626), 3 (#627), 4 (#629) and 5 open against `develop`, plus the
+independent prerequisite #628. **The planned sequence is complete.** Nothing merged, nothing deployed,
+no migration run against production.
 
 ## Why this exists
 
@@ -427,6 +428,127 @@ the form's native submit — `router.push` runs twice for one Enter. A one-line 
 **measured to change nothing**, and reverted: it is a search-UX change that does not belong in an
 analytics PR. Worth its own PR.
 
+## PR 5 — admin search analytics (the read surface)
+
+Completes the initiative: Workstream B's reporting half, on top of the telemetry #629 writes.
+
+### Where it lives
+
+A **« Recherches » tab on the existing Rapports page**, not a separate dashboard — the admin
+analytics navigation already exists and a disconnected page would compete with it. The panel itself is
+`components/reports/search-analytics-panel.tsx`, so the page file does not balloon.
+
+### Routes (`@Roles('ADMIN')`, all read-only)
+
+| Route | Answers |
+|---|---|
+| `GET /v1/admin/reports/search` | what buyers search for (paginated term table) |
+| `GET /v1/admin/reports/search/summary` | headline metrics |
+| `GET /v1/admin/reports/search/trending` | what is rising |
+| `GET /v1/admin/reports/search/breakdown?by=source\|intent\|town\|day` | how it splits |
+| `GET /v1/admin/reports/search/csv` | raw events for the active filters |
+
+### Metric definitions — the denominator is stated once and applies to all
+
+**Every row in `search_queries` is already a meaningful search**: the write path stores only `SUBMIT`
+and `SUGGESTION`, and drops REFINE re-fetches, unrecognised intents and sub-2-character terms *before*
+insert. So `totalSearches` = rows matching the filters, and it is the denominator for every rate on
+the page. There is no hidden second population. The UI says this in French above the table.
+
+| Metric | Definition |
+|---|---|
+| `totalSearches` | rows matching the filters |
+| `uniqueTerms` | `COUNT(DISTINCT termNormalized)` |
+| `zeroResultSearches` / `Rate` | `resultCount = 0`, over `totalSearches` |
+| `lowResultSearches` / `Rate` | `resultCount BETWEEN 1 AND 3`, over `totalSearches` |
+| `suggestionSearches` / `Rate` | `intent = SUGGESTION`, over `totalSearches` — "how often suggestions are selected" |
+| `unknownSourceSearches` | `source = UNKNOWN`, reported so an admin can judge how much of the source split is actually known |
+
+`LOW_RESULT_MAX = 3` is a judgement call, so it is exported, returned in the payload, and **stated in
+the UI label** ("entre 1 et 3 produits") rather than hidden behind the word "low".
+
+**`UNKNOWN` is rendered as « Non identifiée » and is never folded into « Site web ».**
+
+### Trending
+
+The selected window is split into two equal halves and the recent half is compared with the one before
+it. Ranked by **absolute delta, not percentage**: at Teka's volumes a percentage from a small baseline
+is noise and from a zero baseline is undefined, so a term absent from the earlier half is flagged
+**« nouveau »** instead of being given infinite growth. Both halves are counted in ONE pass with
+`FILTER`, so it stays a single bounded query.
+
+Honest limitation, stated in the UI: at current volumes this answers *"what is being searched now that
+was not before"*, not a statistically significant trend.
+
+### Zero-result / unmet demand — and the distinction that matters
+
+The same table serves it, via the « Sans résultat uniquement » filter, with a **Diagnostic** column
+driven by `maxResultCount`:
+
+- **« Jamais de résultat »** — the term has never returned a product *anywhere*. A catalog gap **or** a
+  search-quality problem (typo, missing synonym).
+- **« Selon la ville »** — it returns products somewhere, so a zero here is a town-coverage gap, not
+  missing stock.
+
+The panel says so in French above the table. **Not every zero-result term is demand Teka should
+stock** — the dev data shows exactly why: `riz local` and `telefone` both read "jamais de résultat",
+but one is a plausible product gap and the other is a misspelling of a term that returns 32 products.
+
+### Filters, pagination, plans
+
+Date range (**reusing `resolveWindow`** from PR 2 — CAT, half-open, 366-day cap), town, source,
+intent, zero-result-only, page/limit (max 200). Invalid values 400 with French messages, including
+`intent=REFINE` — which is never persisted, so filtering by it could only ever return nothing.
+
+**No index added.** All three query shapes were EXPLAINed against the real table: seq scan,
+**0.05–0.19 ms** execution with planning time at or above it. Revisit around the low hundreds of
+thousands of rows. Town labels are hydrated with ONE `city.findMany({ id: { in } })` after grouping —
+no dimension can degrade into an N+1; the term listing is exactly two queries (page + count).
+
+### CSV
+
+Raw events, honouring the active filters, through the **shared writer from #625** — no second escaping
+implementation. French accented headers behind a BOM, numeric `Résultats` left bare, and a buyer-typed
+`=cmd|'/c calc'!A1` neutralised to `"'=cmd|'/c calc'!A1"` — verified end to end by driving that term
+through the *buyer* search API and exporting it. Empty export = header only. Existing finance/report
+CSV formats untouched.
+
+### SearchSynonym — investigated, deliberately not built
+
+`SearchSynonym` has exactly **one** consumer (`browse.service.ts:107`, a 60 s cached read) and **no
+admin CRUD anywhere** — no API route, no page. It is editable only by direct SQL, despite the schema
+comment calling it "admin-editable".
+
+Building CRUD here would have doubled the PR and added a write surface to a table that feeds live
+search matching. **Deferred as the next focused follow-up.** The analytics page already delivers the
+evidence that decides it: the zero-result table with the « jamais de résultat » diagnostic is exactly
+the list of candidate synonyms (`telefone` → `telephone` is visible in the dev data today).
+
+### Verification actually performed
+
+**API against the dev table (21→23 real events):** summary arithmetic, term listing, zero-result
+listing, all four breakdown dimensions, trending, every filter composing (source/intent/town/
+zero-only/date — 18 + 3 = 21 across the CAT date split), seven invalid-filter cases each 400 with a
+French message, and **401 / 403 buyer / 403 seller / 200 admin on all five routes including the CSV**.
+
+**Admin Web in Chrome** — the « Recherches » tab: summary cards, the denominator sentence, the
+`UNKNOWN` caveat, the term table with its Diagnostic column, pagination footer, trending with
+« nouveau » badges, the three breakdown tables (« Site web » 16 / « Non identifiée » 5 /
+« Application mobile » 2), the day chart, the **empty state** ("Aucune recherche pour ces filtres",
+CSV button correctly hidden), the **error state** with a working « Réessayer », the zero-result filter
+switching the table heading, and a **real CSV download** (200, header + 9 events, accents intact).
+French accents render correctly throughout.
+
+**Not verified:** a genuinely narrow viewport. The browser reported a 1728 px viewport and the resize
+did not take effect on the rendered page, so responsive behaviour is **claimed only** to the extent
+that the page does not overflow horizontally at that width and the wide table sits in an
+`overflow-x-auto` wrapper.
+
+### A fourth shape of the documented e2e flake
+
+`Payments (e2e)` failed once in 8 runs on this branch — a spec PR 5 does not touch. Same family as the
+Auth-401 and Health shapes already recorded.
+
 ## Carried forward, deliberately not fixed in this initiative
 
 - **`forceStatusChange()` has the same gap for `returnedAt` that #628 fixed for `deliveredAt`** — same
@@ -435,7 +557,11 @@ analytics PR. Worth its own PR.
   dev seed aborts at Phase 6 with `reviews.title does not exist`. Pre-existing dev drift.
 - **buyer-web fires two `router.push` calls for one Enter** (see PR 4 above). Measured to change
   nothing, reverted, worth its own PR.
+- **The Next.js dev server writes a search row twice**; the production build writes one. A dev
+  artifact — do not "fix" it from a dev observation.
+- **`SearchSynonym` has no admin CRUD** (see PR 5). The recommended next PR.
 
 ## Remaining PRs
 
-5. Search analytics endpoints + `reports.e2e-spec.ts` + the « Recherches » admin page.
+**All five planned PRs are open.** The natural next piece of work is admin CRUD for `SearchSynonym`,
+fed by the zero-result evidence this initiative now surfaces.
