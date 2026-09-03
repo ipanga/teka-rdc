@@ -1798,6 +1798,19 @@ async function seedPhase4Data(
   const localDeliveryFeeCDF = BigInt(300000);  // 3,000 FC
   const localDeliveryFeeUSD = BigInt(120);     // $1.20
 
+  // Order 1's lifecycle timestamps. Declared here — ahead of both the order and
+  // its status logs — so the row's `deliveredAt` and the DELIVERED log entry are
+  // the SAME instant by construction rather than by coincidence.
+  const order1Dates = [
+    new Date('2026-02-15T09:30:00Z'), // PENDING   (== order.createdAt)
+    new Date('2026-02-15T10:15:00Z'), // CONFIRMED
+    new Date('2026-02-15T14:00:00Z'), // PROCESSING
+    new Date('2026-02-16T08:00:00Z'), // SHIPPED
+    new Date('2026-02-16T15:30:00Z'), // DELIVERED (== order.deliveredAt)
+  ];
+  const order1CreatedAt = order1Dates[0];
+  const order1DeliveredAt = order1Dates[4];
+
   // ---- Order 1: DELIVERED — seller Marie, 2 items, COD ----
   // Items: Product 4 (Robe Wax - 45,000 CDF) x1 + Product 9 (Casserole - 25,000 CDF) x1
   const order1SubtotalCDF = BigInt(4500000) + BigInt(2500000); // 70,000 CDF in centimes
@@ -1824,8 +1837,29 @@ async function seedPhase4Data(
       subtotalUSD: order1SubtotalUSD,
       totalCDF: order1TotalCDF,
       totalUSD: order1TotalUSD,
-      createdAt: new Date('2026-02-15T09:30:00Z'),
+      createdAt: order1CreatedAt,
+      // A DELIVERED order MUST carry a delivery date: it is what the return
+      // window, payout eligibility and every date-windowed report read. Seeding
+      // the status without it produced orders that looked delivered in the UI
+      // but were invisible to every windowed query.
+      deliveredAt: order1DeliveredAt,
     },
+  });
+
+  // Self-heal a database seeded BEFORE this fixture carried a deliveredAt.
+  // The upsert above uses `update: {}` — deliberately, so a re-seed never
+  // clobbers real data — which means an existing row keeps its NULL forever.
+  //
+  // Narrow on purpose: this fills a NULL on ONE known fixture order and can
+  // never overwrite a non-null timestamp. It is also unreachable in production,
+  // because prod mode returns before any order is seeded.
+  await prisma.order.updateMany({
+    where: {
+      orderNumber: 'TK-20260215-A1B2',
+      status: OrderStatus.DELIVERED,
+      deliveredAt: null,
+    },
+    data: { deliveredAt: order1DeliveredAt },
   });
 
   // Order 1 items
@@ -1864,14 +1898,6 @@ async function seedPhase4Data(
   });
 
   // Order 1 status logs (DELIVERED progression)
-  const order1Dates = [
-    new Date('2026-02-15T09:30:00Z'),
-    new Date('2026-02-15T10:15:00Z'),
-    new Date('2026-02-15T14:00:00Z'),
-    new Date('2026-02-16T08:00:00Z'),
-    new Date('2026-02-16T15:30:00Z'),
-  ];
-
   await prisma.orderStatusLog.upsert({
     where: { id: statusLogId(1) },
     update: {},
@@ -2434,6 +2460,39 @@ async function seedPhase5Data(
   // ----------------------------------------------------------
   // 1. COMMISSION SETTINGS
   // ----------------------------------------------------------
+
+  // ---- Lifecycle invariant check on the orders this seed manages ----
+  //
+  // A DELIVERED order must carry a deliveredAt. Checked here, scoped to the
+  // seed's OWN order numbers, so a future edit that adds a delivered order
+  // without a date fails the seed loudly instead of quietly producing rows that
+  // are invisible to every date-windowed report. Deliberately NOT a global
+  // check: rows created by other means (a pre-2026-06-29 delivery, an admin
+  // force-status before that path stamped the date) are legacy and are left
+  // alone rather than being "fixed" with an invented timestamp.
+  const seededOrderNumbers = [
+    'TK-20260215-A1B2',
+    'TK-20260225-C3D4',
+    'TK-20260226-E5F6',
+    'TK-20260226-G7H8',
+    'TK-20260220-I9J0',
+    'TK-20260227-K1L2',
+  ];
+  const inconsistent = await prisma.order.findMany({
+    where: {
+      orderNumber: { in: seededOrderNumbers },
+      status: OrderStatus.DELIVERED,
+      deliveredAt: null,
+    },
+    select: { orderNumber: true },
+  });
+  if (inconsistent.length > 0) {
+    throw new Error(
+      `Seed invariant violated — DELIVERED order(s) without deliveredAt: ${inconsistent
+        .map((o) => o.orderNumber)
+        .join(', ')}`,
+    );
+  }
 
   console.log('  Seeding commission settings...');
 
