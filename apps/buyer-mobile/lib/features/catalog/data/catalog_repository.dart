@@ -50,6 +50,11 @@ class CatalogRepository {
     String? brandIds,
     bool onPromotion = false,
     int limit = 20,
+    // Search-analytics tags. Passive: they never affect which products come
+    // back, only how the server records the request. Sent only alongside a
+    // `search` term, because a category or promo browse is not a search.
+    String? searchSource,
+    String? searchIntent,
   }) async {
     final queryParams = <String, dynamic>{
       'limit': limit,
@@ -90,6 +95,17 @@ class CatalogRepository {
     }
     if (cursor != null && cursor.isNotEmpty) {
       queryParams['cursor'] = cursor;
+    }
+    // Only meaningful on a search request. Guarded so a category/promo browse
+    // never carries them — the API would ignore them anyway, but sending them
+    // would imply this was a search.
+    if (search != null && search.isNotEmpty) {
+      if (searchSource != null && searchSource.isNotEmpty) {
+        queryParams['searchSource'] = searchSource;
+      }
+      if (searchIntent != null && searchIntent.isNotEmpty) {
+        queryParams['searchIntent'] = searchIntent;
+      }
     }
 
     final response = await _dio.get(

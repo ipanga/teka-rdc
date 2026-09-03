@@ -60,6 +60,11 @@ function SearchContent() {
     if (f.onPromotion) qs.set('onPromotion', 'true');
     if (selectedCity) qs.set('cityId', selectedCity.id);
     if (cursor) qs.set('cursor', cursor);
+    // Applying filters, clearing them, changing the sort or loading the next
+    // page all re-run the SAME search — they are refinements, not new demand.
+    // Tagging them REFINE is what stops one search being counted many times.
+    qs.set('searchSource', 'BUYER_WEB');
+    qs.set('searchIntent', 'REFINE');
     return qs.toString();
   }
 
@@ -83,6 +88,18 @@ function SearchContent() {
     if (query) qs.set('search', query);
     qs.set('sortBy', 'popularity');
     qs.set('limit', '12');
+    // This effect runs on a change of `q` in the URL — i.e. an actual submitted
+    // search (or a suggestion the header turned into /recherche?q=). It is the
+    // only buyer-web path that is a new demand signal, and the only one that
+    // fires search_performed.
+    qs.set('searchSource', 'BUYER_WEB');
+    qs.set('searchIntent', 'SUBMIT');
+    // NOTE: `cityId` is deliberately NOT added here. This builder has always
+    // omitted it, so the first page of a web search is nationwide while a later
+    // "Appliquer" is town-scoped. Adding it would change the RESULTS buyers see,
+    // which is a product decision and not something an analytics change should
+    // smuggle in. The cost is that a web SUBMIT row carries no town; recorded as
+    // a known gap in docs/search-sales-analytics.md.
     apiFetch<{ data: BrowseProduct[]; pagination: CursorPagination }>(
       `/v1/browse/products?${qs.toString()}`,
     )

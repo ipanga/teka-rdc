@@ -1,4 +1,4 @@
-# Status — 2026-09-02
+# Status — 2026-09-03
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,10 +6,49 @@
 
 ## Active initiative
 
-**None.** The Seller Catalog Taxonomy initiative shipped to production on 2026-09-02 and both manual
-data migrations have been applied and verified. Open follow-ups are listed below; none is in flight.
+**None.** The Search & Sales Analytics initiative (Workstreams B, C, D) is **fully integrated into
+`develop`** as of 2026-09-03. Nothing is in flight. **Not released to `main`, not deployed, and its
+migration has NOT been run against production.**
 
 ## Most recently completed initiative
+
+**Search & Sales Analytics + the order-lifecycle prerequisite — MERGED TO `develop` 2026-09-03.**
+Final `develop` SHA **`9efe42a`**; pre-initiative baseline was `307ad93`.
+
+| PR | Merge commit | What |
+|---|---|---|
+| #625 | `33a816b` | shared CSV writer + formula-injection guard |
+| #626 | `3ac6c7c` | CAT report windows, DTO bounds, pagination, N+1 fix |
+| #627 | `9075d56` | sales analytics breakdown (product/category/seller/town/day) |
+| #629 | `3a1c0be` | search `source` + `searchIntent` (write path, + migration) |
+| #630 | `db7628d` | admin search analytics (read surface) |
+| #628 | `9efe42a` | `DELIVERED ⇒ deliveredAt` lifecycle invariant *(independent)* |
+
+Merged in that order with real merge commits, never squashed. #628 needed one expected `PROGRESS.md`
+conflict resolved — **both initiatives' entries were preserved**, none discarded.
+
+Combined footprint: **41 files**, +5,804 / −269, across api · admin-web · buyer-web · buyer-mobile ·
+docs. **Zero seller-web and zero seller-mobile files.**
+
+### Integrated gates on `9efe42a`
+
+API **507 unit** / **135 e2e** (0 failures in 8 consecutive runs) · buyer-web **74** · buyer-mobile
+**238** + analyze 6 known infos · seller-mobile **42** + analyze 17 infos (all pre-existing, exit 0,
+zero seller files changed) · admin-web build clean · `pnpm type-check` clean across 5 projects.
+
+### The one thing to know before releasing
+
+**`manual/2026-09-05_search_query_source_intent.sql` is on `auto-apply.list`**, so the next
+`develop → main` deploy will apply it automatically, before the rolling swap. It is additive and
+idempotent — two `pg_type`-guarded enum creations plus `ADD COLUMN IF NOT EXISTS` with O(1)
+non-volatile defaults, **no backfill, zero destructive statements**. Existing rows become
+`source = UNKNOWN`, `intent = SUBMIT`, which is the truthful reading (they predate the parameters).
+
+**Deployment order is already safe** and needs no manual sequencing: `forbidNonWhitelisted` turns an
+undeclared query param into a hard 400, and the API accepting `searchSource`/`searchIntent` ships in
+the *same* artifact as the buyer-web client that sends them. buyer-mobile reaches devices only on a
+future store build and sends nothing until then — those rows land `UNKNOWN/SUBMIT` by design.
+
 
 **Seller Catalog Taxonomy — RELEASED to production 2026-09-02, both data migrations applied.**
 Release PR **#618** (`develop → main`, merge commit `ce76525`, 16 commits / 14 files / +1,632 −23),
@@ -125,23 +164,19 @@ as the code did before this initiative, would have silently rewritten six orders
   auto-apply path uses, written only after the file succeeds. It also gained
   `ON_ERROR_STOP=1`, which it had been missing: psql exits 0 on SQL errors without it, so a
   half-applied migration used to print "✓ migration applied". Merged as `6dfaed6` (PR #621).
-- **Backfill of `_manual_migrations` is PENDING approval — and it is 26 files, not 3.**
-  Auditing every `Apply prod migration` run (27 runs, 26 successful) by parsing
-  "▶ applying …" out of each log gives the definitive list: **26 migrations were applied
-  through that workflow and none of them is recorded.** Of the 39 files in `manual/`,
-  4 are auto-applied and recorded, 26 were workflow-applied and unrecorded, and **9 were
-  applied through neither** — 8 predate the workflow (its first run is 2026-05-21) and
-  `2026-06-23_translatable_jsonstring_to_fr.sql` was **dev-only** (CLAUDE.md: "prod was
-  already clean"). Backfill only the 26 with run-log evidence; asserting "applied" for the
-  other 9 without evidence would make a future auto-apply run skip a migration that never
-  ran. Proposed SQL is in the report — idempotent, `ON CONFLICT DO NOTHING`, `applied_at`
-  set to each run's real date. **Prepared as
-  `manual/2026-09-04_backfill_manual_migrations.sql` (PR #622) — not yet applied to production.**
-  Independent re-verification of all 26 runs caught **two** filename/execution-date mismatches:
-  `2026-07-23_prune-non-leaf-attributes.sql` actually ran 2026-07-24, and
-  `2026-09-03_remediate_legacy_category_products.sql` actually ran 2026-09-02. The run timestamp is
-  authoritative in both. Tested twice on dev: 0 → 26 rows, second run a no-op, application tables
-  byte-identical throughout.
+- ~~**Backfill of `_manual_migrations`.**~~ **COMPLETE — executed in production 2026-09-02
+  20:26 UTC**, run `33679262957`, `INSERT 0 26`, via `Apply prod migration` from `main`.
+  The table went **4 → 31** (4 auto-applied + 26 evidence-backed historical + the backfill's own
+  self-record). Verified directly against the database, not inferred from a green check: all 26
+  historical filenames present, self-record exactly once, the 9 unproven migrations still absent,
+  no duplicates, and the two corrected timestamps intact
+  (`2026-07-23_prune-non-leaf-attributes.sql` → 2026-07-24 19:55:00Z,
+  `2026-09-03_remediate_legacy_category_products.sql` → 2026-09-02 18:41:42Z). Application tables
+  unchanged: products 495, specs 337, brand_categories 314, categories 348, brands 51 — identical
+  before and after. **Migration tracking is now operational and this initiative is closed.**
+  One asymmetry worth knowing: the skip is **one-directional**. A hand-applied migration is
+  recorded and a later auto-apply run skips it; the manual workflow has no pre-check and always
+  re-runs the file it is given, by design. Safety there rests on the migrations being idempotent.
 - **117 unreferenced legacy `ProductAttribute` rows** remain (of 200 suspects; the other 83 are
   referenced and must be preserved). Deliberately deferred until after the product remediation, which
   is now done — so this is unblocked whenever it is wanted.

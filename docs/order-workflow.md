@@ -28,6 +28,53 @@ SHIPPED (legacy, no longer produced) ─► OUT_FOR_DELIVERY | DELIVERED   (so i
 - **Stock** is decremented at checkout and **restored on any cancellation** (buyer / seller-reject /
   admin) and on an **approved return**.
 
+## The `deliveredAt` invariant (2026-09-03)
+
+**`status = DELIVERED` ⇒ `deliveredAt IS NOT NULL`**, for every new write.
+
+`deliveredAt` is not decoration on a delivered order — it is the column every downstream reader treats
+as *the* delivery date:
+
+| Reader | Uses it for |
+|---|---|
+| `isWithinReturnWindow` (`order-workflow.constants.ts`) | the buyer's 2-day return window |
+| `EarningsService.eligibleEarningWhere` | payout eligibility (`deliveredAt + 2d ≤ now`) |
+| `AdminStatsService` | the delivered-today dashboard count |
+| Sales analytics | the time axis for every windowed report |
+
+A DELIVERED order with a NULL `deliveredAt` therefore looks delivered in the UI while being invisible
+to every date-windowed query **and** un-returnable by the buyer, since `isWithinReturnWindow(null)`
+is `false`.
+
+### The two paths that write DELIVERED
+
+| Path | Route | `deliveredAt` | Side effects |
+|---|---|---|---|
+| `AdminOrdersService.markDelivered()` | `PATCH /v1/admin/orders/:id/deliver` | set | COD `paymentStatus → COMPLETED`, `unitsSold` incremented, `SellerEarning` created, COD transaction completed, buyer + seller notified, analytics |
+| `AdminOrdersService.forceStatusChange()` | `PATCH /v1/admin/orders/:id/status` | **filled only when NULL** | **none** — audit log only |
+
+`forceStatusChange` is an **administrative repair tool, not a delivery workflow.** It bypasses
+`canTransition` on purpose and deliberately runs *no* delivery side effects: replaying them would
+double-book money and stock on an order that already went through the real flow. Stamping
+`deliveredAt` is not a side effect — it is what keeps the row internally consistent — and it only ever
+**fills a gap**, never overwrites, so a `DELIVERED → X → DELIVERED` round trip keeps the original
+timestamp and does not restart a return window.
+
+> It is reachable from the admin UI: the force-status modal offers « Livrées » among all statuses.
+
+### Historical rows are left alone
+
+`deliveredAt` was added by `manual/2026-06-29_managed-order-workflow.sql` as a **nullable column with
+no backfill**, so any order delivered before that date legitimately has NULL. Those are legacy rows
+and **no timestamp is invented for them**. Sales analytics keeps them visible in its unfiltered
+summary and reports them as `deliveredWithoutDate` rather than silently dropping them.
+
+Where a reconstruction is ever wanted, the defensible evidence is the `OrderStatusLog` row recording
+the transition **into** `DELIVERED` — a real recorded event. That is a separate, deliberate decision;
+it is not done automatically.
+
+**Production carried 0 such rows** when assessed read-only on 2026-09-03 (6 DELIVERED, none NULL).
+
 ## Buyer cancellation rules
 
 Buyer may self-cancel only **before the parcel enters Teka custody** — `{PENDING, CONFIRMED, PROCESSING}`

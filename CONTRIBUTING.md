@@ -11,13 +11,23 @@ This repo uses a two-branch GitHub Flow:
 
 ### Daily loop
 
+**Prefer a branch + pull request into `develop` for every change — including
+documentation-only ones — wherever it is practical.** A PR is what gets the
+change a CI run of its own, a reviewable diff, and a durable record of why it
+was made. Direct commits to `develop` still work (nothing blocks them; only
+`main` is protected by the pre-push hook), but they should be the exception —
+a trivial fixup, or a follow-up to work that has just been merged and tested
+on the integrated tree — not the default.
+
 ```bash
 git checkout develop
 git pull --ff-only
+git checkout -b docs/short-slug        # branch first
 # ...make changes...
 git add <files>
-git commit -m "feat(module): clear summary"
-git push                              # pushes to origin/develop
+git commit -m "docs(scope): clear summary"
+git push -u origin docs/short-slug
+gh pr create --base develop            # then merge with --merge, never --squash
 ```
 
 ### Releasing to main
