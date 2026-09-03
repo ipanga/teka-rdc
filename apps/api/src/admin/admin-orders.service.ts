@@ -251,8 +251,30 @@ export class AdminOrdersService {
   }
 
   /**
-   * Admin can force any status change on an order.
-   * Always creates a status log entry for audit trail.
+   * Admin escape hatch: force any status onto an order, bypassing
+   * `canTransition`. Always writes an `OrderStatusLog` for audit.
+   *
+   * **This is a repair tool, not a delivery workflow.** It deliberately does
+   * NOT run delivery side effects — no `SellerEarning`, no `unitsSold`
+   * increment, no COD `paymentStatus` flip, no stock movement, no
+   * notification. That is the point: it exists to correct a wrong status
+   * without double-booking money or stock on an order that already went
+   * through the real flow. Use `markDelivered()` for an actual delivery.
+   *
+   * The ONE thing it must still do is keep the row internally consistent:
+   * `deliveredAt` is not an optional decoration on a delivered order, it is
+   * the column every downstream reader uses as the delivery date — the return
+   * window (`isWithinReturnWindow`), payout eligibility
+   * (`EarningsService.eligibleEarningWhere`), `AdminStatsService`'s
+   * delivered-today count, and the sales-analytics time axis. Leaving it NULL
+   * produced an order that is DELIVERED to the UI but invisible to every
+   * date-windowed query, and un-returnable by the buyer
+   * (`isWithinReturnWindow(null)` is false).
+   *
+   * So forcing a status to DELIVERED stamps `deliveredAt` **only when it is
+   * not already set**, which preserves the original, more accurate timestamp
+   * across a DELIVERED -> X -> DELIVERED round trip and never resets a return
+   * window that has already started.
    */
   async forceStatusChange(
     orderId: string,
@@ -274,6 +296,13 @@ export class AdminOrdersService {
       );
     }
 
+    // Keep the row self-consistent: a DELIVERED order must carry a delivery
+    // date. Only ever FILLS a gap — never overwrites an existing timestamp.
+    const data: { status: OrderStatus; deliveredAt?: Date } = { status };
+    if (status === OrderStatus.DELIVERED && !order.deliveredAt) {
+      data.deliveredAt = new Date();
+    }
+
     return this.prisma.$transaction(async (tx) => {
       await tx.orderStatusLog.create({
         data: {
@@ -287,7 +316,7 @@ export class AdminOrdersService {
 
       return tx.order.update({
         where: { id: orderId },
-        data: { status },
+        data,
         include: {
           items: true,
           buyer: {
