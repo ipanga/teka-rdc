@@ -21,9 +21,26 @@ not trust either.
 |---|---|---|
 | 1 — shared CSV writer + formula-injection guard | `refactor/csv-writer-injection-guard` | **#625 open**, green |
 | 2 — report windows, DTO bounds, pagination, N+1 | `fix/report-window-bounds-and-n1` | **#626 open**, green |
-| 3 — sales analytics breakdown | `feat/sales-analytics-breakdown` | **open**, green |
-| 4 — search `source` + `searchIntent` | — | not started |
+| 3 — sales analytics breakdown | `feat/sales-analytics-breakdown` | **#627 open**, green |
+| 4 — search `source` + `searchIntent` | `feat/search-source-and-intent` | **open**, green |
 | 5 — admin search analytics | — | not started |
+| *(independent)* lifecycle `deliveredAt` invariant | `fix/delivered-at-invariant` | **#628 open**, green |
+
+**PR 4 carries the initiative's only production migration so far.**
+`2026-09-05_search_query_source_intent.sql` adds `search_queries.source` + `.intent` (two guarded
+enums, `ADD COLUMN IF NOT EXISTS`, O(1) defaults, no backfill) and **is** on `auto-apply.list`, so the
+deploy applies it before the rolling swap. Applied twice to dev to prove idempotency; **never run
+against production**.
+
+**The deployment-order constraint that matters:** `forbidNonWhitelisted` makes an undeclared query
+param a hard **400**, so the API accepting `searchSource`/`searchIntent` must reach production **before**
+any client sends them. buyer-web ships with the API, so it is safe; buyer-mobile reaches devices only
+on the next store build and sends nothing until then — those rows land as `UNKNOWN/SUBMIT`, which is
+the intended, identifiable legacy state.
+
+**Known Next.js dev artifact, not a defect:** on the dev server a single buyer-web search writes TWO
+rows ~1.7s apart. The **production build writes exactly one** (verified with `next build` + `next start`
+on an allowed CORS origin). Do not "fix" this from a dev observation.
 
 PRs 2 and 3 each stack on the previous branch (they edit the same files), and each targets `develop`
 so CI actually runs — the workflow only triggers on PRs into `main`/`develop`, so a PR based on

@@ -31,6 +31,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   Timer? _debounce;
   String _query = '';
   String? _lastSearchTracked; // de-dups the search_performed event per query
+
+  /// How the CURRENT `_query` came to be — 'SUBMIT' when the buyer typed or
+  /// submitted it, 'SUGGESTION' when they tapped a recent / popular / brand
+  /// chip. Purely an analytics tag; it never affects results.
+  String _queryIntent = 'SUBMIT';
   List<SuggestedCategory> _categories = const []; // autocomplete category hits
   List<SuggestedBrand> _brands = const []; // autocomplete brand hits
   List<String> _recent = const []; // recent searches (local)
@@ -71,17 +76,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   /// Run a search from a tapped chip (recent/popular).
+  /// Run a search the buyer picked from a chip (recent / popular / brand)
+  /// rather than typed — recorded as a SUGGESTION so the admin reporting can
+  /// tell chosen-suggestion demand from typed demand.
   void _runTerm(String term) {
     _controller.text = term;
     _controller.selection = TextSelection.collapsed(offset: term.length);
     _saveRecent(term);
-    _applyQuery(term);
+    _applyQuery(term, intent: 'SUGGESTION');
   }
 
   BrowseProductsParams get _params => BrowseProductsParams(
         search: _query.isNotEmpty ? _query : null,
         // Scope search to the selected city (parity with buyer-web search).
         cityId: ref.watch(cityProvider).selectedCity?.id,
+        // Analytics tag only — excluded from BrowseProductsParams' ==/hashCode,
+        // so changing it can never mint a new provider family entry or an extra
+        // request. See the field's docs in catalog_provider.dart.
+        searchIntent: _queryIntent,
       );
 
   @override
@@ -100,9 +112,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   /// Apply a query: drive the live product grid (via _query) AND fetch the
   /// matching category suggestions for the autocomplete row.
-  void _applyQuery(String value) {
+  void _applyQuery(String value, {String intent = 'SUBMIT'}) {
     final q = value.trim();
-    setState(() => _query = q);
+    setState(() {
+      _query = q;
+      _queryIntent = intent;
+    });
     if (q.length < 2) {
       setState(() {
         _categories = const [];
@@ -360,7 +375,9 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                         TextPosition(offset: b.name.length),
                       );
                       _saveRecent(b.name);
-                      _applyQuery(b.name);
+                      // A brand chip is a suggestion the buyer chose, same as a
+                      // recent/popular chip.
+                      _applyQuery(b.name, intent: 'SUGGESTION');
                     },
                   );
                 },

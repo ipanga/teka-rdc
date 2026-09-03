@@ -2,8 +2,8 @@
 
 **Started:** 2026-09-03
 **Surfaces:** `apps/api`, `apps/admin-web`, `apps/buyer-web`, `apps/buyer-mobile`, `apps/seller-mobile`
-**Status:** PRs 1 (#625), 2 (#626) and 3 open against `develop`. **Nothing merged, nothing deployed,
-no migration written or run.**
+**Status:** PRs 1 (#625), 2 (#626), 3 (#627) and 4 open against `develop`, plus the independent
+prerequisite #628. **Nothing merged, nothing deployed, no migration run against production.**
 
 ## Why this exists
 
@@ -308,7 +308,134 @@ Decisive spot checks: day buckets `2026-06-30:1` and `2026-07-01:2` — the 22:3
   Maison & Cuisine 25.000 FC = the 115.000 FC headline), and the gap warning flipping from
   « incluse(s) ici » to « exclue(s) de ce filtre par période » once a range is set. No console errors.
 
+## PR 4 — search `source` + `searchIntent` (the write path)
+
+### Why `X-Teka-Surface` was not used
+
+Two independent reasons, both verified in code: `main.ts` sets an explicit CORS `allowedHeaders`
+allowlist (a new header needs a CORS change plus preflight), and `surface.util.ts` has
+`DEFAULT_SURFACE = 'buyer'` — so buyer-mobile, which sends no such header, would have been labelled
+`BUYER_WEB` with total confidence. A query parameter needs neither.
+
+### `source` semantics
+
+`BUYER_WEB` | `BUYER_MOBILE` | `UNKNOWN`. **`UNKNOWN` is not "probably web"** — it means exactly "a
+client that predates this parameter". Missing *and* unrecognised values both map to it.
+
+The parameter is a bounded **string** in the DTO, mapped to the enum in the service, not `@IsEnum`.
+A strict enum would turn a client typo into a **400 on the search endpoint** — telemetry breaking a
+buyer's search, which is precisely what the design forbids. Validation still happens server-side; it
+just resolves to `UNKNOWN` instead of failing the request.
+
+### `searchIntent` semantics
+
+Accepted: `SUBMIT`, `SUGGESTION`, `REFINE`. **Only the first two are stored.**
+
+| Value | Meaning | Stored? |
+|---|---|---|
+| `SUBMIT` | the buyer explicitly ran a search (Enter, search key, `/recherche?q=`, deep link) | yes |
+| `SUGGESTION` | the buyer picked a recent / popular / brand chip | yes |
+| `REFINE` | a filter, sort, page or pull-to-refresh re-fetch of a search already run | **no** |
+| *missing* | a currently-deployed client | yes, as `SUBMIT` |
+| anything else | unrecognised — we refuse to classify it | **no** |
+
+Missing defaults to `SUBMIT` so clients already on devices keep contributing demand for the months
+before a store release; their rows stay identifiable because their `source` is `UNKNOWN`.
+
+`SUGGESTION` is stored rather than derived because "autocomplete selection rate" is one of the metrics
+the admin reporting is meant to answer.
+
+### Normalisation and de-duplication
+
+New `normalizeSearchTerm()` = `stripAccents()` **plus** collapsing every whitespace run to one space.
+`stripAccents` only *trims*, so `"robe  wax"` and `"robe wax"` were two aggregation keys for one piece
+of demand. It is a **separate** function on purpose: `stripAccents` also feeds `expandSynonyms` and the
+PDP specification de-dupe, and changing it would change search **matching**.
+
+Sub-2-character terms are now dropped at **write** time (they were written and only filtered on read).
+
+**There is no de-duplication and no identity column.** Two buyers searching the same term are two
+demand signals — one row per event. That is also why no session or user id was added: the only
+identity-shaped requirement is satisfied without one, so collecting it would be extra PII for no
+reporting question. The stored row is exactly
+`{term, termNormalized, resultCount, cityId, source, intent, createdAt}` — a test asserts nothing else
+creeps in.
+
+### Failure isolation
+
+Unchanged and now explicitly tested: the write is not awaited, every rejection is swallowed, and the
+whole call sits in a `try/catch`, so a missing delegate or a dead database cannot fail a search.
+
+### Clients
+
+**buyer-web** has **two** querystring builders and they disagree — this is the trap:
+
+- the inline builder in the `[query]` effect is the *actual submitted search* and the only path that
+  fires `search_performed` → `SUBMIT`;
+- `buildQuery()` backs Appliquer / Effacer / sort / load-more → `REFINE`.
+
+Tagging only one would have either missed every first-load search or counted every filter click as new
+demand. A test pins the split.
+
+**buyer-mobile**: `searchIntent` was added to `BrowseProductsParams` but **deliberately excluded from
+`==`/`hashCode`**. That class is a Riverpod `family` key and the notifier fetches in its constructor,
+so a tag that varied per interaction would mint a new notifier and an extra network request per
+interaction, and leak the old ones. Consequence, accepted and documented: for a given `(search,
+cityId)` the first fetch's tag wins — which is correct, since no second request means no second row.
+`loadMore` and `refresh` send `REFINE`.
+
+### What was NOT changed, on purpose
+
+- **The search engine.** `buildSearchMatch`, `expandSynonyms`, `getSynonymGroups` and `stripAccents`
+  are untouched; the only removed lines in `browse.service.ts` are the old `logSearch` body, its call
+  site and one import.
+- **buyer-web's nationwide first page.** `cityId` is still absent from the submitted-search builder.
+  Adding it would change the RESULTS buyers see — a product decision, not an analytics one. The cost
+  is that a web `SUBMIT` row carries no town. **Known gap, deliberately left.**
+- **buyer-mobile's 1-character search.** Mobile fetches on one character where web needs two. Changing
+  it would change UX; the sub-2-char write filter handles the analytics side.
+
+### Verification actually performed
+
+**API, against the dev database** — 13 representative requests, then the rows inspected directly:
+accented vs unaccented (`"Téléphone"` and `"TELEPHONE"` → one key `telephone`, both 32 results),
+messy whitespace (`"  robe   wax  "` → `robe wax`), zero-result, typo, town scoping, legacy client
+(→ `UNKNOWN/SUBMIT`), unknown source (→ `UNKNOWN`), unknown intent (→ no row), 1-char (→ no row),
+`REFINE` (→ no row), and an undeclared param (→ **400**, the `forbidNonWhitelisted` guard).
+**Every search returned 200, including those with bad analytics values.**
+
+**Matching unchanged, measured:** `telephone` 32 · `telephon` 28 · `caserole` 1 · `casserole` 1 ·
+`robe` 4 · `samsung` 2. Typo tolerance is partial (`telefone`, `samsng`, `robbe` → 0) — that is the
+**pre-existing** trigram threshold, not a regression: no matching code was touched.
+Autocomplete still returns products/categories/brands.
+
+**buyer-web in Chrome, PRODUCTION build** (`next build` + `next start`, served on an allowed CORS
+origin): a real search persisted exactly **one** row — `chemise coton` → `BUYER_WEB/SUBMIT n=2`,
+`farine manioc` → `BUYER_WEB/SUBMIT n=0`. In the dev server the same flow writes **two** rows ~1.7 s
+apart; that is a **Next.js dev-mode artifact** (the production build was the control), and it is
+recorded here so nobody mistakes it for a defect later.
+
+**Not performed:** the buyer-mobile emulator. The mobile changes are covered by `flutter test` (238
+pass) and `flutter analyze`, and the mobile parameter shape was exercised through the API by hand —
+but the app itself was **not** run.
+
+### Found while verifying, NOT fixed here
+
+`search-autocomplete.tsx`'s `onKeyDown` calls `goToSearch()` **without** the event in the
+`!open || items.length === 0` branch, so its `e?.preventDefault()` no-ops and the browser also fires
+the form's native submit — `router.push` runs twice for one Enter. A one-line fix was written,
+**measured to change nothing**, and reverted: it is a search-UX change that does not belong in an
+analytics PR. Worth its own PR.
+
+## Carried forward, deliberately not fixed in this initiative
+
+- **`forceStatusChange()` has the same gap for `returnedAt` that #628 fixed for `deliveredAt`** — same
+  function, same root cause. Left out to keep #628 narrow.
+- **The dev database is missing `2026-07-28_review_title.sql`**, which *is* in `auto-apply.list`. A full
+  dev seed aborts at Phase 6 with `reviews.title does not exist`. Pre-existing dev drift.
+- **buyer-web fires two `router.push` calls for one Enter** (see PR 4 above). Measured to change
+  nothing, reverted, worth its own PR.
+
 ## Remaining PRs
 
-4. `source` + `searchIntent`, the `SearchQuerySource` enum migration, retention cron, both clients.
 5. Search analytics endpoints + `reports.e2e-spec.ts` + the « Recherches » admin page.
