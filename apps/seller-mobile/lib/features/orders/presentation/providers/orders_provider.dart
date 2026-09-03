@@ -65,8 +65,19 @@ class SellerOrdersNotifier extends StateNotifier<SellerOrdersState> {
   SellerOrdersNotifier(this._repository)
       : super(const SellerOrdersState(isLoading: true));
 
+  int _request = 0;
+
+  /// Opening an action always refreshes its queue, even on a previously visited tab.
+  void openActionFilter(OrderStatus? status) {
+    state = SellerOrdersState(selectedStatus: status, limit: state.limit);
+    loadOrders();
+  }
+
   Future<void> loadOrders() async {
-    state = state.copyWith(isLoading: true, clearError: true);
+    if (!mounted) return;
+    final request = ++_request;
+    state =
+        state.copyWith(isLoading: true, isLoadingMore: false, clearError: true);
     try {
       final statusApi = state.selectedStatus != null
           ? orderStatusToApi(state.selectedStatus!)
@@ -76,6 +87,7 @@ class SellerOrdersNotifier extends StateNotifier<SellerOrdersState> {
         limit: state.limit,
         status: statusApi,
       );
+      if (!mounted || request != _request) return;
       state = state.copyWith(
         orders: result.items,
         total: result.total,
@@ -83,6 +95,7 @@ class SellerOrdersNotifier extends StateNotifier<SellerOrdersState> {
         isLoading: false,
       );
     } catch (e) {
+      if (!mounted || request != _request) return;
       state = state.copyWith(
         isLoading: false,
         error: friendlyErrorMessage(e),
@@ -91,7 +104,10 @@ class SellerOrdersNotifier extends StateNotifier<SellerOrdersState> {
   }
 
   Future<void> loadMore() async {
-    if (state.isLoadingMore || !state.hasMore) return;
+    if (!mounted || state.isLoading || state.isLoadingMore || !state.hasMore) {
+      return;
+    }
+    final request = _request;
     state = state.copyWith(isLoadingMore: true);
     try {
       final nextPage = state.page + 1;
@@ -103,6 +119,7 @@ class SellerOrdersNotifier extends StateNotifier<SellerOrdersState> {
         limit: state.limit,
         status: statusApi,
       );
+      if (!mounted || request != _request) return;
       state = state.copyWith(
         orders: [...state.orders, ...result.items],
         total: result.total,
@@ -110,6 +127,7 @@ class SellerOrdersNotifier extends StateNotifier<SellerOrdersState> {
         isLoadingMore: false,
       );
     } catch (e) {
+      if (!mounted || request != _request) return;
       state = state.copyWith(
         isLoadingMore: false,
         error: friendlyErrorMessage(e),
@@ -145,20 +163,23 @@ class SellerOrdersNotifier extends StateNotifier<SellerOrdersState> {
 
 final sellerOrdersProvider =
     StateNotifierProvider<SellerOrdersNotifier, SellerOrdersState>((ref) {
-  final notifier = SellerOrdersNotifier(ref.read(sellerOrdersRepositoryProvider));
-  // Load off auth status, not the constructor — see sellerProductsProvider.
-  ref.listen<AuthStatus>(authProvider.select((s) => s.status), (prev, next) {
-    if (next == AuthStatus.authenticated && prev != AuthStatus.authenticated) {
-      notifier.loadOrders();
-    }
-  }, fireImmediately: true);
+  final id = ref.watch(authenticatedSellerIdProvider);
+  final notifier =
+      SellerOrdersNotifier(ref.watch(sellerOrdersRepositoryProvider));
+  if (id != null) {
+    // Let a same-turn task/filter select its first request. This avoids fetching
+    // an unfiltered page immediately before the requested action queue.
+    Future.microtask(() {
+      if (notifier.mounted && notifier._request == 0) notifier.loadOrders();
+    });
+  }
   return notifier;
 });
 
 // -- Single order detail --
 
-final sellerOrderDetailProvider =
-    FutureProvider.family<SellerOrderModel, String>((ref, id) async {
-  final repository = ref.read(sellerOrdersRepositoryProvider);
+final sellerOrderDetailProvider = FutureProvider.autoDispose
+    .family<SellerOrderModel, String>((ref, id) async {
+  final repository = ref.watch(sellerOrdersRepositoryProvider);
   return repository.getOrderById(id);
 });

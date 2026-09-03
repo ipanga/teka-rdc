@@ -108,7 +108,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/orders',
-                builder: (context, state) => const OrdersListScreen(),
+                builder: (context, state) => OrdersListScreen(
+                  statusQuery: state.uri.queryParameters['status'],
+                  syncWithRoute: true,
+                ),
               ),
             ],
           ),
@@ -116,7 +119,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/products',
-                builder: (context, state) => const ProductsListScreen(),
+                builder: (context, state) => ProductsListScreen(
+                  statusQuery: state.uri.queryParameters['status'],
+                  syncWithRoute: true,
+                ),
               ),
             ],
           ),

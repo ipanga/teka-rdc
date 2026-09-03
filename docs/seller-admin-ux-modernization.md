@@ -277,3 +277,104 @@ use `lib/main.dart` and the documented development environment; this preview doe
 **Phase boundary:** local foundation work is ready for review. Do not label Mobile stable or begin
 Seller Web/Admin implementation. The next branch should build the action center on authoritative
 stats and fix its refresh/navigation tests; then handle the remaining mobile screen risks above.
+
+
+## Seller Mobile action center — second lot (2026-09-03)
+
+Branch `codex/seller-mobile-action-center`, based on foundation `f9a5da1`. Foundation PR #634 is
+still open; all its remote CI/CodeQL checks passed. This lot is draft PR [#635](https://github.com/ipanga/teka-rdc/pull/635) into `develop`, implementation
+commit `c3c5805`, and includes the foundation until that prerequisite merges. Review the action-center commit
+separately, then re-check the diff after #634 lands. Nothing merged or deployed here.
+
+### Delivered behavior and authority
+
+| Action | Authoritative source | Destination and completion |
+|---|---|---|
+| Commandes à confirmer | order stats `byStatus.PENDING` | `/orders?status=PENDING`; confirm or reject via existing detail actions |
+| Commandes à préparer | order stats `byStatus.CONFIRMED` | `/orders?status=CONFIRMED`; begin preparation |
+| Préparations à terminer | order stats `byStatus.PROCESSING` | `/orders?status=PROCESSING`; mark ready for Teka pickup |
+| Produits à corriger | product stats `rejected` | `/products?status=REJECTED`; read rejection reason, edit, then existing explicit submit |
+
+Counts use the existing seller-owned, non-deleted, global aggregation endpoints. No new business
+state machine, SLA, schema or endpoint was added. READY_FOR_TEKA_PICKUP and later fulfillment are
+Teka's responsibility; DRAFT and PENDING_REVIEW are catalogue information, not urgent tasks.
+No unsupported "overdue" or stock urgency is invented. Seller Web already consumes these APIs;
+its action-center presentation remains the next platform phase, without a contract mismatch.
+
+Requests are keyed by authenticated account ID, not only auth status; outer providers expose
+loading while identity is unavailable. Old account responses cannot populate the new account's
+counts. Lists recreate on identity change and ignore superseded/disposed request completions.
+A task opens a freshly loaded exact-status queue, clears any product search (including its pending
+debounce), and avoids a redundant initial unfiltered fetch. Status query values are allowlisted;
+unknown values resolve to all items. Chip/reset actions keep query and provider state consistent.
+Successful repository mutations invalidate only the relevant stats. List refreshes retain the
+current filter instead of recreating the notifier. Detail caches refresh when revisited and follow
+repository identity changes. Pull-to-refresh awaits both independent stats requests; errors stay
+visible in their affected sections and are never presented as a successful empty queue.
+
+Foreground FCM receipt, background/local notification taps and true background→foreground resume
+signal refresh through a small seller-only invalidation notifier. A fixed 300 ms window coalesces
+push/resume bursts; successful mutations invalidate immediately. No timer polls in the background.
+Native push delivery is still a real-device validation item; tests exercise payload/lifecycle
+invalidation without Firebase, credentials or tokens. Existing notification routing/registration,
+Dio interception/offline blocking, API transition guards and PostHog event ownership are unchanged.
+
+### Phase deliverable
+
+| Required item | Result |
+|---|---|
+| 1. Scope | Seller Mobile home/action queues and their list/refresh integration; backend stats regression tests only |
+| 2. Audit | Prior Phase 0 findings reproduced: paginated counts, lost filters after actions, pending search hiding rejected products, enlarged bottom labels, detail price/images overflows |
+| 3. Implementation | Compact greeting, actions first, neutral catalogue/shop sections, explicit states, Material 3 navigation, authoritative session-scoped counts, correct routes and refresh |
+| 4. Files | `home_screen.dart` + `seller_dashboard_provider.dart`; `seller_refresh_provider.dart`; auth identity selector, order stats model/repositories, list providers/screens/models/router/shell; push controller and app lifecycle hook; mutation refresh call sites; focused tests + local preview |
+| 5. Database | No schema, migration, `db:push`, seed or data mutation |
+| 6. API | Existing endpoints consumed unchanged; `seller-orders.stats.spec.ts` verifies owner/deleted scope, global aggregation, empty and failed reads |
+| 7. SEO | Buyer routes/metadata and seller/admin noindex untouched |
+| 8. Tests | 93 Seller Mobile tests (24 added over foundation); 3 targeted API stats tests; Flutter analyze exits 0 with the same 17 infos, no warnings/errors |
+| 9. Builds | Development Android APK and iOS simulator preview builds succeeded; updated UI hot reloaded on both |
+| 10. Visual QA | iOS normal-text home/safe areas; Android home→pending list→real detail→confirm→home, 25→24 pending and 1→2 confirmed; 2× actions/catalogue scrolling and error screen |
+| 11. Edge cases | >20 global counts independent of lists; same-status revisit; query reset; search debounce cancellation; failed mutation; failed stats/retry; empty queue; direct account switch/logout; late success/error/pagination; no polling; partial refresh waits for both endpoints |
+| 12. Accessibility | Natural-height cards, full labels/counts, non-color task meaning, separate notification semantics, 320/390/834 × 1×/2× tests. Standard NavigationBar uses Flutter's bounded label scaling and scalable long-press tooltips; body respects system scaling |
+| 13. Performance | Two small stats GETs for home, shared product request for actions/catalogue; no recent-product page fetched just to paint home; query entry avoids extra unfiltered request; no polling/dependency/font added |
+| 14. Security | No auth/approval/role bypass in production; stats scoped by account; old list responses discarded; existing ownership, mutation and offline rules retained; fixtures development/debug only |
+| 15. Risks/limits | Full auth/backend/FCM/camera/release performance not certified by isolated fixtures. Remaining detail/forms/accessibility and native splash audit items are still open. Existing native Kotlin/SPM debt and 17 analyzer infos remain |
+| 16. Follow-ups | Remaining mobile forms/details + keyboard/error recovery, then native splash lot and full real-account runtime matrix before web/admin |
+| 17. PR/commit | Draft [#635](https://github.com/ipanga/teka-rdc/pull/635) → develop, implementation `c3c5805`, dependent on #634; remote checks pending at documentation checkpoint |
+| 18. Exact next step | Read STATUS and PR/check state, review foundation then action center; continue the scoped forms/detail lot from the Phase 0 route inventory. No main merge/deploy |
+
+### Reproduction and evidence
+
+`tool/seller_actions_preview.dart` renders the **real home, list and order/product detail widgets**
+with real repository/provider logic against a Dio interceptor that simulates the existing API in
+memory. `lib/main.dart` never imports the tool. Auth/storage, FCM and analytics are not initialized;
+notifications are seeded separately. The order confirm flow mutates only this in-memory fixture.
+Edit/images/new-product and peripheral destinations are explicitly labelled placeholders in this
+preview; their full business flows remain pending. The earlier `seller_ux_preview.dart` is retained
+for reproducing the foundation's long-content/list scenarios.
+
+```sh
+# From apps/seller-mobile
+flutter test --no-pub
+flutter analyze --no-pub --no-fatal-infos lib test tool
+flutter run --no-pub --flavor development \
+  --dart-define-from-file=flavors/development.json \
+  -t tool/seller_actions_preview.dart -d <simulator-or-emulator-id>
+# From apps/api
+pnpm test -- --runInBand src/orders/seller-orders.stats.spec.ts
+```
+
+Open Profil in the preview for Données/Vide/Erreur/Chargement, 1×/2× and recovery controls; Accueil
+returns to the real dashboard. Android API 34 and iPhone 17 Pro iOS 26.5 were used. The native debug
+runners reported existing Kotlin/SPM warnings and Android emulator startup frame skips; no claim
+about production frame times is made. No cleanup of user/source files was needed for this lot.
+
+Representative persisted screenshots, all **synthetic data**:
+[Action center / iOS](qa/seller-mobile-ux/actions-ios.png),
+[Catalogue + navigation / Android 2×](qa/seller-mobile-ux/actions-catalogue-android-2x.png),
+[Stats failure / Android 2×](qa/seller-mobile-ux/actions-error-android-2x.png).
+
+The first-lot "home counters / truncated navigation" limitations above are historical and resolved
+by this lot. Mobile is not yet declared fully stable; Seller Web/Admin implementation remains gated
+on finishing the remaining mobile audit/QA items, including splash.
+
+Both development preview runners were stopped after QA. No live automation or background task was created.

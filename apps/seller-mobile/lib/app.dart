@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'core/providers/seller_refresh_provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/analytics/posthog_analytics.dart';
@@ -23,6 +24,7 @@ class TekaApp extends ConsumerWidget {
     // The provider is read (not watched) because we don't need to
     // rebuild on changes; we just need it instantiated.
     ref.read(pushControllerProvider);
+    ref.watch(sellerRefreshProvider.notifier);
 
     // Activate the Sentry reporter — subscribes to the connectivity
     // stream + tags every Sentry event with the current state and

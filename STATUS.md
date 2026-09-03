@@ -6,28 +6,33 @@
 
 ## Active initiative
 
-**Seller / Admin UX modernization — Phase 0 complete; first Seller Mobile foundation lot locally verified.**
-Branch: `codex/seller-mobile-ux-foundation`, baseline `develop` `6e6d151`.
-Draft PR [#634](https://github.com/ipanga/teka-rdc/pull/634) → `develop`; implementation commit `90a3938`.
-Remote CI is pending; local validation is complete. Nothing merged or deployed.
-Audit, full route inventory, implementation/QA record and exact next steps:
+**Seller / Admin UX modernization — Phase 0 complete; Seller Mobile foundation + action center locally verified.**
+Branch: `codex/seller-mobile-action-center`, based on foundation `f9a5da1` / `develop` `6e6d151`.
+Foundation draft PR [#634](https://github.com/ipanga/teka-rdc/pull/634) → `develop`: all remote checks green.
+Action-center draft PR [#635](https://github.com/ipanga/teka-rdc/pull/635) → `develop`, dependent on #634;
+implementation commit `c3c5805`. Remote checks pending at the final documentation checkpoint.
+No merge or deployment. Audit, source inventory, phase deliverables and exact QA limits:
 [`docs/seller-admin-ux-modernization.md`](docs/seller-admin-ux-modernization.md).
 
-Completed: orders/products list foundation, shared accessible statuses/filters/recovery, search-clear
-fix; **69 Flutter tests passing**, analyzer **17 existing infos / no warnings or errors**. Actual
-list widgets visually inspected on iPhone 17 Pro iOS 26.5 and Android API 34 with local fixtures;
-Android also covered 2× text, retry, keyboard/no-results, empty/loading. Three screenshots committed.
-No API/schema/auth/web/native-splash changes; no production writes, merge or deployment.
+Completed: authoritative account-scoped order/product counts, four actionable queues, exact filtered
+routes, mutation/push/resume refresh without polling, stale-response protection, persistent filters
+on completion, explicit loading/error/empty states, compact home and Material 3 bottom navigation.
+Two overflows in linked detail screens fixed. Foundation list work is retained.
+Validation: **93 Flutter tests**, **3 targeted API stats tests**, analyzer **17 existing infos / no
+warnings or errors**. Native Android and iOS development previews use only synthetic in-memory data;
+Android confirmation verified 25→24 pending / 1→2 confirmed, enlarged text and catalogue scrolling.
 
-**Not complete:** real dashboard/action center, remaining mobile screens and splash; web/admin
-redesign waits for mobile stabilization. Existing home counts still use a filtered page; bottom-tab
-labels truncate at 2×. Signed-in API, real details/forms, push/camera and cold-launch QA pending.
+**Not complete:** remaining mobile forms, detail refinements, notifications/profile/earnings and native
+splash; full signed-in API, native push, camera and cold-launch QA. Seller Web/Admin implementation
+still waits for mobile stabilization. Existing business transitions, API/schema, approval guards,
+Dio/offline handling, analytics and buyer SEO remain unchanged.
 
-**Next exact step:** add auth-scoped order stats binding + parse existing product rejected count,
-test it, then implement the dashboard action queue, exact filtered routes and mutation/push/resume
-refresh. Both authoritative stats endpoints already exist; no initial API/schema change required.
-Keep PRs small into `develop`; never auto-merge to `main` or deploy. Host free disk space was low;
-only ignored Seller Mobile build intermediates/caches were cleaned during QA.
+**Next exact step:** inspect PR/check status and review the two mobile lots in dependency order.
+Then implement the scoped mobile form/detail accessibility lot (order details/buttons; product
+edit/images; auth reset/register and seller-application keyboard flows) from the existing audit,
+with narrow-phone/2×/keyboard tests. Handle native splash in its own subsequent lot. Keep PRs into
+`develop`; never auto-merge to `main` or deploy. Native previews must use the development flavor;
+`tool/seller_actions_preview.dart` reproduces this lot without touching any API or real account.
 
 ## Most recently completed initiative
 

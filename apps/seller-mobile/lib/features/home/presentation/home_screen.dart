@@ -1,55 +1,78 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:seller_mobile/core/utils/price_formatter.dart';
 import '../../../core/theme/teka_colors.dart';
+import '../../../core/widgets/seller_list_state.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../../orders/data/models/order_model.dart';
 import '../../orders/presentation/providers/orders_provider.dart';
 import '../../products/data/models/product_model.dart';
-import '../../products/data/products_repository.dart';
 import '../../products/presentation/providers/products_provider.dart';
-import '../../products/presentation/widgets/status_badge.dart';
 import '../../notifications/presentation/providers/notifications_provider.dart';
+import 'providers/seller_dashboard_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
+  Future<void> _refresh(WidgetRef ref) async {
+    final id = ref.read(authenticatedSellerIdProvider);
+    if (id == null) return;
+    // Await both server responses. Errors are rendered next to the affected
+    // section; a failed refresh must never imply that the queue is empty.
+    final orders = ref.refresh(sellerOrderStatsRequestProvider(id).future);
+    final products = ref.refresh(sellerProductStatsRequestProvider(id).future);
+    try {
+      await Future.wait([orders, products]);
+    } catch (_) {
+      // AsyncValue carries the error and the section's retry action.
+    }
+  }
+
+  void _openOrders(BuildContext context, WidgetRef ref, OrderStatus? status) {
+    ref.read(sellerOrdersProvider.notifier).openActionFilter(status);
+    context.go(status == null
+        ? '/orders'
+        : '/orders?status=${orderStatusToApi(status)}');
+  }
+
+  void _openProducts(
+      BuildContext context, WidgetRef ref, ProductStatus? status) {
+    // A catalogue search left in another tab must not hide required work.
+    ref.read(sellerProductsProvider.notifier).openActionFilter(status);
+    context.go(status == null
+        ? '/products'
+        : '/products?status=${productStatusToApi(status)}');
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authProvider);
-    final statsAsync = ref.watch(dashboardStatsProvider);
-    final productsState = ref.watch(sellerProductsProvider);
-    final ordersState = ref.watch(sellerOrdersProvider);
-    final userName = authState.user?['firstName'] as String? ?? '';
+    final userName = ref.watch(
+        authProvider.select((s) => s.user?['firstName'] as String? ?? ''));
+    final orders = ref.watch(sellerOrderStatsProvider);
+    final products = ref.watch(dashboardStatsProvider);
     final unread = ref.watch(notificationsProvider.select((s) => s.unread));
-
-    // Products / orders / notifications providers now load themselves off auth
-    // status (see sellerProductsProvider), so the old manual reload-on-auth
-    // workaround here is gone — keeping it would double-load on sign-in.
+    final id = ref.watch(authenticatedSellerIdProvider);
 
     return Scaffold(
       appBar: AppBar(
-        // Brand wordmark in the dashboard header (light AppBar → colored logo).
-        title: Image.asset(
-          'assets/brand/logo_teka_cd.png',
-          height: 26,
-          semanticLabel: 'Teka RDC Vendeur',
-        ),
+        title: Image.asset('assets/brand/logo_teka_cd.png',
+            height: 26, semanticLabel: 'Teka RDC Vendeur'),
         actions: [
-          // Notification center: bell with an unread badge.
           IconButton(
-            icon: Badge(
+            icon: ExcludeSemantics(
+                child: Badge(
               isLabelVisible: unread > 0,
               label: Text(unread > 9 ? '9+' : '$unread'),
               child: const Icon(Icons.notifications_outlined),
-            ),
-            tooltip: "Notifications",
+            )),
+            tooltip: unread == 0
+                ? 'Notifications'
+                : 'Notifications, $unread non lues',
             onPressed: () => context.push('/notifications'),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: "Se déconnecter",
+            tooltip: 'Se déconnecter',
             onPressed: () async {
               await ref.read(authProvider.notifier).logout();
               if (context.mounted) context.go('/auth/login');
@@ -57,589 +80,328 @@ class HomeScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          ref.invalidate(dashboardStatsProvider);
-          ref.invalidate(sellerOrdersProvider);
-          await ref.read(sellerProductsProvider.notifier).loadProducts();
-        },
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _SellerHero(userName: userName),
-            const SizedBox(height: 20),
-
-            // Stats cards
-            _buildStatsGrid(context, statsAsync),
-            const SizedBox(height: 12),
-
-            // Orders card
-            _buildOrdersCard(context, ordersState),
-            const SizedBox(height: 12),
-
-            // Earnings card
-            _buildEarningsCard(context),
-            const SizedBox(height: 12),
-
-            // Reviews card
-            _buildReviewsCard(context),
-            const SizedBox(height: 12),
-
-            // Promotions card
-            _buildPromotionsCard(context),
-            const SizedBox(height: 20),
-
-            // Quick actions
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
+      body: SafeArea(
+        top: false,
+        bottom: false,
+        child: RefreshIndicator(
+          onRefresh: () => _refresh(ref),
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            children: [
+              Text(userName.isEmpty ? 'Bienvenue' : 'Bonjour, $userName',
+                  style: Theme.of(context)
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 6),
+              const Text('Votre activité, une étape à la fois.',
+                  style: TextStyle(color: TekaColors.neutralForeground)),
+              const SizedBox(height: 24),
+              _Section(
+                title: 'Actions requises',
+                children: [
+                  orders.when(
+                    skipLoadingOnRefresh: false,
+                    skipLoadingOnReload: false,
+                    loading: () => const _Loading(
+                        label: 'Chargement des actions commandes'),
+                    error: (_, __) => _Retry(
+                      title: 'Commandes indisponibles',
+                      onRetry: () {
+                        if (id != null) {
+                          ref.invalidate(sellerOrderStatsRequestProvider(id));
+                        }
+                      },
+                    ),
+                    data: (stats) => Column(children: [
+                      if (stats.requiredActions == 0)
+                        const _ClearMessage(
+                            label: 'Aucune commande à traiter.'),
+                      if (stats.pending > 0)
+                        _DashboardLink(
+                          title: 'Commandes à confirmer',
+                          subtitle:
+                              'Acceptez ou refusez les nouvelles commandes.',
+                          count: stats.pending,
+                          icon: Icons.receipt_long_outlined,
+                          onTap: () =>
+                              _openOrders(context, ref, OrderStatus.pending),
+                        ),
+                      if (stats.confirmed > 0)
+                        _DashboardLink(
+                          title: 'Commandes à préparer',
+                          subtitle: 'Commencez la préparation des articles.',
+                          count: stats.confirmed,
+                          icon: Icons.inventory_2_outlined,
+                          onTap: () =>
+                              _openOrders(context, ref, OrderStatus.confirmed),
+                        ),
+                      if (stats.processing > 0)
+                        _DashboardLink(
+                          title: 'Préparations à terminer',
+                          subtitle:
+                              'Signalez les colis prêts pour la collecte Teka.',
+                          count: stats.processing,
+                          icon: Icons.local_shipping_outlined,
+                          onTap: () =>
+                              _openOrders(context, ref, OrderStatus.processing),
+                        ),
+                    ]),
+                  ),
+                  const Divider(height: 1),
+                  products.when(
+                    skipLoadingOnRefresh: false,
+                    skipLoadingOnReload: false,
+                    loading: () => const _Loading(
+                        label: 'Chargement des actions produits'),
+                    error: (_, __) => _Retry(
+                      title: 'Produits indisponibles',
+                      onRetry: () {
+                        if (id != null) {
+                          ref.invalidate(sellerProductStatsRequestProvider(id));
+                        }
+                      },
+                    ),
+                    data: (stats) => stats.rejected == 0
+                        ? const _ClearMessage(
+                            label: 'Aucun produit à corriger.')
+                        : _DashboardLink(
+                            title: 'Produits à corriger',
+                            subtitle:
+                                'Consultez le motif du rejet avant de modifier la fiche.',
+                            count: stats.rejected,
+                            icon: Icons.edit_note_outlined,
+                            onTap: () => _openProducts(
+                                context, ref, ProductStatus.rejected),
+                          ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              FilledButton.icon(
                 onPressed: () => context.push('/products/new'),
                 icon: const Icon(Icons.add),
-                label: Text("Nouveau produit"),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                label: const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text('Nouveau produit')),
+              ),
+              const SizedBox(height: 20),
+              _Section(title: 'Catalogue', children: [
+                products.when(
+                  skipLoadingOnRefresh: false,
+                  skipLoadingOnReload: false,
+                  loading: () =>
+                      const _Loading(label: 'Chargement du catalogue'),
+                  error: (_, __) => const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Text(
+                        'Les compteurs du catalogue sont momentanément indisponibles.'),
+                  ),
+                  data: (stats) => Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: LayoutBuilder(builder: (context, constraints) {
+                      final columns =
+                          MediaQuery.textScalerOf(context).scale(14) > 18
+                              ? 2
+                              : 4;
+                      final width =
+                          (constraints.maxWidth - 16 * (columns - 1)) / columns;
+                      return Wrap(spacing: 16, runSpacing: 16, children: [
+                        for (final item in [
+                          (stats.total, 'Total'),
+                          (stats.active, 'Actifs'),
+                          (stats.pendingReview, 'En validation'),
+                          (stats.draft, 'Brouillons'),
+                        ])
+                          SizedBox(
+                              width: width,
+                              child: _CatalogCount(
+                                  value: item.$1, label: item.$2)),
+                      ]);
+                    }),
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Recent products
-            Row(
-              children: [
-                Text(
-                  "Produits",
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-                const Spacer(),
-                TextButton(
-                  onPressed: () => context.go('/products'),
-                  child: Text("Tous"),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-
-            if (productsState.isLoading)
-              const Center(
-                child: Padding(
-                  padding: EdgeInsets.all(32),
-                  child: CircularProgressIndicator(),
-                ),
-              )
-            else if (productsState.products.isEmpty)
-              _buildEmptyProducts(context)
-            else
-              ...productsState.products
-                  .take(5)
-                  .map((p) => _RecentProductItem(product: p)),
-          ],
+                _DashboardLink(
+                    title: 'Tous les produits',
+                    icon: Icons.inventory_2_outlined,
+                    onTap: () => _openProducts(context, ref, null)),
+              ]),
+              const SizedBox(height: 20),
+              _Section(title: 'Votre boutique', children: [
+                _DashboardLink(
+                    title: 'Toutes les commandes',
+                    icon: Icons.receipt_long_outlined,
+                    onTap: () => _openOrders(context, ref, null)),
+                _DashboardLink(
+                    title: 'Revenus',
+                    subtitle: 'Consultez votre solde et vos versements.',
+                    icon: Icons.account_balance_wallet_outlined,
+                    onTap: () => context.go('/earnings')),
+                _DashboardLink(
+                    title: 'Avis clients',
+                    icon: Icons.star_outline_rounded,
+                    onTap: () => context.push('/reviews')),
+                _DashboardLink(
+                    title: 'Promotions',
+                    icon: Icons.campaign_outlined,
+                    onTap: () => context.push('/promotions')),
+              ]),
+            ],
+          ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildStatsGrid(
-      BuildContext context, AsyncValue<ProductStats> statsAsync) {
-    // Server-computed counts (not derived from a paginated page, which is why
-    // the dashboard previously showed 0). While loading/error, fall back to 0.
-    final stats = statsAsync.valueOrNull ?? const ProductStats();
-    final total = stats.total;
-    final active = stats.active;
-    final pending = stats.pendingReview;
-    final drafts = stats.draft;
-
-    return GridView.count(
-      crossAxisCount: 2,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.6,
-      children: [
-        _StatCard(
-          label: "Total produits",
-          value: total.toString(),
-          icon: Icons.inventory_2_outlined,
-          color: TekaColors.tekaRed,
-        ),
-        _StatCard(
-          label: "Actifs",
-          value: active.toString(),
-          icon: Icons.check_circle_outline,
-          color: TekaColors.success,
-        ),
-        _StatCard(
-          label: "En attente",
-          value: pending.toString(),
-          icon: Icons.hourglass_empty,
-          color: TekaColors.warning,
-        ),
-        _StatCard(
-          label: "Brouillons",
-          value: drafts.toString(),
-          icon: Icons.edit_note,
-          color: TekaColors.mutedForeground,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildOrdersCard(BuildContext context, SellerOrdersState ordersState) {
-    final orders = ordersState.orders;
-    final pendingCount =
-        orders.where((o) => o.status == OrderStatus.pending).length;
-    final toPrepareCount = orders
-        .where((o) =>
-            o.status == OrderStatus.confirmed ||
-            o.status == OrderStatus.processing)
-        .length;
-    final readyCount = orders
-        .where((o) => o.status == OrderStatus.readyForTekaPickup)
-        .length;
-    final summaryParts = <String>[
-      if (pendingCount > 0) '$pendingCount nouvelle${pendingCount > 1 ? 's' : ''}',
-      if (toPrepareCount > 0) '$toPrepareCount à préparer',
-      if (readyCount > 0) '$readyCount prête${readyCount > 1 ? 's' : ''} pour collecte',
-    ];
-
-    return InkWell(
-      onTap: () => context.go('/orders'),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: TekaColors.tekaRed.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: TekaColors.tekaRed.withValues(alpha: 0.2)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: TekaColors.tekaRed.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.receipt_long,
-                  color: TekaColors.tekaRed, size: 24),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Commandes",
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                    ),
-                  ),
-                  if (summaryParts.isNotEmpty)
-                    Text(
-                      summaryParts.join(' · '),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: TekaColors.tekaRed,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right, color: TekaColors.mutedForeground),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEarningsCard(BuildContext context) {
-    return InkWell(
-      onTap: () => context.go('/earnings'),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: TekaColors.success.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: TekaColors.success.withValues(alpha: 0.2)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: TekaColors.success.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.account_balance_wallet,
-                  color: TekaColors.success, size: 24),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Revenus",
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                    ),
-                  ),
-                  Text(
-                    "Solde disponible",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: TekaColors.mutedForeground,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right, color: TekaColors.mutedForeground),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildReviewsCard(BuildContext context) {
-    return InkWell(
-      onTap: () => context.push('/reviews'),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.amber.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.amber.withValues(alpha: 0.2)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.amber.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.star_outline_rounded,
-                  color: Colors.amber, size: 24),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Avis clients",
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                    ),
-                  ),
-                  Text(
-                    "Avis récents",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: TekaColors.mutedForeground,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right, color: TekaColors.mutedForeground),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPromotionsCard(BuildContext context) {
-    return InkWell(
-      onTap: () => context.push('/promotions'),
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.deepPurple.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.deepPurple.withValues(alpha: 0.2)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.deepPurple.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Icon(Icons.campaign_outlined,
-                  color: Colors.deepPurple, size: 24),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Promotions",
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 15,
-                    ),
-                  ),
-                  Text(
-                    "Créer une promotion",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: TekaColors.mutedForeground,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(Icons.chevron_right, color: TekaColors.mutedForeground),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // _buildMessagesCard removed 2026-05-17 with the messaging feature.
-
-  Widget _buildEmptyProducts(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: TekaColors.muted,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
+class _Section extends StatelessWidget {
+  const _Section({required this.title, required this.children});
+  final String title;
+  final List<Widget> children;
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Icon(Icons.inventory_2_outlined,
-              size: 48, color: TekaColors.mutedForeground),
+          Semantics(
+              container: true,
+              header: true,
+              child: Text(title,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w700))),
           const SizedBox(height: 12),
-          Text(
-            "Aucun produit pour le moment",
-            style: const TextStyle(color: TekaColors.mutedForeground),
+          DecoratedBox(
+            decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: TekaColors.border),
+                borderRadius: BorderRadius.circular(12)),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: children),
           ),
         ],
-      ),
-    );
-  }
+      );
 }
 
-class _SellerHero extends StatelessWidget {
-  final String userName;
-
-  const _SellerHero({required this.userName});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [TekaColors.tekaRed, Color(0xFF8F0B21)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: TekaColors.tekaRed.withValues(alpha: 0.18),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            userName.isNotEmpty ? 'Bonjour, $userName !' : "Bienvenue",
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            "Gérez vos produits, commandes et revenus depuis votre espace vendeur.",
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.82),
-                  height: 1.35,
-                ),
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: const [
-              _HeroChip(icon: Icons.inventory_2_outlined, label: "Catalogue"),
-              _HeroChip(icon: Icons.receipt_long_outlined, label: "Commandes"),
-              _HeroChip(
-                  icon: Icons.account_balance_wallet_outlined,
-                  label: "Revenus"),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _HeroChip extends StatelessWidget {
+class _DashboardLink extends StatelessWidget {
+  const _DashboardLink(
+      {required this.title,
+      required this.icon,
+      required this.onTap,
+      this.subtitle,
+      this.count});
+  final String title;
+  final String? subtitle;
   final IconData icon;
-  final String label;
-
-  const _HeroChip({required this.icon, required this.label});
-
+  final int? count;
+  final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: Colors.white),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: 12,
-            ),
+  Widget build(BuildContext context) => Semantics(
+        container: true,
+        button: true,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              if (count != null)
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minWidth: 28, maxWidth: 72),
+                  child: Text('$count',
+                      style: Theme.of(context)
+                          .textTheme
+                          .headlineSmall
+                          ?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: TekaColors.tekaRed)),
+                )
+              else
+                Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Icon(icon,
+                        size: 22, color: TekaColors.neutralForeground)),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text(title,
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 4),
+                      Text(subtitle!,
+                          style: const TextStyle(
+                              color: TekaColors.neutralForeground)),
+                    ],
+                  ])),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right,
+                  color: TekaColors.neutralForeground),
+            ]),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      );
 }
 
-class _StatCard extends StatelessWidget {
+class _ClearMessage extends StatelessWidget {
+  const _ClearMessage({required this.label});
   final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 18, color: color),
-              const Spacer(),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: color.withValues(alpha: 0.8),
-              fontWeight: FontWeight.w500,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Icon(Icons.check_circle_outline,
+              size: 22, color: TekaColors.successForeground),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label)),
+        ]),
+      );
 }
 
-class _RecentProductItem extends StatelessWidget {
-  final SellerProductModel product;
-
-  const _RecentProductItem({required this.product});
-
+class _Loading extends StatelessWidget {
+  const _Loading({required this.label});
+  final String label;
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Semantics(
+        label: label,
+        liveRegion: true,
+        child: const Padding(
+            padding: EdgeInsets.all(16),
+            child: LinearProgressIndicator(minHeight: 3)),
+      );
+}
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: TekaColors.border),
-      ),
-      child: ListTile(
-        onTap: () => context.push('/products/${product.id}'),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        leading: ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: SizedBox(
-            width: 48,
-            height: 48,
-            child: product.coverImageUrl != null
-                ? Image.network(
-                    product.coverImageUrl!,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _placeholder(),
-                  )
-                : _placeholder(),
-          ),
-        ),
-        title: Text(
-          product.title,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          '${formatFcNumber(product.priceCDFDisplay)} FC',
-          style: TextStyle(
-            color: TekaColors.tekaRed,
-            fontWeight: FontWeight.w600,
-            fontSize: 12,
-          ),
-        ),
-        trailing: StatusBadge(status: product.status, compact: true),
-      ),
-    );
-  }
+class _Retry extends StatelessWidget {
+  const _Retry({required this.title, required this.onRetry});
+  final String title;
+  final VoidCallback onRetry;
+  @override
+  Widget build(BuildContext context) => SellerListMessage(
+        icon: Icons.cloud_off_outlined,
+        title: title,
+        message:
+            'Impossible d’actualiser les compteurs. Réessayez pour connaître les actions à traiter.',
+        actionLabel: 'Réessayer',
+        onAction: onRetry,
+      );
+}
 
-  Widget _placeholder() {
-    return Container(
-      color: TekaColors.muted,
-      child: const Icon(Icons.image_outlined,
-          size: 24, color: TekaColors.mutedForeground),
-    );
-  }
+class _CatalogCount extends StatelessWidget {
+  const _CatalogCount({required this.value, required this.label});
+  final int value;
+  final String label;
+  @override
+  Widget build(BuildContext context) =>
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('$value',
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
+                ?.copyWith(fontWeight: FontWeight.w700)),
+        Text(label,
+            style: const TextStyle(color: TekaColors.neutralForeground)),
+      ]);
 }

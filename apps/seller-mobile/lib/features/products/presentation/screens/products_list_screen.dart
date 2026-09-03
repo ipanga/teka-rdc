@@ -12,7 +12,10 @@ import '../providers/products_provider.dart';
 import '../widgets/status_badge.dart';
 
 class ProductsListScreen extends ConsumerStatefulWidget {
-  const ProductsListScreen({super.key});
+  const ProductsListScreen(
+      {super.key, this.statusQuery, this.syncWithRoute = false});
+  final String? statusQuery;
+  final bool syncWithRoute;
 
   @override
   ConsumerState<ProductsListScreen> createState() => _ProductsListScreenState();
@@ -25,6 +28,32 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _applyRoute();
+  }
+
+  @override
+  void didUpdateWidget(covariant ProductsListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.statusQuery != widget.statusQuery) _applyRoute();
+  }
+
+  void _applyRoute() {
+    if (!widget.syncWithRoute) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref
+          .read(sellerProductsProvider.notifier)
+          .setStatusFilter(productStatusFromQuery(widget.statusQuery));
+    });
+  }
+
+  void _selectStatus(ProductStatus? status) {
+    ref.read(sellerProductsProvider.notifier).setStatusFilter(status);
+    if (widget.syncWithRoute) {
+      context.go(status == null
+          ? '/products'
+          : '/products?status=${productStatusToApi(status)}');
+    }
   }
 
   @override
@@ -66,8 +95,7 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
             const _ProductSearchField(),
             SellerFilterBar<ProductStatus>(
               selected: state.statusFilter,
-              onSelected:
-                  ref.read(sellerProductsProvider.notifier).setStatusFilter,
+              onSelected: _selectStatus,
               options: const [
                 SellerFilterOption(null, 'Tous'),
                 SellerFilterOption(ProductStatus.draft, 'Brouillons'),
@@ -117,7 +145,7 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
             : 'Voir tous les produits',
         onAction: state.search.isNotEmpty
             ? () => notifier.setSearch('')
-            : () => notifier.setStatusFilter(null),
+            : () => _selectStatus(null),
       );
     }
     return SellerListMessage(
@@ -301,9 +329,11 @@ class _ProductSearchFieldState extends ConsumerState<_ProductSearchField> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<String>(sellerProductsProvider.select((s) => s.search),
-        (_, next) {
-      if (_controller.text.trim() != next) {
+    ref.listen<(String, int)>(
+        sellerProductsProvider.select((s) => (s.search, s.searchResetVersion)),
+        (previous, value) {
+      final next = value.$1;
+      if (_controller.text.trim() != next || previous?.$2 != value.$2) {
         _debounce?.cancel();
         _controller.value = TextEditingValue(
           text: next,

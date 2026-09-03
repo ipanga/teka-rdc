@@ -174,3 +174,11 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
     ref.read(tokenStorageProvider),
   );
 });
+
+/// Identity boundary for seller data. Status alone misses direct account changes.
+final authenticatedSellerIdProvider = Provider<String?>((ref) {
+  return ref.watch(authProvider.select((state) =>
+      state.status == AuthStatus.authenticated
+          ? (state.user?['id'] as String?)
+          : null));
+});

@@ -1,7 +1,10 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/providers/seller_refresh_provider.dart';
+import '../../auth/presentation/providers/auth_provider.dart';
 import 'models/order_model.dart';
+import 'models/order_stats.dart';
 
 class PaginatedOrdersResponse {
   final List<SellerOrderModel> items;
@@ -22,7 +25,23 @@ class PaginatedOrdersResponse {
 class SellerOrdersRepository {
   final Dio _dio;
 
-  SellerOrdersRepository(this._dio);
+  final void Function()? _onChanged;
+
+  SellerOrdersRepository(this._dio, {void Function()? onChanged})
+      : _onChanged = onChanged;
+
+  Future<SellerOrderStats> getOrderStats() async {
+    final response = await _dio.get('/v1/sellers/orders/stats');
+    return SellerOrderStats.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+  }
+
+  SellerOrderModel _changedOrder(Response<dynamic> response) {
+    final order = SellerOrderModel.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+    _onChanged?.call();
+    return order;
+  }
 
   Future<PaginatedOrdersResponse> getOrders({
     int page = 1,
@@ -74,8 +93,7 @@ class SellerOrdersRepository {
 
   Future<SellerOrderModel> confirmOrder(String id) async {
     final response = await _dio.patch('/v1/sellers/orders/$id/confirm');
-    return SellerOrderModel.fromJson(
-        response.data['data'] as Map<String, dynamic>);
+    return _changedOrder(response);
   }
 
   Future<SellerOrderModel> rejectOrder(String id, String reason) async {
@@ -83,14 +101,12 @@ class SellerOrdersRepository {
       '/v1/sellers/orders/$id/reject',
       data: {'reason': reason},
     );
-    return SellerOrderModel.fromJson(
-        response.data['data'] as Map<String, dynamic>);
+    return _changedOrder(response);
   }
 
   Future<SellerOrderModel> processOrder(String id) async {
     final response = await _dio.patch('/v1/sellers/orders/$id/process');
-    return SellerOrderModel.fromJson(
-        response.data['data'] as Map<String, dynamic>);
+    return _changedOrder(response);
   }
 
   /// Seller's final step — hand the parcel off to Teka. Delivery + cash
@@ -98,11 +114,15 @@ class SellerOrdersRepository {
   Future<SellerOrderModel> markReadyForPickup(String id) async {
     final response =
         await _dio.patch('/v1/sellers/orders/$id/ready-for-pickup');
-    return SellerOrderModel.fromJson(
-        response.data['data'] as Map<String, dynamic>);
+    return _changedOrder(response);
   }
 }
 
 final sellerOrdersRepositoryProvider = Provider<SellerOrdersRepository>((ref) {
-  return SellerOrdersRepository(ref.read(dioProvider));
+  ref.watch(authenticatedSellerIdProvider);
+  var alive = true;
+  ref.onDispose(() => alive = false);
+  return SellerOrdersRepository(ref.read(dioProvider), onChanged: () {
+    if (alive) ref.read(sellerRefreshProvider.notifier).ordersChanged();
+  });
 });

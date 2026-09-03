@@ -234,7 +234,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         // Images section
         const Divider(),
         const SizedBox(height: 8),
-        Row(
+        Wrap(
+          spacing: 12,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             Text(
               "Images",
@@ -242,13 +245,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                     fontWeight: FontWeight.w600,
                   ),
             ),
-            const SizedBox(width: 8),
             Text(
               "${product.images.length}/${8} images",
               style: const TextStyle(
                   fontSize: 12, color: TekaColors.mutedForeground),
             ),
-            const Spacer(),
             if (product.status == ProductStatus.draft ||
                 product.status == ProductStatus.rejected)
               TextButton.icon(
@@ -576,8 +577,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     if (product.images.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-              "Ajoutez au moins une image avant de soumettre le produit."),
+          content:
+              Text("Ajoutez au moins une image avant de soumettre le produit."),
           behavior: SnackBarBehavior.floating,
           action: SnackBarAction(
             label: "Ajouter",
@@ -612,7 +613,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     try {
       await ref.read(productsRepositoryProvider).submitForReview(product.id);
       ref.invalidate(productDetailProvider(widget.productId));
-      ref.invalidate(sellerProductsProvider);
+      ref.read(sellerProductsProvider.notifier).loadProducts();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -666,7 +667,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     setState(() => _isArchiving = true);
     try {
       await ref.read(productsRepositoryProvider).archiveProduct(product.id);
-      ref.invalidate(sellerProductsProvider);
+      ref.read(sellerProductsProvider.notifier).loadProducts();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
