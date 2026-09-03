@@ -8,6 +8,8 @@
 
 **Seller / Admin UX modernization — Phase 0 complete; first Seller Mobile foundation lot locally verified.**
 Branch: `codex/seller-mobile-ux-foundation`, baseline `develop` `6e6d151`.
+Draft PR [#634](https://github.com/ipanga/teka-rdc/pull/634) → `develop`; implementation commit `90a3938`.
+Remote CI is pending; local validation is complete. Nothing merged or deployed.
 Audit, full route inventory, implementation/QA record and exact next steps:
 [`docs/seller-admin-ux-modernization.md`](docs/seller-admin-ux-modernization.md).
 

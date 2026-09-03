@@ -206,7 +206,7 @@ Use natural-height layouts, ≥48 px interactive controls and scrollable recover
 | 14. Security | Existing API/auth/approval/ownership/offline/analytics code untouched; preview refuses non-development/non-debug execution and uses local fixtures only |
 | 15. Risks | Existing home counts remain unreliable until next lot; bottom navigation still truncates Commandes at 2×. Badge consumers outside lists pass existing tests but need later full visual review. Low host disk space interrupted native builds |
 | 16. Follow-ups | Action center + stats refresh, then mobile forms/detail/notifications/splash; full screen matrix before web/admin |
-| 17. PR/commit | Branch `codex/seller-mobile-ux-foundation`; PR into develop prepared after local verification. No merge or deployment |
+| 17. PR/commit | Draft [#634](https://github.com/ipanga/teka-rdc/pull/634) → develop; implementation `90a3938`, branch `codex/seller-mobile-ux-foundation`. Remote CI pending at checkpoint. No merge or deployment |
 | 18. Exact next step | Add auth-scoped order stats provider and parse existing product `rejected` count, with repository/provider tests; implement dashboard action queue + exact filtered routing and post-task/push/resume refresh |
 
 ### Source files in this lot
