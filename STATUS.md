@@ -6,100 +6,49 @@
 
 ## Active initiative
 
-**Search & Sales Analytics (Workstreams B, C, D) — IN FLIGHT on `develop`.**
-Tracker: `docs/search-sales-analytics.md`. **Nothing merged, nothing deployed, no production
-migration run.**
-
-The Seller Catalog Taxonomy initiative completed **Workstream A only** — its own tracker says so at
-`docs/seller-catalog-taxonomy.md:6`. This initiative picks up the three that were never started.
-
-**Measured baseline on `develop` (2026-09-02): API 313 unit + 118 e2e · buyer-web 68 (vitest).**
-CLAUDE.md (271) and `docs/seller-catalog-taxonomy.md:92` (287) are both **stale** — re-measure, do
-not trust either.
-
-| PR | Branch | State |
-|---|---|---|
-| 1 — shared CSV writer + formula-injection guard | `refactor/csv-writer-injection-guard` | **#625 open**, green |
-| 2 — report windows, DTO bounds, pagination, N+1 | `fix/report-window-bounds-and-n1` | **#626 open**, green |
-| 3 — sales analytics breakdown | `feat/sales-analytics-breakdown` | **#627 open**, green |
-| 4 — search `source` + `searchIntent` | `feat/search-source-and-intent` | **open**, green |
-| 5 — admin search analytics | `feat/admin-search-analytics` | **open**, green |
-| *(independent)* lifecycle `deliveredAt` invariant | `fix/delivered-at-invariant` | **#628 open**, green |
-
-**PR 4 carries the initiative's only production migration so far.**
-`2026-09-05_search_query_source_intent.sql` adds `search_queries.source` + `.intent` (two guarded
-enums, `ADD COLUMN IF NOT EXISTS`, O(1) defaults, no backfill) and **is** on `auto-apply.list`, so the
-deploy applies it before the rolling swap. Applied twice to dev to prove idempotency; **never run
-against production**.
-
-**The deployment-order constraint that matters:** `forbidNonWhitelisted` makes an undeclared query
-param a hard **400**, so the API accepting `searchSource`/`searchIntent` must reach production **before**
-any client sends them. buyer-web ships with the API, so it is safe; buyer-mobile reaches devices only
-on the next store build and sends nothing until then — those rows land as `UNKNOWN/SUBMIT`, which is
-the intended, identifiable legacy state.
-
-**The planned five-PR sequence is COMPLETE.** Recommended merge order:
-**#625 → #626 → #627 → #629 → PR 5**, with **#628 mergeable at any point** (it is independent — it
-branches off `develop` and shares no file with the others). Each of #626, #627, #629 and PR 5 is
-stacked on its predecessor and targets `develop` so CI runs, so each carries its ancestors' commits;
-merging in order collapses every diff to its own commit. Nothing needs rebasing as long as that order
-is kept — the only shared files are `STATUS.md`, `PROGRESS.md` and the tracker, which are edited in
-sequence on the same chain.
-
-**Next work, not started:** admin CRUD for `SearchSynonym`. It has one consumer
-(`browse.service.ts:107`) and no admin surface at all — SQL-only today. The new « Recherches » page
-already supplies the evidence for it (the zero-result table's « jamais de résultat » diagnostic is the
-candidate-synonym list).
-
-**Known Next.js dev artifact, not a defect:** on the dev server a single buyer-web search writes TWO
-rows ~1.7s apart. The **production build writes exactly one** (verified with `next build` + `next start`
-on an allowed CORS origin). Do not "fix" this from a dev observation.
-
-PRs 2 and 3 each stack on the previous branch (they edit the same files), and each targets `develop`
-so CI actually runs — the workflow only triggers on PRs into `main`/`develop`, so a PR based on
-another feature branch reports **no checks at all**. Each therefore carries its predecessors'
-commits; merge in order 625 → 626 → 3 and each diff collapses to its own commit.
-
-**What counts as a sale (PR 3, derived from the code):** `status = 'DELIVERED' AND deletedAt IS NULL`,
-on the **`deliveredAt`** axis — `markDelivered()` is the only place that stamps the date, collects the
-COD cash and creates the earning. RETURNED needs no explicit exclusion (`approveReturn()` moves the
-order off DELIVERED); CANCELLED never delivered. Both are reported as separate counters.
-
-**The trap PR 3 found:** `deliveredAt` is **not** always set on a DELIVERED order —
-`forceStatusChange()` writes only `{ status }`, and `prisma/seed.ts` never sets it at all (zero
-occurrences). **Both** dev DELIVERED orders have `deliveredAt IS NULL`, so a strictly windowed query
-reports *zero sales*. The window is therefore applied only when a date bound is supplied, and the
-summary exposes `deliveredWithoutDate` so the gap is visible rather than silent. Worth fixing in
-`seed.ts` separately — the same gap hides those orders from payout eligibility.
-
-**No index was added.** `@@index([status, deliveredAt])` was planned, then declined on evidence:
-`orders` holds 8 rows / 288 kB, Postgres seq-scans in 0.123 ms with planning time ~3× that, so the
-index would never be chosen. Revisit around low-tens-of-thousands of orders. **PR 3 carries no
-migration and no schema change.**
-
-**Three constraints that will bite whoever resumes this:**
-
-1. **`forbidNonWhitelisted: true` (`main.ts:94`)** — an undeclared query param is a hard **400**, not
-   a silent drop. The API half of PR 4 must deploy no later than either buyer client.
-2. **CORS `allowedHeaders` is an explicit allowlist (`main.ts:87`)** — which is half of why `source`
-   travels as a query param. The other half: `surface.util.ts:18` defaults `X-Teka-Surface` to
-   `'buyer'`, so reusing it would label every mobile search `BUYER_WEB`.
-3. **Guards run before pipes in Nest** — an unauthenticated request to an `@Roles('ADMIN')` route
-   returns 401 and never reaches validation, so DTO rules are **not** e2e-testable. They live in
-   `dto/report-query.dto.spec.ts`.
-
-**Known and deliberately not fixed here:** `HttpExceptionFilter` hardcodes `field: 'unknown'` on every
-validation error (`http-exception.filter.ts:36`), so French messages arrive without a field name.
-Pre-existing, affects every DTO in the API.
-
-**The e2e suite is flaky and it is NOT this initiative's doing.** An unauthenticated-401 assertion
-fails intermittently — seen as `auth/me` with `Parse Error: Expected HTTP/, RTSP/ or ICE/` and as
-`GET /v1/cart` with `expected 401, got 501`. Measured on both branches: **2 failures / 38 runs on
-clean `develop`** vs 3 / ~42 on the PR branch, hitting a different spec each time. Re-run before
-blaming your branch; a single green run proves nothing. Details in
-`docs/search-sales-analytics.md`.
+**None.** The Search & Sales Analytics initiative (Workstreams B, C, D) is **fully integrated into
+`develop`** as of 2026-09-03. Nothing is in flight. **Not released to `main`, not deployed, and its
+migration has NOT been run against production.**
 
 ## Most recently completed initiative
+
+**Search & Sales Analytics + the order-lifecycle prerequisite — MERGED TO `develop` 2026-09-03.**
+Final `develop` SHA **`9efe42a`**; pre-initiative baseline was `307ad93`.
+
+| PR | Merge commit | What |
+|---|---|---|
+| #625 | `33a816b` | shared CSV writer + formula-injection guard |
+| #626 | `3ac6c7c` | CAT report windows, DTO bounds, pagination, N+1 fix |
+| #627 | `9075d56` | sales analytics breakdown (product/category/seller/town/day) |
+| #629 | `3a1c0be` | search `source` + `searchIntent` (write path, + migration) |
+| #630 | `db7628d` | admin search analytics (read surface) |
+| #628 | `9efe42a` | `DELIVERED ⇒ deliveredAt` lifecycle invariant *(independent)* |
+
+Merged in that order with real merge commits, never squashed. #628 needed one expected `PROGRESS.md`
+conflict resolved — **both initiatives' entries were preserved**, none discarded.
+
+Combined footprint: **41 files**, +5,804 / −269, across api · admin-web · buyer-web · buyer-mobile ·
+docs. **Zero seller-web and zero seller-mobile files.**
+
+### Integrated gates on `9efe42a`
+
+API **507 unit** / **135 e2e** (0 failures in 8 consecutive runs) · buyer-web **74** · buyer-mobile
+**238** + analyze 6 known infos · seller-mobile **42** + analyze 17 infos (all pre-existing, exit 0,
+zero seller files changed) · admin-web build clean · `pnpm type-check` clean across 5 projects.
+
+### The one thing to know before releasing
+
+**`manual/2026-09-05_search_query_source_intent.sql` is on `auto-apply.list`**, so the next
+`develop → main` deploy will apply it automatically, before the rolling swap. It is additive and
+idempotent — two `pg_type`-guarded enum creations plus `ADD COLUMN IF NOT EXISTS` with O(1)
+non-volatile defaults, **no backfill, zero destructive statements**. Existing rows become
+`source = UNKNOWN`, `intent = SUBMIT`, which is the truthful reading (they predate the parameters).
+
+**Deployment order is already safe** and needs no manual sequencing: `forbidNonWhitelisted` turns an
+undeclared query param into a hard 400, and the API accepting `searchSource`/`searchIntent` ships in
+the *same* artifact as the buyer-web client that sends them. buyer-mobile reaches devices only on a
+future store build and sends nothing until then — those rows land `UNKNOWN/SUBMIT` by design.
+
 
 **Seller Catalog Taxonomy — RELEASED to production 2026-09-02, both data migrations applied.**
 Release PR **#618** (`develop → main`, merge commit `ce76525`, 16 commits / 14 files / +1,632 −23),

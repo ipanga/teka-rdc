@@ -2,9 +2,15 @@
 
 **Started:** 2026-09-03
 **Surfaces:** `apps/api`, `apps/admin-web`, `apps/buyer-web`, `apps/buyer-mobile`, `apps/seller-mobile`
-**Status:** PRs 1 (#625), 2 (#626), 3 (#627), 4 (#629) and 5 open against `develop`, plus the
-independent prerequisite #628. **The planned sequence is complete.** Nothing merged, nothing deployed,
-no migration run against production.
+**Status: INTEGRATED into `develop` on 2026-09-03.** All six PRs merged in the audited order —
+#625 `33a816b` → #626 `3ac6c7c` → #627 `9075d56` → #629 `3a1c0be` → #630 `db7628d` → #628 `9efe42a`.
+Final `develop` = **`9efe42a`** (baseline `307ad93`). Real merge commits, never squashed.
+
+**NOT released to `main`, NOT deployed, and the migration has NOT been run against production.**
+
+Integrated gates on the final SHA: API **507 unit / 135 e2e** (0 failures in 8 consecutive e2e runs) ·
+buyer-web 74 · buyer-mobile 238 · seller-mobile 42 (untouched) · admin-web build clean · type-check
+clean across 5 projects.
 
 ## Why this exists
 
