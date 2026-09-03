@@ -16,6 +16,7 @@ class ProductsListState {
   final String? error;
   final ProductStatus? statusFilter;
   final String search;
+  final int searchResetVersion;
 
   const ProductsListState({
     this.products = const [],
@@ -27,6 +28,7 @@ class ProductsListState {
     this.error,
     this.statusFilter,
     this.search = '',
+    this.searchResetVersion = 0,
   });
 
   bool get hasMore => page * limit < total;
@@ -54,6 +56,7 @@ class ProductsListState {
       error: clearError ? null : (error ?? this.error),
       statusFilter: clearFilter ? null : (statusFilter ?? this.statusFilter),
       search: search ?? this.search,
+      searchResetVersion: searchResetVersion,
     );
   }
 }
@@ -68,8 +71,22 @@ class ProductsListNotifier extends StateNotifier<ProductsListState> {
   ProductsListNotifier(this._repository)
       : super(const ProductsListState(isLoading: true));
 
+  int _request = 0;
+
+  /// Opening an action always refreshes its queue, even on a previously visited tab.
+  void openActionFilter(ProductStatus? status) {
+    state = ProductsListState(
+        statusFilter: status,
+        limit: state.limit,
+        searchResetVersion: state.searchResetVersion + 1);
+    loadProducts();
+  }
+
   Future<void> loadProducts() async {
-    state = state.copyWith(isLoading: true, clearError: true);
+    if (!mounted) return;
+    final request = ++_request;
+    state =
+        state.copyWith(isLoading: true, isLoadingMore: false, clearError: true);
     try {
       final statusApi = state.statusFilter != null
           ? productStatusToApi(state.statusFilter!)
@@ -80,6 +97,7 @@ class ProductsListNotifier extends StateNotifier<ProductsListState> {
         status: statusApi,
         search: state.search,
       );
+      if (!mounted || request != _request) return;
       state = state.copyWith(
         products: result.items,
         total: result.total,
@@ -87,6 +105,7 @@ class ProductsListNotifier extends StateNotifier<ProductsListState> {
         isLoading: false,
       );
     } catch (e) {
+      if (!mounted || request != _request) return;
       state = state.copyWith(
         isLoading: false,
         error: friendlyErrorMessage(e),
@@ -95,7 +114,10 @@ class ProductsListNotifier extends StateNotifier<ProductsListState> {
   }
 
   Future<void> loadMore() async {
-    if (state.isLoadingMore || !state.hasMore) return;
+    if (!mounted || state.isLoading || state.isLoadingMore || !state.hasMore) {
+      return;
+    }
+    final request = _request;
     state = state.copyWith(isLoadingMore: true);
     try {
       final nextPage = state.page + 1;
@@ -108,6 +130,7 @@ class ProductsListNotifier extends StateNotifier<ProductsListState> {
         status: statusApi,
         search: state.search,
       );
+      if (!mounted || request != _request) return;
       state = state.copyWith(
         products: [...state.products, ...result.items],
         total: result.total,
@@ -115,6 +138,7 @@ class ProductsListNotifier extends StateNotifier<ProductsListState> {
         isLoadingMore: false,
       );
     } catch (e) {
+      if (!mounted || request != _request) return;
       state = state.copyWith(
         isLoadingMore: false,
         error: friendlyErrorMessage(e),
@@ -128,13 +152,18 @@ class ProductsListNotifier extends StateNotifier<ProductsListState> {
       statusFilter: status,
       limit: state.limit,
       search: state.search,
+      searchResetVersion: state.searchResetVersion,
     );
     loadProducts();
   }
 
   void setSearch(String search) {
     if (search == state.search) return;
-    state = state.copyWith(search: search);
+    state = ProductsListState(
+        search: search,
+        statusFilter: state.statusFilter,
+        limit: state.limit,
+        searchResetVersion: state.searchResetVersion);
     loadProducts();
   }
 
@@ -147,7 +176,7 @@ class ProductsListNotifier extends StateNotifier<ProductsListState> {
       await loadProducts();
       return p;
     } catch (e) {
-      state = state.copyWith(error: friendlyErrorMessage(e));
+      if (mounted) state = state.copyWith(error: friendlyErrorMessage(e));
       return null;
     }
   }
@@ -158,7 +187,7 @@ class ProductsListNotifier extends StateNotifier<ProductsListState> {
       await loadProducts();
       return p;
     } catch (e) {
-      state = state.copyWith(error: friendlyErrorMessage(e));
+      if (mounted) state = state.copyWith(error: friendlyErrorMessage(e));
       return null;
     }
   }
@@ -169,7 +198,7 @@ class ProductsListNotifier extends StateNotifier<ProductsListState> {
       await loadProducts();
       return p;
     } catch (e) {
-      state = state.copyWith(error: friendlyErrorMessage(e));
+      if (mounted) state = state.copyWith(error: friendlyErrorMessage(e));
       return null;
     }
   }
@@ -177,32 +206,16 @@ class ProductsListNotifier extends StateNotifier<ProductsListState> {
 
 final sellerProductsProvider =
     StateNotifierProvider<ProductsListNotifier, ProductsListState>((ref) {
-  final notifier = ProductsListNotifier(ref.read(productsRepositoryProvider));
-  // Drive the first (and re-)load off auth status instead of the constructor.
-  // fireImmediately covers the warm path (already authenticated when the tab is
-  // opened); the transition guard covers the cold path (unknown → authenticated
-  // after token restore). Until then the notifier stays in its loading state, so
-  // the list shows a skeleton — never a 401 cached from an unauthenticated start.
-  ref.listen<AuthStatus>(authProvider.select((s) => s.status), (prev, next) {
-    if (next == AuthStatus.authenticated && prev != AuthStatus.authenticated) {
-      notifier.loadProducts();
-    }
-  }, fireImmediately: true);
-  return notifier;
-});
-
-// -- Dashboard stats (server-computed counts; one call) --
-
-final dashboardStatsProvider = FutureProvider<ProductStats>((ref) async {
-  // Tie the fetch to auth status. Without this, a fetch that ran during an
-  // unauthenticated startup attempt (e.g. an expired session → 401) caches the
-  // failure and never refreshes after login — the dashboard stays at 0. Watching
-  // the status re-runs this provider the moment the seller becomes authenticated.
-  final status = ref.watch(authProvider.select((s) => s.status));
-  if (status != AuthStatus.authenticated) {
-    return const ProductStats();
+  final id = ref.watch(authenticatedSellerIdProvider);
+  final notifier = ProductsListNotifier(ref.watch(productsRepositoryProvider));
+  if (id != null) {
+    // Let a same-turn task/filter select its first request. This avoids fetching
+    // an unfiltered page immediately before the requested action queue.
+    Future.microtask(() {
+      if (notifier.mounted && notifier._request == 0) notifier.loadProducts();
+    });
   }
-  return ref.read(productsRepositoryProvider).getProductStats();
+  return notifier;
 });
 
 // -- Single product detail --
@@ -218,16 +231,15 @@ final dashboardStatsProvider = FutureProvider<ProductStats>((ref) async {
 /// `autoDispose` drops the cache when the last listener goes, so leaving the
 /// detail screen and coming back refetches. The screen also pulls to refresh,
 /// for the seller who is already looking at it when the decision lands.
-final productDetailProvider =
-    FutureProvider.autoDispose.family<SellerProductModel, String>((ref, id) async {
-  final repository = ref.read(productsRepositoryProvider);
+final productDetailProvider = FutureProvider.autoDispose
+    .family<SellerProductModel, String>((ref, id) async {
+  final repository = ref.watch(productsRepositoryProvider);
   return repository.getProduct(id);
 });
 
 // -- Categories --
 
-final categoriesProvider =
-    FutureProvider<List<CategoryModel>>((ref) async {
+final categoriesProvider = FutureProvider<List<CategoryModel>>((ref) async {
   final repository = ref.read(productsRepositoryProvider);
   return repository.getCategories();
 });

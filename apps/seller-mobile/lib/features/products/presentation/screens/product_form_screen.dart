@@ -515,7 +515,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       }
 
       // Refresh products list
-      ref.invalidate(sellerProductsProvider);
+      ref.read(sellerProductsProvider.notifier).loadProducts();
 
       if (mounted) {
         if (_isEditing) {

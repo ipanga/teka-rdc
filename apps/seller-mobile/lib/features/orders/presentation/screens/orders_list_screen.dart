@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/widgets/seller_filter_bar.dart';
 import '../../../../core/widgets/seller_list_state.dart';
 import '../../data/models/order_model.dart';
@@ -7,7 +8,10 @@ import '../providers/orders_provider.dart';
 import '../widgets/order_card.dart';
 
 class OrdersListScreen extends ConsumerStatefulWidget {
-  const OrdersListScreen({super.key});
+  const OrdersListScreen(
+      {super.key, this.statusQuery, this.syncWithRoute = false});
+  final String? statusQuery;
+  final bool syncWithRoute;
 
   @override
   ConsumerState<OrdersListScreen> createState() => _OrdersListScreenState();
@@ -20,6 +24,32 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _applyRoute();
+  }
+
+  @override
+  void didUpdateWidget(covariant OrdersListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.statusQuery != widget.statusQuery) _applyRoute();
+  }
+
+  void _applyRoute() {
+    if (!widget.syncWithRoute) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref
+          .read(sellerOrdersProvider.notifier)
+          .setStatusFilter(orderStatusFromQuery(widget.statusQuery));
+    });
+  }
+
+  void _selectStatus(OrderStatus? status) {
+    ref.read(sellerOrdersProvider.notifier).setStatusFilter(status);
+    if (widget.syncWithRoute) {
+      context.go(status == null
+          ? '/orders'
+          : '/orders?status=${orderStatusToApi(status)}');
+    }
   }
 
   @override
@@ -52,7 +82,7 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
           children: [
             SellerFilterBar<OrderStatus>(
               selected: state.selectedStatus,
-              onSelected: notifier.setStatusFilter,
+              onSelected: _selectStatus,
               options: const [
                 SellerFilterOption(null, 'Toutes'),
                 SellerFilterOption(OrderStatus.pending, 'En attente'),
@@ -129,8 +159,7 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
           ? 'Choisissez un autre statut pour consulter vos commandes.'
           : 'Vos nouvelles commandes apparaîtront ici pour être confirmées et préparées.',
       actionLabel: filtered ? 'Voir toutes les commandes' : 'Actualiser',
-      onAction:
-          filtered ? () => notifier.setStatusFilter(null) : notifier.refresh,
+      onAction: filtered ? () => _selectStatus(null) : notifier.refresh,
     );
   }
 }

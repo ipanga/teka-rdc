@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/providers/seller_refresh_provider.dart';
+import '../../auth/presentation/providers/auth_provider.dart';
 import '../../../core/utils/image_compress.dart';
 import 'models/attribute_model.dart';
 import 'models/brand_option_model.dart';
@@ -30,19 +32,24 @@ class ProductStats {
   final int active;
   final int pendingReview;
   final int draft;
+  final int rejected;
 
   const ProductStats({
     this.total = 0,
     this.active = 0,
     this.pendingReview = 0,
     this.draft = 0,
+    this.rejected = 0,
   });
 }
 
 class ProductsRepository {
   final Dio _dio;
 
-  ProductsRepository(this._dio);
+  final void Function()? _onChanged;
+
+  ProductsRepository(this._dio, {void Function()? onChanged})
+      : _onChanged = onChanged;
 
   /// Dashboard counts for the current seller's products, grouped by status.
   /// One lightweight call (vs. counting a paginated page client-side).
@@ -59,6 +66,7 @@ class ProductsRepository {
       active: d['active'] as int? ?? 0,
       pendingReview: d['pendingReview'] as int? ?? 0,
       draft: d['draft'] as int? ?? 0,
+      rejected: d['rejected'] as int? ?? 0,
     );
   }
 
@@ -114,13 +122,19 @@ class ProductsRepository {
         response.data['data'] as Map<String, dynamic>);
   }
 
+  SellerProductModel _changedProduct(Response<dynamic> response) {
+    final product = SellerProductModel.fromJson(
+        response.data['data'] as Map<String, dynamic>);
+    _onChanged?.call();
+    return product;
+  }
+
   Future<SellerProductModel> createProduct(Map<String, dynamic> data) async {
     final response = await _dio.post(
       '/v1/sellers/products',
       data: data,
     );
-    return SellerProductModel.fromJson(
-        response.data['data'] as Map<String, dynamic>);
+    return _changedProduct(response);
   }
 
   Future<SellerProductModel> updateProduct(
@@ -129,38 +143,34 @@ class ProductsRepository {
       '/v1/sellers/products/$id',
       data: data,
     );
-    return SellerProductModel.fromJson(
-        response.data['data'] as Map<String, dynamic>);
+    return _changedProduct(response);
   }
 
   Future<void> archiveProduct(String id) async {
     await _dio.delete('/v1/sellers/products/$id');
+    _onChanged?.call();
   }
 
   Future<SellerProductModel> submitForReview(String id) async {
     final response = await _dio.patch(
       '/v1/sellers/products/$id/submit',
     );
-    return SellerProductModel.fromJson(
-        response.data['data'] as Map<String, dynamic>);
+    return _changedProduct(response);
   }
 
   Future<SellerProductModel> withdrawProduct(String id) async {
     final response = await _dio.patch('/v1/sellers/products/$id/withdraw');
-    return SellerProductModel.fromJson(
-        response.data['data'] as Map<String, dynamic>);
+    return _changedProduct(response);
   }
 
   Future<SellerProductModel> restoreProduct(String id) async {
     final response = await _dio.patch('/v1/sellers/products/$id/restore');
-    return SellerProductModel.fromJson(
-        response.data['data'] as Map<String, dynamic>);
+    return _changedProduct(response);
   }
 
   Future<SellerProductModel> duplicateProduct(String id) async {
     final response = await _dio.post('/v1/sellers/products/$id/duplicate');
-    return SellerProductModel.fromJson(
-        response.data['data'] as Map<String, dynamic>);
+    return _changedProduct(response);
   }
 
   Future<ProductImageModel> uploadImage(
@@ -221,5 +231,10 @@ class ProductsRepository {
 }
 
 final productsRepositoryProvider = Provider<ProductsRepository>((ref) {
-  return ProductsRepository(ref.read(dioProvider));
+  ref.watch(authenticatedSellerIdProvider);
+  var alive = true;
+  ref.onDispose(() => alive = false);
+  return ProductsRepository(ref.read(dioProvider), onChanged: () {
+    if (alive) ref.read(sellerRefreshProvider.notifier).productsChanged();
+  });
 });

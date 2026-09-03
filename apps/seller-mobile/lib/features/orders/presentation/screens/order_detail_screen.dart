@@ -452,24 +452,26 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
   Widget _buildPriceRow(String label, String value,
       {bool isBold = false, Color? color}) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
-            color: isBold ? TekaColors.foreground : TekaColors.mutedForeground,
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: isBold ? 15 : 13,
-            fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
-            color: color ?? TekaColors.foreground,
-          ),
-        ),
+        Expanded(
+            child: Text(label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
+                  color: isBold
+                      ? TekaColors.foreground
+                      : TekaColors.mutedForeground,
+                ))),
+        const SizedBox(width: 12),
+        Expanded(
+            child: Text(value,
+                textAlign: TextAlign.end,
+                style: TextStyle(
+                  fontSize: isBold ? 15 : 13,
+                  fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+                  color: color ?? TekaColors.foreground,
+                ))),
       ],
     );
   }
@@ -729,7 +731,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
     try {
       await action();
       ref.invalidate(sellerOrderDetailProvider(widget.orderId));
-      ref.invalidate(sellerOrdersProvider);
+      ref.read(sellerOrdersProvider.notifier).refresh();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -808,7 +810,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
           .read(sellerOrdersRepositoryProvider)
           .rejectOrder(order.id, reason);
       ref.invalidate(sellerOrderDetailProvider(widget.orderId));
-      ref.invalidate(sellerOrdersProvider);
+      ref.read(sellerOrdersProvider.notifier).refresh();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

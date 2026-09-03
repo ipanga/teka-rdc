@@ -179,8 +179,7 @@ class OrderItemModel {
     final productRaw = json['product'] as Map<String, dynamic>?;
     final titleStr =
         (json['productTitle'] ?? productRaw?['title'])?.toString() ?? '';
-    final imageRaw =
-        json['productImage'] ?? productRaw?['coverImageUrl'];
+    final imageRaw = json['productImage'] ?? productRaw?['coverImageUrl'];
 
     // Try to get image from product images array
     String? imageUrl;
@@ -207,9 +206,8 @@ class OrderItemModel {
       unitPriceCDF: json['unitPriceCDF']?.toString() ??
           json['unitPrice']?.toString() ??
           '0',
-      totalCDF: json['totalCDF']?.toString() ??
-          json['total']?.toString() ??
-          '0',
+      totalCDF:
+          json['totalCDF']?.toString() ?? json['total']?.toString() ?? '0',
     );
   }
 }
@@ -308,15 +306,14 @@ class SellerOrderModel {
   factory SellerOrderModel.fromJson(Map<String, dynamic> json) {
     final itemsRaw = json['items'] as List<dynamic>?;
     final items = itemsRaw
-            ?.map(
-                (e) => OrderItemModel.fromJson(e as Map<String, dynamic>))
+            ?.map((e) => OrderItemModel.fromJson(e as Map<String, dynamic>))
             .toList() ??
         [];
 
     final statusLogsRaw = json['statusLogs'] as List<dynamic>?;
     final statusLogs = statusLogsRaw
-            ?.map((e) =>
-                OrderStatusLogModel.fromJson(e as Map<String, dynamic>))
+            ?.map(
+                (e) => OrderStatusLogModel.fromJson(e as Map<String, dynamic>))
             .toList() ??
         [];
     // Sort status logs by date
@@ -343,8 +340,9 @@ class SellerOrderModel {
       createdAt: DateTime.parse(
           json['createdAt'] as String? ?? DateTime.now().toIso8601String()),
       buyer: buyerRaw != null ? OrderBuyerModel.fromJson(buyerRaw) : null,
-      itemCount:
-          json['itemCount'] as int? ?? json['_count']?['items'] as int? ?? items.length,
+      itemCount: json['itemCount'] as int? ??
+          json['_count']?['items'] as int? ??
+          items.length,
       items: items,
       deliveryAddress:
           addressRaw != null ? OrderAddressModel.fromJson(addressRaw) : null,
@@ -388,4 +386,12 @@ class OrderFinancials {
       isFinal: json['isFinal'] as bool? ?? false,
     );
   }
+}
+
+/// Unknown route filters mean all items, never an arbitrary actionable status.
+OrderStatus? orderStatusFromQuery(String? value) {
+  for (final status in OrderStatus.values) {
+    if (orderStatusToApi(status) == value) return status;
+  }
+  return null;
 }
