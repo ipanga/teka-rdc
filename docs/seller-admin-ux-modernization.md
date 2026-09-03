@@ -282,8 +282,8 @@ stats and fix its refresh/navigation tests; then handle the remaining mobile scr
 ## Seller Mobile action center — second lot (2026-09-03)
 
 Branch `codex/seller-mobile-action-center`, based on foundation `f9a5da1`. Foundation PR #634 is
-still open; all its remote CI/CodeQL checks passed. This lot is a separate draft PR into `develop`
-and includes the foundation until that prerequisite merges. Review the action-center commit
+still open; all its remote CI/CodeQL checks passed. This lot is draft PR [#635](https://github.com/ipanga/teka-rdc/pull/635) into `develop`, implementation
+commit `c3c5805`, and includes the foundation until that prerequisite merges. Review the action-center commit
 separately, then re-check the diff after #634 lands. Nothing merged or deployed here.
 
 ### Delivered behavior and authority
@@ -339,7 +339,7 @@ Dio interception/offline blocking, API transition guards and PostHog event owner
 | 14. Security | No auth/approval/role bypass in production; stats scoped by account; old list responses discarded; existing ownership, mutation and offline rules retained; fixtures development/debug only |
 | 15. Risks/limits | Full auth/backend/FCM/camera/release performance not certified by isolated fixtures. Remaining detail/forms/accessibility and native splash audit items are still open. Existing native Kotlin/SPM debt and 17 analyzer infos remain |
 | 16. Follow-ups | Remaining mobile forms/details + keyboard/error recovery, then native splash lot and full real-account runtime matrix before web/admin |
-| 17. PR/commit | Separate action-center draft PR into develop, dependent on #634; reference recorded in STATUS after creation |
+| 17. PR/commit | Draft [#635](https://github.com/ipanga/teka-rdc/pull/635) → develop, implementation `c3c5805`, dependent on #634; remote checks pending at documentation checkpoint |
 | 18. Exact next step | Read STATUS and PR/check state, review foundation then action center; continue the scoped forms/detail lot from the Phase 0 route inventory. No main merge/deploy |
 
 ### Reproduction and evidence
@@ -376,3 +376,5 @@ Representative persisted screenshots, all **synthetic data**:
 The first-lot "home counters / truncated navigation" limitations above are historical and resolved
 by this lot. Mobile is not yet declared fully stable; Seller Web/Admin implementation remains gated
 on finishing the remaining mobile audit/QA items, including splash.
+
+Both development preview runners were stopped after QA. No live automation or background task was created.

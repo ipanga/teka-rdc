@@ -9,7 +9,8 @@
 **Seller / Admin UX modernization — Phase 0 complete; Seller Mobile foundation + action center locally verified.**
 Branch: `codex/seller-mobile-action-center`, based on foundation `f9a5da1` / `develop` `6e6d151`.
 Foundation draft PR [#634](https://github.com/ipanga/teka-rdc/pull/634) → `develop`: all remote checks green.
-Action-center lot is being prepared as a separate draft PR into `develop`, dependent on #634.
+Action-center draft PR [#635](https://github.com/ipanga/teka-rdc/pull/635) → `develop`, dependent on #634;
+implementation commit `c3c5805`. Remote checks pending at the final documentation checkpoint.
 No merge or deployment. Audit, source inventory, phase deliverables and exact QA limits:
 [`docs/seller-admin-ux-modernization.md`](docs/seller-admin-ux-modernization.md).
 
