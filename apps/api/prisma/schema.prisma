@@ -1308,15 +1308,54 @@ model ProductStatusLog {
   @@map("product_status_logs")
 }
 
+// Which buyer surface a search came from.
+//
+// UNKNOWN is not a fallback for "probably web" — it means exactly "a client
+// that predates the `source` parameter". Guessing here would be worse than
+// admitting ignorance: `X-Teka-Surface` was rejected for this job precisely
+// because its DEFAULT_SURFACE is 'buyer', which would have labelled every
+// mobile search BUYER_WEB with total confidence and no way to tell.
+enum SearchQuerySource {
+  BUYER_WEB
+  BUYER_MOBILE
+  UNKNOWN
+}
+
+// Why a search was recorded. Only MEANINGFUL demand signals are ever stored:
+// a debounced keystroke or a filter/sort re-fetch is dropped at write time and
+// never reaches this column (see BrowseService.logSearch).
+//
+// SUBMIT     — the buyer explicitly ran a search (Enter, search key, /recherche?q=).
+// SUGGESTION — the buyer picked an autocomplete / recent / popular suggestion.
+//
+// Kept as a stored column, not derived, because "autocomplete selection rate"
+// is one of the metrics the admin reporting is meant to answer.
+enum SearchQueryIntent {
+  SUBMIT
+  SUGGESTION
+}
+
 // Search log — powers popular/trending suggestions + zero-result reports.
-// Written fire-and-forget on the first page of each search. Pruneable by createdAt.
+// Written fire-and-forget on the first page of each MEANINGFUL search
+// (see SearchQueryIntent). Pruneable by createdAt.
+//
+// Deliberately carries NO user id, session id, IP or user agent. The only
+// identity-shaped requirement was "two buyers searching the same term must
+// stay two demand signals", and that is satisfied by writing one row per event
+// and never de-duplicating — no identifier needed. Storing one would be extra
+// PII for no reporting question.
 model SearchQuery {
-  id             String   @id @default(uuid()) @db.Uuid
+  id             String            @id @default(uuid()) @db.Uuid
+  // The term as typed, kept for its accented display form: `getPopularSearches`
+  // surfaces `_max(term)` so the chip reads "téléphone", not "telephone".
   term           String
+  // Accent-, case- and whitespace-folded aggregation key.
   termNormalized String
   resultCount    Int
-  cityId         String?  @db.Uuid
-  createdAt      DateTime @default(now())
+  cityId         String?           @db.Uuid
+  source         SearchQuerySource @default(UNKNOWN)
+  intent         SearchQueryIntent @default(SUBMIT)
+  createdAt      DateTime          @default(now())
 
   @@index([termNormalized, createdAt])
   @@index([createdAt])

@@ -1,6 +1,11 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ProductStatus, Prisma } from '@prisma/client';
+import {
+  ProductStatus,
+  Prisma,
+  SearchQuerySource,
+  SearchQueryIntent,
+} from '@prisma/client';
 import { BrowseProductsQueryDto } from './dto/browse-products-query.dto';
 import { isShortCode } from '../common/utils/slugify';
 import { dedupeSpecificationsByName } from '../common/utils/product-specifications';
@@ -13,6 +18,73 @@ function stripAccents(s: string): string {
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()
     .trim();
+}
+
+/**
+ * Aggregation key for a logged search term.
+ *
+ * `stripAccents` folds accents and case but only TRIMS — it leaves internal
+ * whitespace runs alone, so "robe  wax" and "robe wax" would be two different
+ * keys for one piece of demand. This collapses every whitespace run (spaces,
+ * tabs, newlines) to a single space on top of that.
+ *
+ * Deliberately a SEPARATE function rather than a change to `stripAccents`:
+ * that helper also feeds `expandSynonyms` and the PDP specification de-dupe,
+ * and altering it would change search MATCHING. This only ever affects what is
+ * written to the analytics log.
+ */
+export function normalizeSearchTerm(term: string): string {
+  return stripAccents(term).replace(/\s+/g, ' ');
+}
+
+/** Shortest term worth recording as demand — matches buyer-web's autocomplete floor. */
+const MIN_LOGGED_TERM_LENGTH = 2;
+
+/**
+ * Maps the client-supplied `searchSource` to the stored enum.
+ *
+ * Anything unrecognised — including absent — becomes UNKNOWN rather than a
+ * guess. UNKNOWN means precisely "a client that predates this parameter"; it is
+ * NOT a synonym for web.
+ */
+function resolveSearchSource(raw?: string): SearchQuerySource {
+  switch (raw) {
+    case 'BUYER_WEB':
+      return SearchQuerySource.BUYER_WEB;
+    case 'BUYER_MOBILE':
+      return SearchQuerySource.BUYER_MOBILE;
+    default:
+      return SearchQuerySource.UNKNOWN;
+  }
+}
+
+/**
+ * Maps the client-supplied `searchIntent` to a stored intent, or `null` when
+ * the request must NOT be recorded.
+ *
+ * - absent          -> SUBMIT. Currently-deployed clients send nothing, and
+ *                      dropping them would blank search demand for months until
+ *                      the next store release. Their rows are still identifiable
+ *                      because their `source` is UNKNOWN.
+ * - 'SUBMIT'        -> SUBMIT
+ * - 'SUGGESTION'    -> SUGGESTION
+ * - 'REFINE'        -> null. A filter, sort, page or refresh re-fetch of a search
+ *                      the buyer already ran is not new demand.
+ * - anything else   -> null. We refuse to classify a value we do not recognise,
+ *                      rather than silently filing it as a search.
+ */
+function resolveSearchIntent(raw?: string): SearchQueryIntent | null {
+  if (raw === undefined || raw === null || raw === '') {
+    return SearchQueryIntent.SUBMIT;
+  }
+  switch (raw) {
+    case 'SUBMIT':
+      return SearchQueryIntent.SUBMIT;
+    case 'SUGGESTION':
+      return SearchQueryIntent.SUGGESTION;
+    default:
+      return null;
+  }
 }
 
 @Injectable()
@@ -97,18 +169,39 @@ export class BrowseService {
     return Prisma.sql`(${Prisma.join(parts, ' OR ')})`;
   }
 
-  /** Fire-and-forget search log (first page only) for popular/zero-result analytics. */
-  private logSearch(term: string, resultCount: number, cityId?: string): void {
-    // Logging must NEVER break search — swallow any error (incl. a missing
-    // delegate in tests or a transient DB blip).
+  /**
+   * Fire-and-forget search log (first page only) for popular/zero-result
+   * analytics.
+   *
+   * Non-critical telemetry: this must NEVER be able to break, slow or fail a
+   * buyer's search. It is not awaited, every rejection is swallowed, and the
+   * whole thing sits inside a try/catch so even a missing delegate (tests) or a
+   * synchronous client error cannot escape. That property is load-bearing and
+   * is covered by its own test.
+   */
+  private logSearch(
+    term: string,
+    resultCount: number,
+    cityId: string | undefined,
+    source: SearchQuerySource,
+    intent: SearchQueryIntent,
+  ): void {
+    const termNormalized = normalizeSearchTerm(term);
+    // Single-character noise was previously written and only filtered when
+    // read (getPopularSearches drops < 2 chars). Filtering at write time keeps
+    // the table honest instead of paying to store rows nothing will ever show.
+    if (termNormalized.length < MIN_LOGGED_TERM_LENGTH) return;
+
     try {
       void this.prisma.searchQuery
         ?.create({
           data: {
-            term: term.slice(0, 200),
-            termNormalized: stripAccents(term).slice(0, 200),
+            term: term.trim().slice(0, 200),
+            termNormalized: termNormalized.slice(0, 200),
             resultCount,
             cityId: cityId ?? null,
+            source,
+            intent,
           },
         })
         ?.catch(() => {});
@@ -421,8 +514,20 @@ export class BrowseService {
       );
       total = Number(countRows[0]?.count ?? 0);
 
-      // Log the search once per session (first page) for popular/zero-result analytics.
-      if (!query.cursor) this.logSearch(q, total, query.cityId);
+      // Record a search only when it is a real demand signal: the first page
+      // (never a pagination fetch) AND an intent that resolves to something
+      // storable — a REFINE (filter / sort / page / refresh re-fetch) or an
+      // unrecognised value yields null and is skipped.
+      const intent = resolveSearchIntent(query.searchIntent);
+      if (!query.cursor && intent !== null) {
+        this.logSearch(
+          q,
+          total,
+          query.cityId,
+          resolveSearchSource(query.searchSource),
+          intent,
+        );
+      }
 
       const fetched = await this.prisma.product.findMany({
         where: { id: { in: pageIds } },
