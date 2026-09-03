@@ -25,6 +25,7 @@ import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/screens/security_screen.dart';
 import '../../features/profile/presentation/screens/account_deletion_screen.dart';
 import '../../features/profile/presentation/screens/shop_profile_screen.dart';
+import '../../features/profile/presentation/screens/help_support_screen.dart';
 import '../../features/promotions/presentation/screens/create_promotion_screen.dart';
 import '../../features/promotions/presentation/screens/promotions_list_screen.dart';
 import '../../features/reviews/presentation/screens/seller_reviews_screen.dart';
@@ -209,8 +210,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/products/:id/edit',
         builder: (context, state) {
+          final id = state.pathParameters['id']!;
           final extra = state.extra as SellerProductModel?;
-          return ProductFormScreen(product: extra);
+          return ProductEditScreen(productId: id, initialProduct: extra);
         },
       ),
       GoRoute(
@@ -269,6 +271,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile/delete-account',
         builder: (context, state) => const AccountDeletionScreen(),
+      ),
+      GoRoute(
+        path: '/profile/help',
+        builder: (context, state) => const HelpSupportScreen(),
       ),
 
       // /messages and /messages/:id retired 2026-05-17 — direct buyer↔

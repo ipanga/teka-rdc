@@ -8,27 +8,45 @@ class NotificationsState {
   final List<NotificationModel> items;
   final int unread;
   final bool isLoading;
+  final bool isLoadingMore;
   final String? error;
+  final int page;
+  final int total;
+  final int limit;
 
   const NotificationsState({
     this.items = const [],
     this.unread = 0,
     this.isLoading = false,
+    this.isLoadingMore = false,
     this.error,
+    this.page = 1,
+    this.total = 0,
+    this.limit = 30,
   });
+
+  bool get hasMore => page * limit < total;
 
   NotificationsState copyWith({
     List<NotificationModel>? items,
     int? unread,
     bool? isLoading,
+    bool? isLoadingMore,
     String? error,
+    int? page,
+    int? total,
+    int? limit,
     bool clearError = false,
   }) {
     return NotificationsState(
       items: items ?? this.items,
       unread: unread ?? this.unread,
       isLoading: isLoading ?? this.isLoading,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       error: clearError ? null : (error ?? this.error),
+      page: page ?? this.page,
+      total: total ?? this.total,
+      limit: limit ?? this.limit,
     );
   }
 }
@@ -47,16 +65,43 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
   Future<void> load() async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final page = await _repo.getNotifications(page: 1, limit: 30);
+      final page = await _repo.getNotifications(page: 1, limit: state.limit);
       if (!mounted) return;
       state = state.copyWith(
         items: page.items,
         unread: page.unread,
         isLoading: false,
+        page: page.page,
+        total: page.total,
       );
     } catch (e) {
       if (!mounted) return;
       state = state.copyWith(isLoading: false, error: friendlyErrorMessage(e));
+    }
+  }
+
+  Future<void> loadMore() async {
+    if (state.isLoadingMore || !state.hasMore) return;
+    state = state.copyWith(isLoadingMore: true, clearError: true);
+    try {
+      final page = await _repo.getNotifications(
+        page: state.page + 1,
+        limit: state.limit,
+      );
+      if (!mounted) return;
+      state = state.copyWith(
+        items: [...state.items, ...page.items],
+        unread: page.unread,
+        isLoadingMore: false,
+        page: page.page,
+        total: page.total,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      state = state.copyWith(
+        isLoadingMore: false,
+        error: friendlyErrorMessage(e),
+      );
     }
   }
 
