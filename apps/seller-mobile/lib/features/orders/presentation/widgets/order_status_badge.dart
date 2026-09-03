@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/seller_status_badge.dart';
 import '../../data/models/order_model.dart';
 
 class OrderStatusBadge extends StatelessWidget {
@@ -16,31 +17,11 @@ class OrderStatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final config = _statusConfig();
 
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? 6 : 10,
-        vertical: compact ? 2 : 4,
-      ),
-      decoration: BoxDecoration(
-        color: config.color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: config.color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(config.icon, size: compact ? 12 : 14, color: config.color),
-          const SizedBox(width: 4),
-          Text(
-            config.label,
-            style: TextStyle(
-              color: config.color,
-              fontSize: compact ? 10 : 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
+    return SellerStatusBadge(
+      label: config.label,
+      icon: config.icon,
+      color: config.color,
+      compact: compact,
     );
   }
 
@@ -48,63 +29,63 @@ class OrderStatusBadge extends StatelessWidget {
     switch (status) {
       case OrderStatus.pending:
         return _OrderStatusConfig(
-          color: TekaColors.warning,
+          color: TekaColors.warningForeground,
           icon: Icons.hourglass_empty,
           label: "En attente",
         );
       case OrderStatus.confirmed:
         return _OrderStatusConfig(
-          color: const Color(0xFF3B82F6),
+          color: TekaColors.infoForeground,
           icon: Icons.check_circle_outline,
-          label: "Confirmee",
+          label: "Confirmée",
         );
       case OrderStatus.processing:
         return _OrderStatusConfig(
-          color: const Color(0xFF6366F1),
+          color: TekaColors.infoForeground,
           icon: Icons.settings_outlined,
           label: "En préparation",
         );
       case OrderStatus.readyForTekaPickup:
         return _OrderStatusConfig(
-          color: const Color(0xFF6366F1),
+          color: TekaColors.infoForeground,
           icon: Icons.inventory_2_outlined,
           label: "Prête pour collecte",
         );
       case OrderStatus.receivedAtTeka:
         return _OrderStatusConfig(
-          color: const Color(0xFF4F46E5),
+          color: TekaColors.infoForeground,
           icon: Icons.warehouse_outlined,
           label: "Reçue par Teka",
         );
       case OrderStatus.shipped:
         return _OrderStatusConfig(
-          color: const Color(0xFF0EA5E9),
+          color: TekaColors.infoForeground,
           icon: Icons.local_shipping_outlined,
-          label: "Expediee",
+          label: "Expédiée",
         );
       case OrderStatus.outForDelivery:
         return _OrderStatusConfig(
-          color: const Color(0xFF0891B2),
+          color: TekaColors.infoForeground,
           icon: Icons.delivery_dining,
           label: "En livraison",
         );
       case OrderStatus.delivered:
         return _OrderStatusConfig(
-          color: TekaColors.success,
+          color: TekaColors.successForeground,
           icon: Icons.check_circle,
-          label: "Livree",
+          label: "Livrée",
         );
       case OrderStatus.cancelled:
         return _OrderStatusConfig(
-          color: TekaColors.destructive,
+          color: TekaColors.destructiveForeground,
           icon: Icons.cancel_outlined,
-          label: "Annulee",
+          label: "Annulée",
         );
       case OrderStatus.returned:
         return _OrderStatusConfig(
-          color: const Color(0xFF9CA3AF),
+          color: TekaColors.neutralForeground,
           icon: Icons.undo,
-          label: "Retournee",
+          label: "Retournée",
         );
     }
   }

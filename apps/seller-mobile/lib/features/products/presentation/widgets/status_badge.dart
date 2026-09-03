@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/seller_status_badge.dart';
 import '../../data/models/product_model.dart';
 
 class StatusBadge extends StatelessWidget {
@@ -16,31 +17,11 @@ class StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final config = _statusConfig();
 
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? 6 : 10,
-        vertical: compact ? 2 : 4,
-      ),
-      decoration: BoxDecoration(
-        color: config.color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: config.color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(config.icon, size: compact ? 12 : 14, color: config.color),
-          const SizedBox(width: 4),
-          Text(
-            config.label,
-            style: TextStyle(
-              color: config.color,
-              fontSize: compact ? 10 : 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
+    return SellerStatusBadge(
+      label: config.label,
+      icon: config.icon,
+      color: config.color,
+      compact: compact,
     );
   }
 
@@ -48,37 +29,37 @@ class StatusBadge extends StatelessWidget {
     switch (status) {
       case ProductStatus.draft:
         return _StatusConfig(
-          color: TekaColors.mutedForeground,
+          color: TekaColors.neutralForeground,
           icon: Icons.edit_note,
           label: "Brouillon",
         );
       case ProductStatus.pendingReview:
         return _StatusConfig(
-          color: TekaColors.warning,
+          color: TekaColors.warningForeground,
           icon: Icons.hourglass_empty,
           label: "En attente",
         );
       case ProductStatus.active:
         return _StatusConfig(
-          color: TekaColors.success,
+          color: TekaColors.successForeground,
           icon: Icons.check_circle_outline,
           label: "Actif",
         );
       case ProductStatus.rejected:
         return _StatusConfig(
-          color: TekaColors.destructive,
+          color: TekaColors.destructiveForeground,
           icon: Icons.cancel_outlined,
           label: "Rejeté",
         );
       case ProductStatus.archived:
         return _StatusConfig(
-          color: const Color(0xFF9CA3AF),
+          color: TekaColors.neutralForeground,
           icon: Icons.archive_outlined,
           label: "Archivé",
         );
       case ProductStatus.suspended:
         return _StatusConfig(
-          color: TekaColors.destructive,
+          color: TekaColors.destructiveForeground,
           icon: Icons.block,
           label: "Suspendu",
         );
