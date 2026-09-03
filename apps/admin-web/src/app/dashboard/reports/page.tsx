@@ -3,8 +3,15 @@
 import { useState, useCallback } from 'react';
 import { apiFetch, SURFACE } from '@/lib/api-client';
 import { formatFC } from '@teka/shared';
+import { SearchAnalyticsPanel } from '@/components/reports/search-analytics-panel';
 
-type ReportTab = 'sales' | 'financial' | 'sellers' | 'payouts' | 'breakdown';
+type ReportTab =
+  | 'sales'
+  | 'financial'
+  | 'sellers'
+  | 'payouts'
+  | 'breakdown'
+  | 'search';
 
 /** Sales-analytics dimensions, mirroring the API's SALES_DIMENSIONS. */
 const DIMENSIONS = [
@@ -172,6 +179,7 @@ export default function ReportsPage() {
     { key: 'sellers', label: 'Performance vendeurs' },
     { key: 'payouts', label: 'Virements' },
     { key: 'breakdown', label: 'Analyse des ventes' },
+    { key: 'search', label: 'Recherches' },
   ];
 
   const formatCellValue = (col: string, value: string | number | null): string => {
@@ -212,6 +220,10 @@ export default function ReportsPage() {
         ))}
       </div>
 
+      {activeTab === 'search' ? (
+        <SearchAnalyticsPanel />
+      ) : (
+      <>
       {/* Filters */}
       <div className="bg-white rounded-xl border border-border p-4 mb-6">
         <div className="flex flex-wrap items-end gap-4">
@@ -388,6 +400,8 @@ export default function ReportsPage() {
         <div className="bg-white rounded-xl border border-border p-8 text-center text-muted-foreground">
           Sélectionnez une période et cliquez sur Générer
         </div>
+      )}
+      </>
       )}
     </div>
   );

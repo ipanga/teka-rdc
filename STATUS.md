@@ -23,7 +23,7 @@ not trust either.
 | 2 — report windows, DTO bounds, pagination, N+1 | `fix/report-window-bounds-and-n1` | **#626 open**, green |
 | 3 — sales analytics breakdown | `feat/sales-analytics-breakdown` | **#627 open**, green |
 | 4 — search `source` + `searchIntent` | `feat/search-source-and-intent` | **open**, green |
-| 5 — admin search analytics | — | not started |
+| 5 — admin search analytics | `feat/admin-search-analytics` | **open**, green |
 | *(independent)* lifecycle `deliveredAt` invariant | `fix/delivered-at-invariant` | **#628 open**, green |
 
 **PR 4 carries the initiative's only production migration so far.**
@@ -37,6 +37,19 @@ param a hard **400**, so the API accepting `searchSource`/`searchIntent` must re
 any client sends them. buyer-web ships with the API, so it is safe; buyer-mobile reaches devices only
 on the next store build and sends nothing until then — those rows land as `UNKNOWN/SUBMIT`, which is
 the intended, identifiable legacy state.
+
+**The planned five-PR sequence is COMPLETE.** Recommended merge order:
+**#625 → #626 → #627 → #629 → PR 5**, with **#628 mergeable at any point** (it is independent — it
+branches off `develop` and shares no file with the others). Each of #626, #627, #629 and PR 5 is
+stacked on its predecessor and targets `develop` so CI runs, so each carries its ancestors' commits;
+merging in order collapses every diff to its own commit. Nothing needs rebasing as long as that order
+is kept — the only shared files are `STATUS.md`, `PROGRESS.md` and the tracker, which are edited in
+sequence on the same chain.
+
+**Next work, not started:** admin CRUD for `SearchSynonym`. It has one consumer
+(`browse.service.ts:107`) and no admin surface at all — SQL-only today. The new « Recherches » page
+already supplies the evidence for it (the zero-result table's « jamais de résultat » diagnostic is the
+candidate-synonym list).
 
 **Known Next.js dev artifact, not a defect:** on the dev server a single buyer-web search writes TWO
 rows ~1.7s apart. The **production build writes exactly one** (verified with `next build` + `next start`
