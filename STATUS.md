@@ -20,13 +20,32 @@ not trust either.
 | PR | Branch | State |
 |---|---|---|
 | 1 — shared CSV writer + formula-injection guard | `refactor/csv-writer-injection-guard` | **#625 open**, green |
-| 2 — report windows, DTO bounds, pagination, N+1 | `fix/report-window-bounds-and-n1` | **open**, green (stacked on PR 1) |
-| 3 — sales analytics breakdown | — | not started |
+| 2 — report windows, DTO bounds, pagination, N+1 | `fix/report-window-bounds-and-n1` | **#626 open**, green |
+| 3 — sales analytics breakdown | `feat/sales-analytics-breakdown` | **open**, green |
 | 4 — search `source` + `searchIntent` | — | not started |
 | 5 — admin search analytics | — | not started |
 
-PR 2 is **stacked on PR 1's branch** (both edit `reports.service.ts`); its base retargets to
-`develop` automatically once PR 1 merges.
+PRs 2 and 3 each stack on the previous branch (they edit the same files), and each targets `develop`
+so CI actually runs — the workflow only triggers on PRs into `main`/`develop`, so a PR based on
+another feature branch reports **no checks at all**. Each therefore carries its predecessors'
+commits; merge in order 625 → 626 → 3 and each diff collapses to its own commit.
+
+**What counts as a sale (PR 3, derived from the code):** `status = 'DELIVERED' AND deletedAt IS NULL`,
+on the **`deliveredAt`** axis — `markDelivered()` is the only place that stamps the date, collects the
+COD cash and creates the earning. RETURNED needs no explicit exclusion (`approveReturn()` moves the
+order off DELIVERED); CANCELLED never delivered. Both are reported as separate counters.
+
+**The trap PR 3 found:** `deliveredAt` is **not** always set on a DELIVERED order —
+`forceStatusChange()` writes only `{ status }`, and `prisma/seed.ts` never sets it at all (zero
+occurrences). **Both** dev DELIVERED orders have `deliveredAt IS NULL`, so a strictly windowed query
+reports *zero sales*. The window is therefore applied only when a date bound is supplied, and the
+summary exposes `deliveredWithoutDate` so the gap is visible rather than silent. Worth fixing in
+`seed.ts` separately — the same gap hides those orders from payout eligibility.
+
+**No index was added.** `@@index([status, deliveredAt])` was planned, then declined on evidence:
+`orders` holds 8 rows / 288 kB, Postgres seq-scans in 0.123 ms with planning time ~3× that, so the
+index would never be chosen. Revisit around low-tens-of-thousands of orders. **PR 3 carries no
+migration and no schema change.**
 
 **Three constraints that will bite whoever resumes this:**
 

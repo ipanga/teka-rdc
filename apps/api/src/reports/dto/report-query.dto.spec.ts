@@ -120,3 +120,52 @@ describe('ReportQueryDto', () => {
     await expect(validate({ cityId: 'x' })).rejects.toThrow(BadRequestException);
   });
 });
+
+// ─── Sales breakdown dimension ───────────────────────────────────────────
+
+import { SalesBreakdownQueryDto } from './sales-breakdown-query.dto';
+
+const breakdownMeta: ArgumentMetadata = {
+  type: 'query',
+  metatype: SalesBreakdownQueryDto,
+};
+
+describe('SalesBreakdownQueryDto', () => {
+  it('defaults to the day dimension', async () => {
+    const out = await pipe.transform({}, breakdownMeta);
+    expect(out.by).toBe('day');
+  });
+
+  it.each(['product', 'category', 'seller', 'town', 'day'])(
+    'accepts the %s dimension',
+    async (by) => {
+      const out = await pipe.transform({ by }, breakdownMeta);
+      expect(out.by).toBe(by);
+    },
+  );
+
+  it('rejects an unknown dimension with a French message', async () => {
+    try {
+      await pipe.transform({ by: 'galaxy' }, breakdownMeta);
+      throw new Error('expected validation to fail');
+    } catch (e) {
+      if (!(e instanceof BadRequestException)) throw e;
+      expect(JSON.stringify(e.getResponse())).toContain('Dimension invalide');
+    }
+  });
+
+  it('still inherits the date-range and pagination rules', async () => {
+    try {
+      await pipe.transform(
+        { by: 'product', dateFrom: '2026-06-30', dateTo: '2026-06-01' },
+        breakdownMeta,
+      );
+      throw new Error('expected validation to fail');
+    } catch (e) {
+      if (!(e instanceof BadRequestException)) throw e;
+      expect(JSON.stringify(e.getResponse())).toContain(
+        'La date de début doit précéder la date de fin.',
+      );
+    }
+  });
+});

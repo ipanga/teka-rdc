@@ -2,8 +2,8 @@
 
 **Started:** 2026-09-03
 **Surfaces:** `apps/api`, `apps/admin-web`, `apps/buyer-web`, `apps/buyer-mobile`, `apps/seller-mobile`
-**Status:** PR 1 (#625) and PR 2 open against `develop`. **Nothing merged, nothing deployed, no
-production migration run.**
+**Status:** PRs 1 (#625), 2 (#626) and 3 open against `develop`. **Nothing merged, nothing deployed,
+no migration written or run.**
 
 ## Why this exists
 
@@ -152,6 +152,14 @@ supertest is on ephemeral ports; this looks like socket reuse in the harness.
 **Worth its own fix**, and worth knowing before someone re-runs the suite and blames their own branch.
 A single green run is not proof here — repeat it.
 
+**Third shape seen during PR 3 (2026-09-03):** the entire `Health Check (e2e)` suite failed at once —
+5 tests, including `should return degraded status when database is down`, which *mocks* the database
+rather than touching it. A whole suite going down together, mocked cases included, points at a one-off
+app-bootstrap or resource failure rather than a logic regression. Rate on the PR 3 branch:
+**1 failure in 22 runs (~4.5%)**, at or below the ~5% measured on clean `develop`. It did **not** recur
+across the following 20 runs, so its error body could not be captured — recorded here as an unknown
+rather than explained away. If it reappears, capture the full jest output before doing anything else.
+
 ## Known, deliberately out of scope
 
 - `HttpExceptionFilter` hardcodes `field: 'unknown'` on every validation error
@@ -162,9 +170,145 @@ A single green run is not proof here — repeat it.
   (`DELIVERED`, keyed on `deliveredAt`) arrive with the sales-analytics endpoints in PR 3, alongside
   an explicit `status` filter.
 
+## PR 3 — sales analytics breakdown
+
+### What counts as a sale — derived from the code, not the enum
+
+`status = 'DELIVERED' AND "deletedAt" IS NULL`, on the **`deliveredAt`** axis.
+
+`AdminOrdersService.markDelivered()` is the single moment a sale completes: it stamps `deliveredAt`,
+flips a COD order's `paymentStatus` to COMPLETED (the agent collects cash at the door), increments
+`Product.unitsSold`, and triggers `EarningsService.createEarning()`. **Nothing earlier does any of
+that** — CONFIRMED, PROCESSING, READY_FOR_TEKA_PICKUP, RECEIVED_AT_TEKA and OUT_FOR_DELIVERY have been
+paid for by nobody, so none of them is a sale.
+
+- **CANCELLED** — excluded; never delivered, stock restored.
+- **RETURNED** — needs **no** explicit exclusion. `ReturnsService.approveReturn()` moves the order
+  *off* `DELIVERED`, restocks it and reverses the earning, so the status predicate already excludes it.
+  A test pins this so nobody adds a redundant `NOT IN` later.
+- Both are still **reported as separate counters**, so the headline cannot be misread as "nothing was
+  cancelled".
+
+### The finding that shaped the design: `deliveredAt` is not always set
+
+Two code paths produce a DELIVERED order with **no** `deliveredAt`:
+
+1. `AdminOrdersService.forceStatusChange()` writes only `{ status }` — the manual escape hatch stamps
+   no timestamp, creates no earning, increments nothing.
+2. **`prisma/seed.ts` never sets `deliveredAt` at all** — zero occurrences in the file.
+
+This is not hypothetical: **both** DELIVERED orders in the dev database have `deliveredAt IS NULL`, so
+a strictly windowed query returns *zero sales*. The `EXPLAIN` output shows it plainly —
+`Rows Removed by Filter: 8`, `rows=0`.
+
+So the window is applied **only when the caller supplies a date bound**, and
+`getSummary()` returns **`deliveredWithoutDate`**. An unfiltered report covers everything; a windowed
+one says, in the UI, « ⚠ 2 commandes livrées sans date de livraison — exclue(s) de ce filtre par
+période. » The alternative — silently under-reporting — was rejected.
+
+> **Follow-up worth doing separately:** `seed.ts` should stamp `deliveredAt` on its DELIVERED orders.
+> The same gap also hides them from payout eligibility (`earnings.service.ts` filters
+> `deliveredAt: { lte: cutoff }`), so local payout testing is unrepresentative today.
+
+### What "revenue" means
+
+`SUM(order_items."totalCDF")` — the price actually charged, discount already applied
+(`CheckoutService` snapshots `discountPriceCDF ?? priceCDF` into `unitPriceCDF`). It equals
+`Order.subtotalCDF` and therefore **excludes the delivery fee**, deliberately: a delivery fee belongs
+to an order, not to a product or category, so including it would make those dimensions incomparable
+with the others. The UI states this in plain French under the totals.
+
+`discountCDF` reconstructs the buyer's saving from the `listUnitPriceCDF` snapshot the schema keeps
+for exactly this purpose.
+
+### Index decision — measured, then declined
+
+`@@index([status, deliveredAt])` was planned. **It was not added**, because the plan does not justify
+it:
+
+```
+orders: 8 rows, 288 kB   |   order_items: 12 rows, 96 kB
+
+Aggregate  (cost=1.11..1.12 rows=1)
+  ->  Seq Scan on orders o  (actual time=0.072..0.072 rows=0 loops=1)
+        Filter: (("deletedAt" IS NULL) AND ("deliveredAt" >= ...) AND (status = 'DELIVERED'))
+        Rows Removed by Filter: 8
+Planning Time: 0.408 ms
+Execution Time: 0.123 ms
+```
+
+Postgres correctly seq-scans a 9-row table; planning time exceeds execution time by ~3×. An index
+would never be chosen, and would add write cost to every order transition. **Revisit when `orders`
+reaches roughly the low tens of thousands**, or when `EXPLAIN` on production shows the filter
+dominating. `EXPLAIN ANALYZE` was run for all four aggregation shapes; every one seq-scans and
+completes in ~0.12 ms.
+
+**No migration, no schema change, in this PR.**
+
+### Query shape
+
+All five dimensions aggregate over `order_items ⋈ orders` in **one** statement each, so every
+dimension returns the identical row shape and the same revenue definition. Prisma `groupBy` cannot
+express them: they need a join, `COUNT(DISTINCT o.id)`, a CASE-guarded discount sum, and — for town —
+a `COALESCE` plus an accent-folded grouping key distinct from its display label. Raw SQL is
+parameterised through `Prisma.sql` tagged templates, the same approach
+`AdminStatsService.getDashboardTrends()` already uses.
+
+- **product** — labelled from the `productTitle` **snapshot**, so a renamed or soft-deleted product
+  still labels its own historical sales.
+- **category** — grouped at leaf level in SQL (bounded by taxonomy size, ~350) then rolled to the root
+  with the same `rootIdOf` walk `AdminStatsService.getCatalogCoverage()` already uses.
+- **town** — from the order's delivery **snapshot** with the relation only as the pre-backfill
+  fallback, exactly as `resolveDeliveryAddress()` does it. Grouped
+  `f_unaccent(LOWER(COALESCE(...)))` so "Likasi" and "LIKASI" are one town, with a readable label kept
+  separately.
+- **day** — `date_trunc(... AT TIME ZONE 'Africa/Lubumbashi')`.
+- Pagination: SQL `LIMIT/OFFSET` for product/seller/town; in-memory for category and day, whose group
+  counts are inherently bounded (taxonomy size / the DTO's 366-day cap). CSV never paginates.
+
+### Validation — an independent oracle over rich fixtures
+
+Aggregations were checked against a **JS oracle that does no SQL aggregation at all**: it pulls raw
+rows and recomputes every dimension in TypeScript, then diffs.
+
+Because dev data is thin (no discounts, one seller, one town, and `day` empty), the real run used
+**purpose-built fixtures created inside an interactive transaction that is always rolled back** —
+the dev database was verified unchanged afterwards (8 orders / 12 items, 0 fixture rows).
+
+Fixtures covered: a CAT day boundary (22:30Z → next day CAT, 21:30Z → same day), a discounted
+multi-item order, a **multi-seller checkout** (two orders sharing one `checkoutGroupId`), an
+accent/case town variant, and four rows that must be excluded — CANCELLED, RETURNED,
+OUT_FOR_DELIVERY and a soft-deleted DELIVERED order.
+
+| Scenario | product | category | seller | town | day |
+|---|---|---|---|---|---|
+| all delivered, no window | MATCH | MATCH | MATCH | MATCH | MATCH |
+| June 2026 | MATCH | MATCH | MATCH | MATCH | MATCH |
+| **1 July only (CAT boundary)** | MATCH | MATCH | MATCH | MATCH | MATCH |
+| **30 June only (CAT boundary)** | MATCH | MATCH | MATCH | MATCH | MATCH |
+| single seller | MATCH | MATCH | MATCH | MATCH | MATCH |
+| empty window | MATCH | MATCH | MATCH | MATCH | MATCH |
+
+Decisive spot checks: day buckets `2026-06-30:1` and `2026-07-01:2` — the 22:30Z delivery lands on
+**1 July** CAT, which is the UTC-vs-CAT bug proven fixed; towns folded to
+`Lubumbashi(8) LIKASI(6) Kolwezi(3)`; `discountCDF = 600` = (1000−800)×3; and total units **17, not
+276** — the excluded rows carried 99 + 50 + 77 + 33 units precisely so that a leak would be obvious.
+
+### Verified over HTTP (local API, dev DB)
+
+- **No route collision.** All five paths map distinctly; the `sales` ledger still returns its own
+  columns and all 8 orders. Nest log confirms `sales`, `sales/csv`, `sales/summary`,
+  `sales/breakdown`, `sales/breakdown/csv`.
+- **Authorization** — 401 / 403 buyer / 403 seller / 200 admin on summary, breakdown **and** the CSV.
+- **Validation** — unknown dimension, inverted range, `limit=999` and an undeclared param all 400 with
+  French messages.
+- **CSV** — French headers, accents intact, FC conversion (9 000 000 centimes → `90000`), and
+  `page`/`limit` ignored.
+- **Admin UI in Chrome** — summary cards, the « hors ventes » line, the table (Mode 90.000 FC +
+  Maison & Cuisine 25.000 FC = the 115.000 FC headline), and the gap warning flipping from
+  « incluse(s) ici » to « exclue(s) de ce filtre par période » once a range is set. No console errors.
+
 ## Remaining PRs
 
-3. Sales analytics breakdown (`?by=product|category|seller|town|day`) + composite
-   `@@index([status, deliveredAt])`.
 4. `source` + `searchIntent`, the `SearchQuerySource` enum migration, retention cron, both clients.
 5. Search analytics endpoints + `reports.e2e-spec.ts` + the « Recherches » admin page.
