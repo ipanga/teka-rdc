@@ -6,8 +6,26 @@
 
 ## Active initiative
 
-**None.** The Search & Sales Analytics initiative (Workstreams B, C, D) and its order-lifecycle
-prerequisite are **released to production**. Nothing is in flight.
+**Seller / Admin UX modernization — Phase 0 complete; first Seller Mobile foundation lot locally verified.**
+Branch: `codex/seller-mobile-ux-foundation`, baseline `develop` `6e6d151`.
+Audit, full route inventory, implementation/QA record and exact next steps:
+[`docs/seller-admin-ux-modernization.md`](docs/seller-admin-ux-modernization.md).
+
+Completed: orders/products list foundation, shared accessible statuses/filters/recovery, search-clear
+fix; **69 Flutter tests passing**, analyzer **17 existing infos / no warnings or errors**. Actual
+list widgets visually inspected on iPhone 17 Pro iOS 26.5 and Android API 34 with local fixtures;
+Android also covered 2× text, retry, keyboard/no-results, empty/loading. Three screenshots committed.
+No API/schema/auth/web/native-splash changes; no production writes, merge or deployment.
+
+**Not complete:** real dashboard/action center, remaining mobile screens and splash; web/admin
+redesign waits for mobile stabilization. Existing home counts still use a filtered page; bottom-tab
+labels truncate at 2×. Signed-in API, real details/forms, push/camera and cold-launch QA pending.
+
+**Next exact step:** add auth-scoped order stats binding + parse existing product rejected count,
+test it, then implement the dashboard action queue, exact filtered routes and mutation/push/resume
+refresh. Both authoritative stats endpoints already exist; no initial API/schema change required.
+Keep PRs small into `develop`; never auto-merge to `main` or deploy. Host free disk space was low;
+only ignored Seller Mobile build intermediates/caches were cleaned during QA.
 
 ## Most recently completed initiative
 

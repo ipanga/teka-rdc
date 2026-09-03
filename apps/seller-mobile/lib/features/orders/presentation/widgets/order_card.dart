@@ -13,101 +13,68 @@ class OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateFormat = DateFormat('dd/MM/yyyy HH:mm', 'fr');
-
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      color: TekaColors.background,
+      margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         side: const BorderSide(color: TekaColors.border),
       ),
-      child: InkWell(
-        onTap: () => context.push('/orders/${order.id}'),
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Order number + status
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      "Commande ${order.orderNumber}",
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  OrderStatusBadge(status: order.status, compact: true),
-                ],
-              ),
-              const SizedBox(height: 8),
-
-              // Buyer name
-              if (order.buyer != null)
+      child: Semantics(
+        button: true,
+        child: InkWell(
+          onTap: () => context.push('/orders/${order.id}'),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Row(
                   children: [
-                    const Icon(Icons.person_outline,
-                        size: 14, color: TekaColors.mutedForeground),
-                    const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        order.buyer!.fullName,
+                        'Commande ${order.orderNumber}',
                         style: const TextStyle(
-                          fontSize: 13,
-                          color: TekaColors.mutedForeground,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                            fontWeight: FontWeight.w600, fontSize: 15),
                       ),
                     ),
+                    const SizedBox(width: 8),
+                    const Icon(Icons.chevron_right,
+                        size: 20, color: TekaColors.mutedForeground),
                   ],
                 ),
-              const SizedBox(height: 6),
-
-              // Date + item count + total
-              Row(
-                children: [
-                  const Icon(Icons.calendar_today_outlined,
-                      size: 12, color: TekaColors.mutedForeground),
-                  const SizedBox(width: 4),
-                  Text(
-                    dateFormat.format(order.createdAt),
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: TekaColors.mutedForeground,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Icon(Icons.shopping_bag_outlined,
-                      size: 12, color: TekaColors.mutedForeground),
-                  const SizedBox(width: 4),
-                  Text(
-                    "${order.itemCount} article(s)",
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: TekaColors.mutedForeground,
-                    ),
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${formatFcNumber(order.totalCDFDisplay)} FC',
-                    style: TextStyle(
-                      color: TekaColors.tekaRed,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 13,
-                    ),
-                  ),
+                const SizedBox(height: 8),
+                OrderStatusBadge(status: order.status, compact: true),
+                if (order.buyer != null) ...[
+                  const SizedBox(height: 12),
+                  Text(order.buyer!.fullName,
+                      style: const TextStyle(
+                          fontSize: 14, color: TekaColors.foreground)),
                 ],
-              ),
-            ],
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  children: [
+                    Text(
+                        DateFormat('dd/MM/yyyy · HH:mm', 'fr')
+                            .format(order.createdAt),
+                        style: const TextStyle(
+                            fontSize: 12, color: TekaColors.mutedForeground)),
+                    Text(
+                        '${order.itemCount} article${order.itemCount == 1 ? '' : 's'}',
+                        style: const TextStyle(
+                            fontSize: 12, color: TekaColors.mutedForeground)),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text('${formatFcNumber(order.totalCDFDisplay)} FC',
+                    style: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w700)),
+              ],
+            ),
           ),
         ),
       ),

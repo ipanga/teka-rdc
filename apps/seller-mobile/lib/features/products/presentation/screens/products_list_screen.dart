@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:seller_mobile/core/utils/price_formatter.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/seller_filter_bar.dart';
+import '../../../../core/widgets/seller_list_state.dart';
 import '../../data/models/product_model.dart';
 import '../providers/products_provider.dart';
 import '../widgets/status_badge.dart';
@@ -32,8 +34,11 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
+    final state = ref.read(sellerProductsProvider);
+    if (!state.isLoading &&
+        state.error == null &&
+        _scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200) {
       ref.read(sellerProductsProvider.notifier).loadMore();
     }
   }
@@ -47,87 +52,43 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
         title: Text("Produits"),
       ),
       floatingActionButton: FloatingActionButton(
+        tooltip: 'Nouveau produit',
         onPressed: () => context.push('/products/new'),
         backgroundColor: TekaColors.tekaRed,
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
-      body: Column(
-        children: [
-          const _ProductSearchField(),
-          _buildFilterChips(context, state),
-          Expanded(
-            child: state.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : state.error != null && state.products.isEmpty
-                    ? _buildErrorState(context, state.error!)
-                    : state.products.isEmpty
-                        ? _buildEmptyState(context)
-                        : _buildProductsList(context, state),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterChips(BuildContext context, ProductsListState state) {
-    final filters = <_FilterItem>[
-      _FilterItem(null, "Tous"),
-      _FilterItem(ProductStatus.draft, "Brouillon"),
-      _FilterItem(ProductStatus.pendingReview, "En attente"),
-      _FilterItem(ProductStatus.active, "Actif"),
-      _FilterItem(ProductStatus.rejected, "Rejeté"),
-      _FilterItem(ProductStatus.archived, "Archivé"),
-      _FilterItem(ProductStatus.suspended, "Suspendu"),
-    ];
-
-    return SizedBox(
-      height: 52,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: filters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final filter = filters[index];
-          final isSelected = state.statusFilter == filter.status;
-          return FilterChip(
-            label: Text(filter.label),
-            selected: isSelected,
-            selectedColor: TekaColors.tekaRed.withValues(alpha: 0.15),
-            checkmarkColor: TekaColors.tekaRed,
-            onSelected: (_) {
-              ref
-                  .read(sellerProductsProvider.notifier)
-                  .setStatusFilter(filter.status);
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildErrorState(BuildContext context, String error) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
+      body: SafeArea(
+        top: false,
+        bottom: false,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline,
-                size: 48, color: TekaColors.destructive),
-            const SizedBox(height: 12),
-            Text(
-              "Une erreur est survenue. Veuillez réessayer.",
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: TekaColors.mutedForeground),
+            const _ProductSearchField(),
+            SellerFilterBar<ProductStatus>(
+              selected: state.statusFilter,
+              onSelected:
+                  ref.read(sellerProductsProvider.notifier).setStatusFilter,
+              options: const [
+                SellerFilterOption(null, 'Tous'),
+                SellerFilterOption(ProductStatus.draft, 'Brouillons'),
+                SellerFilterOption(ProductStatus.pendingReview, 'En attente'),
+                SellerFilterOption(ProductStatus.active, 'Actifs'),
+                SellerFilterOption(ProductStatus.rejected, 'Rejetés'),
+                SellerFilterOption(ProductStatus.archived, 'Archivés'),
+                SellerFilterOption(ProductStatus.suspended, 'Suspendus'),
+              ],
             ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () =>
-                  ref.read(sellerProductsProvider.notifier).loadProducts(),
-              icon: const Icon(Icons.refresh),
-              label: Text("Réessayer"),
+            Expanded(
+              child: state.isLoading
+                  ? const SellerListLoading(label: 'Chargement des produits')
+                  : RefreshIndicator(
+                      onRefresh: ref
+                          .read(sellerProductsProvider.notifier)
+                          .loadProducts,
+                      child: state.products.isEmpty
+                          ? SellerListState(child: _message(state))
+                          : _buildProductsList(context, state),
+                    ),
             ),
           ],
         ),
@@ -135,53 +96,60 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.inventory_2_outlined,
-                size: 64,
-                color: TekaColors.mutedForeground.withValues(alpha: 0.5)),
-            const SizedBox(height: 16),
-            Text(
-              "Aucun produit pour le moment",
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: TekaColors.mutedForeground,
-                  ),
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () => context.push('/products/new'),
-              icon: const Icon(Icons.add),
-              label: Text("Nouveau produit"),
-            ),
-          ],
-        ),
-      ),
+  Widget _message(ProductsListState state) {
+    final notifier = ref.read(sellerProductsProvider.notifier);
+    if (state.error != null) {
+      return SellerListMessage(
+        icon: Icons.cloud_off_outlined,
+        title: 'Impossible de charger les produits',
+        message: state.error!,
+        actionLabel: 'Réessayer',
+        onAction: notifier.loadProducts,
+      );
+    }
+    if (state.search.isNotEmpty || state.statusFilter != null) {
+      return SellerListMessage(
+        icon: Icons.search_off_outlined,
+        title: 'Aucun produit trouvé',
+        message: 'Essayez une autre recherche ou un autre statut.',
+        actionLabel: state.search.isNotEmpty
+            ? 'Effacer la recherche'
+            : 'Voir tous les produits',
+        onAction: state.search.isNotEmpty
+            ? () => notifier.setSearch('')
+            : () => notifier.setStatusFilter(null),
+      );
+    }
+    return SellerListMessage(
+      icon: Icons.inventory_2_outlined,
+      title: 'Votre catalogue commence ici',
+      message:
+          'Ajoutez votre premier produit, puis ses photos avant de le soumettre pour révision.',
+      actionLabel: 'Nouveau produit',
+      onAction: () => context.push('/products/new'),
     );
   }
 
   Widget _buildProductsList(BuildContext context, ProductsListState state) {
-    return RefreshIndicator(
-      onRefresh: () => ref.read(sellerProductsProvider.notifier).loadProducts(),
-      child: ListView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: state.products.length + (state.isLoadingMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == state.products.length) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          final product = state.products[index];
-          return _ProductListItem(product: product);
-        },
-      ),
+    return ListView.builder(
+      controller: _scrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+      itemCount: state.products.length +
+          (state.isLoadingMore || state.error != null ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index < state.products.length) {
+          return _ProductListItem(product: state.products[index]);
+        }
+        if (state.error != null) return _message(state);
+        return const Padding(
+          padding: EdgeInsets.all(16),
+          child: Center(
+              child: CircularProgressIndicator(
+            semanticsLabel: 'Chargement des produits suivants',
+          )),
+        );
+      },
     );
   }
 }
@@ -196,100 +164,83 @@ class _ProductListItem extends StatelessWidget {
     final dateFormat = DateFormat('dd/MM/yyyy', 'fr');
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      color: TekaColors.background,
+      margin: const EdgeInsets.only(bottom: 12),
       elevation: 0,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         side: const BorderSide(color: TekaColors.border),
       ),
-      child: InkWell(
-        onTap: () => context.push('/products/${product.id}'),
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              // Thumbnail
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: SizedBox(
-                  width: 64,
-                  height: 64,
-                  child: product.coverImageUrl != null
-                      ? Image.network(
-                          product.coverImageUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _placeholderImage(),
-                          loadingBuilder: (_, child, loadingProgress) {
-                            if (loadingProgress == null) return child;
-                            return _placeholderImage();
-                          },
-                        )
-                      : _placeholderImage(),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Details
-              Expanded(
-                child: Column(
+      child: Semantics(
+        button: true,
+        child: InkWell(
+          onTap: () => context.push('/products/${product.id}'),
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      product.title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: SizedBox(
+                        width: 56,
+                        height: 56,
+                        child: product.coverImageUrl != null
+                            ? Image.network(
+                                product.coverImageUrl!,
+                                fit: BoxFit.cover,
+                                excludeFromSemantics: true,
+                                errorBuilder: (_, __, ___) =>
+                                    _placeholderImage(),
+                                loadingBuilder: (_, child, progress) =>
+                                    progress == null
+                                        ? child
+                                        : _placeholderImage(),
+                              )
+                            : _placeholderImage(),
                       ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${formatFcNumber(product.priceCDFDisplay)} FC',
-                      style: TextStyle(
-                        color: TekaColors.tekaRed,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
-                      ),
-                    ),
-                    if (product.cityName != null) ...[
-                      const SizedBox(height: 3),
-                      Row(
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(Icons.place_outlined,
-                              size: 12, color: TekaColors.mutedForeground),
-                          const SizedBox(width: 2),
-                          Text(
-                            product.cityName!,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: TekaColors.mutedForeground,
-                            ),
-                          ),
+                          Text(product.title,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600, fontSize: 15),
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis),
+                          const SizedBox(height: 6),
+                          Text('${formatFcNumber(product.priceCDFDisplay)} FC',
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700, fontSize: 15)),
                         ],
                       ),
-                    ],
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        StatusBadge(status: product.status, compact: true),
-                        const Spacer(),
-                        Text(
-                          dateFormat.format(product.createdAt),
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: TekaColors.mutedForeground,
-                          ),
-                        ),
-                      ],
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 4),
-              const Icon(Icons.chevron_right,
-                  size: 20, color: TekaColors.mutedForeground),
-            ],
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    StatusBadge(status: product.status, compact: true),
+                    if (product.cityName != null)
+                      Text(product.cityName!,
+                          style: const TextStyle(
+                              fontSize: 12, color: TekaColors.mutedForeground)),
+                    Text(dateFormat.format(product.createdAt),
+                        style: const TextStyle(
+                            fontSize: 12, color: TekaColors.mutedForeground)),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -308,13 +259,6 @@ class _ProductListItem extends StatelessWidget {
   }
 }
 
-class _FilterItem {
-  final ProductStatus? status;
-  final String label;
-
-  const _FilterItem(this.status, this.label);
-}
-
 /// Debounced search box (title / référence / id) feeding the products provider.
 class _ProductSearchField extends ConsumerStatefulWidget {
   const _ProductSearchField();
@@ -325,8 +269,20 @@ class _ProductSearchField extends ConsumerStatefulWidget {
 }
 
 class _ProductSearchFieldState extends ConsumerState<_ProductSearchField> {
-  final _controller = TextEditingController();
+  late final TextEditingController _controller;
   Timer? _debounce;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller =
+        TextEditingController(text: ref.read(sellerProductsProvider).search);
+  }
+
+  void _submit(String value) {
+    _debounce?.cancel();
+    ref.read(sellerProductsProvider.notifier).setSearch(value.trim());
+  }
 
   @override
   void dispose() {
@@ -336,6 +292,7 @@ class _ProductSearchFieldState extends ConsumerState<_ProductSearchField> {
   }
 
   void _onChanged(String value) {
+    setState(() {});
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 350), () {
       ref.read(sellerProductsProvider.notifier).setSearch(value.trim());
@@ -344,23 +301,37 @@ class _ProductSearchFieldState extends ConsumerState<_ProductSearchField> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<String>(sellerProductsProvider.select((s) => s.search),
+        (_, next) {
+      if (_controller.text.trim() != next) {
+        _debounce?.cancel();
+        _controller.value = TextEditingValue(
+          text: next,
+          selection: TextSelection.collapsed(offset: next.length),
+        );
+        setState(() {});
+      }
+    });
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: TextField(
         controller: _controller,
         onChanged: _onChanged,
+        onSubmitted: _submit,
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
-          hintText: "Rechercher (nom, référence, ID)…",
+          labelText: 'Rechercher un produit',
+          hintText: 'Nom, référence ou ID',
           prefixIcon: const Icon(Icons.search, size: 20),
           isDense: true,
           border: const OutlineInputBorder(),
           suffixIcon: _controller.text.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.clear, size: 18),
+                  tooltip: 'Effacer la recherche',
+                  icon: const Icon(Icons.clear, size: 20),
                   onPressed: () {
-                    _controller.clear();
-                    ref.read(sellerProductsProvider.notifier).setSearch('');
+                    setState(_controller.clear);
+                    _submit('');
                   },
                 )
               : null,
