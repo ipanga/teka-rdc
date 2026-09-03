@@ -42,6 +42,22 @@ class BrowseProductsParams {
   /// String so this param stays value-equatable for the provider family key.
   final String? brandIds;
 
+  /// Search-analytics tag: which surface and why. Passive — it changes nothing
+  /// about the results.
+  ///
+  /// DELIBERATELY EXCLUDED from `==` and `hashCode`. This class is the key of a
+  /// `StateNotifierProvider.family`, and `BrowseProductsNotifier`'s constructor
+  /// fetches. Including a value that varies per interaction (SUBMIT for typing,
+  /// SUGGESTION for a chip on the same term) would mint a NEW notifier and a new
+  /// network request for each, and Riverpod would keep the old ones alive — an
+  /// extra request and a leak, caused purely by telemetry.
+  ///
+  /// The consequence, accepted: for a given (search, cityId) the tag of the
+  /// FIRST fetch wins, because a later identical params object hits the cached
+  /// family entry and issues no request at all. That is the correct outcome
+  /// anyway — no second request means no second demand row.
+  final String? searchIntent;
+
   const BrowseProductsParams({
     this.categoryId,
     this.search,
@@ -53,6 +69,7 @@ class BrowseProductsParams {
     this.onPromotion = false,
     this.attributesJson,
     this.brandIds,
+    this.searchIntent,
   });
 
   @override
@@ -95,6 +112,7 @@ class BrowseProductsParams {
     bool? onPromotion,
     String? attributesJson,
     String? brandIds,
+    String? searchIntent,
     bool clearCategoryId = false,
     bool clearSearch = false,
     bool clearCondition = false,
@@ -116,6 +134,7 @@ class BrowseProductsParams {
       attributesJson:
           clearAttributes ? null : (attributesJson ?? this.attributesJson),
       brandIds: clearBrandIds ? null : (brandIds ?? this.brandIds),
+      searchIntent: searchIntent ?? this.searchIntent,
     );
   }
 }
@@ -164,7 +183,10 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
     loadProducts();
   }
 
-  Future<void> loadProducts() async {
+  /// [intentOverride] lets a caller record the fetch as something other than
+  /// the params' own intent — used by [refresh], where re-running the same
+  /// search after an error or a pull-to-refresh is not new demand.
+  Future<void> loadProducts({String? intentOverride}) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final result = await _repository.browseProducts(
@@ -178,6 +200,10 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
         onPromotion: _params.onPromotion,
         attributesJson: _params.attributesJson,
         brandIds: _params.brandIds,
+        searchSource: 'BUYER_MOBILE',
+        // Defaults to SUBMIT so a search that reaches here untagged is still
+        // recorded — the screen sets SUGGESTION when the term came from a chip.
+        searchIntent: intentOverride ?? _params.searchIntent ?? 'SUBMIT',
       );
       state = state.copyWith(
         products: result.data,
@@ -214,6 +240,11 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
         attributesJson: _params.attributesJson,
         brandIds: _params.brandIds,
         cursor: state.pagination?.nextCursor,
+        searchSource: 'BUYER_MOBILE',
+        // Paging through results the buyer already searched for is not a new
+        // demand signal. (The API also skips any request carrying a cursor —
+        // this is belt and braces, and keeps the intent honest in the log.)
+        searchIntent: 'REFINE',
       );
       state = state.copyWith(
         products: [...state.products, ...result.data],
@@ -235,7 +266,10 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
 
   Future<void> refresh() async {
     state = const BrowseProductsState();
-    await loadProducts();
+    // Pull-to-refresh and the error-retry button re-run a search the buyer
+    // already made. Recording it again would inflate demand for whichever terms
+    // happen to fail on a flaky connection.
+    await loadProducts(intentOverride: 'REFINE');
   }
 }
 

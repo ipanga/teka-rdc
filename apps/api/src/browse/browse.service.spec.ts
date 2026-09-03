@@ -468,3 +468,255 @@ describe('BrowseService.getProductDetail — precedence and normalisation', () =
     expect(out.specifications.map((s: { name: string }) => s.name).sort()).toEqual(['Poids', 'Taille']);
   });
 });
+
+// --- Search analytics: source, intent and normalisation -----------------
+//
+// These cover the WRITE path only. Nothing here may change what a buyer sees:
+// every assertion is about the row that gets logged, never about the products
+// returned.
+
+import { normalizeSearchTerm } from './browse.service';
+
+/**
+ * Harness for the FTS/trigram search path (the one that logs). It differs from
+ * makeService() above because a search goes through $queryRaw for the ranked id
+ * list and the count, then hydrates by id.
+ */
+function makeSearchService(opts: { total?: number; createRejects?: boolean } = {}) {
+  const total = opts.total ?? 3;
+  const create = jest.fn().mockImplementation(() =>
+    opts.createRejects
+      ? Promise.reject(new Error('db down'))
+      : Promise.resolve({}),
+  );
+  let call = 0;
+  const $queryRaw = jest.fn().mockImplementation(() => {
+    call += 1;
+    // 1st call: ranked ids. 2nd: COUNT(*).
+    return Promise.resolve(call === 1 ? [] : [{ count: BigInt(total) }]);
+  });
+  const prisma = {
+    $queryRaw,
+    product: {
+      findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
+      groupBy: jest.fn().mockResolvedValue([]),
+    },
+    searchSynonym: { findMany: jest.fn().mockResolvedValue([]) },
+    systemSetting: { findUnique: jest.fn().mockResolvedValue(null) },
+    searchQuery: { create },
+  };
+  return { service: new BrowseService(prisma as never), create, prisma };
+}
+
+/** The `data` of the single searchQuery.create call, or null if never called. */
+function loggedRow(create: jest.Mock): Record<string, unknown> | null {
+  if (create.mock.calls.length === 0) return null;
+  return (create.mock.calls[0][0] as { data: Record<string, unknown> }).data;
+}
+
+describe('normalizeSearchTerm', () => {
+  it('folds accents and case', () => {
+    expect(normalizeSearchTerm('Télévision')).toBe('television');
+    expect(normalizeSearchTerm('ROBE WAX')).toBe('robe wax');
+    expect(normalizeSearchTerm('Chaussures Étendues')).toBe('chaussures etendues');
+    // An accented and an unaccented spelling must land on ONE key, so a buyer
+    // typing "telephone" and one typing "téléphone" count as the same demand.
+    expect(normalizeSearchTerm('téléphone')).toBe(normalizeSearchTerm('TELEPHONE'));
+  });
+
+  // The reason this exists separately from stripAccents: stripAccents only
+  // TRIMS, so "robe  wax" and "robe wax" were two aggregation keys for one
+  // piece of demand.
+  it('collapses every run of whitespace, not just the edges', () => {
+    expect(normalizeSearchTerm('  Robe   Wax  ')).toBe('robe wax');
+    expect(normalizeSearchTerm(['robe', 'wax'].join('\t'))).toBe('robe wax');
+    expect(normalizeSearchTerm(['robe', 'wax'].join('\n' + '\n'))).toBe('robe wax');
+    expect(normalizeSearchTerm('  Robe   Wax  ')).toBe(normalizeSearchTerm('Robe Wax'));
+  });
+
+  it('leaves an already-clean term alone', () => {
+    expect(normalizeSearchTerm('samsung a54')).toBe('samsung a54');
+  });
+});
+
+describe('BrowseService search logging - source', () => {
+  it('records BUYER_WEB when the web client says so', async () => {
+    const { service, create } = makeSearchService();
+    await service.browseProducts({ search: 'robe', searchSource: 'BUYER_WEB' });
+    expect(loggedRow(create)).toMatchObject({ source: 'BUYER_WEB' });
+  });
+
+  it('records BUYER_MOBILE when the mobile client says so', async () => {
+    const { service, create } = makeSearchService();
+    await service.browseProducts({ search: 'robe', searchSource: 'BUYER_MOBILE' });
+    expect(loggedRow(create)).toMatchObject({ source: 'BUYER_MOBILE' });
+  });
+
+  // Backward compatibility: clients already in the wild send nothing. They must
+  // keep contributing demand data, but must not be mislabelled as web.
+  it('records UNKNOWN when the client sends no source', async () => {
+    const { service, create } = makeSearchService();
+    await service.browseProducts({ search: 'robe' });
+    expect(loggedRow(create)).toMatchObject({ source: 'UNKNOWN' });
+  });
+
+  it('records UNKNOWN - never a guess - for an unrecognised source', async () => {
+    for (const bad of ['SELLER_WEB', 'buyer_web', 'admin', '']) {
+      const { service, create } = makeSearchService();
+      await service.browseProducts({ search: 'robe', searchSource: bad });
+      expect(loggedRow(create)).toMatchObject({ source: 'UNKNOWN' });
+    }
+  });
+
+  it('never breaks the search itself over a bad source value', async () => {
+    const { service } = makeSearchService();
+    await expect(
+      service.browseProducts({ search: 'robe', searchSource: ' junk' }),
+    ).resolves.toBeDefined();
+  });
+});
+
+describe('BrowseService search logging - intent', () => {
+  it('records an explicit SUBMIT', async () => {
+    const { service, create } = makeSearchService();
+    await service.browseProducts({ search: 'robe', searchIntent: 'SUBMIT' });
+    expect(loggedRow(create)).toMatchObject({ intent: 'SUBMIT' });
+  });
+
+  it('records a SUGGESTION selection distinctly', async () => {
+    const { service, create } = makeSearchService();
+    await service.browseProducts({ search: 'nike', searchIntent: 'SUGGESTION' });
+    expect(loggedRow(create)).toMatchObject({ intent: 'SUGGESTION' });
+  });
+
+  it('defaults a missing intent to SUBMIT so old clients keep counting', async () => {
+    const { service, create } = makeSearchService();
+    await service.browseProducts({ search: 'robe' });
+    expect(loggedRow(create)).toMatchObject({ intent: 'SUBMIT' });
+  });
+
+  // The duplicate-demand fix: applying a filter, changing the sort, paging or
+  // pull-to-refresh re-runs a search the buyer already made.
+  it('records NOTHING for a REFINE re-fetch', async () => {
+    const { service, create } = makeSearchService();
+    await service.browseProducts({ search: 'robe', searchIntent: 'REFINE' });
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('records nothing for an unrecognised intent rather than guessing', async () => {
+    for (const bad of ['TYPING', 'submit', 'CLICK']) {
+      const { service, create } = makeSearchService();
+      await service.browseProducts({ search: 'robe', searchIntent: bad });
+      expect(create).not.toHaveBeenCalled();
+    }
+  });
+
+  it('still returns results for a REFINE request', async () => {
+    const { service } = makeSearchService();
+    const res = await service.browseProducts({
+      search: 'robe',
+      searchIntent: 'REFINE',
+    });
+    expect(res.data).toBeDefined();
+  });
+});
+
+describe('BrowseService search logging - what gets stored', () => {
+  it('stores the normalised key and keeps the original term for display', async () => {
+    const { service, create } = makeSearchService();
+    await service.browseProducts({ search: '  Robe   WAX  ' });
+    expect(loggedRow(create)).toMatchObject({
+      term: 'Robe   WAX',
+      termNormalized: 'robe wax',
+    });
+  });
+
+  it('records the result count, including zero', async () => {
+    const hit = makeSearchService({ total: 7 });
+    await hit.service.browseProducts({ search: 'robe' });
+    expect(loggedRow(hit.create)).toMatchObject({ resultCount: 7 });
+
+    const miss = makeSearchService({ total: 0 });
+    await miss.service.browseProducts({ search: 'xyzzy' });
+    expect(loggedRow(miss.create)).toMatchObject({ resultCount: 0 });
+  });
+
+  it('records the town when the search is city-scoped', async () => {
+    const cityId = '01000000-0000-0000-0000-000000000001';
+    const { service, create } = makeSearchService();
+    await service.browseProducts({ search: 'robe', cityId });
+    expect(loggedRow(create)).toMatchObject({ cityId });
+  });
+
+  it('records a null town when the search is nationwide', async () => {
+    const { service, create } = makeSearchService();
+    await service.browseProducts({ search: 'robe' });
+    expect(loggedRow(create)).toMatchObject({ cityId: null });
+  });
+
+  it('drops sub-2-character noise at write time', async () => {
+    for (const term of ['a', ' b ']) {
+      const { service, create } = makeSearchService();
+      await service.browseProducts({ search: term });
+      expect(create).not.toHaveBeenCalled();
+    }
+  });
+
+  // Two different buyers searching the same term are two demand signals. There
+  // is no de-duplication and no identity column - one row per event.
+  it('records two rows when two buyers search the same normalised term', async () => {
+    const { service, create } = makeSearchService();
+    await service.browseProducts({ search: 'Robe Wax', searchSource: 'BUYER_WEB' });
+    await service.browseProducts({ search: 'robe  wax', searchSource: 'BUYER_MOBILE' });
+
+    expect(create).toHaveBeenCalledTimes(2);
+    const rows = create.mock.calls.map(
+      (c) => (c[0] as { data: Record<string, unknown> }).data,
+    );
+    // Same aggregation key - so they add up as one term...
+    expect(rows[0].termNormalized).toBe('robe wax');
+    expect(rows[1].termNormalized).toBe('robe wax');
+    // ...while staying two separate, attributable events.
+    expect(rows[0].source).toBe('BUYER_WEB');
+    expect(rows[1].source).toBe('BUYER_MOBILE');
+  });
+
+  it('stores no user, session, IP or device identifier', async () => {
+    const { service, create } = makeSearchService();
+    await service.browseProducts({ search: 'robe' });
+    expect(Object.keys(loggedRow(create) ?? {}).sort()).toEqual([
+      'cityId', 'intent', 'resultCount', 'source', 'term', 'termNormalized',
+    ]);
+  });
+});
+
+describe('BrowseService search logging - failure isolation', () => {
+  // Analytics is non-critical telemetry. A logging failure must never surface
+  // to the buyer as a failed search.
+  it('returns results normally when the analytics write rejects', async () => {
+    const { service, create } = makeSearchService({ createRejects: true });
+    const res = await service.browseProducts({ search: 'robe' });
+    expect(create).toHaveBeenCalled();
+    expect(res.data).toBeDefined();
+    expect(res.pagination).toBeDefined();
+  });
+
+  it('survives the searchQuery delegate being absent entirely', async () => {
+    const { service, prisma } = makeSearchService();
+    delete (prisma as { searchQuery?: unknown }).searchQuery;
+    await expect(service.browseProducts({ search: 'robe' })).resolves.toBeDefined();
+  });
+
+  it('does not await the analytics write', async () => {
+    let resolveCreate: (v: unknown) => void = () => {};
+    const pending = new Promise((r) => {
+      resolveCreate = r;
+    });
+    const { service, prisma } = makeSearchService();
+    (prisma.searchQuery.create as jest.Mock).mockReturnValue(pending);
+    // Resolves even though the log write is still outstanding.
+    await expect(service.browseProducts({ search: 'robe' })).resolves.toBeDefined();
+    resolveCreate({});
+  });
+});
