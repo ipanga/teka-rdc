@@ -6,93 +6,74 @@
 
 ## Active initiative
 
-**None.** The Search & Sales Analytics initiative (Workstreams B, C, D) is **fully integrated into
-`develop`** as of 2026-09-03. Nothing is in flight. **Not released to `main`, not deployed, and its
-migration has NOT been run against production.**
+**None.** The Search & Sales Analytics initiative (Workstreams B, C, D) and its order-lifecycle
+prerequisite are **released to production**. Nothing is in flight.
 
 ## Most recently completed initiative
 
-**Search & Sales Analytics + the order-lifecycle prerequisite — MERGED TO `develop` 2026-09-03.**
-Final `develop` SHA **`9efe42a`**; pre-initiative baseline was `307ad93`.
+**Search & Sales Analytics + CSV hardening + the `deliveredAt` lifecycle invariant — RELEASED TO
+PRODUCTION 2026-09-03.**
 
-| PR | Merge commit | What |
-|---|---|---|
-| #625 | `33a816b` | shared CSV writer + formula-injection guard |
-| #626 | `3ac6c7c` | CAT report windows, DTO bounds, pagination, N+1 fix |
-| #627 | `9075d56` | sales analytics breakdown (product/category/seller/town/day) |
-| #629 | `3a1c0be` | search `source` + `searchIntent` (write path, + migration) |
-| #630 | `db7628d` | admin search analytics (read surface) |
-| #628 | `9efe42a` | `DELIVERED ⇒ deliveredAt` lifecycle invariant *(independent)* |
+Release PR **#632** (`develop → main`, merge commit **`9e89478`**, 18 commits / 44 files /
++5,812 −297), back-merged by fast-forward so **`main == develop == 9e89478`**. Deploy run
+**`33756698400`**: success.
 
-Merged in that order with real merge commits, never squashed. #628 needed one expected `PROGRESS.md`
-conflict resolved — **both initiatives' entries were preserved**, none discarded.
+All three workstreams are **complete and live**:
 
-Combined footprint: **41 files**, +5,804 / −269, across api · admin-web · buyer-web · buyer-mobile ·
-docs. **Zero seller-web and zero seller-mobile files.**
+| Workstream | Status |
+|---|---|
+| **B — Search analytics** (write path #629 + admin read surface #630) | ✅ released |
+| **C — Sales analytics** (#627, on corrected report foundations #626) | ✅ released |
+| **D — CSV hardening** (#625) | ✅ released |
+| *(prerequisite)* `DELIVERED ⇒ deliveredAt` invariant (#628) | ✅ released |
 
-### Integrated gates on `9efe42a`
+Constituent merges into `develop`: #625 `33a816b` · #626 `3ac6c7c` · #627 `9075d56` · #629 `3a1c0be` ·
+#630 `db7628d` · #628 `9efe42a`, plus #631 `b86dfe3` (CONTRIBUTING). Real merge commits throughout,
+never squashed. Design detail and rationale live in `docs/search-sales-analytics.md` — not repeated
+here.
 
-API **507 unit** / **135 e2e** (0 failures in 8 consecutive runs) · buyer-web **74** · buyer-mobile
-**238** + analyze 6 known infos · seller-mobile **42** + analyze 17 infos (all pre-existing, exit 0,
-zero seller files changed) · admin-web build clean · `pnpm type-check` clean across 5 projects.
+### The migration applied automatically, exactly once
 
-### The one thing to know before releasing
+`manual/2026-09-05_search_query_source_intent.sql` ran in the deploy's **expand phase, before the
+rolling swap**, as designed — from the deploy log:
 
-**`manual/2026-09-05_search_query_source_intent.sql` is on `auto-apply.list`**, so the next
-`develop → main` deploy will apply it automatically, before the rolling swap. It is additive and
-idempotent — two `pg_type`-guarded enum creations plus `ADD COLUMN IF NOT EXISTS` with O(1)
-non-volatile defaults, **no backfill, zero destructive statements**. Existing rows become
-`source = UNKNOWN`, `intent = SUBMIT`, which is the truthful reading (they predate the parameters).
+```
+▶ applying: 2026-09-05_search_query_source_intent.sql
+✓ applied: 2026-09-05_search_query_source_intent.sql
+Auto-apply migrations done: 1 applied, 4 skipped.
+▶ rolling api …
+```
 
-**Deployment order is already safe** and needs no manual sequencing: `forbidNonWhitelisted` turns an
-undeclared query param into a hard 400, and the API accepting `searchSource`/`searchIntent` ships in
-the *same* artifact as the buyer-web client that sends them. buyer-mobile reaches devices only on a
-future store build and sends nothing until then — those rows land `UNKNOWN/SUBMIT` by design.
+It was **not** also run by hand. `_manual_migrations` went 31 → **32**, the file recorded **once**,
+zero duplicate filenames, prior entries intact.
 
+### Production verification (read-only unless stated)
 
-**Seller Catalog Taxonomy — RELEASED to production 2026-09-02, both data migrations applied.**
-Release PR **#618** (`develop → main`, merge commit `ce76525`, 16 commits / 14 files / +1,632 −23),
-back-merged so `main == develop == ce76525`. Deploy run `33667591201`: all 5 jobs green. The release
-carried Phases 1 (#615), 2a (#616), 2b (#617) and the seller/admin consistency fix (#619).
+- **Schema:** both enums created with the expected values; `source`/`intent` present, `NOT NULL`,
+  defaulting to `UNKNOWN`/`SUBMIT`. All **60** pre-existing rows read `UNKNOWN/SUBMIT` — the truthful
+  legacy representation, never guessed as web. Row count preserved; unrelated tables unchanged
+  (products 495, orders 9, categories 348, brands 51, seller_earnings 6).
+- **Serving:** `/v1/health{,/ready,/live}` 200 with `database: ok`; teka.cd, seller. and admin. all
+  200. The swap really happened — API uptime climbed monotonically 690 → 770 s over a 75 s window,
+  so no restart or crash loop.
+- **Buyer search unchanged:** accent / case / whitespace variants all return the same result;
+  autocomplete and `/search/popular` work; malformed telemetry still returns **200** (telemetry
+  cannot break search); an undeclared param correctly 400s.
+- **Telemetry end-to-end:** a real search on **teka.cd** persisted `BUYER_WEB/SUBMIT`; a
+  malformed-source probe persisted `UNKNOWN/SUBMIT`; a `REFINE` probe wrote **nothing**. Two
+  test rows only, both carrying the marker term `zzrelease0903` (60 → 62).
+- **Admin analytics on real data:** 62 searches, 42 unique terms, **66.1 % zero-result** — the signal
+  this initiative was built to surface. Sales: 6 completed orders, 23 units, revenue
+  `124,795,700` centimes, `deliveredWithoutDate: 0`; by-town and by-seller each sum to 23 units and
+  town revenue matches the summary exactly.
+- **Authorization:** 401 / 403 buyer / 200 admin on every analytics route **including the CSVs**.
+- **SEO:** buyer-web canonical, 2 JSON-LD blocks, full `og:` set, 387-URL sitemap; seller. and admin.
+  both still `Disallow: /`.
 
-**Root cause.** Products could attach to an *intermediate* category, which still carries legacy
-pre-refactor attribute rows (« Mode > Homme » holds `Type de peau`), and the leaf-only rule was
-documented but enforced nowhere. Shipped: the API leaf-category invariant (`create()` always;
-`update()` only when `categoryId` changes, so legacy products stay editable); leaf-only selection in
-the seller-web combobox plus a legacy-category warning; server-side preservation of foreign
-`ProductSpecification` rows (a quantity edit used to wipe values the seller was never shown); and one
-shared canonical characteristics representation used by the buyer, seller and admin detail endpoints.
+**Sentry was NOT checked** — no `sentry-cli` and no auth token available from this environment. Sentry
+is active in production and the deploy tagged `SENTRY_RELEASE=9e89478`, so errors are attributable;
+**someone with access should review that release.**
 
-**The PDP rule that was REJECTED, and why it matters.** Scoping characteristics to
-`attribute.categoryId === product.categoryId` was tried first and **disconfirmed by a read-only
-production audit**: 18 foreign specification rows exist across 9 live products and **7 would have been
-left with no characteristics at all** (a 10 kg bag of rice losing « Poids », an Android phone losing
-RAM / Mémoire interne). Those rows are legitimate — the pre-3-level taxonomy attached attributes at
-subcategory level. The rule in force **preserves** foreign rows and de-duplicates **by name**,
-preferring the product's current category, normalised with `stripAccents()`, with deterministic
-precedence (own-category → `sortOrder` → `attributeId`).
-
-**Migrations applied to production** — both by hand via the `Apply prod migration` workflow, in this
-order, each verified before the next:
-
-1. `2026-09-02_prune_invalid_brand_category_links.sql` — run `33668468256`, `INSERT 0 121 / DELETE 121`.
-   Live-brand links **433 → 314**; leaf links unchanged at 314; intermediate 66 → 0; soft-deleted
-   53 → 0; 49 brands, none deleted; **leaf coverage identical in every category**. Reversible via
-   `brand_categories_archive_20260902` (68 + 53 = 121 rows).
-2. `2026-09-03_remediate_legacy_category_products.sql` — run `33668783372`.
-   `h0d799` → « Mode > Homme > Chemises »; the buyer PDP shows Taille=M / Couleur=Bleu / Matière=Coton
-   exactly once each, with all **6 rows still stored** (3 new + 3 original Électroménager preserved).
-   `vnkqce` → « … > Lessive », legacy `Type = Savon de lessive` preserved and visible, no mapping
-   invented. `rb7t4r` untouched — its `updatedAt` is still 2026-07-27. Reversible via
-   `product_remediation_20260903` (`category_repointed=2, spec_inserted=3`).
-
-**Verified live before touching data:** the new API was proven deployed behaviourally —
-`GET /v1/browse/categories/…000000000501/attributes` (« Mode > Homme ») returns `[]` where production
-previously returned `Type, Type de peau` — and the legitimate foreign characteristics above were
-confirmed intact both before and after each migration. **Sentry was NOT checked** (no `sentry-cli`, no
-auth token available); health endpoints and all three surfaces were.
-
-Tracker: `docs/seller-catalog-taxonomy.md`.
 
 ## Previous completed initiative
 
@@ -151,6 +132,30 @@ as the code did before this initiative, would have silently rewritten six orders
 `UPDATE addresses SET "deletedAt" = NULL WHERE id = 'a1adcebf-ed41-4a07-963f-73bfc11d31c1';`
 
 ## Open follow-ups (not blocking)
+
+### From the Search & Sales Analytics initiative (2026-09-03)
+
+Deliberately left out of the release; none is a correctness or availability risk. Detail in
+`docs/search-sales-analytics.md` → "Carried forward".
+
+- **`SearchSynonym` has no admin CRUD.** One consumer (`browse.service.ts`), editable only by direct
+  SQL despite the schema calling it "admin-editable". **The recommended next PR** — the new
+  « Recherches » page already supplies its input, since the zero-result table's « jamais de résultat »
+  rows are the candidate-synonym list.
+- **`forceStatusChange()` has the same gap for `returnedAt`** that #628 fixed for `deliveredAt` —
+  same function, same root cause. Left out to keep #628 narrow.
+- **buyer-web fires two `router.push` calls for one Enter.** In the `!open` branch `goToSearch()` is
+  called without the event, so its `preventDefault` no-ops and the native form submit fires too. A
+  one-line fix was written, **measured to change nothing**, and reverted as out of scope for an
+  analytics PR.
+- **The Next.js dev server writes a search row twice**; a production build writes exactly one
+  (verified with `next build`). A dev artifact — **do not "fix" it from a dev observation.**
+- **The dev database is missing `2026-07-28_review_title.sql`**, which *is* in `auto-apply.list`
+  (production has it). A full dev seed aborts at Phase 6 with `reviews.title does not exist`.
+- **The e2e suite has a pre-existing flake** on unauthenticated-401 assertions, seen in three shapes
+  (`Auth`, `Health Check`, `Payments`) at roughly 5 % of runs on clean `develop`. Re-run before
+  blaming a branch; a single green run proves nothing.
+- **Unrelated Dependabot PRs remain open** (#549, #565, #595) — untouched by this initiative.
 
 - **`rb7t4r` (Johnnie Walker) is BLOCKED on a business decision**, not on engineering. Teka has no
   restricted-product policy, no age-verification field or gate, no admin moderation for restricted
