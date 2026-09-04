@@ -180,7 +180,7 @@ describe('PayoutsService — double-apply / race protection', () => {
     );
     await expect(
       service.completePayout('p1', 'admin1', 'ref-2'),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toThrow(ConflictException);
     expect(sellerNotifications.notifyPayoutPaid).not.toHaveBeenCalled();
     expect(audit.record).not.toHaveBeenCalled();
   });
@@ -199,11 +199,11 @@ describe('PayoutsService — double-apply / race protection', () => {
     const a = makeService(p(PayoutStatus.REQUESTED), { updateCount: 0 });
     await expect(
       a.service.completePayout('p1', 'admin1', 'ref'),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toThrow(ConflictException);
     const b = makeService(p(PayoutStatus.COMPLETED), { updateCount: 0 });
     await expect(
       b.service.rejectPayout('p1', 'admin1', 'late'),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toThrow(ConflictException);
     expect(b.prisma.sellerEarning.updateMany).not.toHaveBeenCalled();
   });
 
@@ -413,5 +413,61 @@ describe('PayoutsService — reusable payout destination', () => {
       select: { payoutMethod: true, payoutPhone: true },
     });
     expect(res.payoutMethod).toBe('M_PESA');
+  });
+});
+
+describe('PayoutsService.getPayoutById — operator decision context', () => {
+  it('adds seller balances, resolved actors and the audit trail to the row', async () => {
+    const prisma = {
+      payout: {
+        findUnique: jest.fn().mockResolvedValue({
+          id: 'p1',
+          sellerProfileId: 'sp1',
+          status: PayoutStatus.PROCESSING,
+          amountCDF: BigInt(6300000),
+          approvedById: 'admin1',
+          processingById: 'admin2',
+          completedById: null,
+          rejectedById: null,
+          earnings: [],
+        }),
+      },
+      user: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'admin1', firstName: 'Aline', lastName: 'K.' },
+          { id: 'admin2', firstName: 'Bob', lastName: 'M.' },
+        ]),
+      },
+    };
+    const earningsService = {
+      getBalances: jest.fn().mockResolvedValue({
+        availableCDF: BigInt(0),
+        pendingCDF: BigInt(250000),
+        totalEarnedCDF: BigInt(7000000),
+        totalCommissionCDF: BigInt(700000),
+      }),
+    };
+    const audit = {
+      listForEntity: jest.fn().mockResolvedValue([
+        { id: 'a2', action: 'PAYOUT_PROCESSING', actorId: 'admin2', before: {}, after: {}, reason: null, createdAt: new Date() },
+        { id: 'a1', action: 'PAYOUT_APPROVED', actorId: 'admin1', before: {}, after: {}, reason: null, createdAt: new Date() },
+      ]),
+    };
+    const service = new PayoutsService(prisma as never, {} as never, earningsService as never, audit as never);
+    const res = await service.getPayoutById('p1');
+    expect(res.balances).toEqual({
+      availableCDF: '0',
+      pendingCDF: '250000',
+      totalEarnedCDF: '7000000',
+      totalCommissionCDF: '700000',
+    });
+    expect(res.actors.approvedBy).toEqual({ id: 'admin1', firstName: 'Aline', lastName: 'K.' });
+    expect(res.actors.processingBy?.firstName).toBe('Bob');
+    expect(res.actors.completedBy).toBeNull();
+    expect(res.auditTrail.map((a) => a.action)).toEqual(['PAYOUT_PROCESSING', 'PAYOUT_APPROVED']);
+    expect(res.auditTrail[1].actorName?.firstName).toBe('Aline');
+    expect(audit.listForEntity).toHaveBeenCalledWith('payout', 'p1');
+    // Never exposes password hashes or anything beyond names for actors.
+    expect(prisma.user.findMany.mock.calls[0][0].select).toEqual({ id: true, firstName: true, lastName: true });
   });
 });
