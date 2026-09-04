@@ -7,9 +7,9 @@
 ## Active initiative
 
 **Admin Action Center · seller payout workflow · payout notifications · commission management —
-PRs 2–7 merged into `develop` (#646, #647, #648 `dccd864`, #649 `471b2e7`, #650 `c64f6e4`, #651
-`3d859fa`); PR 8 (docs + release preparation, docs-only) on `docs/payouts-initiative-release-prep`,
-PR open (started 2026-09-04).**
+all eight PRs merged into `develop` (#646, #647, #648 `dccd864`, #649 `471b2e7`, #650 `c64f6e4`,
+#651 `3d859fa`, #652 `b6f48f5`); whole-initiative pre-release audit done on `b6f48f5` — verdict
+**NEEDS FIXES BEFORE RELEASE** (F1 + D7 decision). Audit record on `docs/payouts-pre-release-audit`.**
 Tracker: `docs/payouts-commission-action-center.md` (audit, approved decisions D1–D6, per-PR record).
 
 PR 2 `feat/api-payout-ledger-foundation` → `develop`: per-item integer commission with
@@ -89,10 +89,16 @@ in line with the final state; release-prep checklist in the tracker (two pending
 migrations + ordering, no env change, seller-mobile needs a version bump at release, production
 untouched). D7 and the other follow-ups preserved for the re-audit.
 
-**Next exact step:** wait for CI on the PR 8 branch, then **stop for review** (do not merge). After
-its merge: the **whole-initiative re-audit** (incl. the D7 analysis for the operator's decision)
-before any `develop → main` release — no deployment, production migration, data write, `db:push`
-or `main` merge without explicit approval. No `main` merge, deployment or
+PR 8 **merged as #652 (`b6f48f5`)**. Pre-release audit (tracker → « Whole-initiative pre-release
+audit »): full regression green on the merged tree; runtime pass on Chrome + Android emulator with a
+deleted fixture; iOS build renders but cannot be driven. **F1:** `earningState()` labels an earning
+reserved in an open payout as `PAID` (reservation sets `isPaid`) — fix before release (read path,
+derive from the linked payout's status). **D7** analysed, decision pending. Two migrations pending
+for production, both auto-apply, neither on `main`. Seller-mobile release would be `0.1.8+10`.
+
+**Next exact step:** operator decides D7 and approves the F1 fix → small PR (API read path + spec,
+clients unchanged) → then a `develop → main` release PR **only on explicit approval**. No
+deployment, production migration, data write, `db:push` or `main` merge without it. No `main` merge, deployment or
 production write without approval — note the PR 2 migration inserts a 10 % global commission row
 **only if none exists** in production (materialising today's hardcoded fallback).
 

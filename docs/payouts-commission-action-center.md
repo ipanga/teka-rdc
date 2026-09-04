@@ -799,3 +799,89 @@ runtime beyond the referenced paths existing.
   / historical orders, backfill implications, and a recommendation — for the operator's decision.
 - Notification outbox, `FINANCE` role, seller effective-commission display, `field: "unknown"`.
 
+## Whole-initiative pre-release audit (2026-09-04, `develop` `b6f48f5`)
+
+PR 8 merged as **#652 (`b6f48f5`)**, CI green. Audit performed from the merged tree (code + a
+disposable dev fixture), not from the PR reports. Full report in the session summary; the decisions
+and findings that must survive are recorded here.
+
+### Findings
+
+| # | Finding | Classification | Evidence |
+|---|---|---|---|
+| **F1** | `earningState()` (PR 7) returns `PAID` for an earning **reserved** in an open payout, because `requestPayout` sets `isPaid = true` at reservation time and the function checks `isPaid` before `payoutId`. Both seller clients therefore label a merely requested/approved payout's earning « Payé ». Balances, payouts and the wallet are unaffected (they filter on `isPaid`/`payoutId` correctly); the pre-initiative `isPaid` split had the same label. | **Fix before release** | Fixture: after `POST /v1/sellers/payouts`, `GET /v1/sellers/earnings` → `state: 'PAID'` while the payout was `REQUESTED`/`APPROVED`; emulator Gains tab showed « Payé ». Fix: derive from the linked payout (`payout.status = COMPLETED` → PAID, any other linked → RESERVED) — read path only, +spec. |
+| F2 | seller-mobile notifications screen keeps its first load; a feed row created while the app is open appears only after pull-to-refresh or a push. Pre-existing provider behaviour, not a regression. | Post-release follow-up | Emulator: feed empty after admin approval until pull-to-refresh, then « Paiement approuvé ». |
+| F3 | Email templates still titled « Retrait approuvé / effectué / refusé » while feed + push read « Paiement approuvé / effectué / Demande de paiement refusée ». Wording only. | Post-release follow-up | dev log `[DEV] Email to …: Retrait approuvé — Teka RDC`. |
+| F4 | D7 — cancelled COD orders keep `paymentStatus = PENDING` and their COD `Transaction` `PENDING`; analytics emit `payment_failed` on the buyer path only. See the D7 analysis below. | **Decision pending (operator)** | code trace: `orders.service.cancelOrder`, `seller-orders.service.rejectOrder`, `admin-orders.service.adminCancelOrder` write status/reason only; seed models `FAILED`. |
+| F5 | Notification outbox absent (a crash between a payout commit and the notifier loses that notification). Pre-existing for every notification in the API. | Post-release follow-up | design. |
+| F6 | `FINANCE` role exists in `UserRole` but no finance endpoint accepts it. | Post-release follow-up (product decision) | `@Roles('ADMIN')` on all finance controllers. |
+| F7 | Seller clients show the snapshotted rate per earning but not the seller's *current* effective rate. | Post-release follow-up | `getSellerCommission` exists admin-side only. |
+| F8 | `HttpExceptionFilter` reports validation errors with `field: "unknown"`. Pre-existing. | Post-release follow-up | curl 400 bodies. |
+| F9 | Runtime paths never exercised: real FCM delivery + the three tap sources, iOS (build installs and renders the login screen; the simulator cannot be driven from this environment), the mobile 404 detail and the signed-out `from` round-trip, « Virement échoué » end-to-end, category-rate submissions, the admin 409 path through the UI. All unit/widget-tested. | Not verified (accepted) | see per-PR records. |
+
+### Verified on the merged tree (runtime)
+
+Disposable seller fixture (two DELIVERED COD orders on an existing dev buyer/address: 10.000 FC at
+10 % delivered yesterday, 20.000 FC at 8,25 % five days ago) — **deleted after**.
+
+- **Financial lifecycle:** `POST /v1/sellers/payouts` reserved exactly the available earning
+  (18.350 FC), a second request → 409; wallet available 0 / pending 9.000; admin action-center tile
+  « 1 virement à approuver · 18.350 FC »; drawer reconciled (reserved earning TK-QAA-2 linked, balances,
+  destination snapshot); approve → « Approuvé — à payer », audit row, seller feed « Paiement approuvé »
+  + dev email; « Marquer payé » with reference → COMPLETED, audit row, feed « Paiement effectué »;
+  second complete → 409; earning → `PAID`. Historical earnings kept `0.1` / `0.0825` snapshots
+  through a seller-override set (8 %) → stale 409 → clear cycle; history lists all three changes.
+- **Security:** seller cookie on admin endpoints → 403; seller reading another seller's payout → 404
+  (owner-scoped); own payout → 200; cookie without the surface header → 401 (CSRF posture).
+- **Clients:** seller-web bell → deep link → « Détail du virement » (approved state), narrow
+  layout OK; Android emulator: feed item (after pull-to-refresh) → payout detail → Virements tab
+  (« Approuvé — virement en préparation ») → Gains tab (F1 observed); iOS simulator: development
+  build installs and renders the login screen (not driven — F9).
+- **Regression on `b6f48f5`:** root type-check clean; API 594 unit / 142 e2e; admin-web 31 vitest;
+  seller-web 14 vitest + lint (1 pre-existing `<img>` warning) + build; buyer-web 74; seller-mobile
+  131 tests, 17 pre-existing infos; buyer-mobile 238 tests, 6 pre-existing infos.
+
+### Migrations pending for production (both in `auto-apply.list`, neither on `main`)
+
+1. `2026-09-04_payout_commission_ledger_foundation.sql` — enum `CommissionSource`; nullable columns
+   on `seller_profiles`, `order_items`, `seller_earnings`, `payouts`; partial unique index
+   `payouts_one_open_per_seller`; table `admin_audit_logs`; `INSERT` of a 10 % global
+   `commission_settings` row **only if none exists**.
+2. `2026-09-04_user_notification_payout_type.sql` — `ALTER TYPE "UserNotificationType" ADD VALUE IF
+   NOT EXISTS 'PAYOUT'`.
+
+Both run in manifest order in the deploy's expand phase (before the rolling swap, `psql -f`, no
+single transaction), each recorded once in `_manual_migrations`. Last production deploy (run
+`33844482470`, 2026-09-04 06:31) skipped the four previously applied files and did not see these two.
+Post-apply proof queries (read-only): `SELECT filename FROM _manual_migrations WHERE filename LIKE
+'2026-09-04_%'` → both rows; `SELECT enumlabel FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid
+WHERE t.typname='UserNotificationType'` → includes `PAYOUT`; `SELECT indexname FROM pg_indexes WHERE
+indexname='payouts_one_open_per_seller'`; `SELECT count(*) FROM commission_settings WHERE
+"categoryId" IS NULL` → exactly 1; `SELECT to_regclass('admin_audit_logs')` → not null. Pre-apply
+invariant: no open payout pair per seller (`SELECT "sellerProfileId", count(*) FROM payouts WHERE
+status IN ('REQUESTED','APPROVED','PROCESSING') GROUP BY 1 HAVING count(*) > 1` → 0 rows) — otherwise
+the partial unique index creation fails and the deploy aborts before the swap (safe).
+
+### D7 analysis — cancelled COD order with `paymentStatus = PENDING`
+
+See the session report; summary of the recommendation for the record: **Option A** — on every COD
+cancellation path (buyer cancel, seller reject, admin cancel) set `Order.paymentStatus = FAILED` and
+the COD `PAYMENT` transaction to `FAILED` (`failureReason: 'order_cancelled'`) inside the existing
+cancel transaction, emit `payment_failed` on all three paths, and backfill historical
+`CANCELLED`/COD/`PENDING` rows with an idempotent auto-apply data migration. No earning, balance,
+payout or commission effect (nothing financial exists before delivery). Alternatives: a new
+`VOID`/`CANCELLED` payment state (cleaner wording, six surfaces + migration), or document
+« CANCELLED ⇒ payment void » and leave the data. **Awaiting the operator's decision; no code changed.**
+
+### Seller Mobile release
+
+`apps/seller-mobile/pubspec.yaml` is `0.1.7+9` (buyer-mobile too; both bumped together on
+`83a0b1d`). Convention from history: patch + build +1 per release (`0.1.4+6 → 0.1.5+7 → 0.1.6+8 →
+0.1.7+9`). buyer-mobile has **no commits** since its last bump → no buyer release needed.
+Recommendation at release time: seller-mobile → **`0.1.8+10`**; buyer-mobile unchanged. Not done.
+
+### Verdict
+
+**NEEDS FIXES BEFORE RELEASE** — F1 (a read-path label bug, small and spec-able) and the D7 decision.
+Everything else is safe to prepare for release once F1 is merged.
+
