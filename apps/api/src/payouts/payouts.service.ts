@@ -256,8 +256,14 @@ export class PayoutsService {
         );
       },
     });
+    // Only after the conditional transition committed (a retry that finds
+    // count = 0 threw 409 above and never reaches this line). A PROCESSING
+    // payout means the operator had started the transfer → « Virement
+    // échoué » for the seller instead of « refusée ».
     this.sellerNotifications
-      .notifyPayoutRejected(payoutId)
+      .notifyPayoutRejected(payoutId, {
+        failedTransfer: updated.previousStatus === PayoutStatus.PROCESSING,
+      })
       .catch((err) =>
         this.logger.error('Échec notification retrait refusé', err),
       );
@@ -285,7 +291,7 @@ export class PayoutsService {
       reason?: string;
       after?: (tx: Prisma.TransactionClient) => Promise<void>;
     },
-  ): Promise<Payout> {
+  ): Promise<Payout & { previousStatus: PayoutStatus }> {
     return this.prisma.$transaction(async (tx) => {
       const before = await tx.payout.findUnique({ where: { id: payoutId } });
       if (!before) {
@@ -331,7 +337,7 @@ export class PayoutsService {
       this.logger.log(
         `Payout ${before.status} → ${t.to}: id=${payoutId}, admin=${adminId}`,
       );
-      return after as Payout;
+      return { ...(after as Payout), previousStatus: before.status };
     });
   }
 
@@ -389,6 +395,24 @@ export class PayoutsService {
       data,
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
+  }
+
+  /**
+   * One payout for its OWNER. The `sellerProfileId` in the WHERE is the
+   * authorization: a payout id taken from a notification / deep link is never
+   * trusted on its own — another seller's id, a deleted id or garbage all
+   * answer the same 404 (no existence leak).
+   */
+  async getSellerPayoutById(sellerProfileId: string, payoutId: string) {
+    const payout = await this.prisma.payout.findFirst({
+      where: { id: payoutId, sellerProfileId },
+    });
+    if (!payout) {
+      throw new NotFoundException(
+        'Ce virement est introuvable ou ne vous appartient pas.',
+      );
+    }
+    return payout;
   }
 
   /** All payouts (admin, paginated). */

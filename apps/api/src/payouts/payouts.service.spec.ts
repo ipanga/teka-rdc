@@ -159,7 +159,7 @@ describe('PayoutsService — transitions are conditional updates in a transactio
     });
     expect(prisma.sellerProfile.update).not.toHaveBeenCalled();
     expect(res.status).toBe(PayoutStatus.REJECTED);
-    expect(sellerNotifications.notifyPayoutRejected).toHaveBeenCalledWith('p1');
+    expect(sellerNotifications.notifyPayoutRejected).toHaveBeenCalledWith('p1', { failedTransfer: false });
   });
 
   it('D1: a PROCESSING payout can be rejected (failed transfer is not a dead end)', async () => {
@@ -469,5 +469,27 @@ describe('PayoutsService.getPayoutById — operator decision context', () => {
     expect(audit.listForEntity).toHaveBeenCalledWith('payout', 'p1');
     // Never exposes password hashes or anything beyond names for actors.
     expect(prisma.user.findMany.mock.calls[0][0].select).toEqual({ id: true, firstName: true, lastName: true });
+  });
+});
+
+describe('PayoutsService — seller-facing payout detail (deep-link target) and rejection variants', () => {
+  it('getSellerPayoutById is owner-scoped: the seller id is in the WHERE, and any miss is one 404', async () => {
+    const prisma = { payout: { findFirst: jest.fn().mockResolvedValue(null) } };
+    const service = new PayoutsService(prisma as never, {} as never, {} as never, {} as never);
+    await expect(service.getSellerPayoutById('sp1', 'pay-of-someone-else')).rejects.toThrow(
+      /introuvable ou ne vous appartient pas/,
+    );
+    expect(prisma.payout.findFirst.mock.calls[0][0].where).toEqual({ id: 'pay-of-someone-else', sellerProfileId: 'sp1' });
+    prisma.payout.findFirst.mockResolvedValue({ id: 'pay1', sellerProfileId: 'sp1', status: 'COMPLETED' });
+    await expect(service.getSellerPayoutById('sp1', 'pay1')).resolves.toMatchObject({ id: 'pay1' });
+  });
+
+  it('reject from PROCESSING tells the notifier it was a failed transfer; from REQUESTED it does not', async () => {
+    const a = makeService(p(PayoutStatus.PROCESSING));
+    await a.service.rejectPayout('p1', 'admin1', 'Transfert refusé par l’opérateur');
+    expect(a.sellerNotifications.notifyPayoutRejected).toHaveBeenCalledWith('p1', { failedTransfer: true });
+    const b = makeService(p(PayoutStatus.REQUESTED));
+    await b.service.rejectPayout('p1', 'admin1', 'Justificatif manquant');
+    expect(b.sellerNotifications.notifyPayoutRejected).toHaveBeenCalledWith('p1', { failedTransfer: false });
   });
 });

@@ -11,6 +11,7 @@ import {
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { PayoutsService } from './payouts.service';
+import { UuidParam } from '../common/pipes/uuid-param.pipe';
 import { EarningsService } from '../payments/earnings.service';
 import { RequestPayoutDto } from './dto/request-payout.dto';
 import { PayoutQueryDto } from './dto/payout-query.dto';
@@ -89,6 +90,25 @@ export class SellerPayoutsController {
       query,
     );
     return { success: true, data: result.data, meta: result.pagination };
+  }
+
+  /**
+   * One of the seller's own payouts — the destination of payout notifications
+   * and deep links. Ownership is enforced in the service (404 otherwise).
+   * GET /api/v1/sellers/payouts/:id
+   */
+  @Get('payouts/:id')
+  @Roles('SELLER')
+  async getSellerPayout(
+    @CurrentUser('userId') userId: string,
+    @Param('id', UuidParam) payoutId: string,
+  ) {
+    const sellerProfileId = await resolveSellerProfileId(this.prisma, userId);
+    const payout = await this.payoutsService.getSellerPayoutById(
+      sellerProfileId,
+      payoutId,
+    );
+    return { success: true, data: payout };
   }
 
   /**

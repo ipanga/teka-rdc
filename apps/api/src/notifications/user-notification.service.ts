@@ -43,6 +43,52 @@ export class UserNotificationService {
     }
   }
 
+  /**
+   * Like `create`, but skips when an identical row (same user, type, entity
+   * and title) already exists — a cheap effectively-once guard for events
+   * that can be re-emitted (e.g. a payout transition retried after a partial
+   * failure). Never throws. Returns whether a row was written.
+   */
+  async createIfAbsent(input: {
+    userId: string;
+    type: UserNotificationType;
+    title: string;
+    body: string;
+    entityType: string;
+    entityId: string;
+  }): Promise<boolean> {
+    try {
+      const existing = await this.prisma.userNotification.findFirst({
+        where: {
+          userId: input.userId,
+          type: input.type,
+          entityType: input.entityType,
+          entityId: input.entityId,
+          title: input.title,
+        },
+        select: { id: true },
+      });
+      if (existing) return false;
+      await this.prisma.userNotification.create({
+        data: {
+          userId: input.userId,
+          type: input.type,
+          title: input.title,
+          body: input.body,
+          entityType: input.entityType,
+          entityId: input.entityId,
+        },
+      });
+      return true;
+    } catch (error: any) {
+      this.logger.error(
+        `Échec de création (dédupliquée) de notification utilisateur (${input.type}, user ${input.userId}): ${error?.message ?? error}`,
+        error?.stack,
+      );
+      return false;
+    }
+  }
+
   async list(userId: string, params: { page?: number; limit?: number } = {}) {
     const page = Math.max(1, params.page ?? 1);
     const limit = Math.min(50, Math.max(1, params.limit ?? 20));
