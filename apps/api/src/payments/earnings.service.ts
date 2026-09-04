@@ -62,6 +62,42 @@ export class CommissionNotConfiguredError extends Error {
 export type EarningReversalReason = 'RETURN_APPROVED' | 'ORDER_STATUS_FORCED';
 
 /**
+ * Seller-facing state of one earning row, derived by the API so both clients
+ * label from the source of truth instead of `isPaid` alone:
+ *   REVERSED  — returned / forcibly cancelled sale (row kept, never counted)
+ *   PAID      — included in a paid-out payout
+ *   RESERVED  — reserved in an open payout request
+ *   HELD      — delivered, still inside the return window (not withdrawable)
+ *   AVAILABLE — withdrawable now
+ */
+export type EarningState =
+  | 'REVERSED'
+  | 'PAID'
+  | 'RESERVED'
+  | 'HELD'
+  | 'AVAILABLE';
+
+export function earningState(
+  row: {
+    reversedAt: Date | null;
+    isPaid: boolean;
+    payoutId: string | null;
+    order: { status: OrderStatus; deliveredAt: Date | null } | null;
+  },
+  now: Date = new Date(),
+): EarningState {
+  if (row.reversedAt) return 'REVERSED';
+  if (row.isPaid) return 'PAID';
+  if (row.payoutId) return 'RESERVED';
+  const delivered = row.order?.status === OrderStatus.DELIVERED;
+  const deliveredAt = row.order?.deliveredAt ?? null;
+  if (!delivered || !deliveredAt) return 'HELD';
+  return now.getTime() - deliveredAt.getTime() >= RETURN_WINDOW_MS
+    ? 'AVAILABLE'
+    : 'HELD';
+}
+
+/**
  * Seller earnings ledger.
  *
  * COD invariant: a seller earning exists only once Teka has DELIVERED the
@@ -454,15 +490,23 @@ export class EarningsService {
         orderBy: { createdAt: 'desc' },
         include: {
           order: {
-            select: { orderNumber: true, totalCDF: true, createdAt: true },
+            select: {
+              orderNumber: true,
+              totalCDF: true,
+              createdAt: true,
+              status: true,
+              deliveredAt: true,
+            },
           },
         },
       }),
       this.prisma.sellerEarning.count({ where: { sellerProfileId } }),
     ]);
 
+    // Additive: `state` next to the raw columns (old clients ignore it).
+    const now = new Date();
     return {
-      data,
+      data: data.map((row) => ({ ...row, state: earningState(row, now) })),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
   }

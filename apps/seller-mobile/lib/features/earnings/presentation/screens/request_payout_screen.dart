@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../providers/earnings_provider.dart';
@@ -75,8 +76,10 @@ class _RequestPayoutScreenState extends ConsumerState<RequestPayoutScreen> {
     if (!mounted) return;
     setState(() => _submitting = false);
     if (errorMessage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Demande envoyée avec succès")),
+      showAppSnackbar(
+        context,
+        message: 'Demande envoyée avec succès',
+        tone: AppSnackbarTone.success,
       );
       context.pop();
     } else {

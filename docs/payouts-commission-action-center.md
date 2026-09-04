@@ -640,3 +640,62 @@ infos, no warnings.
   protected seller-web routes, not only payouts.
 - FINANCE role, seller effective-commission display, `field: "unknown"` — unchanged (see PR 5).
 
+## PR 7 — Regression / security / performance review (`feat/initiative-review`)
+
+PR 6 merged as **#650 (`c64f6e4`)**. Pre-implementation audit of what PR 7 was for, against `develop` at `c64f6e4`.
+
+### What PR 7 was meant to do
+
+The plan's line 7 reads « regression/security/performance review ». The initiative brief spells it
+out: re-run every suite and gate; review RBAC / ownership, IDOR, DTO whitelisting, CSRF, transaction
+boundaries, idempotency / replay, audit logging, sensitive fields in logs / Sentry / PostHog, payout
+destination exposure, CSV formula injection, rate limiting; and check for N+1, one-request-per-tile
+and aggressive polling. It has no product scope of its own.
+
+### What earlier PRs already satisfied
+
+| Area | Status at `c64f6e4` |
+|---|---|
+| Defects 1–11 (races, TOCTOU, fire-and-forget earning, forced cancel, return deletes ledger, float math, first-item rate, no actor/audit, PROCESSING, multiple globals) | **Closed by PR 2** (#646), spec-pinned. |
+| RBAC / ownership / IDOR | Admin finance endpoints `@Roles('ADMIN')`; seller payouts, earnings, payout detail, notifications all scoped by the owner in the `WHERE` (PR 2, PR 6). |
+| DTO validation | Global `ValidationPipe({ whitelist, forbidNonWhitelisted, transform })` — unknown properties → 400 (verified by curl in PR 5). |
+| CSRF | Cookies `httpOnly` + `SameSite=Lax`; cookie auth is only read for the surface named by the `X-Teka-Surface` header (no header → buyer cookie names → an admin cookie is never read), a custom header a cross-site form cannot set; CORS restricted to `CORS_ORIGINS` with credentials. |
+| Transactions / idempotency / concurrency | Conditional `updateMany` + audit in one transaction, 409 on retry / race (PR 2, PR 4); optimistic concurrency on commission edits (PR 5); feed-level `createIfAbsent` (PR 6). |
+| Audit | `admin_audit_logs` for every payout transition and commission change, actor + before/after (PR 2, PR 5). |
+| Sensitive data | API `instrument.ts` `beforeSend`/`beforeBreadcrumb` scrub `+243…` phones; payout push `data` = routing keys only (PR 6, spec-pinned); no PostHog capture references payouts or commissions on admin-web / seller-web; API logs carry ids only. |
+| Destination exposure | Admin list/detail expose `payoutPhone` to ADMIN (needed to pay); seller sees only their own; never in push payloads. |
+| CSV | `csv.util.ts`: `csvText` quotes formula-looking values with a `'` prefix, `csvNumber` deliberately not (documented); PR 2's report change only added the `REVERSED` status. |
+| Rate limiting | Global throttler 100/60 s; auth stricter; payout request additionally serialised by the seller row lock + partial unique index. |
+| Performance | Admin payouts list = one query with joins; detail = 4 queries; stats = bounded `Promise.all` of counts (PR 3); commission history = 1 + 3 lookups; no new polling (only the pre-existing 60 s unread-count poll on both bells); mobile refresh coalesced (300 ms). No N+1 found in the code added by PRs 2–6. |
+
+### What is still open from the documented list
+
+- **Defect 12 leftovers** (documented under PR 6's line « parity fixes (labels, method names, rate
+  display, Rule 15) » — PR 6 shipped labels and method names only):
+  1. seller-web shows an earning's commission as « 0.1% », seller-mobile as « 0% » (fraction rendered
+     as a percent);
+  2. both clients label every unpaid earning « Disponible », including earnings still inside the
+     2-day return window, reserved in an open payout, or reversed;
+  3. mobile `request_payout_screen` uses a raw `ScaffoldMessenger` (Rule 15: `showAppSnackbar`);
+  4. « 5 000 FC » hard-coded with a space on both clients (money convention is `5.000 FC`).
+- **Defect 13** — a cancelled COD order keeps `paymentStatus = PENDING` and its COD `Transaction`
+  `PENDING` forever (only an analytics event is emitted). Not a balance issue (no earning exists
+  before delivery) but a reporting / transactions-page one. **Changing it changes financial
+  meaning** (which terminal payment status a cancellation gets, and whether historical rows are
+  backfilled) → recorded as **decision D7, not fixed here**. Proposed: on any cancellation of a COD
+  order set `paymentStatus = FAILED` and the COD transaction `FAILED` inside the cancel transaction
+  (matches the seed precedent and the existing `payment_failed` analytics event); no backfill.
+
+### Dependencies, apps, schema
+
+Depends on #647–#650 being in `develop` (they are). Apps touched by the remaining scope: `apps/api`
+(additive `state` on seller earnings rows so clients label from the source of truth), `seller-web`,
+`seller-mobile`. **No schema or migration change.**
+
+### Decision on scope
+
+PR 7 is still necessary as the review and regression record, and to close the four documented
+defect-12 leftovers (presentation / parity, API-derived). Nothing else is added: defect 13 waits for
+D7; the outbox, FINANCE role, seller commission display and `field: "unknown"` findings stay
+follow-ups.
+

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:seller_mobile/core/utils/price_formatter.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../data/models/earning_model.dart';
+import '../payout_status.dart';
 
 class EarningTile extends StatelessWidget {
   final SellerEarningModel earning;
@@ -41,19 +42,17 @@ class EarningTile extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: earning.isPaid
-                      ? TekaColors.success.withValues(alpha: 0.1)
-                      : TekaColors.warning.withValues(alpha: 0.1),
+                  color: EarningStateUi.of(earning.effectiveState)
+                      .color
+                      .withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  earning.isPaid ? "Payé" : "Disponible",
+                  EarningStateUi.of(earning.effectiveState).label,
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: earning.isPaid
-                        ? TekaColors.success
-                        : TekaColors.warning,
+                    color: EarningStateUi.of(earning.effectiveState).color,
                   ),
                 ),
               ),
@@ -76,7 +75,7 @@ class EarningTile extends StatelessWidget {
                 ),
               ),
               Text(
-                'Commission: ${earning.commissionRateDisplay.toStringAsFixed(0)}%',
+                'Commission : ${earning.commissionRatePercentLabel}',
                 style: const TextStyle(
                   fontSize: 11,
                   color: TekaColors.mutedForeground,

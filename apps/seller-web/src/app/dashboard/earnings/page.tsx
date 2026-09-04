@@ -19,6 +19,12 @@ import {
   parseEarningsQuery,
   type EarningsTab,
 } from '@/lib/payout-notifications';
+import {
+  EARNING_STATE_LABELS,
+  EARNING_STATE_STYLES,
+  earningStateOf,
+  formatCommissionRate,
+} from '@/lib/earnings';
 
 type ActiveTab = EarningsTab;
 
@@ -118,11 +124,6 @@ export default function EarningsPage() {
       month: '2-digit',
       year: 'numeric',
     }).format(new Date(dateStr));
-  };
-
-  const formatCommissionRate = (rate: string) => {
-    const pct = Number(rate);
-    return `${pct}%`;
   };
 
   // Load wallet
@@ -358,7 +359,7 @@ export default function EarningsPage() {
         </button>
         {!walletLoading && balanceCDF < MIN_PAYOUT_CDF && (
           <span className="text-sm text-muted-foreground">
-            Le solde minimum pour un virement est de 5 000 FC
+            Le solde minimum pour un virement est de {formatFC(MIN_PAYOUT_CDF * 100)}
           </span>
         )}
         {hasPendingPayout && (
@@ -466,13 +467,9 @@ export default function EarningsPage() {
                           </td>
                           <td className="px-4 py-3">
                             <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                earning.isPaid
-                                  ? 'bg-success/15 text-success'
-                                  : 'bg-blue-100 text-blue-700'
-                              }`}
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${EARNING_STATE_STYLES[earningStateOf(earning)]}`}
                             >
-                              {earning.isPaid ? 'Payé' : 'Disponible'}
+                              {EARNING_STATE_LABELS[earningStateOf(earning)]}
                             </span>
                           </td>
                         </tr>
