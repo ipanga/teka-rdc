@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { ProductStatusBadge } from '@/components/product/product-status-badge';
+import { Icon } from '@/components/ui/icons';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface ProductImage {
   id: string;
@@ -48,11 +50,21 @@ export default function ProductsListPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
+  const [queryReady, setQueryReady] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [archivingId, setArchivingId] = useState<string | null>(null);
   const [submittingId, setSubmittingId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const value = new URLSearchParams(window.location.search).get('status') ?? '';
+    const allowed: StatusFilter[] = [
+      '', 'DRAFT', 'PENDING_REVIEW', 'ACTIVE', 'REJECTED', 'ARCHIVED', 'SUSPENDED',
+    ];
+    if (allowed.includes(value as StatusFilter)) setStatusFilter(value as StatusFilter);
+    setQueryReady(true);
+  }, []);
 
   // Debounce the search box (title / shortCode / id).
   useEffect(() => {
@@ -64,6 +76,7 @@ export default function ProductsListPage() {
   }, [search]);
 
   const loadProducts = useCallback(async () => {
+    if (!queryReady) return;
     setIsLoading(true);
     setError('');
     try {
@@ -89,7 +102,7 @@ export default function ProductsListPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, statusFilter, debouncedSearch]);
+  }, [page, queryReady, statusFilter, debouncedSearch]);
 
   useEffect(() => {
     loadProducts();
@@ -98,6 +111,10 @@ export default function ProductsListPage() {
   const handleFilterChange = (newFilter: StatusFilter) => {
     setStatusFilter(newFilter);
     setPage(1);
+    const url = new URL(window.location.href);
+    if (newFilter) url.searchParams.set('status', newFilter);
+    else url.searchParams.delete('status');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}`);
   };
 
   const handleArchive = async (productId: string) => {
@@ -198,38 +215,45 @@ export default function ProductsListPage() {
   ];
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Mes Produits</h1>
-        <Link
-          href="/dashboard/products/new"
-          className="inline-flex items-center px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors"
-        >
-          + Nouveau produit
-        </Link>
-      </div>
+    <div className="seller-page">
+      <PageHeader
+        eyebrow="Catalogue"
+        title="Produits"
+        description="Créez, corrigez et suivez les fiches de votre catalogue."
+        actions={
+          <Link href="/dashboard/products/new" className="seller-button-primary">
+            <Icon name="plus" className="h-4 w-4" />
+            Nouveau produit
+          </Link>
+        }
+      />
 
       {/* Search (name / référence / ID) */}
-      <div className="mb-4">
+      <div className="seller-card p-4">
+        <label htmlFor="product-search" className="mb-2 block text-sm font-medium text-foreground">
+          Rechercher dans le catalogue
+        </label>
         <input
+          id="product-search"
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Rechercher un produit (nom, référence, ID)…"
-          className="w-full max-w-md px-3 py-2 text-sm border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          className="min-h-11 w-full max-w-xl rounded-lg border border-input bg-white px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/20"
         />
       </div>
 
       {/* Status filter tabs */}
-      <div className="flex flex-wrap gap-1 mb-6 border-b border-border">
+      <div className="seller-filter-bar" role="group" aria-label="Filtrer les produits par statut">
         {filters.map((f) => (
           <button
             key={f.key}
             onClick={() => handleFilterChange(f.key)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            aria-pressed={statusFilter === f.key}
+            className={`seller-filter ${
               statusFilter === f.key
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                ? 'seller-filter-active'
+                : ''
             }`}
           >
             {f.label}
@@ -237,13 +261,14 @@ export default function ProductsListPage() {
         ))}
       </div>
 
-      {error && (
-        <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-          {error}
+      {error && products.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-destructive/10 p-4 text-sm text-destructive" role="alert">
+          <span>{error}</span>
+          <button type="button" onClick={loadProducts} className="font-semibold underline underline-offset-4">Réessayer</button>
         </div>
       )}
 
-      {isLoading ? (
+      {!queryReady || isLoading ? (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="bg-white rounded-lg border border-border p-4 animate-pulse">
@@ -257,16 +282,28 @@ export default function ProductsListPage() {
             </div>
           ))}
         </div>
+      ) : error && products.length === 0 ? (
+        <div className="seller-card p-8 text-center" role="alert">
+          <h2 className="font-semibold text-foreground">Impossible de charger les produits</h2>
+          <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+          <button type="button" onClick={loadProducts} className="seller-button-secondary mt-5">Réessayer</button>
+        </div>
       ) : products.length === 0 ? (
-        <div className="bg-white rounded-xl border border-border p-12 text-center">
-          <p className="text-muted-foreground mb-2">Aucun produit trouvé</p>
-          <p className="text-sm text-muted-foreground mb-6">Commencez par créer votre premier produit.</p>
-          <Link
-            href="/dashboard/products/new"
-            className="inline-flex items-center px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors"
-          >
-            + Nouveau produit
-          </Link>
+        <div className="seller-card p-8 text-center sm:p-12">
+          <h2 className="font-semibold text-foreground">
+            {debouncedSearch || statusFilter ? 'Aucun produit ne correspond à ces critères' : 'Votre catalogue est vide'}
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {debouncedSearch || statusFilter ? 'Effacez la recherche ou choisissez un autre statut.' : 'Créez votre première fiche pour commencer à vendre.'}
+          </p>
+          {debouncedSearch || statusFilter ? (
+            <button type="button" onClick={() => { setSearch(''); setDebouncedSearch(''); handleFilterChange(''); }} className="seller-button-secondary mt-5">Réinitialiser les filtres</button>
+          ) : (
+            <Link href="/dashboard/products/new" className="seller-button-primary mt-5">
+              <Icon name="plus" className="h-4 w-4" />
+              Nouveau produit
+            </Link>
+          )}
         </div>
       ) : (
         <>

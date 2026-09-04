@@ -1,4 +1,4 @@
-# Status — 2026-09-03
+# Status — 2026-09-04
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,28 +6,30 @@
 
 ## Active initiative
 
-**Seller / Admin UX modernization — Seller Mobile implementation complete locally; Web/Admin next.**
-Branch: `codex/seller-mobile-forms-details`, based on `develop` `674d794` after the normal merges of
-foundation PR [#634](https://github.com/ipanga/teka-rdc/pull/634) and action-center PR
-[#635](https://github.com/ipanga/teka-rdc/pull/635). This branch completes the remaining Mobile
-forms/details/secondary routes and native splash. No production deployment or `main` merge. Audit,
-source inventory, phase deliverables and exact QA limits:
-[`docs/seller-admin-ux-modernization.md`](docs/seller-admin-ux-modernization.md).
+**Seller / Admin UX modernization — Seller Web implemented and locally validated; Admin is next.**
+Branch: `codex/seller-web-ux-modernization`, based on `develop` `674d794` (Mobile foundation/action
+center PRs #634/#635 merged). The remaining Mobile forms/details/notifications/profile/earnings and
+native splash lot is complete on `codex/seller-mobile-forms-details` (`43f9520`) with **112 tests**;
+its branch is pushed but PR creation was blocked by the automatic approval review.
 
-Completed across the three Mobile lots: operational lists, authoritative action center and filtered
-navigation, responsive auth/product/order forms, direct product-edit loading, explicit option and
-notification errors, notification pagination, support route, readable earnings/payout layouts and a
-density-safe native splash with visible status bars. Validation: **112 Flutter tests**, analyzer
-**17 existing infos / no warnings or errors**, Android API 34 cold launch and real dashboard rendering
-with synthetic development fixtures. Existing API contracts, workflows, auth guards and analytics
-remain unchanged.
+Seller Web now has grouped accessible navigation, a keyboard-contained mobile drawer, a compact
+action center driven by the existing seller order/product statistics, exact URL-backed filters,
+clear partial failure/empty/loading states, a responsive notification panel and shared page hierarchy
+across catalogue, orders, revenues, reviews, promotions and profile. Existing APIs, lifecycle
+transitions, payout rules, auth/ownership, analytics and private-site noindex rules are unchanged.
+Type-check and production build pass. Browser QA against the local development API and the seeded
+seller account verified login, 294 products, empty orders, notifications, wallet, pagination, filter
+URLs, keyboard Escape/focus return and mobile layout without mutations.
 
-**Not complete:** signed-in testing against a real account/API, real push delivery, camera/gallery and
-physical-device accessibility/performance checks. Seller Web and Admin implementation have not started.
+**Still open:** Admin implementation; reviewable PR creation for the two completed branches; final
+Admin + cross-platform validation. Physical-device camera/gallery, native push delivery and release
+performance remain manual device checks. No merge to `main`, production deployment, database/schema
+change or production data mutation is part of this initiative.
 
-**Next exact step:** commit and raise the remaining Mobile lot into `develop`, wait for CI, then begin
-the Seller Web redesign on a fresh branch. Admin follows in its own branch. Keep Seller/Admin noindex
-and Buyer SEO unchanged; never auto-merge to `main` or deploy.
+**Next exact step:** commit and push Seller Web, then create `codex/admin-web-ux-modernization` from
+`develop`, modernize its operational dashboard/navigation/lists and validate read-only against the
+development API. After Admin, reconcile documentation and request explicit approval to create the
+remaining PRs into `develop` because the earlier PR action was rejected by automatic approval review.
 
 ## Most recently completed initiative
 
