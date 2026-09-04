@@ -24,7 +24,7 @@ class CategorySelector extends ConsumerWidget {
           suffixIcon: const Icon(Icons.arrow_drop_down),
         ),
         child: Text(
-          _selectedCategoryName(ref) ?? "Selectionner une categorie",
+          _selectedCategoryName(ref) ?? "Sélectionner une catégorie",
           style: TextStyle(
             color: selectedCategoryId != null
                 ? TekaColors.foreground
@@ -81,14 +81,15 @@ class CategorySelector extends ConsumerWidget {
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      Text(
-                        "Selectionner une categorie",
-                        style: Theme.of(sheetContext)
-                            .textTheme
-                            .titleLarge
-                            ?.copyWith(fontWeight: FontWeight.bold),
+                      Expanded(
+                        child: Text(
+                          "Sélectionner une catégorie",
+                          style: Theme.of(sheetContext)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                        ),
                       ),
-                      const Spacer(),
                       IconButton(
                         icon: const Icon(Icons.close),
                         onPressed: () => Navigator.pop(sheetContext),
@@ -114,8 +115,17 @@ class CategorySelector extends ConsumerWidget {
                               children: [
                                 const Icon(Icons.error_outline, size: 48),
                                 const SizedBox(height: 8),
-                                Text(
-                                    "Une erreur est survenue. Veuillez réessayer."),
+                                const Text(
+                                  "Impossible de charger les catégories.",
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 12),
+                                OutlinedButton.icon(
+                                  onPressed: () =>
+                                      innerRef.invalidate(categoriesProvider),
+                                  icon: const Icon(Icons.refresh),
+                                  label: const Text("Réessayer"),
+                                ),
                               ],
                             ),
                           ),
@@ -224,7 +234,7 @@ class _CategoryListState extends State<_CategoryList> {
             controller: _searchController,
             autofocus: false,
             decoration: InputDecoration(
-              hintText: "Rechercher une categorie...",
+              hintText: "Rechercher une catégorie…",
               prefixIcon: const Icon(Icons.search),
               isDense: true,
               suffixIcon: searching
@@ -254,7 +264,7 @@ class _CategoryListState extends State<_CategoryList> {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text("Aucune categorie trouvee"),
+          child: Text("Aucune catégorie trouvée"),
         ),
       );
     }

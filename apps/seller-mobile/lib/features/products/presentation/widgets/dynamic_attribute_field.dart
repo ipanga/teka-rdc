@@ -47,13 +47,17 @@ class DynamicAttributeField extends StatelessWidget {
 
   Widget _buildSelect(BuildContext context, String label) {
     return DropdownButtonFormField<String>(
+      isExpanded: true,
       initialValue: value.isNotEmpty ? value : null,
       decoration: InputDecoration(
         labelText: attribute.isRequired ? '$label *' : label,
       ),
       hint: Text("Sélectionnez..."),
       items: attribute.options.map((opt) {
-        return DropdownMenuItem(value: opt, child: Text(opt));
+        return DropdownMenuItem(
+          value: opt,
+          child: Text(opt, overflow: TextOverflow.ellipsis),
+        );
       }).toList(),
       onChanged: (v) => onChanged(v ?? ''),
       validator: attribute.isRequired

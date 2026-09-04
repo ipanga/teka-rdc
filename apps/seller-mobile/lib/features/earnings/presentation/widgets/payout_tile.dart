@@ -24,22 +24,26 @@ class PayoutTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Expanded(
-                child: Text(
-                  '${formatFcNumber(payout.amountCDFDisplay)} FC',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
+              Text(
+                '${formatFcNumber(payout.amountCDFDisplay)} FC',
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               _buildStatusBadge(payout.status),
             ],
           ),
           const SizedBox(height: 6),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Icon(Icons.phone_android,
                   size: 13, color: TekaColors.mutedForeground),
@@ -52,7 +56,6 @@ class PayoutTile extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(width: 8),
               Text(
                 payout.payoutPhone,
                 style: const TextStyle(
@@ -103,7 +106,7 @@ class PayoutTile extends StatelessWidget {
               payout.externalReference!.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
-              'Reference : ${payout.externalReference}',
+              'Référence : ${payout.externalReference}',
               style: const TextStyle(
                 fontSize: 11,
                 color: TekaColors.mutedForeground,
@@ -126,7 +129,7 @@ class PayoutTile extends StatelessWidget {
         break;
       case 'APPROVED':
         color = const Color(0xFF3B82F6);
-        label = "Approuve";
+        label = "Approuvé";
         break;
       case 'PROCESSING':
         color = const Color(0xFF8B5CF6);
@@ -134,7 +137,7 @@ class PayoutTile extends StatelessWidget {
         break;
       case 'COMPLETED':
         color = TekaColors.success;
-        label = "Complete";
+        label = "Terminé";
         break;
       case 'REJECTED':
         color = TekaColors.destructive;

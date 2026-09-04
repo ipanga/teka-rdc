@@ -421,3 +421,44 @@ Private-site SEO guards remain unchanged: root metadata disallows index/follow a
 disallows `/`. Existing auth, seller ownership, approval and order/product lifecycle guards remain
 server authoritative. The next lot is Admin, followed by final integration and device-dependent
 Mobile checks (camera/gallery, native push and physical-device performance).
+## Seller Mobile forms, secondary routes and native splash — third lot (2026-09-03)
+
+Branch `codex/seller-mobile-forms-details`, based on `develop` after foundation PR #634 and
+action-center PR #635 merged normally. This lot closes the remaining source-level Mobile items from
+the initial audit. It does not change the API, schema, business transitions, authentication rules,
+analytics ownership or Buyer/Seller/Admin web behavior.
+
+### Delivered behavior
+
+- Auth registration, forgot/reset password and seller-application states remain scrollable with the
+  keyboard open, narrow screens and enlarged text. City/commune and long dropdown choices expose
+  distinct loading/error/retry states.
+- Product edit routes load by id when router `extra` is absent. Category changes discard stale
+  brand/attribute responses; option failures are visible and retryable; price fields stack when
+  needed; comma decimal USD input is accepted. Image add/delete controls have labelled 48 px targets.
+- Order actions stack on narrow/large-text layouts and only appear for seller-actionable states.
+  French labels and the two-day return-window earnings copy match the existing domain workflow.
+- Notifications distinguish failure from an empty inbox and append later pages with an inline retry.
+  Profile now exposes Help & support using the repository's existing support contacts. Earnings and
+  payout content scrolls and wraps on short screens, long values and enlarged text.
+- The native splash uses a padded 1200-square source, density-specific generated images and no
+  artificial Flutter delay. Android 12+ renders the white seller glyph on charcoal; Android API 33
+  light/dark sidecars prefer the icon. Generated Android/iOS settings preserve visible status bars.
+
+### Verification and limits
+
+| Check | Result |
+|---|---|
+| Flutter tests | **112 passed**, including 18 new focused form/secondary/splash cases plus image semantics |
+| Static analysis | Exit 0; the same **17 info-only** notices, no warnings or errors |
+| Layout matrix | Widget tests cover 320 px, 2× text, keyboard insets, short earnings viewport, long labels and option failures |
+| Android runtime | API 34 development app cold-launched (`LaunchState: COLD`), resolved `MainActivity`, and rendered the actual dashboard/action center without overflow; status/navigation bars visible |
+| Native assets | Source and generated dimensions, status-bar flags and Android 12/13 icon contrast are regression-tested |
+| Data safety | Runtime preview uses synthetic in-memory fixtures; no production API, database or account mutation |
+
+The system splash lasts less than the reliable screenshot interval on the available emulator; the
+cold-launch activity result and generated-resource tests are the durable evidence. A signed-in real
+account was not available, so real API mutations, remote push delivery, camera/gallery permissions,
+physical-device screen-reader interaction and release-build performance remain explicit items for the
+final cross-platform validation matrix. Seller Web and Admin still require implementation and browser
+QA before the overall initiative can be called complete.
