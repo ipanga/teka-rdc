@@ -699,3 +699,50 @@ defect-12 leftovers (presentation / parity, API-derived). Nothing else is added:
 D7; the outbox, FINANCE role, seller commission display and `field: "unknown"` findings stay
 follow-ups.
 
+### Implementation (defect-12 leftovers only)
+
+- **API** — `earningState(row, now)` in `payments/earnings.service.ts`: `REVERSED` → `PAID` →
+  `RESERVED` → `HELD` (not DELIVERED, no delivery date, or inside the 2-day window) → `AVAILABLE`;
+  `listSellerEarnings` adds `state` to every row (order select gains `status`, `deliveredAt`).
+  Additive: installed clients ignore it. No schema change.
+- **seller-web** — `lib/earnings.ts`: `formatCommissionRate` (« 10 % », « 8,25 % »), state labels
+  « En attente (retour possible) · Disponible · Réservé (virement en cours) · Payé · Annulé » with the
+  historical `isPaid` fallback; earnings table uses them; minimum balance via `formatFC`.
+- **seller-mobile** — `SellerEarningModel.state` / `effectiveState` / `commissionRatePercentLabel`,
+  `EarningStateUi` (same vocabulary), earning tile, `showAppSnackbar` on payout request success,
+  « Solde minimum : 5.000 FC ».
+
+### Regression record (2026-09-04, `develop` `c64f6e4` + this branch)
+
+| Gate | Result |
+|---|---|
+| `pnpm type-check` (root) | clean |
+| API unit / e2e | **594 / 142** |
+| admin-web vitest / type-check | 31 / clean |
+| seller-web vitest / type-check / eslint / production build | **14** / clean / clean / clean |
+| buyer-web vitest | 74 |
+| seller-mobile `flutter analyze` / `flutter test` | 17 pre-existing infos, no warnings / **131** |
+| buyer-mobile `flutter analyze` / `flutter test` | 6 pre-existing infos / 238 |
+
+### Runtime verification (2026-09-04)
+
+Throwaway seller fixture on the dev DB (`qa-pr7-seller@example.test`, two DELIVERED COD orders
+reusing an existing dev buyer + address as foreign keys, two earnings: 10.000 FC at 10 % delivered
+yesterday, 20.000 FC at 8,25 % delivered 5 days ago) — **deleted after QA** (earnings, orders,
+profile, user).
+
+- **seller-web (Chrome, isolated API :5051):** dashboard « Solde disponible 18.350 FC » (only the
+  out-of-window earning, net of 8,25 %); Revenus → Gains: « 1.650 FC (8,25 %) · Disponible » and
+  « 1.000 FC (10 %) · En attente (retour possible) », wallet « + 9.000 FC en attente ».
+- **seller-mobile (Android emulator, debug APK against the user's :5050 API):** Revenus → Gains:
+  « Commission : 8,25 % · Disponible » and « Commission : 10 % · En attente (retour possible) », same
+  balances; « Solde minimum » text not reachable (balance above the minimum).
+- **Not verified at runtime:** RESERVED / PAID / REVERSED labels (unit-tested on both clients and in
+  the API), the `showAppSnackbar` on a successful payout request (no request submitted), iOS.
+
+### Follow-ups carried forward (unchanged)
+
+D7 (defect 13, cancelled COD payment status) awaits a decision; no notification outbox; `FINANCE`
+role unused by finance endpoints; seller effective-commission display; `field: "unknown"` in
+validation errors.
+
