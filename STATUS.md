@@ -7,7 +7,7 @@
 ## Active initiative
 
 **Admin Action Center · seller payout workflow · payout notifications · commission management —
-PR 2 (API financial foundation) implemented, awaiting review (started 2026-09-04).**
+PR 2 merged into `develop` (#646); PR 3 (Admin Action Center) implemented and browser-verified, PR open (started 2026-09-04).**
 Tracker: `docs/payouts-commission-action-center.md` (audit, approved decisions D1–D6, per-PR record).
 
 PR 2 `feat/api-payout-ledger-foundation` → `develop`: per-item integer commission with
@@ -20,8 +20,13 @@ guarded reservation and a partial unique index, conditional admin transitions + 
 to the **dev** DB twice (idempotent) — **not** to production. API: 547 unit + 135 e2e green,
 type-check clean.
 
-**Next exact step:** review/merge PR 2 into `develop`, then PR 3 (admin stats extension + Action
-Center) and PR 4 (admin payout queue/detail/actions). No `main` merge, deployment or production
+PR 3 `feat/admin-action-center`: `ADMIN_QUEUES` shared where-builders (counts and lists reconcile
+by construction, spec-pinned), `/v1/admin/stats.actionCenter`, dashboard « À traiter » tiles with
+deep links, `?status=` honoured on payouts and sellers (applications endpoint), admin-web vitest.
+Browser-verified on the dev DB (1 payout à approuver 63.000 FC, 3 produits) — see the tracker.
+
+**Next exact step:** review/merge PR 3, then PR 4 (admin payout queue/detail/actions with reasons,
+references, actors, balance context). No `main` merge, deployment or production
 write without approval — note the migration inserts a 10 % global commission row **only if none
 exists** in production (materialising today's hardcoded fallback).
 

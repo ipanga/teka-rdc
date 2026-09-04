@@ -239,3 +239,52 @@ Scope: `apps/api` only. Schema additive; migration `manual/2026-09-04_payout_com
 - **Backward compatibility**: wallet/payout response fields unchanged (new fields optional);
   `/v1/sellers/payouts` 409 semantics unchanged for clients; mobile 0.1.7 keeps working.
 
+## PR 3 — Admin Action Center (`feat/admin-action-center`)
+
+Scope: `apps/api` (stats + queue definitions) and `apps/admin-web` (dashboard, payouts, sellers). No
+schema/migration/env/dependency change on the API; admin-web gains `vitest` (dev dependency) for
+pure-logic tests.
+
+- **`admin/admin-queues.ts`** — the authoritative `where` builders for every "À traiter" queue.
+  `AdminStatsService` counts with them and `findSellerApplications(status=PENDING)` lists with the
+  same one; `admin-queues.spec.ts` captures the `where` each service passes to Prisma and asserts
+  equality (count/queue reconciliation), plus soft-delete exclusion.
+- **`/v1/admin/stats.actionCenter`** (additive) — `sellerApplicationsPending`, `productsPendingReview`,
+  `returnsPending`, `ordersReadyForPickup`, `ordersReceivedAtTeka`, `payoutsAwaitingReview {count,
+  amountCDF}` (REQUESTED), `payoutsAwaitingPayment {count, processingCount, amountCDF}` (APPROVED +
+  PROCESSING). Legacy fields kept. Applications list now also exposes `user.status/createdAt`.
+- **Dashboard** (`dashboard/page.tsx`) — one « À traiter maintenant » block first: seven tiles
+  (finance → moderation → returns → logistics), each deep-linking to the filtered queue; zero counts
+  muted; « Rien à traiter pour le moment. » / « N éléments en attente d’une action. » summary; explicit
+  error state with retry and no fabricated numbers; skeleton tiles while loading. KPIs and a
+  « Suivi logistique » follow-up (seller-side new orders, out for delivery, delivered today) below;
+  trends unchanged. `lib/action-center.ts` (pure) + `action-center.test.ts` (8 vitest cases: one tile per
+  counter, href ↔ queue, money passthrough, ordering, zero state, `?status=` allow-list, URL round-trip).
+- **Payouts page** — honours `?status=` on mount (allow-listed) and writes the tab back to the URL.
+- **Sellers page** — honours `?status=` and, for the PENDING/APPROVED/REJECTED tabs, lists from
+  `/v1/admin/sellers/applications?status=` (server-side filter + pagination) instead of narrowing a
+  paginated `/users` page client-side; explicit load-error state with retry; French empty state for the
+  pending queue.
+
+### Runtime verification (2026-09-04, Chrome, isolated local stack)
+
+Signed in as the seeded ADMIN with the repository's dev-only temporary-password helper (cleared right
+after) against an **isolated API on :5051** (`COOKIE_DOMAIN` cleared — the dev env's `.teka.cd`
+domain makes the browser drop the session cookie on localhost; pre-existing) and admin-web pointed
+at it. Verified on the dev DB: action center loaded with **1** virement à approuver (**63.000 FC**),
+**3** produits à valider, the five other queues at 0 (muted), summary « 4 éléments en attente »;
+« Virements à approuver » → `/dashboard/payouts?status=REQUESTED` opened on the « En attente » tab
+showing exactly that one 63.000 FC request; « Vendeurs à approuver » → `/dashboard/sellers?status=PENDING`
+opened on « En attente », called `/applications?status=PENDING` and rendered the empty queue copy.
+Loading, loaded and error states of the action center were all seen (the error state appeared while
+the stale session was 401ing). **Not verified:** the narrow-viewport layout (the automation window
+did not resize), the products/orders/returns deep links (unchanged pages), and hover/keyboard focus.
+No admin mutation was triggered. Side effect during QA: a production `next build` inside
+`apps/admin-web` broke the running `next dev` server until it was restarted — do not build in an app
+directory while its dev server runs.
+
+### Tests
+
+API: `admin-queues.spec.ts` (4) + updated `admin-stats.service.spec.ts`; full suite **551 unit**,
+type-check clean. admin-web: type-check clean, **8 vitest**, production build clean (32 routes).
+
