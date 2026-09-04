@@ -58,6 +58,9 @@ class SellerEarningModel {
   final String netAmountCDF;
   final String commissionRate;
   final bool isPaid;
+  /// API-derived: HELD | AVAILABLE | RESERVED | PAID | REVERSED (null on
+  /// older API responses → fall back to [isPaid]).
+  final String? state;
   final String? orderNumber;
   final String createdAt;
 
@@ -69,9 +72,34 @@ class SellerEarningModel {
     required this.netAmountCDF,
     required this.commissionRate,
     required this.isPaid,
+    this.state,
     this.orderNumber,
     required this.createdAt,
   });
+
+  /// Effective state, for labels: the API's word when present, else the
+  /// historical paid / not-paid split.
+  String get effectiveState {
+    const known = {'HELD', 'AVAILABLE', 'RESERVED', 'PAID', 'REVERSED'};
+    final s = state?.toUpperCase();
+    if (s != null && known.contains(s)) return s;
+    return isPaid ? 'PAID' : 'AVAILABLE';
+  }
+
+  /// "0.0825" → "8,25 %", "0.1" → "10 %" (defect 12: "0%" was shown).
+  String get commissionRatePercentLabel {
+    final s = commissionRate.trim();
+    if (!RegExp(r'^\d+(\.\d+)?$').hasMatch(s)) return '—';
+    final parts = s.split('.');
+    final frac = (parts.length > 1 ? parts[1] : '');
+    final units = int.parse(parts[0]) * 10000 +
+        int.parse('${frac}0000'.substring(0, 4));
+    final whole = units ~/ 100;
+    final hundredths = units % 100;
+    if (hundredths == 0) return '$whole %';
+    final h = hundredths.toString().padLeft(2, '0').replaceAll(RegExp(r'0$'), '');
+    return '$whole,$h %';
+  }
 
   int get grossAmountCDFDisplay {
     final centimes = int.tryParse(grossAmountCDF) ?? 0;
@@ -114,6 +142,7 @@ class SellerEarningModel {
       netAmountCDF: json['netAmountCDF']?.toString() ?? '0',
       commissionRate: json['commissionRate']?.toString() ?? '0',
       isPaid: json['isPaid'] as bool? ?? false,
+      state: json['state']?.toString(),
       orderNumber: orderNumber,
       createdAt:
           json['createdAt'] as String? ?? DateTime.now().toIso8601String(),

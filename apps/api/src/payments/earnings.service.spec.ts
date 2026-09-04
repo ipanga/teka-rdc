@@ -3,6 +3,7 @@ import { CommissionSource, OrderStatus } from '@prisma/client';
 import {
   CommissionNotConfiguredError,
   EarningsService,
+  earningState,
 } from './earnings.service';
 
 // EarningsService only depends on PrismaService → one hand-rolled mock. The
@@ -455,3 +456,39 @@ describe('EarningsService — seller override lifecycle (PR 5)', () => {
     expect(prisma.orderItem.update).not.toHaveBeenCalled();
   });
 });
+
+describe('earningState — seller-facing state derived by the API (PR 7, defect 12)', () => {
+  const now = new Date('2026-09-04T12:00:00Z');
+  const delivered = (daysAgo: number) => ({
+    status: OrderStatus.DELIVERED,
+    deliveredAt: new Date(now.getTime() - daysAgo * 24 * 3600 * 1000),
+  });
+  const base = { reversedAt: null, isPaid: false, payoutId: null };
+
+  it('inside the return window → HELD, after it → AVAILABLE', () => {
+    expect(earningState({ ...base, order: delivered(1) }, now)).toBe('HELD');
+    expect(earningState({ ...base, order: delivered(3) }, now)).toBe('AVAILABLE');
+  });
+  it('reserved in an open payout → RESERVED; paid → PAID; reversed wins over everything', () => {
+    expect(earningState({ ...base, payoutId: 'p1', order: delivered(3) }, now)).toBe('RESERVED');
+    expect(earningState({ ...base, isPaid: true, payoutId: 'p1', order: delivered(3) }, now)).toBe('PAID');
+    expect(earningState({ ...base, isPaid: true, reversedAt: now, order: delivered(3) }, now)).toBe('REVERSED');
+  });
+  it('an order no longer DELIVERED (or without a delivery date) is never AVAILABLE', () => {
+    expect(earningState({ ...base, order: { status: OrderStatus.RETURNED, deliveredAt: delivered(9).deliveredAt } }, now)).toBe('HELD');
+    expect(earningState({ ...base, order: null }, now)).toBe('HELD');
+  });
+  it('listSellerEarnings adds `state` to every row and keeps the raw columns', async () => {
+    const { service, prisma } = makeService();
+    prisma.sellerEarning.findMany.mockResolvedValue([
+      { id: 'e1', isPaid: false, payoutId: null, reversedAt: null, netAmountCDF: 1n, order: delivered(5) },
+      { id: 'e2', isPaid: true, payoutId: 'p', reversedAt: null, netAmountCDF: 1n, order: delivered(30) },
+    ]);
+    prisma.sellerEarning.count.mockResolvedValue(2);
+    const res = await service.listSellerEarnings('sp1', {});
+    expect(res.data.map((r) => r.state)).toEqual(['AVAILABLE', 'PAID']);
+    expect(res.data[0].netAmountCDF).toBe(1n);
+    expect(prisma.sellerEarning.findMany.mock.calls[0][0].include.order.select).toMatchObject({ status: true, deliveredAt: true });
+  });
+});
+

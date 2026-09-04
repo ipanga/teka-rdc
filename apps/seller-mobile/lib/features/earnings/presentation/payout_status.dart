@@ -62,3 +62,31 @@ String payoutMethodLabel(String method) {
       return method;
   }
 }
+
+/// Seller-facing earning state vocabulary (mirrors seller-web `lib/earnings.ts`).
+class EarningStateUi {
+  const EarningStateUi._(this.label, this.color);
+
+  final String label;
+  final Color color;
+
+  static EarningStateUi of(String state) {
+    switch (state.toUpperCase()) {
+      case 'HELD':
+        return const EarningStateUi._(
+            'En attente (retour possible)', TekaColors.warning);
+      case 'AVAILABLE':
+        return const EarningStateUi._('Disponible', Color(0xFF3B82F6));
+      case 'RESERVED':
+        return const EarningStateUi._(
+            'Réservé (virement en cours)', TekaColors.tekaRed);
+      case 'PAID':
+        return const EarningStateUi._('Payé', TekaColors.success);
+      case 'REVERSED':
+        return const EarningStateUi._('Annulé', TekaColors.mutedForeground);
+      default:
+        return EarningStateUi._(state, TekaColors.mutedForeground);
+    }
+  }
+}
+

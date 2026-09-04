@@ -20,6 +20,8 @@ export interface SellerEarning {
   netAmountCDF: string;
   commissionRate: string;
   isPaid: boolean;
+  /** API-derived (additive): HELD | AVAILABLE | RESERVED | PAID | REVERSED. */
+  state?: string | null;
   order?: { orderNumber: string; totalCDF: string; createdAt: string };
   createdAt: string;
 }

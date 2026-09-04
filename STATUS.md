@@ -7,9 +7,9 @@
 ## Active initiative
 
 **Admin Action Center · seller payout workflow · payout notifications · commission management —
-PRs 2–5 merged into `develop` (#646, #647, #648 `dccd864`, #649 `471b2e7`); PR 6 (payout feed
-notifications + Seller Web / Mobile deep links) implemented and runtime-verified on
-`feat/payout-feed-notifications`, PR open (started 2026-09-04).**
+PRs 2–6 merged into `develop` (#646, #647, #648 `dccd864`, #649 `471b2e7`, #650 `c64f6e4`); PR 7
+(regression / security / performance review + documented defect-12 leftovers) implemented and
+runtime-verified on `feat/initiative-review`, PR open (started 2026-09-04).**
 Tracker: `docs/payouts-commission-action-center.md` (audit, approved decisions D1–D6, per-PR record).
 
 PR 2 `feat/api-payout-ledger-foundation` → `develop`: per-item integer commission with
@@ -69,8 +69,20 @@ on the Android emulator and Chrome with a throwaway seller fixture (deleted). AP
 seller-web 11 vitest + build, seller-mobile 128 tests / analyze clean. **Not verified:** real FCM
 delivery / cold-start tap, iOS.
 
-**Next exact step:** wait for CI on the PR 6 branch, then **stop for review** (do not merge). After
-approval: PR 7 (regression/security/perf review) and PR 8 (docs/release prep). No `main` merge, deployment or
+PR 6 **merged as #650 (`c64f6e4`), CI green on `develop`.**
+
+PR 7 `feat/initiative-review`: audit recorded in the tracker — defects 1–11 closed by PR 2; every
+security item of the brief (RBAC/ownership, whitelisting, CSRF via SameSite + surface header + CORS,
+transactions/idempotency, audit, Sentry/PostHog scrubbing, destination exposure, CSV, throttling) and
+the performance items (no N+1, no new polling) verified in code; the four documented defect-12
+leftovers closed (API-derived `state` on seller earnings, percent-correct commission display on
+both clients, Rule 15 snackbar, « 5.000 FC »); **defect 13 → decision D7, not changed** (financial
+meaning). No schema/migration. Full regression green (API 594/142, admin 31, seller-web 14 + build,
+buyer-web 74, seller-mobile 131, buyer-mobile 238). Runtime-verified on Chrome + Android emulator
+with a deleted fixture.
+
+**Next exact step:** wait for CI on the PR 7 branch, then **stop for review** (do not merge). After
+approval: PR 8 (docs / release prep) and the **whole-initiative re-audit before any `develop → main`**. No `main` merge, deployment or
 production write without approval — note the PR 2 migration inserts a 10 % global commission row
 **only if none exists** in production (materialising today's hardcoded fallback).
 
