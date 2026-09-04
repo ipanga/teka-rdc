@@ -169,7 +169,7 @@ gate above-the-fold UI.)
 
 - [ ] GitHub Secrets set: `POSTHOG_API_KEY` (api) + `NEXT_PUBLIC_POSTHOG_KEY_`
       `{BUYER,SELLER,ADMIN}_WEB` (all the same `phc_…` value).
-- [ ] Mobile prod flavor `POSTHOG_API_KEY` injected at build (CI), like `SENTRY_DSN`.
+- [x] Mobile prod flavor `POSTHOG_API_KEY` injected at build (CI), like `SENTRY_DSN` — `release-mobile-ipa.yml` + `release-mobile-aab.yml` pass `--dart-define=POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }}` (wired 2026-09-04; dev/staging and the unsigned `build-mobile-*` workflows stay empty on purpose).
 - [ ] Deploy: web keys bake into the bundles; api key loads into the container.
 - [ ] Verify Live Events from each surface (filter `environment = production`).
 - [ ] Build the core funnels (e.g. `product_viewed → add_to_cart →`
