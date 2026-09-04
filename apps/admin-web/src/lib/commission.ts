@@ -68,9 +68,11 @@ export function parsePercentInput(input: string): { rate: string; units: number 
   return { rate: unitsToRate(units), units };
 }
 
-/** JSON body value for the API DTO (`rate: number`, ≤ 4 decimals). */
-export function rateToApiNumber(rate: string): number {
-  return Number(rate);
+/** JSON body value for the API DTO (`rate: number`, ≤ 4 decimals). Null stays null ("no override"). */
+export function rateToApiNumber(rate: string): number;
+export function rateToApiNumber(rate: string | null): number | null;
+export function rateToApiNumber(rate: string | null): number | null {
+  return rate === null ? null : Number(rate);
 }
 
 export interface SellerCommissionContext {

@@ -96,10 +96,11 @@ export function SellerCommissionCard({ sellerProfileId }: { sellerProfileId: str
     setDialogError(null);
     try {
       if (pending.kind === 'set') {
-        await apiFetch(`/v1/admin/sellers/${sellerProfileId}/commission`, { method: 'PUT', body: JSON.stringify({ rate: rateToApiNumber(pending.rate) }) });
+        // expectedPreviousRate = what this screen showed; the API refuses (409) if another admin changed it since.
+        await apiFetch(`/v1/admin/sellers/${sellerProfileId}/commission`, { method: 'PUT', body: JSON.stringify({ rate: rateToApiNumber(pending.rate), expectedPreviousRate: rateToApiNumber(data?.overrideRate ?? null) }) });
         setFeedback({ type: 'success', message: `Taux spécifique enregistré : ${formatRatePercent(pending.rate)}. Il s’applique aux commandes livrées à partir de maintenant.` });
       } else {
-        await apiFetch(`/v1/admin/sellers/${sellerProfileId}/commission`, { method: 'DELETE' });
+        await apiFetch(`/v1/admin/sellers/${sellerProfileId}/commission`, { method: 'DELETE', body: JSON.stringify({ expectedPreviousRate: rateToApiNumber(data?.overrideRate ?? null) }) });
         setFeedback({ type: 'success', message: 'Taux spécifique retiré. Ce vendeur suit de nouveau les taux par catégorie et le taux par défaut.' });
       }
       setPending(null);

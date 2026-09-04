@@ -73,6 +73,12 @@ export class CommissionService {
             orderBy: { createdAt: 'asc' },
           });
 
+      this.assertExpected(
+        existing?.rate ?? null,
+        dto.expectedPreviousRate,
+        categoryId ? 'Le taux de cette catégorie' : 'Le taux par défaut',
+      );
+
       const include = { category: { select: { id: true, name: true } } };
       const saved = existing
         ? await tx.commissionSetting.update({
@@ -146,6 +152,28 @@ export class CommissionService {
   // earnings created after them — every delivered order keeps its own
   // snapshot (EarningsService.createEarning).
   // ---------------------------------------------------------------------------
+
+  /**
+   * Optimistic-concurrency check shared by every commission mutation: when the
+   * caller says which rate it saw (`expected`, null = none), refuse with 409 if
+   * the stored value differs — another admin changed it first.
+   */
+  private assertExpected(
+    current: Decimal | null,
+    expected: number | null | undefined,
+    what: string,
+  ) {
+    if (expected === undefined) return;
+    const same =
+      expected === null
+        ? current === null
+        : current !== null && current.equals(this.normaliseRate(expected));
+    if (!same) {
+      throw new ConflictException(
+        `${what} a été modifié entre-temps (valeur actuelle : ${current === null ? 'aucun' : current.toString()}). Rechargez la page et réessayez.`,
+      );
+    }
+  }
 
   /** Parse + normalise a rate through the integer representation (0.1 ≡ 0.1000). */
   private normaliseRate(input: number | string | Decimal): Decimal {
@@ -242,6 +270,7 @@ export class CommissionService {
     sellerProfileId: string,
     rateInput: number,
     actorId: string,
+    expectedPreviousRate?: number | null,
   ) {
     const rate = this.normaliseRate(rateInput);
 
@@ -253,6 +282,11 @@ export class CommissionService {
       if (!before) {
         throw new NotFoundException('Vendeur non trouvé');
       }
+      this.assertExpected(
+        before.commissionRate,
+        expectedPreviousRate,
+        'Le taux spécifique de ce vendeur',
+      );
       if (before.commissionRate != null && before.commissionRate.equals(rate)) {
         return false;
       }
@@ -285,7 +319,11 @@ export class CommissionService {
   }
 
   /** Remove the override. Idempotent: nothing to remove → no write, no audit row. */
-  async clearSellerOverride(sellerProfileId: string, actorId: string) {
+  async clearSellerOverride(
+    sellerProfileId: string,
+    actorId: string,
+    expectedPreviousRate?: number | null,
+  ) {
     const changed = await this.prisma.$transaction(async (tx) => {
       const before = await tx.sellerProfile.findUnique({
         where: { id: sellerProfileId },
@@ -294,6 +332,11 @@ export class CommissionService {
       if (!before) {
         throw new NotFoundException('Vendeur non trouvé');
       }
+      this.assertExpected(
+        before.commissionRate,
+        expectedPreviousRate,
+        'Le taux spécifique de ce vendeur',
+      );
       if (before.commissionRate == null) {
         return false;
       }

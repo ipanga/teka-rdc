@@ -148,10 +148,11 @@ export default function CommissionPage() {
     setDialogError(null);
     try {
       if (pending.kind === 'global') {
-        await apiFetch('/v1/admin/commission-settings', { method: 'PUT', body: JSON.stringify({ rate: rateToApiNumber(pending.rate) }) });
+        // expectedPreviousRate = the value this screen showed; 409 if another admin changed it since.
+        await apiFetch('/v1/admin/commission-settings', { method: 'PUT', body: JSON.stringify({ rate: rateToApiNumber(pending.rate), expectedPreviousRate: rateToApiNumber(global?.rate ?? null) }) });
         showFeedback('success', `Taux par défaut enregistré : ${formatRatePercent(pending.rate)}. Il s’applique aux commandes livrées à partir de maintenant.`);
       } else if (pending.kind === 'category-set') {
-        await apiFetch(`/v1/admin/commission-settings/${pending.categoryId}`, { method: 'PUT', body: JSON.stringify({ rate: rateToApiNumber(pending.rate) }) });
+        await apiFetch(`/v1/admin/commission-settings/${pending.categoryId}`, { method: 'PUT', body: JSON.stringify({ rate: rateToApiNumber(pending.rate), expectedPreviousRate: rateToApiNumber(pending.previous) }) });
         showFeedback('success', `Taux de la catégorie « ${pending.categoryName} » enregistré : ${formatRatePercent(pending.rate)}.`);
         setShowAddForm(false); setAddCategoryId(''); setAddRate('');
         setEditingCategoryId(null); setEditRate('');
@@ -162,7 +163,14 @@ export default function CommissionPage() {
       setPending(null);
       await load();
     } catch (err) {
-      setDialogError(errorMessage(err));
+      if (err instanceof ApiError && err.status === 409) {
+        // Another admin changed this rate first: drop the intent, reload the authoritative state.
+        setPending(null);
+        showFeedback('error', err.message);
+        await load();
+      } else {
+        setDialogError(errorMessage(err));
+      }
     } finally {
       submitLock.current = false;
       setSubmitting(false);

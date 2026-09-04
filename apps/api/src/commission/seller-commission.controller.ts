@@ -8,7 +8,10 @@ import {
   Put,
 } from '@nestjs/common';
 import { CommissionService } from './commission.service';
-import { SetSellerCommissionDto } from './dto/set-seller-commission.dto';
+import {
+  ClearSellerCommissionDto,
+  SetSellerCommissionDto,
+} from './dto/set-seller-commission.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 
@@ -40,6 +43,7 @@ export class SellerCommissionController {
       sellerProfileId,
       dto.rate,
       adminId,
+      dto.expectedPreviousRate,
     );
     return { success: true, data };
   }
@@ -49,10 +53,12 @@ export class SellerCommissionController {
   async clear(
     @Param('sellerProfileId', ParseUUIDPipe) sellerProfileId: string,
     @CurrentUser('userId') adminId: string,
+    @Body() dto?: ClearSellerCommissionDto,
   ) {
     const data = await this.commissionService.clearSellerOverride(
       sellerProfileId,
       adminId,
+      dto?.expectedPreviousRate,
     );
     return { success: true, data };
   }

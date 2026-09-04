@@ -374,3 +374,60 @@ describe('CommissionService.listHistory', () => {
     expect(rows[2].actor).toEqual({ id: 'admin2', firstName: null, lastName: null });
   });
 });
+
+describe('CommissionService — optimistic concurrency (expectedPreviousRate)', () => {
+  it('set: the operator saw "no override" but one exists now → 409, nothing written', async () => {
+    const { service, prisma, audit } = makeSellerService({
+      profile: { id: 'sp1', commissionRate: new Decimal('0.06') },
+    });
+    await expect(service.setSellerOverride('sp1', 0.07, 'admin1', null)).rejects.toThrow(
+      ConflictException,
+    );
+    expect(prisma.sellerProfile.updateMany).not.toHaveBeenCalled();
+    expect(audit.record).not.toHaveBeenCalled();
+  });
+
+  it('set: the operator saw 8,25 % but it is 6 % now → 409 naming the current value', async () => {
+    const { service } = makeSellerService({
+      profile: { id: 'sp1', commissionRate: new Decimal('0.06') },
+    });
+    await expect(service.setSellerOverride('sp1', 0.07, 'admin1', 0.0825)).rejects.toThrow(
+      /0\.06/,
+    );
+  });
+
+  it('set: matching expectation (normalised, 0.1 ≡ 0.1000) proceeds', async () => {
+    const { service } = makeSellerService({
+      profile: { id: 'sp1', commissionRate: new Decimal('0.1000') },
+    });
+    await expect(service.setSellerOverride('sp1', 0.07, 'admin1', 0.1)).resolves.toMatchObject({ changed: true });
+  });
+
+  it('clear: expectation mismatch → 409; match → cleared', async () => {
+    const a = makeSellerService({ profile: { id: 'sp1', commissionRate: new Decimal('0.06') } });
+    await expect(a.service.clearSellerOverride('sp1', 'admin1', 0.05)).rejects.toThrow(ConflictException);
+    expect(a.prisma.sellerProfile.updateMany).not.toHaveBeenCalled();
+    const b = makeSellerService({ profile: { id: 'sp1', commissionRate: new Decimal('0.06') } });
+    await expect(b.service.clearSellerOverride('sp1', 'admin1', 0.06)).resolves.toMatchObject({ changed: true });
+  });
+
+  it('platform default: expectation mismatch → 409 before any write or audit', async () => {
+    const { service, prisma, audit } = makeService({
+      existing: { id: 'g1', categoryId: null, rate: new Decimal('0.125'), isActive: true },
+    });
+    await expect(
+      service.upsertSetting({ rate: 0.1, expectedPreviousRate: 0.1 }, 'admin1'),
+    ).rejects.toThrow(ConflictException);
+    expect(prisma.commissionSetting.update).not.toHaveBeenCalled();
+    expect(audit.record).not.toHaveBeenCalled();
+  });
+
+  it('platform default: no expectation given → unchanged behaviour (older clients)', async () => {
+    const { service, prisma } = makeService({
+      existing: { id: 'g1', categoryId: null, rate: new Decimal('0.125'), isActive: true },
+    });
+    await service.upsertSetting({ rate: 0.1 }, 'admin1');
+    expect(prisma.commissionSetting.update).toHaveBeenCalledTimes(1);
+  });
+});
+
