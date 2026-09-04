@@ -111,6 +111,13 @@ class EarningsRepository {
     );
   }
 
+  /// One of the seller's own payouts. The API scopes by owner: a foreign,
+  /// deleted or malformed id is a French 404 that the caller shows verbatim.
+  Future<PayoutModel> getPayout(String payoutId) async {
+    final response = await _dio.get('/v1/sellers/payouts/$payoutId');
+    return PayoutModel.fromJson(response.data['data'] as Map<String, dynamic>);
+  }
+
   Future<PayoutModel> requestPayout({
     required String payoutMethod,
     required String payoutPhone,

@@ -25,3 +25,4 @@
 2026-09-01_order_delivery_address_snapshot.sql
 2026-09-05_search_query_source_intent.sql
 2026-09-04_payout_commission_ledger_foundation.sql
+2026-09-04_user_notification_payout_type.sql

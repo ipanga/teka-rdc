@@ -7,8 +7,9 @@
 ## Active initiative
 
 **Admin Action Center · seller payout workflow · payout notifications · commission management —
-PR 2 (#646), PR 3 (#647) and PR 4 (#648, merge `dccd864`) merged into `develop`; PR 5 (commission
-administration) implemented and browser-verified on `feat/commission-admin`, PR open (started 2026-09-04).**
+PRs 2–5 merged into `develop` (#646, #647, #648 `dccd864`, #649 `471b2e7`); PR 6 (payout feed
+notifications + Seller Web / Mobile deep links) implemented and runtime-verified on
+`feat/payout-feed-notifications`, PR open (started 2026-09-04).**
 Tracker: `docs/payouts-commission-action-center.md` (audit, approved decisions D1–D6, per-PR record).
 
 PR 2 `feat/api-payout-ledger-foundation` → `develop`: per-item integer commission with
@@ -52,9 +53,24 @@ dev DB (default 10 → 12,5 → 10 %, seller none → 8,25 → 6 → 5 → clear
 earnings untouched). API 576 unit / 141 e2e, admin-web 31 vitest, build clean. Dev DB left as found
 except six audit rows.
 
-**Next exact step:** wait for CI on the PR 5 branch, then **stop for review** (do not merge). After
-approval: PR 6 (`PAYOUT` feed notifications + seller-web/mobile deep links + parity), then PR 7
-(regression/security/perf review) and PR 8 (docs/release prep). No `main` merge, deployment or
+PR 5 **merged as #649 (`471b2e7`), CI green on `develop`.**
+
+PR 6 `feat/payout-feed-notifications`: `UserNotificationType.PAYOUT` (additive migration
+`2026-09-04_user_notification_payout_type.sql`, auto-apply, dev DB done, **not prod**); approved / paid /
+rejected (refusal vs « Virement échoué ») write a durable feed row first (`createIfAbsent`) then push +
+email fallback, only after the committed conditional transition (retry → 409, no duplicate — verified);
+REQUESTED and PROCESSING stay silent; no Action Center entry (no payout state requires a seller
+action — decision recorded). `GET /v1/sellers/payouts/:id` owner-scoped (404 otherwise). seller-web:
+bell → `/dashboard/earnings?tab=payouts&payout=<id>` → detail card by id; login now honours a
+validated `redirect` (middleware keeps the query); vitest added. seller-mobile: push/feed →
+`/earnings/payouts/:id` detail (404 verbatim) or the Virements tab; `go` for tab roots; login
+`from` round-trip; earnings refresh on payout push/resume; shared payout vocabulary. Runtime-verified
+on the Android emulator and Chrome with a throwaway seller fixture (deleted). API 590 unit / 142 e2e,
+seller-web 11 vitest + build, seller-mobile 128 tests / analyze clean. **Not verified:** real FCM
+delivery / cold-start tap, iOS.
+
+**Next exact step:** wait for CI on the PR 6 branch, then **stop for review** (do not merge). After
+approval: PR 7 (regression/security/perf review) and PR 8 (docs/release prep). No `main` merge, deployment or
 production write without approval — note the PR 2 migration inserts a 10 % global commission row
 **only if none exists** in production (materialising today's hardcoded fallback).
 

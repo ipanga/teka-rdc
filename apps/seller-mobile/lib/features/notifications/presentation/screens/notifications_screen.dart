@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/push/notification_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
 import '../../data/notification_model.dart';
@@ -26,6 +27,8 @@ class NotificationsScreen extends ConsumerWidget {
         return Icons.cancel_outlined;
       case 'ORDER':
         return Icons.receipt_long;
+      case 'PAYOUT':
+        return Icons.payments_outlined;
       default:
         return Icons.notifications_outlined;
     }
@@ -39,6 +42,8 @@ class NotificationsScreen extends ConsumerWidget {
         return TekaColors.tekaRed;
       case 'ORDER':
         return TekaColors.tekaRed;
+      case 'PAYOUT':
+        return TekaColors.success;
       default:
         return TekaColors.mutedForeground;
     }
@@ -46,10 +51,16 @@ class NotificationsScreen extends ConsumerWidget {
 
   void _onTap(BuildContext context, WidgetRef ref, NotificationModel n) {
     ref.read(notificationsProvider.notifier).markRead(n.id);
-    if (n.entityType == 'product' && n.entityId != null) {
-      context.push('/products/${n.entityId}');
-    } else if (n.entityType == 'order' && n.entityId != null) {
-      context.push('/orders/${n.entityId}');
+    final route = NotificationRouter.routeForFeedItem(
+      type: n.type,
+      entityType: n.entityType,
+      entityId: n.entityId,
+    );
+    if (route == null) return;
+    if (NotificationRouter.isTabRoot(route)) {
+      context.go(route);
+    } else {
+      context.push(route);
     }
   }
 

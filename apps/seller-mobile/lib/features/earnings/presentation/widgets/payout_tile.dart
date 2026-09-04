@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:seller_mobile/core/utils/price_formatter.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../data/models/earning_model.dart';
+import '../payout_status.dart';
 
 class PayoutTile extends StatelessWidget {
   final PayoutModel payout;
@@ -119,34 +120,9 @@ class PayoutTile extends StatelessWidget {
   }
 
   Widget _buildStatusBadge(String status) {
-    Color color;
-    String label;
-
-    switch (status.toUpperCase()) {
-      case 'REQUESTED':
-        color = TekaColors.warning;
-        label = "En attente";
-        break;
-      case 'APPROVED':
-        color = const Color(0xFF3B82F6);
-        label = "Approuvé";
-        break;
-      case 'PROCESSING':
-        color = const Color(0xFF8B5CF6);
-        label = "En traitement";
-        break;
-      case 'COMPLETED':
-        color = TekaColors.success;
-        label = "Terminé";
-        break;
-      case 'REJECTED':
-        color = TekaColors.destructive;
-        label = "Rejeté";
-        break;
-      default:
-        color = TekaColors.mutedForeground;
-        label = status;
-    }
+    final ui = PayoutStatusUi.of(status);
+    final color = ui.color;
+    final label = ui.label;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -165,16 +141,5 @@ class PayoutTile extends StatelessWidget {
     );
   }
 
-  String _formatMethod(String method) {
-    switch (method.toUpperCase()) {
-      case 'MPESA':
-        return 'M-Pesa';
-      case 'AIRTEL':
-        return 'Airtel Money';
-      case 'ORANGE':
-        return 'Orange Money';
-      default:
-        return method;
-    }
-  }
+  String _formatMethod(String method) => payoutMethodLabel(method);
 }

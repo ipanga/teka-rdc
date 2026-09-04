@@ -172,16 +172,19 @@ void main() {
     notifier.didChangeAppLifecycleState(AppLifecycleState.resumed);
     notifier.handlePush({'screen': 'product-reviews'});
     await tester.pump(const Duration(seconds: 1));
-    expect(notifier.state, (orders: 0, products: 0));
+    expect(notifier.state, (orders: 0, products: 0, earnings: 0));
     notifier.handlePush({'screen': 'order-details'});
     notifier.handlePush({'screen': 'product-details'});
     notifier.handlePush({'screen': 'order-details'});
+    // A payout push (approved / paid / rejected) invalidates the earnings only.
+    notifier.handlePush({'screen': 'earnings', 'event': 'payout-paid'});
     notifier.didChangeAppLifecycleState(AppLifecycleState.paused);
     notifier.didChangeAppLifecycleState(AppLifecycleState.resumed);
     await tester.pump(const Duration(milliseconds: 301));
-    expect(notifier.state, (orders: 1, products: 1));
+    expect(notifier.state, (orders: 1, products: 1, earnings: 1));
     await tester.pump(const Duration(minutes: 10));
-    expect(notifier.state, (orders: 1, products: 1), reason: 'no polling');
+    expect(notifier.state, (orders: 1, products: 1, earnings: 1),
+        reason: 'no polling');
   });
 }
 

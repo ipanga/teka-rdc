@@ -497,3 +497,146 @@ clean (32 routes, private `robots.txt`).
   seller-web/mobile could reuse `getSellerCommission`. Not part of this initiative's contract.
 - `apps/api` `HttpExceptionFilter` reports validation errors with `field: "unknown"`; pre-existing.
 
+## PR 6 — Payout notifications in the seller feed + Seller Web / Mobile deep links (`feat/payout-feed-notifications`)
+
+Scope: `apps/api` (feed rows, dedupe, owner-scoped payout detail, one additive enum migration),
+`apps/seller-web`, `apps/seller-mobile`. **Schema:** `UserNotificationType` gains `PAYOUT`
+(`manual/2026-09-04_user_notification_payout_type.sql`, `ALTER TYPE … ADD VALUE IF NOT EXISTS`,
+top-level statement, in `auto-apply.list`; applied twice to the **dev** DB, not to production).
+**Dependency:** seller-web gains `vitest` (dev only) like admin-web did in PR 3.
+
+### Fresh audit (2026-09-04, `develop` at `471b2e7`)
+
+- **Persistence.** One per-user feed (`user_notifications`, `UserNotificationService`, every read/write
+  scoped by `userId`, mark-read via `updateMany({id, userId})`). Seller feed at `/v1/seller/notifications`.
+- **Delivery.** `SellerNotificationService` — product events write the feed row first, then
+  `PushService.sendToUser` (FCM, multicast per user) with email fallback when push reaches 0 devices.
+  Payout approved / paid / rejected already pushed + emailed **but wrote no feed row**, and their push
+  `data.screen = 'earnings'` was routed by neither client (mobile router had no `earnings` case; web
+  `hrefFor` fell back to the products list).
+- **Trigger points.** `PayoutsService.approve/complete/reject` call the notifier **after** the
+  conditional `updateMany` + audit transaction committed; a retried / concurrent call finds `count = 0`
+  and throws 409 before any notification (spec-pinned since PR 2). `PROCESSING` notifies nobody.
+  `requestPayout` notifies nobody (the seller's own action).
+- **Clients.** seller-mobile: `PushController` handles the three tap sources (foreground local-notif
+  tap, `onMessageOpenedApp`, `getInitialMessage` post-first-frame) through `NotificationRouter` and
+  `router.push`; `sellerRefreshProvider.handlePush` invalidates orders/products only; feed tap handled
+  product/order only; the router redirect sent unauthenticated navigations to `/auth/login` and
+  login always went to `/` — a cold-start push tap while signed out lost its target. seller-web:
+  bell `hrefFor` product/order only; the earnings page had a Virements tab with no URL state; the
+  middleware sent protected visits to `/login?redirect=<path>` (query dropped) and the login page
+  ignored the param. No seller-side payout detail existed on either client or in the API
+  (`GET /v1/sellers/payouts` list only).
+- **Action Center.** Both seller action centers are fed by the order/product stats endpoints. No
+  payout state is a *required* seller action: a request is voluntary, approval and payment need
+  nothing from the seller, and a rejection returns the funds to the balance (re-requesting is
+  optional and the reason may call for updating the payout destination first). **Decision: payout
+  events stay information / history in the feed; nothing is added to the action centers.**
+
+### Transitions that notify (and why)
+
+| Transition | Seller notification | Rationale |
+|---|---|---|
+| seller → REQUESTED | none | the seller's own action; the UI confirms it |
+| REQUESTED → APPROVED | « Paiement approuvé » — *approuvée, virement en préparation, vous serez informé dès qu'il sera effectué* | sets expectations without ever saying "paid" |
+| APPROVED → PROCESSING | none | internal operator step, nothing for the seller |
+| APPROVED/PROCESSING → COMPLETED | « Paiement effectué » — *Votre demande de paiement de 900.000 FC a été marquée comme payée.* | the event that matters; reference stays in the payout detail / email |
+| REQUESTED/APPROVED → REJECTED | « Demande de paiement refusée » + admin reason + *Le montant est de nouveau disponible sur votre solde.* | the reason is authored for the seller (admin dialog says so); balance note tells them what changed |
+| PROCESSING → REJECTED | « Virement échoué » + reason + balance note | a failed transfer is not a refusal (`transition()` now returns `previousStatus`) |
+
+Each = durable feed row (type `PAYOUT`, `entityType 'payout'`, `entityId`) **first**, then push-primary +
+email fallback. Push `data` = `{screen:'earnings', event, payoutId}` only — no phone, method, reference,
+amount-in-data or email (the amount is in the human body, as the product requires).
+
+### Effectively-once and reliability
+
+- Only a committed conditional transition reaches the notifier (409 otherwise).
+- Feed rows use `UserNotificationService.createIfAbsent(user, type, entity, title)`; the title is the
+  event, so approved → paid on one payout are two rows while a re-emitted event is not.
+- Notification failures never touch the transition: the notifier catches everything and the feed
+  write never throws; push failure → email fallback; feed write failure is logged, push still sent.
+  The feed row is **not** inside the payout transaction (existing architecture: notifications are
+  post-commit, fire-and-forget) — a crash between commit and notify loses the notification (no
+  outbox); documented limitation, unchanged from before.
+
+### API
+
+- `GET /v1/sellers/payouts/:id` (SELLER, `UuidParam`) — the deep-link target. Ownership **is** the
+  `WHERE`: another seller's id, a deleted id or garbage all answer one French 404 (« Ce virement est
+  introuvable ou ne vous appartient pas. »). A payout id from a notification is never trusted.
+- Migration `2026-09-04_user_notification_payout_type.sql` (see top). Old mobile builds render an
+  unknown type with the default icon and no navigation (verified `default:` branches).
+
+### seller-web
+
+- `lib/payout-notifications.ts` (9 vitest): `hrefForNotification` (payout → `/dashboard/earnings?tab=payouts&payout=<id>`; non-uuid ids never become a path), `parseEarningsQuery` (malformed/stale → defaults), status labels/hints (approval never « payé »; COMPLETED → « Payé »), 404 wording.
+- Bell uses it. Earnings page reads the query once on mount, opens Virements and a « Détail du
+  virement » card fetched by id through the owner-scoped endpoint (loading / error / Fermer), highlights
+  the row, keeps the URL in sync with the tabs.
+- `lib/post-login-redirect.ts` (2 vitest) + middleware keeps `path?query` in `redirect`; the login page
+  returns to it (internal `/dashboard` paths only; external, `//host`, auth, undecodable → dashboard).
+
+### seller-mobile
+
+- `NotificationRouter`: `earnings` + uuid `payoutId` → `/earnings/payouts/:id`; without / malformed →
+  `/earnings?tab=payouts`; `routeForFeedItem` mirrors web; ids must be uuid-shaped; `isTabRoot` → `go`
+  (tab switch) vs `push` (detail, back returns). Used by `PushController` and the feed screen.
+- `/earnings/payouts/:id` → `PayoutDetailScreen` (`FutureProvider.family` over `getPayout`): loading,
+  error with the API's French 404 verbatim + « Réessayer » + « Voir tous mes virements », loaded
+  (amount, status badge + hint, destination, dates, reference / reason), `AdaptiveLeading`.
+- `/earnings?tab=payouts` → Virements tab (`initialTab`, honoured in `didUpdateWidget` because the
+  shell keeps the tab alive).
+- Redirect: unauthenticated navigation → `/auth/login?from=<location>`; after login →
+  `PostLoginTarget.resolve(from)` (internal, non-auth, non-onboarding paths only). Covers cold-start
+  push taps while signed out.
+- `sellerRefreshProvider` gains an `earnings` signal (foreground payout push, app resume) → Revenus
+  refreshes wallet + payouts. Shared `PayoutStatusUi` vocabulary (tile + detail), PAYOUT feed icon.
+
+### Runtime verification (2026-09-04)
+
+Isolated API on :5051 (cookie domain cleared) for seller-web, the user's watch API on :5050 for the
+Android emulator (dev flavor → `10.0.2.2:5050`, bearer tokens). Existing sellers all have real
+passwords, so a **throwaway seller fixture** (`qa-pr6-seller@example.test`, approved profile, one
+REQUESTED payout of 63.000 FC) was created on the dev DB with Prisma and **deleted after QA** (user,
+profile, payout, feed rows; the two `admin_audit_logs` rows for its payout remain — append-only).
+
+- **API, authoritative transitions:** admin `approve` → exactly one `PAYOUT` feed row « Paiement
+  approuvé » + dev email fallback; a second `approve` → 409 and **no second row**. `complete` with a
+  reference → « Paiement effectué » row; a second `complete` → 409.
+- **seller-mobile (Android emulator, API 34, debug APK, driven by adb):** login → dashboard bell « 1 » →
+  Notifications shows « Paiement approuvé » with the payments icon → tap → « Détail du virement »
+  63.000 FC, « Approuvé — virement en préparation » + hint, destination, date, « Voir tous mes
+  virements » → Revenus screen on the **Virements** tab already listing the payout as « Payé » with the
+  reference (the completion had happened meanwhile).
+- **seller-web (Chrome):** login → bell lists « Paiement effectué » and « Paiement approuvé », each
+  linking to `/dashboard/earnings?tab=payouts&payout=<id>` → click → Virements tab with the « Détail du
+  virement » card (« Payé », 63.000 FC, hint, destination, reference, « Payé le »), row highlighted.
+  Same URL with **another seller's payout id** → « Ce virement est introuvable ou ne vous appartient
+  pas. » in the card, list untouched. Middleware (production build, curl): protected visit → 307 to
+  `/seller/login?redirect=%2Fdashboard%2Fearnings%3Ftab%3Dpayouts%26payout%3D…` with `noindex`.
+
+**Not verified at runtime:** real FCM push delivery and the three tap sources (foreground / background /
+cold start) — the emulator has no registered device token and no push was sent (the email fallback
+fired instead); the mobile 404 screen and the signed-out `from` round-trip (unit-tested: router,
+`PostLoginTarget`, `PayoutDetailScreen` 404 widget test); iOS simulator (Android only); the
+« Virement échoué » rejection copy end-to-end (unit-tested).
+
+### Tests
+
+API `+15`: seller-notification (feed row + copy per transition, no PII in push data, email fallback,
+push failure never throws nor loses the row, unknown payout, reason truncation), user-notification
+(`createIfAbsent`), payouts (owner-scoped 404, `failedTransfer` variants), e2e 401 — full suite **590
+unit / 142 e2e**, type-check clean. seller-web **11 vitest** (new runner), type-check + eslint +
+production build clean. seller-mobile **+13 → 128** tests, `flutter analyze` at the 17 pre-existing
+infos, no warnings.
+
+### Follow-ups (recorded, out of scope)
+
+- No outbox: a crash between the payout commit and the notifier loses that notification (pre-existing
+  pattern for every notification in the API).
+- Only the payout vocabulary was aligned across the two seller clients; the order-detail financial
+  blocks (earning snapshot, commission line) were not touched.
+- The middleware `redirect` return was dead code before this PR (login ignored it) — now live for all
+  protected seller-web routes, not only payouts.
+- FINANCE role, seller effective-commission display, `field: "unknown"` — unchanged (see PR 5).
+

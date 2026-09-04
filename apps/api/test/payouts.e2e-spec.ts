@@ -25,6 +25,13 @@ describe('Payouts (e2e) — auth-protection contract', () => {
     await app.close();
   });
 
+  // ─── Seller payout detail (notification / deep-link target) ────────────
+  it('GET /api/v1/sellers/payouts/:id returns 401 without auth', () => {
+    return request(app.getHttpServer())
+      .get(`/api/v1/sellers/payouts/${UUID}`)
+      .expect(401);
+  });
+
   // ─── Admin lifecycle transitions ───────────────────────────────────────
   it('POST /api/v1/admin/payouts/:id/approve returns 401 without auth', () => {
     return request(app.getHttpServer())

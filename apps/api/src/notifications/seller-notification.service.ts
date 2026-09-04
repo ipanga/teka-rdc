@@ -302,23 +302,50 @@ export class SellerNotificationService {
   }
 
   /**
-   * Notifies a seller that their payout was approved. Unlike the other
-   * seller events (push-only), payout events are money events and use
-   * push-primary + EMAIL FALLBACK — sellers always have an email (email+
-   * password auth), and missing a "you've been paid" message is worse than a
+   * Payout lifecycle notifications. Money events, so: durable in-app feed row
+   * first (type PAYOUT, entityType 'payout' → the seller's payout detail),
+   * then push-primary + EMAIL FALLBACK — sellers always have an email
+   * (email+password auth) and missing "you've been paid" is worse than a
    * little channel overlap. No pref gate: operational notification about the
    * seller's own money.
+   *
+   * Which transitions notify (from the state machine):
+   *   REQUESTED  — the seller's own action, the UI confirms it: silent.
+   *   APPROVED   — informational: "authorised, transfer being prepared".
+   *   PROCESSING — internal operator step, nothing for the seller: silent.
+   *   COMPLETED  — the one that matters: « Paiement effectué ».
+   *   REJECTED   — refusal (from REQUESTED/APPROVED) or failed transfer (from
+   *                PROCESSING), with the admin-written reason (it is authored
+   *                for the seller — the admin dialog says so).
+   *
+   * Effectively-once: the caller only invokes these after a successful
+   * conditional transition (a retry that finds count = 0 never reaches here),
+   * and the feed write is `createIfAbsent` on (user, type, payout, title).
+   *
+   * Push `data` carries only routing keys (screen, event, payoutId) — never
+   * the destination phone, method, reference or any PII. The amount is in
+   * the human body, as the product requires.
    */
   async notifyPayoutApproved(payoutId: string): Promise<void> {
     try {
       const ctx = await this.loadPayoutContext(payoutId);
       if (!ctx) return;
       const { user, amountLabel } = ctx;
+      const title = 'Paiement approuvé';
+      const body = `Votre demande de paiement de ${amountLabel} a été approuvée. Le virement est en préparation ; vous serez informé dès qu’il sera effectué.`;
+      await this.userNotifications.createIfAbsent({
+        userId: user.id,
+        type: 'PAYOUT',
+        title,
+        body,
+        entityType: 'payout',
+        entityId: payoutId,
+      });
       await this.pushOrEmailToSeller(
         user,
         {
-          title: 'Retrait approuvé',
-          body: `Votre demande de retrait de ${amountLabel} a été approuvée.`,
+          title,
+          body,
           data: { screen: 'earnings', event: 'payout-approved', payoutId },
         },
         (email, firstName) =>
@@ -332,22 +359,36 @@ export class SellerNotificationService {
     }
   }
 
-  /** Notifies a seller that their payout was paid out (with the reference). */
+  /** The seller is told they were paid only here — never on approval. */
   async notifyPayoutPaid(payoutId: string): Promise<void> {
     try {
       const ctx = await this.loadPayoutContext(payoutId);
       if (!ctx) return;
       const { user, amountLabel, reference } = ctx;
-      const ref = reference ?? '—';
+      const title = 'Paiement effectué';
+      const body = `Votre demande de paiement de ${amountLabel} a été marquée comme payée.`;
+      await this.userNotifications.createIfAbsent({
+        userId: user.id,
+        type: 'PAYOUT',
+        title,
+        body,
+        entityType: 'payout',
+        entityId: payoutId,
+      });
       await this.pushOrEmailToSeller(
         user,
         {
-          title: 'Retrait effectué',
-          body: `Votre retrait de ${amountLabel} a été effectué. Référence : ${ref}`,
+          title,
+          body,
           data: { screen: 'earnings', event: 'payout-paid', payoutId },
         },
         (email, firstName) =>
-          this.emailService.sendPayoutPaid(email, firstName, amountLabel, ref),
+          this.emailService.sendPayoutPaid(
+            email,
+            firstName,
+            amountLabel,
+            reference ?? '—',
+          ),
       );
     } catch (error: any) {
       this.logger.error(
@@ -357,22 +398,49 @@ export class SellerNotificationService {
     }
   }
 
-  /** Notifies a seller that their payout was rejected (with the reason). */
-  async notifyPayoutRejected(payoutId: string): Promise<void> {
+  /**
+   * Rejected. `failedTransfer` = the payout was already PROCESSING (the
+   * operator had started the transfer) — the seller reads « Virement
+   * échoué » rather than « refusé ». Either way the reserved earnings are
+   * back in the available balance (released in the same transaction).
+   */
+  async notifyPayoutRejected(
+    payoutId: string,
+    opts: { failedTransfer?: boolean } = {},
+  ): Promise<void> {
     try {
       const ctx = await this.loadPayoutContext(payoutId);
       if (!ctx) return;
       const { user, amountLabel, reason } = ctx;
       const fullReason = reason ?? 'Non précisée';
       // FCM has a soft cap on payload size; keep the push body readable.
-      const pushReason =
+      const shortReason =
         fullReason.length > 140 ? fullReason.slice(0, 137) + '…' : fullReason;
+      const title = opts.failedTransfer
+        ? 'Virement échoué'
+        : 'Demande de paiement refusée';
+      const lead = opts.failedTransfer
+        ? `Le virement de ${amountLabel} n’a pas pu être effectué.`
+        : `Votre demande de paiement de ${amountLabel} a été refusée.`;
+      const body = `${lead} Raison : ${shortReason} Le montant est de nouveau disponible sur votre solde.`;
+      await this.userNotifications.createIfAbsent({
+        userId: user.id,
+        type: 'PAYOUT',
+        title,
+        body,
+        entityType: 'payout',
+        entityId: payoutId,
+      });
       await this.pushOrEmailToSeller(
         user,
         {
-          title: 'Retrait refusé',
-          body: `Votre demande de retrait de ${amountLabel} a été refusée. Raison : ${pushReason}`,
-          data: { screen: 'earnings', event: 'payout-rejected', payoutId },
+          title,
+          body,
+          data: {
+            screen: 'earnings',
+            event: opts.failedTransfer ? 'payout-failed' : 'payout-rejected',
+            payoutId,
+          },
         },
         (email, firstName) =>
           this.emailService.sendPayoutRejected(

@@ -91,8 +91,18 @@ class PushController {
       return;
     }
     try {
-      _ref.read(appRouterProvider).push(route);
-      _log('tap → push $route');
+      final router = _ref.read(appRouterProvider);
+      // Tab roots (e.g. the payouts tab) are switched to with `go`; detail
+      // routes are pushed so back returns to wherever the seller was. An
+      // unauthenticated app is redirected to login with `from` and comes back
+      // here after signing in (see app_router redirect).
+      if (NotificationRouter.isTabRoot(route)) {
+        router.go(route);
+        _log('tap → go $route');
+      } else {
+        router.push(route);
+        _log('tap → push $route');
+      }
     } catch (e) {
       _log('tap navigation failed for $route: $e');
     }

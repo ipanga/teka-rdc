@@ -6,13 +6,19 @@ import '../../../../core/utils/price_formatter.dart';
 import '../providers/earnings_provider.dart';
 import '../widgets/earning_tile.dart';
 import '../widgets/payout_tile.dart';
+import '../../../../core/providers/seller_refresh_provider.dart';
 import '../widgets/wallet_card.dart';
 
 const _minPayoutCdf = 5000;
 const _pendingPayoutStatuses = ['REQUESTED', 'APPROVED', 'PROCESSING'];
 
 class EarningsScreen extends ConsumerStatefulWidget {
-  const EarningsScreen({super.key});
+  const EarningsScreen({super.key, this.initialTab = 0});
+
+  /// 0 = Gains, 1 = Virements. Set from `/earnings?tab=payouts` (payout
+  /// notifications). The shell keeps this widget alive across navigations,
+  /// so a change is honoured in `didUpdateWidget`, not only in `initState`.
+  final int initialTab;
 
   @override
   ConsumerState<EarningsScreen> createState() => _EarningsScreenState();
@@ -31,7 +37,18 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen>
     // button can detect an existing pending payout.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(earningsProvider.notifier).loadPayouts();
+      if (widget.initialTab != 0) {
+        ref.read(earningsProvider.notifier).selectTab(widget.initialTab);
+      }
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant EarningsScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTab != oldWidget.initialTab) {
+      ref.read(earningsProvider.notifier).selectTab(widget.initialTab);
+    }
   }
 
   @override
@@ -49,6 +66,15 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen>
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(earningsProvider);
+    // A payout push (foreground) or an app resume invalidates wallet + payouts.
+    ref.listen<int>(
+      sellerRefreshProvider.select((r) => r.earnings),
+      (prev, next) {
+        if (prev != null && next != prev) {
+          ref.read(earningsProvider.notifier).refresh();
+        }
+      },
+    );
 
     // Keep tab controller in sync with state
     if (_tabController.index != state.selectedTab) {

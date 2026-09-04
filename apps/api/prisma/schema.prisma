@@ -1312,6 +1312,10 @@ enum UserNotificationType {
   PRODUCT_PROMO
   // Order lifecycle (seller new-order feed; entityType 'order' → order detail).
   ORDER
+  // Seller payout lifecycle (approved / paid / rejected; entityType 'payout' →
+  // the seller's payout detail). Added 2026-09-04 by manual migration
+  // 2026-09-04_user_notification_payout_type.sql.
+  PAYOUT
 }
 
 model UserNotification {

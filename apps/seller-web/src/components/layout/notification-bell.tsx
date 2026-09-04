@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
 import { Icon } from '@/components/ui/icons';
+import { hrefForNotification } from '@/lib/payout-notifications';
 
 interface SellerNotification {
   id: string;
@@ -14,18 +15,6 @@ interface SellerNotification {
   entityId: string | null;
   readAt: string | null;
   createdAt: string;
-}
-
-// Deep-link a notification to where the seller acts on it. Product
-// approval/rejection → the product edit page.
-function hrefFor(n: SellerNotification): string {
-  if (n.entityType === 'product' && n.entityId) {
-    return `/dashboard/products/${n.entityId}`;
-  }
-  if (n.entityType === 'order' && n.entityId) {
-    return `/dashboard/orders/${n.entityId}`;
-  }
-  return '/dashboard/products';
 }
 
 function timeAgoFr(iso: string): string {
@@ -151,7 +140,7 @@ export function NotificationBell() {
               {items.map((n) => (
                 <li key={n.id}>
                   <Link
-                    href={hrefFor(n)}
+                    href={hrefForNotification(n)}
                     onClick={() => {
                       markRead(n.id);
                       setOpen(false);

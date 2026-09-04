@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/router/post_login_target.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../providers/auth_provider.dart';
 
@@ -40,7 +41,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             _emailController.text.trim().toLowerCase(),
             _passwordController.text,
           );
-      if (mounted) context.go('/');
+      if (mounted) {
+        // Came here from a push tap / deep link? Go back to it (internal
+        // paths only — see PostLoginTarget), otherwise home.
+        context.go(PostLoginTarget.resolve(
+          GoRouterState.of(context).uri.queryParameters['from'],
+        ));
+      }
     } catch (e) {
       setState(() => _errorMessage = friendlyErrorMessage(e));
     } finally {
