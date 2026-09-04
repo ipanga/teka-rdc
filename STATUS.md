@@ -1,42 +1,67 @@
 # Status — 2026-09-04
 
-> **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
->
-> **Update rule.** Touch this file in the same commit that starts or ends an initiative. No drift window.
+> **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
-## Active initiative
-
-**Seller / Admin UX modernization — implementation complete across Mobile, Seller Web and Admin.**
-Mobile foundation/action center PRs #634/#635 are merged into `develop` `674d794`. The remaining
-Mobile forms/details/notifications/profile/earnings and native splash lot is committed as `43f9520`
-on pushed branch `codex/seller-mobile-forms-details`. Seller Web is committed as `2b44a16` on pushed
-branch `codex/seller-web-ux-modernization`. Admin is complete on the current
-`codex/admin-web-ux-modernization` branch. Full evidence: `docs/seller-admin-ux-modernization.md`.
-
-Seller Web and Admin now share clear page hierarchy, grouped SVG navigation, responsive notification
-panels, keyboard-contained mobile drawers, URL-backed filters, explicit loading/error/empty states and
-authoritative action centers. Admin additionally groups its 22 destinations by operator workflow and
-modernizes dashboard, product moderation, orders, sellers, buyers, returns, transactions, payouts and
-reports. Existing APIs, lifecycle transitions, auth/roles/ownership, analytics, financial rules and
-private-site noindex protection are unchanged.
-
-Validation: Mobile **112 tests**, analyzer exit 0 with 17 existing infos, native Android development
-cold launch/splash and responsive visual QA; Seller Web and Admin type-check/build clean. Signed-in
-read-only browser QA used the real development API: seeded seller data (294 products, wallet,
-notifications/orders) and a real ADMIN role (17 users, 3 sellers, 8 orders, 3 pending products,
-121,000 FC revenue). The repository-provided temporary Admin smoke password was cleared immediately.
-No moderation/order/profile/finance mutation was triggered.
-
-**Remaining release-readiness limits:** physical-device camera/gallery, native push delivery and
-release-performance measurements require actual hardware/services. PR creation for Mobile/Seller Web
-still needs explicit user approval because automatic approval review rejected the earlier PR action.
-No merge to `main`, production deployment, database/schema change or production data mutation occurred.
-
-**Next exact step:** finish Admin documentation/commit/build checkpoint, push its review branch, then
-create the three PRs into `develop` once explicitly authorized. After review integration, run any
-available CI and perform the physical-device native checks before a store release.
+**None.** The Seller / Admin UX modernization initiative was released to production on 2026-09-04
+(see below). Nothing is in flight; do not infer work from stale plan files or memory.
 
 ## Most recently completed initiative
+
+**Seller / Admin UX modernization — RELEASED TO PRODUCTION 2026-09-04.**
+
+Release PR **#639** (`develop → main`, merge commit **`aba6d01`**, 114 files / +6,520 −2,784),
+back-merged by fast-forward so **`main == develop == aba6d01`**. Deploy run **`33844482470`**:
+success (four image builds + `deploy`). **No migration, no schema change, no env var, no dependency
+change**; `apps/api` changed by one unit spec only. Full design/QA evidence: `docs/seller-admin-ux-modernization.md`.
+
+| Surface | PRs into `develop` | What shipped |
+|---|---|---|
+| **Seller Mobile** | #634 `d10e9d9` · #635 `674d794` · #636 `687b2e3` | operational lists, authoritative action center (seller order/product stats), keyboard/2×-safe forms, product-edit by id, paginated notifications, Help & support, earnings layouts, density-friendly native splash |
+| **Seller Web** | #637 `e2d6be8` | grouped SVG navigation, focus-contained mobile drawer, action center, URL-backed Products/Orders filters, explicit loading/error/empty states, responsive notifications |
+| **Admin** | #638 `8bfae15` | 22 destinations grouped by operator workflow, accessible drawer, retryable dashboard failures (`--`, never a fabricated zero), allowlisted URL filters over the real enums, contained wide tables |
+
+Real merge commits throughout, never squashed. The three review branches were synced with `develop`
+before merging (docs-only conflicts in `STATUS.md` / `PROGRESS.md` / the tracker).
+
+### Review fixes applied before merging (2026-09-04)
+
+Three parallel code reviews of the PR diffs surfaced these, fixed on the branches before merge:
+
+- **seller-mobile `40dee52`** — `NotificationsState.loadMoreError` split from `error`, so a failed
+  pull-to-refresh over a cached list no longer renders « Réessayer de charger la suite » and a fully
+  loaded feed clears a stale pagination error; `HelpSupportScreen` uses `showAppSnackbar` (Rule 15);
+  pubspec notes the hand-written `values{,-night}-v33` splash styles that `flutter_native_splash`
+  does not regenerate. +3 tests (115 total).
+- **seller-web `8a29c76`** — wallet and review cards show `InlineError` + retry instead of `0 FC` /
+  `0 avis` on fetch failure; the mobile drawer closes itself when the viewport reaches `md` (the
+  body scroll lock could otherwise outlive the hidden drawer on rotation/resize); the active filter
+  chip keeps its highlight on hover; review icon uses the `warning` token.
+- **admin-web `d8448e7`** — sidebar avatar rendering restored (the profile page still uploads
+  one); drawer auto-close at `lg`; active filter chip keeps its highlight on hover.
+
+### Validation on the release head
+
+`pnpm type-check` clean (5 projects) · seller-mobile **115 Flutter tests**, `flutter analyze` at the
+**17 pre-existing infos**, no warnings/errors · seller-web + admin-web production builds clean (21 / 32
+routes, private `robots.txt`) · API order specs 19/19 · CI + CodeQL green on #636–#639 including the
+four `docker-build-check` jobs.
+
+### Production verification (read-only)
+
+`seller.teka.cd` and `admin.teka.cd` answer **200** on the new images with `<meta name="robots"
+content="noindex, nofollow">` and a `disallow: /` `robots.txt`; `api.teka.cd/api/v1/cities` answers
+normally. No production data was touched.
+
+### Deferred (not blocking)
+
+- Both web apps read `?status=` from `window.location` on mount only, so a same-route sidebar click
+  (`/dashboard/orders` while on `?status=PENDING`) leaves the filter active with a URL that says
+  otherwise. Pre-existing pattern; fix by reading `useSearchParams` under `<Suspense>` or
+  `router.replace`.
+- seller-mobile store release still needs physical-device camera/gallery, native push delivery and
+  release-build performance checks, plus a pubspec version bump (currently `0.1.6+8`).
+
+## Previous completed initiative
 
 **Search & Sales Analytics + CSV hardening + the `deliveredAt` lifecycle invariant — RELEASED TO
 PRODUCTION 2026-09-03.**
@@ -102,7 +127,7 @@ is active in production and the deploy tagged `SENTRY_RELEASE=9e89478`, so error
 **someone with access should review that release.**
 
 
-## Previous completed initiative
+## Earlier completed initiative — buyer mobile PDP (released 2026-09-02)
 
 **Buyer Mobile PDP + native splash refinement — RELEASED to production 2026-09-02.**
 Release PR **#613** (`develop → main`, merge commit `8b27d1a`, 11 commits / 28 files / +1,263 −501),
