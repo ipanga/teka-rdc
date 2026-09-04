@@ -1,5 +1,6 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ADMIN_QUEUES } from './admin-queues';
 import { Prisma } from '@prisma/client';
 import { SearchUsersDto } from './dto/search-users.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
@@ -178,10 +179,16 @@ export class AdminUsersService {
     const limit = Math.min(query.limit || 20, 100);
     const skip = (page - 1) * limit;
 
-    const where: Prisma.SellerProfileWhereInput = {
-      deletedAt: null,
-      ...(query.status && { applicationStatus: query.status as any }),
-    };
+    // The PENDING filter IS the dashboard "À traiter" queue definition, so the
+    // count on the dashboard and the rows on /dashboard/sellers?status=PENDING
+    // can never disagree.
+    const where: Prisma.SellerProfileWhereInput =
+      query.status === 'PENDING'
+        ? ADMIN_QUEUES.sellerApplicationsPending()
+        : {
+            deletedAt: null,
+            ...(query.status && { applicationStatus: query.status as any }),
+          };
 
     const [applications, total] = await Promise.all([
       this.prisma.sellerProfile.findMany({
@@ -197,6 +204,8 @@ export class AdminUsersService {
               firstName: true,
               lastName: true,
               email: true,
+              status: true,
+              createdAt: true,
             },
           },
         },

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/lib/api-client';
 import { PageHeader } from '@/components/ui/page-header';
+import { readStatusParam, withStatusParam } from '@/lib/action-center';
 
 interface SellerProfileLite {
   id: string;
@@ -39,6 +40,47 @@ interface PaginatedResponse {
 // Most admin workflow centers on application status, so that's the primary
 // filter. SUSPENDED is exposed as a separate tab for account-level review.
 type Filter = '' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+const FILTERS = ['PENDING', 'APPROVED', 'REJECTED', 'SUSPENDED'] as const;
+const APPLICATION_FILTERS: readonly Filter[] = ['PENDING', 'APPROVED', 'REJECTED'];
+
+/** Row shape of GET /v1/admin/sellers/applications (SellerProfile + user). */
+interface SellerApplication {
+  id: string;
+  businessName: string;
+  phone: string | null;
+  applicationStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
+  rejectionReason: string | null;
+  createdAt: string;
+  user: {
+    id: string;
+    phone: string | null;
+    email?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+    status?: string;
+    createdAt?: string;
+  };
+}
+
+/** Map an application row onto the table's User shape. */
+function applicationToRow(app: SellerApplication): User {
+  return {
+    id: app.user.id,
+    phone: app.user.phone,
+    email: app.user.email ?? null,
+    firstName: app.user.firstName ?? null,
+    lastName: app.user.lastName ?? null,
+    status: app.user.status ?? 'ACTIVE',
+    createdAt: app.user.createdAt ?? app.createdAt,
+    sellerProfile: {
+      id: app.id,
+      businessName: app.businessName,
+      phone: app.phone,
+      applicationStatus: app.applicationStatus,
+      rejectionReason: app.rejectionReason,
+    },
+  };
+}
 
 const APP_STATUS_LABELS: Record<string, string> = {
   PENDING: "En attente",
@@ -59,6 +101,19 @@ export default function SellersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<Filter>('');
+  const [loadError, setLoadError] = useState(false);
+  // Deep links from the dashboard (?status=PENDING) — honoured on mount and
+  // kept in the URL when a tab changes.
+  const [queryReady, setQueryReady] = useState(false);
+  useEffect(() => {
+    setFilter(readStatusParam(window.location.search, FILTERS));
+    setQueryReady(true);
+  }, []);
+  const selectFilter = (value: Filter) => {
+    setFilter(value);
+    setPage(1);
+    window.history.replaceState(null, '', withStatusParam(`${window.location.pathname}${window.location.search}`, value));
+  };
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -83,35 +138,55 @@ export default function SellersPage() {
   };
 
   const fetchSellers = useCallback(async () => {
+    if (!queryReady) return;
     setIsLoading(true);
+    setLoadError(false);
     try {
+      if (APPLICATION_FILTERS.includes(filter)) {
+        // Application-status tabs read the applications endpoint, whose
+        // `status` filter is the same server-side definition the dashboard
+        // count uses (ADMIN_QUEUES.sellerApplicationsPending) — so the
+        // "Vendeurs à approuver" tile and this list always agree, and
+        // pagination happens on the filtered set rather than client-side.
+        const params = new URLSearchParams({ page: String(page), limit: '20', status: filter });
+        const res = await apiFetch<{ data: SellerApplication[]; pagination?: { totalPages: number } }>(
+          `/v1/admin/sellers/applications?${params}`,
+        );
+        const rd = res.data;
+        const apps: SellerApplication[] = Array.isArray(rd) ? rd : rd.data;
+        const rows = apps.map(applicationToRow);
+        const q = search.trim().toLowerCase();
+        setSellers(
+          q
+            ? rows.filter((u) =>
+                [u.sellerProfile?.businessName, u.firstName, u.lastName, u.phone, u.sellerProfile?.phone]
+                  .filter(Boolean)
+                  .some((v) => String(v).toLowerCase().includes(q)),
+              )
+            : rows,
+        );
+        setTotalPages(Array.isArray(rd) ? 1 : (rd.pagination?.totalPages ?? 1));
+        return;
+      }
       const params = new URLSearchParams({
         page: String(page),
         limit: '20',
         role: 'SELLER',
       });
       if (search) params.set('search', search);
-      // SUSPENDED is a User-level status; everything else is an
-      // application-level (SellerProfile) status. The API supports both,
-      // so we route the param accordingly. The client-side filter then
-      // narrows further for application-level statuses since the API
-      // doesn't accept `applicationStatus` as a query param on /users.
+      // SUSPENDED is a User-level status served by /users.
       if (filter === 'SUSPENDED') params.set('status', 'SUSPENDED');
       const res = await apiFetch<PaginatedResponse>(`/v1/admin/users?${params}`);
       const rd = res.data;
-      let list: User[] = Array.isArray(rd) ? rd : rd.data;
-      // Client-side narrow for application-status filters.
-      if (filter === 'PENDING' || filter === 'APPROVED' || filter === 'REJECTED') {
-        list = list.filter((u) => u.sellerProfile?.applicationStatus === filter);
-      }
+      const list: User[] = Array.isArray(rd) ? rd : rd.data;
       setSellers(list);
       setTotalPages(Array.isArray(rd) ? 1 : (rd.pagination?.totalPages ?? 1));
     } catch {
-      // ignore
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
-  }, [page, search, filter]);
+  }, [page, search, filter, queryReady]);
 
   useEffect(() => { fetchSellers(); }, [fetchSellers]);
 
@@ -175,7 +250,7 @@ export default function SellersPage() {
         ] as { value: Filter; label: string }[]).map((tab) => (
           <button
             key={tab.value}
-            onClick={() => { setFilter(tab.value); setPage(1); }}
+            onClick={() => selectFilter(tab.value)}
             className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
               filter === tab.value
                 ? 'bg-primary text-primary-foreground border-primary'
@@ -222,8 +297,15 @@ export default function SellersPage() {
           <tbody>
             {isLoading ? (
               <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">Chargement...</td></tr>
+            ) : loadError ? (
+              <tr><td colSpan={8} className="px-4 py-8 text-center">
+                <p className="text-sm text-destructive">Impossible de charger les vendeurs.</p>
+                <button type="button" onClick={fetchSellers} className="admin-button-secondary mt-3">Réessayer</button>
+              </td></tr>
             ) : sellers.length === 0 ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">Aucun vendeur trouvé</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                {filter === 'PENDING' ? 'Aucune demande vendeur en attente.' : 'Aucun vendeur trouvé'}
+              </td></tr>
             ) : (
               sellers.map((u) => {
                 const sp = u.sellerProfile;
