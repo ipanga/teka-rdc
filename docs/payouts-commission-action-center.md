@@ -288,3 +288,100 @@ directory while its dev server runs.
 API: `admin-queues.spec.ts` (4) + updated `admin-stats.service.spec.ts`; full suite **551 unit**,
 type-check clean. admin-web: type-check clean, **8 vitest**, production build clean (32 routes).
 
+## PR 4 — Admin payout workflow (`feat/admin-payout-workflow`)
+
+Scope: `apps/api` (payout detail context, 409 on stale transitions, reject-reason bounds, a dev-only
+seller password helper) and `apps/admin-web` (payout queue, detail drawer, actions). **No schema,
+migration, env or dependency change.**
+
+### API
+
+- **`GET /v1/admin/payouts/:id`** (additive) now carries the operator's decision context on top of the
+  row: `balances` (`availableCDF`, `pendingCDF`, `totalEarnedCDF`, `totalCommissionCDF` — centime
+  strings from `EarningsService.getBalances`, never computed client-side), `actors`
+  (`approvedBy`/`processingBy`/`completedBy`/`rejectedBy` resolved to `{id, firstName, lastName}` —
+  the `user` query selects exactly those three columns), and `auditTrail` (the `admin_audit_logs`
+  rows for the payout, newest first, each with `actorName`). Every pre-existing field is kept, so the
+  seller clients and the list endpoint are untouched.
+- **Stale / concurrent transitions answer 409** instead of 400 (`ConflictException`): the
+  conditional `updateMany` found `count = 0`, i.e. another admin moved the payout first or the action
+  was retried. Validation failures stay 400, so a client can tell "refresh, state moved" from "fix
+  your input". Message elision fixed (« Impossible d’approuver … »).
+- **`RejectPayoutDto.reason`: 5–500 characters** — it is shown to the seller and preserved in the
+  audit trail. `CompletePayoutDto.externalReference` stays 1–200.
+- `scripts/set-temp-seller-password.ts` mirrors the admin helper (refuses prod, refuses to overwrite a
+  real credential, `--clear`). Not used in this QA — see below.
+
+### admin-web
+
+- **`lib/payout-workflow.ts`** (pure, 12 vitest cases): `allowedActions(status)` mirrors the API
+  state machine exactly (REQUESTED → approve | reject; APPROVED → process | complete | reject;
+  PROCESSING → complete | reject; COMPLETED / REJECTED → nothing); distinct labels where
+  authorization is never worded as payment (« Demandé », « Approuvé — à payer », « Virement en
+  cours », « Payé », « Rejeté / échec »); per-status hints; DTO-mirroring `validateReason` /
+  `validateReference`; `describeActionError` maps 409/404 to "stale → close the dialog, reload the
+  authoritative state, never assume success"; method labels; audit-action labels.
+- **`dashboard/payouts/page.tsx`** — tabs « Tous · À approuver · À payer · En cours · Payés · Rejetés »
+  (URL-backed, from PR 3); each row shows only the transitions the API accepts, plus « Détails »;
+  paid rows show the payment reference, rejected rows the reason. One confirmation dialog per action
+  with explicit wording: approve says no money moves; « Lancer le virement » says the seller is not
+  notified; « Marquer payé » requires a payment reference and says the seller will receive
+  « Paiement effectué »; reject requires a reason and reads « Transfert échoué » from PROCESSING.
+  Double-submit lock (`useRef`) + disabled controls while a dialog is open. Detail drawer: status
+  badge + hint + reference/reason, « Contexte financier du vendeur » (requested vs available (excluding
+  this payout) vs pending, total earned / commission), destination « figée à la demande », timeline with
+  actors, reserved earnings with a « Récupération manuelle » flag on `clawbackRequiredAt`, audit
+  history, and the same action bar. Success/error feedback is repeated inside the drawer (the page
+  banner sits under the overlay). Explicit loading / error-with-retry / per-tab empty states.
+
+### Runtime verification (2026-09-04, Chrome DevTools MCP, isolated local stack)
+
+Same recipe as PR 3 (API on :5051 with `COOKIE_DOMAIN` cleared, admin-web pointed at it, temporary
+admin password set then cleared, user's dev server restored afterwards). The Claude-in-Chrome
+extension was not connected this time; the Chrome DevTools MCP tools (`take_snapshot` uids +
+`fill_form`/`click`) worked well. Walked the **seeded payout `d0000000-…0001` (Boutique Marie,
+63.000 FC) through the whole lifecycle on the dev DB**:
+
+1. « À approuver » listed exactly the one request; « Détails » opened the drawer with balances
+   (63.000 FC available, 0 FC pending, 115.000 FC / 11.500 FC earned / commission), the snapshotted
+   M-Pesa destination, the « Demandé » timeline entry, no reserved earnings (the seeded row predates
+   the ledger) and an empty audit history.
+2. « Rejeter » → reason `abc` → « Indiquez une raison d’au moins 5 caractères. » (no request sent);
+   cancelled.
+3. « Approuver » → confirm → badge « Approuvé — à payer », hint « L’argent n’a PAS encore été
+   envoyé », timeline « Approuvé par Admin Teka », audit row, the queue behind emptied
+   (« Aucune demande à approuver. »), actions became « Lancer le virement · Marquer payé · Rejeter ».
+   Dev email « Retrait approuvé » logged for marie@shop.cd.
+4. « Lancer le virement » → « Virement en cours », timeline « Virement lancé par Admin Teka »,
+   actions « Marquer payé · Transfert échoué ».
+5. « Marquer payé » with an empty reference → « La référence de paiement (ex. identifiant M-Pesa) est
+   requise. »; with `MPESA-QA-20260904-001` → « Payé », reference shown, « Payé par Admin Teka »,
+   « Aucune action — état final ». Dev email « Retrait effectué » logged. « Payés » tab lists the row
+   with « Réf. MPESA-QA-20260904-001 ».
+6. Narrow viewport (390 px): header collapses to the drawer menu, tabs and the table scroll inside
+   their own containers, no body overflow.
+
+Against the API directly (curl with the admin session): `approve` while PROCESSING → **409**;
+`reject` with `abc` → **400** validation; `complete` again after COMPLETED → **409** (double-payment
+refused). DB after the run: `status=COMPLETED`, `externalReference` set, the three actor ids +
+timestamps stamped, three `admin_audit_logs` rows (`PAYOUT_APPROVED`, `PAYOUT_PROCESSING`,
+`PAYOUT_COMPLETED`, each with the after-state). No `PAYOUT` feed row yet — that is PR 6 by design.
+
+**Not verified:** the reject *submission* path and the « Rejetés » tab with data (the dev DB has one
+payout, now paid; the demo seller's password is unknown and swapping it was declined, so a second
+request could not be created), the 409 path *through the UI* (covered by `describeActionError`
+tests + the curl proof above), pagination, hover/keyboard focus. The reject path itself is
+spec-covered in `payouts.service.spec.ts` (REQUESTED / PROCESSING → REJECTED, earnings released).
+
+### Tests
+
+API: `payouts.service.spec.ts` +1 (detail context: balances, actors, trail, restricted user select);
+stale-transition expectations moved to `ConflictException`; full suite **552 unit**, type-check
+clean. admin-web: type-check clean, **20 vitest** (8 action-center + 12 payout-workflow), production
+build clean (32 routes, private `robots.txt`).
+
+### Dependency / merge order
+
+Builds on PR 3 (`?status=` + `readStatusParam`/`withStatusParam`); independent of PR 5 (commission
+admin) and PR 6 (feed notifications). Safe to merge into `develop` on its own. No production action.
+
