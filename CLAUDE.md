@@ -147,7 +147,7 @@ Before making ANY architectural or UX decision, internalize these constraints:
 | Media Storage | Cloudinary | Max 5MB, auto-compress to WebP. |
 | Email Service | Resend.com | French templates in `apps/api/src/email/templates/`. |
 | Push | Firebase Cloud Messaging | Primary order-event + broadcast channel. See **Rule 14** + `docs/push-notifications.md`. |
-| Payments | **COD only** | `CheckoutService` writes `Transaction{provider:COD}`; `markDelivered()` → `COMPLETED`. No provider/webhook. `MOBILE_MONEY`/`FLEXPAY` enums kept for historical rows. |
+| Payments | **COD only** | `CheckoutService` writes `Transaction{provider:COD}`; `markDelivered()` → `COMPLETED` **and** creates the seller earning in the same transaction (commission snapshotted per item: seller override → category → platform default; never recomputed). Seller payouts are manual: admin approve ≠ paid, conditional transitions + audit, 409 on retry. No provider/webhook. `MOBILE_MONEY`/`FLEXPAY` enums kept for historical rows. → `docs/payouts.md` |
 | Reverse Proxy | NGINX | SSL, routing, rate limiting, gzip. `nginx/nginx.conf` (dev) / `nginx.prod.conf`. |
 | Containerization | Docker + Docker Compose | 5 dev services (api, 3 web, nginx). Cloud DB — no local Postgres. |
 | CI/CD | GitHub Actions | type-check → test → build → deploy. **Lint is not an enforced gate** — see the §0 warning. |

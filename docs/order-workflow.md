@@ -117,6 +117,8 @@ Single source of truth: `EarningsService` (`apps/api/src/payments/earnings.servi
   `DELIVERED`) keep the row and stamp it; reversed rows are excluded from balances, totals, stats and reports.
 - `GET /v1/sellers/wallet` → `{ balanceCDF (=available), availableCDF, pendingCDF, totalEarnedCDF,
   totalCommissionCDF, pendingPayoutCDF }` — field names frozen for installed mobile builds.
+- `GET /v1/sellers/earnings` rows carry an API-derived `state` (`REVERSED` | `PAID` | `RESERVED` |
+  `HELD` | `AVAILABLE`, PR 7) so the clients never infer payability themselves.
 - Seller/admin order-detail endpoints return `financials` `{ grossCDF, commissionCDF, netCDF,
   commissionRate, isFinal }` — the persisted earning once delivered, else a per-item projection at today's
   rules (`isFinal:false`; zero commission if unconfigured).

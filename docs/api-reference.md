@@ -480,9 +480,10 @@ Full reference + ops runbook: **`docs/payouts.md`**.
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | GET | `/v1/sellers/wallet` | Seller | Get wallet summary (balance, total earned, total commission, pending) |
-| GET | `/v1/sellers/earnings` | Seller | List earnings history (paginated) |
+| GET | `/v1/sellers/earnings` | Seller | List earnings history (paginated); each row carries an API-derived `state` (`HELD` \| `AVAILABLE` \| `RESERVED` \| `PAID` \| `REVERSED`) |
 | GET | `/v1/sellers/payouts` | Seller | List payout history (paginated) |
-| POST | `/v1/sellers/payouts` | Seller | Request a payout (whole wallet balance) |
+| GET | `/v1/sellers/payouts/:id` | Seller | One of the seller's own payouts (owner-scoped: a foreign, deleted or malformed id → French 404). Target of payout notifications / deep links |
+| POST | `/v1/sellers/payouts` | Seller | Request a payout (whole available balance) |
 | GET | `/v1/sellers/payout-method` | Seller | Read the saved reusable payout destination |
 | PATCH | `/v1/sellers/payout-method` | Seller | Set/update the payout destination |
 
@@ -495,15 +496,29 @@ POST /v1/sellers/payouts
 }
 ```
 
-Requests the **entire wallet balance**. Guards: balance ≥ 5 000 CDF, only one
-pending payout (`REQUESTED`/`APPROVED`) at a time, and a destination must exist
-(body or saved profile) — else `400`. `payoutMethod` ∈ `M_PESA` | `AIRTEL_MONEY`
+Requests the **entire available balance**. Guards: balance ≥ 5 000 FC, only one
+open payout (`REQUESTED`/`APPROVED`/`PROCESSING`) at a time (`409`), and a destination must exist
+(body or saved profile) — else `400`. The request runs under a row lock on the seller profile and
+reserves the exact earnings it read (see `docs/payouts.md`). `payoutMethod` ∈ `M_PESA` | `AIRTEL_MONEY`
 | `ORANGE_MONEY`; `payoutPhone` matches `^\+243\d{9}$`.
 
 > **COD-only:** there is no automated disbursement. The platform holds the COD
 > cash (couriers collect on Teka's behalf) and settles sellers manually; an admin
 > marks the payout paid with an external transfer reference. See `docs/payouts.md`
 > for the settlement model + lifecycle.
+
+---
+
+## Seller Notifications — `/v1/seller/notifications`
+
+Per-user in-app feed (`UserNotification`), every read/write scoped to the authenticated seller.
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/v1/seller/notifications?page&limit` | Seller | List the feed (`type` ∈ `PRODUCT_APPROVED` \| `PRODUCT_REJECTED` \| `ORDER` \| `PAYOUT` \| `BROADCAST` \| `PRODUCT_PROMO`; `entityType`/`entityId` deep-link: product, order, **payout**) |
+| GET | `/v1/seller/notifications/unread-count` | Seller | Unread badge |
+| PATCH | `/v1/seller/notifications/:id/read` | Seller | Mark one read (ownership-scoped, no-op for a foreign id) |
+| PATCH | `/v1/seller/notifications/read-all` | Seller | Mark all read |
 
 ---
 
@@ -640,9 +655,12 @@ All admin endpoints require `ADMIN` role unless otherwise specified.
 
 | Method | Endpoint | Roles | Description |
 |--------|----------|-------|-------------|
-| GET | `/v1/admin/sellers/applications` | ADMIN | List seller applications (status filter) |
+| GET | `/v1/admin/sellers/applications?status=` | ADMIN | List seller applications (server-side status filter + pagination) |
 | GET | `/v1/admin/sellers/applications/:id` | ADMIN | Get application detail |
 | PATCH | `/v1/admin/sellers/applications/:id` | ADMIN | Approve or reject application |
+| GET | `/v1/admin/sellers/:sellerProfileId/commission` | ADMIN | Effective commission context: override, platform default, effective rate + source, active category rates, last change |
+| PUT | `/v1/admin/sellers/:sellerProfileId/commission` | ADMIN | Set the seller override `{ rate, expectedPreviousRate? }` (fraction 0…1, ≤ 4 decimals; `0` = real 0 %); 404 / 400 / **409** on a stale `expectedPreviousRate` |
+| DELETE | `/v1/admin/sellers/:sellerProfileId/commission` | ADMIN | Clear the override (`{ expectedPreviousRate? }`), idempotent; the seller follows category / platform rates again |
 
 ### Admin Products — `/v1/admin/products`
 
@@ -666,7 +684,7 @@ All admin endpoints require `ADMIN` role unless otherwise specified.
 
 | Method | Endpoint | Roles | Description |
 |--------|----------|-------|-------------|
-| GET | `/v1/admin/stats` | ADMIN | Dashboard KPIs (GMV, orders, users, revenue) |
+| GET | `/v1/admin/stats` | ADMIN | Dashboard KPIs (GMV, orders, users, revenue) + `actionCenter` (sellers / products / returns / pickup / dispatch counts, `payoutsAwaitingReview` and `payoutsAwaitingPayment` with amounts — same `where` as the filtered queues) |
 | GET | `/v1/admin/stats/trends?period=30d` | ADMIN | Trend data for charts |
 
 Trend periods: `7d`, `30d`, `90d` (default: `30d`).
@@ -737,20 +755,28 @@ Trend periods: `7d`, `30d`, `90d` (default: `30d`).
 | Method | Endpoint | Roles | Description |
 |--------|----------|-------|-------------|
 | GET | `/v1/admin/commission-settings` | ADMIN | List all commission settings |
-| PUT | `/v1/admin/commission-settings` | ADMIN | Set/update global commission rate |
-| PUT | `/v1/admin/commission-settings/:categoryId` | ADMIN | Set/update category-specific commission |
-| DELETE | `/v1/admin/commission-settings/:categoryId` | ADMIN | Remove category commission override |
+| GET | `/v1/admin/commission-settings/history?limit=` | ADMIN | Audit history of platform, category and seller-override changes (actor, target, before → after) |
+| PUT | `/v1/admin/commission-settings` | ADMIN | Set/update the platform default `{ rate, isActive?, expectedPreviousRate? }` — **409** when the stored rate differs from `expectedPreviousRate` |
+| PUT | `/v1/admin/commission-settings/:categoryId` | ADMIN | Set/update a category rate (same body) |
+| DELETE | `/v1/admin/commission-settings/:categoryId` | ADMIN | Remove a category rate |
+
+Precedence at delivery: seller override → leaf category → platform default; rates are snapshotted
+on every earning and order item, so a change never rewrites history. Every mutation is audited. See
+`docs/payouts.md` → « Commission administration ».
 
 ### Admin Payouts — `/v1/admin/payouts`
 
 | Method | Endpoint | Roles | Description |
 |--------|----------|-------|-------------|
 | GET | `/v1/admin/payouts` | ADMIN | List all payouts (paginated) |
-| GET | `/v1/admin/payouts/:id` | ADMIN | Get payout detail (with linked earnings) |
-| POST | `/v1/admin/payouts/:id/approve` | ADMIN | Approve payout (`REQUESTED → APPROVED`) |
-| POST | `/v1/admin/payouts/:id/process` | ADMIN | Mark processing (`APPROVED → PROCESSING`) |
-| POST | `/v1/admin/payouts/:id/complete` | ADMIN | Mark paid (`APPROVED\|PROCESSING → COMPLETED`); `externalReference` required |
-| POST | `/v1/admin/payouts/:id/reject` | ADMIN | Reject payout (reason required); restores wallet + earnings |
+| GET | `/v1/admin/payouts/:id` | ADMIN | Payout detail: row + reserved earnings + `balances` (seller's available / pending / totals) + `actors` (names for approved / processing / completed / rejected) + `auditTrail` |
+| POST | `/v1/admin/payouts/:id/approve` | ADMIN | Authorise (`REQUESTED → APPROVED`) — no money moves; seller notified « Paiement approuvé » |
+| POST | `/v1/admin/payouts/:id/process` | ADMIN | Transfer started (`APPROVED → PROCESSING`); no notification |
+| POST | `/v1/admin/payouts/:id/complete` | ADMIN | Mark paid (`APPROVED\|PROCESSING → COMPLETED`); `externalReference` (1–200) required; seller notified « Paiement effectué » |
+| POST | `/v1/admin/payouts/:id/reject` | ADMIN | Reject (`REQUESTED\|APPROVED\|PROCESSING → REJECTED`); `reason` 5–500 chars, shown to the seller; releases the reserved earnings in the same transaction |
+
+Transitions are conditional updates + an `admin_audit_logs` row in one transaction: a wrong state,
+a retry or a concurrent call answers **409** with the current status and never re-notifies.
 
 See **`docs/payouts.md`** for the lifecycle state machine + ops runbook.
 
