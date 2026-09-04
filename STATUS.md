@@ -1,6 +1,10 @@
 # Status — 2026-09-04
 
-> **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
+> **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
+>
+> **Update rule.** Touch this file in the same commit that starts or ends an initiative. No drift window.
+
+## Active initiative
 
 **None.** The Seller / Admin UX modernization initiative was released to production on 2026-09-04
 (see below). Nothing is in flight; do not infer work from stale plan files or memory.
