@@ -7,14 +7,23 @@
 ## Active initiative
 
 **Admin Action Center · seller payout workflow · payout notifications · commission management —
-Phase 0 audit complete, Phase 1 design awaiting decisions (started 2026-09-04).**
-Tracker: `docs/payouts-commission-action-center.md` (12 verified financial-semantics answers,
-current-state diagrams, ranked defects, proposed state machine / precedence / migrations / PR order).
-Read-only so far: no code, schema or data change. Six decisions (D1–D6 in the tracker) change
-financial meaning and are blocked on explicit approval; everything else is derivable from the code.
+PR 2 (API financial foundation) implemented, awaiting review (started 2026-09-04).**
+Tracker: `docs/payouts-commission-action-center.md` (audit, approved decisions D1–D6, per-PR record).
 
-**Next exact step:** get D1–D6 answered, then open PR 2 (`api` ledger + payout hardening) from
-`develop`. No `main` merge, deployment or production write without approval.
+PR 2 `feat/api-payout-ledger-foundation` → `develop`: per-item integer commission with
+seller → category → global precedence and delivery-time snapshot (earning + order items), auditable
+earning reversal (no more deletes), positive payability (`order.status = DELIVERED`), COD completion
++ earning creation inside the delivery transaction, payout request under a seller row lock with a
+guarded reservation and a partial unique index, conditional admin transitions + `admin_audit_logs`,
+`PROCESSING → REJECTED`, PROCESSING blocks new requests. Migration
+`manual/2026-09-04_payout_commission_ledger_foundation.sql` (additive, in `auto-apply.list`) applied
+to the **dev** DB twice (idempotent) — **not** to production. API: 547 unit + 135 e2e green,
+type-check clean.
+
+**Next exact step:** review/merge PR 2 into `develop`, then PR 3 (admin stats extension + Action
+Center) and PR 4 (admin payout queue/detail/actions). No `main` merge, deployment or production
+write without approval — note the migration inserts a 10 % global commission row **only if none
+exists** in production (materialising today's hardcoded fallback).
 
 ## Most recently completed initiative
 

@@ -196,8 +196,46 @@ fields are optional. A 409 on a duplicate request already exists and both client
    parity fixes (labels, method names, rate display, Rule 15).
 7. regression/security/performance review; 8. docs + release prep. **No `main` merge without approval.**
 
-## Decisions pending (stop point)
+## Decisions (approved 2026-09-04)
 
-D1 `PROCESSING → REJECTED` · D2 `PROCESSING` blocks new requests · D3 seller override beats category
-override · D4 rate resolved at delivery (status quo) vs checkout · D5 first-item vs per-item commission
-· D6 payability requires `order.status = DELIVERED` (forced cancel removes it).
+| # | Decision | Approved as |
+|---|---|---|
+| D1 | `PROCESSING → REJECTED` | **Yes.** Reason + actor + audit row; reserved earnings released in the same transaction. |
+| D2 | `PROCESSING` blocks a new request | **Yes**, enforced in the API transaction (row lock on the seller profile) and by the partial unique index `payouts_one_open_per_seller`. |
+| D3 | Precedence | **seller override → leaf category → global.** No hardcoded fallback once a global row is guaranteed (the migration materialises 10 % only where none exists; the API then refuses to deliver without one). |
+| D4 | Rate resolution time | **At delivery** (COD: the sale completes when Teka delivers and collects the cash). Snapshotted on the earning and on every order item. |
+| D5 | Multi-category orders | **Per item**: each line at its own rule, amounts summed; integer arithmetic on centimes, half-up rounding per line (`payments/commission-math.ts`). Earning keeps the exact rate when all lines share one rule, otherwise a blended display rate + `MIXED`. |
+| D6 | Payability | **Order must still be `DELIVERED`.** Reversals are auditable: the earning row is kept and stamped `reversedAt`/`reversalReason` (`RETURN_APPROVED` \| `ORDER_STATUS_FORCED`); if already reserved in a payout, `clawbackRequiredAt` is stamped instead. Nothing is deleted; no historical row is rewritten. |
+
+**COD invariant (recorded):** an earning exists only from `markDelivered` (inside its transaction).
+No earlier lifecycle step creates a withdrawable balance. Extensible: the earning/commission model
+does not reference the payment method; a future non-COD method would call the same ledger at its
+own "cash collected" event.
+
+## PR 2 — API financial foundation (`feat/api-payout-ledger-foundation`)
+
+Scope: `apps/api` only. Schema additive; migration `manual/2026-09-04_payout_commission_ledger_foundation.sql`
+(in `auto-apply.list`).
+
+- **Earnings ledger** (`payments/earnings.service.ts`): `resolveCommission` (D3), per-item
+  `computeBreakdown` (D5) on `commission-math.ts` (BigInt, half-up), `createEarning(orderId, tx)`
+  snapshotting earning totals + `commissionSource` and per-line `OrderItem.commission*`, positive
+  payability (`order.status = DELIVERED`), `reverseEarning` marks instead of deleting, totals/reports
+  exclude reversed rows. `CommissionNotConfiguredError` replaces the hardcoded 10 %.
+- **Delivery** (`admin/admin-orders.service.ts`): COD transaction completion + earning creation now
+  run inside the `markDelivered` transaction (a failure rolls the delivery back). Forced exit from
+  `DELIVERED` reverses the earning (`ORDER_STATUS_FORCED`). Previews project per item and degrade to
+  zero commission (non-final) when unconfigured.
+- **Payouts** (`payouts/payouts.service.ts`): request = one transaction with `SELECT … FOR UPDATE`
+  on the seller profile, open-payout check (`OPEN_PAYOUT_STATUSES` incl. PROCESSING), eligibility
+  read under the lock, reservation `updateMany` guarded by `payoutId: null`/`reversedAt: null` with a
+  count check, P2002 → 409. Admin transitions = conditional `updateMany({ where: { id, status } })` +
+  audit row in one transaction; `count = 0` → 400 with the current status, no re-notify. Actor
+  columns `processingById/At`, `completedById`, `rejectedById/At`. `PROCESSING → REJECTED` allowed.
+- **Audit** (`audit/admin-audit.service.ts`, `admin_audit_logs`): who/what/when/before/after/reason
+  for payout transitions and commission settings (upsert/remove now take the actor).
+- **Consumers updated**: reports (`REVERSED` payout status, seller-performance excludes reversed),
+  admin stats (commission total excludes reversed), account deletion (open statuses incl. PROCESSING).
+- **Backward compatibility**: wallet/payout response fields unchanged (new fields optional);
+  `/v1/sellers/payouts` 409 semantics unchanged for clients; mobile 0.1.7 keeps working.
+
