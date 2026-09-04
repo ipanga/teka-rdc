@@ -3,7 +3,9 @@ import { AdminStatsService } from './admin-stats.service';
 // getDashboardStats fans out many prisma calls via Promise.all. This mock
 // returns benign zero-ish values for all of them and distinguishes the two
 // sellerProfile.count calls by their where.applicationStatus.
-function makeService(orderGroups?: Array<{ status: string; _count: { _all: number } }>) {
+function makeService(
+  orderGroups?: Array<{ status: string; _count: { _all: number } }>,
+) {
   const prisma = {
     user: { count: jest.fn().mockResolvedValue(0) },
     order: {
@@ -25,6 +27,7 @@ function makeService(orderGroups?: Array<{ status: string; _count: { _all: numbe
       aggregate: jest
         .fn()
         .mockResolvedValue({ _count: 0, _sum: { amountCDF: null } }),
+      count: jest.fn().mockResolvedValue(0),
     },
     sellerProfile: {
       count: jest
@@ -69,7 +72,9 @@ describe('AdminStatsService.getDashboardStats — pending seller applications (Q
   });
 
   it('defaults missing statuses to 0', async () => {
-    const { service } = makeService([{ status: 'PENDING', _count: { _all: 1 } }]);
+    const { service } = makeService([
+      { status: 'PENDING', _count: { _all: 1 } },
+    ]);
     const ops = (await service.getDashboardStats()).data.orderOps;
     expect(ops.awaitingConfirmation).toBe(1);
     expect(ops.readyForPickup).toBe(0);

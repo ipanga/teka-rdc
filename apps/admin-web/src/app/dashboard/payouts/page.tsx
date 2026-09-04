@@ -4,6 +4,7 @@ import { formatFC } from '@teka/shared';
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/lib/api-client';
 import { PageHeader } from '@/components/ui/page-header';
+import { readStatusParam, withStatusParam } from '@/lib/action-center';
 
 interface PayoutSeller {
   id: string;
@@ -32,7 +33,8 @@ interface PaginatedResponse {
   };
 }
 
-const STATUS_TABS = ['', 'REQUESTED', 'APPROVED', 'PROCESSING', 'COMPLETED', 'REJECTED'];
+const PAYOUT_STATUSES = ['REQUESTED', 'APPROVED', 'PROCESSING', 'COMPLETED', 'REJECTED'] as const;
+const STATUS_TABS = ['', ...PAYOUT_STATUSES];
 
 const STATUS_TAB_LABELS: Record<string, string> = {
   '': 'Tous',
@@ -65,6 +67,19 @@ export default function PayoutsPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState('');
+  // The dashboard "À traiter" tiles deep-link here with ?status=…; honour it
+  // on mount (window read — no Suspense boundary needed) and keep the URL in
+  // sync when a tab is chosen, so the filter survives reload/share.
+  const [queryReady, setQueryReady] = useState(false);
+  useEffect(() => {
+    setStatusFilter(readStatusParam(window.location.search, PAYOUT_STATUSES));
+    setQueryReady(true);
+  }, []);
+  const selectStatus = (status: string) => {
+    setStatusFilter(status);
+    setPage(1);
+    window.history.replaceState(null, '', withStatusParam(`${window.location.pathname}${window.location.search}`, status));
+  };
 
   // Approve confirm
   const [approvingId, setApprovingId] = useState<string | null>(null);
@@ -93,6 +108,7 @@ export default function PayoutsPage() {
   };
 
   const fetchPayouts = useCallback(async () => {
+    if (!queryReady) return;
     setIsLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
@@ -106,7 +122,7 @@ export default function PayoutsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, statusFilter]);
+  }, [page, statusFilter, queryReady]);
 
   useEffect(() => {
     fetchPayouts();
@@ -202,10 +218,7 @@ export default function PayoutsPage() {
         {STATUS_TABS.map((status) => (
           <button
             key={status}
-            onClick={() => {
-              setStatusFilter(status);
-              setPage(1);
-            }}
+            onClick={() => selectStatus(status)}
             className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
               statusFilter === status
                 ? 'bg-primary text-primary-foreground border-primary'

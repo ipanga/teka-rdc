@@ -8,6 +8,12 @@ import { apiFetch } from '@/lib/api-client';
 import { Icon } from '@/components/ui/icons';
 import { PageHeader } from '@/components/ui/page-header';
 import {
+  buildActionQueues,
+  totalPendingActions,
+  type ActionCenterStats,
+  type QueueTone,
+} from '@/lib/action-center';
+import {
   ResponsiveContainer,
   AreaChart,
   BarChart,
@@ -38,7 +44,15 @@ interface AdminStats {
   pendingSellerApplicationsCount: number;
   pendingProductsCount: number;
   orderOps?: OrderOps;
+  actionCenter?: ActionCenterStats;
 }
+
+const TONE_STYLES: Record<QueueTone, { count: string; ring: string }> = {
+  finance: { count: 'text-primary', ring: 'hover:border-primary/40' },
+  moderation: { count: 'text-warning', ring: 'hover:border-warning/40' },
+  returns: { count: 'text-destructive', ring: 'hover:border-destructive/40' },
+  logistics: { count: 'text-indigo-700', ring: 'hover:border-indigo-300' },
+};
 
 interface TrendPoint {
   date: string;
@@ -55,6 +69,17 @@ interface TrendsData {
 type Period = '7d' | '30d' | '90d';
 
 const PERIOD_OPTIONS: Period[] = ['7d', '30d', '90d'];
+
+// Placeholder tiles while the stats load — same shape, no fabricated counts.
+const SKELETON_QUEUES = buildActionQueues({
+  sellerApplicationsPending: 0,
+  productsPendingReview: 0,
+  returnsPending: 0,
+  ordersReadyForPickup: 0,
+  ordersReceivedAtTeka: 0,
+  payoutsAwaitingReview: { count: 0, amountCDF: '0' },
+  payoutsAwaitingPayment: { count: 0, processingCount: 0, amountCDF: '0' },
+});
 
 function formatDateLabel(dateStr: unknown): string {
   const d = new Date(String(dateStr));
@@ -115,6 +140,8 @@ export default function AdminDashboardPage() {
   }, [fetchTrends]);
 
   const formatCDF = (centimes: string) => formatFC(centimes);
+  const queues = stats?.actionCenter ? buildActionQueues(stats.actionCenter) : null;
+  const pendingTotal = queues ? totalPendingActions(queues) : 0;
 
   const periodKey = (p: Period) => {
     switch (p) {
@@ -145,135 +172,107 @@ export default function AdminDashboardPage() {
         )}
       />
 
-      {statsError && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-destructive/10 p-4 text-sm text-destructive" role="alert">
-          <span>Impossible de charger les indicateurs opérationnels.</span>
-          <button type="button" onClick={fetchStats} className="font-semibold underline underline-offset-4">Réessayer</button>
-        </div>
-      )}
 
-      {/* Pending seller applications alert — only shown when there are any. */}
-      {!isLoading && (stats?.pendingSellerApplicationsCount ?? 0) > 0 && (
-        <Link
-          href="/dashboard/sellers"
-          className="flex flex-col gap-4 rounded-lg border border-primary/30 bg-white p-4 shadow-sm transition-colors hover:bg-primary/5 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <div className="flex items-center gap-3">
-            <span className="flex items-center justify-center w-9 h-9 rounded-full bg-primary text-white text-sm font-bold">
-              {stats?.pendingSellerApplicationsCount}
-            </span>
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                Demandes vendeurs en attente
-              </p>
-              <p className="text-xs text-muted-foreground">
-                De nouvelles demandes attendent votre approbation.
-              </p>
-            </div>
+      {/* À traiter — the first question the dashboard answers. Every tile's
+          count comes from the same server-side filter its link opens. */}
+      <section className="space-y-4" aria-labelledby="action-center-title">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Centre d’actions</p>
+            <h2 id="action-center-title" className="mt-1 text-lg font-semibold text-foreground">À traiter maintenant</h2>
           </div>
-          <span className="text-sm font-medium text-primary whitespace-nowrap">
-            Examiner les demandes
-          </span>
-        </Link>
-      )}
+          {!isLoading && queues && (
+            <p className="text-sm text-muted-foreground" aria-live="polite">
+              {pendingTotal === 0
+                ? 'Rien à traiter pour le moment.'
+                : `${formatNumber(pendingTotal)} élément${pendingTotal > 1 ? 's' : ''} en attente d’une action.`}
+            </p>
+          )}
+        </div>
 
-      {/* Pending products alert — products awaiting moderation. */}
-      {!isLoading && (stats?.pendingProductsCount ?? 0) > 0 && (
-        <Link
-          href="/dashboard/products?status=PENDING_REVIEW"
-          className="flex flex-col gap-4 rounded-lg border border-primary/30 bg-white p-4 shadow-sm transition-colors hover:bg-primary/5 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <div className="flex items-center gap-3">
-            <span className="flex items-center justify-center w-9 h-9 rounded-full bg-primary text-white text-sm font-bold">
-              {stats?.pendingProductsCount}
-            </span>
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                Produits en attente de validation
-              </p>
-              <p className="text-xs text-muted-foreground">
-                De nouveaux produits attendent votre validation.
-              </p>
-            </div>
+        {statsError && !isLoading ? (
+          <div className="admin-card p-6 text-center" role="alert">
+            <h3 className="font-semibold text-foreground">Files d’attente indisponibles</h3>
+            <p className="mt-2 text-sm text-muted-foreground">Les compteurs n’ont pas pu être chargés ; aucune valeur n’est affichée à leur place.</p>
+            <button type="button" onClick={fetchStats} className="admin-button-secondary mt-4">Réessayer</button>
           </div>
-          <span className="text-sm font-medium text-primary whitespace-nowrap">
-            Examiner les produits
-          </span>
-        </Link>
-      )}
+        ) : (
+          <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-busy={isLoading}>
+            {(queues ?? SKELETON_QUEUES).map((q) => {
+              const tone = TONE_STYLES[q.tone];
+              const idle = !isLoading && q.count === 0;
+              return (
+                <li key={q.key}>
+                  <Link
+                    href={q.href}
+                    aria-label={isLoading ? q.label : `${q.label} : ${q.count}`}
+                    className={`admin-card flex h-full flex-col gap-2 p-4 transition-colors ${idle ? 'opacity-70' : tone.ring} hover:bg-primary/[0.02]`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      {isLoading ? (
+                        <div className="h-8 w-12 animate-pulse rounded bg-muted" />
+                      ) : (
+                        <p className={`text-3xl font-bold leading-none ${idle ? 'text-muted-foreground' : tone.count}`}>{formatNumber(q.count)}</p>
+                      )}
+                      {!isLoading && q.amountCDF && q.count > 0 && (
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-foreground">{formatCDF(q.amountCDF)}</span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{q.label}</p>
+                      <p className="text-xs text-muted-foreground">{q.detail}</p>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="bg-white rounded-lg border border-border p-5 shadow-sm">
-          <h3 className="text-sm font-medium text-muted-foreground">Utilisateurs</h3>
-          {isLoading ? (
-            <div className="h-9 mt-2 bg-muted rounded animate-pulse" />
-          ) : (
-            <p className="text-3xl font-bold text-foreground mt-2">
-              {stats?.totalUsers !== undefined ? formatNumber(stats.totalUsers) : '--'}
-            </p>
-          )}
-        </div>
-        <div className="bg-white rounded-lg border border-border p-5 shadow-sm">
-          <h3 className="text-sm font-medium text-muted-foreground">Vendeurs</h3>
-          {isLoading ? (
-            <div className="h-9 mt-2 bg-muted rounded animate-pulse" />
-          ) : (
-            <p className="text-3xl font-bold text-foreground mt-2">
-              {stats?.totalSellers !== undefined ? formatNumber(stats.totalSellers) : '--'}
-            </p>
-          )}
-        </div>
-        <div className="bg-white rounded-lg border border-border p-5 shadow-sm">
-          <h3 className="text-sm font-medium text-muted-foreground">Commandes</h3>
-          {isLoading ? (
-            <div className="h-9 mt-2 bg-muted rounded animate-pulse" />
-          ) : (
-            <p className="text-3xl font-bold text-foreground mt-2">
-              {stats?.totalOrders !== undefined ? formatNumber(stats.totalOrders) : '--'}
-            </p>
-          )}
-        </div>
-        <div className="bg-white rounded-lg border border-border p-5 shadow-sm">
-          <h3 className="text-sm font-medium text-muted-foreground">Chiffre d&apos;affaires</h3>
-          {isLoading ? (
-            <div className="h-9 mt-2 bg-muted rounded animate-pulse" />
-          ) : (
-            <p className="text-3xl font-bold text-foreground mt-2">
-              {stats?.totalRevenueCDF ? formatCDF(stats.totalRevenueCDF) : '-- FC'}
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Order operations (Teka logistics) */}
-      <div className="space-y-4">
-        <div><p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Centre d’actions</p><h2 className="mt-1 text-lg font-semibold text-foreground">Opérations commandes</h2></div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      {/* Informational KPIs — context, not actions. */}
+      <section className="space-y-4" aria-labelledby="kpi-title">
+        <h2 id="kpi-title" className="text-lg font-semibold text-foreground">Indicateurs</h2>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           {([
-            { label: 'Nouvelles', sub: 'à confirmer', value: stats?.orderOps?.awaitingConfirmation ?? 0, href: '/dashboard/orders?status=PENDING', color: 'text-warning' },
-            { label: 'Prêtes pour collecte', sub: 'Teka', value: stats?.orderOps?.readyForPickup ?? 0, href: '/dashboard/orders?status=READY_FOR_TEKA_PICKUP', color: 'text-indigo-700' },
-            { label: 'Reçues par Teka', sub: 'entrepôt', value: stats?.orderOps?.receivedAtTeka ?? 0, href: '/dashboard/orders?status=RECEIVED_AT_TEKA', color: 'text-indigo-700' },
-            { label: 'En livraison', sub: '', value: stats?.orderOps?.outForDelivery ?? 0, href: '/dashboard/orders?status=OUT_FOR_DELIVERY', color: 'text-primary' },
-            { label: 'Livrées', sub: "aujourd'hui", value: stats?.orderOps?.deliveredToday ?? 0, href: '/dashboard/orders?status=DELIVERED', color: 'text-success' },
-            { label: 'Retours', sub: 'à traiter', value: stats?.orderOps?.pendingReturns ?? 0, href: '/dashboard/returns?status=REQUESTED', color: 'text-destructive' },
-          ]).map((c) => (
-            <Link
-              key={c.label}
-              href={c.href}
-              className="admin-card p-4 transition-colors hover:border-primary/30 hover:bg-primary/[0.02]"
-            >
+            { label: 'Utilisateurs', value: stats?.totalUsers !== undefined ? formatNumber(stats.totalUsers) : '--' },
+            { label: 'Vendeurs', value: stats?.totalSellers !== undefined ? formatNumber(stats.totalSellers) : '--' },
+            { label: 'Commandes', value: stats?.totalOrders !== undefined ? formatNumber(stats.totalOrders) : '--' },
+            { label: 'Chiffre d’affaires', value: stats?.totalRevenueCDF ? formatCDF(stats.totalRevenueCDF) : '-- FC' },
+          ]).map((k) => (
+            <div key={k.label} className="admin-card p-5">
+              <h3 className="text-sm font-medium text-muted-foreground">{k.label}</h3>
               {isLoading ? (
-                <div className="h-8 w-10 bg-muted rounded animate-pulse" />
+                <div className="mt-2 h-9 animate-pulse rounded bg-muted" />
               ) : (
-                <p className={`text-2xl font-bold ${c.color}`}>{stats?.orderOps ? c.value : '--'}</p>
+                <p className="mt-2 text-3xl font-bold text-foreground">{k.value}</p>
               )}
-              <p className="text-xs font-medium text-foreground mt-1 leading-tight">{c.label}</p>
-              {c.sub && <p className="text-[11px] text-muted-foreground leading-tight">{c.sub}</p>}
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Logistics follow-up — states that need no admin action right now. */}
+      <section className="space-y-4" aria-labelledby="logistics-title">
+        <h2 id="logistics-title" className="text-lg font-semibold text-foreground">Suivi logistique</h2>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {([
+            { label: 'Nouvelles commandes', sub: 'à confirmer par le vendeur', value: stats?.orderOps?.awaitingConfirmation, href: '/dashboard/orders?status=PENDING' },
+            { label: 'En livraison', sub: 'chez l’acheteur', value: stats?.orderOps?.outForDelivery, href: '/dashboard/orders?status=OUT_FOR_DELIVERY' },
+            { label: 'Livrées aujourd’hui', sub: 'encaissement confirmé', value: stats?.orderOps?.deliveredToday, href: '/dashboard/orders?status=DELIVERED' },
+          ]).map((c) => (
+            <Link key={c.label} href={c.href} className="admin-card p-4 transition-colors hover:border-primary/30 hover:bg-primary/[0.02]">
+              {isLoading ? (
+                <div className="h-8 w-10 animate-pulse rounded bg-muted" />
+              ) : (
+                <p className="text-2xl font-bold text-foreground">{c.value === undefined ? '--' : formatNumber(c.value)}</p>
+              )}
+              <p className="mt-1 text-xs font-medium leading-tight text-foreground">{c.label}</p>
+              <p className="text-[11px] leading-tight text-muted-foreground">{c.sub}</p>
             </Link>
           ))}
         </div>
-      </div>
+      </section>
 
       {/* Trends Section */}
       <div className="space-y-4">
