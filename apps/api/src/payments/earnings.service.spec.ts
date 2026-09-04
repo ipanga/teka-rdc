@@ -406,3 +406,52 @@ describe('EarningsService payability (COD invariant + D6)', () => {
     expect(w.pendingPayoutCDF).toBe(w.availableCDF);
   });
 });
+
+describe('EarningsService — seller override lifecycle (PR 5)', () => {
+  const line = { id: 'i1', totalCDF: 1_000_000n, categoryId: 'cat1' }; // 10.000 FC
+
+  it('two sellers with different effective rates are charged differently on identical goods, with the same rounding rule', async () => {
+    const { service, prisma } = makeService();
+    prisma.sellerProfile.findUnique.mockImplementation(
+      (args: { where: { id: string } }) =>
+        Promise.resolve(
+          args.where.id === 'spA'
+            ? { id: 'spA', commissionRate: new Decimal('0.0825') } // negotiated 8,25 %
+            : { id: 'spB', commissionRate: null }, // platform default 10 %
+        ),
+    );
+    const odd = { id: 'i2', totalCDF: 1_000_001n, categoryId: null }; // forces a half-up case at 8,25 %
+    const a = await service.computeBreakdown('spA', [line, odd]);
+    const b = await service.computeBreakdown('spB', [line, odd]);
+    expect(a.commissionSource).toBe(CommissionSource.SELLER);
+    expect(b.commissionSource).toBe(CommissionSource.GLOBAL);
+    // 1 000 000 × 825 / 10 000 = 82 500 ; 1 000 001 × 825 / 10 000 = 82 500,0825 → 82 500
+    expect(a.commissionCDF).toBe(82_500n + 82_500n);
+    // 10 % : 100 000 + 100 000,1 → 100 000
+    expect(b.commissionCDF).toBe(100_000n + 100_000n);
+    expect(a.netAmountCDF).toBe(2_000_001n - 165_000n);
+    expect(b.netAmountCDF).toBe(2_000_001n - 200_000n);
+    expect(a.items[0].commissionRuleId).toBe('spA');
+    expect(b.items[0].commissionRuleId).toBe('global');
+  });
+
+  it('removing the override falls back to the platform default for FUTURE computations only — no persisted earning is rewritten', async () => {
+    const { service, prisma } = makeService({
+      profile: { id: 'sp1', commissionRate: new Decimal('0.05') },
+    });
+    const withOverride = await service.computeBreakdown('sp1', [line]);
+    expect(withOverride.commissionCDF).toBe(50_000n);
+    expect(withOverride.commissionSource).toBe(CommissionSource.SELLER);
+
+    // Admin clears the override (NULL = follow category / platform rates).
+    prisma.sellerProfile.findUnique.mockResolvedValue({ id: 'sp1', commissionRate: null });
+    const afterClear = await service.computeBreakdown('sp1', [line]);
+    expect(afterClear.commissionCDF).toBe(100_000n);
+    expect(afterClear.commissionSource).toBe(CommissionSource.GLOBAL);
+
+    // Neither computation touched the ledger: history lives in the rows written at delivery.
+    expect(prisma.sellerEarning.update).not.toHaveBeenCalled();
+    expect(prisma.sellerEarning.create).not.toHaveBeenCalled();
+    expect(prisma.orderItem.update).not.toHaveBeenCalled();
+  });
+});

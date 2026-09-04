@@ -385,3 +385,115 @@ build clean (32 routes, private `robots.txt`).
 Builds on PR 3 (`?status=` + `readStatusParam`/`withStatusParam`); independent of PR 5 (commission
 admin) and PR 6 (feed notifications). Safe to merge into `develop` on its own. No production action.
 
+## PR 5 — Commission administration (`feat/commission-admin`)
+
+Scope: `apps/api` (seller-override endpoints, history, optimistic concurrency) and `apps/admin-web`
+(Commissions page rework, seller « Commission » card). **No schema, migration, env or dependency
+change** — `SellerProfile.commissionRate`, the `CommissionSource` enum, the per-item snapshot columns
+and the audit actions `SELLER_COMMISSION_OVERRIDE_SET/CLEARED` all shipped with PR 2.
+
+### Re-audit (2026-09-04, against the code in `develop` at `dccd864`)
+
+| Question | Answer (verified in code) |
+|---|---|
+| Where does the rate come from? | `EarningsService.resolveCommission(sellerProfileId, categoryId)`: `SellerProfile.commissionRate` (NULL = no override; `0` = real 0 %) → active `CommissionSetting[leaf category]` → active `CommissionSetting[categoryId IS NULL]` → `CommissionNotConfiguredError` (no hardcoded fallback; the PR 2 migration guarantees a 10 % global row where none existed). |
+| When is it calculated? | Once, at **delivery**, inside `markDelivered`'s transaction (`createEarning`), per order item, integer centimes with half-up rounding (`commission-math.ts`). Order-detail previews before delivery recompute but are labelled non-final and read the earning row once it exists. |
+| Is history a monetary snapshot? | Yes. `SellerEarning` stores `grossAmountCDF / commissionCDF / netAmountCDF / commissionRate / commissionSource`; every `OrderItem` stores `commissionRate / commissionCDF / commissionSource / commissionRuleId`. Balances, payouts, reports and the seller clients read these persisted amounts. **Nothing recomputes from the current rate.** |
+| Precedence default vs override | `seller override ?? category rate ?? platform default` (decision D3). Fully compatible with the requested `override ?? default` — the category tier sits between them and is surfaced explicitly in the UI. |
+| Removing an override | `commissionRate` → NULL; the next delivered order resolves category/global again. Existing earnings untouched (spec: "removing the override falls back … no persisted earning is rewritten"). |
+| Validation / precision | Decimal(5,4): fraction in [0, 1], ≤ 4 decimals (0,01 % steps). DTOs: `IsNumber({maxDecimalPlaces: 4})`, `Min(0)`, `Max(1)`, whitelist (unknown props → 400). Service re-normalises through the integer representation (0.1 ≡ 0.1000) and `rateToUnits` throws on anything else. |
+| Who may change it? | `@Roles('ADMIN')` (class-level) — same as the existing platform/category endpoints. `SUPPORT` can read a seller (`/admin/users/:id`) but not its commission endpoints. `FINANCE` exists in the enum but is not wired anywhere today (follow-up, not changed here). |
+| Auditability | Every mutation writes an `admin_audit_logs` row **inside the same transaction** (actor, action, entity, before/after). Unchanged values are no-ops with no audit row. |
+| Future-only? | Yes — by construction (snapshot at delivery). Browser-verified: after 10 % → 12,5 % the two historical earnings kept `0.1` and their amounts (`updatedAt` Feb/Apr 2026). |
+
+### API
+
+- **`GET /v1/admin/sellers/:sellerProfileId/commission`** → `overrideRate`, `platformDefaultRate`,
+  `effectiveRate`, `effectiveSource` (`SELLER | GLOBAL | null`), `activeCategoryOverrides` (how many
+  category rates can still precede the default for this seller), `lastChange` (action, actor, before,
+  after, createdAt). Never fabricates a rate: no global row → `null`.
+- **`PUT …/commission { rate, expectedPreviousRate? }`** — sets the override; **`DELETE …/commission
+  { expectedPreviousRate? }`** — clears it (idempotent). Keyed by `SellerProfile.id` (the row that
+  carries the rate and the audit entity). 404 unknown seller, 400 invalid rate, **409** when
+  `expectedPreviousRate` (the value the operator saw, `null` = none) differs from the stored value —
+  optimistic concurrency, added after browser QA showed a stale screen could confirm « 8,25 % → 7 % »
+  over a colleague's 6 %. Omitted → previous behaviour (older clients). The same field was added to
+  `UpsertCommissionDto` for the platform default and category rates. The 409 message names the
+  current value as a French percent.
+- **`GET /v1/admin/commission-settings/history?limit=`** — audit rows for platform, category and
+  seller changes with actor names, target labels (`PLATFORM | CATEGORY | SELLER`) and before → after.
+
+### admin-web
+
+- `lib/commission.ts` (pure, 11 vitest): Decimal(5,4) ↔ percent by string/integer math (no float),
+  `formatRatePercent` (« 8,25 % », « 10 % »), `parsePercentInput` (comma or dot, 0–100, ≤ 2 decimals,
+  French errors), `describeEffective` (one unambiguous sentence: specific / default + category
+  exception / not configured), precedence + history copy.
+- **Commissions page** — « Taux par défaut de la plateforme » (rate in force, last change with actor
+  and before → after, new-rate input with confirmation « 10 % → 12,5 % »), « Taux par catégorie »
+  (add / modify / retirer, each confirmed), « Historique des modifications » (seller rows link to the
+  seller page); skeleton / error-with-retry / empty states; API messages surfaced; 409 → drop the
+  intent, show the message, reload. No fabricated 10 % when nothing is configured.
+- **Seller page « Commission » card** — « Taux appliqué à ce vendeur » / « Taux spécifique du
+  vendeur » / « Taux par défaut de la plateforme » side by side, the sentence from `describeEffective`,
+  the precedence line, radio « Utiliser le taux par défaut de la plateforme » vs « Taux spécifique à
+  ce vendeur » + percent input, confirmation dialog (before → after, "future deliveries only",
+  "recorded with your name"), 409 → reload, last change. Link to the Commissions page.
+
+### Runtime verification (2026-09-04, Chrome DevTools MCP, isolated local stack on the dev DB)
+
+Same recipe as PR 3/4. Verified:
+
+1. **Commissions page** loaded: 10 % in force, « Électronique 8 % », empty history.
+2. Default rate: `abc` → « Taux invalide … » (no request); `12,5` → dialog « 10 % → 12,5 % » → confirmed
+   → 12,5 % in force, « Dernière modification … par Admin Teka (10 % → 12,5 %) », history row.
+3. **DB after the change:** both historical earnings still `rate 0.1`, `700 000` / `450 000` centimes
+   commission, `updatedAt` 2026-02-27 / 2026-04-12 — untouched.
+4. **Seller page (Tech Shop Lubumbashi)**: card showed 12,5 % « Taux par défaut », « Aucun » override,
+   « Exception : 1 catégorie a un taux propre ». Radio → specific, `8,25` → dialog « Taux par défaut
+   12,5 % → 8,25 % » → confirmed → 8,25 % « Taux spécifique », sentence says category/default no longer
+   apply, last change stamped.
+5. **Concurrency, before the fix:** curl set 6 %; the stale screen (8,25 %) offered « 8,25 % → 7 % »
+   and would have overwritten silently → `expectedPreviousRate` added. **After the fix:** curl set 5 %
+   with a matching expectation; the stale screen (6 %) confirmed 7 % → **409** « … modifié entre-temps
+   (valeur actuelle : …). Rechargez la page … », dialog closed, card reloaded to 5 %. Curl with a stale
+   expectation on the platform default → 409 as well.
+6. « Utiliser le taux par défaut » → « Retirer le taux spécifique » → dialog « Le taux spécifique de
+   5 % est retiré … » → confirmed → « Aucun », 12,5 % « Taux par défaut » again.
+7. Platform default restored to 10 % (curl, matching expectation). History (API + page): six rows —
+   PLATFORM 10 % → 12,5 %, SELLER none → 8,25 % → 6 % → 5 % → retiré, PLATFORM 12,5 % → 10 %, all by
+   Admin Teka.
+8. API validation via curl: `-0.01`, `1.5`, `0.12345`, `"abc"`, `{}`, unknown property → **400** with
+   French messages; unknown seller → **404**; unauthenticated → **401** (e2e).
+9. Narrow viewport (390 px) of the Commissions page: cards stack, no body overflow.
+
+**Not verified in the browser:** category add / modify / retirer submissions (same code path as the
+platform default, dialog + `expectedPreviousRate`, spec-covered), the 409 path on the Commissions page
+itself (same handler as the card, curl-proved on the API), a 403 for a non-ADMIN role (no seller
+session available — guard is the existing class-level `@Roles('ADMIN')`, 401 e2e-covered).
+
+**Dev DB after QA:** platform default back to 10 %, « Électronique » 8 % unchanged, no seller override;
+six extra `admin_audit_logs` rows. **Side effect on the machine:** a `pkill -f dist/src/main` used to
+restart the isolated API also stopped the user's watch-mode API on :5050; it was restarted with
+`pnpm dev:api` (kill by port from now on).
+
+### Tests
+
+API: `commission.service.spec.ts` **+19** (context read incl. 0 % override and "nothing configured";
+set / clear with audit, no-op, boundaries 0 and 1, invalid → 400, 404, conditional-update race → 409;
+history resolution; optimistic concurrency mismatch → 409 with no write/audit, normalised match,
+omitted → unchanged), `earnings.service.spec.ts` **+2** (two sellers at different effective rates,
+identical rounding rule; override removal changes future computations only), `commission.e2e-spec.ts`
+**6** (401 contract for every endpoint). Full suite **576 unit / 141 e2e**, type-check clean.
+admin-web: `commission.test.ts` **11**, total **31 vitest**; type-check, eslint and production build
+clean (32 routes, private `robots.txt`).
+
+### Follow-ups (recorded, out of scope)
+
+- `FINANCE` role exists in `UserRole` but no finance endpoint accepts it; decide whether finance staff
+  may edit commissions / process payouts, then widen `@Roles` deliberately.
+- The seller-facing clients display `earning.commissionRate` from the snapshot (correct) but do not
+  show a seller their *current* effective rate before a sale; a read-only « Votre commission » on
+  seller-web/mobile could reuse `getSellerCommission`. Not part of this initiative's contract.
+- `apps/api` `HttpExceptionFilter` reports validation errors with `field: "unknown"`; pre-existing.
+

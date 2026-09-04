@@ -7,6 +7,7 @@ import {
   Param,
   Logger,
   ParseUUIDPipe,
+  Query,
 } from '@nestjs/common';
 import { CommissionService } from './commission.service';
 import { UpsertCommissionDto } from './dto/upsert-commission.dto';
@@ -27,6 +28,19 @@ export class CommissionController {
   @Roles('ADMIN')
   async listSettings() {
     const data = await this.commissionService.listSettings();
+    return { success: true, data };
+  }
+
+  /**
+   * Who changed which commission (platform, category or seller override), when,
+   * from what to what. Newest first.
+   * GET /api/v1/admin/commission-settings/history?limit=30
+   */
+  @Get('history')
+  @Roles('ADMIN')
+  async history(@Query('limit') limit?: string) {
+    const n = Math.min(Math.max(parseInt(limit ?? '30', 10) || 30, 1), 100);
+    const data = await this.commissionService.listHistory(n);
     return { success: true, data };
   }
 

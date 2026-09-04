@@ -4,8 +4,10 @@ import { useEffect, useState, useCallback, type ReactNode } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
+import { SellerCommissionCard } from '@/components/sellers/seller-commission-card';
 
 interface SellerProfile {
+  id: string;
   businessName: string;
   businessType?: string | null;
   phone?: string | null;
@@ -153,6 +155,13 @@ export default function SellerDetailPage() {
           <Row label="Commune" value={sp?.commune?.name} />
           <Row label="Localisation" value={sp?.location} />
         </div>
+
+        {/* Commission — platform default vs seller-specific rate */}
+        {sp?.id && (
+          <div className="lg:col-span-2">
+            <SellerCommissionCard sellerProfileId={sp.id} />
+          </div>
+        )}
       </div>
 
     </div>
