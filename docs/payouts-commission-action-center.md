@@ -923,7 +923,9 @@ occur », not « an electronic attempt failed »; using it creates no contradict
 ### D7 — implementation
 
 `PaymentsService.codPaymentWillFail(order)` (COD and `paymentStatus = PENDING`, decided on the row the
-caller already read and guarded by the caller's conditional status `updateMany`) →
+caller already read under the same pre-transaction status check that guards the cancellation itself —
+the order `update` was and remains unconditional, so the flip inherits exactly the cancellation's
+concurrency semantics; the transaction-row flip is conditional) →
 `codPaymentFailureData(order)` folds `{ paymentStatus: FAILED }` into the cancelling `order.update`
 (one round trip) → `failCodTransactionOnCancellation(orderId, tx)` flips the COD `PAYMENT` transaction
 `PENDING`/`PROCESSING` → `FAILED` with `failureReason 'order_cancelled'`; all inside the cancellation
