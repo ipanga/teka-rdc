@@ -885,3 +885,59 @@ Recommendation at release time: seller-mobile → **`0.1.8+10`**; buyer-mobile u
 **NEEDS FIXES BEFORE RELEASE** — F1 (a read-path label bug, small and spec-able) and the D7 decision.
 Everything else is safe to prepare for release once F1 is merged.
 
+## F1 + D7 — `fix/earning-state-and-cod-cancel-payment` (2026-09-04, after the pre-release audit)
+
+### F1 — root cause and mapping
+
+`requestPayout` reserves earnings by setting **both** `isPaid = true` and `payoutId` (and `rejectPayout`
+clears both); `completePayout` only changes the payout. So `isPaid` has always meant « reserved /
+committed to a payout ». PR 7's `earningState()` checked `isPaid` before `payoutId` and therefore
+called a merely requested or approved payout's earning `PAID`.
+
+| Row | Before (PR 7) | After |
+|---|---|---|
+| `reversedAt` set | REVERSED | REVERSED |
+| linked payout `REQUESTED` / `APPROVED` / `PROCESSING` (`isPaid = true`) | **PAID** | **RESERVED** |
+| linked payout `COMPLETED` | PAID | PAID |
+| payout rejected (link released, `isPaid = false`) | HELD / AVAILABLE | HELD / AVAILABLE |
+| no link, delivered inside the window / not `DELIVERED` | HELD | HELD |
+| no link, window closed, still `DELIVERED` | AVAILABLE | AVAILABLE |
+| `isPaid` with no link (unreachable through the API) | PAID | PAID (kept, defensive) |
+
+Read path only: `listSellerEarnings` now includes `payout { status }`; no data was rewritten. Balances,
+payouts and the wallet never used `state` and were correct throughout. Clients unchanged (their
+vocabulary already had « Réservé (virement en cours) »). Specs: the full matrix in
+`earnings.service.spec.ts`.
+
+### D7 — `FAILED` semantic audit
+
+Every use of `PaymentStatus.FAILED` at `b6f48f5`: **no API code writes it** (only the admin
+transaction-list filter accepts it); the seed writes it for exactly this case (« COD cancelled before
+delivery — no money was ever collected, so the transaction is FAILED, not REFUNDED »); the buyer cancel
+path already emits `payment_failed` for COD; the shared type and all six clients render it as
+« Paiement échoué / Échoué / Échouée » with no retry affordance except buyer-web's legacy mobile-money
+`payment-pending` page, which COD never reaches. Reports export the raw value; sales analytics key on
+delivery / `COMPLETED`. Conclusion: `FAILED` already means « the payment did not complete and will not
+occur », not « an electronic attempt failed »; using it creates no contradiction. **No new enum value.**
+
+### D7 — implementation
+
+`PaymentsService.failCodPaymentOnCancellation(order, tx)` (conditional `updateMany` on
+`paymentStatus = PENDING`, then the COD `PAYMENT` transaction `PENDING`/`PROCESSING` → `FAILED` with
+`failureReason 'order_cancelled'`; returns whether it flipped) called inside the cancellation
+transaction of **`OrdersService.cancelOrder`** (buyer), **`SellerOrdersService.rejectOrder`** and
+**`AdminOrdersService.adminCancelOrder`**. `payment_failed` fires once per actual flip on all three
+paths (the buyer path previously fired unconditionally for COD). Status logs, reasons, stock and
+notifications unchanged. Terminal payments and non-COD orders untouched; no refund created. **No
+schema or migration change.** Specs: `payments.service.spec.ts` (flip / terminal untouched / non-COD /
+concurrent count 0), `orders.service.spec.ts`, `seller-orders.service.spec.ts`,
+`admin-orders.service.spec.ts` (+ DELIVERED refused, already-cancelled idempotent).
+
+### D7 — production, read-only (2026-09-04)
+
+Production holds **9 orders** (8 COD, 1 MOBILE_MONEY) and **0 cancelled COD orders** — no
+`CANCELLED`/COD/`PENDING` row, no associated transaction, earning or payout. **No historical
+remediation is needed**; none was designed or added. (Should such rows appear before the release,
+the guarded predicate would be `status = 'CANCELLED' AND "paymentMethod" = 'COD' AND "paymentStatus" =
+'PENDING' AND NOT EXISTS earning`, verified by the same counts.)
+

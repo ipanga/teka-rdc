@@ -96,9 +96,13 @@ reserved in an open payout as `PAID` (reservation sets `isPaid`) — fix before 
 derive from the linked payout's status). **D7** analysed, decision pending. Two migrations pending
 for production, both auto-apply, neither on `main`. Seller-mobile release would be `0.1.8+10`.
 
-**Next exact step:** operator decides D7 and approves the F1 fix → small PR (API read path + spec,
-clients unchanged) → then a `develop → main` release PR **only on explicit approval**. No
-deployment, production migration, data write, `db:push` or `main` merge without it. No `main` merge, deployment or
+**F1 + D7 approved and implemented** on `fix/earning-state-and-cod-cancel-payment` (API only, no
+schema/migration; production has 0 cancelled COD orders → no backfill). PR open.
+
+**Next exact step:** review/merge the F1 + D7 PR (and the redundant audit-docs PR #653, superseded
+by it), then a `develop → main` release PR **only on explicit approval** — with the seller-mobile
+bump to `0.1.8+10` in the release. No deployment, production migration, data write, `db:push` or
+`main` merge without it. No `main` merge, deployment or
 production write without approval — note the PR 2 migration inserts a 10 % global commission row
 **only if none exists** in production (materialising today's hardcoded fallback).
 

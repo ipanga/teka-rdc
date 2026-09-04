@@ -5,6 +5,7 @@ import {
   TransactionType,
   TransactionProvider,
   PaymentStatus,
+  PaymentMethod,
 } from '@prisma/client';
 import { TransactionQueryDto } from './dto/transaction-query.dto';
 
@@ -67,6 +68,44 @@ export class PaymentsService {
         data: { status: PaymentStatus.COMPLETED },
       });
     }
+  }
+
+  /**
+   * D7 — a COD order cancelled before the cash was collected: the payment
+   * will never happen. Flips `Order.paymentStatus` PENDING → FAILED and the
+   * order's COD PAYMENT transaction PENDING/PROCESSING → FAILED
+   * (`failureReason: 'order_cancelled'`) inside the caller's cancellation
+   * transaction. Returns whether the flip happened so the caller emits
+   * `payment_failed` exactly once. A payment already COMPLETED / REFUNDED /
+   * FAILED, or a non-COD order, is never touched — and no refund is created,
+   * because no money moved. Conditional update → idempotent under retries.
+   */
+  async failCodPaymentOnCancellation(
+    order: { id: string; paymentMethod: PaymentMethod; paymentStatus: PaymentStatus },
+    db: PrismaService | Prisma.TransactionClient = this.prisma,
+  ): Promise<boolean> {
+    if (order.paymentMethod !== PaymentMethod.COD) return false;
+    if (order.paymentStatus !== PaymentStatus.PENDING) return false;
+
+    const flipped = await db.order.updateMany({
+      where: { id: order.id, paymentStatus: PaymentStatus.PENDING },
+      data: { paymentStatus: PaymentStatus.FAILED },
+    });
+    if (flipped.count !== 1) return false;
+
+    await db.transaction.updateMany({
+      where: {
+        orderId: order.id,
+        type: TransactionType.PAYMENT,
+        provider: TransactionProvider.COD,
+        status: { in: [PaymentStatus.PENDING, PaymentStatus.PROCESSING] },
+      },
+      data: {
+        status: PaymentStatus.FAILED,
+        failureReason: 'order_cancelled',
+      },
+    });
+    return true;
   }
 
   /**

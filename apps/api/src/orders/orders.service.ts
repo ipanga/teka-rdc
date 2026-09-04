@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { resolveDeliveryAddress } from './delivery-address.util';
 import { OrderNotificationService } from '../notifications/order-notification.service';
 import { PostHogService } from '../analytics/posthog.service';
+import { PaymentsService } from '../payments/payments.service';
 import { OrderQueryDto } from './dto/order-query.dto';
 import { OrderStatus, PaymentMethod } from '@prisma/client';
 import { BUYER_CANCELLABLE_STATUSES } from './order-workflow.constants';
@@ -21,6 +22,7 @@ export class OrdersService {
     private prisma: PrismaService,
     private notificationService: OrderNotificationService,
     private analytics: PostHogService,
+    private paymentsService: PaymentsService,
   ) {}
 
   /**
@@ -210,6 +212,7 @@ export class OrdersService {
       );
     }
 
+    let paymentFailed = false;
     const updatedOrder = await this.prisma.$transaction(async (tx) => {
       // Create status log
       await tx.orderStatusLog.create({
@@ -233,6 +236,13 @@ export class OrdersService {
           data: { quantity: { increment: it.quantity } },
         });
       }
+
+      // D7: an unpaid COD order that is cancelled will never be paid — flip the
+      // payment to FAILED in the same transaction (no-op for anything else).
+      paymentFailed = await this.paymentsService.failCodPaymentOnCancellation(
+        order,
+        tx,
+      );
 
       // Update order
       return tx.order.update({
@@ -268,19 +278,19 @@ export class OrdersService {
         this.logger.error("Échec de notification d'annulation", err),
       );
 
-    // Server-owned analytics: buyer-initiated cancellation. For COD this
-    // also means no money will ever be taken (payment_failed), mirroring
-    // the seed precedent (cancelled COD => paymentStatus FAILED).
+    // Server-owned analytics: buyer-initiated cancellation. `payment_failed`
+    // fires exactly when the payment was flipped PENDING → FAILED (D7).
     this.analytics.capture(userId, 'order_cancelled', {
       orderId,
       sellerId: order.sellerId,
       actor: 'buyer',
     });
-    if (order.paymentMethod === PaymentMethod.COD) {
+    if (paymentFailed) {
       this.analytics.capture(userId, 'payment_failed', {
         orderId,
         method: PaymentMethod.COD,
         reason: 'order_cancelled',
+        actor: 'buyer',
       });
     }
 

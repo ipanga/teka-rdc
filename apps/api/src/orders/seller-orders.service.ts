@@ -14,8 +14,9 @@ import {
 } from '../payments/earnings.service';
 import { Decimal } from '@prisma/client/runtime/library';
 import { PostHogService } from '../analytics/posthog.service';
+import { PaymentsService } from '../payments/payments.service';
 import { SellerOrderQueryDto } from './dto/seller-order-query.dto';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, PaymentMethod } from '@prisma/client';
 
 /**
  * Maps an order's new status to its PostHog event name. Attributed to the
@@ -42,6 +43,7 @@ export class SellerOrdersService {
     private notificationService: OrderNotificationService,
     private earningsService: EarningsService,
     private analytics: PostHogService,
+    private paymentsService: PaymentsService,
   ) {}
 
   /**
@@ -348,6 +350,7 @@ export class SellerOrdersService {
       OrderStatus.CANCELLED,
     );
 
+    let paymentFailed = false;
     const updatedOrder = await this.prisma.$transaction(async (tx) => {
       await this.createStatusLog(
         tx,
@@ -356,6 +359,12 @@ export class SellerOrdersService {
         OrderStatus.CANCELLED,
         sellerId,
         `Rejetée par le vendeur : ${reason}`,
+      );
+
+      // D7: unpaid COD → payment FAILED in the same transaction.
+      paymentFailed = await this.paymentsService.failCodPaymentOnCancellation(
+        order,
+        tx,
       );
 
       // Restore stock held since checkout.
@@ -390,6 +399,14 @@ export class SellerOrdersService {
       .catch((err) => this.logger.error('Échec de notification de rejet', err));
 
     this.trackOrderStatus(updatedOrder, OrderStatus.CANCELLED);
+    if (paymentFailed) {
+      this.analytics.capture(updatedOrder.buyerId, 'payment_failed', {
+        orderId,
+        method: PaymentMethod.COD,
+        reason: 'order_cancelled',
+        actor: 'seller',
+      });
+    }
 
     return updatedOrder;
   }
