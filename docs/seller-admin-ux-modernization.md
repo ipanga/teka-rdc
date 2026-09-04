@@ -510,3 +510,31 @@ by the responsive implementation and keyboard semantics; this checkpoint does no
 browser/device matrix or production performance test. Together with the completed Mobile and Seller
 Web branches, implementation work is ready for review integration. Physical-device camera/gallery,
 native push delivery and release-performance measurements remain store-release checks.
+
+## Release — 2026-09-04
+
+Merged into `develop` as real merge commits: #636 `687b2e3` (Seller Mobile third lot), #637 `e2d6be8`
+(Seller Web), #638 `8bfae15` (Admin); the two web branches were first synced with `develop` (docs-only
+conflicts). Released by PR **#639** (`develop → main`, merge `aba6d01`), deploy run `33844482470`
+success, back-merged by fast-forward (`main == develop == aba6d01`).
+
+### Review fixes applied before merging
+
+| Branch | Commit | Fix |
+|---|---|---|
+| seller-mobile | `40dee52` | `NotificationsState.loadMoreError` separated from `error` (refresh failure over a cached list no longer shows the load-more footer; `loadMore()` clears a stale error on a fully loaded feed); `HelpSupportScreen` via `showAppSnackbar`; pubspec note on hand-written `-v33` splash styles; +3 tests → 115 |
+| seller-web | `8a29c76` | wallet/review cards: `InlineError` + retry instead of `0 FC` / `0 avis`; drawer closes at `md` so the body scroll lock cannot get stuck after rotation/resize; `.seller-filter-active:hover` keeps the highlight; review icon uses the `warning` token |
+| admin-web | `d8448e7` | sidebar avatar restored; drawer closes at `lg`; `.admin-filter-active:hover` keeps the highlight |
+
+Review findings deliberately **not** acted on: the "ops cards show zeros on stats failure" report was
+incorrect (the cards render `--` when `stats.orderOps` is absent); the mount-only `?status=` read in
+both web apps' Products/Orders pages is a pre-existing pattern and is recorded as a deferred item in
+`STATUS.md`.
+
+### Release-head validation
+
+`pnpm type-check` clean · seller-mobile 115 tests, analyzer 17 pre-existing infos · seller-web (21 routes)
+and admin-web (32 routes) production builds clean with private `robots.txt` · API order specs 19/19 ·
+CI, CodeQL and the four `docker-build-check` jobs green on #639. Production: `seller.teka.cd` and
+`admin.teka.cd` 200 with `noindex, nofollow` + `disallow: /`; `api.teka.cd/api/v1/cities` normal.
+

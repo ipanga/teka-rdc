@@ -27,7 +27,8 @@
 #   <APP>_ASC_API_ISSUER_ID    App Store Connect API issuer id
 #   <APP>_ASC_API_KEY_P8_B64   base64 of the ASC API .p8 key
 #   <APP>_GOOGLE_SERVICE_INFO_PLIST_B64   base64 of ios/Runner/GoogleService-Info.plist
-# Optional: SENTRY_DSN_<APP>_MOBILE, SENTRY_AUTH_TOKEN (dSYM upload).
+# Optional: POSTHOG_API_KEY (shared publishable phc_ key → mobile analytics;
+#           empty → PostHog no-op), SENTRY_DSN_<APP>_MOBILE, SENTRY_AUTH_TOKEN (dSYM upload).
 #
 # One-time operator setup (match store, ASC keys, the ios-testflight
 # environment + reviewers): see docs/mobile-release.md.
@@ -193,6 +194,7 @@ jobs:
             --build-number="${BUILD_NUMBER}" \
             --dart-define-from-file=flavors/production.json \
             --dart-define=SENTRY_DSN=${{ steps.sentry.outputs.dsn }} \
+            --dart-define=POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }} \
             --dart-define=SENTRY_RELEASE=${{ github.sha }} \
             --export-options-plist="${{ github.workspace }}/fastlane/ExportOptions-${{ matrix.app }}.plist"
 
