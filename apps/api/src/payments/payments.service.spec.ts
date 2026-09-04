@@ -1,67 +1,38 @@
 import { PaymentMethod, PaymentStatus } from '@prisma/client';
 import { PaymentsService } from './payments.service';
 
-function makeDb(orderFlipCount = 1) {
-  return {
-    order: { updateMany: jest.fn().mockResolvedValue({ count: orderFlipCount }) },
-    transaction: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
-  };
-}
 const service = new PaymentsService({} as never);
+const cod = (paymentStatus: PaymentStatus, paymentMethod: PaymentMethod = PaymentMethod.COD) => ({
+  paymentMethod,
+  paymentStatus,
+});
 
-describe('PaymentsService.failCodPaymentOnCancellation (D7)', () => {
-  it('unpaid COD order → order PENDING→FAILED and its COD PAYMENT transaction → FAILED (order_cancelled), in the given transaction', async () => {
-    const db = makeDb();
-    const res = await service.failCodPaymentOnCancellation(
-      { id: 'o1', paymentMethod: PaymentMethod.COD, paymentStatus: PaymentStatus.PENDING },
-      db as never,
-    );
-    expect(res).toBe(true);
-    expect(db.order.updateMany).toHaveBeenCalledWith({
-      where: { id: 'o1', paymentStatus: PaymentStatus.PENDING },
-      data: { paymentStatus: PaymentStatus.FAILED },
-    });
-    expect(db.transaction.updateMany).toHaveBeenCalledWith({
-      where: {
-        orderId: 'o1',
-        type: 'PAYMENT',
-        provider: 'COD',
-        status: { in: [PaymentStatus.PENDING, PaymentStatus.PROCESSING] },
-      },
-      data: { status: PaymentStatus.FAILED, failureReason: 'order_cancelled' },
-    });
+describe('PaymentsService — D7 (unpaid COD cancelled → payment FAILED)', () => {
+  it('an unpaid COD order will fail: the cancelling update gets { paymentStatus: FAILED }', () => {
+    expect(service.codPaymentWillFail(cod(PaymentStatus.PENDING))).toBe(true);
+    expect(service.codPaymentFailureData(cod(PaymentStatus.PENDING))).toEqual({ paymentStatus: PaymentStatus.FAILED });
   });
 
-  it('a payment already COMPLETED, REFUNDED or FAILED is never touched, and no refund is created', async () => {
+  it('a payment already COMPLETED, REFUNDED or FAILED is never touched (no refund, no flip)', () => {
     for (const st of [PaymentStatus.COMPLETED, PaymentStatus.REFUNDED, PaymentStatus.FAILED]) {
-      const db = makeDb();
-      const res = await service.failCodPaymentOnCancellation(
-        { id: 'o1', paymentMethod: PaymentMethod.COD, paymentStatus: st },
-        db as never,
-      );
-      expect(res).toBe(false);
-      expect(db.order.updateMany).not.toHaveBeenCalled();
-      expect(db.transaction.updateMany).not.toHaveBeenCalled();
+      expect(service.codPaymentWillFail(cod(st))).toBe(false);
+      expect(service.codPaymentFailureData(cod(st))).toEqual({});
     }
   });
 
-  it('non-COD orders are out of scope', async () => {
-    const db = makeDb();
-    const res = await service.failCodPaymentOnCancellation(
-      { id: 'o1', paymentMethod: PaymentMethod.MOBILE_MONEY, paymentStatus: PaymentStatus.PENDING },
-      db as never,
-    );
-    expect(res).toBe(false);
-    expect(db.order.updateMany).not.toHaveBeenCalled();
+  it('non-COD orders are out of scope', () => {
+    expect(service.codPaymentWillFail(cod(PaymentStatus.PENDING, PaymentMethod.MOBILE_MONEY))).toBe(false);
+    expect(service.codPaymentFailureData(cod(PaymentStatus.PENDING, PaymentMethod.MOBILE_MONEY))).toEqual({});
   });
 
-  it('idempotent: a concurrent flip (conditional update count 0) reports no flip and leaves the transaction alone', async () => {
-    const db = makeDb(0);
-    const res = await service.failCodPaymentOnCancellation(
-      { id: 'o1', paymentMethod: PaymentMethod.COD, paymentStatus: PaymentStatus.PENDING },
-      db as never,
-    );
-    expect(res).toBe(false);
-    expect(db.transaction.updateMany).not.toHaveBeenCalled();
+  it('failCodTransactionOnCancellation: the COD PAYMENT transaction PENDING/PROCESSING → FAILED (order_cancelled), conditional → idempotent', async () => {
+    const db = { transaction: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) } };
+    await expect(service.failCodTransactionOnCancellation('o1', db as never)).resolves.toBe(1);
+    expect(db.transaction.updateMany).toHaveBeenCalledWith({
+      where: { orderId: 'o1', type: 'PAYMENT', provider: 'COD', status: { in: [PaymentStatus.PENDING, PaymentStatus.PROCESSING] } },
+      data: { status: PaymentStatus.FAILED, failureReason: 'order_cancelled' },
+    });
+    db.transaction.updateMany.mockResolvedValue({ count: 0 });
+    await expect(service.failCodTransactionOnCancellation('o1', db as never)).resolves.toBe(0);
   });
 });

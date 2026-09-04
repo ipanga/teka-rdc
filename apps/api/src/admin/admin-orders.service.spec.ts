@@ -310,7 +310,10 @@ describe('AdminOrdersService.markDelivered — financial side effects are transa
 describe('AdminOrdersService.adminCancelOrder — D7', () => {
   function withCancel(order: Record<string, unknown>, flip = true) {
     const made = makeService(order);
-    (made.paymentsService as Record<string, unknown>).failCodPaymentOnCancellation = jest.fn().mockResolvedValue(flip);
+    const ps = made.paymentsService as Record<string, unknown>;
+    ps.codPaymentWillFail = jest.fn().mockReturnValue(flip);
+    ps.codPaymentFailureData = jest.fn().mockReturnValue(flip ? { paymentStatus: PaymentStatus.FAILED } : {});
+    ps.failCodTransactionOnCancellation = jest.fn().mockResolvedValue(1);
     const analytics = { capture: jest.fn() };
     (made.service as unknown as { analytics: unknown }).analytics = analytics;
     return { ...made, analytics };
@@ -319,7 +322,8 @@ describe('AdminOrdersService.adminCancelOrder — D7', () => {
   it('unpaid COD cancelled by admin → payment flipped in the transaction, payment_failed once (actor admin)', async () => {
     const m = withCancel({ ...orderAt(OrderStatus.CONFIRMED), paymentStatus: PaymentStatus.PENDING, buyerId: 'b1' });
     await m.service.adminCancelOrder('o1', 'admin1', 'Rupture');
-    expect((m.paymentsService as Record<string, jest.Mock>).failCodPaymentOnCancellation).toHaveBeenCalledWith(expect.objectContaining({ id: 'o1' }), m.tx);
+    expect((m.paymentsService as Record<string, jest.Mock>).failCodTransactionOnCancellation).toHaveBeenCalledWith('o1', m.tx);
+    expect(m.tx.order.update.mock.calls[0][0].data).toMatchObject({ status: OrderStatus.CANCELLED, paymentStatus: PaymentStatus.FAILED });
     expect(m.tx.orderStatusLog.create).toHaveBeenCalledTimes(1);
     expect(m.analytics.capture).toHaveBeenCalledTimes(1);
     expect(m.analytics.capture.mock.calls[0][1]).toBe('payment_failed');

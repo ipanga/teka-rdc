@@ -212,7 +212,7 @@ export class OrdersService {
       );
     }
 
-    let paymentFailed = false;
+    const paymentFailed = this.paymentsService.codPaymentWillFail(order);
     const updatedOrder = await this.prisma.$transaction(async (tx) => {
       // Create status log
       await tx.orderStatusLog.create({
@@ -237,12 +237,12 @@ export class OrdersService {
         });
       }
 
-      // D7: an unpaid COD order that is cancelled will never be paid — flip the
-      // payment to FAILED in the same transaction (no-op for anything else).
-      paymentFailed = await this.paymentsService.failCodPaymentOnCancellation(
-        order,
-        tx,
-      );
+      // D7: an unpaid COD order that is cancelled will never be paid — its
+      // COD transaction fails in the same transaction (no-op otherwise); the
+      // order's paymentStatus flips inside the update below.
+      if (paymentFailed) {
+        await this.paymentsService.failCodTransactionOnCancellation(orderId, tx);
+      }
 
       // Update order
       return tx.order.update({
@@ -251,6 +251,7 @@ export class OrdersService {
           status: OrderStatus.CANCELLED,
           cancellationReason: reason || "Annulée par l'acheteur",
           cancelledBy: userId,
+          ...this.paymentsService.codPaymentFailureData(order),
         },
         include: {
           items: {
@@ -269,7 +270,7 @@ export class OrdersService {
           },
         },
       });
-    });
+    }, { timeout: 15_000 });
 
     // Fire-and-forget: notify buyer and seller of cancellation
     this.notificationService

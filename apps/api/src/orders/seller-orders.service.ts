@@ -350,7 +350,7 @@ export class SellerOrdersService {
       OrderStatus.CANCELLED,
     );
 
-    let paymentFailed = false;
+    const paymentFailed = this.paymentsService.codPaymentWillFail(order);
     const updatedOrder = await this.prisma.$transaction(async (tx) => {
       await this.createStatusLog(
         tx,
@@ -361,11 +361,11 @@ export class SellerOrdersService {
         `Rejetée par le vendeur : ${reason}`,
       );
 
-      // D7: unpaid COD → payment FAILED in the same transaction.
-      paymentFailed = await this.paymentsService.failCodPaymentOnCancellation(
-        order,
-        tx,
-      );
+      // D7: unpaid COD → the COD transaction fails in the same transaction;
+      // the order's paymentStatus flips inside the update below.
+      if (paymentFailed) {
+        await this.paymentsService.failCodTransactionOnCancellation(orderId, tx);
+      }
 
       // Restore stock held since checkout.
       const heldItems = await tx.orderItem.findMany({
@@ -385,13 +385,14 @@ export class SellerOrdersService {
           status: OrderStatus.CANCELLED,
           cancellationReason: reason,
           cancelledBy: sellerId,
+          ...this.paymentsService.codPaymentFailureData(order),
         },
         include: {
           items: true,
           statusLogs: { orderBy: { createdAt: 'desc' }, take: 5 },
         },
       });
-    });
+    }, { timeout: 15_000 });
 
     // Fire-and-forget: notify buyer and seller of rejection/cancellation
     this.notificationService

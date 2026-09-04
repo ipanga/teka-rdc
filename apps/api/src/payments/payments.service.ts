@@ -71,31 +71,45 @@ export class PaymentsService {
   }
 
   /**
-   * D7 — a COD order cancelled before the cash was collected: the payment
-   * will never happen. Flips `Order.paymentStatus` PENDING → FAILED and the
-   * order's COD PAYMENT transaction PENDING/PROCESSING → FAILED
-   * (`failureReason: 'order_cancelled'`) inside the caller's cancellation
-   * transaction. Returns whether the flip happened so the caller emits
-   * `payment_failed` exactly once. A payment already COMPLETED / REFUNDED /
-   * FAILED, or a non-COD order, is never touched — and no refund is created,
-   * because no money moved. Conditional update → idempotent under retries.
+   * D7 — does cancelling this order mean its payment will never happen?
+   * True for a COD order whose `paymentStatus` is still PENDING. The caller
+   * folds `{ paymentStatus: FAILED }` into its own `order.update` (one round
+   * trip, same transaction) and then calls `failCodTransactionOnCancellation`.
+   * A payment already COMPLETED / REFUNDED / FAILED, or a non-COD order, is
+   * never touched — and no refund is created, because no money moved.
    */
-  async failCodPaymentOnCancellation(
-    order: { id: string; paymentMethod: PaymentMethod; paymentStatus: PaymentStatus },
+  codPaymentWillFail(order: {
+    paymentMethod: PaymentMethod;
+    paymentStatus: PaymentStatus;
+  }): boolean {
+    return (
+      order.paymentMethod === PaymentMethod.COD &&
+      order.paymentStatus === PaymentStatus.PENDING
+    );
+  }
+
+  /** Data to merge into the cancelling `order.update` (empty when nothing changes). */
+  codPaymentFailureData(order: {
+    paymentMethod: PaymentMethod;
+    paymentStatus: PaymentStatus;
+  }): { paymentStatus?: PaymentStatus } {
+    return this.codPaymentWillFail(order)
+      ? { paymentStatus: PaymentStatus.FAILED }
+      : {};
+  }
+
+  /**
+   * The order's COD PAYMENT transaction PENDING/PROCESSING → FAILED
+   * (`failureReason: 'order_cancelled'`), inside the caller's cancellation
+   * transaction. Conditional on the current status → idempotent.
+   */
+  async failCodTransactionOnCancellation(
+    orderId: string,
     db: PrismaService | Prisma.TransactionClient = this.prisma,
-  ): Promise<boolean> {
-    if (order.paymentMethod !== PaymentMethod.COD) return false;
-    if (order.paymentStatus !== PaymentStatus.PENDING) return false;
-
-    const flipped = await db.order.updateMany({
-      where: { id: order.id, paymentStatus: PaymentStatus.PENDING },
-      data: { paymentStatus: PaymentStatus.FAILED },
-    });
-    if (flipped.count !== 1) return false;
-
-    await db.transaction.updateMany({
+  ): Promise<number> {
+    const res = await db.transaction.updateMany({
       where: {
-        orderId: order.id,
+        orderId,
         type: TransactionType.PAYMENT,
         provider: TransactionProvider.COD,
         status: { in: [PaymentStatus.PENDING, PaymentStatus.PROCESSING] },
@@ -105,7 +119,7 @@ export class PaymentsService {
         failureReason: 'order_cancelled',
       },
     });
-    return true;
+    return res.count;
   }
 
   /**

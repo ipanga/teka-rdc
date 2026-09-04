@@ -19,7 +19,11 @@ function makeService(order: Record<string, unknown> | null, flip = true) {
   };
   const notificationService = { notifyOrderCancelled: jest.fn().mockResolvedValue(undefined) };
   const analytics = { capture: jest.fn() };
-  const paymentsService = { failCodPaymentOnCancellation: jest.fn().mockResolvedValue(flip) };
+  const paymentsService = {
+    codPaymentWillFail: jest.fn().mockReturnValue(flip),
+    codPaymentFailureData: jest.fn().mockReturnValue(flip ? { paymentStatus: PaymentStatus.FAILED } : {}),
+    failCodTransactionOnCancellation: jest.fn().mockResolvedValue(1),
+  };
   const service = new SellerOrdersService(prisma as never, notificationService as never, {} as never, analytics as never, paymentsService as never);
   return { service, tx, analytics, paymentsService };
 }
@@ -33,9 +37,9 @@ describe('SellerOrdersService.rejectOrder — D7', () => {
   it('rejecting an unpaid COD order flips the payment in the same transaction and emits payment_failed once (actor seller)', async () => {
     const { service, tx, analytics, paymentsService } = makeService(pendingCod());
     await service.rejectOrder('s1', 'o1', 'Rupture de stock');
-    expect(paymentsService.failCodPaymentOnCancellation).toHaveBeenCalledWith(expect.objectContaining({ id: 'o1' }), tx);
+    expect(paymentsService.failCodTransactionOnCancellation).toHaveBeenCalledWith('o1', tx);
     expect(tx.orderStatusLog.create).toHaveBeenCalledTimes(1);
-    expect(tx.order.update.mock.calls[0][0].data).toMatchObject({ status: OrderStatus.CANCELLED, cancellationReason: 'Rupture de stock' });
+    expect(tx.order.update.mock.calls[0][0].data).toMatchObject({ status: OrderStatus.CANCELLED, cancellationReason: 'Rupture de stock', paymentStatus: PaymentStatus.FAILED });
     const events = analytics.capture.mock.calls.map((c) => c[1]);
     expect(events.filter((e) => e === 'payment_failed')).toHaveLength(1);
     const pf = analytics.capture.mock.calls.find((c) => c[1] === 'payment_failed')!;
@@ -44,8 +48,10 @@ describe('SellerOrdersService.rejectOrder — D7', () => {
   });
 
   it('a non-COD order rejected → no payment flip, no payment_failed', async () => {
-    const { service, analytics } = makeService(pendingCod(PaymentMethod.MOBILE_MONEY), false);
+    const { service, analytics, tx, paymentsService } = makeService(pendingCod(PaymentMethod.MOBILE_MONEY), false);
     await service.rejectOrder('s1', 'o1', 'Indisponible');
     expect(analytics.capture.mock.calls.map((c) => c[1])).not.toContain('payment_failed');
+    expect(paymentsService.failCodTransactionOnCancellation).not.toHaveBeenCalled();
+    expect(tx.order.update.mock.calls[0][0].data).not.toHaveProperty('paymentStatus');
   });
 });
