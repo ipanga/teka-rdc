@@ -379,6 +379,15 @@ export default function PayoutsPage() {
                 <Icon name="close" className="h-5 w-5" />
               </button>
             </div>
+            {/* The page-level banner sits under the overlay; repeat it here so the operator sees the outcome. */}
+            {feedback && (
+              <div
+                role="status"
+                className={`mx-5 mt-4 rounded-lg px-4 py-3 text-sm font-medium ${feedback.type === 'success' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}
+              >
+                {feedback.message}
+              </div>
+            )}
 
             {detailLoading && !detail ? (
               <div className="space-y-3 p-5">

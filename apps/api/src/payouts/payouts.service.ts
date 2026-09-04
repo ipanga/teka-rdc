@@ -305,8 +305,9 @@ export class PayoutsService {
           select: { status: true },
         });
         const allowed = t.from.map((s) => `"${s}"`).join(' ou ');
+        const de = /^[aeiouhéè]/i.test(t.verb) ? 'd’' : 'de ';
         throw new ConflictException(
-          `Impossible de ${t.verb} un retrait avec le statut "${now?.status ?? before.status}" (${PAYOUT_LABEL[now?.status ?? before.status]}). Seuls les retraits ${allowed} peuvent être ${t.verb === 'rejeter' ? 'rejetés' : 'traités ainsi'}.`,
+          `Impossible ${de}${t.verb} un retrait avec le statut "${now?.status ?? before.status}" (${PAYOUT_LABEL[now?.status ?? before.status]}). Seuls les retraits ${allowed} peuvent être ${t.verb === 'rejeter' ? 'rejetés' : 'traités ainsi'}.`,
         );
       }
       if (t.after) await t.after(tx);
