@@ -9,6 +9,7 @@ import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/reset_password_screen.dart';
 import '../../features/auth/presentation/screens/wrong_role_screen.dart';
 import '../../features/earnings/presentation/screens/earnings_screen.dart';
+import '../../features/earnings/presentation/screens/payout_detail_screen.dart';
 import '../../features/earnings/presentation/screens/request_payout_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
@@ -30,6 +31,7 @@ import '../../features/promotions/presentation/screens/create_promotion_screen.d
 import '../../features/promotions/presentation/screens/promotions_list_screen.dart';
 import '../../features/reviews/presentation/screens/seller_reviews_screen.dart';
 import '../../features/seller_application/presentation/screens/seller_application_screen.dart';
+import 'post_login_target.dart';
 import 'seller_main_shell.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -74,11 +76,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/auth/wrong-role';
       }
 
-      // Not authenticated and not on auth route -> redirect to login
-      if (!isAuth && !isWrongRole && !isAuthRoute) return '/auth/login';
+      // Not authenticated and not on auth route -> redirect to login, keeping
+      // the intended location (push tap / deep link) so login comes back to it.
+      if (!isAuth && !isWrongRole && !isAuthRoute) {
+        final from = PostLoginTarget.fromParam(state.uri.toString());
+        return from == null ? '/auth/login' : '/auth/login?from=$from';
+      }
 
-      // Authenticated and on auth route -> redirect to home
-      if (isAuth && isAuthRoute) return '/';
+      // Authenticated and on auth route -> back to where they were going, or home
+      if (isAuth && isAuthRoute) {
+        return PostLoginTarget.resolve(state.uri.queryParameters['from']);
+      }
 
       // Unapproved seller -> confine to the application flow.
       if (needsApplication && !isApplicationRoute) return '/devenir-vendeur';
@@ -131,7 +139,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/earnings',
-                builder: (context, state) => const EarningsScreen(),
+                // `?tab=payouts` (payout notifications) opens the Virements tab.
+                builder: (context, state) => EarningsScreen(
+                  initialTab:
+                      state.uri.queryParameters['tab'] == 'payouts' ? 1 : 0,
+                ),
               ),
             ],
           ),
@@ -184,6 +196,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/earnings/request-payout',
         builder: (context, state) => const RequestPayoutScreen(),
+      ),
+      // Payout detail — destination of payout notifications (push + feed).
+      // The id is only a hint; the API answers 404 for a payout the seller
+      // does not own and the screen shows that message.
+      GoRoute(
+        path: '/earnings/payouts/:id',
+        builder: (context, state) =>
+            PayoutDetailScreen(payoutId: state.pathParameters['id']!),
       ),
 
       // Order sub-routes (the /orders tab itself lives in the shell above)
