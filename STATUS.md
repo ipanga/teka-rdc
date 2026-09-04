@@ -7,8 +7,8 @@
 ## Active initiative
 
 **Admin Action Center · seller payout workflow · payout notifications · commission management —
-PR 2 (#646) and PR 3 (#647) merged into `develop`; PR 4 (admin payout workflow) implemented and
-browser-verified on `feat/admin-payout-workflow`, PR open (started 2026-09-04).**
+PR 2 (#646), PR 3 (#647) and PR 4 (#648, merge `dccd864`) merged into `develop`; PR 5 (commission
+administration) implemented and browser-verified on `feat/commission-admin`, PR open (started 2026-09-04).**
 Tracker: `docs/payouts-commission-action-center.md` (audit, approved decisions D1–D6, per-PR record).
 
 PR 2 `feat/api-payout-ledger-foundation` → `develop`: per-item integer commission with
@@ -36,13 +36,27 @@ end-to-end on the dev DB: the seeded 63.000 FC request went REQUESTED → APPROV
 COMPLETED with three audit rows and the approved/paid seller emails; curl proved 409 on wrong-state
 approve and on a second complete. **Side effect on the dev DB:** that seeded payout is now `COMPLETED`
 (reference `MPESA-QA-20260904-001`); the seller still has 63.000 FC available for a fresh request.
-API 552 unit, admin-web 20 vitest, production build clean.
+API 552 unit, admin-web 20 vitest, production build clean. **Merged as #648 (`dccd864`), CI green on
+`develop`.**
 
-**Next exact step:** review/merge PR 4, then PR 5 (commission default + per-seller override:
-`SellerProfile.commissionRate` migration, precedence UI, audit) and PR 6 (`PAYOUT` feed notifications
-+ seller-web/mobile deep links). No `main` merge, deployment or production write without approval —
-note the PR 2 migration inserts a 10 % global commission row **only if none exists** in production
-(materialising today's hardcoded fallback).
+PR 5 `feat/commission-admin`: re-audit confirmed the PR 2 model (seller override → category → platform
+default, resolved at delivery, snapshotted per item, never recomputed) — **no schema/migration
+change**. Added the per-seller override endpoints (`GET/PUT/DELETE /v1/admin/sellers/:spId/commission`,
+audited, 404/400/409), `GET /v1/admin/commission-settings/history`, and **optimistic concurrency**
+(`expectedPreviousRate` → 409 naming the current value) on every commission mutation after browser QA
+showed a stale screen could silently overwrite a colleague's change. admin-web: Commissions page
+reworked (default in force + last change, category rates, history, confirmations, no fabricated 10 %)
+and a seller « Commission » card (applied / specific / default side by side, radio « Utiliser le taux
+par défaut » vs « Taux spécifique », confirmations, 409 → reload). Browser-verified end to end on the
+dev DB (default 10 → 12,5 → 10 %, seller none → 8,25 → 6 → 5 → cleared, stale edit → 409, historical
+earnings untouched). API 576 unit / 141 e2e, admin-web 31 vitest, build clean. Dev DB left as found
+except six audit rows.
+
+**Next exact step:** wait for CI on the PR 5 branch, then **stop for review** (do not merge). After
+approval: PR 6 (`PAYOUT` feed notifications + seller-web/mobile deep links + parity), then PR 7
+(regression/security/perf review) and PR 8 (docs/release prep). No `main` merge, deployment or
+production write without approval — note the PR 2 migration inserts a 10 % global commission row
+**only if none exists** in production (materialising today's hardcoded fallback).
 
 ## Most recently completed initiative
 
