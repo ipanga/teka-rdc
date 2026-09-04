@@ -392,7 +392,7 @@ describe('CommissionService — optimistic concurrency (expectedPreviousRate)', 
       profile: { id: 'sp1', commissionRate: new Decimal('0.06') },
     });
     await expect(service.setSellerOverride('sp1', 0.07, 'admin1', 0.0825)).rejects.toThrow(
-      /0\.06/,
+      /valeur actuelle : 6 %/,
     );
   });
 

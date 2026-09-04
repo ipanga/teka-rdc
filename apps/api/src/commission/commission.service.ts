@@ -170,7 +170,7 @@ export class CommissionService {
         : current !== null && current.equals(this.normaliseRate(expected));
     if (!same) {
       throw new ConflictException(
-        `${what} a été modifié entre-temps (valeur actuelle : ${current === null ? 'aucun' : current.toString()}). Rechargez la page et réessayez.`,
+        `${what} a été modifié entre-temps (valeur actuelle : ${current === null ? 'aucun' : formatPercent(current)}). Rechargez la page et réessayez.`,
       );
     }
   }
@@ -450,3 +450,13 @@ export class CommissionService {
     });
   }
 }
+
+/** Decimal(5,4) fraction → French percent for operator-facing messages ("0.0825" → "8,25 %"). */
+function formatPercent(rate: Decimal): string {
+  const units = Number(rateToUnits(rate)); // ten-thousandths of 1
+  const whole = Math.floor(units / 100);
+  const hundredths = units % 100;
+  if (hundredths === 0) return `${whole} %`;
+  return `${whole},${String(hundredths).padStart(2, '0').replace(/0$/, '')} %`;
+}
+
