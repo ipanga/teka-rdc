@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
+import { Icon } from '@/components/ui/icons';
 
 interface AdminNotification {
   id: string;
@@ -112,9 +113,9 @@ export function NotificationBell() {
         type="button"
         onClick={toggle}
         aria-label="Notifications"
-        className="relative flex items-center justify-center w-9 h-9 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors"
+        className="relative flex h-11 w-11 items-center justify-center rounded-lg text-white/80 transition-colors hover:bg-white/10 hover:text-white"
       >
-        <span className="text-lg">🔔</span>
+        <Icon name="bell" className="h-5 w-5" />
         {unread > 0 && (
           <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-primary text-white text-[10px] font-semibold">
             {unread > 9 ? '9+' : unread}
@@ -123,7 +124,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute left-full top-0 ml-2 w-80 max-h-[28rem] overflow-y-auto bg-white text-foreground rounded-xl border border-border shadow-lg z-50">
+        <div className="fixed left-3 right-3 top-16 z-50 max-h-[calc(100vh-5rem)] overflow-y-auto rounded-xl border border-border bg-white text-foreground shadow-xl sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 sm:max-h-[28rem] lg:left-full lg:right-auto lg:top-0 lg:ml-2 lg:mt-0">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border sticky top-0 bg-white">
             <p className="text-sm font-semibold">Notifications</p>
             {unread > 0 && (

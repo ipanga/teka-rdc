@@ -378,3 +378,50 @@ by this lot. Mobile is not yet declared fully stable; Seller Web/Admin implement
 on finishing the remaining mobile audit/QA items, including splash.
 
 Both development preview runners were stopped after QA. No live automation or background task was created.
+
+## Admin modernization — implementation checkpoint (2026-09-04)
+
+Branch `codex/admin-web-ux-modernization`, based on `develop` `674d794`. Seller Web was completed
+immediately before this lot on `codex/seller-web-ux-modernization` (`2b44a16`). This Admin lot changes
+only `apps/admin-web` plus initiative documentation; it adds no dependency, API, schema, migration,
+environment variable or buyer-facing metadata change.
+
+### Delivered behavior
+
+- The 22 Admin destinations are grouped by Pilotage, Communauté, Catalogue, Logistique, Finance,
+  Communication and Système. Emoji navigation was replaced with one SVG icon system, 44 px targets,
+  current-page semantics and compact moderation badges.
+- The mobile drawer locks background scroll, exposes dialog semantics, closes with Escape, contains
+  focus and returns focus to its trigger. Notifications remain inside narrow viewports and open beside
+  the desktop sidebar rather than outside the screen.
+- Dashboard failures are explicit and retryable. The existing authoritative `/v1/admin/stats`
+  counters remain the only source for seller/product moderation and Teka logistics queues; missing
+  data is never presented as a successful zero. Trends have an independent recovery state.
+- Products and orders initialize directly from allowlisted `?status=` values, preserve the active
+  filter in the URL and cover the full existing product/order lifecycles. Search/date/town filters
+  have visible labels. Filtered empty, first-load error and truly empty states are distinct.
+- Wide operational tables scroll inside their cards instead of widening the page. Shared hierarchy,
+  spacing and page descriptions cover dashboard, products, orders, sellers, buyers, returns,
+  transactions, payouts and reports; every remaining route benefits from the grouped shell.
+
+### Validation and exact limits
+
+`pnpm --filter admin-web type-check`, `pnpm --filter admin-web build` and `git diff --check` pass.
+The build generates all 32 routes including private `robots.txt`; remaining warnings are existing
+raw-image/error-component/profile directives outside this redesign. Source confirms root metadata
+still disables index/follow and `robots.txt` still disallows `/`.
+
+Browser QA ran against an isolated local Admin origin and the real development API. The repository's
+development-only `set-temp-admin-password.ts` helper (which refuses `NODE_ENV=production`) enabled a
+normal email/password session for the existing ADMIN row. Read-only checks verified 17 users, three
+sellers, eight orders, three pending products, 121,000 FC revenue, all dashboard logistics counters,
+trends, notification empty state, pending-product moderation rows, complete order rows and exact
+`PENDING`/`PENDING_REVIEW` URL filters. The temporary password was cleared immediately with the same
+helper. No product approval/rejection/archive/delete, order transition, return decision, payout,
+account status, report export or settings mutation was triggered.
+
+Desktop dashboard, catalogue and order layouts were visually inspected. Mobile behavior is covered
+by the responsive implementation and keyboard semantics; this checkpoint does not claim a complete
+browser/device matrix or production performance test. Together with the completed Mobile and Seller
+Web branches, implementation work is ready for review integration. Physical-device camera/gallery,
+native push delivery and release-performance measurements remain store-release checks.

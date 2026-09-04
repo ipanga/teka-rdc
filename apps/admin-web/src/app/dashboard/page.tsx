@@ -5,6 +5,8 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import { apiFetch } from '@/lib/api-client';
+import { Icon } from '@/components/ui/icons';
+import { PageHeader } from '@/components/ui/page-header';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -72,17 +74,20 @@ export default function AdminDashboardPage() {
 
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [statsError, setStatsError] = useState(false);
   const [trends, setTrends] = useState<TrendsData | null>(null);
   const [isTrendsLoading, setIsTrendsLoading] = useState(true);
+  const [trendsError, setTrendsError] = useState(false);
   const [period, setPeriod] = useState<Period>('30d');
 
   const fetchStats = useCallback(async () => {
     setIsLoading(true);
+    setStatsError(false);
     try {
       const res = await apiFetch<AdminStats>('/v1/admin/stats');
       setStats(res.data);
     } catch {
-      // Error handled by apiFetch
+      setStatsError(true);
     } finally {
       setIsLoading(false);
     }
@@ -90,11 +95,12 @@ export default function AdminDashboardPage() {
 
   const fetchTrends = useCallback(async () => {
     setIsTrendsLoading(true);
+    setTrendsError(false);
     try {
       const res = await apiFetch<TrendsData>(`/v1/admin/stats/trends?period=${period}`);
       setTrends(res.data);
     } catch {
-      // Error handled by apiFetch
+      setTrendsError(true);
     } finally {
       setIsTrendsLoading(false);
     }
@@ -126,22 +132,25 @@ export default function AdminDashboardPage() {
   );
 
   return (
-    <div className="space-y-6 p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="text-sm font-medium text-primary">Administration Teka RDC</p>
-          <h1 className="mt-1 text-2xl font-bold text-foreground">Tableau de bord</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Bienvenue, {user?.firstName}
-          </p>
+    <div className="admin-page">
+      <PageHeader
+        eyebrow="Pilotage"
+        title="Tableau de bord"
+        description={`Bonjour ${user?.firstName ?? ''}. Les validations et opérations prioritaires sont regroupées ici.`}
+        actions={(
+          <Link href="/dashboard/orders" className="admin-button-secondary">
+            Suivre les commandes
+            <Icon name="arrow-right" className="h-4 w-4" />
+          </Link>
+        )}
+      />
+
+      {statsError && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-destructive/10 p-4 text-sm text-destructive" role="alert">
+          <span>Impossible de charger les indicateurs opérationnels.</span>
+          <button type="button" onClick={fetchStats} className="font-semibold underline underline-offset-4">Réessayer</button>
         </div>
-        <Link
-          href="/dashboard/orders"
-          className="inline-flex w-fit items-center justify-center rounded-lg border border-border bg-white px-3 py-2 text-sm font-semibold text-foreground shadow-sm hover:border-primary/30 hover:text-primary"
-        >
-          Suivre les commandes
-        </Link>
-      </div>
+      )}
 
       {/* Pending seller applications alert — only shown when there are any. */}
       {!isLoading && (stats?.pendingSellerApplicationsCount ?? 0) > 0 && (
@@ -239,7 +248,7 @@ export default function AdminDashboardPage() {
 
       {/* Order operations (Teka logistics) */}
       <div className="space-y-4">
-        <h2 className="text-lg font-semibold text-foreground">Opérations commandes</h2>
+        <div><p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Centre d’actions</p><h2 className="mt-1 text-lg font-semibold text-foreground">Opérations commandes</h2></div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
           {([
             { label: 'Nouvelles', sub: 'à confirmer', value: stats?.orderOps?.awaitingConfirmation ?? 0, href: '/dashboard/orders?status=PENDING', color: 'text-warning' },
@@ -252,7 +261,7 @@ export default function AdminDashboardPage() {
             <Link
               key={c.label}
               href={c.href}
-              className="bg-white rounded-lg border border-border p-4 shadow-sm transition-all hover:border-primary/30"
+              className="admin-card p-4 transition-colors hover:border-primary/30 hover:bg-primary/[0.02]"
             >
               {isLoading ? (
                 <div className="h-8 w-10 bg-muted rounded animate-pulse" />
@@ -294,6 +303,12 @@ export default function AdminDashboardPage() {
             <ChartSkeleton />
             <ChartSkeleton />
             <ChartSkeleton />
+          </div>
+        ) : trendsError ? (
+          <div className="admin-card p-8 text-center" role="alert">
+            <h3 className="font-semibold text-foreground">Impossible de charger les tendances</h3>
+            <p className="mt-2 text-sm text-muted-foreground">Les opérations restent disponibles. Réessayez pour afficher les graphiques.</p>
+            <button type="button" onClick={fetchTrends} className="admin-button-secondary mt-5">Réessayer</button>
           </div>
         ) : trends ? (
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">

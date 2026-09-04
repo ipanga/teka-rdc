@@ -3,6 +3,7 @@
 import { formatFC } from '@teka/shared';
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/lib/api-client';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface TransactionSeller {
   id: string;
@@ -111,10 +112,8 @@ export default function TransactionsPage() {
   const formatCDF = (centimes: string) => formatFC(centimes);
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Transactions</h1>
-      </div>
+    <div className="admin-page">
+      <PageHeader eyebrow="Finance" title="Transactions" description="Recherchez et contrôlez les mouvements financiers de la plateforme." />
 
       {/* Filters */}
       <form onSubmit={handleSearch} className="mb-6">

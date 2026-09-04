@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/lib/api-client';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface User {
   id: string;
@@ -76,11 +77,8 @@ export default function BuyersPage() {
     : 'bg-secondary text-secondary-foreground';
 
   return (
-    <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Acheteurs</h1>
-        <p className="text-sm text-muted-foreground mt-1">Gérez les comptes acheteurs</p>
-      </div>
+    <div className="admin-page">
+      <PageHeader eyebrow="Communauté" title="Acheteurs" description="Consultez et gérez les comptes acheteurs de la plateforme." />
 
       <div className="flex flex-wrap gap-2 mb-6">
         {([

@@ -1,11 +1,14 @@
 # Teka RDC — Development Progress
 
-## Current Phase: Seller / Admin UX modernization — Seller Mobile foundation + action center.
+## Current Phase: Seller / Admin UX modernization — all three surfaces implemented; review integration pending.
 ## Last completed: Search & Sales Analytics + CSV hardening + deliveredAt invariant — RELEASED (PR #632, main 9e89478, deploy 33756698400).
-## Status: mobile foundation and action center locally verified; initiative ongoing. Tracker: `docs/seller-admin-ux-modernization.md`. Last production release remains unchanged.
-## Last Updated: 2026-09-03
+## Status: Mobile remaining lot, Seller Web and Admin are complete on review branches; PR creation/integration and physical-device native checks remain. Tracker: `docs/seller-admin-ux-modernization.md`. Last production release remains unchanged.
+## Last Updated: 2026-09-04
 
 ## Post-phase chronology — condensed index (moved out of CLAUDE.md §8 on 2026-06-03)
+
+- **Sep 4, 2026** — **Admin UX modernization implemented and real-role validated** on `codex/admin-web-ux-modernization`: grouped 22 destinations by operator workflow with consistent icons; accessible mobile drawer; responsive notifications; clearer authoritative action center; URL-backed complete order/product filters; recoverable API errors; contained wide tables; shared hierarchy applied to dashboard, moderation, orders, sellers, buyers, returns, transactions, payouts and reports. Type-check/build pass. Read-only smoke QA against the development API used the real ADMIN role and verified 17 users, 3 sellers, 8 orders, 3 pending products and 121,000 FC revenue; the repository-provided temporary password was cleared immediately. No business mutation, schema/SEO/production change.
+- **Sep 4, 2026** — **Seller Web UX modernization implemented and read-only validated** on `codex/seller-web-ux-modernization` (`2b44a16`): grouped navigation, modal mobile drawer with Escape/focus containment, responsive notifications, compact authoritative action center, URL-backed order/product filters and explicit recovery/empty states. Shared hierarchy covers revenues, reviews, promotions and profile. Type-check/build pass; seeded seller QA verified auth, 294 products, pagination, notifications, wallet and empty-order states without mutations.
 
 > This is the authoritative chronological index of post-phase work. CLAUDE.md §8 now points here instead of carrying the list inline (the growing list kept tripping the 40k-char CLAUDE.md performance warning). Append new initiative one-liners here, not to CLAUDE.md. Full narratives for each item live in the dated sections further down this file and in `STATUS.md`.
 
