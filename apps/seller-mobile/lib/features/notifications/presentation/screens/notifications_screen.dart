@@ -130,7 +130,8 @@ class NotificationsScreen extends ConsumerWidget {
                         },
                         child: ListView.separated(
                           itemCount: state.items.length +
-                              (state.isLoadingMore || state.error != null
+                              (state.isLoadingMore ||
+                                      state.loadMoreError != null
                                   ? 1
                                   : 0),
                           separatorBuilder: (_, __) => const Divider(height: 1),

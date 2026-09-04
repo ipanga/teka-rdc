@@ -9,7 +9,13 @@ class NotificationsState {
   final int unread;
   final bool isLoading;
   final bool isLoadingMore;
+
+  /// First-page failure (initial load or pull-to-refresh).
   final String? error;
+
+  /// Pagination failure — kept separate so a failed refresh over a cached list
+  /// never renders the "load the rest" footer.
+  final String? loadMoreError;
   final int page;
   final int total;
   final int limit;
@@ -20,6 +26,7 @@ class NotificationsState {
     this.isLoading = false,
     this.isLoadingMore = false,
     this.error,
+    this.loadMoreError,
     this.page = 1,
     this.total = 0,
     this.limit = 30,
@@ -33,10 +40,12 @@ class NotificationsState {
     bool? isLoading,
     bool? isLoadingMore,
     String? error,
+    String? loadMoreError,
     int? page,
     int? total,
     int? limit,
     bool clearError = false,
+    bool clearLoadMoreError = false,
   }) {
     return NotificationsState(
       items: items ?? this.items,
@@ -44,6 +53,8 @@ class NotificationsState {
       isLoading: isLoading ?? this.isLoading,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       error: clearError ? null : (error ?? this.error),
+      loadMoreError:
+          clearLoadMoreError ? null : (loadMoreError ?? this.loadMoreError),
       page: page ?? this.page,
       total: total ?? this.total,
       limit: limit ?? this.limit,
@@ -63,7 +74,11 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
       : super(const NotificationsState(isLoading: true));
 
   Future<void> load() async {
-    state = state.copyWith(isLoading: true, clearError: true);
+    state = state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearLoadMoreError: true,
+    );
     try {
       final page = await _repo.getNotifications(page: 1, limit: state.limit);
       if (!mounted) return;
@@ -81,8 +96,14 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
   }
 
   Future<void> loadMore() async {
-    if (state.isLoadingMore || !state.hasMore) return;
-    state = state.copyWith(isLoadingMore: true, clearError: true);
+    if (state.isLoadingMore) return;
+    if (!state.hasMore) {
+      if (state.loadMoreError != null) {
+        state = state.copyWith(clearLoadMoreError: true);
+      }
+      return;
+    }
+    state = state.copyWith(isLoadingMore: true, clearLoadMoreError: true);
     try {
       final page = await _repo.getNotifications(
         page: state.page + 1,
@@ -100,7 +121,7 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
       if (!mounted) return;
       state = state.copyWith(
         isLoadingMore: false,
-        error: friendlyErrorMessage(e),
+        loadMoreError: friendlyErrorMessage(e),
       );
     }
   }

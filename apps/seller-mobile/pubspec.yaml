@@ -82,6 +82,9 @@ flutter_launcher_icons:
 # splashes). iOS + Android < 12 show a compact, density-friendly "teka.cd" wordmark on white.
 # Android 12+ masks the existing white "T" glyph over the seller charcoal color.
 # There is no Flutter-side splash or artificial delay.
+# NOTE: android/app/src/main/res/values{,-night}-v33/styles.xml are hand-written
+# (icon_preferred on Android 13+); `flutter_native_splash:create` only regenerates
+# the -v31 sidecars, so update the -v33 files by hand when the splash changes.
 flutter_native_splash:
   color: "#FFFFFF"
   image: assets/brand/splash_logo.png

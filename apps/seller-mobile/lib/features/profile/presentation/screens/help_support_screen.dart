@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 
 class HelpSupportScreen extends StatelessWidget {
   const HelpSupportScreen({super.key});
@@ -10,12 +11,7 @@ class HelpSupportScreen extends StatelessWidget {
 
   void _copy(BuildContext context, String value, String label) {
     Clipboard.setData(ClipboardData(text: value));
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$label copié'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    showAppSnackbar(context, message: '$label copié');
   }
 
   @override
