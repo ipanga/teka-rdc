@@ -7,7 +7,8 @@
 ## Active initiative
 
 **Admin Action Center · seller payout workflow · payout notifications · commission management —
-PR 2 merged into `develop` (#646); PR 3 (Admin Action Center) implemented and browser-verified, PR open (started 2026-09-04).**
+PR 2 (#646) and PR 3 (#647) merged into `develop`; PR 4 (admin payout workflow) implemented and
+browser-verified on `feat/admin-payout-workflow`, PR open (started 2026-09-04).**
 Tracker: `docs/payouts-commission-action-center.md` (audit, approved decisions D1–D6, per-PR record).
 
 PR 2 `feat/api-payout-ledger-foundation` → `develop`: per-item integer commission with
@@ -25,10 +26,23 @@ by construction, spec-pinned), `/v1/admin/stats.actionCenter`, dashboard « À t
 deep links, `?status=` honoured on payouts and sellers (applications endpoint), admin-web vitest.
 Browser-verified on the dev DB (1 payout à approuver 63.000 FC, 3 produits) — see the tracker.
 
-**Next exact step:** review/merge PR 3, then PR 4 (admin payout queue/detail/actions with reasons,
-references, actors, balance context). No `main` merge, deployment or production
-write without approval — note the migration inserts a 10 % global commission row **only if none
-exists** in production (materialising today's hardcoded fallback).
+PR 4 `feat/admin-payout-workflow`: `GET /v1/admin/payouts/:id` carries balances + resolved actors +
+the audit trail (additive); stale/concurrent transitions answer **409**; reject reason 5–500 chars;
+admin-web `lib/payout-workflow.ts` mirrors the state machine (12 vitest) and the payouts page gained
+per-state actions, confirmation dialogs (reference required to mark paid, reason required to reject,
+« Transfert échoué » from PROCESSING), a detail drawer (financial context, snapshotted destination,
+timeline with actors, reserved earnings, audit history) and stale-state handling. Browser-verified
+end-to-end on the dev DB: the seeded 63.000 FC request went REQUESTED → APPROVED → PROCESSING →
+COMPLETED with three audit rows and the approved/paid seller emails; curl proved 409 on wrong-state
+approve and on a second complete. **Side effect on the dev DB:** that seeded payout is now `COMPLETED`
+(reference `MPESA-QA-20260904-001`); the seller still has 63.000 FC available for a fresh request.
+API 552 unit, admin-web 20 vitest, production build clean.
+
+**Next exact step:** review/merge PR 4, then PR 5 (commission default + per-seller override:
+`SellerProfile.commissionRate` migration, precedence UI, audit) and PR 6 (`PAYOUT` feed notifications
++ seller-web/mobile deep links). No `main` merge, deployment or production write without approval —
+note the PR 2 migration inserts a 10 % global commission row **only if none exists** in production
+(materialising today's hardcoded fallback).
 
 ## Most recently completed initiative
 

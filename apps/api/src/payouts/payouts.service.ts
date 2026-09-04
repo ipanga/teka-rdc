@@ -297,13 +297,17 @@ export class PayoutsService {
       });
       if (result.count !== 1) {
         // Lost the race (or wrong state). Re-read for an accurate message.
+        // 409: the payout is not in a state that accepts this transition —
+        // either it never was, or another admin moved it first. Clients
+        // refresh and show the current state instead of assuming success.
         const now = await tx.payout.findUnique({
           where: { id: payoutId },
           select: { status: true },
         });
         const allowed = t.from.map((s) => `"${s}"`).join(' ou ');
-        throw new BadRequestException(
-          `Impossible de ${t.verb} un retrait avec le statut "${now?.status ?? before.status}" (${PAYOUT_LABEL[now?.status ?? before.status]}). Seuls les retraits ${allowed} peuvent être ${t.verb === 'rejeter' ? 'rejetés' : 'traités ainsi'}.`,
+        const de = /^[aeiouhéè]/i.test(t.verb) ? 'd’' : 'de ';
+        throw new ConflictException(
+          `Impossible ${de}${t.verb} un retrait avec le statut "${now?.status ?? before.status}" (${PAYOUT_LABEL[now?.status ?? before.status]}). Seuls les retraits ${allowed} peuvent être ${t.verb === 'rejeter' ? 'rejetés' : 'traités ainsi'}.`,
         );
       }
       if (t.after) await t.after(tx);
@@ -460,6 +464,57 @@ export class PayoutsService {
       throw new NotFoundException('Demande de retrait non trouvée');
     }
 
-    return payout;
+    // Decision context for the operator: the seller's current balances (so a
+    // rejection or a clawback can be weighed), who did what and when, and the
+    // audit trail. Actor ids on the row are plain uuids → resolve names once.
+    const actorIds: string[] = [
+      payout.approvedById,
+      payout.processingById,
+      payout.completedById,
+      payout.rejectedById,
+    ].filter((id): id is string => !!id);
+    const [balances, auditTrail] = await Promise.all([
+      this.earningsService.getBalances(payout.sellerProfileId),
+      this.audit.listForEntity('payout', payoutId),
+    ]);
+    for (const a of auditTrail) actorIds.push(a.actorId);
+    const uniqueActorIds = Array.from(new Set(actorIds));
+    const actorRows = uniqueActorIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: uniqueActorIds } },
+          select: { id: true, firstName: true, lastName: true },
+        })
+      : [];
+    const actorName = (id: string | null) => {
+      if (!id) return null;
+      const u = actorRows.find((r) => r.id === id);
+      return u ? { id, firstName: u.firstName, lastName: u.lastName } : { id, firstName: null, lastName: null };
+    };
+
+    return {
+      ...payout,
+      balances: {
+        availableCDF: balances.availableCDF.toString(),
+        pendingCDF: balances.pendingCDF.toString(),
+        totalEarnedCDF: balances.totalEarnedCDF.toString(),
+        totalCommissionCDF: balances.totalCommissionCDF.toString(),
+      },
+      actors: {
+        approvedBy: actorName(payout.approvedById),
+        processingBy: actorName(payout.processingById),
+        completedBy: actorName(payout.completedById),
+        rejectedBy: actorName(payout.rejectedById),
+      },
+      auditTrail: auditTrail.map((a) => ({
+        id: a.id,
+        action: a.action,
+        actorId: a.actorId,
+        actorName: actorName(a.actorId),
+        before: a.before,
+        after: a.after,
+        reason: a.reason,
+        createdAt: a.createdAt,
+      })),
+    };
   }
 }
