@@ -22,6 +22,60 @@ class ProductFormScreen extends ConsumerStatefulWidget {
   ConsumerState<ProductFormScreen> createState() => _ProductFormScreenState();
 }
 
+/// Resolves an edit route from its URL even after a cold start or deep link.
+/// [initialProduct] keeps normal in-app navigation instant, while the provider
+/// supplies the same form when GoRouter has no transient `extra` payload.
+class ProductEditScreen extends ConsumerWidget {
+  final String productId;
+  final SellerProductModel? initialProduct;
+
+  const ProductEditScreen({
+    super.key,
+    required this.productId,
+    this.initialProduct,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (initialProduct != null) {
+      return ProductFormScreen(product: initialProduct);
+    }
+    return ref.watch(productDetailProvider(productId)).when(
+          loading: () => const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          ),
+          error: (error, _) => Scaffold(
+            appBar: AppBar(title: const Text("Modifier le produit")),
+            body: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline,
+                        size: 48, color: TekaColors.destructive),
+                    const SizedBox(height: 12),
+                    const Text(
+                      "Impossible de charger ce produit.",
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: () =>
+                          ref.invalidate(productDetailProvider(productId)),
+                      icon: const Icon(Icons.refresh),
+                      label: const Text("Réessayer"),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          data: (product) => ProductFormScreen(product: product),
+        );
+  }
+}
+
 class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   final _formKey = GlobalKey<FormState>();
 
@@ -40,10 +94,14 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
 
   List<AttributeModel> _attributes = [];
   bool _isLoadingAttributes = false;
+  String? _attributesError;
   final Map<String, String> _specValues = {};
 
   String? _brandId;
   List<BrandOption> _brands = [];
+  bool _isLoadingBrands = false;
+  String? _brandsError;
+  int _categoryGeneration = 0;
 
   bool get _isEditing => widget.product != null;
 
@@ -90,12 +148,22 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   }
 
   Future<void> _loadBrands(String categoryId) async {
+    final generation = _categoryGeneration;
+    if (mounted) {
+      setState(() {
+        _isLoadingBrands = true;
+        _brandsError = null;
+      });
+    }
     try {
       final repository = ref.read(productsRepositoryProvider);
       final brands = await repository.getBrands(categoryId);
-      if (mounted) {
+      if (mounted &&
+          generation == _categoryGeneration &&
+          _selectedCategoryId == categoryId) {
         setState(() {
           _brands = brands;
+          _isLoadingBrands = false;
           // Drop a stale selection that isn't offered in this category.
           if (_brandId != null && !brands.any((b) => b.id == _brandId)) {
             _brandId = null;
@@ -103,26 +171,43 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
         });
       }
     } catch (_) {
-      if (mounted) setState(() => _brands = []);
+      if (mounted &&
+          generation == _categoryGeneration &&
+          _selectedCategoryId == categoryId) {
+        setState(() {
+          _brands = [];
+          _isLoadingBrands = false;
+          _brandsError = "Impossible de charger les marques.";
+        });
+      }
     }
   }
 
   Future<void> _loadAttributes(String categoryId) async {
-    setState(() => _isLoadingAttributes = true);
+    final generation = _categoryGeneration;
+    setState(() {
+      _isLoadingAttributes = true;
+      _attributesError = null;
+    });
     try {
       final repository = ref.read(productsRepositoryProvider);
       final attrs = await repository.getCategoryAttributes(categoryId);
-      if (mounted) {
+      if (mounted &&
+          generation == _categoryGeneration &&
+          _selectedCategoryId == categoryId) {
         setState(() {
           _attributes = attrs;
           _isLoadingAttributes = false;
         });
       }
     } catch (_) {
-      if (mounted) {
+      if (mounted &&
+          generation == _categoryGeneration &&
+          _selectedCategoryId == categoryId) {
         setState(() {
           _attributes = [];
           _isLoadingAttributes = false;
+          _attributesError = "Impossible de charger les caractéristiques.";
         });
       }
     }
@@ -211,11 +296,14 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               selectedCategoryId: _selectedCategoryId,
               onCategorySelected: (cat) {
                 setState(() {
+                  _categoryGeneration++;
                   _selectedCategoryId = cat.id;
                   _specValues.clear();
                   _attributes = [];
                   _brandId = null;
                   _brands = [];
+                  _brandsError = null;
+                  _attributesError = null;
                 });
                 _loadAttributes(cat.id);
                 _loadBrands(cat.id);
@@ -224,8 +312,20 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             const SizedBox(height: 16),
 
             // Brand (scoped to the chosen subcategory; hidden if none offered)
-            if (_brands.isNotEmpty) ...[
+            if (_isLoadingBrands) ...[
+              const LinearProgressIndicator(),
+              const SizedBox(height: 8),
+              const Text("Chargement des marques…"),
+              const SizedBox(height: 16),
+            ] else if (_brandsError != null) ...[
+              _InlineLoadError(
+                message: _brandsError!,
+                onRetry: () => _loadBrands(_selectedCategoryId!),
+              ),
+              const SizedBox(height: 16),
+            ] else if (_brands.isNotEmpty) ...[
               DropdownButtonFormField<String>(
+                isExpanded: true,
                 initialValue: _brandId,
                 decoration: InputDecoration(labelText: "Marque"),
                 hint: Text("Sélectionner une marque"),
@@ -235,7 +335,10 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                     child: Text("Sans marque"),
                   ),
                   ..._brands.map(
-                    (b) => DropdownMenuItem(value: b.id, child: Text(b.name)),
+                    (b) => DropdownMenuItem(
+                      value: b.id,
+                      child: Text(b.name, overflow: TextOverflow.ellipsis),
+                    ),
                   ),
                 ],
                 onChanged: (v) => setState(() => _brandId = v),
@@ -268,45 +371,63 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             const SizedBox(height: 16),
 
             // Prices
-            Row(
-              children: [
-                Expanded(
-                  child: TextFormField(
-                    controller: _priceCDFController,
-                    decoration: InputDecoration(
-                      labelText: "Prix FC",
-                      suffixText: 'FC',
-                    ),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onChanged: (_) => setState(() {}),
-                    validator: (v) {
-                      if (v == null || v.trim().isEmpty) {
-                        return "Prix FC requis";
-                      }
-                      final amount = int.tryParse(v);
-                      if (amount == null || amount <= 0) {
-                        return "Prix FC invalide";
-                      }
-                      return null;
-                    },
-                    textInputAction: TextInputAction.next,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final stack = constraints.maxWidth < 420 ||
+                    MediaQuery.textScalerOf(context).scale(1) > 1.3;
+                final cdf = TextFormField(
+                  controller: _priceCDFController,
+                  decoration: InputDecoration(
+                    labelText: "Prix FC",
+                    suffixText: 'FC',
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: _priceUSDController,
-                    decoration: InputDecoration(
-                      labelText: "Prix USD",
-                      suffixText: 'USD',
-                    ),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    textInputAction: TextInputAction.next,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  onChanged: (_) => setState(() {}),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) {
+                      return "Prix FC requis";
+                    }
+                    final amount = int.tryParse(v);
+                    if (amount == null || amount <= 0) {
+                      return "Prix FC invalide";
+                    }
+                    return null;
+                  },
+                  textInputAction: TextInputAction.next,
+                );
+                final usd = TextFormField(
+                  controller: _priceUSDController,
+                  decoration: InputDecoration(
+                    labelText: "Prix USD",
+                    suffixText: 'USD',
                   ),
-                ),
-              ],
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return null;
+                    final amount =
+                        double.tryParse(v.trim().replaceAll(',', '.'));
+                    return amount == null || amount <= 0
+                        ? "Prix USD invalide"
+                        : null;
+                  },
+                  textInputAction: TextInputAction.next,
+                );
+                if (stack) {
+                  return Column(
+                    children: [cdf, const SizedBox(height: 16), usd],
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: cdf),
+                    const SizedBox(width: 12),
+                    Expanded(child: usd),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 16),
 
@@ -369,7 +490,12 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
                 padding: EdgeInsets.symmetric(vertical: 8),
                 child: Center(child: CircularProgressIndicator()),
               )
-            else if (_attributes.isNotEmpty) ...[
+            else if (_attributesError != null) ...[
+              _InlineLoadError(
+                message: _attributesError!,
+                onRetry: () => _loadAttributes(_selectedCategoryId!),
+              ),
+            ] else if (_attributes.isNotEmpty) ...[
               Text(
                 "Caractéristiques du produit",
                 style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -468,7 +594,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
 
       String? priceUSDCentimes;
       if (_priceUSDController.text.trim().isNotEmpty) {
-        final priceUSDAmount = double.parse(_priceUSDController.text.trim());
+        final priceUSDAmount = double.parse(
+          _priceUSDController.text.trim().replaceAll(',', '.'),
+        );
         priceUSDCentimes = (priceUSDAmount * 100).round().toString();
       }
 
@@ -515,7 +643,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       }
 
       // Refresh products list
-      ref.invalidate(sellerProductsProvider);
+      ref.read(sellerProductsProvider.notifier).loadProducts();
 
       if (mounted) {
         if (_isEditing) {
@@ -543,3 +671,31 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
   }
 }
 
+class _InlineLoadError extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _InlineLoadError({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: TekaColors.destructive.withValues(alpha: 0.06),
+        border: Border.all(
+          color: TekaColors.destructive.withValues(alpha: 0.25),
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: TekaColors.destructive),
+          const SizedBox(width: 8),
+          Expanded(child: Text(message)),
+          TextButton(onPressed: onRetry, child: const Text("Réessayer")),
+        ],
+      ),
+    );
+  }
+}

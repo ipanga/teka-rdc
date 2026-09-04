@@ -2,15 +2,26 @@
 
 **Started:** 2026-09-03
 **Surfaces:** `apps/api`, `apps/admin-web`, `apps/buyer-web`, `apps/buyer-mobile`, `apps/seller-mobile`
-**Status: INTEGRATED into `develop` on 2026-09-03.** All six PRs merged in the audited order —
-#625 `33a816b` → #626 `3ac6c7c` → #627 `9075d56` → #629 `3a1c0be` → #630 `db7628d` → #628 `9efe42a`.
-Final `develop` = **`9efe42a`** (baseline `307ad93`). Real merge commits, never squashed.
+**Status: RELEASED TO PRODUCTION 2026-09-03.** Release PR **#632** (`develop → main`, merge commit
+**`9e89478`**, 18 commits / 44 files), deploy run **`33756698400`** success, back-merged by
+fast-forward so `main == develop == 9e89478`.
 
-**NOT released to `main`, NOT deployed, and the migration has NOT been run against production.**
+All three workstreams are complete and live — **B** (search analytics, #629 write path + #630 admin
+read surface), **C** (sales analytics, #627 on the corrected foundations of #626) and **D** (CSV
+hardening, #625) — together with the `DELIVERED ⇒ deliveredAt` prerequisite (#628).
 
-Integrated gates on the final SHA: API **507 unit / 135 e2e** (0 failures in 8 consecutive e2e runs) ·
+Merged into `develop` in this order: #625 `33a816b` → #626 `3ac6c7c` → #627 `9075d56` →
+#629 `3a1c0be` → #630 `db7628d` → #628 `9efe42a` (+ #631 `b86dfe3`, CONTRIBUTING). Real merge
+commits, never squashed.
+
+Integrated gates before release: API **507 unit / 135 e2e** (0 failures in 8 consecutive e2e runs) ·
 buyer-web 74 · buyer-mobile 238 · seller-mobile 42 (untouched) · admin-web build clean · type-check
 clean across 5 projects.
+
+**The migration auto-applied exactly once**, in the deploy's expand phase before the rolling swap;
+`_manual_migrations` 31 → 32, recorded once, no duplicates. It was **not** run by hand.
+Production verification (schema, health, telemetry end-to-end, admin analytics, authorization, SEO) is
+recorded in `STATUS.md` → "Most recently completed initiative" and is not repeated here.
 
 ## Why this exists
 
@@ -566,6 +577,13 @@ Auth-401 and Health shapes already recorded.
 - **The Next.js dev server writes a search row twice**; the production build writes one. A dev
   artifact — do not "fix" it from a dev observation.
 - **`SearchSynonym` has no admin CRUD** (see PR 5). The recommended next PR.
+- **The e2e suite's pre-existing 401 flake** — three observed shapes (`Auth`, `Health Check`,
+  `Payments`) at roughly 5 % of runs on clean `develop`. Not introduced here; re-run before blaming a
+  branch.
+- **Unrelated Dependabot PRs** (#549, #565, #595) remain open and were untouched.
+
+**None of these was fixed as part of the release, deliberately.** `SearchSynonym` admin CRUD is the
+recommended next piece of work.
 
 ## Remaining PRs
 

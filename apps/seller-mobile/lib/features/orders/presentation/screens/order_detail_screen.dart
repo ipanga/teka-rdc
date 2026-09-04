@@ -215,7 +215,8 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                     if (!order.financials!.isFinal) ...[
                       const SizedBox(height: 6),
                       const Text(
-                        "Crédité à votre solde à la livraison.",
+                        "À la livraison, ce montant entre dans la fenêtre "
+                        "de retour de 2 jours avant de devenir disponible.",
                         style: TextStyle(
                           fontSize: 11,
                           color: TekaColors.mutedForeground,
@@ -359,14 +360,14 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                       onReject: () => _showRejectDialog(context, order),
                       onProcess: () => _performAction(
                         context,
-                        "Preparer",
+                        "Préparer",
                         () => ref
                             .read(sellerOrdersRepositoryProvider)
                             .processOrder(order.id),
                       ),
                       onReadyForPickup: () => _performAction(
                         context,
-                        "Prête pour collecte",
+                        "Marquer prête pour collecte",
                         () => ref
                             .read(sellerOrdersRepositoryProvider)
                             .markReadyForPickup(order.id),
@@ -379,9 +380,9 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
   }
 
   bool _hasActions(OrderStatus status) {
-    return status != OrderStatus.delivered &&
-        status != OrderStatus.cancelled &&
-        status != OrderStatus.returned;
+    return status == OrderStatus.pending ||
+        status == OrderStatus.confirmed ||
+        status == OrderStatus.processing;
   }
 
   Widget _buildSectionCard(
@@ -452,24 +453,26 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
   Widget _buildPriceRow(String label, String value,
       {bool isBold = false, Color? color}) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
-            color: isBold ? TekaColors.foreground : TekaColors.mutedForeground,
-          ),
-        ),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: isBold ? 15 : 13,
-            fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
-            color: color ?? TekaColors.foreground,
-          ),
-        ),
+        Expanded(
+            child: Text(label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
+                  color: isBold
+                      ? TekaColors.foreground
+                      : TekaColors.mutedForeground,
+                ))),
+        const SizedBox(width: 12),
+        Expanded(
+            child: Text(value,
+                textAlign: TextAlign.end,
+                style: TextStyle(
+                  fontSize: isBold ? 15 : 13,
+                  fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
+                  color: color ?? TekaColors.foreground,
+                ))),
       ],
     );
   }
@@ -645,7 +648,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
     switch (method.toUpperCase()) {
       case 'COD':
       case 'CASH_ON_DELIVERY':
-        return "Paiement a la livraison";
+        return "Paiement à la livraison";
       case 'MOBILE_MONEY':
       case 'MPESA':
       case 'AIRTEL':
@@ -662,9 +665,9 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
         return "En attente";
       case 'COMPLETED':
       case 'PAID':
-        return "Paye";
+        return "Payé";
       case 'FAILED':
-        return "Echoue";
+        return "Échoué";
       default:
         return status;
     }
@@ -675,7 +678,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
       case 'PENDING':
         return "En attente";
       case 'CONFIRMED':
-        return "Confirmee";
+        return "Confirmée";
       case 'PROCESSING':
         return "En préparation";
       case 'READY_FOR_TEKA_PICKUP':
@@ -683,15 +686,15 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
       case 'RECEIVED_AT_TEKA':
         return "Reçue par Teka";
       case 'SHIPPED':
-        return "Expediee";
+        return "Expédiée";
       case 'OUT_FOR_DELIVERY':
         return "En livraison";
       case 'DELIVERED':
-        return "Livree";
+        return "Livrée";
       case 'CANCELLED':
-        return "Annulee";
+        return "Annulée";
       case 'RETURNED':
-        return "Retournee";
+        return "Retournée";
       default:
         return status;
     }
@@ -729,11 +732,11 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
     try {
       await action();
       ref.invalidate(sellerOrderDetailProvider(widget.orderId));
-      ref.invalidate(sellerOrdersProvider);
+      ref.read(sellerOrdersProvider.notifier).refresh();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Action effectuee"),
+            content: Text("Action effectuée"),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -808,11 +811,11 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
           .read(sellerOrdersRepositoryProvider)
           .rejectOrder(order.id, reason);
       ref.invalidate(sellerOrderDetailProvider(widget.orderId));
-      ref.invalidate(sellerOrdersProvider);
+      ref.read(sellerOrdersProvider.notifier).refresh();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Action effectuee"),
+            content: Text("Action effectuée"),
             behavior: SnackBarBehavior.floating,
           ),
         );

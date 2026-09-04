@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../router/app_router.dart';
+import '../providers/seller_refresh_provider.dart';
 import 'notification_router.dart';
 import 'push_api.dart';
 import 'push_service.dart';
@@ -37,6 +38,7 @@ class PushController {
   ProviderSubscription<AuthState>? _authSub;
   StreamSubscription<String>? _tokenSub;
   StreamSubscription<RemoteMessage>? _onOpenedSub;
+  StreamSubscription<RemoteMessage>? _onMessageSub;
   String? _registeredToken;
 
   void bind() {
@@ -68,6 +70,9 @@ class PushController {
     //      that launched the app (null if the user opened normally).
     //      Deferred to post-first-frame so the GoRouter is wired
     //      before we try to navigate.
+    _onMessageSub = FirebaseMessaging.onMessage.listen((message) {
+      _ref.read(sellerRefreshProvider.notifier).handlePush(message.data);
+    });
     PushService.instance.onTap = _handleTapData;
     _onOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen((msg) {
       _handleTapData(msg.data);
@@ -79,6 +84,7 @@ class PushController {
   }
 
   void _handleTapData(Map<String, dynamic> data) {
+    _ref.read(sellerRefreshProvider.notifier).handlePush(data);
     final route = NotificationRouter.routeForData(data);
     if (route == null) {
       _log('tap ignored — no route for $data');
@@ -153,6 +159,7 @@ class PushController {
     _authSub?.close();
     _tokenSub?.cancel();
     _onOpenedSub?.cancel();
+    _onMessageSub?.cancel();
     // Clear the foreground-tap callback so PushService doesn't hold a
     // stale Ref reference after dispose. Defensive — providers in
     // production typically outlive any dispose call.

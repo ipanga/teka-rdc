@@ -199,6 +199,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   subtitle: 'Alertes de commandes et produits',
                   onTap: () => _open('/notifications', 'notifications'),
                 ),
+                _AccountMenuTile(
+                  icon: Icons.help_outline,
+                  title: 'Aide et support',
+                  subtitle: 'Contacts et informations utiles',
+                  onTap: () => _open('/profile/help', 'help_support'),
+                ),
               ],
             ),
             _LogoutButton(onPressed: _confirmLogout),
@@ -293,7 +299,7 @@ class _SellerHeader extends StatelessWidget {
               children: [
                 Text(
                   businessName,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
@@ -304,7 +310,7 @@ class _SellerHeader extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   displayName,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.72),
@@ -316,7 +322,7 @@ class _SellerHeader extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     email!,
-                    maxLines: 1,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.58),
@@ -456,7 +462,7 @@ class _AccountMenuTile extends StatelessWidget {
           ? null
           : Text(
               subtitle!,
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
       trailing: const Icon(Icons.chevron_right_rounded),

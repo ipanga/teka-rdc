@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { apiFetch, SURFACE } from '@/lib/api-client';
 import { formatFC } from '@teka/shared';
 import { SearchAnalyticsPanel } from '@/components/reports/search-analytics-panel';
+import { PageHeader } from '@/components/ui/page-header';
 
 type ReportTab =
   | 'sales'
@@ -192,8 +193,8 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-foreground mb-6">Rapports</h1>
+    <div className="admin-page">
+      <PageHeader eyebrow="Analyse" title="Rapports" description="Analysez l’activité, les ventes et les recherches sur les périodes disponibles." />
 
       {/* Tabs */}
       <div className="flex gap-2 mb-6 flex-wrap">

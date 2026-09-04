@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/theme/teka_colors.dart';
+import 'package:go_router/go_router.dart';
+import '../../../../core/widgets/seller_filter_bar.dart';
+import '../../../../core/widgets/seller_list_state.dart';
 import '../../data/models/order_model.dart';
 import '../providers/orders_provider.dart';
 import '../widgets/order_card.dart';
 
 class OrdersListScreen extends ConsumerStatefulWidget {
-  const OrdersListScreen({super.key});
+  const OrdersListScreen(
+      {super.key, this.statusQuery, this.syncWithRoute = false});
+  final String? statusQuery;
+  final bool syncWithRoute;
 
   @override
   ConsumerState<OrdersListScreen> createState() => _OrdersListScreenState();
@@ -19,6 +24,32 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _applyRoute();
+  }
+
+  @override
+  void didUpdateWidget(covariant OrdersListScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.statusQuery != widget.statusQuery) _applyRoute();
+  }
+
+  void _applyRoute() {
+    if (!widget.syncWithRoute) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref
+          .read(sellerOrdersProvider.notifier)
+          .setStatusFilter(orderStatusFromQuery(widget.statusQuery));
+    });
+  }
+
+  void _selectStatus(OrderStatus? status) {
+    ref.read(sellerOrdersProvider.notifier).setStatusFilter(status);
+    if (widget.syncWithRoute) {
+      context.go(status == null
+          ? '/orders'
+          : '/orders?status=${orderStatusToApi(status)}');
+    }
   }
 
   @override
@@ -28,8 +59,11 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
+    final state = ref.read(sellerOrdersProvider);
+    if (!state.isLoading &&
+        state.error == null &&
+        _scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200) {
       ref.read(sellerOrdersProvider.notifier).loadMore();
     }
   }
@@ -37,87 +71,66 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(sellerOrdersProvider);
+    final notifier = ref.read(sellerOrdersProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text("Commandes"),
-      ),
-      body: Column(
-        children: [
-          _buildFilterChips(context, state),
-          Expanded(
-            child: state.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : state.error != null && state.orders.isEmpty
-                    ? _buildErrorState(context, state.error!)
-                    : state.orders.isEmpty
-                        ? _buildEmptyState(context)
-                        : _buildOrdersList(context, state),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFilterChips(BuildContext context, SellerOrdersState state) {
-    final filters = <_FilterItem>[
-      _FilterItem(null, "Toutes"),
-      _FilterItem(OrderStatus.pending, "En attente"),
-      _FilterItem(OrderStatus.confirmed, "Confirmées"),
-      _FilterItem(OrderStatus.processing, "En préparation"),
-      _FilterItem(OrderStatus.readyForTekaPickup, "Prête pour collecte"),
-      _FilterItem(OrderStatus.outForDelivery, "En livraison"),
-      _FilterItem(OrderStatus.delivered, "Livrées"),
-      _FilterItem(OrderStatus.cancelled, "Annulées"),
-    ];
-
-    return SizedBox(
-      height: 52,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: filters.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final filter = filters[index];
-          final isSelected = state.selectedStatus == filter.status;
-          return FilterChip(
-            label: Text(filter.label),
-            selected: isSelected,
-            selectedColor: TekaColors.tekaRed.withValues(alpha: 0.15),
-            checkmarkColor: TekaColors.tekaRed,
-            onSelected: (_) {
-              ref
-                  .read(sellerOrdersProvider.notifier)
-                  .setStatusFilter(filter.status);
-            },
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildErrorState(BuildContext context, String error) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
+      appBar: AppBar(title: const Text('Commandes')),
+      body: SafeArea(
+        top: false,
+        bottom: false,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline,
-                size: 48, color: TekaColors.destructive),
-            const SizedBox(height: 12),
-            Text(
-              "Une erreur est survenue. Veuillez réessayer.",
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: TekaColors.mutedForeground),
+            SellerFilterBar<OrderStatus>(
+              selected: state.selectedStatus,
+              onSelected: _selectStatus,
+              options: const [
+                SellerFilterOption(null, 'Toutes'),
+                SellerFilterOption(OrderStatus.pending, 'En attente'),
+                SellerFilterOption(OrderStatus.confirmed, 'Confirmées'),
+                SellerFilterOption(OrderStatus.processing, 'En préparation'),
+                SellerFilterOption(
+                    OrderStatus.readyForTekaPickup, 'Prêtes pour collecte'),
+                SellerFilterOption(
+                    OrderStatus.receivedAtTeka, 'Reçues par Teka'),
+                SellerFilterOption(OrderStatus.outForDelivery, 'En livraison'),
+                SellerFilterOption(OrderStatus.delivered, 'Livrées'),
+                SellerFilterOption(OrderStatus.cancelled, 'Annulées'),
+                SellerFilterOption(OrderStatus.returned, 'Retournées'),
+                SellerFilterOption(
+                    OrderStatus.shipped, 'Expédiées (ancien statut)'),
+              ],
             ),
-            const SizedBox(height: 16),
-            ElevatedButton.icon(
-              onPressed: () =>
-                  ref.read(sellerOrdersProvider.notifier).loadOrders(),
-              icon: const Icon(Icons.refresh),
-              label: Text("Réessayer"),
+            Expanded(
+              child: state.isLoading
+                  ? const SellerListLoading(label: 'Chargement des commandes')
+                  : RefreshIndicator(
+                      onRefresh: notifier.refresh,
+                      child: state.orders.isEmpty
+                          ? SellerListState(child: _message(state))
+                          : ListView.builder(
+                              controller: _scrollController,
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                              itemCount: state.orders.length +
+                                  (state.isLoadingMore || state.error != null
+                                      ? 1
+                                      : 0),
+                              itemBuilder: (context, index) {
+                                if (index < state.orders.length) {
+                                  return OrderCard(order: state.orders[index]);
+                                }
+                                if (state.error != null) return _message(state);
+                                return const Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: Center(
+                                      child: CircularProgressIndicator(
+                                    semanticsLabel:
+                                        'Chargement des commandes suivantes',
+                                  )),
+                                );
+                              },
+                            ),
+                    ),
             ),
           ],
         ),
@@ -125,54 +138,28 @@ class _OrdersListScreenState extends ConsumerState<OrdersListScreen> {
     );
   }
 
-  Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.receipt_long_outlined,
-                size: 64,
-                color: TekaColors.mutedForeground.withValues(alpha: 0.5)),
-            const SizedBox(height: 16),
-            Text(
-              "Aucune commande",
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    color: TekaColors.mutedForeground,
-                  ),
-            ),
-          ],
-        ),
-      ),
+  Widget _message(SellerOrdersState state) {
+    final notifier = ref.read(sellerOrdersProvider.notifier);
+    if (state.error != null) {
+      return SellerListMessage(
+        icon: Icons.cloud_off_outlined,
+        title: 'Impossible de charger les commandes',
+        message: state.error!,
+        actionLabel: 'Réessayer',
+        onAction: notifier.refresh,
+      );
+    }
+    final filtered = state.selectedStatus != null;
+    return SellerListMessage(
+      icon: Icons.receipt_long_outlined,
+      title: filtered
+          ? 'Aucune commande dans ce statut'
+          : 'Aucune commande pour le moment',
+      message: filtered
+          ? 'Choisissez un autre statut pour consulter vos commandes.'
+          : 'Vos nouvelles commandes apparaîtront ici pour être confirmées et préparées.',
+      actionLabel: filtered ? 'Voir toutes les commandes' : 'Actualiser',
+      onAction: filtered ? () => _selectStatus(null) : notifier.refresh,
     );
   }
-
-  Widget _buildOrdersList(BuildContext context, SellerOrdersState state) {
-    return RefreshIndicator(
-      onRefresh: () => ref.read(sellerOrdersProvider.notifier).refresh(),
-      child: ListView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: state.orders.length + (state.isLoadingMore ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == state.orders.length) {
-            return const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
-          final order = state.orders[index];
-          return OrderCard(order: order);
-        },
-      ),
-    );
-  }
-}
-
-class _FilterItem {
-  final OrderStatus? status;
-  final String label;
-
-  const _FilterItem(this.status, this.label);
 }

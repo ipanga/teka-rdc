@@ -41,6 +41,8 @@ class _SellerApplicationScreenState
   bool _loading = true;
   bool _submitting = false;
   bool _uploadingDoc = false;
+  bool _loadingCommunes = false;
+  String? _communesError;
   String? _docError;
   String? _error;
   SellerApplication? _application;
@@ -125,16 +127,27 @@ class _SellerApplicationScreenState
       _cityId = cityId;
       _communeId = null;
       _communes = const [];
+      _loadingCommunes = cityId != null && cityId.isNotEmpty;
+      _communesError = null;
     });
     if (cityId == null || cityId.isEmpty) return;
     try {
-      final communes =
-          await ref.read(sellerApplicationRepositoryProvider).getCommunes(cityId);
+      final communes = await ref
+          .read(sellerApplicationRepositoryProvider)
+          .getCommunes(cityId);
       if (mounted && _cityId == cityId) {
-        setState(() => _communes = communes);
+        setState(() {
+          _communes = communes;
+          _loadingCommunes = false;
+        });
       }
     } catch (_) {
-      // Non-critical: an empty commune list just blocks submission until retry.
+      if (mounted && _cityId == cityId) {
+        setState(() {
+          _loadingCommunes = false;
+          _communesError = 'Impossible de charger les communes.';
+        });
+      }
     }
   }
 
@@ -182,8 +195,8 @@ class _SellerApplicationScreenState
     }
 
     if (_cityId == null || _cityId!.isEmpty || _communeId == null) {
-      setState(() =>
-          _error = 'Veuillez sélectionner une ville et une commune.');
+      setState(
+          () => _error = 'Veuillez sélectionner une ville et une commune.');
       return;
     }
 
@@ -246,9 +259,10 @@ class _SellerApplicationScreenState
         foregroundColor: TekaColors.foreground,
         elevation: 0,
         actions: [
-          TextButton(
+          IconButton(
+            tooltip: 'Se déconnecter',
             onPressed: () => ref.read(authProvider.notifier).logout(),
-            child: const Text('Déconnexion'),
+            icon: const Icon(Icons.logout),
           ),
         ],
       ),
@@ -269,30 +283,35 @@ class _SellerApplicationScreenState
   }
 
   Widget _buildPending(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.hourglass_top_outlined,
-              size: 56, color: TekaColors.mutedForeground),
-          const SizedBox(height: 16),
-          Text(
-            'Demande en cours d’examen',
-            textAlign: TextAlign.center,
-            style: Theme.of(context)
-                .textTheme
-                .titleLarge
-                ?.copyWith(fontWeight: FontWeight.bold),
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight - 48),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.hourglass_top_outlined,
+                  size: 56, color: TekaColors.mutedForeground),
+              const SizedBox(height: 16),
+              Text(
+                'Demande en cours d’examen',
+                textAlign: TextAlign.center,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Votre demande de compte vendeur a été reçue. Notre équipe '
+                'l’examine et vous serez notifié dès qu’une décision est prise.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: TekaColors.mutedForeground),
+              ),
+            ],
           ),
-          const SizedBox(height: 12),
-          const Text(
-            'Votre demande de compte vendeur a été reçue. Notre équipe '
-            'l’examine et vous serez notifié dès qu’une décision est prise.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: TekaColors.mutedForeground),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -301,7 +320,13 @@ class _SellerApplicationScreenState
     final isRejected = _application?.applicationStatus == 'REJECTED';
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: EdgeInsets.fromLTRB(
+        24,
+        0,
+        24,
+        MediaQuery.viewInsetsOf(context).bottom + 32,
+      ),
       child: Form(
         key: _formKey,
         child: Column(
@@ -358,6 +383,7 @@ class _SellerApplicationScreenState
             ],
             TextFormField(
               controller: _businessNameController,
+              textInputAction: TextInputAction.next,
               decoration: const InputDecoration(
                 labelText: 'Nom de l’entreprise / boutique',
               ),
@@ -370,6 +396,7 @@ class _SellerApplicationScreenState
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: _businessType,
               decoration: const InputDecoration(labelText: 'Type d’activité'),
               items: const [
@@ -377,16 +404,21 @@ class _SellerApplicationScreenState
                     value: 'individual', child: Text('Particulier')),
                 DropdownMenuItem(value: 'company', child: Text('Entreprise')),
               ],
-              onChanged: (v) => setState(() => _businessType = v ?? 'individual'),
+              onChanged: (v) =>
+                  setState(() => _businessType = v ?? 'individual'),
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: _idType,
               decoration: const InputDecoration(labelText: 'Type de pièce'),
               items: const [
                 DropdownMenuItem(
                     value: 'national_id',
-                    child: Text('Carte d’identité nationale')),
+                    child: Text(
+                      'Carte d’identité nationale',
+                      overflow: TextOverflow.ellipsis,
+                    )),
                 DropdownMenuItem(value: 'passport', child: Text('Passeport')),
                 DropdownMenuItem(value: 'rccm', child: Text('RCCM')),
               ],
@@ -395,6 +427,7 @@ class _SellerApplicationScreenState
             const SizedBox(height: 16),
             TextFormField(
               controller: _idNumberController,
+              textInputAction: TextInputAction.next,
               decoration: const InputDecoration(labelText: 'Numéro de pièce'),
               validator: (v) {
                 if (v == null || v.trim().isEmpty) {
@@ -458,6 +491,7 @@ class _SellerApplicationScreenState
             TextFormField(
               controller: _phoneController,
               keyboardType: TextInputType.phone,
+              textInputAction: TextInputAction.next,
               decoration: const InputDecoration(
                 labelText: 'Numéro de téléphone',
                 hintText: 'Ex : 0812345678',
@@ -471,12 +505,16 @@ class _SellerApplicationScreenState
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: _cityId,
               decoration: const InputDecoration(labelText: 'Ville'),
               items: _cities
                   .map((c) => DropdownMenuItem(
                         value: c.id,
-                        child: Text('${c.name} (${c.province})'),
+                        child: Text(
+                          '${c.name} (${c.province})',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ))
                   .toList(),
               onChanged: (v) => _onCityChanged(v),
@@ -485,12 +523,15 @@ class _SellerApplicationScreenState
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: _communeId,
               decoration: InputDecoration(
                 labelText: 'Commune',
-                hintText: _cityId == null
-                    ? 'Sélectionnez d’abord une ville'
-                    : null,
+                hintText: _loadingCommunes
+                    ? 'Chargement des communes…'
+                    : _cityId == null
+                        ? 'Sélectionnez d’abord une ville'
+                        : null,
               ),
               items: _communes
                   .map((c) => DropdownMenuItem(
@@ -498,15 +539,36 @@ class _SellerApplicationScreenState
                         child: Text(c.name),
                       ))
                   .toList(),
-              onChanged: _cityId == null
+              onChanged: _cityId == null || _loadingCommunes
                   ? null
                   : (v) => setState(() => _communeId = v),
               validator: (v) =>
                   (v == null || v.isEmpty) ? 'Commune requise' : null,
             ),
+            if (_communesError != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.error_outline,
+                      size: 18, color: TekaColors.destructive),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _communesError!,
+                      style: const TextStyle(color: TekaColors.destructive),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => _onCityChanged(_cityId),
+                    child: const Text('Réessayer'),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 16),
             TextFormField(
               controller: _locationController,
+              textInputAction: TextInputAction.next,
               decoration: const InputDecoration(
                 labelText: 'Adresse / quartier',
                 hintText: 'Ex : Lubumbashi, Katuba',

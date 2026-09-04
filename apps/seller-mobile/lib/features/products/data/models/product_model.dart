@@ -65,8 +65,8 @@ class ProductSpecificationModel {
   });
 
   factory ProductSpecificationModel.fromJson(Map<String, dynamic> json) {
-    final attrName = (json['attributeName'] ?? json['attribute']?['name'])
-        ?.toString();
+    final attrName =
+        (json['attributeName'] ?? json['attribute']?['name'])?.toString();
     return ProductSpecificationModel(
       attributeId: json['attributeId'] as String?,
       attributeName: attrName,
@@ -77,7 +77,14 @@ class ProductSpecificationModel {
 
 enum ProductCondition { newItem, used }
 
-enum ProductStatus { draft, pendingReview, active, rejected, archived, suspended }
+enum ProductStatus {
+  draft,
+  pendingReview,
+  active,
+  rejected,
+  archived,
+  suspended
+}
 
 ProductStatus parseProductStatus(String? status) {
   switch (status?.toUpperCase()) {
@@ -245,4 +252,12 @@ class SellerProductModel {
           : null,
     );
   }
+}
+
+/// Unknown route filters mean all items, never an arbitrary actionable status.
+ProductStatus? productStatusFromQuery(String? value) {
+  for (final status in ProductStatus.values) {
+    if (productStatusToApi(status) == value) return status;
+  }
+  return null;
 }

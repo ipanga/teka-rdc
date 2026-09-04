@@ -4,6 +4,7 @@ import { formatFC, formatUSD } from '@teka/shared';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface ProductImage {
   id: string;
@@ -60,11 +61,13 @@ export default function ProductModerationPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
+  const [queryReady, setQueryReady] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [cities, setCities] = useState<City[]>([]);
   const [cityFilter, setCityFilter] = useState('');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [loadError, setLoadError] = useState(false);
 
   // Cities for the town filter (public endpoint).
   useEffect(() => {
@@ -96,12 +99,14 @@ export default function ProductModerationPage() {
       'ACTIVE',
       'REJECTED',
       'ARCHIVED',
+      'SUSPENDED',
       'DRAFT',
     ];
     const fromUrl = new URLSearchParams(window.location.search).get('status');
     if (fromUrl && (valid as string[]).includes(fromUrl)) {
       setStatusFilter(fromUrl as StatusFilter);
     }
+    setQueryReady(true);
   }, []);
 
   // Reason modal — shared by "reject" (PENDING) and "suspend" (ACTIVE).
@@ -115,7 +120,9 @@ export default function ProductModerationPage() {
   };
 
   const fetchProducts = useCallback(async () => {
+    if (!queryReady) return;
     setIsLoading(true);
+    setLoadError(false);
     try {
       const params = new URLSearchParams({ page: String(page), limit: '20' });
       if (statusFilter) params.set('status', statusFilter);
@@ -126,11 +133,11 @@ export default function ProductModerationPage() {
       if (Array.isArray(rd)) { setProducts(rd); setTotalPages(1); }
       else { setProducts(rd.data); setTotalPages(rd.pagination?.totalPages ?? 1); }
     } catch {
-      // Error handled by apiFetch
+      setLoadError(true);
     } finally {
       setIsLoading(false);
     }
-  }, [page, statusFilter, debouncedSearch, cityFilter]);
+  }, [page, statusFilter, debouncedSearch, cityFilter, queryReady]);
 
   useEffect(() => {
     fetchProducts();
@@ -200,8 +207,17 @@ export default function ProductModerationPage() {
   const formatPrice = (cdf: number, usd?: number | null) =>
     usd ? `${formatFC(cdf)} / ${formatUSD(usd)}` : formatFC(cdf);
 
+  const selectStatus = (status: StatusFilter) => {
+    setStatusFilter(status);
+    setPage(1);
+    const url = new URL(window.location.href);
+    if (status) url.searchParams.set('status', status);
+    else url.searchParams.delete('status');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}`);
+  };
+
   return (
-    <div className="p-8">
+    <div className="admin-page">
       {/* Feedback banner */}
       {feedback && (
         <div
@@ -215,35 +231,22 @@ export default function ProductModerationPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Produits</h1>
-          <p className="text-sm text-muted-foreground mt-1">Gérez le catalogue produits de la plateforme</p>
-        </div>
-      </div>
+      <PageHeader eyebrow="Modération" title="Produits" description="Examinez les nouvelles fiches et gérez le cycle de vie du catalogue." />
 
       {/* Search (name / id / seller / brand / category) + town filter */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Rechercher : nom, ID, vendeur, marque, catégorie…"
-          className="flex-1 min-w-[240px] max-w-md px-3 py-2 text-sm border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-        />
-        <select
-          value={cityFilter}
-          onChange={(e) => { setCityFilter(e.target.value); setPage(1); }}
-          className="px-3 py-2 text-sm border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-        >
-          <option value="">Toutes les villes</option>
-          {cities.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+      <div className="admin-card grid gap-4 p-4 md:grid-cols-[minmax(0,1fr)_260px]">
+        <label className="text-sm font-medium text-foreground">Rechercher
+          <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nom, ID, vendeur, marque, catégorie…" className="mt-2 min-h-11 w-full rounded-lg border border-input bg-white px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+        </label>
+        <label className="text-sm font-medium text-foreground">Ville
+          <select value={cityFilter} onChange={(e) => { setCityFilter(e.target.value); setPage(1); }} className="mt-2 min-h-11 w-full rounded-lg border border-input bg-white px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring">
+            <option value="">Toutes les villes</option>
+            {cities.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </label>
       </div>
 
-      <div className="flex gap-2 mb-6 flex-wrap">
+      <div className="admin-filter-bar" role="group" aria-label="Filtrer les produits par statut">
         {([
           { value: '', label: "Tous" },
           { value: 'PENDING_REVIEW', label: "En attente" },
@@ -255,14 +258,12 @@ export default function ProductModerationPage() {
         ] as { value: StatusFilter; label: string }[]).map((tab) => (
           <button
             key={tab.value}
-            onClick={() => {
-              setStatusFilter(tab.value);
-              setPage(1);
-            }}
-            className={`px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+            onClick={() => selectStatus(tab.value)}
+            aria-pressed={statusFilter === tab.value}
+            className={`admin-filter ${
               statusFilter === tab.value
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'bg-background text-foreground border-border hover:bg-muted'
+                ? 'admin-filter-active'
+                : ''
             }`}
           >
             {tab.label}
@@ -270,8 +271,11 @@ export default function ProductModerationPage() {
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-border overflow-hidden">
-        <table className="w-full">
+      {loadError && products.length === 0 ? (
+        <div className="admin-card p-8 text-center" role="alert"><h2 className="font-semibold text-foreground">Impossible de charger les produits</h2><p className="mt-2 text-sm text-muted-foreground">Vérifiez la connexion puis réessayez.</p><button type="button" onClick={fetchProducts} className="admin-button-secondary mt-5">Réessayer</button></div>
+      ) : (
+      <div className="admin-card overflow-x-auto">
+        <table className="w-full min-w-[1080px]">
           <thead>
             <tr className="border-b border-border bg-muted">
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">
@@ -301,7 +305,7 @@ export default function ProductModerationPage() {
             </tr>
           </thead>
           <tbody>
-            {isLoading ? (
+            {!queryReady || isLoading ? (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
                   Chargement...
@@ -310,7 +314,7 @@ export default function ProductModerationPage() {
             ) : products.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
-                  Aucun produit trouvé
+                  {statusFilter || search || cityFilter ? 'Aucun produit ne correspond à ces critères' : 'Aucun produit dans le catalogue'}
                 </td>
               </tr>
             ) : (
@@ -442,6 +446,7 @@ export default function ProductModerationPage() {
           </tbody>
         </table>
       </div>
+      )}
 
       {/* Pagination */}
       {totalPages > 1 && (

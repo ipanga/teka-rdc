@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/utils/price_formatter.dart';
 import '../providers/earnings_provider.dart';
 
 /// Payout request form (Initiative #3 / C2). Operator + reception number,
@@ -59,16 +60,18 @@ class _RequestPayoutScreenState extends ConsumerState<RequestPayoutScreen> {
     setState(() => _error = null);
     final phone = _phoneController.text.trim();
     if (_method == null) {
-      setState(() => _error = "Operateur Mobile Money");
+      setState(() => _error = "Sélectionnez un opérateur Mobile Money.");
       return;
     }
     if (!RegExp(r'^\+243[0-9]{9}$').hasMatch(phone)) {
-      setState(() => _error = "+243...");
+      setState(() => _error =
+          "Entrez un numéro congolais au format +243 suivi de 9 chiffres.");
       return;
     }
     setState(() => _submitting = true);
-    final errorMessage =
-        await ref.read(earningsProvider.notifier).requestPayout(_method!, phone);
+    final errorMessage = await ref
+        .read(earningsProvider.notifier)
+        .requestPayout(_method!, phone);
     if (!mounted) return;
     setState(() => _submitting = false);
     if (errorMessage == null) {
@@ -89,12 +92,18 @@ class _RequestPayoutScreenState extends ConsumerState<RequestPayoutScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text("Demande de virement")),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        padding: EdgeInsets.fromLTRB(
+          24,
+          24,
+          24,
+          MediaQuery.viewInsetsOf(context).bottom + 32,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Solde actuel : $balance FC',
+              'Solde actuel : ${formatFcNumber(balance)} FC',
               style: const TextStyle(
                 fontSize: 14,
                 color: TekaColors.mutedForeground,
@@ -120,22 +129,22 @@ class _RequestPayoutScreenState extends ConsumerState<RequestPayoutScreen> {
               const SizedBox(height: 16),
             ],
             const Text(
-              "Operateur Mobile Money",
+              "Opérateur Mobile Money",
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
+              isExpanded: true,
               initialValue: _method,
               decoration: const InputDecoration(border: OutlineInputBorder()),
               items: _payoutMethods.entries
                   .map((e) => DropdownMenuItem(
                         value: e.key,
-                        child: Text(e.value),
+                        child: Text(e.value, overflow: TextOverflow.ellipsis),
                       ))
                   .toList(),
-              onChanged: _submitting
-                  ? null
-                  : (v) => setState(() => _method = v),
+              onChanged:
+                  _submitting ? null : (v) => setState(() => _method = v),
             ),
             const SizedBox(height: 16),
             const Text(
@@ -147,6 +156,10 @@ class _RequestPayoutScreenState extends ConsumerState<RequestPayoutScreen> {
               controller: _phoneController,
               keyboardType: TextInputType.phone,
               enabled: !_submitting,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) {
+                if (!_submitting) _submit();
+              },
               decoration: const InputDecoration(
                 hintText: "+243...",
                 border: OutlineInputBorder(),

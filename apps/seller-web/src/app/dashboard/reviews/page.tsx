@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import type { Review, ReviewStats, SellerProduct } from '@/lib/types';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface ProductsResponse {
   products?: SellerProduct[];
@@ -201,8 +202,12 @@ export default function ReviewsPage() {
   const displayedTotalReviews = stats?.totalReviews ?? aggregateStats.totalReviews;
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-foreground mb-6">Avis clients</h1>
+    <div className="seller-page">
+      <PageHeader
+        eyebrow="Réputation"
+        title="Avis clients"
+        description="Consultez les retours clients et la note de chacun de vos produits."
+      />
 
       {error && (
         <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">

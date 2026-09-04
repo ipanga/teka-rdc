@@ -4,6 +4,7 @@ import { formatFC } from '@teka/shared';
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface ReturnOrder {
   id: string;
@@ -119,11 +120,8 @@ export default function ReturnsPage() {
   ];
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-foreground mb-1">Retours</h1>
-      <p className="text-sm text-muted-foreground mb-6">
-        Demandes de retour des acheteurs (fenêtre de 2 jours après livraison).
-      </p>
+    <div className="admin-page">
+      <PageHeader eyebrow="Logistique" title="Retours" description="Traitez les demandes reçues pendant la fenêtre de deux jours après livraison." />
 
       {feedback && (
         <div className="mb-4 px-4 py-3 rounded-lg text-sm font-medium bg-success/10 text-success">

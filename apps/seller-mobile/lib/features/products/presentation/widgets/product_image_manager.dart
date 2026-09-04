@@ -196,7 +196,7 @@ class _ProductImageManagerState extends ConsumerState<ProductImageManager> {
 
       // Refresh the product (this widget) + the list thumbnails.
       ref.invalidate(productDetailProvider(widget.productId));
-      ref.invalidate(sellerProductsProvider);
+      ref.read(sellerProductsProvider.notifier).loadProducts();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -266,7 +266,7 @@ class _ProductImageManagerState extends ConsumerState<ProductImageManager> {
           .deleteImage(productId, image.id);
 
       ref.invalidate(productDetailProvider(widget.productId));
-      ref.invalidate(sellerProductsProvider);
+      ref.read(sellerProductsProvider.notifier).loadProducts();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

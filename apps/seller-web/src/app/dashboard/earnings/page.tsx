@@ -10,6 +10,7 @@ import type {
   Payout,
   SellerPayoutMethod,
 } from '@/lib/types';
+import { PageHeader } from '@/components/ui/page-header';
 
 type ActiveTab = 'earnings' | 'payouts';
 
@@ -255,10 +256,12 @@ export default function EarningsPage() {
   const getPayoutMethodLabel = (method: string) => PAYOUT_METHOD_LABELS[method] ?? method;
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Revenus</h1>
-      </div>
+    <div className="seller-page">
+      <PageHeader
+        eyebrow="Finances"
+        title="Revenus"
+        description="Suivez votre solde, vos ventes et vos demandes de virement."
+      />
 
       {/* Success message */}
       {successMessage && (

@@ -4,6 +4,7 @@ import { formatFC } from '@teka/shared';
 import { useEffect, useState, useCallback } from 'react';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import type { Promotion, PromotionType, SellerProduct } from '@/lib/types';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface PromotionsResponse {
   promotions: Promotion[];
@@ -272,16 +273,17 @@ export default function PromotionsPage() {
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Mes promotions</h1>
-        <button
-          onClick={openCreateForm}
-          className="inline-flex items-center px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors"
-        >
-          Créer une promotion
-        </button>
-      </div>
+    <div className="seller-page">
+      <PageHeader
+        eyebrow="Développement"
+        title="Promotions"
+        description="Créez et suivez les offres qui accélèrent vos ventes."
+        actions={(
+          <button onClick={openCreateForm} className="seller-button-primary">
+            Créer une promotion
+          </button>
+        )}
+      />
 
       {/* Success message */}
       {successMessage && (

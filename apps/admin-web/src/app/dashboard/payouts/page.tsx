@@ -3,6 +3,7 @@
 import { formatFC } from '@teka/shared';
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/lib/api-client';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface PayoutSeller {
   id: string;
@@ -180,7 +181,7 @@ export default function PayoutsPage() {
   const formatCDF = (centimes: string) => formatFC(centimes);
 
   return (
-    <div className="p-8">
+    <div className="admin-page">
       {/* Feedback banner */}
       {feedback && (
         <div
@@ -194,9 +195,7 @@ export default function PayoutsPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Virements vendeurs</h1>
-      </div>
+      <PageHeader eyebrow="Finance" title="Virements vendeurs" description="Contrôlez et suivez les demandes de règlement des vendeurs." />
 
       {/* Status filter tabs */}
       <div className="flex gap-2 mb-6 flex-wrap">
