@@ -106,8 +106,9 @@ export class AdminStatsService {
         },
       }),
 
-      // Total commission from SellerEarning
+      // Total commission from live (non-reversed) SellerEarning rows
       this.prisma.sellerEarning.aggregate({
+        where: { reversedAt: null },
         _sum: { commissionCDF: true },
       }),
 

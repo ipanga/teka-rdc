@@ -122,8 +122,16 @@ export class ReportsService {
     writeCsvResponse(res, {
       filename: `sales-report-${this.formatDate(new Date())}.csv`,
       headers: [
-        'Date', 'Order Number', 'Buyer', 'Seller', 'Items', 'Subtotal CDF',
-        'Delivery Fee CDF', 'Total CDF', 'Payment Method', 'Payment Status',
+        'Date',
+        'Order Number',
+        'Buyer',
+        'Seller',
+        'Items',
+        'Subtotal CDF',
+        'Delivery Fee CDF',
+        'Total CDF',
+        'Payment Method',
+        'Payment Status',
         'Status',
       ],
       rows: data.map((row) => [
@@ -172,6 +180,7 @@ export class ReportsService {
             commissionCDF: true,
             netAmountCDF: true,
             isPaid: true,
+            reversedAt: true,
           },
         },
       },
@@ -191,9 +200,11 @@ export class ReportsService {
         ? order.earning.netAmountCDF.toString()
         : '0',
       payoutStatus: order.earning
-        ? order.earning.isPaid
-          ? 'PAID'
-          : 'PENDING'
+        ? order.earning.reversedAt
+          ? 'REVERSED'
+          : order.earning.isPaid
+            ? 'PAID'
+            : 'PENDING'
         : 'N/A',
     }));
   }
@@ -211,8 +222,12 @@ export class ReportsService {
     writeCsvResponse(res, {
       filename: `financial-report-${this.formatDate(new Date())}.csv`,
       headers: [
-        'Date', 'Order Number', 'Total CDF', 'Commission CDF',
-        'Seller Earning CDF', 'Payout Status',
+        'Date',
+        'Order Number',
+        'Total CDF',
+        'Commission CDF',
+        'Seller Earning CDF',
+        'Payout Status',
       ],
       rows: data.map((row) => [
         csvText(row.date),
@@ -315,6 +330,7 @@ export class ReportsService {
             by: ['sellerProfileId'],
             where: {
               sellerProfileId: { in: profileIds },
+              reversedAt: null,
               order: { deletedAt: null, ...orderWindow },
             },
             _sum: { grossAmountCDF: true, commissionCDF: true },
@@ -359,8 +375,7 @@ export class ReportsService {
         ? money.get(seller.sellerProfile.id)
         : undefined;
       return {
-        sellerName:
-          `${seller.firstName ?? ''} ${seller.lastName ?? ''}`.trim(),
+        sellerName: `${seller.firstName ?? ''} ${seller.lastName ?? ''}`.trim(),
         businessName: seller.sellerProfile?.businessName ?? '',
         totalOrders: c.total,
         deliveredOrders: c.delivered,
@@ -387,8 +402,15 @@ export class ReportsService {
     writeCsvResponse(res, {
       filename: `seller-performance-report-${this.formatDate(new Date())}.csv`,
       headers: [
-        'Seller', 'Business Name', 'Total Orders', 'Delivered', 'Cancelled',
-        'Revenue CDF', 'Commission CDF', 'Avg Rating', 'Total Reviews',
+        'Seller',
+        'Business Name',
+        'Total Orders',
+        'Delivered',
+        'Cancelled',
+        'Revenue CDF',
+        'Commission CDF',
+        'Avg Rating',
+        'Total Reviews',
       ],
       rows: data.map((row) => [
         csvText(row.sellerName),
@@ -507,8 +529,16 @@ export class ReportsService {
     writeCsvResponse(res, {
       filename: `payouts-report-${this.formatDate(new Date())}.csv`,
       headers: [
-        'Date', 'Seller', 'Business', 'Amount CDF', 'Method', 'Phone', 'Status',
-        'Reference', 'Processed At', 'Rejection Reason',
+        'Date',
+        'Seller',
+        'Business',
+        'Amount CDF',
+        'Method',
+        'Phone',
+        'Status',
+        'Reference',
+        'Processed At',
+        'Rejection Reason',
       ],
       // `phone` is a +243… number. csvText neutralises the leading `+`, which
       // Excel would otherwise evaluate as a formula and render as the bare

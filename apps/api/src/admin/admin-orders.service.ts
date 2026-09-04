@@ -8,7 +8,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import { resolveDeliveryAddress } from '../orders/delivery-address.util';
 import { AdminOrderQueryDto } from './dto/admin-order-query.dto';
 import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
-import { EarningsService } from '../payments/earnings.service';
+import {
+  CommissionNotConfiguredError,
+  EarningsService,
+} from '../payments/earnings.service';
+import { Decimal } from '@prisma/client/runtime/library';
 import { PaymentsService } from '../payments/payments.service';
 import { OrderNotificationService } from '../notifications/order-notification.service';
 import { PostHogService } from '../analytics/posthog.service';
@@ -224,19 +228,7 @@ export class AdminOrdersService {
           commissionRate: order.earning.commissionRate,
           isFinal: true,
         }
-      : await (async () => {
-          const p = await this.earningsService.computeBreakdown(
-            order.subtotalCDF,
-            order.items[0]?.product?.categoryId ?? null,
-          );
-          return {
-            grossCDF: p.grossAmountCDF,
-            commissionCDF: p.commissionCDF,
-            netCDF: p.netAmountCDF,
-            commissionRate: p.commissionRate,
-            isFinal: false,
-          };
-        })();
+      : await this.projectBreakdown(order);
 
     return {
       ...resolveDeliveryAddress(order),
@@ -313,6 +305,18 @@ export class AdminOrdersService {
           note: note || `Changement forcé par l'administrateur`,
         },
       });
+
+      // Leaving DELIVERED (forced cancel / rewind) means the sale no longer
+      // stands: reverse its earning auditably (D6). Kept as the ONLY financial
+      // side effect of this repair tool — forcing INTO DELIVERED still creates
+      // nothing (documented: use markDelivered for a real delivery).
+      if (order.status === OrderStatus.DELIVERED) {
+        await this.earningsService.reverseEarning(
+          orderId,
+          tx,
+          'ORDER_STATUS_FORCED',
+        );
+      }
 
       return tx.order.update({
         where: { id: orderId },
@@ -518,10 +522,24 @@ export class AdminOrdersService {
         });
       }
 
+      // Financial side effects commit WITH the status flip (never after it):
+      // the COD cash is collected → the transaction completes and the seller
+      // earning is created with its commission snapshot. A failure here rolls
+      // the delivery back — an order can never be DELIVERED without its earning.
+      if (order.paymentMethod === PaymentMethod.COD) {
+        await this.paymentsService.completeCodTransaction(orderId, tx);
+      }
+      if (
+        result.paymentStatus === PaymentStatus.COMPLETED ||
+        order.paymentMethod === PaymentMethod.COD
+      ) {
+        await this.earningsService.createEarning(orderId, tx);
+      }
+
       return result;
     });
 
-    // Fire-and-forget side effects (mirror the former seller deliverOrder).
+    // Fire-and-forget side effects (notifications + analytics only).
     this.notificationService
       .notifyOrderDelivered(updatedOrder)
       .catch((err) =>
@@ -540,26 +558,69 @@ export class AdminOrdersService {
         method: PaymentMethod.COD,
         amount_cdf: Number(updatedOrder.totalCDF),
       });
-      this.paymentsService
-        .completeCodTransaction(orderId)
-        .catch((err) =>
-          this.logger.error('Échec de finalisation transaction COD', err),
-        );
-    }
-
-    if (
-      updatedOrder.paymentStatus === PaymentStatus.COMPLETED ||
-      order.paymentMethod === PaymentMethod.COD
-    ) {
-      this.earningsService
-        .createEarning(orderId)
-        .catch((err) => this.logger.error('Échec de création du revenu', err));
     }
 
     return updatedOrder;
   }
 
   // --- private transition helpers -------------------------------------------
+
+  /**
+   * Pre-delivery "à recevoir" projection at today's rules, per item (D5). A
+   * missing commission configuration is reported as a zero-commission, non-
+   * final projection rather than a 500 — the final earning at delivery is the
+   * only authoritative figure and it fails loudly instead.
+   */
+  private async projectBreakdown(order: {
+    sellerId: string;
+    subtotalCDF: bigint;
+    items: {
+      totalCDF: bigint;
+      product?: { categoryId: string | null } | null;
+    }[];
+  }) {
+    const profile = await this.prisma.sellerProfile.findUnique({
+      where: { userId: order.sellerId },
+      select: { id: true },
+    });
+    if (!profile) {
+      return {
+        grossCDF: order.subtotalCDF,
+        commissionCDF: BigInt(0),
+        netCDF: order.subtotalCDF,
+        commissionRate: new Decimal(0),
+        isFinal: false,
+      };
+    }
+    try {
+      const p = await this.earningsService.computeBreakdown(
+        profile.id,
+        order.items.map((i) => ({
+          totalCDF: i.totalCDF,
+          categoryId: i.product?.categoryId ?? null,
+        })),
+      );
+      return {
+        grossCDF: p.grossAmountCDF,
+        commissionCDF: p.commissionCDF,
+        netCDF: p.netAmountCDF,
+        commissionRate: p.commissionRate,
+        isFinal: false,
+      };
+    } catch (err) {
+      if (err instanceof CommissionNotConfiguredError) {
+        this.logger.warn(err.message);
+        return {
+          grossCDF: order.subtotalCDF,
+          commissionCDF: BigInt(0),
+          netCDF: order.subtotalCDF,
+          commissionRate: new Decimal(0),
+          isFinal: false,
+        };
+      }
+      throw err;
+    }
+  }
 
   private async loadOrder(orderId: string) {
     const order = await this.prisma.order.findUnique({
