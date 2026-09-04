@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PaymentsModule } from '../payments/payments.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { AuditModule } from '../audit/audit.module';
 import { PayoutsService } from './payouts.service';
 import {
   SellerPayoutsController,
@@ -8,7 +9,7 @@ import {
 } from './payouts.controller';
 
 @Module({
-  imports: [PaymentsModule, NotificationsModule],
+  imports: [PaymentsModule, NotificationsModule, AuditModule],
   controllers: [SellerPayoutsController, AdminPayoutsController],
   providers: [PayoutsService],
   exports: [PayoutsService],

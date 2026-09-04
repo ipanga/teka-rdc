@@ -166,6 +166,10 @@ export const mockPrismaService: Record<string, any> = {
     count: jest.fn(),
     aggregate: jest.fn(),
   },
+  adminAuditLog: {
+    create: jest.fn(),
+    findMany: jest.fn(),
+  },
   commissionSetting: {
     findUnique: jest.fn(),
     findFirst: jest.fn(),

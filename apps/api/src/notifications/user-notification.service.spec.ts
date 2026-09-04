@@ -95,3 +95,47 @@ describe('UserNotificationService — per-user scoping (security)', () => {
     });
   });
 });
+
+describe('UserNotificationService.createIfAbsent — effectively-once feed rows', () => {
+  const input = {
+    userId: 'u1',
+    type: 'PAYOUT' as const,
+    title: 'Paiement effectué',
+    body: 'Votre demande de paiement de 63.000 FC a été marquée comme payée.',
+    entityType: 'payout',
+    entityId: 'pay1',
+  };
+  function make(existing: unknown) {
+    const prisma = {
+      userNotification: {
+        findFirst: jest.fn().mockResolvedValue(existing),
+        create: jest.fn().mockResolvedValue({}),
+      },
+    };
+    return { prisma, service: new UserNotificationService(prisma as never) };
+  }
+  it('writes the row when none matches (user + type + entity + title)', async () => {
+    const { prisma, service } = make(null);
+    await expect(service.createIfAbsent(input)).resolves.toBe(true);
+    expect(prisma.userNotification.findFirst.mock.calls[0][0].where).toEqual({
+      userId: 'u1', type: 'PAYOUT', entityType: 'payout', entityId: 'pay1', title: 'Paiement effectué',
+    });
+    expect(prisma.userNotification.create).toHaveBeenCalledTimes(1);
+  });
+  it('skips (no duplicate) when the same event was already recorded', async () => {
+    const { prisma, service } = make({ id: 'n1' });
+    await expect(service.createIfAbsent(input)).resolves.toBe(false);
+    expect(prisma.userNotification.create).not.toHaveBeenCalled();
+  });
+  it('a different event on the same payout (approved → paid) is a new row', async () => {
+    const { prisma, service } = make(null);
+    await service.createIfAbsent({ ...input, title: 'Paiement approuvé' });
+    expect(prisma.userNotification.findFirst.mock.calls[0][0].where.title).toBe('Paiement approuvé');
+    expect(prisma.userNotification.create).toHaveBeenCalledTimes(1);
+  });
+  it('never throws on a DB error', async () => {
+    const { prisma, service } = make(null);
+    prisma.userNotification.create.mockRejectedValue(new Error('down'));
+    await expect(service.createIfAbsent(input)).resolves.toBe(false);
+  });
+});

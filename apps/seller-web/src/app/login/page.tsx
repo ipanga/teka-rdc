@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
+import { redirectParamFrom, resolvePostLoginRedirect } from '@/lib/post-login-redirect';
 import { useAuthStore, type User } from '@/lib/auth-store';
 
 export default function SellerLoginPage() {
@@ -40,7 +41,9 @@ export default function SellerLoginPage() {
       }
 
       setUser(user);
-      router.push('/dashboard');
+      // Return to the deep link that triggered the login (internal dashboard
+      // paths only — see resolvePostLoginRedirect), otherwise the dashboard.
+      router.push(resolvePostLoginRedirect(redirectParamFrom(window.location.search)));
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { OrderStatus, PayoutStatus, ProductStatus } from '@prisma/client';
+import { ADMIN_QUEUES } from './admin-queues';
 
 /** Managed-order operational counters for the admin dashboard (Teka logistics). */
 export interface OrderOpsStats {
@@ -10,6 +11,24 @@ export interface OrderOpsStats {
   outForDelivery: number; // OUT_FOR_DELIVERY
   deliveredToday: number; // DELIVERED with deliveredAt today
   pendingReturns: number; // ReturnRequest REQUESTED (awaiting admin review)
+}
+
+/**
+ * "À traiter" — what needs an admin/Teka action right now. Every count is
+ * produced by the same `where` the destination queue uses (ADMIN_QUEUES).
+ */
+export interface ActionCenterStats {
+  sellerApplicationsPending: number;
+  productsPendingReview: number;
+  returnsPending: number;
+  ordersReadyForPickup: number;
+  ordersReceivedAtTeka: number;
+  payoutsAwaitingReview: { count: number; amountCDF: string };
+  payoutsAwaitingPayment: {
+    count: number;
+    processingCount: number;
+    amountCDF: string;
+  };
 }
 
 export interface DashboardStats {
@@ -25,6 +44,7 @@ export interface DashboardStats {
   ordersThisMonth: number;
   revenueThisMonthCDF: string;
   orderOps: OrderOpsStats;
+  actionCenter: ActionCenterStats;
 }
 
 export interface CategoryCoverage {
@@ -78,6 +98,8 @@ export class AdminStatsService {
       orderStatusGroups,
       deliveredToday,
       pendingReturns,
+      payoutsAwaitingPaymentAgg,
+      payoutsProcessingCount,
     ] = await Promise.all([
       // Total active users (non-deleted)
       this.prisma.user.count({
@@ -106,34 +128,27 @@ export class AdminStatsService {
         },
       }),
 
-      // Total commission from SellerEarning
+      // Total commission from live (non-reversed) SellerEarning rows
       this.prisma.sellerEarning.aggregate({
+        where: { reversedAt: null },
         _sum: { commissionCDF: true },
       }),
 
-      // Pending payouts (count + sum)
+      // Payout requests awaiting authorization (count + sum) — queue definition
       this.prisma.payout.aggregate({
         _count: true,
         _sum: { amountCDF: true },
-        where: {
-          status: PayoutStatus.REQUESTED,
-        },
+        where: ADMIN_QUEUES.payoutsAwaitingReview(),
       }),
 
-      // Pending seller applications awaiting admin review
+      // Seller applications awaiting KYC review — queue definition
       this.prisma.sellerProfile.count({
-        where: {
-          applicationStatus: 'PENDING',
-          deletedAt: null,
-        },
+        where: ADMIN_QUEUES.sellerApplicationsPending(),
       }),
 
-      // Products awaiting moderation (submitted by sellers)
+      // Products awaiting moderation — queue definition
       this.prisma.product.count({
-        where: {
-          status: ProductStatus.PENDING_REVIEW,
-          deletedAt: null,
-        },
+        where: ADMIN_QUEUES.productsPendingReview(),
       }),
 
       // Orders this month
@@ -170,9 +185,21 @@ export class AdminStatsService {
         },
       }),
 
-      // Return requests awaiting admin review
+      // Return requests awaiting admin review — queue definition
       this.prisma.returnRequest.count({
-        where: { status: 'REQUESTED', deletedAt: null },
+        where: ADMIN_QUEUES.returnsPending(),
+      }),
+
+      // Authorized payouts still to be paid (APPROVED + PROCESSING) — queue definition
+      this.prisma.payout.aggregate({
+        _count: true,
+        _sum: { amountCDF: true },
+        where: ADMIN_QUEUES.payoutsAwaitingPayment(),
+      }),
+
+      // …of which the transfer was already started
+      this.prisma.payout.count({
+        where: { status: PayoutStatus.PROCESSING },
       }),
     ]);
 
@@ -204,6 +231,26 @@ export class AdminStatsService {
         outForDelivery: statusCount(OrderStatus.OUT_FOR_DELIVERY),
         deliveredToday,
         pendingReturns,
+      },
+      actionCenter: {
+        sellerApplicationsPending: pendingSellerApplicationsCount,
+        productsPendingReview: pendingProductsCount,
+        returnsPending: pendingReturns,
+        // Same groupBy as orderOps (deletedAt: null) — identical to the
+        // ADMIN_QUEUES.orders* filters the tiles link to.
+        ordersReadyForPickup: statusCount(OrderStatus.READY_FOR_TEKA_PICKUP),
+        ordersReceivedAtTeka: statusCount(OrderStatus.RECEIVED_AT_TEKA),
+        payoutsAwaitingReview: {
+          count: pendingPayoutsAgg._count,
+          amountCDF: (pendingPayoutsAgg._sum.amountCDF ?? BigInt(0)).toString(),
+        },
+        payoutsAwaitingPayment: {
+          count: payoutsAwaitingPaymentAgg._count,
+          processingCount: payoutsProcessingCount,
+          amountCDF: (
+            payoutsAwaitingPaymentAgg._sum.amountCDF ?? BigInt(0)
+          ).toString(),
+        },
       },
     };
 

@@ -1,9 +1,12 @@
 import { Module } from '@nestjs/common';
 import { CommissionService } from './commission.service';
 import { CommissionController } from './commission.controller';
+import { SellerCommissionController } from './seller-commission.controller';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
-  controllers: [CommissionController],
+  imports: [AuditModule],
+  controllers: [CommissionController, SellerCommissionController],
   providers: [CommissionService],
   exports: [CommissionService],
 })

@@ -84,11 +84,7 @@ export class ReturnsService {
   }
 
   /** Admin: paginated list of return requests, optional status filter. */
-  async listReturns(query: {
-    page?: number;
-    limit?: number;
-    status?: string;
-  }) {
+  async listReturns(query: { page?: number; limit?: number; status?: string }) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
@@ -97,9 +93,7 @@ export class ReturnsService {
       deletedAt: null,
     };
     if (query.status) {
-      if (
-        !Object.values(ReturnStatus).includes(query.status as ReturnStatus)
-      ) {
+      if (!Object.values(ReturnStatus).includes(query.status as ReturnStatus)) {
         throw new BadRequestException('Statut de retour invalide');
       }
       where.status = query.status as ReturnStatus;
@@ -120,7 +114,12 @@ export class ReturnsService {
               totalCDF: true,
               deliveredAt: true,
               buyer: {
-                select: { id: true, firstName: true, lastName: true, phone: true },
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  phone: true,
+                },
               },
               seller: {
                 select: {
@@ -194,8 +193,13 @@ export class ReturnsService {
         });
       }
 
-      // Reverse the seller earning (debit wallet / delete) when not yet paid out.
-      const reversal = await this.earningsService.reverseEarning(order.id, tx);
+      // Reverse the seller earning auditably (row kept, stamped reversedAt);
+      // flags a manual clawback when it is already reserved in a payout.
+      const reversal = await this.earningsService.reverseEarning(
+        order.id,
+        tx,
+        'RETURN_APPROVED',
+      );
 
       // Record the buyer refund (COD cash returned by Teka).
       await tx.transaction.create({

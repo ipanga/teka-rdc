@@ -5,6 +5,7 @@ import {
   Max,
   Min,
   Matches,
+  ValidateIf,
 } from 'class-validator';
 
 export class UpsertCommissionDto {
@@ -25,4 +26,18 @@ export class UpsertCommissionDto {
   @IsOptional()
   @IsBoolean({ message: 'isActive doit être un booléen' })
   isActive?: boolean;
+
+  /**
+   * Optimistic concurrency: the rate the operator saw (null = "no setting
+   * yet"). When present and different from the stored value → 409.
+   */
+  @IsOptional()
+  @ValidateIf((o) => o.expectedPreviousRate !== null)
+  @IsNumber(
+    { maxDecimalPlaces: 4 },
+    { message: 'Le taux précédent attendu doit être un nombre avec au maximum 4 décimales' },
+  )
+  @Min(0, { message: 'Le taux précédent attendu est invalide' })
+  @Max(1, { message: 'Le taux précédent attendu est invalide' })
+  expectedPreviousRate?: number | null;
 }

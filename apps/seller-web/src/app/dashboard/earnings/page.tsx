@@ -11,8 +11,22 @@ import type {
   SellerPayoutMethod,
 } from '@/lib/types';
 import { PageHeader } from '@/components/ui/page-header';
+import {
+  PAYOUT_STATUS_HINTS,
+  PAYOUT_STATUS_LABELS,
+  PAYOUT_STATUS_STYLES,
+  describePayoutLoadError,
+  parseEarningsQuery,
+  type EarningsTab,
+} from '@/lib/payout-notifications';
+import {
+  EARNING_STATE_LABELS,
+  EARNING_STATE_STYLES,
+  earningStateOf,
+  formatCommissionRate,
+} from '@/lib/earnings';
 
-type ActiveTab = 'earnings' | 'payouts';
+type ActiveTab = EarningsTab;
 
 const LIMIT = 20;
 const MIN_PAYOUT_CDF = 5000;
@@ -27,14 +41,6 @@ const PAYOUT_METHOD_LABELS: Record<string, string> = {
   M_PESA: 'M-Pesa (Vodacom)',
   AIRTEL_MONEY: 'Airtel Money',
   ORANGE_MONEY: 'Orange Money',
-};
-
-const PAYOUT_STATUS_LABELS: Record<string, string> = {
-  REQUESTED: 'En attente',
-  APPROVED: 'Approuvé',
-  PROCESSING: 'En traitement',
-  COMPLETED: 'Complété',
-  REJECTED: 'Rejeté',
 };
 
 const getSellerFriendlyError = (err: unknown) => {
@@ -53,8 +59,39 @@ export default function EarningsPage() {
   const [wallet, setWallet] = useState<SellerWallet | null>(null);
   const [walletLoading, setWalletLoading] = useState(true);
 
-  // Tab state
+  // Tab state. `?tab=payouts&payout=<id>` (notification / deep link) is read
+  // once on mount — same pattern as the orders page.
   const [activeTab, setActiveTab] = useState<ActiveTab>('earnings');
+
+  // One payout opened from a notification: fetched by id through the
+  // owner-scoped endpoint (404 = not yours or gone), never from the list.
+  const [focusPayoutId, setFocusPayoutId] = useState<string | null>(null);
+  const [focusPayout, setFocusPayout] = useState<Payout | null>(null);
+  const [focusLoading, setFocusLoading] = useState(false);
+  const [focusError, setFocusError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const q = parseEarningsQuery(window.location.search);
+    setActiveTab(q.tab);
+    setFocusPayoutId(q.payoutId);
+  }, []);
+
+  useEffect(() => {
+    if (!focusPayoutId) { setFocusPayout(null); setFocusError(null); return; }
+    let cancelled = false;
+    setFocusLoading(true);
+    setFocusError(null);
+    apiFetch<Payout>(`/v1/sellers/payouts/${focusPayoutId}`)
+      .then((res) => { if (!cancelled) setFocusPayout(res.data); })
+      .catch((err) => { if (!cancelled) setFocusError(describePayoutLoadError(err)); })
+      .finally(() => { if (!cancelled) setFocusLoading(false); });
+    return () => { cancelled = true; };
+  }, [focusPayoutId]);
+
+  const closeFocus = () => {
+    setFocusPayoutId(null);
+    window.history.replaceState(null, '', `${window.location.pathname}?tab=payouts`);
+  };
 
   // Earnings state
   const [earnings, setEarnings] = useState<SellerEarning[]>([]);
@@ -87,11 +124,6 @@ export default function EarningsPage() {
       month: '2-digit',
       year: 'numeric',
     }).format(new Date(dateStr));
-  };
-
-  const formatCommissionRate = (rate: string) => {
-    const pct = Number(rate);
-    return `${pct}%`;
   };
 
   // Load wallet
@@ -327,7 +359,7 @@ export default function EarningsPage() {
         </button>
         {!walletLoading && balanceCDF < MIN_PAYOUT_CDF && (
           <span className="text-sm text-muted-foreground">
-            Le solde minimum pour un virement est de 5 000 FC
+            Le solde minimum pour un virement est de {formatFC(MIN_PAYOUT_CDF * 100)}
           </span>
         )}
         {hasPendingPayout && (
@@ -343,6 +375,8 @@ export default function EarningsPage() {
           onClick={() => {
             setActiveTab('earnings');
             setEarningsPage(1);
+            setFocusPayoutId(null);
+            window.history.replaceState(null, '', window.location.pathname);
           }}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
             activeTab === 'earnings'
@@ -356,6 +390,7 @@ export default function EarningsPage() {
           onClick={() => {
             setActiveTab('payouts');
             setPayoutsPage(1);
+            window.history.replaceState(null, '', `${window.location.pathname}?tab=payouts`);
           }}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
             activeTab === 'payouts'
@@ -432,13 +467,9 @@ export default function EarningsPage() {
                           </td>
                           <td className="px-4 py-3">
                             <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                earning.isPaid
-                                  ? 'bg-success/15 text-success'
-                                  : 'bg-blue-100 text-blue-700'
-                              }`}
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${EARNING_STATE_STYLES[earningStateOf(earning)]}`}
                             >
-                              {earning.isPaid ? 'Payé' : 'Disponible'}
+                              {EARNING_STATE_LABELS[earningStateOf(earning)]}
                             </span>
                           </td>
                         </tr>
@@ -478,6 +509,45 @@ export default function EarningsPage() {
       {/* Payouts tab content */}
       {activeTab === 'payouts' && (
         <>
+          {focusPayoutId && (
+            <section aria-labelledby="payout-focus-title" className="mb-4 rounded-xl border border-primary/30 bg-white p-5">
+              <div className="flex items-start justify-between gap-3">
+                <h2 id="payout-focus-title" className="text-base font-semibold text-foreground">Détail du virement</h2>
+                <button type="button" onClick={closeFocus} className="text-sm font-medium text-muted-foreground hover:text-foreground">Fermer</button>
+              </div>
+              {focusLoading ? (
+                <div className="mt-3 space-y-2" aria-busy="true">
+                  <div className="h-5 w-1/3 animate-pulse rounded bg-muted" />
+                  <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
+                </div>
+              ) : focusError ? (
+                <p role="alert" className="mt-3 text-sm text-destructive">{focusError}</p>
+              ) : focusPayout ? (
+                <div className="mt-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${PAYOUT_STATUS_STYLES[focusPayout.status] ?? 'bg-muted text-foreground'}`}>
+                      {PAYOUT_STATUS_LABELS[focusPayout.status] ?? focusPayout.status}
+                    </span>
+                    <span className="text-xl font-bold text-foreground">{formatFC(focusPayout.amountCDF)}</span>
+                    <span className="text-sm text-muted-foreground">demandé le {formatDate(focusPayout.requestedAt || focusPayout.createdAt)}</span>
+                  </div>
+                  <p className="mt-2 text-sm text-foreground">{PAYOUT_STATUS_HINTS[focusPayout.status] ?? ''}</p>
+                  <dl className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                    <div><dt className="text-xs text-muted-foreground">Destination</dt><dd className="text-foreground">{getPayoutMethodLabel(focusPayout.payoutMethod)} · {focusPayout.payoutPhone}</dd></div>
+                    {focusPayout.status === 'COMPLETED' && focusPayout.externalReference && (
+                      <div><dt className="text-xs text-muted-foreground">Référence de paiement</dt><dd className="font-mono text-foreground">{focusPayout.externalReference}</dd></div>
+                    )}
+                    {focusPayout.status === 'REJECTED' && (
+                      <div><dt className="text-xs text-muted-foreground">Raison</dt><dd className="text-foreground">{focusPayout.rejectionReason || 'Non précisée'}</dd></div>
+                    )}
+                    {focusPayout.processedAt && focusPayout.status === 'COMPLETED' && (
+                      <div><dt className="text-xs text-muted-foreground">Payé le</dt><dd className="text-foreground">{formatDate(focusPayout.processedAt)}</dd></div>
+                    )}
+                  </dl>
+                </div>
+              ) : null}
+            </section>
+          )}
           {payoutsLoading ? (
             <div className="space-y-3">
               {[...Array(5)].map((_, i) => (
@@ -511,7 +581,7 @@ export default function EarningsPage() {
                     </thead>
                     <tbody>
                       {payouts.map((payout) => (
-                        <tr key={payout.id} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
+                        <tr key={payout.id} className={`border-b border-border last:border-0 transition-colors ${payout.id === focusPayoutId ? 'bg-primary/5' : 'hover:bg-muted/30'}`}>
                           <td className="px-4 py-3 text-muted-foreground">
                             {formatDate(payout.requestedAt || payout.createdAt)}
                           </td>

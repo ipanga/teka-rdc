@@ -1,9 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  Prisma,
   TransactionType,
   TransactionProvider,
   PaymentStatus,
+  PaymentMethod,
 } from '@prisma/client';
 import { TransactionQueryDto } from './dto/transaction-query.dto';
 
@@ -48,8 +50,11 @@ export class PaymentsService {
   /**
    * Complete a COD transaction (called when order is delivered).
    */
-  async completeCodTransaction(orderId: string) {
-    const transaction = await this.prisma.transaction.findFirst({
+  async completeCodTransaction(
+    orderId: string,
+    db: PrismaService | Prisma.TransactionClient = this.prisma,
+  ) {
+    const transaction = await db.transaction.findFirst({
       where: {
         orderId,
         type: TransactionType.PAYMENT,
@@ -58,11 +63,63 @@ export class PaymentsService {
     });
 
     if (transaction && transaction.status !== PaymentStatus.COMPLETED) {
-      await this.prisma.transaction.update({
+      await db.transaction.update({
         where: { id: transaction.id },
         data: { status: PaymentStatus.COMPLETED },
       });
     }
+  }
+
+  /**
+   * D7 — does cancelling this order mean its payment will never happen?
+   * True for a COD order whose `paymentStatus` is still PENDING. The caller
+   * folds `{ paymentStatus: FAILED }` into its own `order.update` (one round
+   * trip, same transaction) and then calls `failCodTransactionOnCancellation`.
+   * A payment already COMPLETED / REFUNDED / FAILED, or a non-COD order, is
+   * never touched — and no refund is created, because no money moved.
+   */
+  codPaymentWillFail(order: {
+    paymentMethod: PaymentMethod;
+    paymentStatus: PaymentStatus;
+  }): boolean {
+    return (
+      order.paymentMethod === PaymentMethod.COD &&
+      order.paymentStatus === PaymentStatus.PENDING
+    );
+  }
+
+  /** Data to merge into the cancelling `order.update` (empty when nothing changes). */
+  codPaymentFailureData(order: {
+    paymentMethod: PaymentMethod;
+    paymentStatus: PaymentStatus;
+  }): { paymentStatus?: PaymentStatus } {
+    return this.codPaymentWillFail(order)
+      ? { paymentStatus: PaymentStatus.FAILED }
+      : {};
+  }
+
+  /**
+   * The order's COD PAYMENT transaction PENDING/PROCESSING → FAILED
+   * (`failureReason: 'order_cancelled'`), inside the caller's cancellation
+   * transaction. Conditional on the current status → idempotent.
+   */
+  async failCodTransactionOnCancellation(
+    orderId: string,
+    db: PrismaService | Prisma.TransactionClient = this.prisma,
+  ): Promise<number> {
+    const res = await db.transaction.updateMany({
+      where: {
+        orderId,
+        type: TransactionType.PAYMENT,
+        provider: TransactionProvider.COD,
+        status: { in: [PaymentStatus.PENDING, PaymentStatus.PROCESSING] },
+      },
+      data: {
+        status: PaymentStatus.FAILED,
+        failureReason: 'order_cancelled',
+      },
+    });
+    return res.count;
   }
 
   /**

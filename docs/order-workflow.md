@@ -95,32 +95,52 @@ delivery, so `AdminOrdersService.markDelivered()` flips it to `COMPLETED` (*enca
   the buyer, within `deliveredAt + 2 days`, and no active request exists (`ReturnsService.createReturnRequest`).
 - **Admin reviews** at `/dashboard/returns` (`GET /v1/admin/returns`, `POST :id/approve|reject`).
   **Approve** (atomic): order → `RETURNED` (+ `returnedAt` + log) → **restock** → `reverseEarning`
-  (deletes the not-yet-paid earning; flags if already in a payout) → records a **REFUND** `Transaction`.
+  (stamps `reversedAt`/`reversalReason=RETURN_APPROVED` on the earning — never deleted; stamps
+  `clawbackRequiredAt` if already reserved in a payout) → records a **REFUND** `Transaction`.
   **Reject**: order stays `DELIVERED`, payout proceeds.
 - Model: `ReturnRequest` (status `REQUESTED|APPROVED|REJECTED`; `buyerId`/`reviewedById` are plain uuids).
 
 ## Financials — commission, payout hold (lazy eligibility)
 
-Single source of truth: `EarningsService` (`apps/api/src/payments/earnings.service.ts`).
+Single source of truth: `EarningsService` (`apps/api/src/payments/earnings.service.ts`); full model in
+`docs/payouts.md`. Since 2026-09-04 (PR 2 of `docs/payouts-commission-action-center.md`):
 
-- `computeBreakdown(grossCDF, categoryId)` — commission is on the **subtotal** (excludes delivery fee),
-  at the primary category's rate (cascade category → global → **10% default**), `Math.round`;
-  `net = gross − commission`.
-- `createEarning(orderId)` — on delivery, persists a `SellerEarning` snapshot (idempotent). It does
-  **not** credit `walletBalanceCDF` — the seller's available balance is **computed lazily on read**.
-- **Return-window hold.** An earning is **payout-eligible** only when its order's `deliveredAt + 2 days
-  ≤ now` AND the order is not `RETURNED` (and it's unpaid / not in a payout). Until then it's **pending**
-  (held). No cron — `eligibleEarningWhere` / `pendingEarningWhere` filter on the order relation at query
-  time. `getBalances()` returns `{ availableCDF, pendingCDF, totalEarnedCDF, totalCommissionCDF }`.
+- `resolveCommission(sellerProfileId, categoryId)` — seller override → leaf category → global
+  (`CommissionNotConfiguredError` when none; no hardcoded rate).
+- `computeBreakdown(sellerProfileId, items)` — **per item** on the line totals (delivery fee excluded),
+  integer half-up arithmetic; returns totals, an exact-or-blended rate, `commissionSource` and the per-line
+  snapshot.
+- `createEarning(orderId, tx)` — runs **inside** `markDelivered`'s transaction together with the COD
+  `Transaction` completion; persists the earning + per-`OrderItem` commission snapshot. Idempotent.
+- **Return-window hold.** Eligible only when `deliveredAt + 2 days ≤ now` AND the order is still
+  `DELIVERED` AND `reversedAt IS NULL` AND not reserved. Reversals (return approved, forced exit from
+  `DELIVERED`) keep the row and stamp it; reversed rows are excluded from balances, totals, stats and reports.
 - `GET /v1/sellers/wallet` → `{ balanceCDF (=available), availableCDF, pendingCDF, totalEarnedCDF,
-  totalCommissionCDF, pendingPayoutCDF }`. Seller earnings UI shows *Solde disponible* + a
-  "*+ X en attente (fenêtre de retour de 2 jours)*" line.
-- **Payout** (`PayoutsService.requestPayout`) reserves only **eligible** earnings and checks the 5 000 FC
-  minimum against the **available** balance; **reject** just unlinks earnings (back to the eligible pool).
-  `walletBalanceCDF` is retained on the schema but **non-authoritative**.
-- Seller/admin order-detail endpoints still return a `financials` object
-  `{ grossCDF, commissionCDF, netCDF, commissionRate, isFinal }` (persisted earning once delivered, else a
-  `computeBreakdown` projection).
+  totalCommissionCDF, pendingPayoutCDF }` — field names frozen for installed mobile builds.
+- `GET /v1/sellers/earnings` rows carry an API-derived `state` (`REVERSED` | `PAID` | `RESERVED` |
+  `HELD` | `AVAILABLE`, PR 7) so the clients never infer payability themselves.
+- Seller/admin order-detail endpoints return `financials` `{ grossCDF, commissionCDF, netCDF,
+  commissionRate, isFinal }` — the persisted earning once delivered, else a per-item projection at today's
+  rules (`isFinal:false`; zero commission if unconfigured).
+- `forceStatusChange` runs no delivery side effects when forcing **into** `DELIVERED` (use
+  `markDelivered`), but forcing **out of** `DELIVERED` reverses the earning (`ORDER_STATUS_FORCED`).
+
+### Cancellation of an unpaid COD order (D7, 2026-09-04)
+
+Every authoritative cancellation path — buyer cancel (before pickup), seller reject, admin cancel —
+decides up front with `PaymentsService.codPaymentWillFail(order)`, folds `{ paymentStatus: FAILED }`
+into its own cancelling `order.update` (`codPaymentFailureData`) and runs
+`failCodTransactionOnCancellation` in the same transaction: a COD order whose `paymentStatus` is still
+`PENDING` becomes **`FAILED`** and its COD `PAYMENT` transaction `PENDING`/`PROCESSING` → `FAILED`
+(`failureReason: 'order_cancelled'`). The three cancellation transactions run with an explicit 15 s
+timeout (the remote dev DB exceeded Prisma's 5 s default once). `FAILED` here means « the
+payment did not and will not happen » (no money was collected — no refund is created; `REFUNDED` is
+reserved for money that actually moved). A payment already `COMPLETED`, `REFUNDED` or `FAILED`, and
+any non-COD order, is never touched; the update is conditional, so a retry or a concurrent
+cancellation cannot flip twice. `payment_failed` (PostHog, `distinctId` = buyer) fires exactly when
+the flip happened, on all three paths (`actor: buyer | seller | admin`). Status logs, cancellation
+reason/actor and stock restoration are unchanged. No earning, commission, balance or payout is
+involved: nothing financial exists before delivery.
 
 ## Notifications & analytics
 

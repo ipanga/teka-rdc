@@ -8,10 +8,15 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveDeliveryAddress } from './delivery-address.util';
 import { OrderNotificationService } from '../notifications/order-notification.service';
-import { EarningsService } from '../payments/earnings.service';
+import {
+  CommissionNotConfiguredError,
+  EarningsService,
+} from '../payments/earnings.service';
+import { Decimal } from '@prisma/client/runtime/library';
 import { PostHogService } from '../analytics/posthog.service';
+import { PaymentsService } from '../payments/payments.service';
 import { SellerOrderQueryDto } from './dto/seller-order-query.dto';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, PaymentMethod } from '@prisma/client';
 
 /**
  * Maps an order's new status to its PostHog event name. Attributed to the
@@ -38,6 +43,7 @@ export class SellerOrdersService {
     private notificationService: OrderNotificationService,
     private earningsService: EarningsService,
     private analytics: PostHogService,
+    private paymentsService: PaymentsService,
   ) {}
 
   /**
@@ -258,17 +264,39 @@ export class SellerOrdersService {
           isFinal: true,
         }
       : await (async () => {
-          const p = await this.earningsService.computeBreakdown(
-            order.subtotalCDF,
-            order.items[0]?.product?.categoryId ?? null,
-          );
-          return {
-            grossCDF: p.grossAmountCDF,
-            commissionCDF: p.commissionCDF,
-            netCDF: p.netAmountCDF,
-            commissionRate: p.commissionRate,
-            isFinal: false,
-          };
+          // Projection at today's rules, per item (D5). Only the persisted
+          // earning is authoritative; a missing commission configuration
+          // degrades to a zero-commission projection instead of failing.
+          const profile = await this.prisma.sellerProfile.findUnique({
+            where: { userId: sellerId },
+            select: { id: true },
+          });
+          try {
+            if (!profile) throw new CommissionNotConfiguredError();
+            const p = await this.earningsService.computeBreakdown(
+              profile.id,
+              order.items.map((i) => ({
+                totalCDF: i.totalCDF,
+                categoryId: i.product?.categoryId ?? null,
+              })),
+            );
+            return {
+              grossCDF: p.grossAmountCDF,
+              commissionCDF: p.commissionCDF,
+              netCDF: p.netAmountCDF,
+              commissionRate: p.commissionRate,
+              isFinal: false,
+            };
+          } catch (err) {
+            if (!(err instanceof CommissionNotConfiguredError)) throw err;
+            return {
+              grossCDF: order.subtotalCDF,
+              commissionCDF: BigInt(0),
+              netCDF: order.subtotalCDF,
+              commissionRate: new Decimal(0),
+              isFinal: false,
+            };
+          }
         })();
 
     return {
@@ -322,6 +350,7 @@ export class SellerOrdersService {
       OrderStatus.CANCELLED,
     );
 
+    const paymentFailed = this.paymentsService.codPaymentWillFail(order);
     const updatedOrder = await this.prisma.$transaction(async (tx) => {
       await this.createStatusLog(
         tx,
@@ -331,6 +360,12 @@ export class SellerOrdersService {
         sellerId,
         `Rejetée par le vendeur : ${reason}`,
       );
+
+      // D7: unpaid COD → the COD transaction fails in the same transaction;
+      // the order's paymentStatus flips inside the update below.
+      if (paymentFailed) {
+        await this.paymentsService.failCodTransactionOnCancellation(orderId, tx);
+      }
 
       // Restore stock held since checkout.
       const heldItems = await tx.orderItem.findMany({
@@ -350,13 +385,14 @@ export class SellerOrdersService {
           status: OrderStatus.CANCELLED,
           cancellationReason: reason,
           cancelledBy: sellerId,
+          ...this.paymentsService.codPaymentFailureData(order),
         },
         include: {
           items: true,
           statusLogs: { orderBy: { createdAt: 'desc' }, take: 5 },
         },
       });
-    });
+    }, { timeout: 15_000 });
 
     // Fire-and-forget: notify buyer and seller of rejection/cancellation
     this.notificationService
@@ -364,6 +400,14 @@ export class SellerOrdersService {
       .catch((err) => this.logger.error('Échec de notification de rejet', err));
 
     this.trackOrderStatus(updatedOrder, OrderStatus.CANCELLED);
+    if (paymentFailed) {
+      this.analytics.capture(updatedOrder.buyerId, 'payment_failed', {
+        orderId,
+        method: PaymentMethod.COD,
+        reason: 'order_cancelled',
+        actor: 'seller',
+      });
+    }
 
     return updatedOrder;
   }

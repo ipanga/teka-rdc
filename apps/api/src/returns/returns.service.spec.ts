@@ -18,9 +18,7 @@ function makeService(opts: {
     orderStatusLog: { create: jest.fn().mockResolvedValue({}) },
     order: { update: jest.fn().mockResolvedValue({}) },
     orderItem: {
-      findMany: jest
-        .fn()
-        .mockResolvedValue([{ productId: 'p1', quantity: 3 }]),
+      findMany: jest.fn().mockResolvedValue([{ productId: 'p1', quantity: 3 }]),
     },
     product: { update: jest.fn().mockResolvedValue({}) },
     transaction: { create: jest.fn().mockResolvedValue({}) },
@@ -36,7 +34,9 @@ function makeService(opts: {
     $transaction: jest.fn((cb: (t: typeof tx) => unknown) => cb(tx)),
   };
   const earningsService = {
-    reverseEarning: jest.fn().mockResolvedValue({ reversed: true, inPayout: false }),
+    reverseEarning: jest
+      .fn()
+      .mockResolvedValue({ reversed: true, inPayout: false }),
   };
   const notificationService = {
     notifyReturnRequested: jest.fn().mockResolvedValue(undefined),
@@ -73,9 +73,9 @@ describe('ReturnsService.createReturnRequest', () => {
 
   it('blocks a non-owner (IDOR)', async () => {
     const { service } = makeService({ order: base });
-    await expect(service.createReturnRequest('other', 'o1', 'x')).rejects.toThrow(
-      ForbiddenException,
-    );
+    await expect(
+      service.createReturnRequest('other', 'o1', 'x'),
+    ).rejects.toThrow(ForbiddenException);
   });
 
   it('blocks when not delivered', async () => {
@@ -97,7 +97,10 @@ describe('ReturnsService.createReturnRequest', () => {
   });
 
   it('blocks a second active request', async () => {
-    const { service } = makeService({ order: base, activeReturn: { id: 'r0' } });
+    const { service } = makeService({
+      order: base,
+      activeReturn: { id: 'r0' },
+    });
     await expect(service.createReturnRequest('b1', 'o1', 'x')).rejects.toThrow(
       BadRequestException,
     );
@@ -118,7 +121,9 @@ describe('ReturnsService.approveReturn', () => {
   };
 
   it('flips order to RETURNED, restocks, reverses earning, records a refund', async () => {
-    const { service, tx, earningsService } = makeService({ pendingReturn: pending });
+    const { service, tx, earningsService } = makeService({
+      pendingReturn: pending,
+    });
     await service.approveReturn('r1', 'admin1', 'ok');
 
     expect(tx.order.update).toHaveBeenCalledWith(
@@ -129,7 +134,11 @@ describe('ReturnsService.approveReturn', () => {
     expect(tx.product.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { quantity: { increment: 3 } } }),
     );
-    expect(earningsService.reverseEarning).toHaveBeenCalledWith('o1', tx);
+    expect(earningsService.reverseEarning).toHaveBeenCalledWith(
+      'o1',
+      tx,
+      'RETURN_APPROVED',
+    );
     expect(tx.transaction.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ type: 'REFUND', amountCDF: 5000000n }),
