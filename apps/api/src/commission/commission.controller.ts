@@ -11,6 +11,7 @@ import {
 import { CommissionService } from './commission.service';
 import { UpsertCommissionDto } from './dto/upsert-commission.dto';
 import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('v1/admin/commission-settings')
 export class CommissionController {
@@ -35,10 +36,13 @@ export class CommissionController {
    */
   @Put()
   @Roles('ADMIN')
-  async upsertGlobal(@Body() dto: UpsertCommissionDto) {
+  async upsertGlobal(
+    @Body() dto: UpsertCommissionDto,
+    @CurrentUser('userId') adminId: string,
+  ) {
     // Force categoryId to null for the global rate
     dto.categoryId = null;
-    const data = await this.commissionService.upsertSetting(dto);
+    const data = await this.commissionService.upsertSetting(dto, adminId);
     return { success: true, data };
   }
 
@@ -51,9 +55,10 @@ export class CommissionController {
   async upsertForCategory(
     @Param('categoryId', ParseUUIDPipe) categoryId: string,
     @Body() dto: UpsertCommissionDto,
+    @CurrentUser('userId') adminId: string,
   ) {
     dto.categoryId = categoryId;
-    const data = await this.commissionService.upsertSetting(dto);
+    const data = await this.commissionService.upsertSetting(dto, adminId);
     return { success: true, data };
   }
 
@@ -63,8 +68,14 @@ export class CommissionController {
    */
   @Delete(':categoryId')
   @Roles('ADMIN')
-  async removeOverride(@Param('categoryId', ParseUUIDPipe) categoryId: string) {
-    const data = await this.commissionService.removeOverride(categoryId);
+  async removeOverride(
+    @Param('categoryId', ParseUUIDPipe) categoryId: string,
+    @CurrentUser('userId') adminId: string,
+  ) {
+    const data = await this.commissionService.removeOverride(
+      categoryId,
+      adminId,
+    );
     return { success: true, data };
   }
 }

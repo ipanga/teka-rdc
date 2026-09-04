@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  Prisma,
   TransactionType,
   TransactionProvider,
   PaymentStatus,
@@ -48,8 +49,11 @@ export class PaymentsService {
   /**
    * Complete a COD transaction (called when order is delivered).
    */
-  async completeCodTransaction(orderId: string) {
-    const transaction = await this.prisma.transaction.findFirst({
+  async completeCodTransaction(
+    orderId: string,
+    db: PrismaService | Prisma.TransactionClient = this.prisma,
+  ) {
+    const transaction = await db.transaction.findFirst({
       where: {
         orderId,
         type: TransactionType.PAYMENT,
@@ -58,7 +62,7 @@ export class PaymentsService {
     });
 
     if (transaction && transaction.status !== PaymentStatus.COMPLETED) {
-      await this.prisma.transaction.update({
+      await db.transaction.update({
         where: { id: transaction.id },
         data: { status: PaymentStatus.COMPLETED },
       });

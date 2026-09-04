@@ -24,7 +24,12 @@ function makeService(order: Record<string, unknown> | null) {
     order: { findUnique: jest.fn().mockResolvedValue(order) },
     $transaction: jest.fn((cb: (t: typeof tx) => unknown) => cb(tx)),
   };
-  const earningsService = { createEarning: jest.fn().mockResolvedValue({}) };
+  const earningsService = {
+    createEarning: jest.fn().mockResolvedValue({}),
+    reverseEarning: jest
+      .fn()
+      .mockResolvedValue({ reversed: true, inPayout: false }),
+  };
   const paymentsService = {
     completeCodTransaction: jest.fn().mockResolvedValue({}),
   };
@@ -41,7 +46,14 @@ function makeService(order: Record<string, unknown> | null) {
     notificationService as never,
     analytics as never,
   );
-  return { service, prisma, tx, earningsService, paymentsService, notificationService };
+  return {
+    service,
+    prisma,
+    tx,
+    earningsService,
+    paymentsService,
+    notificationService,
+  };
 }
 
 const orderAt = (status: OrderStatus, paymentMethod = PaymentMethod.COD) => ({
@@ -86,8 +98,12 @@ describe('AdminOrdersService — Teka transitions', () => {
     expect(tx.product.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { unitsSold: { increment: 2 } } }),
     );
-    expect(paymentsService.completeCodTransaction).toHaveBeenCalledWith('o1');
-    expect(earningsService.createEarning).toHaveBeenCalledWith('o1');
+    // Financial side effects run INSIDE the delivery transaction (same tx client).
+    expect(paymentsService.completeCodTransaction).toHaveBeenCalledWith(
+      'o1',
+      tx,
+    );
+    expect(earningsService.createEarning).toHaveBeenCalledWith('o1', tx);
   });
 
   it('markDelivered rejects when not out for delivery', async () => {
@@ -171,8 +187,13 @@ describe('AdminOrdersService.forceStatusChange — deliveredAt invariant', () =>
   // delivery. Stamping the date must not have quietly turned it into a second
   // markDelivered() that double-books money and stock.
   it('runs NO delivery side effects — no earning, stock, payment or notification', async () => {
-    const { service, tx, earningsService, paymentsService, notificationService } =
-      makeService({ ...orderAt(OrderStatus.PROCESSING), deliveredAt: null });
+    const {
+      service,
+      tx,
+      earningsService,
+      paymentsService,
+      notificationService,
+    } = makeService({ ...orderAt(OrderStatus.PROCESSING), deliveredAt: null });
 
     await service.forceStatusChange('o1', OrderStatus.DELIVERED, 'admin1');
 
@@ -191,7 +212,12 @@ describe('AdminOrdersService.forceStatusChange — deliveredAt invariant', () =>
       ...orderAt(OrderStatus.PENDING),
       deliveredAt: null,
     });
-    await service.forceStatusChange('o1', OrderStatus.DELIVERED, 'admin1', 'note');
+    await service.forceStatusChange(
+      'o1',
+      OrderStatus.DELIVERED,
+      'admin1',
+      'note',
+    );
     expect(tx.orderStatusLog.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         fromStatus: OrderStatus.PENDING,
@@ -215,8 +241,13 @@ describe('AdminOrdersService.forceStatusChange — deliveredAt invariant', () =>
 
 describe('AdminOrdersService.markDelivered — the normal path is unchanged', () => {
   it('stamps deliveredAt and runs the full delivery side effects', async () => {
-    const { service, tx, earningsService, paymentsService, notificationService } =
-      makeService(orderAt(OrderStatus.OUT_FOR_DELIVERY));
+    const {
+      service,
+      tx,
+      earningsService,
+      paymentsService,
+      notificationService,
+    } = makeService(orderAt(OrderStatus.OUT_FOR_DELIVERY));
 
     await service.markDelivered('o1', 'admin1');
 
@@ -229,5 +260,48 @@ describe('AdminOrdersService.markDelivered — the normal path is unchanged', ()
     expect(earningsService.createEarning).toHaveBeenCalled();
     expect(paymentsService.completeCodTransaction).toHaveBeenCalled();
     expect(notificationService.notifyOrderDelivered).toHaveBeenCalled();
+  });
+});
+
+describe('AdminOrdersService.forceStatusChange — leaving DELIVERED reverses the earning (D6)', () => {
+  it('DELIVERED → CANCELLED reverses the earning inside the same transaction, reason ORDER_STATUS_FORCED', async () => {
+    const { service, tx, earningsService } = makeService({
+      ...orderAt(OrderStatus.DELIVERED),
+      deliveredAt: new Date('2026-09-01T10:00:00Z'),
+    });
+    await service.forceStatusChange(
+      'o1',
+      OrderStatus.CANCELLED,
+      'admin1',
+      'fraude',
+    );
+    expect(earningsService.reverseEarning).toHaveBeenCalledWith(
+      'o1',
+      tx,
+      'ORDER_STATUS_FORCED',
+    );
+    expect(earningsService.createEarning).not.toHaveBeenCalled();
+  });
+
+  it('forcing between non-delivered statuses touches no earning', async () => {
+    const { service, earningsService } = makeService(
+      orderAt(OrderStatus.CONFIRMED),
+    );
+    await service.forceStatusChange('o1', OrderStatus.CANCELLED, 'admin1');
+    expect(earningsService.reverseEarning).not.toHaveBeenCalled();
+  });
+});
+
+describe('AdminOrdersService.markDelivered — financial side effects are transactional', () => {
+  it('a failing earning creation rejects the delivery (no DELIVERED order without its earning)', async () => {
+    const { service, earningsService } = makeService(
+      orderAt(OrderStatus.OUT_FOR_DELIVERY),
+    );
+    earningsService.createEarning.mockRejectedValueOnce(
+      new Error('commission non configurée'),
+    );
+    await expect(service.markDelivered('o1', 'admin1')).rejects.toThrow(
+      'commission non configurée',
+    );
   });
 });

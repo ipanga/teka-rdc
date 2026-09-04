@@ -129,9 +129,11 @@ export class AccountDeletionService {
 
     // Sign the account out everywhere + stop push. Reactivation happens on the
     // next successful login within the window.
-    await this.authService.logout(user.id).catch((e) =>
-      this.logger.warn(`revoke-all on deletion failed for ${user.id}: ${e}`),
-    );
+    await this.authService
+      .logout(user.id)
+      .catch((e) =>
+        this.logger.warn(`revoke-all on deletion failed for ${user.id}: ${e}`),
+      );
     await this.deviceTokens
       .deactivateAll(user.id)
       .catch((e) =>
@@ -186,7 +188,9 @@ export class AccountDeletionService {
         dto.otpCode,
       );
       if (!ok) {
-        throw new UnauthorizedException('Code de confirmation invalide ou expiré.');
+        throw new UnauthorizedException(
+          'Code de confirmation invalide ou expiré.',
+        );
       }
       return;
     }
@@ -246,13 +250,23 @@ export class AccountDeletionService {
 
     if (user.sellerProfile) {
       const unpaidEarning = await this.prisma.sellerEarning.findFirst({
-        where: { sellerProfileId: user.sellerProfile.id, isPaid: false },
+        where: {
+          sellerProfileId: user.sellerProfile.id,
+          isPaid: false,
+          reversedAt: null,
+        },
         select: { id: true },
       });
       const pendingPayout = await this.prisma.payout.findFirst({
         where: {
           sellerProfileId: user.sellerProfile.id,
-          status: { in: [PayoutStatus.REQUESTED, PayoutStatus.APPROVED] },
+          status: {
+            in: [
+              PayoutStatus.REQUESTED,
+              PayoutStatus.APPROVED,
+              PayoutStatus.PROCESSING,
+            ],
+          },
         },
         select: { id: true },
       });

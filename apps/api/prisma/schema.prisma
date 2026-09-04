@@ -117,6 +117,16 @@ enum PayoutStatus {
   REJECTED
 }
 
+/// Which rule produced a snapshotted commission rate (D3 precedence:
+/// SELLER override → leaf CATEGORY setting → GLOBAL setting). MIXED is only
+/// ever stored on a SellerEarning whose items resolved to different sources.
+enum CommissionSource {
+  SELLER
+  CATEGORY
+  GLOBAL
+  MIXED
+}
+
 enum ReviewStatus {
   ACTIVE
   HIDDEN
@@ -339,6 +349,9 @@ model SellerProfile {
   // re-enter it on every payout request. Nullable until first configured.
   payoutMethod String? // 'M_PESA' | 'AIRTEL_MONEY' | 'ORANGE_MONEY'
   payoutPhone  String? // +243XXXXXXXXX
+  // Seller-specific commission override (D3). NULL = no override → the leaf
+  // category / global settings apply. 0 is a legitimate 0 % rate.
+  commissionRate Decimal? @db.Decimal(5, 4)
 
   user       User            @relation("UserSellerProfile", fields: [userId], references: [id])
   approvedBy User?           @relation("SellerApprover", fields: [approvedById], references: [id])
@@ -798,6 +811,13 @@ model OrderItem {
   totalUSD     BigInt?
   productTitle String // snapshot of Product.title at order time
   productImage String? // thumbnail URL snapshot
+  // Commission snapshot written at DELIVERY (D4/D5): the rate + amount this
+  // line contributed and the rule that produced it. NULL before delivery and
+  // on rows delivered before 2026-09-04 (their earning carries the totals).
+  commissionRate   Decimal?          @db.Decimal(5, 4)
+  commissionCDF    BigInt?
+  commissionSource CommissionSource?
+  commissionRuleId String?           @db.Uuid
   createdAt    DateTime @default(now())
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -883,8 +903,18 @@ model SellerEarning {
   commissionCDF   BigInt
   netAmountCDF    BigInt
   commissionRate  Decimal  @db.Decimal(5, 4)
+  // Rule that produced commissionRate (NULL on rows created before 2026-09-04).
+  commissionSource CommissionSource?
   isPaid          Boolean  @default(false)
   payoutId        String?  @db.Uuid
+  // Auditable reversal (D6): a returned / forcibly-cancelled sale keeps its row
+  // and is stamped here instead of being deleted. Reversed rows never count
+  // towards balances, totals or reports.
+  reversedAt         DateTime?
+  reversalReason     String?
+  // Set when a reversal hits an earning already reserved in a payout: the cash
+  // is committed, so finance must claw it back by hand. Surfaced to admins.
+  clawbackRequiredAt DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -913,6 +943,13 @@ model Payout {
   requestedAt       DateTime     @default(now())
   approvedAt        DateTime?
   approvedById      String?      @db.Uuid
+  // Actor + time of every other admin transition (audit trail; plain user ids,
+  // the full before/after record lives in admin_audit_logs).
+  processingAt      DateTime?
+  processingById    String?      @db.Uuid
+  completedById     String?      @db.Uuid
+  rejectedAt        DateTime?
+  rejectedById      String?      @db.Uuid
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
@@ -939,6 +976,26 @@ model CommissionSetting {
   @@index([categoryId])
   @@index([isActive])
   @@map("commission_settings")
+}
+
+/// Who changed what, when, on which entity, with the previous and new state —
+/// written inside the same transaction as every admin financial mutation
+/// (payout transitions, commission settings). Append-only.
+model AdminAuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String   @db.Uuid
+  action     String
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("admin_audit_logs")
 }
 
 model Review {

@@ -21,51 +21,67 @@ would be inverted — the platform would instead *collect commission* from
 sellers — which is why the seller payout UI was historically disabled until the
 model was settled.)
 
-Money is held as **BigInt centimes** end to end (`amountCDF`, `walletBalanceCDF`).
+Money is held as **BigInt centimes** end to end (`amountCDF`, `grossAmountCDF`, …);
+rates are `Decimal(5,4)`. `SellerProfile.walletBalanceCDF` still exists on the schema but is
+**dead** (seed-only, never read) — balances are computed from the ledger.
 
-## How earnings accrue
+## How earnings accrue (COD invariant)
 
-On delivery (`SellerOrdersService.deliverOrder`, fire-and-forget):
-`EarningsService.createEarning(orderId)` writes one `SellerEarning`
-(idempotent, keyed on `orderId`):
+An earning exists only once Teka has **delivered** the order and collected the cash:
+`AdminOrdersService.markDelivered` calls `EarningsService.createEarning(orderId, tx)` **inside the
+delivery transaction** (since 2026-09-04 — a failure rolls the delivery back; before that it was
+fire-and-forget). Nothing earlier in the lifecycle creates a withdrawable balance. One `SellerEarning`
+per order (idempotent on `orderId`):
 
-- `grossAmountCDF` = `order.subtotalCDF` (goods only — **delivery fee excluded**)
-- `commissionRate` = category-specific `CommissionSetting` → global setting → 10% default
-- `commissionCDF` = round(gross × rate); `netAmountCDF` = gross − commission
-- `SellerProfile.walletBalanceCDF` is incremented by the net
+- `grossAmountCDF` = Σ `OrderItem.totalCDF` (goods only — **delivery fee excluded**)
+- commission is computed **per item** (D5) at the rule resolved for that item, then summed:
+  `SellerProfile.commissionRate` (seller override) → active leaf-category `CommissionSetting` →
+  active global `CommissionSetting`. **No hardcoded fallback**: without a global setting delivery
+  fails with `CommissionNotConfiguredError` (the 2026-09-04 migration guarantees one).
+- arithmetic is integer (`payments/commission-math.ts`): rate as ten-thousandths, half-up rounding
+  to the centime per line — never floats.
+- snapshot at delivery (D4): the earning stores totals + `commissionRate` (exact when every line
+  shares one rule, else blended for display) + `commissionSource`; every `OrderItem` stores its own
+  `commissionRate / commissionCDF / commissionSource / commissionRuleId`. Changing a rate later never
+  touches these rows.
+
+**Reversal (D6).** A returned or forcibly cancelled sale is not deleted: `reverseEarning` stamps
+`reversedAt` + `reversalReason` (`RETURN_APPROVED` | `ORDER_STATUS_FORCED`). Reversed rows are excluded
+from every balance, total and report. If the earning is already reserved in a payout the row is
+stamped `clawbackRequiredAt` instead (the cash is committed — finance settles it by hand).
+
+**Payability.** `available` = window closed (`deliveredAt + 2 days ≤ now`) AND the order is **still
+`DELIVERED`** AND not reversed AND not reserved. `pending` = same but inside the window.
 
 ## Payout lifecycle (state machine)
 
-`PayoutStatus`: `REQUESTED → APPROVED → PROCESSING → COMPLETED`, with `REJECTED`
-reachable from `REQUESTED`/`APPROVED`.
+`PayoutStatus`: `REQUESTED → APPROVED → PROCESSING → COMPLETED`, with `REJECTED` reachable from
+`REQUESTED` / `APPROVED` / `PROCESSING` (D1). **Approve = authorization only; COMPLETED = cash
+actually sent** and confirmed with a reference — the seller is told "paid" only then.
 
 ```
-                 reject (restores wallet+earnings)
-        ┌──────────────────────────────┐
-        ▼                              │
-   REQUESTED ──approve──► APPROVED ──process──► PROCESSING ──complete──► COMPLETED
-                            │  └──────────────complete───────────────►   (terminal)
-                            └──reject──► REJECTED
+        ┌──────────── reject (releases earnings) ────────────┐
+        ▼                                                    │
+   REQUESTED ──approve──► APPROVED ──process──► PROCESSING ──┼─complete──► COMPLETED (terminal)
+                            │  └────────── complete ─────────┘
+                            └──reject──► REJECTED (terminal)
 ```
 
 | Transition | Endpoint | Effect |
 |---|---|---|
-| request | `POST /v1/sellers/payouts` | Creates `REQUESTED` payout for the full wallet balance; marks all unpaid earnings `isPaid=true` + links `payoutId`; **decrements** the wallet. Guards: ≥ 5 000 CDF, one pending payout at a time, a destination must be set. |
-| approve | `POST /v1/admin/payouts/:id/approve` | `REQUESTED → APPROVED`; records `approvedAt`/`approvedById`. |
-| process | `POST /v1/admin/payouts/:id/process` | `APPROVED → PROCESSING` (optional — operator started the transfer). |
-| complete | `POST /v1/admin/payouts/:id/complete` | `APPROVED\|PROCESSING → COMPLETED`; requires `externalReference`; sets `processedAt`. **Terminal.** |
-| reject | `POST /v1/admin/payouts/:id/reject` | `REQUESTED\|APPROVED → REJECTED`; **restores** earnings (`isPaid=false`, `payoutId=null`) and **re-credits** the wallet. |
+| request | `POST /v1/sellers/payouts` | One transaction: `SELECT … FOR UPDATE` on the seller profile → open-payout check (`REQUESTED`/`APPROVED`/`PROCESSING` block, D2) → eligible earnings read under the lock → ≥ 5 000 FC → destination (body, else profile; snapshotted) → create `REQUESTED` payout for the whole available amount → reserve those earnings (`isPaid=true`, `payoutId`) with a `payoutId IS NULL` guard and a count check. A `payouts_one_open_per_seller` partial unique index backs it; `P2002` → 409. |
+| approve | `POST /v1/admin/payouts/:id/approve` | `REQUESTED → APPROVED`; `approvedAt/approvedById`. Notifies (approved). |
+| process | `POST /v1/admin/payouts/:id/process` | `APPROVED → PROCESSING`; `processingAt/processingById`. No notification. |
+| complete | `POST /v1/admin/payouts/:id/complete` | `APPROVED\|PROCESSING → COMPLETED`; requires `externalReference`; `processedAt/completedById`. **Terminal.** Notifies (paid). |
+| reject | `POST /v1/admin/payouts/:id/reject` | `REQUESTED\|APPROVED\|PROCESSING → REJECTED`; `rejectedAt/rejectedById/rejectionReason`; **releases** the earnings (`isPaid=false`, `payoutId=null`) in the same transaction. **Terminal.** Notifies (rejected). |
 
-**Wallet integrity:** the wallet is debited at *request* time and the earnings
-linked to the payout; only `reject` reverses that. `complete` does **not** touch
-the wallet/earnings — it only flips the payout to its final state. There is no
-automated provider: completion is a **manual mark-paid** with a transfer
-reference (e.g. an M-Pesa transaction id), and the admin approve→complete step
-is the finance control point (mark paid only once the cash is actually sent).
+Every admin transition is a **conditional update** (`updateMany where { id, status ∈ allowed }`)
+plus an `admin_audit_logs` row (actor, before/after, reason) in **one transaction**; a retry or a
+concurrent call finds `count = 0`, gets a 400 naming the current status, and never re-notifies.
 
 > **No `Transaction{PAYOUT}` row.** `Transaction.orderId` is required, so a payout
 > (not tied to one order) isn't written as a transaction. The `Payout` row +
-> `externalReference` are the payout ledger.
+> `externalReference` + the audit trail are the payout ledger.
 
 ## Payout destination (reusable)
 
