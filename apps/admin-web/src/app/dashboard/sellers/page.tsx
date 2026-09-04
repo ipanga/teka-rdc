@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '@/lib/api-client';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface SellerProfileLite {
   id: string;
@@ -161,11 +162,8 @@ export default function SellersPage() {
     : 'bg-destructive/10 text-destructive';
 
   return (
-    <div className="p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Vendeurs</h1>
-        <p className="text-sm text-muted-foreground mt-1">Gérez les vendeurs et leurs demandes d&apos;inscription</p>
-      </div>
+    <div className="admin-page">
+      <PageHeader eyebrow="Communauté" title="Vendeurs" description="Examinez les demandes d’inscription et gérez les comptes vendeurs." />
 
       <div className="flex flex-wrap gap-2 mb-6">
         {([

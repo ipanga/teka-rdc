@@ -6,30 +6,35 @@
 
 ## Active initiative
 
-**Seller / Admin UX modernization — Seller Web implemented and locally validated; Admin is next.**
-Branch: `codex/seller-web-ux-modernization`, based on `develop` `674d794` (Mobile foundation/action
-center PRs #634/#635 merged). The remaining Mobile forms/details/notifications/profile/earnings and
-native splash lot is complete on `codex/seller-mobile-forms-details` (`43f9520`) with **112 tests**;
-its branch is pushed but PR creation was blocked by the automatic approval review.
+**Seller / Admin UX modernization — implementation complete across Mobile, Seller Web and Admin.**
+Mobile foundation/action center PRs #634/#635 are merged into `develop` `674d794`. The remaining
+Mobile forms/details/notifications/profile/earnings and native splash lot is committed as `43f9520`
+on pushed branch `codex/seller-mobile-forms-details`. Seller Web is committed as `2b44a16` on pushed
+branch `codex/seller-web-ux-modernization`. Admin is complete on the current
+`codex/admin-web-ux-modernization` branch. Full evidence: `docs/seller-admin-ux-modernization.md`.
 
-Seller Web now has grouped accessible navigation, a keyboard-contained mobile drawer, a compact
-action center driven by the existing seller order/product statistics, exact URL-backed filters,
-clear partial failure/empty/loading states, a responsive notification panel and shared page hierarchy
-across catalogue, orders, revenues, reviews, promotions and profile. Existing APIs, lifecycle
-transitions, payout rules, auth/ownership, analytics and private-site noindex rules are unchanged.
-Type-check and production build pass. Browser QA against the local development API and the seeded
-seller account verified login, 294 products, empty orders, notifications, wallet, pagination, filter
-URLs, keyboard Escape/focus return and mobile layout without mutations.
+Seller Web and Admin now share clear page hierarchy, grouped SVG navigation, responsive notification
+panels, keyboard-contained mobile drawers, URL-backed filters, explicit loading/error/empty states and
+authoritative action centers. Admin additionally groups its 22 destinations by operator workflow and
+modernizes dashboard, product moderation, orders, sellers, buyers, returns, transactions, payouts and
+reports. Existing APIs, lifecycle transitions, auth/roles/ownership, analytics, financial rules and
+private-site noindex protection are unchanged.
 
-**Still open:** Admin implementation; reviewable PR creation for the two completed branches; final
-Admin + cross-platform validation. Physical-device camera/gallery, native push delivery and release
-performance remain manual device checks. No merge to `main`, production deployment, database/schema
-change or production data mutation is part of this initiative.
+Validation: Mobile **112 tests**, analyzer exit 0 with 17 existing infos, native Android development
+cold launch/splash and responsive visual QA; Seller Web and Admin type-check/build clean. Signed-in
+read-only browser QA used the real development API: seeded seller data (294 products, wallet,
+notifications/orders) and a real ADMIN role (17 users, 3 sellers, 8 orders, 3 pending products,
+121,000 FC revenue). The repository-provided temporary Admin smoke password was cleared immediately.
+No moderation/order/profile/finance mutation was triggered.
 
-**Next exact step:** commit and push Seller Web, then create `codex/admin-web-ux-modernization` from
-`develop`, modernize its operational dashboard/navigation/lists and validate read-only against the
-development API. After Admin, reconcile documentation and request explicit approval to create the
-remaining PRs into `develop` because the earlier PR action was rejected by automatic approval review.
+**Remaining release-readiness limits:** physical-device camera/gallery, native push delivery and
+release-performance measurements require actual hardware/services. PR creation for Mobile/Seller Web
+still needs explicit user approval because automatic approval review rejected the earlier PR action.
+No merge to `main`, production deployment, database/schema change or production data mutation occurred.
+
+**Next exact step:** finish Admin documentation/commit/build checkpoint, push its review branch, then
+create the three PRs into `develop` once explicitly authorized. After review integration, run any
+available CI and perform the physical-device native checks before a store release.
 
 ## Most recently completed initiative
 
