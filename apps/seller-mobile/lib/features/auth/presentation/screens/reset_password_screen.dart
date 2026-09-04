@@ -11,7 +11,8 @@ class ResetPasswordScreen extends ConsumerStatefulWidget {
   const ResetPasswordScreen({super.key, this.token});
 
   @override
-  ConsumerState<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
+  ConsumerState<ResetPasswordScreen> createState() =>
+      _ResetPasswordScreenState();
 }
 
 class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
@@ -62,19 +63,19 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     if (widget.token == null || widget.token!.isEmpty) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Reinitialisation'),
+          title: const Text('Réinitialisation'),
           backgroundColor: Colors.transparent,
           foregroundColor: TekaColors.foreground,
           elevation: 0,
         ),
-        body: Center(
-          child: Padding(
+        body: SafeArea(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Column(
-              mainAxisSize: MainAxisSize.min,
               children: [
+                const SizedBox(height: 80),
                 const Text(
-                  'Lien invalide ou expire.',
+                  'Lien invalide ou expiré.',
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 16),
@@ -97,101 +98,124 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
         elevation: 0,
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: _success
-              ? Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.check_circle_rounded, size: 64, color: Colors.green),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Mot de passe reinitialise. Vous pouvez vous connecter.',
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () => context.go('/auth/login'),
-                      child: const Text('Se connecter'),
-                    ),
-                  ],
-                )
-              : Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 24),
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        autofillHints: const [AutofillHints.newPassword],
-                        decoration: InputDecoration(
-                          labelText: 'Mot de passe',
-                          helperText: 'Au moins 8 caracteres, avec lettres et chiffres',
-                          prefixIcon: const Icon(Icons.lock_outline),
-                          suffixIcon: IconButton(
-                            icon: Icon(_obscurePassword
-                                ? Icons.visibility_outlined
-                                : Icons.visibility_off_outlined),
-                            onPressed: () =>
-                                setState(() => _obscurePassword = !_obscurePassword),
-                          ),
-                        ),
-                        validator: (v) {
-                          if (v == null || v.length < 8) return 'Au moins 8 caracteres';
-                          if (!RegExp(r'[A-Za-z]').hasMatch(v) ||
-                              !RegExp(r'\d').hasMatch(v)) {
-                            return 'Doit contenir lettres et chiffres';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _confirmController,
-                        obscureText: _obscurePassword,
-                        decoration: const InputDecoration(
-                          labelText: 'Confirmer le mot de passe',
-                          prefixIcon: Icon(Icons.lock_outline),
-                        ),
-                        validator: (v) =>
-                            (v == null || v.isEmpty) ? 'Requis' : null,
-                      ),
-                      const SizedBox(height: 16),
-                      if (_errorMessage != null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: TekaColors.destructive.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            _errorMessage!,
-                            style: TextStyle(color: TekaColors.destructive),
-                          ),
-                        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.fromLTRB(
+              24,
+              0,
+              24,
+              MediaQuery.viewInsetsOf(context).bottom + 24,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: _success
+                  ? Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle_rounded,
+                            size: 64, color: Colors.green),
                         const SizedBox(height: 16),
-                      ],
-                      SizedBox(
-                        height: 48,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _submit,
-                          child: _isLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
-                              : const Text('Reinitialiser'),
+                        const Text(
+                          'Mot de passe réinitialisé. Vous pouvez vous connecter.',
+                          textAlign: TextAlign.center,
                         ),
+                        const SizedBox(height: 24),
+                        ElevatedButton(
+                          onPressed: () => context.go('/auth/login'),
+                          child: const Text('Se connecter'),
+                        ),
+                      ],
+                    )
+                  : Form(
+                      key: _formKey,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: 24),
+                          TextFormField(
+                            controller: _passwordController,
+                            obscureText: _obscurePassword,
+                            autofillHints: const [AutofillHints.newPassword],
+                            decoration: InputDecoration(
+                              labelText: 'Mot de passe',
+                              helperText:
+                                  'Au moins 8 caractères, avec lettres et chiffres',
+                              prefixIcon: const Icon(Icons.lock_outline),
+                              suffixIcon: IconButton(
+                                tooltip: _obscurePassword
+                                    ? 'Afficher les mots de passe'
+                                    : 'Masquer les mots de passe',
+                                icon: Icon(_obscurePassword
+                                    ? Icons.visibility_outlined
+                                    : Icons.visibility_off_outlined),
+                                onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword),
+                              ),
+                            ),
+                            validator: (v) {
+                              if (v == null || v.length < 8) {
+                                return 'Au moins 8 caractères';
+                              }
+                              if (!RegExp(r'[A-Za-z]').hasMatch(v) ||
+                                  !RegExp(r'\d').hasMatch(v)) {
+                                return 'Doit contenir lettres et chiffres';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _confirmController,
+                            obscureText: _obscurePassword,
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) {
+                              if (!_isLoading) _submit();
+                            },
+                            decoration: const InputDecoration(
+                              labelText: 'Confirmer le mot de passe',
+                              prefixIcon: Icon(Icons.lock_outline),
+                            ),
+                            validator: (v) =>
+                                (v == null || v.isEmpty) ? 'Requis' : null,
+                          ),
+                          const SizedBox(height: 16),
+                          if (_errorMessage != null) ...[
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: TekaColors.destructive
+                                    .withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                _errorMessage!,
+                                style: TextStyle(color: TekaColors.destructive),
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                          SizedBox(
+                            height: 48,
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _submit,
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      height: 20,
+                                      width: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text('Réinitialiser'),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                ),
+                    ),
+            ),
+          ),
         ),
       ),
     );

@@ -69,7 +69,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.fromLTRB(
+            24,
+            0,
+            24,
+            MediaQuery.viewInsetsOf(context).bottom + 24,
+          ),
           child: Form(
             key: _formKey,
             child: Column(
@@ -84,46 +90,64 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Apres inscription, vous renseignerez les informations de votre activite pour soumettre votre demande vendeur.',
+                  'Après inscription, vous renseignerez les informations de '
+                  'votre activité pour soumettre votre demande vendeur.',
                   style: TextStyle(color: TekaColors.mutedForeground),
                 ),
                 const SizedBox(height: 24),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextFormField(
-                        controller: _firstNameController,
-                        decoration: const InputDecoration(labelText: 'Prénom'),
-                        textCapitalization: TextCapitalization.words,
-                        validator: (v) {
-                          if (v == null || v.trim().length < 2) {
-                            return 'Prénom requis';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: _lastNameController,
-                        decoration: const InputDecoration(labelText: 'Nom'),
-                        textCapitalization: TextCapitalization.words,
-                        validator: (v) {
-                          if (v == null || v.trim().length < 2) {
-                            return 'Nom requis';
-                          }
-                          return null;
-                        },
-                      ),
-                    ),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final stack = constraints.maxWidth < 360 ||
+                        MediaQuery.textScalerOf(context).scale(1) > 1.3;
+                    final firstName = TextFormField(
+                      controller: _firstNameController,
+                      decoration: const InputDecoration(labelText: 'Prénom'),
+                      textCapitalization: TextCapitalization.words,
+                      textInputAction: TextInputAction.next,
+                      validator: (v) {
+                        if (v == null || v.trim().length < 2) {
+                          return 'Prénom requis';
+                        }
+                        return null;
+                      },
+                    );
+                    final lastName = TextFormField(
+                      controller: _lastNameController,
+                      decoration: const InputDecoration(labelText: 'Nom'),
+                      textCapitalization: TextCapitalization.words,
+                      textInputAction: TextInputAction.next,
+                      validator: (v) {
+                        if (v == null || v.trim().length < 2) {
+                          return 'Nom requis';
+                        }
+                        return null;
+                      },
+                    );
+                    if (stack) {
+                      return Column(
+                        children: [
+                          firstName,
+                          const SizedBox(height: 16),
+                          lastName,
+                        ],
+                      );
+                    }
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: firstName),
+                        const SizedBox(width: 12),
+                        Expanded(child: lastName),
+                      ],
+                    );
+                  },
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   autofillHints: const [AutofillHints.email],
+                  textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                     labelText: 'Email',
                     hintText: 'vous@exemple.com',
@@ -142,9 +166,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   decoration: InputDecoration(
                     labelText: 'Mot de passe',
                     helperText:
-                        'Au moins 8 caracteres, avec lettres et chiffres',
+                        'Au moins 8 caractères, avec lettres et chiffres',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
+                      tooltip: _obscurePassword
+                          ? 'Afficher le mot de passe'
+                          : 'Masquer le mot de passe',
                       icon: Icon(_obscurePassword
                           ? Icons.visibility_outlined
                           : Icons.visibility_off_outlined),
@@ -154,7 +181,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ),
                   validator: (v) {
                     if (v == null || v.length < 8) {
-                      return 'Au moins 8 caracteres';
+                      return 'Au moins 8 caractères';
                     }
                     if (!RegExp(r'[A-Za-z]').hasMatch(v) ||
                         !RegExp(r'\d').hasMatch(v)) {

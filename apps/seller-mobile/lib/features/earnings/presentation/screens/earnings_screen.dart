@@ -55,100 +55,144 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen>
       _tabController.index = state.selectedTab;
     }
 
-    final wallet = state.wallet;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text("Revenus"),
       ),
-      body: Column(
-        children: [
-          // Wallet cards
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: WalletCard(
-                        label: "Solde disponible",
-                        amountCDF: wallet?.balanceCDFDisplay ?? 0,
-                        icon: Icons.account_balance_wallet_outlined,
-                        color: TekaColors.tekaRed,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: WalletCard(
-                        label: "Revenus totaux",
-                        amountCDF: wallet?.totalEarnedCDFDisplay ?? 0,
-                        icon: Icons.trending_up,
-                        color: TekaColors.success,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                WalletCard(
-                  label: "Commission prélevée",
-                  amountCDF: wallet?.totalCommissionCDFDisplay ?? 0,
-                  icon: Icons.percent,
-                  color: TekaColors.warning,
-                ),
-                if ((wallet?.pendingCDFDisplay ?? 0) > 0) ...[
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      "+ ${formatFcNumber(wallet!.pendingCDFDisplay)} FC en attente (fenêtre de retour de 2 jours)",
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: TekaColors.mutedForeground,
-                      ),
-                    ),
-                  ),
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverToBoxAdapter(
+            child: _WalletSummary(state: state),
+          ),
+          SliverPersistentHeader(
+            pinned: true,
+            delegate: _TabBarHeader(
+              TabBar(
+                controller: _tabController,
+                labelColor: TekaColors.tekaRed,
+                unselectedLabelColor: TekaColors.mutedForeground,
+                indicatorColor: TekaColors.tekaRed,
+                tabs: const [
+                  Tab(text: "Gains"),
+                  Tab(text: "Virements"),
                 ],
-                const SizedBox(height: 12),
-
-                // Payout request action + guards (Initiative #3 / C2).
-                _PayoutRequestAction(
-                  balanceCdf: wallet?.balanceCDFDisplay ?? 0,
-                  hasPendingPayout: state.payouts.any((p) =>
-                      _pendingPayoutStatuses.contains(p.status.toUpperCase())),
-                  walletLoaded: wallet != null,
-                ),
-                const SizedBox(height: 12),
-              ],
+              ),
             ),
           ),
+        ],
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            _EarningsTab(state: state),
+            _PayoutsTab(state: state),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-          // Tab bar
-          TabBar(
-            controller: _tabController,
-            labelColor: TekaColors.tekaRed,
-            unselectedLabelColor: TekaColors.mutedForeground,
-            indicatorColor: TekaColors.tekaRed,
-            tabs: const [
-              Tab(text: "Gains"),
-              Tab(text: "Virements"),
-            ],
+class _WalletSummary extends StatelessWidget {
+  final EarningsState state;
+
+  const _WalletSummary({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final wallet = state.wallet;
+    final expanded = MediaQuery.textScalerOf(context).scale(1) > 1.3;
+    final cards = [
+      WalletCard(
+        label: "Solde disponible",
+        amountCDF: wallet?.balanceCDFDisplay ?? 0,
+        icon: Icons.account_balance_wallet_outlined,
+        color: TekaColors.tekaRed,
+      ),
+      WalletCard(
+        label: "Revenus totaux",
+        amountCDF: wallet?.totalEarnedCDFDisplay ?? 0,
+        icon: Icons.trending_up,
+        color: TekaColors.success,
+      ),
+      WalletCard(
+        label: "Commission prélevée",
+        amountCDF: wallet?.totalCommissionCDFDisplay ?? 0,
+        icon: Icons.percent,
+        color: TekaColors.warning,
+      ),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (expanded || constraints.maxWidth < 340) {
+                return Column(
+                  children: [
+                    for (var i = 0; i < cards.length; i++) ...[
+                      cards[i],
+                      if (i < cards.length - 1) const SizedBox(height: 8),
+                    ],
+                  ],
+                );
+              }
+              final width = (constraints.maxWidth - 12) / 2;
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (final card in cards) SizedBox(width: width, child: card)
+                ],
+              );
+            },
           ),
-
-          // Tab content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _EarningsTab(state: state),
-                _PayoutsTab(state: state),
-              ],
+          if ((wallet?.pendingCDFDisplay ?? 0) > 0) ...[
+            const SizedBox(height: 8),
+            Text(
+              "+ ${formatFcNumber(wallet!.pendingCDFDisplay)} FC en attente "
+              "(fenêtre de retour de 2 jours)",
+              style: const TextStyle(
+                fontSize: 12,
+                color: TekaColors.mutedForeground,
+              ),
             ),
+          ],
+          const SizedBox(height: 12),
+          _PayoutRequestAction(
+            balanceCdf: wallet?.balanceCDFDisplay ?? 0,
+            hasPendingPayout: state.payouts.any(
+                (p) => _pendingPayoutStatuses.contains(p.status.toUpperCase())),
+            walletLoaded: wallet != null,
           ),
+          const SizedBox(height: 12),
         ],
       ),
     );
   }
+}
+
+class _TabBarHeader extends SliverPersistentHeaderDelegate {
+  final TabBar tabBar;
+
+  const _TabBarHeader(this.tabBar);
+
+  @override
+  double get minExtent => tabBar.preferredSize.height;
+
+  @override
+  double get maxExtent => tabBar.preferredSize.height;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Material(color: TekaColors.background, child: tabBar);
+  }
+
+  @override
+  bool shouldRebuild(_TabBarHeader oldDelegate) => oldDelegate.tabBar != tabBar;
 }
 
 class _EarningsTab extends ConsumerWidget {

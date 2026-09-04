@@ -6,33 +6,28 @@
 
 ## Active initiative
 
-**Seller / Admin UX modernization — Phase 0 complete; Seller Mobile foundation + action center locally verified.**
-Branch: `codex/seller-mobile-action-center`, based on foundation `f9a5da1` / `develop` `6e6d151`.
-Foundation draft PR [#634](https://github.com/ipanga/teka-rdc/pull/634) → `develop`: all remote checks green.
-Action-center draft PR [#635](https://github.com/ipanga/teka-rdc/pull/635) → `develop`, dependent on #634;
-implementation commit `c3c5805`. Remote checks pending at the final documentation checkpoint.
-No merge or deployment. Audit, source inventory, phase deliverables and exact QA limits:
+**Seller / Admin UX modernization — Seller Mobile implementation complete locally; Web/Admin next.**
+Branch: `codex/seller-mobile-forms-details`, based on `develop` `674d794` after the normal merges of
+foundation PR [#634](https://github.com/ipanga/teka-rdc/pull/634) and action-center PR
+[#635](https://github.com/ipanga/teka-rdc/pull/635). This branch completes the remaining Mobile
+forms/details/secondary routes and native splash. No production deployment or `main` merge. Audit,
+source inventory, phase deliverables and exact QA limits:
 [`docs/seller-admin-ux-modernization.md`](docs/seller-admin-ux-modernization.md).
 
-Completed: authoritative account-scoped order/product counts, four actionable queues, exact filtered
-routes, mutation/push/resume refresh without polling, stale-response protection, persistent filters
-on completion, explicit loading/error/empty states, compact home and Material 3 bottom navigation.
-Two overflows in linked detail screens fixed. Foundation list work is retained.
-Validation: **93 Flutter tests**, **3 targeted API stats tests**, analyzer **17 existing infos / no
-warnings or errors**. Native Android and iOS development previews use only synthetic in-memory data;
-Android confirmation verified 25→24 pending / 1→2 confirmed, enlarged text and catalogue scrolling.
+Completed across the three Mobile lots: operational lists, authoritative action center and filtered
+navigation, responsive auth/product/order forms, direct product-edit loading, explicit option and
+notification errors, notification pagination, support route, readable earnings/payout layouts and a
+density-safe native splash with visible status bars. Validation: **112 Flutter tests**, analyzer
+**17 existing infos / no warnings or errors**, Android API 34 cold launch and real dashboard rendering
+with synthetic development fixtures. Existing API contracts, workflows, auth guards and analytics
+remain unchanged.
 
-**Not complete:** remaining mobile forms, detail refinements, notifications/profile/earnings and native
-splash; full signed-in API, native push, camera and cold-launch QA. Seller Web/Admin implementation
-still waits for mobile stabilization. Existing business transitions, API/schema, approval guards,
-Dio/offline handling, analytics and buyer SEO remain unchanged.
+**Not complete:** signed-in testing against a real account/API, real push delivery, camera/gallery and
+physical-device accessibility/performance checks. Seller Web and Admin implementation have not started.
 
-**Next exact step:** inspect PR/check status and review the two mobile lots in dependency order.
-Then implement the scoped mobile form/detail accessibility lot (order details/buttons; product
-edit/images; auth reset/register and seller-application keyboard flows) from the existing audit,
-with narrow-phone/2×/keyboard tests. Handle native splash in its own subsequent lot. Keep PRs into
-`develop`; never auto-merge to `main` or deploy. Native previews must use the development flavor;
-`tool/seller_actions_preview.dart` reproduces this lot without touching any API or real account.
+**Next exact step:** commit and raise the remaining Mobile lot into `develop`, wait for CI, then begin
+the Seller Web redesign on a fresh branch. Admin follows in its own branch. Keep Seller/Admin noindex
+and Buyer SEO unchanged; never auto-merge to `main` or deploy.
 
 ## Most recently completed initiative
 
