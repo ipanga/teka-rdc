@@ -7,9 +7,9 @@
 ## Active initiative
 
 **Admin Action Center · seller payout workflow · payout notifications · commission management —
-PRs 2–6 merged into `develop` (#646, #647, #648 `dccd864`, #649 `471b2e7`, #650 `c64f6e4`); PR 7
-(regression / security / performance review + documented defect-12 leftovers) implemented and
-runtime-verified on `feat/initiative-review`, PR open (started 2026-09-04).**
+PRs 2–7 merged into `develop` (#646, #647, #648 `dccd864`, #649 `471b2e7`, #650 `c64f6e4`, #651
+`3d859fa`); PR 8 (docs + release preparation, docs-only) on `docs/payouts-initiative-release-prep`,
+PR open (started 2026-09-04).**
 Tracker: `docs/payouts-commission-action-center.md` (audit, approved decisions D1–D6, per-PR record).
 
 PR 2 `feat/api-payout-ledger-foundation` → `develop`: per-item integer commission with
@@ -81,8 +81,18 @@ meaning). No schema/migration. Full regression green (API 594/142, admin 31, sel
 buyer-web 74, seller-mobile 131, buyer-mobile 238). Runtime-verified on Chrome + Android emulator
 with a deleted fixture.
 
-**Next exact step:** wait for CI on the PR 7 branch, then **stop for review** (do not merge). After
-approval: PR 8 (docs / release prep) and the **whole-initiative re-audit before any `develop → main`**. No `main` merge, deployment or
+PR 7 **merged as #651 (`3d859fa`), CI green on `develop`.**
+
+PR 8 `docs/payouts-initiative-release-prep` (docs only): `docs/payouts.md`, `api-reference.md`,
+`push-notifications.md`, `architecture.md`, `order-workflow.md`, `CLAUDE.md` §2 Payments row brought
+in line with the final state; release-prep checklist in the tracker (two pending auto-apply
+migrations + ordering, no env change, seller-mobile needs a version bump at release, production
+untouched). D7 and the other follow-ups preserved for the re-audit.
+
+**Next exact step:** wait for CI on the PR 8 branch, then **stop for review** (do not merge). After
+its merge: the **whole-initiative re-audit** (incl. the D7 analysis for the operator's decision)
+before any `develop → main` release — no deployment, production migration, data write, `db:push`
+or `main` merge without explicit approval. No `main` merge, deployment or
 production write without approval — note the PR 2 migration inserts a 10 % global commission row
 **only if none exists** in production (materialising today's hardcoded fallback).
 

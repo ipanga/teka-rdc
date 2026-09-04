@@ -746,3 +746,56 @@ D7 (defect 13, cancelled COD payment status) awaits a decision; no notification 
 role unused by finance endpoints; seller effective-commission display; `field: "unknown"` in
 validation errors.
 
+## PR 8 — Documentation + release preparation (`docs/payouts-initiative-release-prep`)
+
+PR 7 merged as **#651 (`3d859fa`)**, CI green on `develop`.
+
+### What PR 8 was for, and what was left
+
+The plan's line 8: « docs + release prep ». Already done by PRs 1–7: the per-PR records in this
+tracker, STATUS/PROGRESS at every boundary, and PR 2's refresh of the ledger / commission parts of
+`docs/payouts.md` and the financials section of `docs/order-workflow.md`. **Remaining:** bring the
+durable docs in line with the final state and write down what a release needs. No API / web /
+Flutter code, no schema or migration, no financial or security change — nothing to verify at
+runtime beyond the referenced paths existing.
+
+### Durable docs updated
+
+- `docs/payouts.md` — notifications table (which transitions, copy, feed-first + dedupe, no PII in
+  push data, not a seller action), 409 semantics + admin detail context, seller `state` on earnings,
+  surfaces (shared status vocabulary, payout detail + deep links on both clients, login round-trip,
+  admin queue/drawer, action-center tiles), new « Commission administration » section (precedence,
+  seller override endpoints, `NULL` vs `0`, optimistic concurrency, audit + history), runbook wording.
+- `docs/api-reference.md` — `GET /v1/sellers/payouts/:id`, earnings `state`, the payout request
+  guards (409 on an open payout incl. `PROCESSING`), admin payouts detail / transition semantics,
+  commission history + `expectedPreviousRate`, seller override endpoints, `stats.actionCenter`,
+  `applications?status=`, a « Seller Notifications » section.
+- `docs/push-notifications.md` — payout events row, `earnings` screen route, uuid guard, `go` vs
+  `push`, signed-out round-trip.
+- `docs/architecture.md` — the per-user feed now backs `ORDER` and `PAYOUT` too.
+- `docs/order-workflow.md` — earnings `state`.
+- `CLAUDE.md` §2 Payments row — earning created inside `markDelivered`, commission snapshot +
+  precedence, manual payouts with approve ≠ paid and 409 on retry, pointer to `docs/payouts.md`.
+
+### Release preparation (for the whole-initiative re-audit, then a `develop → main` PR on approval)
+
+| Item | State |
+|---|---|
+| Migrations pending for production (both in `auto-apply.list`, additive, idempotent, rehearsed twice on dev) | 1. `2026-09-04_payout_commission_ledger_foundation.sql` — enum `CommissionSource`, nullable columns, partial unique index `payouts_one_open_per_seller`, `admin_audit_logs`, **inserts a 10 % global commission row only if none exists**. 2. `2026-09-04_user_notification_payout_type.sql` — `ALTER TYPE … ADD VALUE IF NOT EXISTS 'PAYOUT'` (top-level; `apply-auto.sh` runs `psql -f` without a single transaction). Order = manifest order; both run in the expand phase before the swap. Rollback: drop the added objects; the enum value cannot be removed without recreating the type (harmless if left). |
+| Env / secrets | none added or changed. |
+| Dependencies | `vitest` dev dependency added to seller-web (PR 6); `pnpm-lock.yaml` updated. No runtime dependency change. |
+| API contract | additive only; installed seller-mobile builds keep working (unknown feed type → default icon, new fields ignored). |
+| Web images | admin-web, seller-web change; buyer-web untouched (no SEO surface touched; admin/seller stay `noindex` — verified on the seller-web production build in PR 6). |
+| seller-mobile | behaviour changed (payout detail, deep links, labels, `from` round-trip) → a store release is needed: bump `pubspec.yaml` from `0.1.7+9` (both apps share the number; buyer-mobile untouched) in the release PR, then the Android AAB / iOS TestFlight workflows per `docs/mobile-release.md`. Not done here — a release action. |
+| Data state on dev | fixtures deleted; the seeded payout `d0000000-…0001` is `COMPLETED` (PR 4 QA); six commission audit rows and three payout audit rows from QA remain (append-only). Dev only. |
+| Production | **nothing touched**: no deploy, no migration, no data write, no `db:push`, no `main` merge. |
+
+### Deferred for the whole-initiative re-audit (not decided here)
+
+- **D7** — cancelled COD orders keep `paymentStatus = PENDING` / COD `Transaction` `PENDING`. The
+  re-audit will lay out what `paymentStatus` means today, every order/payment state involved, what
+  happens on cancellation before payment, whether `PENDING` is inconsistent or intentional, the
+  alternative state, effects on reporting / earnings / balances / analytics / admin / seller clients
+  / historical orders, backfill implications, and a recommendation — for the operator's decision.
+- Notification outbox, `FINANCE` role, seller effective-commission display, `field: "unknown"`.
+

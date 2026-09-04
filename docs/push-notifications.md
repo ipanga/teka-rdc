@@ -209,6 +209,7 @@ The set of events that fire a push today:
 | **Product approved by admin** | **Seller** | `SellerNotificationService.notifyProductApproved` (PR E lite) |
 | **Product rejected by admin** | **Seller** | `SellerNotificationService.notifyProductRejected` (PR E lite) |
 | **New review from buyer** | **Seller** | `SellerNotificationService.notifyNewReview` (PR E lite) |
+| **Payout approved / paid / rejected / failed** | **Seller** | `SellerNotificationService.notifyPayout{Approved,Paid,Rejected}` — durable `PAYOUT` feed row first, then push + email fallback; `data` = `{ screen: 'earnings', event, payoutId }` only (no phone / method / reference). See `docs/payouts.md` → Notifications |
 
 **Tap-navigation routing** (PR E, 2026-05-22): each `data` payload carries a `screen` field that the Flutter clients map to a go_router path. See `apps/{buyer,seller}-mobile/lib/core/push/notification_router.dart`.
 
@@ -218,6 +219,7 @@ The set of events that fire a push today:
 | `product-details` | `productId` | `/products/$productId` | `/products/$productId` |
 | `product-reviews` | `productId` | `/products/$productId/reviews` | `/reviews` *(flat list — productId dropped; seller dashboard's reviews page filters)* |
 | `notifications` | — | `/notifications` *(Notification Center; generic admin broadcast)* | *(n/a — seller broadcasts unchanged)* |
+| `earnings` | `payoutId` (uuid, optional) | *(n/a)* | `/earnings/payouts/$payoutId` *(owner-checked detail; 404 for a foreign / deleted id)*; without or with a malformed id → `/earnings?tab=payouts` |
 
 Tap sources handled:
 
@@ -225,7 +227,7 @@ Tap sources handled:
 2. **Background** — OS-tray notification from FCM's auto-display. Tap fires `FirebaseMessaging.onMessageOpenedApp` stream.
 3. **Killed app** — `FirebaseMessaging.getInitialMessage()` returns the message that launched the app. Checked post-first-frame to ensure the GoRouter is ready before we try to navigate.
 
-Unknown `screen` values (or missing required IDs) are silently ignored — the notification still appears, it just doesn't navigate anywhere on tap.
+Unknown `screen` values (or missing required IDs) are silently ignored — the notification still appears, it just doesn't navigate anywhere on tap. Ids must be uuid-shaped before they become a path segment. Seller tab roots (`/`, `/orders`, `/products`, `/earnings`, `/profile`) are reached with `go`, other routes with `push`. A tap while signed out redirects to `/auth/login?from=<route>` and returns there after login (internal, non-auth paths only — `PostLoginTarget`).
 
 ## Opt-out
 
