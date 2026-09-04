@@ -6,8 +6,15 @@
 
 ## Active initiative
 
-**None.** The Seller / Admin UX modernization initiative was released to production on 2026-09-04
-(see below). Nothing is in flight; do not infer work from stale plan files or memory.
+**Admin Action Center · seller payout workflow · payout notifications · commission management —
+Phase 0 audit complete, Phase 1 design awaiting decisions (started 2026-09-04).**
+Tracker: `docs/payouts-commission-action-center.md` (12 verified financial-semantics answers,
+current-state diagrams, ranked defects, proposed state machine / precedence / migrations / PR order).
+Read-only so far: no code, schema or data change. Six decisions (D1–D6 in the tracker) change
+financial meaning and are blocked on explicit approval; everything else is derivable from the code.
+
+**Next exact step:** get D1–D6 answered, then open PR 2 (`api` ledger + payout hardening) from
+`develop`. No `main` merge, deployment or production write without approval.
 
 ## Most recently completed initiative
 
