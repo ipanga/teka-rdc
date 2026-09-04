@@ -26,8 +26,11 @@ export default function middleware(request: NextRequest) {
     // a 404 (seller.teka.cd/seller/login).
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/login';
+    // Keep the query too (e.g. a payout notification link
+    // `/dashboard/earnings?tab=payouts&payout=…`) so login can return to it.
+    const intended = `${pathname}${request.nextUrl.search}`;
     loginUrl.search = '';
-    loginUrl.searchParams.set('redirect', pathname);
+    loginUrl.searchParams.set('redirect', intended);
     const response = NextResponse.redirect(loginUrl);
     response.headers.set('X-Robots-Tag', robotsHeader);
     return response;
