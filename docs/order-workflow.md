@@ -128,9 +128,12 @@ Single source of truth: `EarningsService` (`apps/api/src/payments/earnings.servi
 ### Cancellation of an unpaid COD order (D7, 2026-09-04)
 
 Every authoritative cancellation path — buyer cancel (before pickup), seller reject, admin cancel —
-runs `PaymentsService.failCodPaymentOnCancellation` inside its own cancellation transaction: a COD
-order whose `paymentStatus` is still `PENDING` becomes **`FAILED`** and its COD `PAYMENT` transaction
-`PENDING`/`PROCESSING` → `FAILED` (`failureReason: 'order_cancelled'`). `FAILED` here means « the
+decides up front with `PaymentsService.codPaymentWillFail(order)`, folds `{ paymentStatus: FAILED }`
+into its own cancelling `order.update` (`codPaymentFailureData`) and runs
+`failCodTransactionOnCancellation` in the same transaction: a COD order whose `paymentStatus` is still
+`PENDING` becomes **`FAILED`** and its COD `PAYMENT` transaction `PENDING`/`PROCESSING` → `FAILED`
+(`failureReason: 'order_cancelled'`). The three cancellation transactions run with an explicit 15 s
+timeout (the remote dev DB exceeded Prisma's 5 s default once). `FAILED` here means « the
 payment did not and will not happen » (no money was collected — no refund is created; `REFUNDED` is
 reserved for money that actually moved). A payment already `COMPLETED`, `REFUNDED` or `FAILED`, and
 any non-COD order, is never touched; the update is conditional, so a retry or a concurrent

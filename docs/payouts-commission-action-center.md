@@ -922,11 +922,15 @@ occur », not « an electronic attempt failed »; using it creates no contradict
 
 ### D7 — implementation
 
-`PaymentsService.failCodPaymentOnCancellation(order, tx)` (conditional `updateMany` on
-`paymentStatus = PENDING`, then the COD `PAYMENT` transaction `PENDING`/`PROCESSING` → `FAILED` with
-`failureReason 'order_cancelled'`; returns whether it flipped) called inside the cancellation
+`PaymentsService.codPaymentWillFail(order)` (COD and `paymentStatus = PENDING`, decided on the row the
+caller already read and guarded by the caller's conditional status `updateMany`) →
+`codPaymentFailureData(order)` folds `{ paymentStatus: FAILED }` into the cancelling `order.update`
+(one round trip) → `failCodTransactionOnCancellation(orderId, tx)` flips the COD `PAYMENT` transaction
+`PENDING`/`PROCESSING` → `FAILED` with `failureReason 'order_cancelled'`; all inside the cancellation
 transaction of **`OrdersService.cancelOrder`** (buyer), **`SellerOrdersService.rejectOrder`** and
-**`AdminOrdersService.adminCancelOrder`**. `payment_failed` fires once per actual flip on all three
+**`AdminOrdersService.adminCancelOrder`**, each now with an explicit 15 s timeout (a first
+three-statement version hit Prisma's 5 s default on the remote dev DB — « Transaction already
+closed », 5 346 ms — so the flip was folded into the existing update, `1b817a1`). `payment_failed` fires once per actual flip on all three
 paths (the buyer path previously fired unconditionally for COD). Status logs, reasons, stock and
 notifications unchanged. Terminal payments and non-COD orders untouched; no refund created. **No
 schema or migration change.** Specs: `payments.service.spec.ts` (flip / terminal untouched / non-COD /
@@ -940,4 +944,30 @@ Production holds **9 orders** (8 COD, 1 MOBILE_MONEY) and **0 cancelled COD orde
 remediation is needed**; none was designed or added. (Should such rows appear before the release,
 the guarded predicate would be `status = 'CANCELLED' AND "paymentMethod" = 'COD' AND "paymentStatus" =
 'PENDING' AND NOT EXISTS earning`, verified by the same counts.)
+
+### Verification (2026-09-04, final branch state `1b817a1`)
+
+**Automated:** API **607 unit / 142 e2e**; root `pnpm type-check` clean; seller-web vitest 14 + lint
+(pre-existing `<img>` warning only) + `next build`; buyer-web vitest 74; seller-mobile
+`flutter analyze --no-fatal-infos lib test` (17 pre-existing infos, 0 warnings) + `flutter test` 131.
+Admin-web has no test script (type-check only). Diff is API + docs only — no client code changed.
+
+**Runtime, isolated dev stack** (API `:5051` from the rebuilt `dist`, admin-web `:5200` + seller-web
+`:5100` pointed at it, disposable seller « Boutique QA F1D7 » with two `AVAILABLE` earnings 10.000 FC
+@ 10 % and 20.000 FC @ 8,25 % and two unpaid COD orders, all deleted afterwards — 0 `@example.test`
+users remain):
+
+| Step | API `state` (`GET /v1/sellers/earnings`) | Seller Web « Gains » | Seller Mobile (Android emulator) |
+|---|---|---|---|
+| before request | `AVAILABLE` ×2 | « Disponible » | « Disponible » |
+| payout requested | `RESERVED` ×2 | « Réservé (virement en cours) » | « Réservé (virement en cours) » |
+| payout rejected (admin) | `AVAILABLE` ×2 | « Disponible » | — |
+| re-requested → approved → processing | `RESERVED` ×2 at each step | « Réservé (virement en cours) » | « Réservé (virement en cours) » |
+| completed | `PAID` ×2 | — | « Payé » ×2 (after resume-refresh, `emu-f4`) |
+
+D7: **admin cancel** of a `CONFIRMED` unpaid COD order → order `CANCELLED` / `paymentStatus FAILED`,
+COD transaction `FAILED` / `order_cancelled`, no earning, retry → 400, admin « Transactions » shows
+« Échouée »; **seller reject** of a `PENDING` unpaid COD order → 200, same flips, retry → 400. No API
+errors after `1b817a1`. **Buyer cancel path is unit-tested only** (no buyer WhatsApp-OTP session on
+the isolated stack). iOS: not driven (simulator cannot be scripted), unchanged from the audit.
 
