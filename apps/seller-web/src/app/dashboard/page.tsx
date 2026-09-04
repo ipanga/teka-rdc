@@ -55,8 +55,10 @@ export default function SellerDashboardPage() {
   const [orderError, setOrderError] = useState(false);
   const [wallet, setWallet] = useState<SellerWallet | null>(null);
   const [walletLoading, setWalletLoading] = useState(true);
+  const [walletError, setWalletError] = useState(false);
   const [reviewStats, setReviewStats] = useState({ averageRating: 0, totalReviews: 0 });
   const [reviewStatsLoading, setReviewStatsLoading] = useState(true);
+  const [reviewStatsError, setReviewStatsError] = useState(false);
 
   const loadProductStats = useCallback(async () => {
     setProductError(false);
@@ -78,32 +80,48 @@ export default function SellerDashboardPage() {
     }
   }, []);
 
+  const loadWallet = useCallback(async () => {
+    setWalletLoading(true);
+    setWalletError(false);
+    try {
+      const response = await apiFetch<SellerWallet>('/v1/sellers/wallet');
+      setWallet(response.data);
+    } catch {
+      setWalletError(true);
+    } finally {
+      setWalletLoading(false);
+    }
+  }, []);
+
+  const loadReviewStats = useCallback(async () => {
+    setReviewStatsLoading(true);
+    setReviewStatsError(false);
+    try {
+      const response = await apiFetch<ProductsResponse>('/v1/sellers/products?page=1&limit=100&status=ACTIVE');
+      let totalReviews = 0;
+      let weightedRating = 0;
+      for (const product of response.data.data ?? []) {
+        const count = product.reviewCount ?? 0;
+        totalReviews += count;
+        weightedRating += (product.averageRating ?? 0) * count;
+      }
+      setReviewStats({
+        averageRating: totalReviews > 0 ? weightedRating / totalReviews : 0,
+        totalReviews,
+      });
+    } catch {
+      setReviewStatsError(true);
+    } finally {
+      setReviewStatsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     loadProductStats();
     loadOrderStats();
-
-    apiFetch<SellerWallet>('/v1/sellers/wallet')
-      .then((response) => setWallet(response.data))
-      .catch(() => {})
-      .finally(() => setWalletLoading(false));
-
-    apiFetch<ProductsResponse>('/v1/sellers/products?page=1&limit=100&status=ACTIVE')
-      .then((response) => {
-        let totalReviews = 0;
-        let weightedRating = 0;
-        for (const product of response.data.data ?? []) {
-          const count = product.reviewCount ?? 0;
-          totalReviews += count;
-          weightedRating += (product.averageRating ?? 0) * count;
-        }
-        setReviewStats({
-          averageRating: totalReviews > 0 ? weightedRating / totalReviews : 0,
-          totalReviews,
-        });
-      })
-      .catch(() => {})
-      .finally(() => setReviewStatsLoading(false));
-  }, [loadOrderStats, loadProductStats]);
+    loadWallet();
+    loadReviewStats();
+  }, [loadOrderStats, loadProductStats, loadWallet, loadReviewStats]);
 
   const orderCount = (status: string) => orderStats?.byStatus[status] ?? 0;
   const actions: {
@@ -240,20 +258,27 @@ export default function SellerDashboardPage() {
           )}
         </section>
 
-        <Link href="/dashboard/earnings" className="seller-card group p-5 transition-shadow hover:shadow-md">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Solde disponible</p>
-              <p className="mt-3 break-words text-3xl font-bold text-primary">
-                {walletLoading ? <LoadingValue wide /> : formatFC(wallet?.balanceCDF ?? '0')}
-              </p>
-              <p className="mt-2 text-sm text-muted-foreground">Consultez vos gains et virements.</p>
+        {walletError ? (
+          <section className="seller-card p-5" aria-label="Solde disponible">
+            <p className="mb-3 text-sm font-medium text-muted-foreground">Solde disponible</p>
+            <InlineError retry={loadWallet} />
+          </section>
+        ) : (
+          <Link href="/dashboard/earnings" className="seller-card group p-5 transition-shadow hover:shadow-md">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Solde disponible</p>
+                <p className="mt-3 break-words text-3xl font-bold text-primary">
+                  {walletLoading || !wallet ? <LoadingValue wide /> : formatFC(wallet.balanceCDF)}
+                </p>
+                <p className="mt-2 text-sm text-muted-foreground">Consultez vos gains et virements.</p>
+              </div>
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+                <Icon name="earnings" className="h-5 w-5" />
+              </div>
             </div>
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-              <Icon name="earnings" className="h-5 w-5" />
-            </div>
-          </div>
-        </Link>
+          </Link>
+        )}
       </div>
 
       <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
@@ -284,23 +309,30 @@ export default function SellerDashboardPage() {
           )}
         </section>
 
-        <Link href="/dashboard/reviews" className="seller-card p-5 transition-shadow hover:shadow-md">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Satisfaction clients</p>
-              <div className="mt-3 flex items-baseline gap-2">
-                <span className="text-3xl font-bold">{reviewStatsLoading ? '…' : reviewStats.averageRating.toFixed(1)}</span>
-                <span className="text-sm text-muted-foreground">/ 5</span>
+        {reviewStatsError ? (
+          <section className="seller-card p-5" aria-label="Satisfaction clients">
+            <p className="mb-3 text-sm font-medium text-muted-foreground">Satisfaction clients</p>
+            <InlineError retry={loadReviewStats} />
+          </section>
+        ) : (
+          <Link href="/dashboard/reviews" className="seller-card p-5 transition-shadow hover:shadow-md">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Satisfaction clients</p>
+                <div className="mt-3 flex items-baseline gap-2">
+                  <span className="text-3xl font-bold">{reviewStatsLoading ? '…' : reviewStats.averageRating.toFixed(1)}</span>
+                  <span className="text-sm text-muted-foreground">/ 5</span>
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {reviewStatsLoading ? 'Chargement…' : `${reviewStats.totalReviews} avis`}
+                </p>
               </div>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {reviewStatsLoading ? 'Chargement…' : `${reviewStats.totalReviews} avis`}
-              </p>
+              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-warning/10 text-warning">
+                <Icon name="reviews" className="h-5 w-5" />
+              </div>
             </div>
-            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-warning/10 text-amber-700">
-              <Icon name="reviews" className="h-5 w-5" />
-            </div>
-          </div>
-        </Link>
+          </Link>
+        )}
       </div>
     </div>
   );

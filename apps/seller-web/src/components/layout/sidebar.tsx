@@ -46,6 +46,23 @@ export function Sidebar() {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
 
+  // The drawer is only rendered below `md`; if the viewport widens while it is
+  // open (tablet rotation, window resize) it would stay mounted-but-invisible
+  // with the body scroll lock still applied. Close it as soon as `md` matches.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const media = window.matchMedia('(min-width: 768px)');
+    const onChange = (event: MediaQueryListEvent) => {
+      if (event.matches) setMobileOpen(false);
+    };
+    if (media.matches) {
+      setMobileOpen(false);
+      return;
+    }
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+  }, [mobileOpen]);
+
   useEffect(() => {
     if (!mobileOpen) return;
     const previousOverflow = document.body.style.overflow;
