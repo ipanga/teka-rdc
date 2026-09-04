@@ -369,7 +369,8 @@ export class AdminOrdersService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const paymentFailed = this.paymentsService.codPaymentWillFail(order);
+    const updated = await this.prisma.$transaction(async (tx) => {
       await tx.orderStatusLog.create({
         data: {
           orderId,
@@ -379,6 +380,12 @@ export class AdminOrdersService {
           note: `Annulée par l'administrateur : ${reason}`,
         },
       });
+
+      // D7: unpaid COD → the COD transaction fails in the same transaction;
+      // the order's paymentStatus flips inside the update below.
+      if (paymentFailed) {
+        await this.paymentsService.failCodTransactionOnCancellation(orderId, tx);
+      }
 
       // Restore stock held since checkout.
       const heldItems = await tx.orderItem.findMany({
@@ -398,6 +405,7 @@ export class AdminOrdersService {
           status: OrderStatus.CANCELLED,
           cancellationReason: reason,
           cancelledBy: adminId,
+          ...this.paymentsService.codPaymentFailureData(order),
         },
         include: {
           items: true,
@@ -422,7 +430,17 @@ export class AdminOrdersService {
           statusLogs: { orderBy: { createdAt: 'desc' }, take: 5 },
         },
       });
-    });
+    }, { timeout: 15_000 });
+
+    if (paymentFailed) {
+      this.analytics.capture(updated.buyerId, 'payment_failed', {
+        orderId,
+        method: PaymentMethod.COD,
+        reason: 'order_cancelled',
+        actor: 'admin',
+      });
+    }
+    return updated;
   }
 
   // ---------------------------------------------------------------------------

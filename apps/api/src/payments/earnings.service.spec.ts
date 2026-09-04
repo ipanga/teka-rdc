@@ -1,5 +1,5 @@
 import { Decimal } from '@prisma/client/runtime/library';
-import { CommissionSource, OrderStatus } from '@prisma/client';
+import { CommissionSource, OrderStatus, PayoutStatus } from '@prisma/client';
 import {
   CommissionNotConfiguredError,
   EarningsService,
@@ -469,10 +469,24 @@ describe('earningState — seller-facing state derived by the API (PR 7, defect 
     expect(earningState({ ...base, order: delivered(1) }, now)).toBe('HELD');
     expect(earningState({ ...base, order: delivered(3) }, now)).toBe('AVAILABLE');
   });
-  it('reserved in an open payout → RESERVED; paid → PAID; reversed wins over everything', () => {
-    expect(earningState({ ...base, payoutId: 'p1', order: delivered(3) }, now)).toBe('RESERVED');
-    expect(earningState({ ...base, isPaid: true, payoutId: 'p1', order: delivered(3) }, now)).toBe('PAID');
-    expect(earningState({ ...base, isPaid: true, reversedAt: now, order: delivered(3) }, now)).toBe('REVERSED');
+  it('F1 matrix — reservation (isPaid + payoutId) is RESERVED until the payout is COMPLETED; reversed wins over everything', () => {
+    const reserved = (status: PayoutStatus) => ({
+      ...base,
+      isPaid: true, // requestPayout sets this at RESERVATION time
+      payoutId: 'p1',
+      payout: { status },
+      order: delivered(3),
+    });
+    expect(earningState(reserved(PayoutStatus.REQUESTED), now)).toBe('RESERVED');
+    expect(earningState(reserved(PayoutStatus.APPROVED), now)).toBe('RESERVED');
+    expect(earningState(reserved(PayoutStatus.PROCESSING), now)).toBe('RESERVED');
+    expect(earningState(reserved(PayoutStatus.COMPLETED), now)).toBe('PAID');
+    // Rejection releases the reservation (isPaid=false, payoutId=null) → back to availability.
+    expect(earningState({ ...base, order: delivered(3) }, now)).toBe('AVAILABLE');
+    expect(earningState({ ...base, order: delivered(1) }, now)).toBe('HELD');
+    // A linked payout without its status loaded is never called paid.
+    expect(earningState({ ...base, isPaid: true, payoutId: 'p1', order: delivered(3) }, now)).toBe('RESERVED');
+    expect(earningState({ ...base, isPaid: true, reversedAt: now, payoutId: 'p1', payout: { status: PayoutStatus.COMPLETED }, order: delivered(3) }, now)).toBe('REVERSED');
   });
   it('an order no longer DELIVERED (or without a delivery date) is never AVAILABLE', () => {
     expect(earningState({ ...base, order: { status: OrderStatus.RETURNED, deliveredAt: delivered(9).deliveredAt } }, now)).toBe('HELD');
@@ -481,14 +495,17 @@ describe('earningState — seller-facing state derived by the API (PR 7, defect 
   it('listSellerEarnings adds `state` to every row and keeps the raw columns', async () => {
     const { service, prisma } = makeService();
     prisma.sellerEarning.findMany.mockResolvedValue([
-      { id: 'e1', isPaid: false, payoutId: null, reversedAt: null, netAmountCDF: 1n, order: delivered(5) },
-      { id: 'e2', isPaid: true, payoutId: 'p', reversedAt: null, netAmountCDF: 1n, order: delivered(30) },
+      { id: 'e1', isPaid: false, payoutId: null, reversedAt: null, netAmountCDF: 1n, order: delivered(5), payout: null },
+      { id: 'e2', isPaid: true, payoutId: 'p', reversedAt: null, netAmountCDF: 1n, order: delivered(30), payout: { status: PayoutStatus.APPROVED } },
+      { id: 'e3', isPaid: true, payoutId: 'q', reversedAt: null, netAmountCDF: 1n, order: delivered(30), payout: { status: PayoutStatus.COMPLETED } },
     ]);
-    prisma.sellerEarning.count.mockResolvedValue(2);
+    prisma.sellerEarning.count.mockResolvedValue(3);
     const res = await service.listSellerEarnings('sp1', {});
-    expect(res.data.map((r) => r.state)).toEqual(['AVAILABLE', 'PAID']);
+    expect(res.data.map((r) => r.state)).toEqual(['AVAILABLE', 'RESERVED', 'PAID']);
     expect(res.data[0].netAmountCDF).toBe(1n);
-    expect(prisma.sellerEarning.findMany.mock.calls[0][0].include.order.select).toMatchObject({ status: true, deliveredAt: true });
+    const include = prisma.sellerEarning.findMany.mock.calls[0][0].include;
+    expect(include.order.select).toMatchObject({ status: true, deliveredAt: true });
+    expect(include.payout).toEqual({ select: { status: true } });
   });
 });
 

@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { OrderNotificationService } from '../notifications/order-notification.service';
 import { EarningsService } from '../payments/earnings.service';
 import { PostHogService } from '../analytics/posthog.service';
+import { PaymentsService } from '../payments/payments.service';
 
 describe('seller order statistics', () => {
   const groupBy = jest.fn();
@@ -18,6 +19,7 @@ describe('seller order statistics', () => {
         { provide: OrderNotificationService, useValue: {} },
         { provide: EarningsService, useValue: {} },
         { provide: PostHogService, useValue: {} },
+        { provide: PaymentsService, useValue: {} },
       ],
     }).compile();
     service = module.get(SellerOrdersService);

@@ -19,6 +19,7 @@ function makeService(order: Record<string, unknown> | null) {
       }),
     },
     product: { update: jest.fn().mockResolvedValue({}) },
+    orderItem: { findMany: jest.fn().mockResolvedValue([{ productId: 'p1', quantity: 1 }]) },
   };
   const prisma = {
     order: { findUnique: jest.fn().mockResolvedValue(order) },
@@ -303,5 +304,41 @@ describe('AdminOrdersService.markDelivered — financial side effects are transa
     await expect(service.markDelivered('o1', 'admin1')).rejects.toThrow(
       'commission non configurée',
     );
+  });
+});
+
+describe('AdminOrdersService.adminCancelOrder — D7', () => {
+  function withCancel(order: Record<string, unknown>, flip = true) {
+    const made = makeService(order);
+    const ps = made.paymentsService as Record<string, unknown>;
+    ps.codPaymentWillFail = jest.fn().mockReturnValue(flip);
+    ps.codPaymentFailureData = jest.fn().mockReturnValue(flip ? { paymentStatus: PaymentStatus.FAILED } : {});
+    ps.failCodTransactionOnCancellation = jest.fn().mockResolvedValue(1);
+    const analytics = { capture: jest.fn() };
+    (made.service as unknown as { analytics: unknown }).analytics = analytics;
+    return { ...made, analytics };
+  }
+
+  it('unpaid COD cancelled by admin → payment flipped in the transaction, payment_failed once (actor admin)', async () => {
+    const m = withCancel({ ...orderAt(OrderStatus.CONFIRMED), paymentStatus: PaymentStatus.PENDING, buyerId: 'b1' });
+    await m.service.adminCancelOrder('o1', 'admin1', 'Rupture');
+    expect((m.paymentsService as Record<string, jest.Mock>).failCodTransactionOnCancellation).toHaveBeenCalledWith('o1', m.tx);
+    expect(m.tx.order.update.mock.calls[0][0].data).toMatchObject({ status: OrderStatus.CANCELLED, paymentStatus: PaymentStatus.FAILED });
+    expect(m.tx.orderStatusLog.create).toHaveBeenCalledTimes(1);
+    expect(m.analytics.capture).toHaveBeenCalledTimes(1);
+    expect(m.analytics.capture.mock.calls[0][1]).toBe('payment_failed');
+    expect(m.analytics.capture.mock.calls[0][2]).toMatchObject({ actor: 'admin', method: 'COD' });
+  });
+
+  it('a DELIVERED (paid) order cannot be cancelled → 400, nothing written, payment untouched', async () => {
+    const m = withCancel({ ...orderAt(OrderStatus.DELIVERED), paymentStatus: PaymentStatus.COMPLETED });
+    await expect(m.service.adminCancelOrder('o1', 'admin1', 'x')).rejects.toThrow(BadRequestException);
+    expect(m.prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('already CANCELLED → 400 (idempotent), no second flip or event', async () => {
+    const m = withCancel({ ...orderAt(OrderStatus.CANCELLED), paymentStatus: PaymentStatus.FAILED });
+    await expect(m.service.adminCancelOrder('o1', 'admin1', 'x')).rejects.toThrow(BadRequestException);
+    expect(m.analytics.capture).not.toHaveBeenCalled();
   });
 });

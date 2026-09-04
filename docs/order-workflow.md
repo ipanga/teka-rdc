@@ -125,6 +125,23 @@ Single source of truth: `EarningsService` (`apps/api/src/payments/earnings.servi
 - `forceStatusChange` runs no delivery side effects when forcing **into** `DELIVERED` (use
   `markDelivered`), but forcing **out of** `DELIVERED` reverses the earning (`ORDER_STATUS_FORCED`).
 
+### Cancellation of an unpaid COD order (D7, 2026-09-04)
+
+Every authoritative cancellation path — buyer cancel (before pickup), seller reject, admin cancel —
+decides up front with `PaymentsService.codPaymentWillFail(order)`, folds `{ paymentStatus: FAILED }`
+into its own cancelling `order.update` (`codPaymentFailureData`) and runs
+`failCodTransactionOnCancellation` in the same transaction: a COD order whose `paymentStatus` is still
+`PENDING` becomes **`FAILED`** and its COD `PAYMENT` transaction `PENDING`/`PROCESSING` → `FAILED`
+(`failureReason: 'order_cancelled'`). The three cancellation transactions run with an explicit 15 s
+timeout (the remote dev DB exceeded Prisma's 5 s default once). `FAILED` here means « the
+payment did not and will not happen » (no money was collected — no refund is created; `REFUNDED` is
+reserved for money that actually moved). A payment already `COMPLETED`, `REFUNDED` or `FAILED`, and
+any non-COD order, is never touched; the update is conditional, so a retry or a concurrent
+cancellation cannot flip twice. `payment_failed` (PostHog, `distinctId` = buyer) fires exactly when
+the flip happened, on all three paths (`actor: buyer | seller | admin`). Status logs, cancellation
+reason/actor and stock restoration are unchanged. No earning, commission, balance or payout is
+involved: nothing financial exists before delivery.
+
 ## Notifications & analytics
 
 - **Notifications** (`OrderNotificationService`):

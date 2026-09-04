@@ -54,11 +54,15 @@ stamped `clawbackRequiredAt` instead (the cash is committed — finance settles 
 **Payability.** `available` = window closed (`deliveredAt + 2 days ≤ now`) AND the order is **still
 `DELIVERED`** AND not reversed AND not reserved. `pending` = same but inside the window.
 
-**Seller-facing state (since PR 7, 2026-09-04).** `GET /v1/sellers/earnings` adds an API-derived
-`state` to every row — `REVERSED` → `PAID` → `RESERVED` (in an open payout) → `HELD` (inside the
-window, or the order is no longer `DELIVERED`) → `AVAILABLE` — so both seller clients label from the
-source of truth (« En attente (retour possible) · Disponible · Réservé (virement en cours) · Payé ·
-Annulé »). Older clients ignore the field and keep their `isPaid` split.
+**Seller-facing state (since PR 7, corrected 2026-09-04 — F1).** `GET /v1/sellers/earnings` adds an
+API-derived `state` to every row, in this order: `REVERSED` (`reversedAt`) → linked to a payout
+(`payoutId`): `PAID` **only if that payout is `COMPLETED`**, otherwise `RESERVED` (`REQUESTED` /
+`APPROVED` / `PROCESSING`) → `HELD` (inside the window, or the order is no longer `DELIVERED`) →
+`AVAILABLE`. **`SellerEarning.isPaid` is set at reservation time** (`requestPayout`, together with
+`payoutId`) and cleared on rejection — it means « committed to a payout », never « paid out »; the
+payout's own status is the only source of « paid ». Both seller clients label from `state`
+(« En attente (retour possible) · Disponible · Réservé (virement en cours) · Payé · Annulé »).
+Older clients ignore the field and keep their `isPaid` split (which reads a reservation as « Payé »).
 
 ## Payout lifecycle (state machine)
 

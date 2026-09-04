@@ -1,6 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma, OrderStatus, CommissionSource } from '@prisma/client';
+import {
+  Prisma,
+  OrderStatus,
+  CommissionSource,
+  PayoutStatus,
+} from '@prisma/client';
 import { Decimal } from '@prisma/client/runtime/library';
 import { RETURN_WINDOW_DAYS } from '../orders/order-workflow.constants';
 import {
@@ -82,13 +87,22 @@ export function earningState(
     reversedAt: Date | null;
     isPaid: boolean;
     payoutId: string | null;
+    /** The linked payout, when reserved. Its status — not `isPaid` — says whether the cash left. */
+    payout?: { status: PayoutStatus } | null;
     order: { status: OrderStatus; deliveredAt: Date | null } | null;
   },
   now: Date = new Date(),
 ): EarningState {
   if (row.reversedAt) return 'REVERSED';
+  // `isPaid` is set at RESERVATION time (requestPayout) together with
+  // `payoutId`, and cleared on rejection — it means "committed to a payout",
+  // never "paid out". Only the payout's own terminal COMPLETED status does.
+  if (row.payoutId) {
+    return row.payout?.status === PayoutStatus.COMPLETED ? 'PAID' : 'RESERVED';
+  }
+  // Defensive: a row flagged paid with no payout link cannot exist through
+  // the API (both fields move together); keep the historical reading.
   if (row.isPaid) return 'PAID';
-  if (row.payoutId) return 'RESERVED';
   const delivered = row.order?.status === OrderStatus.DELIVERED;
   const deliveredAt = row.order?.deliveredAt ?? null;
   if (!delivered || !deliveredAt) return 'HELD';
@@ -498,6 +512,7 @@ export class EarningsService {
               deliveredAt: true,
             },
           },
+          payout: { select: { status: true } },
         },
       }),
       this.prisma.sellerEarning.count({ where: { sellerProfileId } }),
