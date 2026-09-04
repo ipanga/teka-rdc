@@ -18,7 +18,8 @@
 #   <APP>_KEY_PASSWORD             key password
 #   <APP>_KEY_ALIAS                key alias
 #   <APP>_GOOGLE_SERVICES_JSON_B64 base64 of android/app/google-services.json
-# Optional: SENTRY_DSN_<APP>_MOBILE, SENTRY_AUTH_TOKEN (symbol upload).
+# Optional: POSTHOG_API_KEY (shared publishable phc_ key → mobile analytics;
+#           empty → PostHog no-op), SENTRY_DSN_<APP>_MOBILE, SENTRY_AUTH_TOKEN (symbol upload).
 #
 # Generate the keystore + populate the secrets per docs/mobile-release.md.
 # When the signing secrets are absent the build would fall back to debug
@@ -117,6 +118,7 @@ jobs:
             --flavor production \
             --dart-define-from-file=flavors/production.json \
             --dart-define=SENTRY_DSN=${{ steps.sentry.outputs.dsn }} \
+            --dart-define=POSTHOG_API_KEY=${{ secrets.POSTHOG_API_KEY }} \
             --dart-define=SENTRY_RELEASE=${{ github.sha }}
 
       - name: Verify the bundle is NOT debug-signed
