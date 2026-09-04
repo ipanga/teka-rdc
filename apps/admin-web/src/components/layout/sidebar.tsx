@@ -35,6 +35,23 @@ export function Sidebar() {
     return () => { cancelled = true; };
   }, [pathname]);
 
+  // The drawer is only rendered below `lg`; if the viewport widens while it is
+  // open (tablet rotation, window resize) it would stay mounted-but-invisible
+  // with the body scroll lock still applied. Close it as soon as `lg` matches.
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const media = window.matchMedia('(min-width: 1024px)');
+    const onChange = (event: MediaQueryListEvent) => {
+      if (event.matches) setMobileOpen(false);
+    };
+    if (media.matches) {
+      setMobileOpen(false);
+      return;
+    }
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+  }, [mobileOpen]);
+
   useEffect(() => {
     if (!mobileOpen) return;
     const previousOverflow = document.body.style.overflow;
@@ -131,7 +148,12 @@ export function Sidebar() {
   const userBlock = (
     <div className="border-t border-white/10 p-4">
       <Link href="/dashboard/profile" onClick={() => setMobileOpen(false)} className="mb-3 flex items-center gap-3 rounded-lg p-1 hover:bg-white/5">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-sm font-semibold text-white ring-1 ring-white/15">{user?.firstName?.[0] || '?'}</div>
+        {user?.avatar ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={user.avatar} alt="" className="h-10 w-10 shrink-0 rounded-full bg-white/10 object-cover ring-1 ring-white/15" />
+        ) : (
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-sm font-semibold text-white ring-1 ring-white/15">{user?.firstName?.[0] || '?'}</div>
+        )}
         <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-white">{user?.firstName} {user?.lastName}</p><p className="truncate text-xs text-white/55">Administration</p></div>
       </Link>
       <button type="button" onClick={handleLogout} className="min-h-10 w-full rounded-lg px-3 py-2 text-left text-sm text-white/70 hover:bg-white/10 hover:text-white">Se déconnecter</button>
