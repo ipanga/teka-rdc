@@ -973,3 +973,53 @@ COD transaction `FAILED` / `order_cancelled`, no earning, retry → 400, admin �
 errors after `1b817a1`. **Buyer cancel path is unit-tested only** (no buyer WhatsApp-OTP session on
 the isolated stack). iOS: not driven (simulator cannot be scripted), unchanged from the audit.
 
+## Post-merge release-readiness verification (2026-09-04, `develop` `fa62b96`)
+
+#654 merged with a merge commit as **`fa62b96`** (head `fea53cd`; #653 was auto-closed as merged
+because its commit is contained). Local `develop` = `origin/develop`, clean tree.
+
+**CI on `fa62b96`:** CI (API Tests, Lint & Type Check, Flutter Analysis ×2, Release Config) and
+CodeQL (Analyze javascript-typescript, Analyze actions) all green. **Local gates, fresh on the merged
+tree:** API 607 unit / 142 e2e; root type-check; seller-web vitest 14 + lint + `next build`;
+admin-web lint (type-check via root); buyer-web vitest 74; seller-mobile analyze 0 warnings (17
+infos) + 131 tests; buyer-mobile analyze 0 warnings (6 infos) + 238 tests. The runtime evidence
+(payout matrix on API / Seller Web / Android emulator, admin cancel + seller reject flips) was
+obtained on the PR branch at `1b817a1`; the merge added only docs, so it stands.
+
+**Financial-state matrix (merged `earningState` + `F1 matrix` spec):** delivered inside the window
+→ HELD · window closed and still `DELIVERED` → AVAILABLE · payout REQUESTED / APPROVED / PROCESSING
+→ RESERVED · payout COMPLETED → PAID · payout REJECTED (from any open state, including a failed
+PROCESSING transfer) releases `isPaid` + `payoutId` → HELD / AVAILABLE by the delivery rules ·
+`reversedAt` → REVERSED. Balances (`eligibleEarningWhere` / `pendingEarningWhere`), reservations,
+commission snapshots, payout amounts and audit rows never read `state` — F1 changed a label only.
+
+**D7 invariants (merged code + specs):** buyer cancel, seller reject and admin cancel each flip
+`paymentStatus PENDING → FAILED` inside their cancellation transaction and fail the COD `PAYMENT`
+transaction conditionally (`PENDING`/`PROCESSING` only); `payment_failed` fires once per actual
+flip; no refund, earning, commission, balance or payout is created; `COMPLETED` / `REFUNDED` /
+`FAILED` payments and non-COD orders are untouched; a retry or stale request is refused by the
+status check before any write (specs: `payments.service.spec`, `orders.service.spec`,
+`seller-orders.service.spec`, `admin-orders.service.spec` D7 block).
+
+**Production, read-only (counts only):** `_manual_migrations` holds 32 files — every other entry of
+`auto-apply.list` is applied; **`2026-09-04_payout_commission_ledger_foundation.sql` and
+`2026-09-04_user_notification_payout_type.sql` are the only pending ones**. Preconditions hold: no
+`admin_audit_logs` table, no `CommissionSource` type, no `payouts.processingAt/completedById/
+rejectedAt`, `UserNotificationType` without `PAYOUT`, **0 global commission rows** (the migration
+will insert the 10 % row), 0 sellers with more than one open payout (the partial unique index will
+build). Orders: 2 `PENDING` COD, 6 `DELIVERED` COD/`COMPLETED`, 1 `CANCELLED` mobile-money/`FAILED`
+— **0 cancelled COD/`PENDING` → no D7 backfill**. Payouts: 1 `COMPLETED`; earnings: 1 reserved
+in that completed payout (reads PAID under F1, as before), 5 unlinked. #654 added no migration.
+
+**Seller Mobile version:** both pubspecs are `0.1.7+9`; bumps have always been `x.y.z+N` with both
+numbers incremented, landed as a `chore(mobile)` PR **into `develop` before** the `develop → main`
+release PR (`#641 chore/bump-mobile-0.1.7`, then `#643`). `main…develop` touches 21 seller-mobile
+files and **no buyer-mobile file** → seller-mobile **`0.1.8+10`** is the correct next version;
+buyer-mobile stays `0.1.7+9` (no release). Not bumped yet — a release action.
+
+**Deferred (unchanged, none a blocker):** F2 mobile feed refresh on resume, F3 email « Retrait »
+wording, F5 notification outbox, F6 `FINANCE` role, F7 seller current-rate display, F8
+`field: "unknown"`.
+
+**Verdict: SAFE TO RELEASE.**
+

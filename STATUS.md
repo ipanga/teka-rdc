@@ -8,8 +8,9 @@
 
 **Admin Action Center · seller payout workflow · payout notifications · commission management —
 all eight PRs merged into `develop` (#646, #647, #648 `dccd864`, #649 `471b2e7`, #650 `c64f6e4`,
-#651 `3d859fa`, #652 `b6f48f5`); whole-initiative pre-release audit done on `b6f48f5` — verdict
-**NEEDS FIXES BEFORE RELEASE** (F1 + D7 decision). Audit record on `docs/payouts-pre-release-audit`.**
+#651 `3d859fa`, #652 `b6f48f5`) plus the F1 + D7 fix PR #654 (`fa62b96`); post-merge
+release-readiness verification done on `fa62b96` — verdict **SAFE TO RELEASE**, awaiting explicit
+approval for the release sequence.**
 Tracker: `docs/payouts-commission-action-center.md` (audit, approved decisions D1–D6, per-PR record).
 
 PR 2 `feat/api-payout-ledger-foundation` → `develop`: per-item integer commission with
@@ -96,15 +97,18 @@ reserved in an open payout as `PAID` (reservation sets `isPaid`) — fix before 
 derive from the linked payout's status). **D7** analysed, decision pending. Two migrations pending
 for production, both auto-apply, neither on `main`. Seller-mobile release would be `0.1.8+10`.
 
-**F1 + D7 approved and implemented** on `fix/earning-state-and-cod-cancel-payment` (API only, no
-schema/migration; production has 0 cancelled COD orders → no backfill). PR open.
+**F1 + D7 merged as #654 (`fa62b96`)** (API only, no schema/migration; production has 0 cancelled
+COD orders → no backfill). Post-merge verification (tracker → « Post-merge release-readiness
+verification »): CI + CodeQL green on `fa62b96`, all six-app local gates green, financial matrix and
+D7 invariants reconfirmed in the merged code, production read-only check: exactly two pending
+auto-apply migrations, preconditions hold (0 global commission rows → the 10 % row will be inserted).
 
-**Next exact step:** review/merge the F1 + D7 PR (and the redundant audit-docs PR #653, superseded
-by it), then a `develop → main` release PR **only on explicit approval** — with the seller-mobile
-bump to `0.1.8+10` in the release. No deployment, production migration, data write, `db:push` or
-`main` merge without it. No `main` merge, deployment or
-production write without approval — note the PR 2 migration inserts a 10 % global commission row
-**only if none exists** in production (materialising today's hardcoded fallback).
+**Next exact step (only on explicit approval):** 1) `chore(mobile)` PR into `develop` bumping
+seller-mobile to `0.1.8+10` (buyer-mobile unchanged); 2) `develop → main` release PR, merged with a
+merge commit, which auto-applies the two migrations before the rolling swap; 3) post-deploy checks
+(`_manual_migrations` has both files, one global commission row, payout endpoints); 4) seller-mobile
+Android AAB + iOS TestFlight workflows from `main`. No deployment, production migration, data write,
+`db:push`, `main` merge or store upload without approval.
 
 ## Most recently completed initiative
 
