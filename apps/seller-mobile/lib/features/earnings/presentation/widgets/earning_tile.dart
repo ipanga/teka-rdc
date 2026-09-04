@@ -24,25 +24,22 @@ class EarningTile extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Expanded(
-                child: Text(
-                  earning.orderNumber != null
-                      ? "Commande ${earning.orderNumber!}"
-                      : earning.orderId,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              Text(
+                earning.orderNumber != null
+                    ? "Commande ${earning.orderNumber!}"
+                    : earning.orderId,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(width: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
                   color: earning.isPaid
                       ? TekaColors.success.withValues(alpha: 0.1)
@@ -50,9 +47,7 @@ class EarningTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  earning.isPaid
-                      ? "Paye"
-                      : "Disponible",
+                  earning.isPaid ? "Payé" : "Disponible",
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
@@ -65,7 +60,10 @@ class EarningTile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Icon(Icons.calendar_today_outlined,
                   size: 12, color: TekaColors.mutedForeground),
@@ -77,7 +75,6 @@ class EarningTile extends StatelessWidget {
                   color: TekaColors.mutedForeground,
                 ),
               ),
-              const SizedBox(width: 12),
               Text(
                 'Commission: ${earning.commissionRateDisplay.toStringAsFixed(0)}%',
                 style: const TextStyle(
@@ -88,8 +85,9 @@ class EarningTile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            spacing: 20,
+            runSpacing: 10,
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

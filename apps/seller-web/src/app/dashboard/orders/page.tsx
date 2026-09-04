@@ -5,6 +5,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { OrderStatusBadge } from '@/components/orders/order-status-badge';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface OrderItem {
   id: string;
@@ -55,9 +56,11 @@ type StatusFilter =
   | 'PROCESSING'
   | 'READY_FOR_TEKA_PICKUP'
   | 'RECEIVED_AT_TEKA'
+  | 'SHIPPED'
   | 'OUT_FOR_DELIVERY'
   | 'DELIVERED'
-  | 'CANCELLED';
+  | 'CANCELLED'
+  | 'RETURNED';
 
 const LIMIT = 20;
 
@@ -68,11 +71,24 @@ export default function OrdersListPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
+  const [queryReady, setQueryReady] = useState(false);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [rejectingOrderId, setRejectingOrderId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
+  useEffect(() => {
+    const value = new URLSearchParams(window.location.search).get('status') ?? '';
+    const allowed: StatusFilter[] = [
+      '', 'PENDING', 'CONFIRMED', 'PROCESSING', 'READY_FOR_TEKA_PICKUP',
+      'RECEIVED_AT_TEKA', 'SHIPPED', 'OUT_FOR_DELIVERY', 'DELIVERED',
+      'CANCELLED', 'RETURNED',
+    ];
+    if (allowed.includes(value as StatusFilter)) setStatusFilter(value as StatusFilter);
+    setQueryReady(true);
+  }, []);
+
   const loadOrders = useCallback(async () => {
+    if (!queryReady) return;
     setIsLoading(true);
     setError('');
     try {
@@ -95,7 +111,7 @@ export default function OrdersListPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, statusFilter]);
+  }, [page, queryReady, statusFilter]);
 
   useEffect(() => {
     loadOrders();
@@ -104,6 +120,10 @@ export default function OrdersListPage() {
   const handleFilterChange = (newFilter: StatusFilter) => {
     setStatusFilter(newFilter);
     setPage(1);
+    const url = new URL(window.location.href);
+    if (newFilter) url.searchParams.set('status', newFilter);
+    else url.searchParams.delete('status');
+    window.history.replaceState(null, '', `${url.pathname}${url.search}`);
   };
 
   const handleAction = async (orderId: string, action: string, body?: object) => {
@@ -182,9 +202,12 @@ export default function OrdersListPage() {
     { key: 'CONFIRMED', label: "Confirmées" },
     { key: 'PROCESSING', label: "En préparation" },
     { key: 'READY_FOR_TEKA_PICKUP', label: "Prête pour collecte" },
+    { key: 'RECEIVED_AT_TEKA', label: "Reçues par Teka" },
+    { key: 'SHIPPED', label: "Expédiées (ancien)" },
     { key: 'OUT_FOR_DELIVERY', label: "En livraison" },
     { key: 'DELIVERED', label: "Livrées" },
     { key: 'CANCELLED', label: "Annulées" },
+    { key: 'RETURNED', label: "Retournées" },
   ];
 
   const renderActions = (order: Order) => {
@@ -241,21 +264,24 @@ export default function OrdersListPage() {
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-foreground">Commandes</h1>
-      </div>
+    <div className="seller-page">
+      <PageHeader
+        eyebrow="Activité"
+        title="Commandes"
+        description="Traitez les commandes qui nécessitent votre action et suivez leur livraison."
+      />
 
       {/* Status filter tabs */}
-      <div className="flex flex-wrap gap-1 mb-6 border-b border-border">
+      <div className="seller-filter-bar" role="group" aria-label="Filtrer les commandes par statut">
         {filters.map((f) => (
           <button
             key={f.key}
             onClick={() => handleFilterChange(f.key)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            aria-pressed={statusFilter === f.key}
+            className={`seller-filter ${
               statusFilter === f.key
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                ? 'seller-filter-active'
+                : ''
             }`}
           >
             {f.label}
@@ -263,9 +289,10 @@ export default function OrdersListPage() {
         ))}
       </div>
 
-      {error && (
-        <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-          {error}
+      {error && orders.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-destructive/10 p-4 text-sm text-destructive" role="alert">
+          <span>{error}</span>
+          <button type="button" onClick={loadOrders} className="font-semibold underline underline-offset-4">Réessayer</button>
         </div>
       )}
 
@@ -306,7 +333,7 @@ export default function OrdersListPage() {
         </div>
       )}
 
-      {isLoading ? (
+      {!queryReady || isLoading ? (
         <div className="space-y-3">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="bg-white rounded-lg border border-border p-4 animate-pulse">
@@ -319,9 +346,21 @@ export default function OrdersListPage() {
             </div>
           ))}
         </div>
+      ) : error && orders.length === 0 ? (
+        <div className="seller-card p-8 text-center" role="alert">
+          <h2 className="font-semibold text-foreground">Impossible de charger les commandes</h2>
+          <p className="mt-2 text-sm text-muted-foreground">{error}</p>
+          <button type="button" onClick={loadOrders} className="seller-button-secondary mt-5">Réessayer</button>
+        </div>
       ) : orders.length === 0 ? (
-        <div className="bg-white rounded-xl border border-border p-12 text-center">
-          <p className="text-muted-foreground">Aucune commande</p>
+        <div className="seller-card p-8 text-center sm:p-12">
+          <h2 className="font-semibold text-foreground">
+            {statusFilter ? 'Aucune commande avec ce statut' : 'Aucune commande pour le moment'}
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {statusFilter ? 'Choisissez un autre filtre pour consulter le reste de vos commandes.' : 'Les nouvelles commandes apparaîtront ici.'}
+          </p>
+          {statusFilter && <button type="button" onClick={() => handleFilterChange('')} className="seller-button-secondary mt-5">Voir toutes les commandes</button>}
         </div>
       ) : (
         <>

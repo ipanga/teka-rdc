@@ -22,32 +22,42 @@ class OrderActionButtons extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (status) {
       case OrderStatus.pending:
-        return Row(
-          children: [
-            Expanded(
-              child: OutlinedButton(
-                onPressed: onReject,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: TekaColors.destructive,
-                  side: const BorderSide(color: TekaColors.destructive),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: Text("Rejeter"),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final stack = constraints.maxWidth < 330 ||
+                MediaQuery.textScalerOf(context).scale(1) > 1.3;
+            final reject = OutlinedButton(
+              onPressed: onReject,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: TekaColors.destructive,
+                side: const BorderSide(color: TekaColors.destructive),
+                padding: const EdgeInsets.symmetric(vertical: 12),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton(
-                onPressed: onConfirm,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: TekaColors.tekaRed,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: Text("Confirmer"),
+              child: const Text("Rejeter"),
+            );
+            final confirm = ElevatedButton(
+              onPressed: onConfirm,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: TekaColors.tekaRed,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
               ),
-            ),
-          ],
+              child: const Text("Confirmer"),
+            );
+            if (stack) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [confirm, const SizedBox(height: 8), reject],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: reject),
+                const SizedBox(width: 12),
+                Expanded(child: confirm),
+              ],
+            );
+          },
         );
 
       case OrderStatus.confirmed:
@@ -60,7 +70,7 @@ class OrderActionButtons extends StatelessWidget {
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
-            child: Text("Preparer"),
+            child: const Text("Préparer"),
           ),
         );
 
@@ -74,7 +84,7 @@ class OrderActionButtons extends StatelessWidget {
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
-            child: Text("Prête pour collecte"),
+            child: const Text("Marquer prête pour collecte"),
           ),
         );
 

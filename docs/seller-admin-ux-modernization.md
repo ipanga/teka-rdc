@@ -379,6 +379,91 @@ on finishing the remaining mobile audit/QA items, including splash.
 
 Both development preview runners were stopped after QA. No live automation or background task was created.
 
+## Seller Mobile forms, secondary routes and native splash — third lot (2026-09-03)
+
+Branch `codex/seller-mobile-forms-details`, based on `develop` after foundation PR #634 and
+action-center PR #635 merged normally. This lot closes the remaining source-level Mobile items from
+the initial audit. It does not change the API, schema, business transitions, authentication rules,
+analytics ownership or Buyer/Seller/Admin web behavior.
+
+### Delivered behavior
+
+- Auth registration, forgot/reset password and seller-application states remain scrollable with the
+  keyboard open, narrow screens and enlarged text. City/commune and long dropdown choices expose
+  distinct loading/error/retry states.
+- Product edit routes load by id when router `extra` is absent. Category changes discard stale
+  brand/attribute responses; option failures are visible and retryable; price fields stack when
+  needed; comma decimal USD input is accepted. Image add/delete controls have labelled 48 px targets.
+- Order actions stack on narrow/large-text layouts and only appear for seller-actionable states.
+  French labels and the two-day return-window earnings copy match the existing domain workflow.
+- Notifications distinguish failure from an empty inbox and append later pages with an inline retry.
+  Profile now exposes Help & support using the repository's existing support contacts. Earnings and
+  payout content scrolls and wraps on short screens, long values and enlarged text.
+- The native splash uses a padded 1200-square source, density-specific generated images and no
+  artificial Flutter delay. Android 12+ renders the white seller glyph on charcoal; Android API 33
+  light/dark sidecars prefer the icon. Generated Android/iOS settings preserve visible status bars.
+
+### Verification and limits
+
+| Check | Result |
+|---|---|
+| Flutter tests | **112 passed**, including 18 new focused form/secondary/splash cases plus image semantics |
+| Static analysis | Exit 0; the same **17 info-only** notices, no warnings or errors |
+| Layout matrix | Widget tests cover 320 px, 2× text, keyboard insets, short earnings viewport, long labels and option failures |
+| Android runtime | API 34 development app cold-launched (`LaunchState: COLD`), resolved `MainActivity`, and rendered the actual dashboard/action center without overflow; status/navigation bars visible |
+| Native assets | Source and generated dimensions, status-bar flags and Android 12/13 icon contrast are regression-tested |
+| Data safety | Runtime preview uses synthetic in-memory fixtures; no production API, database or account mutation |
+
+The system splash lasts less than the reliable screenshot interval on the available emulator; the
+cold-launch activity result and generated-resource tests are the durable evidence. A signed-in real
+account was not available, so real API mutations, remote push delivery, camera/gallery permissions,
+physical-device screen-reader interaction and release-build performance remain explicit items for the
+final cross-platform validation matrix. Seller Web and Admin still require implementation and browser
+QA before the overall initiative can be called complete.
+
+## Seller Web modernization — implementation checkpoint (2026-09-04)
+
+Branch `codex/seller-web-ux-modernization`, based on merged Mobile foundation/action-center work at
+`develop` `674d794`. This lot changes only `apps/seller-web` plus initiative documentation. It adds
+no dependency, endpoint, schema, migration, environment variable or buyer-facing metadata change.
+
+### Delivered behavior
+
+- Grouped Activité / Développement / Compte navigation with consistent SVG icons, 44 px targets,
+  current-page semantics and a mobile modal drawer that locks body scroll, supports Escape, contains
+  keyboard focus and returns focus to its trigger.
+- Compact dashboard led by four authoritative work queues: pending/confirmed/processing orders from
+  `/v1/sellers/orders/stats`, and rejected products from `/v1/sellers/products/stats`. Partial request
+  failures remain visible and retryable instead of becoming false zeroes.
+- Exact queue links and list filters persist in the URL. Products initialize directly from
+  `PENDING_REVIEW`, `ACTIVE`, `REJECTED`, `DRAFT`, `ARCHIVED` or `SUSPENDED`; orders cover the full
+  existing workflow including READY_FOR_TEKA_PICKUP, RECEIVED_AT_TEKA, legacy SHIPPED and RETURNED.
+- Search, filters, filtered-empty, first-load failure and truly empty catalogue/order states are
+  distinct. Horizontal filters remain keyboard reachable and usable on narrow screens.
+- Responsive notification panel stays inside the mobile viewport. Shared page hierarchy, spacing,
+  cards and buttons now cover dashboard, products, orders, revenues, reviews, promotions and profile.
+  Product/order detail and create flows retain their existing domain forms and transitions.
+
+### Validation and limits
+
+`pnpm --filter seller-web type-check` passes. `pnpm --filter seller-web build` completes, including
+private `robots.txt`; only pre-existing lint warnings remain in unrelated source plus the known
+catalogue raw-image warning. `git diff --check` passes.
+
+An isolated browser run used the local development API (`COOKIE_DOMAIN` cleared and CORS scoped to
+the local Seller origin) and the repository's deterministic seeded seller account. Read-only checks
+verified successful authentication, dashboard counts (294 total / 294 active products), empty action
+queues and orders, wallet values, notification empty state, catalogue pagination, exact filter URLs,
+filtered empty copy, narrow-screen layout, Escape/focus return and focus wrapping. No archive,
+duplicate, order transition, promotion, payout, profile or other mutation was triggered. Desktop
+layout is covered by responsive source/build checks; this checkpoint does not claim a browser-matrix
+or production-performance certification.
+
+Private-site SEO guards remain unchanged: root metadata disallows index/follow and `robots.txt`
+disallows `/`. Existing auth, seller ownership, approval and order/product lifecycle guards remain
+server authoritative. The next lot is Admin, followed by final integration and device-dependent
+Mobile checks (camera/gallery, native push and physical-device performance).
+
 ## Admin modernization — implementation checkpoint (2026-09-04)
 
 Branch `codex/admin-web-ux-modernization`, based on `develop` `674d794`. Seller Web was completed

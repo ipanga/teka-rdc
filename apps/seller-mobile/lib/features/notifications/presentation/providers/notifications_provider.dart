@@ -8,27 +8,56 @@ class NotificationsState {
   final List<NotificationModel> items;
   final int unread;
   final bool isLoading;
+  final bool isLoadingMore;
+
+  /// First-page failure (initial load or pull-to-refresh).
   final String? error;
+
+  /// Pagination failure — kept separate so a failed refresh over a cached list
+  /// never renders the "load the rest" footer.
+  final String? loadMoreError;
+  final int page;
+  final int total;
+  final int limit;
 
   const NotificationsState({
     this.items = const [],
     this.unread = 0,
     this.isLoading = false,
+    this.isLoadingMore = false,
     this.error,
+    this.loadMoreError,
+    this.page = 1,
+    this.total = 0,
+    this.limit = 30,
   });
+
+  bool get hasMore => page * limit < total;
 
   NotificationsState copyWith({
     List<NotificationModel>? items,
     int? unread,
     bool? isLoading,
+    bool? isLoadingMore,
     String? error,
+    String? loadMoreError,
+    int? page,
+    int? total,
+    int? limit,
     bool clearError = false,
+    bool clearLoadMoreError = false,
   }) {
     return NotificationsState(
       items: items ?? this.items,
       unread: unread ?? this.unread,
       isLoading: isLoading ?? this.isLoading,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       error: clearError ? null : (error ?? this.error),
+      loadMoreError:
+          clearLoadMoreError ? null : (loadMoreError ?? this.loadMoreError),
+      page: page ?? this.page,
+      total: total ?? this.total,
+      limit: limit ?? this.limit,
     );
   }
 }
@@ -45,18 +74,55 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
       : super(const NotificationsState(isLoading: true));
 
   Future<void> load() async {
-    state = state.copyWith(isLoading: true, clearError: true);
+    state = state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearLoadMoreError: true,
+    );
     try {
-      final page = await _repo.getNotifications(page: 1, limit: 30);
+      final page = await _repo.getNotifications(page: 1, limit: state.limit);
       if (!mounted) return;
       state = state.copyWith(
         items: page.items,
         unread: page.unread,
         isLoading: false,
+        page: page.page,
+        total: page.total,
       );
     } catch (e) {
       if (!mounted) return;
       state = state.copyWith(isLoading: false, error: friendlyErrorMessage(e));
+    }
+  }
+
+  Future<void> loadMore() async {
+    if (state.isLoadingMore) return;
+    if (!state.hasMore) {
+      if (state.loadMoreError != null) {
+        state = state.copyWith(clearLoadMoreError: true);
+      }
+      return;
+    }
+    state = state.copyWith(isLoadingMore: true, clearLoadMoreError: true);
+    try {
+      final page = await _repo.getNotifications(
+        page: state.page + 1,
+        limit: state.limit,
+      );
+      if (!mounted) return;
+      state = state.copyWith(
+        items: [...state.items, ...page.items],
+        unread: page.unread,
+        isLoadingMore: false,
+        page: page.page,
+        total: page.total,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      state = state.copyWith(
+        isLoadingMore: false,
+        loadMoreError: friendlyErrorMessage(e),
+      );
     }
   }
 

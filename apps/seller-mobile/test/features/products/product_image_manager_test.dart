@@ -75,4 +75,13 @@ void main() {
     expect(find.text('Prendre une photo'), findsOneWidget);
     expect(find.text('Choisir dans la galerie'), findsOneWidget);
   });
+
+  testWidgets('image controls expose accessible add and delete labels',
+      (t) async {
+    await _pump(t, _productWith(1));
+
+    expect(find.bySemanticsLabel('Image du produit'), findsOneWidget);
+    expect(find.byTooltip("Supprimer l'image"), findsOneWidget);
+    expect(find.bySemanticsLabel('Ajouter une image'), findsOneWidget);
+  });
 }

@@ -17,7 +17,6 @@ class WalletCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -43,8 +42,6 @@ class WalletCard extends StatelessWidget {
               fontWeight: FontWeight.bold,
               color: color,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 2),
           Text(
@@ -54,8 +51,6 @@ class WalletCard extends StatelessWidget {
               color: color.withValues(alpha: 0.8),
               fontWeight: FontWeight.w500,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
