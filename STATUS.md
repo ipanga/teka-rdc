@@ -1,4 +1,4 @@
-# Status — 2026-09-03
+# Status — 2026-09-04
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,33 +6,30 @@
 
 ## Active initiative
 
-**Seller / Admin UX modernization — Phase 0 complete; Seller Mobile foundation + action center locally verified.**
-Branch: `codex/seller-mobile-action-center`, based on foundation `f9a5da1` / `develop` `6e6d151`.
-Foundation draft PR [#634](https://github.com/ipanga/teka-rdc/pull/634) → `develop`: all remote checks green.
-Action-center draft PR [#635](https://github.com/ipanga/teka-rdc/pull/635) → `develop`, dependent on #634;
-implementation commit `c3c5805`. Remote checks pending at the final documentation checkpoint.
-No merge or deployment. Audit, source inventory, phase deliverables and exact QA limits:
-[`docs/seller-admin-ux-modernization.md`](docs/seller-admin-ux-modernization.md).
+**Seller / Admin UX modernization — Seller Web implemented and locally validated; Admin is next.**
+Branch: `codex/seller-web-ux-modernization`, based on `develop` `674d794` (Mobile foundation/action
+center PRs #634/#635 merged). The remaining Mobile forms/details/notifications/profile/earnings and
+native splash lot is complete on `codex/seller-mobile-forms-details` (`43f9520`) with **112 tests**;
+its branch is pushed but PR creation was blocked by the automatic approval review.
 
-Completed: authoritative account-scoped order/product counts, four actionable queues, exact filtered
-routes, mutation/push/resume refresh without polling, stale-response protection, persistent filters
-on completion, explicit loading/error/empty states, compact home and Material 3 bottom navigation.
-Two overflows in linked detail screens fixed. Foundation list work is retained.
-Validation: **93 Flutter tests**, **3 targeted API stats tests**, analyzer **17 existing infos / no
-warnings or errors**. Native Android and iOS development previews use only synthetic in-memory data;
-Android confirmation verified 25→24 pending / 1→2 confirmed, enlarged text and catalogue scrolling.
+Seller Web now has grouped accessible navigation, a keyboard-contained mobile drawer, a compact
+action center driven by the existing seller order/product statistics, exact URL-backed filters,
+clear partial failure/empty/loading states, a responsive notification panel and shared page hierarchy
+across catalogue, orders, revenues, reviews, promotions and profile. Existing APIs, lifecycle
+transitions, payout rules, auth/ownership, analytics and private-site noindex rules are unchanged.
+Type-check and production build pass. Browser QA against the local development API and the seeded
+seller account verified login, 294 products, empty orders, notifications, wallet, pagination, filter
+URLs, keyboard Escape/focus return and mobile layout without mutations.
 
-**Not complete:** remaining mobile forms, detail refinements, notifications/profile/earnings and native
-splash; full signed-in API, native push, camera and cold-launch QA. Seller Web/Admin implementation
-still waits for mobile stabilization. Existing business transitions, API/schema, approval guards,
-Dio/offline handling, analytics and buyer SEO remain unchanged.
+**Still open:** Admin implementation; reviewable PR creation for the two completed branches; final
+Admin + cross-platform validation. Physical-device camera/gallery, native push delivery and release
+performance remain manual device checks. No merge to `main`, production deployment, database/schema
+change or production data mutation is part of this initiative.
 
-**Next exact step:** inspect PR/check status and review the two mobile lots in dependency order.
-Then implement the scoped mobile form/detail accessibility lot (order details/buttons; product
-edit/images; auth reset/register and seller-application keyboard flows) from the existing audit,
-with narrow-phone/2×/keyboard tests. Handle native splash in its own subsequent lot. Keep PRs into
-`develop`; never auto-merge to `main` or deploy. Native previews must use the development flavor;
-`tool/seller_actions_preview.dart` reproduces this lot without touching any API or real account.
+**Next exact step:** commit and push Seller Web, then create `codex/admin-web-ux-modernization` from
+`develop`, modernize its operational dashboard/navigation/lists and validate read-only against the
+development API. After Admin, reconcile documentation and request explicit approval to create the
+remaining PRs into `develop` because the earlier PR action was rejected by automatic approval review.
 
 ## Most recently completed initiative
 

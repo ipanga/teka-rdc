@@ -378,3 +378,46 @@ by this lot. Mobile is not yet declared fully stable; Seller Web/Admin implement
 on finishing the remaining mobile audit/QA items, including splash.
 
 Both development preview runners were stopped after QA. No live automation or background task was created.
+
+## Seller Web modernization — implementation checkpoint (2026-09-04)
+
+Branch `codex/seller-web-ux-modernization`, based on merged Mobile foundation/action-center work at
+`develop` `674d794`. This lot changes only `apps/seller-web` plus initiative documentation. It adds
+no dependency, endpoint, schema, migration, environment variable or buyer-facing metadata change.
+
+### Delivered behavior
+
+- Grouped Activité / Développement / Compte navigation with consistent SVG icons, 44 px targets,
+  current-page semantics and a mobile modal drawer that locks body scroll, supports Escape, contains
+  keyboard focus and returns focus to its trigger.
+- Compact dashboard led by four authoritative work queues: pending/confirmed/processing orders from
+  `/v1/sellers/orders/stats`, and rejected products from `/v1/sellers/products/stats`. Partial request
+  failures remain visible and retryable instead of becoming false zeroes.
+- Exact queue links and list filters persist in the URL. Products initialize directly from
+  `PENDING_REVIEW`, `ACTIVE`, `REJECTED`, `DRAFT`, `ARCHIVED` or `SUSPENDED`; orders cover the full
+  existing workflow including READY_FOR_TEKA_PICKUP, RECEIVED_AT_TEKA, legacy SHIPPED and RETURNED.
+- Search, filters, filtered-empty, first-load failure and truly empty catalogue/order states are
+  distinct. Horizontal filters remain keyboard reachable and usable on narrow screens.
+- Responsive notification panel stays inside the mobile viewport. Shared page hierarchy, spacing,
+  cards and buttons now cover dashboard, products, orders, revenues, reviews, promotions and profile.
+  Product/order detail and create flows retain their existing domain forms and transitions.
+
+### Validation and limits
+
+`pnpm --filter seller-web type-check` passes. `pnpm --filter seller-web build` completes, including
+private `robots.txt`; only pre-existing lint warnings remain in unrelated source plus the known
+catalogue raw-image warning. `git diff --check` passes.
+
+An isolated browser run used the local development API (`COOKIE_DOMAIN` cleared and CORS scoped to
+the local Seller origin) and the repository's deterministic seeded seller account. Read-only checks
+verified successful authentication, dashboard counts (294 total / 294 active products), empty action
+queues and orders, wallet values, notification empty state, catalogue pagination, exact filter URLs,
+filtered empty copy, narrow-screen layout, Escape/focus return and focus wrapping. No archive,
+duplicate, order transition, promotion, payout, profile or other mutation was triggered. Desktop
+layout is covered by responsive source/build checks; this checkpoint does not claim a browser-matrix
+or production-performance certification.
+
+Private-site SEO guards remain unchanged: root metadata disallows index/follow and `robots.txt`
+disallows `/`. Existing auth, seller ownership, approval and order/product lifecycle guards remain
+server authoritative. The next lot is Admin, followed by final integration and device-dependent
+Mobile checks (camera/gallery, native push and physical-device performance).

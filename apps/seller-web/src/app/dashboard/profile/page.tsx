@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { apiFetch, ApiError } from '@/lib/api-client';
 import { DeleteAccountSection } from '@/components/account/delete-account-section';
+import { PageHeader } from '@/components/ui/page-header';
 
 interface SellerProfileShape {
   businessName: string;
@@ -324,11 +325,12 @@ export default function SellerProfilePage() {
   const initials = ((user?.firstName?.[0] ?? '') + (user?.lastName?.[0] ?? '')).toUpperCase() || '?';
 
   return (
-    <div className="p-8 max-w-3xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-foreground">{"Mon profil"}</h1>
-        <p className="text-sm text-muted-foreground mt-1">{"Gérez vos informations personnelles et celles de votre boutique"}</p>
-      </div>
+    <div className="seller-page max-w-3xl">
+      <PageHeader
+        eyebrow="Compte"
+        title="Mon profil"
+        description="Gérez vos informations personnelles, votre boutique et la sécurité du compte."
+      />
 
       {feedback && (
         <div className={`mb-4 px-4 py-3 rounded-lg text-sm font-medium ${

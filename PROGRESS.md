@@ -1,11 +1,13 @@
 # Teka RDC — Development Progress
 
-## Current Phase: Seller / Admin UX modernization — Seller Mobile foundation + action center.
+## Current Phase: Seller / Admin UX modernization — Seller Web validated; Admin next.
 ## Last completed: Search & Sales Analytics + CSV hardening + deliveredAt invariant — RELEASED (PR #632, main 9e89478, deploy 33756698400).
-## Status: mobile foundation and action center locally verified; initiative ongoing. Tracker: `docs/seller-admin-ux-modernization.md`. Last production release remains unchanged.
-## Last Updated: 2026-09-03
+## Status: remaining Mobile lot and Seller Web implementation are complete on pushed branches; Admin and final review/PR integration remain. Tracker: `docs/seller-admin-ux-modernization.md`. Last production release remains unchanged.
+## Last Updated: 2026-09-04
 
 ## Post-phase chronology — condensed index (moved out of CLAUDE.md §8 on 2026-06-03)
+
+- **Sep 4, 2026** — **Seller Web UX modernization implemented and read-only validated** on `codex/seller-web-ux-modernization`: grouped icon navigation, modal mobile drawer with Escape/focus containment, responsive notifications, compact authoritative action center, URL-backed order/product filters and explicit recovery/empty states. Shared hierarchy now covers revenues, reviews, promotions and profile. Type-check/build pass; local development API QA with the seeded seller account verified auth, 294 products, pagination, notifications, wallet and empty-order states without data mutations. Admin is the next platform phase; no schema/API/SEO/production change.
 
 > This is the authoritative chronological index of post-phase work. CLAUDE.md §8 now points here instead of carrying the list inline (the growing list kept tripping the 40k-char CLAUDE.md performance warning). Append new initiative one-liners here, not to CLAUDE.md. Full narratives for each item live in the dated sections further down this file and in `STATUS.md`.
 
