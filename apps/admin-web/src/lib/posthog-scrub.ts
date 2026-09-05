@@ -13,10 +13,17 @@
 import type { CaptureResult } from 'posthog-js';
 
 const PHONE_REGEX = /\+243\d{9}/g;
+// Admin-only: the short-lived seller-document download links
+// (api.cloudinary.com/…/download?…signature…) must never reach analytics —
+// autocapture records element attributes and $current_url. The viewer is also
+// marked `ph-no-capture`; this is the belt to those suspenders.
+const DOCUMENT_LINK_REGEX = /https?:\/\/[^\s"'<>]*cloudinary\.com[^\s"'<>]*/gi;
 
 function scrubValue<T>(value: T): T {
   if (typeof value === 'string') {
-    return value.replace(PHONE_REGEX, '[phone]') as T;
+    return value
+      .replace(PHONE_REGEX, '[phone]')
+      .replace(DOCUMENT_LINK_REGEX, '[document-link]') as T;
   }
   if (Array.isArray(value)) {
     return value.map(scrubValue) as T;
