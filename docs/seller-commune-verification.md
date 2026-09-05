@@ -400,7 +400,7 @@ Stale copy sweep: no remaining `'Teka RDC Officiel'` comparison in any client; n
 ### Remaining risks (carry into release notes)
 
 1. **Every legacy seller ships unverified.** The migration sets `verificationStatus = NOT_SUBMITTED` for all sellers, so the current always-on « Vérifié » chip disappears from every PDP at deploy until an admin verifies a seller — accepted in D5, but sellers should be told (seller feed/email exist for the outcome, not for the launch itself; a broadcast is available via admin « Notifications »).
-2. **Buyer address commune not validated server-side** (above). Low impact; fix as a small follow-up using `resolveCommune` in `addresses.service`.
+2. ~~Buyer address commune not validated server-side~~ — **closed** by the follow-up fix below (`fix/buyer-address-commune-validation`).
 3. **« Officiel » not exercised live** (no platform seller in the dev DB); unit-tested only. Production has the seeded « Teka RDC Officiel » user `10000000-…-000000999999`, so cards/PDP will show « Officiel » there exactly where they did before.
 4. **Mobile store releases are a separate step**: the web badge and the admin/seller web UI ship with the deploy; buyer-mobile (badge, autoDispose PDP) and seller-mobile (verification screen, interceptor fix) need TestFlight/Play releases — until then mobile users keep the old name-based chip on buyer-mobile.
 5. **Cloudinary**: production must hold the `CLOUDINARY_*` credentials already used for the June KYC photo; no new secret. Private authenticated assets and expiry-enforced download URLs were probed on the dev cloud only.
@@ -433,6 +433,7 @@ Stale copy sweep: no remaining `'Teka RDC Officiel'` comparison in any client; n
 - [ ] `GET /api/v1/admin/sellers/<id>/verification` without cookie → 401; the admin list `?verification=PENDING_REVIEW` → 401.
 - [ ] Admin web: Action Center shows « Vérifications à examiner : 0 », seller list shows the « Vérification » column (all « Non soumis »), a seller detail shows the card with « Non soumis » and no actions.
 - [ ] Seller web (a real seller, with consent): `/dashboard/verification` loads, shows the required documents for its type; **no upload performed** unless the seller wants to start.
+- [ ] Buyer address rule (no data written): `POST /api/v1/addresses` with a valid buyer token and a Kolwezi commune under `cityId` = Lubumbashi → 400 « La commune ne correspond pas à la ville sélectionnée »; `GET /api/v1/addresses/locations/neighborhoods?town=Lubumbashi` lists active communes only.
 - [ ] Sentry: no new issue tagged `SellerVerification*` / `browse` in the first hour.
 - [ ] Cron: next morning, api logs show the retention/orphan sweep ran (nothing to purge yet).
 
@@ -443,6 +444,21 @@ Stale copy sweep: no remaining `'Teka RDC Officiel'` comparison in any client; n
 
 ### Follow-ups (not blocking)
 
-- Validate `communeId` ↔ `cityId` on buyer addresses via `resolveCommune` (small API change + test).
 - Consider a seller broadcast at launch explaining the new badge.
 - Admin-web `sentry-scrub.ts` is shared across the three web apps; if a cloudinary-URL scrub is wanted in Sentry too, change all three together.
+
+## Follow-up fix (2026-09-05): buyer address Ville ↔ Commune validated server-side — `fix/buyer-address-commune-validation`
+
+Closes risk 2 above. Only `AddressesService` writes buyer addresses (`POST /v1/addresses` upsert, `PATCH /v1/addresses/:id`); no other service creates or updates an `Address` row (checkout snapshots the address, it does not write one). Both paths now go through `resolveLocation()`, which reuses PR 1's `CitiesService.resolveCommune` / `assertActiveCity` unchanged — sellers and buyers share one authority.
+
+Rules (server-side, independent of the dropdowns):
+- a commune must exist, be active, sit in an active city and belong to the sent city; the persisted `cityId` always comes from the commune, so the pair can never disagree;
+- a city alone must be active (commune stays `null`, as for legacy rows);
+- **PATCH** merges with the stored row: omitted fields keep their value; **a city change without a new commune drops the old commune** (it belongs to the previous town); an explicitly sent commune of another city is refused; an untouched pair is not re-validated, so an address whose commune was retired later stays readable (`findAll` joins nothing) and editable (label, phone…) while the retired commune can no longer be re-selected;
+- `GET /v1/addresses/locations/neighborhoods` now lists active communes only, like `GET /v1/cities/:id/communes`.
+
+Errors are the resolver's existing French messages (400): « Commune invalide », « Commune inactive », « La commune ne correspond pas à la ville sélectionnée », « Ville invalide ou inactive » — no ids, names or internals echoed.
+
+Clients (both already loaded communes per city, cleared them on city change, hid the commune control until a city is chosen, and preselected on edit by id or name): buyer-web now also **drops a selected commune the API no longer offers** when the list loads (previously the stale id stayed in state and only the server would have refused it); buyer-mobile needed no code change (`_loadCommunes` already resets the selection and blocks save). Tests added on both: no commune until a city, city change clears + reloads for the new city + blocks save, editing with a retired commune leaves it unselected.
+
+Tests: `addresses.service.spec` (real `CitiesService` over an in-memory commune table: valid pair, other city, retired, unknown, city alone, upsert path, PATCH city-change-drops-commune, PATCH explicit mismatch, commune re-derives the city, retired commune read/edit/re-select, active-only neighborhoods) and a new **authenticated** `addresses.e2e-spec` (signed buyer JWT through guards/pipes/filter: 401, 201 with the pair, 400 messages and body shape for other-city/inactive/unknown, PATCH move + mismatch, retired commune read + edit + re-select refused, active-only neighborhoods). Seller commune behaviour untouched (`cities` + `sellers` specs green, resolver not modified); no public payload gained a field. Gates: API 690 unit / 159 e2e, root type-check, buyer-web vitest 81 + tsc + eslint, buyer-mobile 248 + analyze (6 pre-existing infos).

@@ -59,8 +59,8 @@ timeline with resolved actors. Runtime-tested in Chrome incl. real link expiry (
 **Next exact step (only on explicit approval):** release PR `develop → main` (merge commit) → the
 deploy auto-applies `2026-09-05_commune_is_active.sql` + `2026-09-05_seller_verification.sql` in the
 expand phase → post-deploy smoke checklist → `main → develop` back-merge → separate approval for the
-buyer-mobile and seller-mobile store releases. Known gap carried as a follow-up: buyer address
-`communeId` is not validated against `cityId` server-side.
+buyer-mobile and seller-mobile store releases. The buyer-address commune gap is closed by
+`fix/buyer-address-commune-validation` (see the tracker's follow-up section).
 
 ## Most recently completed initiative
 
