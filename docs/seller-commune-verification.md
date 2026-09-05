@@ -463,3 +463,34 @@ Errors are the resolver's existing French messages (400): « Commune invalide »
 Clients (both already loaded communes per city, cleared them on city change, hid the commune control until a city is chosen, and preselected on edit by id or name): buyer-web now also **drops a selected commune the API no longer offers** when the list loads (previously the stale id stayed in state and only the server would have refused it); buyer-mobile needed no code change (`_loadCommunes` already resets the selection and blocks save). Tests added on both: no commune until a city, city change clears + reloads for the new city + blocks save, editing with a retired commune leaves it unselected.
 
 Tests: `addresses.service.spec` (real `CitiesService` over an in-memory commune table: valid pair, other city, retired, unknown, city alone, upsert path, PATCH city-change-drops-commune, PATCH explicit mismatch, commune re-derives the city, retired commune read/edit/re-select, active-only neighborhoods) and a new **authenticated** `addresses.e2e-spec` (signed buyer JWT through guards/pipes/filter: 401, 201 with the pair, 400 messages and body shape for other-city/inactive/unknown, PATCH move + mismatch, retired commune read + edit + re-select refused, active-only neighborhoods). Seller commune behaviour untouched (`cities` + `sellers` specs green, resolver not modified); no public payload gained a field. Gates: API 690 unit / 159 e2e, root type-check, buyer-web vitest 81 + tsc + eslint, buyer-mobile 248 + analyze (6 pre-existing infos).
+
+## RELEASED TO PRODUCTION — 2026-09-05 21:26 UTC
+
+- **Release PR #665** `develop → main`, merge commit **`26b11dc`** (30 commits, 122 files). `main == develop == 26b11dc` after the fast-forward back-merge.
+- **Deploy run `33993077736`** (`Deploy to production`): 4 image builds + deploy job success. Expand phase at 21:31:00–01 from the new api image: 7 already-applied files skipped, then **`2026-09-05_commune_is_active.sql` applied**, then **`2026-09-05_seller_verification.sql` applied** — "2 applied, 7 skipped" — before the rolling swap; new api container healthy at 21:31:19, buyer-web / seller-web / admin-web rolled 21:31:19–33, old containers removed 21:31:38, nginx reloaded. No error in the job log. Neither migration was run by hand; no `db:push`.
+
+### Production verification (read-only, 21:36–21:50 UTC)
+
+| Check | Result |
+|---|---|
+| `_manual_migrations` | both files recorded exactly once (21:31:01), 36 rows total |
+| `communes.isActive` | boolean NOT NULL DEFAULT true; 8/8 communes active (Lubumbashi 6, Kolwezi 2; 6 inactive cities have none) |
+| Enums / columns / table / indexes | 3 verification enums + `SELLER_VERIFICATION` notification value; 7 `seller_profiles.verification*` columns (`verificationStatus` NOT NULL DEFAULT `NOT_SUBMITTED`); `seller_documents` (21 columns) + its 4 indexes + `seller_profiles_verificationStatus_idx` + `communes_cityId_isActive_idx` |
+| Sellers | 4 active profiles, **all `NOT_SUBMITTED`**, 0 with any verification timestamp/note, 0 `seller_documents` rows, 0 `SELLER_*` audit rows — nobody auto-verified, nothing backfilled; 2 legacy sellers without commune untouched; 0 city/commune mismatches on sellers and addresses; the platform seller `10000000-…-999999` is `NOT_SUBMITTED` |
+| Row counts | users 10, seller_profiles 4, products 496, orders 9, addresses 2, communes 8, cities 8 — no unexpected mutation |
+| Health | `/api/v1/health`, `/health/ready`, `/health/live` 200, database ok; uptime monotonic (362 s → 1087 s) = one api container since the swap, no restart |
+| Sites | `teka.cd`, `seller.teka.cd`, `admin.teka.cd`, `/lubumbashi` all 200, 0 redirects, ~1.1 s |
+| Anonymous authz | admin GET / link / approve, filtered list, seller status, seller upload, legacy application photo → **401** |
+| Public seller payload | `browse/products` (16 rows) seller keys exactly `{ id, businessName, verified, official }`; `verified` true for 0 rows; `official` true only for the 9 « Teka RDC Officiel » rows; no `verificationStatus` / note / document / actor string. (Product detail bodies contain the product's own `rejectionReason` and product-image `cloudinaryId` — pre-existing catalog fields, not seller data.) |
+| Badge behaviour | Ordinary seller PDP (Kolwezi Supermarket): no « Vérifié », no « Vendeur vérifié » row. Platform PDP: « OFFICIEL » only. Home band: « Vendeurs approuvés »; cards show « OFFICIEL » from the flag. |
+| Commune listings | `/v1/cities` = Lubumbashi + Kolwezi; `/v1/cities/:id/communes` 6 and 2 (all active); `locations/neighborhoods?town=Lubumbashi` 6 names; inactive city → empty list |
+| SEO | `robots.txt` (Cloudflare managed prelude + our rules incl. `facebookexternalhit` and `Sitemap:`) unchanged; sitemap 200, 387 URLs, 0 seller URLs; PDP canonical self-referencing, `index, follow`, JSON-LD `offers.seller` name-only, no verification internals, no SSR « Vérifié »; seller-web `noindex, nofollow`, admin-web `noindex, nofollow, nocache` |
+
+**Not executed in production (no safe fixture; would mutate real data):** seller status endpoint with a real seller session, seller-to-seller isolation, SUPPORT read-only, admin approve/reject/revoke, document link issuance/expiry, buyer address 400 on a wrong-city commune (requires a buyer OTP login = real WhatsApp message), badge on a verified seller. All of these were exercised on the isolated dev stack in PRs 2–5 and are covered by the API unit/e2e suites; the production checks above confirm the code paths are deployed and the anonymous boundary holds.
+
+**Monitoring:** Sentry **not checked** — no API token available locally and the browser extension is not connected; nothing in the deploy log or health probes suggests an error. The retention sweep first runs at 04:00 (next morning) — not yet observed.
+
+### Remaining
+- **Mobile releases outstanding (separate approval):** seller-mobile (verification screen, uploads, deep links, auth-interceptor fix) and buyer-mobile (authoritative badge, autoDispose PDP). Current store builds keep working; buyer-mobile still shows its old name-based chip until updated.
+- Legacy sellers are unverified by design — seller communication recommended.
+- Follow-up: observe the 04:00 sweep log; check Sentry when access is available.

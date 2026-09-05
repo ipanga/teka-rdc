@@ -1,69 +1,26 @@
 # Status — 2026-09-05
 
-> **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
->
-> **Update rule.** Touch this file in the same commit that starts or ends an initiative. No drift window.
+> **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
-## Active initiative
-
-**Seller Commune (profile-edit parity) · business-document verification workflow · Verified badge —
-ALL FIVE PRs MERGED to `develop` (#659 `3d4addf`, #660 `1a27585`, #661 `b5a5ed9`, #662 `eeeb063`,
-#663 `ba2abc3`) plus the follow-up address fix #664 `54c2c67`; CI + CodeQL green on `ba2abc3`,
-re-verified on the final SHA. NOT released: no release PR, no deploy, no
-production migration, no store release.** Tracker: `docs/seller-commune-verification.md` — final
-merge status, cross-PR check, remaining risks, deployment order and the production checklist are at
-the end of the file.
-
-Audit verdict: Commune already exists end-to-end for the *application* (required DTO, cascade on
-both clients, admin detail) but is missing from both profile-edit screens, the update DTO (which can
-silently break the city/commune pairing) and the admin list; buyer addresses are not validated at all.
-A private KYC photo pipeline (authenticated Cloudinary + 600 s signed admin URL) ships, with one
-terminal approval state, no revoke, no audit rows, no retention, no PDF, no magic-byte check, no
-multer limits; the buyer-facing « Vérifié » chip is hardcoded for every non-platform seller.
-Production: 4 approved sellers (2 legacy without commune/document); communes only for Lubumbashi (6)
-and Kolwezi (2), none for Likasi.
-
-PR 1 `feat/seller-commune-foundation`: `Commune.isActive` (one additive auto-apply migration,
-`2026-09-05_commune_is_active.sql`), `CitiesService.resolveCommune` as the city ↔ commune source
-of truth, hardened `apply`/`updateProfile`, commune on both seller profile screens, conditional
-commune on both onboarding forms (city without library accepted — D2), admin list column, admin
-retire/restore toggle, legacy `NULL` sellers untouched. Tests: API unit (cities + sellers),
-seller-web vitest, seller-mobile unit.
-
-PR 2 `feat/seller-verification-domain`: `verificationStatus` lifecycle on `SellerProfile`,
-`seller_documents` (private Cloudinary assets, API-generated ids, row-first ownership, retention
-stamps), hardened upload (multer limit, magic bytes, forged-MIME refusal, EXIF stripping, PDF as
-raw), expiry-ENFORCED admin download links (a signed delivery URL's expiry was found not enforced —
-the legacy application-photo link is fixed too), SUPPORT status-only, audit rows on every action,
-feed/push/email notifications, daily retention + orphan sweep, purge on account anonymisation. One
-additive auto-apply migration `2026-09-05_seller_verification.sql` + three Joi-defaulted vars.
-No seller/admin UI, no buyer badge.
-
-PR 3 `feat/seller-verification-ux`: « Vérification de la boutique » in the existing account structure
-on both seller surfaces (mobile Paramètres tile + `/profile/verification`; web sidebar item + profile
-card + `/dashboard/verification`), four server-driven states with the same French labels, required
-tiles from `requiredTypes` (no client rule copy), camera / gallery / PDF picker on mobile and file
-picker on web, local pre-check from the new additive `limits` field, progress + retry + busy guard,
-D5 replacement warning, rejection reason + resubmission, feed/push deep links through the existing
-routers. Emulator pass found and fixed an auth-interceptor bug (multipart replay after refresh wiped
-the session) in both Flutter apps. All four states exercised on the emulator and in Chrome (see
-tracker). No admin UI, no buyer badge.
-
-PR 4 `feat/admin-verification-review`: « Vérification » column + `?verification=` filter on the
-seller list (server-side, same where as the new Action Center tile « Vérifications à examiner »),
-seller-detail card « Vérification des documents » separating account approval / document review /
-badge, requirement checklist and documents from the API, 120 s document links requested on click and
-dropped at expiry, Vérifier / Refuser / Révoquer / Réexaminer rendered from the API's new `actions`
-(approve now refused server-side while evidence is incomplete), 409 → reload + explanation, audit
-timeline with resolved actors. Runtime-tested in Chrome incl. real link expiry (401) and a stale 409.
-
-**Next exact step (only on explicit approval):** release PR `develop → main` (merge commit) → the
-deploy auto-applies `2026-09-05_commune_is_active.sql` + `2026-09-05_seller_verification.sql` in the
-expand phase → post-deploy smoke checklist → `main → develop` back-merge → separate approval for the
-buyer-mobile and seller-mobile store releases. The buyer-address commune gap is closed by
-`fix/buyer-address-commune-validation` (see the tracker's follow-up section).
+**None.** The Seller Commune + verification initiative was released to production on 2026-09-05
+(below). Next planned work needs explicit approval: the seller-mobile and buyer-mobile store
+releases that carry the verification screen and the authoritative badge.
 
 ## Most recently completed initiative
+
+**Seller Commune (profile-edit parity) · business-document verification workflow · Verified badge —
+RELEASED TO PRODUCTION 2026-09-05 21:26 UTC.** Release PR **#665** (`develop → main`, merge commit
+**`26b11dc`**, 30 commits / 122 files: PRs #659 #660 #661 #662 #663 + address fix #664), back-merged
+by fast-forward so **`main == develop == 26b11dc`**. Deploy run **`33993077736`** success; the two
+auto-apply migrations (`2026-09-05_commune_is_active.sql`, `2026-09-05_seller_verification.sql`)
+ran once each in the expand phase before the rolling swap. Read-only production verification
+(schema, defaults, all 4 sellers `NOT_SUBMITTED`, 0 documents, health, 401 boundary, public seller
+shape `{ id, businessName, verified, official }`, ordinary PDP without « Vérifié », platform PDP
+« Officiel », SEO/noindex) recorded in `docs/seller-commune-verification.md` → « RELEASED TO
+PRODUCTION ». Sentry not checked (no access from the session). **Mobile store releases for
+seller-mobile and buyer-mobile are still outstanding.**
+
+## Previous completed initiative — Admin Action Center · payouts
 
 **Admin Action Center · seller payout workflow · payout notifications · commission management —
 RELEASED TO PRODUCTION 2026-09-04; Seller Mobile 0.1.8+10 in TestFlight 2026-09-05.**
