@@ -7,9 +7,10 @@
 ## Active initiative
 
 **Seller Commune (profile-edit parity) · business-document verification workflow · Verified badge —
-PR 1 merged as #659 (`3d4addf`), PR 2 merged as #660 (`1a27585`); PR 3 (Seller Mobile + Seller Web
-verification UX) open on `feat/seller-verification-ux`.** Tracker: `docs/seller-commune-verification.md`
-(audit, approved decisions, per-PR record incl. the Cloudinary probe findings and the PR 3 runtime evidence).
+PR 1 #659 (`3d4addf`), PR 2 #660 (`1a27585`), PR 3 #661 (`b5a5ed9`) merged; PR 4 (Admin
+verification review UI) open on `feat/admin-verification-review`.** Tracker:
+`docs/seller-commune-verification.md` (audit, approved decisions, per-PR record incl. the Cloudinary
+probe findings, the PR 3 emulator evidence and the PR 4 browser/120 s-link evidence).
 
 Audit verdict: Commune already exists end-to-end for the *application* (required DTO, cascade on
 both clients, admin detail) but is missing from both profile-edit screens, the update DTO (which can
@@ -46,9 +47,17 @@ routers. Emulator pass found and fixed an auth-interceptor bug (multipart replay
 the session) in both Flutter apps. All four states exercised on the emulator and in Chrome (see
 tracker). No admin UI, no buyer badge.
 
-**Next exact step (only on explicit approval):** merge PR 3 → PR 4 admin review UI (detail card,
-approve/reject/revoke, history, list filter, Action Center tile) → PR 5 buyer badge. No `db:push`,
-production write, `main` merge or deploy without approval.
+PR 4 `feat/admin-verification-review`: « Vérification » column + `?verification=` filter on the
+seller list (server-side, same where as the new Action Center tile « Vérifications à examiner »),
+seller-detail card « Vérification des documents » separating account approval / document review /
+badge, requirement checklist and documents from the API, 120 s document links requested on click and
+dropped at expiry, Vérifier / Refuser / Révoquer / Réexaminer rendered from the API's new `actions`
+(approve now refused server-side while evidence is incomplete), 409 → reload + explanation, audit
+timeline with resolved actors. Runtime-tested in Chrome incl. real link expiry (401) and a stale 409.
+
+**Next exact step (only on explicit approval):** merge PR 4 → PR 5 buyer badge (`sellerFlat.verified/
+official`, buyer-web + buyer-mobile PDP, trust copy, tests). No `db:push`, production write, `main`
+merge or deploy without approval.
 
 ## Most recently completed initiative
 

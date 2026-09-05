@@ -275,3 +275,55 @@ Uploading with an expired access token produced « Votre session a expiré » an
 
 - The mobile Centre de notifications loads once on authentication and refreshes on push or pull-to-refresh (pre-existing design, `notifications_provider.dart`); a verification row created while the app is open and no push is delivered appears after pull-to-refresh.
 - No admin UI yet (PR 4): approvals/rejections in this pass were done through the admin API. No buyer badge yet (PR 5): `seller.verified` is not exposed to buyers, so a VERIFIED seller sees « Le badge apparaît sur vos fiches produits » before buyers can see it — PR 5 must land before this copy is true in production.
+
+## PR 4 — `feat/admin-verification-review` (2026-09-05): Admin verification review UI
+
+### What the admin gets
+
+- **Seller list** (`/dashboard/sellers`): a « Vérification » column with the four short labels (Non soumis / En attente / Vérifié / Refusé) on every row, a URL-backed `?verification=` select (« Toutes » + the four states) that combines with the existing application-status tabs, and the shop name now links to the seller detail page. The applications endpoint gained a `verification` query param validated against the enum (400 otherwise); `?verification=PENDING_REVIEW` alone is exactly `ADMIN_QUEUES.sellerVerificationsPending()` (spec-pinned), so the Action Center tile and the list can never disagree. The users listing exposes `verificationStatus` in its seller select so the « Tous » tab shows the column too.
+- **Action Center**: new queue `sellerVerificationsPending` (counted by `admin-stats.service` from the same where builder) → tile « Vérifications à examiner » linking to `/dashboard/sellers?verification=PENDING_REVIEW`; the dashboard refetches on mount, so the count follows every decision.
+- **Seller detail** (`/dashboard/sellers/[id]`): header chips « Compte : … », « Demande : … », « Vérification : … », and the new card « Vérification des documents » (`components/sellers/seller-verification-card.tsx`). The card opens with three tiles that are never conflated — *Compte vendeur* (application + account status), *Examen des documents* (verification status + the relevant date), *Badge « Vérifié »* (Affiché / Non affiché, seller type, city · commune) — then the requirement checklist (`requiredTypes` ✓/○ against `missingTypes`), the live documents (type, label, format, size, submitted/reviewed dates, per-document status and rejection reason), the actions, and a collapsible timeline plus the archived versions (superseded/rejected rows with their retention deadline or « fichier supprimé »).
+
+### Rules stay on the server
+
+The API's `getForAdmin` now returns `actions { approve, reject, revoke }` computed by `allowedAdminActions(status, evidenceComplete)` — the same `from` lists the transitions use — and `approve` itself refuses (409, French message) while a required document is not live, so a badge can never be granted on an incomplete or rejected set, whatever the client sends. The card renders buttons only from `actions`; « Réexaminer et vérifier » is `approve` offered from REJECTED (typically after a revoke, while the accepted evidence is still live). Reason bounds (5–500) mirror `ReviewVerificationDto` for immediate feedback; the DTO stays authoritative.
+
+### Document access
+
+Only the PR 2 mechanism: « Voir le document » calls `documents/:id/url` on click, the card holds the returned link for its `expiresInSeconds` with a visible countdown, offers « Ouvrir » through `window.open` (no `<a href>`, so no autocaptured attribute) and an inline preview for images, and drops the link at expiry (« Le lien de consultation a expiré … Générez un nouveau lien »). One link at a time; a decision or « Actualiser » clears it. Errors map 403/404/410/other to French copy without echoing any URL. Live test with the real 120 s TTL: link fetched at issue (200 image/jpeg), the same URL after expiry → **401 from Cloudinary**, UI shows the expired notice and a working « Générer un nouveau lien » (new signature, 200); PDF opened in a new tab in Chrome's viewer. `SELLER_DOCUMENT_URL_TTL_SECONDS` was not changed.
+
+### Stale state
+
+Every decision is one POST; a 409 (another admin or the seller moved first) reloads the authoritative view and says what changed (« L’état a changé entre-temps : En attente → Vérifié. L’état affiché a été rechargé ; vérifiez avant d’agir de nouveau. »). Exercised live: individual seller approved through the API while the page's « Refuser » dialog was open → 409 → message, card reloaded to VERIFIED with only « Révoquer » left, header chip updated. Submit lock prevents double posts; buttons disable while a dialog is open.
+
+### History
+
+The SELLER_* audit rows are mapped server-side to `{ action, createdAt, reason, actor{name, role}, fromStatus, toStatus, documentType }` — raw before/after payloads (document ids, link TTLs, sizes) are not exposed. Actors are resolved in one `user.findMany`; the seller shows as « … (vendeur) ». An approval's optional note is labelled « Note interne » (it is stored on the profile and audited but never sent to the seller: the feed/email only carry reasons for refusals and revocations, and the seller status hides the note unless REJECTED).
+
+### Sensitive data
+
+No console/Sentry/PostHog call in the new code; the link panel is `ph-no-capture`; `posthog-scrub.ts` additionally rewrites any `cloudinary.com` URL to `[document-link]` (test added). `sentry-scrub.ts` is shared across the three web apps and was left unchanged — no breadcrumb carries the link because it is never an `<a href>` and the `<img>` load does not produce one.
+
+### Authorization (API, live on the isolated stack)
+
+| Caller | GET verification | documents/:id/url | approve / reject / revoke | list `?verification=` |
+|---|---|---|---|---|
+| unauthenticated | 401 | 401 | 401 | 401 |
+| SELLER | 403 | 403 | 403 | 403 |
+| SUPPORT | 200 (no storage id, no URL) | 403 | 403 / 403 / 403 | — |
+| ADMIN | 200 | 200 | 200 (409 on incomplete evidence / stale) | 200 (400 on unknown value) |
+
+admin-web itself signs any non-ADMIN role out at the dashboard layout (pre-existing: a SUPPORT login succeeded at `/auth/login/email`, then the layout called logout and returned to `/login`), so the card's read-only branch for SUPPORT is defensive only.
+
+### Verification
+
+**Automated:** API 676 unit (`allowedAdminActions` table, approve refused on missing/rejected evidence — also from REJECTED —, re-review from REJECTED with live accepted evidence, history mapping with resolved actors and no raw payload keys, `?verification=` queue reconciliation + 400) / 151 e2e (401 on the filtered list); admin-web vitest 46 (`seller-verification.test.ts`, action-center tile/params, PostHog scrub), `tsc`, eslint (2 pre-existing `<img>` warnings elsewhere), `next build`; root type-check.
+
+**Actually exercised in Chrome (isolated dev stack, disposable fixtures deleted afterwards — 0 `example.test` users, 0 raw assets, the two June-2026 image assets pre-date this work):** dashboard tile « Vérifications à examiner : 2 » → filtered list (2 rows, column, select) → company detail card (3 required ✓, 3 documents, history 4) → JPEG link: inline preview + countdown, curl 200, **expiry → 401 + UI notice + regenerate 200** → PDF link → « Ouvrir le PDF » opened Chrome's PDF viewer → « Vérifier » dialog → VERIFIED (docs Accepté, badge Affiché, only Révoquer, seller feed « Boutique vérifiée ») → history timeline (approval, consultations, submissions with actor names) → « Révoquer » with empty reason refused inline → with reason → REJECTED (« Révoqué le », reason on card, accepted evidence kept, « Réexaminer et vérifier », seller feed « Badge « Vérifié » retiré ») → re-review with internal note → VERIFIED → seller replaced its RCCM through the API → « Actualiser » → PENDING_REVIEW, « Document remplacé · RCCM » in history, old RCCM under « Anciennes versions » with its purge date → **stale 409** on the individual seller → company « Refuser » with reason → REJECTED (RCCM shown « manquant », « Aucune action possible », seller feed and seller status carry the reason) → seller re-submitted → PENDING_REVIEW with actions back → incomplete company: « Non soumis », two « manquant » chips, no action → 500 px viewport: detail stacks with no horizontal overflow, the 10-column list now scrolls inside its card (was clipped by `overflow-hidden`) → empty list state (« Aucun vendeur trouvé » for `?verification=REJECTED`) → API stopped: card error « Impossible de charger la vérification de ce vendeur. » + « Réessayer » → API restarted → retry recovered → dashboard tile down to 1. Loading state = skeleton rows (seen transiently, not screenshotted).
+
+**Not exercised:** a viewport narrower than 500 px (the DevTools window would not resize below that), a SUPPORT user inside admin-web (blocked by the existing layout guard), a real second browser session (the concurrent admin was simulated with the API).
+
+### Known limitations / left open
+
+- The seller detail page is keyed by user id, the verification API by seller profile id; the page passes `sellerProfile.id` down. Nothing links from the list to the *application* KYC photo any more than before.
+- PR 5 still has to expose `seller.verified` to buyers and replace the hardcoded « Vérifié » chip; until then the card's « Badge « Vérifié » : Affiché » describes the intended state, not what buyers currently see.
