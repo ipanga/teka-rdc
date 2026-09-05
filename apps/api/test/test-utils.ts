@@ -44,6 +44,17 @@ export const mockPrismaService: Record<string, any> = {
     findMany: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
+    count: jest.fn(),
+  },
+  sellerDocument: {
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    updateMany: jest.fn(),
+    delete: jest.fn(),
     count: jest.fn(),
   },
   address: {

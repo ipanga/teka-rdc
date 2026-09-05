@@ -114,6 +114,9 @@ export class CloudinaryService {
    * asset. Without the signature the asset 401s, so this is the only way to
    * view a KYC document — handed to admins on demand, never persisted.
    */
+  /** @deprecated The `expires_at` of a signed DELIVERY URL is not enforced
+   * on this account (probed 2026-09-05: an expired link still served 200).
+   * Use `getPrivateDownloadUrl` for anything an admin must not keep. */
   getSignedImageUrl(cloudinaryId: string, expiresInSeconds = 600): string {
     const expiresAt = Math.floor(Date.now() / 1000) + expiresInSeconds;
     return cloudinary.url(cloudinaryId, {
@@ -123,6 +126,116 @@ export class CloudinaryService {
       sign_url: true,
       expires_at: expiresAt,
     });
+  }
+
+  /**
+   * Upload a PRIVATE official document under an API-generated public_id
+   * (seller verification, PR 2). `resourceType` is 'image' for JPEG/PNG and
+   * 'raw' for PDF — a raw asset keeps its bytes untouched and its extension
+   * in the public_id. `overwrite: false` + `unique_filename: false` mean a
+   * retry with the same id cannot silently replace an earlier upload.
+   * Returns the stored public_id only; no URL is ever produced here.
+   */
+  async uploadPrivateDocument(
+    buffer: Buffer,
+    opts: { publicId: string; resourceType: 'image' | 'raw' },
+  ): Promise<{ cloudinaryId: string; bytes: number }> {
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          public_id: opts.publicId,
+          type: 'authenticated',
+          resource_type: opts.resourceType,
+          overwrite: false,
+          unique_filename: false,
+          use_filename: false,
+        },
+        (error, result) => {
+          if (error || !result) {
+            this.logger.error(
+              `Cloudinary private document upload failed: ${error?.message ?? 'no result'}`,
+            );
+            reject(
+              new BadRequestException('Échec du téléchargement du document'),
+            );
+            return;
+          }
+          resolve({ cloudinaryId: result.public_id, bytes: result.bytes });
+        },
+      );
+      const readable = new Readable();
+      readable.push(buffer);
+      readable.push(null);
+      readable.pipe(uploadStream);
+    });
+  }
+
+  /**
+   * Short-lived, EXPIRY-ENFORCED link to a private asset, for admins only.
+   * Uses Cloudinary's private download endpoint (api.cloudinary.com/…/download,
+   * signed with the API secret) rather than a signed delivery URL: probed on
+   * 2026-09-05, a signed delivery URL with `expires_at` still answered 200
+   * after expiry, while the download link answers 401 once expired. Works
+   * for raw (PDF) and image assets alike. Generated on demand, never stored.
+   */
+  getPrivateDownloadUrl(
+    cloudinaryId: string,
+    opts: {
+      resourceType: 'image' | 'raw';
+      /** File extension for image assets (raw ids already carry theirs). */
+      format?: string;
+      expiresInSeconds: number;
+    },
+  ): string {
+    const expiresAt = Math.floor(Date.now() / 1000) + opts.expiresInSeconds;
+    return cloudinary.utils.private_download_url(
+      cloudinaryId,
+      opts.resourceType === 'raw' ? '' : (opts.format ?? ''),
+      {
+        resource_type: opts.resourceType,
+        type: 'authenticated',
+        expires_at: expiresAt,
+      } as Record<string, unknown>,
+    );
+  }
+
+  /** Stored format ('jpg', 'png', …) of a private image asset, or null. */
+  async getPrivateAssetFormat(cloudinaryId: string): Promise<string | null> {
+    try {
+      const info = (await cloudinary.api.resource(cloudinaryId, {
+        type: 'authenticated',
+        resource_type: 'image',
+      })) as { format?: string };
+      return info?.format ?? null;
+    } catch (error) {
+      this.logger.warn(`Cloudinary resource lookup failed for ${cloudinaryId}: ${error}`);
+      return null;
+    }
+  }
+
+  /**
+   * Destroy a private asset. `type` + `resource_type` are REQUIRED for
+   * authenticated / raw assets — a bare `destroy(id)` reports "not found"
+   * and leaves the file in place (probed 2026-09-05). Returns whether
+   * Cloudinary reported the asset gone (deleted now, or already absent).
+   */
+  async deletePrivateAsset(
+    cloudinaryId: string,
+    resourceType: 'image' | 'raw',
+  ): Promise<boolean> {
+    try {
+      const res = (await cloudinary.uploader.destroy(cloudinaryId, {
+        type: 'authenticated',
+        resource_type: resourceType,
+        invalidate: true,
+      })) as { result?: string };
+      return res?.result === 'ok' || res?.result === 'not found';
+    } catch (error) {
+      this.logger.error(
+        `Cloudinary private delete failed for ${cloudinaryId}: ${error}`,
+      );
+      return false;
+    }
   }
 
   async deleteImage(cloudinaryId: string): Promise<void> {

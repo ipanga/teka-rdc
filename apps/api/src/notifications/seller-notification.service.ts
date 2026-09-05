@@ -302,6 +302,65 @@ export class SellerNotificationService {
   }
 
   /**
+   * Seller verification lifecycle (docs/seller-commune-verification.md, PR 2):
+   * durable feed row (type SELLER_VERIFICATION, entityType
+   * 'seller_verification', entityId = the seller's user id) + push, with the
+   * email fallback. One row per committed transition — a seller can go through
+   * several submit/verify/revoke cycles, so no dedupe. Non-critical: called
+   * after the verification transaction committed, never awaited by it, never
+   * throws.
+   */
+  async notifyVerification(
+    sellerUserId: string,
+    event: 'submitted' | 'verified' | 'rejected' | 'revoked',
+    reason?: string,
+  ): Promise<void> {
+    try {
+      const copy = {
+        submitted: {
+          title: 'Documents reçus',
+          body: 'Vos documents justificatifs sont en cours de vérification par Teka RDC.',
+        },
+        verified: {
+          title: 'Boutique vérifiée',
+          body: 'Teka RDC a examiné vos documents : votre boutique porte le badge « Vérifié ».',
+        },
+        rejected: {
+          title: 'Vérification refusée',
+          body: reason
+            ? `Vos documents n'ont pas été validés. Raison : ${reason.length > 140 ? reason.slice(0, 137) + '…' : reason}`
+            : "Vos documents n'ont pas été validés. Vous pouvez en soumettre de nouveaux.",
+        },
+        revoked: {
+          title: 'Badge « Vérifié » retiré',
+          body: 'Le badge « Vérifié » de votre boutique a été retiré. Votre compte reste actif.',
+        },
+      }[event];
+      await this.userNotifications.create({
+        userId: sellerUserId,
+        type: 'SELLER_VERIFICATION',
+        title: copy.title,
+        body: copy.body,
+        entityType: 'seller_verification',
+        entityId: sellerUserId,
+      });
+      const user = await this.loadSellerUser(sellerUserId);
+      if (!user) return;
+      await this.pushOrEmailToSeller(
+        user,
+        { title: copy.title, body: copy.body, data: { screen: 'verification', event: `verification-${event}` } },
+        (email, firstName) =>
+          this.emailService.sendSellerVerificationUpdate(email, firstName, event, reason ?? null),
+      );
+    } catch (error: any) {
+      this.logger.error(
+        `Échec de notification vérification ${event} vendeur ${sellerUserId}: ${error?.message ?? error}`,
+        error?.stack,
+      );
+    }
+  }
+
+  /**
    * Payout lifecycle notifications. Money events, so: durable in-app feed row
    * first (type PAYOUT, entityType 'payout' → the seller's payout detail),
    * then push-primary + EMAIL FALLBACK — sellers always have an email

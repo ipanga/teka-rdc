@@ -720,3 +720,21 @@ describe('BrowseService search logging - failure isolation', () => {
     resolveCreate({});
   });
 });
+
+describe('BrowseService — public seller shape never carries verification documents (PR 2)', () => {
+  it('the product-detail seller select is an allow-list of id/name only', async () => {
+    const prisma = {
+      product: {
+        findFirst: jest.fn().mockResolvedValue(null),
+        findUnique: jest.fn().mockResolvedValue(null),
+      },
+    };
+    const service = new BrowseService(prisma as never);
+    await service.getProductDetail('00000000-0000-0000-0000-000000000001').catch(() => undefined);
+    const call = (prisma.product.findFirst.mock.calls[0] ?? prisma.product.findUnique.mock.calls[0])?.[0];
+    expect(call).toBeDefined();
+    const sellerSelect = JSON.stringify(call.include?.seller ?? call.select?.seller ?? {});
+    expect(sellerSelect).toContain('businessName');
+    expect(sellerSelect).not.toMatch(/documents|cloudinary|idDocument|verificationNote|idNumber/);
+  });
+});

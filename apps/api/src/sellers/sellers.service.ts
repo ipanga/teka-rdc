@@ -11,12 +11,14 @@ import { CitiesService } from '../cities/cities.service';
 import { ApplySellerDto } from './dto/apply-seller.dto';
 import { UpdateSellerProfileDto } from './dto/update-seller-profile.dto';
 
-const ALLOWED_DOCUMENT_MIME = new Set([
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'image/webp',
-]);
+import {
+  declaredTypeMatches,
+  sniffDocument,
+  stripImageMetadata,
+} from '../seller-verification/document-validation';
+
+/** Legacy application photo: images only (both clients compress to WebP). */
+const APPLICATION_PHOTO_KINDS = new Set(['jpeg', 'png', 'webp']);
 
 @Injectable()
 export class SellersService {
@@ -43,12 +45,23 @@ export class SellersService {
         'La taille du document ne doit pas dépasser 5 Mo',
       );
     }
-    if (!ALLOWED_DOCUMENT_MIME.has(file.mimetype)) {
+    // Content is checked from the bytes, never from the declared type, and
+    // embedded metadata (EXIF/XMP — GPS of a phone photo) is stripped before
+    // the private upload (PR 2 hardening, shared with verification documents).
+    const sniffed = sniffDocument(file.buffer);
+    if (!sniffed || !APPLICATION_PHOTO_KINDS.has(sniffed.kind)) {
       throw new BadRequestException(
         'Format non supporté. Formats acceptés : JPEG, PNG, WebP.',
       );
     }
-    return this.cloudinary.uploadPrivateImage(file.buffer);
+    if (!declaredTypeMatches(file.mimetype, sniffed)) {
+      throw new BadRequestException(
+        'Le contenu du fichier ne correspond pas à son format déclaré',
+      );
+    }
+    return this.cloudinary.uploadPrivateImage(
+      stripImageMetadata(file.buffer, sniffed.kind),
+    );
   }
 
   /**

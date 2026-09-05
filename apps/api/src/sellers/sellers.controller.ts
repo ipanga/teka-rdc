@@ -13,6 +13,7 @@ import { ApplySellerDto } from './dto/apply-seller.dto';
 import { UpdateSellerProfileDto } from './dto/update-seller-profile.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
+import { documentMaxBytesFromEnv } from '../seller-verification/seller-document-storage.service';
 
 @Controller('v1/sellers')
 export class SellersController {
@@ -23,7 +24,13 @@ export class SellersController {
   // apply body. Same role set as apply (fresh registrations are role SELLER).
   @Post('documents')
   @Roles('BUYER', 'SELLER')
-  @UseInterceptors(FileInterceptor('document'))
+  // multer `limits` reject an oversized body while it streams — nothing
+  // above the cap is ever buffered (PR 2 hardening).
+  @UseInterceptors(
+    FileInterceptor('document', {
+      limits: { fileSize: documentMaxBytesFromEnv(), files: 1, fields: 2 },
+    }),
+  )
   async uploadDocument(@UploadedFile() file: Express.Multer.File) {
     return this.sellersService.uploadDocument(file);
   }

@@ -7,9 +7,9 @@
 ## Active initiative
 
 **Seller Commune (profile-edit parity) · business-document verification workflow · Verified badge —
-Phase 0 audit complete, decisions D1–D8 approved 2026-09-05; PR 1 (Commune foundation) open on
-`feat/seller-commune-foundation`.** Tracker: `docs/seller-commune-verification.md` (audit, approved
-decisions, per-PR record).
+PR 1 merged as #659 (`3d4addf`); PR 2 (verification domain + secure document upload) open on
+`feat/seller-verification-domain`.** Tracker: `docs/seller-commune-verification.md` (audit, approved
+decisions, per-PR record incl. the Cloudinary probe findings).
 
 Audit verdict: Commune already exists end-to-end for the *application* (required DTO, cascade on
 both clients, admin detail) but is missing from both profile-edit screens, the update DTO (which can
@@ -27,9 +27,18 @@ commune on both onboarding forms (city without library accepted — D2), admin l
 retire/restore toggle, legacy `NULL` sellers untouched. Tests: API unit (cities + sellers),
 seller-web vitest, seller-mobile unit.
 
-**Next exact step (only on explicit approval):** merge PR 1 → PR 2 verification domain + secure
-upload (one additive migration) → PR 3 seller UX → PR 4 admin review → PR 5 buyer badge. No
-`db:push`, production write, `main` merge or deploy without approval.
+PR 2 `feat/seller-verification-domain`: `verificationStatus` lifecycle on `SellerProfile`,
+`seller_documents` (private Cloudinary assets, API-generated ids, row-first ownership, retention
+stamps), hardened upload (multer limit, magic bytes, forged-MIME refusal, EXIF stripping, PDF as
+raw), expiry-ENFORCED admin download links (a signed delivery URL's expiry was found not enforced —
+the legacy application-photo link is fixed too), SUPPORT status-only, audit rows on every action,
+feed/push/email notifications, daily retention + orphan sweep, purge on account anonymisation. One
+additive auto-apply migration `2026-09-05_seller_verification.sql` + three Joi-defaulted vars.
+No seller/admin UI, no buyer badge.
+
+**Next exact step (only on explicit approval):** merge PR 2 → PR 3 seller UX (mobile + web
+verification section) → PR 4 admin review UI → PR 5 buyer badge. No `db:push`, production write,
+`main` merge or deploy without approval.
 
 ## Most recently completed initiative
 

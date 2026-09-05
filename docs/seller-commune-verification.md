@@ -155,7 +155,7 @@ Why not fold 5 into 2: the badge is the only buyer-visible change and must land 
 - **D7 — Retention.** Configurable: current evidence kept while the verification relationship needs it; rejected/superseded binaries ≈ 90 days then securely removed; non-sensitive audit metadata kept longer; account anonymisation/deletion removes the sensitive documents. No orphan Cloudinary assets.
 - **D8 — Authorization.** ADMIN only: view documents, signed URLs, approve, reject, revoke, re-verify. SUPPORT: status only. Seller: own evidence upload/status only. Buyer/public endpoints never expose URLs, public ids, filenames, ids or evidence metadata.
 
-## PR 1 — `feat/seller-commune-foundation` (2026-09-05)
+## PR 1 — `feat/seller-commune-foundation` (2026-09-05) — merged as #659 `3d4addf`, CI + CodeQL green on `develop`
 
 **Root cause of the profile inconsistency.** `UpdateSellerProfileDto` had no `communeId` and `SellersService.updateProfile` validated `cityId` alone, so an approved seller could move their town while `communeId` kept pointing at a commune of the previous town; the only coupling lived inline in `apply()`. Both profile screens simply had no commune field.
 
@@ -189,3 +189,52 @@ Why not fold 5 into 2: the badge is the only buyer-visible change and must land 
 
 Not exercised at runtime: submitting a full application (needs the KYC photo upload — the apply location rule is covered by unit tests); the mobile onboarding submit; iOS (not driven). Buyer surfaces untouched by this PR.
 
+## PR 2 — `feat/seller-verification-domain` (2026-09-05): verification domain + secure document upload
+
+### Security/design pass — what the live Cloudinary probe changed (dev cloud, assets destroyed afterwards)
+
+| Probe | Result | Consequence |
+|---|---|---|
+| Signed DELIVERY URL (`sign_url` + `expires_at`) on an authenticated image, fetched **after** expiry | **200** | The legacy 600 s admin link was effectively permanent. Nothing in PR 2 uses signed delivery URLs; the legacy application-photo link now uses the download endpoint below and is audited. |
+| `utils.private_download_url` (api.cloudinary.com/…/download) for raw PDF and image, before / after expiry | 200 / **401** | Adopted for every admin document link (`SELLER_DOCUMENT_URL_TTL_SECONDS`, default 120 s). |
+| Bare authenticated URL, image and raw; public-type guess | 401 / 401 / 404 | Private storage holds. |
+| Incoming transformation on upload (`quality: auto:best`) | EXIF **kept** on the stored original | Metadata is stripped **server-side before upload** (`document-validation.ts`: JPEG APP1/COM, PNG eXIf/tEXt/zTXt/iTXt, WebP EXIF/XMP) — verified live: the stored JPEG no longer carries the marker. |
+| `uploader.destroy(id)` without `type`/`resource_type` on an authenticated raw asset | `not found` (asset left in place) | `deletePrivateAsset(id, resourceType)` always passes `type: authenticated` + the resource type. |
+
+### Verification state model (D1/D5)
+
+`SellerProfile.verificationStatus` `NOT_SUBMITTED → PENDING_REVIEW → VERIFIED | REJECTED`, `REJECTED → PENDING_REVIEW` (seller re-submits) `| VERIFIED` (admin re-review), `VERIFIED → REJECTED` (revoke, `verificationRevokedAt`), `VERIFIED → PENDING_REVIEW` (seller replaces a material document). Fields: `verificationSubmittedAt`, `verifiedAt/ById`, `verificationRejectedAt`, `verificationRevokedAt`, `verificationNote`. `applicationStatus` is never touched; legacy sellers default to `NOT_SUBMITTED`.
+
+### Document model
+
+`seller_documents` (row per upload, never hard-deleted): `type` (RCCM · IDENTIFICATION_NATIONALE · IDENTITY_DOCUMENT · OTHER + `label`), `cloudinaryId` (API-generated `teka-rdc/seller-documents/<profileId>/<docId>[.pdf]`, unique), `resourceType` image|raw, `mimeType`, `sizeBytes`, sanitised `originalName`, `status` PENDING · ACCEPTED · REJECTED · SUPERSEDED, `rejectionReason`, `submittedAt`, `uploadedAt` (NULL = orphan candidate), `reviewedAt/ById`, `supersededAt/ById`, `purgeAfter`, `purgedAt`. Requirements per seller type live in `requirements.ts` (company: RCCM + Identification Nationale + identity document; individual: identity document), so the rule evolves without schema change.
+
+### Upload transaction / orphan strategy
+
+Row first (with the future public_id), upload second, `uploadedAt` stamped in the domain transaction together with supersede + status changes. Upload fails → row deleted. Domain write fails → `discard()` destroys the asset and deletes the row. Crash in between → daily sweep reconciles rows with `uploadedAt IS NULL` older than 1 h (destroy asset, delete row). Retry with the same id cannot overwrite (`overwrite: false`).
+
+### File validation
+
+Multer `limits.fileSize` (rejects while streaming, 413 « Le fichier dépasse la taille maximale autorisée »), then magic bytes (PDF `%PDF-`, JPEG `FFD8FF`, PNG signature; WebP recognised only for the legacy application photo), declared MIME must agree with the bytes, executables/archives/SVG/HTML refused, filename sanitised, image metadata stripped, PDF stored as `raw` (Cloudinary never decodes it — hence the mandatory magic-byte gate).
+
+### Authorization
+
+Seller (`@Roles('SELLER')`, profile resolved from the JWT): `GET /v1/sellers/verification`, `POST /v1/sellers/verification/documents` (multipart `document` + `type` + `label`). Admin (`/v1/admin/sellers/:id/verification`): `GET` ADMIN + SUPPORT (metadata only, no storage id, no URL), `GET documents/:docId/url` ADMIN (audited `SELLER_DOCUMENT_VIEWED`), `POST approve|reject|revoke` ADMIN (reason required for reject/revoke). Buyer/browse payloads unchanged (`{ id, businessName }`, pinned by `browse.service.spec`).
+
+### Retention (D7, configurable)
+
+`SELLER_DOCUMENT_RETENTION_DAYS` (90): rejected/superseded binaries get `purgeAfter`; the daily sweep destroys the asset and stamps `purgedAt`, the row stays. Accepted evidence is kept. Account anonymisation calls `purgeAllForSeller` (all binaries, rows kept) and destroys + clears the legacy application photo; failures are re-queued for the sweep.
+
+### Audit
+
+`AdminAuditService` (same table, `entityType: seller_profile`): `SELLER_DOCUMENT_SUBMITTED | REPLACED | VIEWED`, `SELLER_VERIFICATION_SUBMITTED | APPROVED | REJECTED | REVOKED`, actor = seller user id or admin id, before/after status, reason. Transitions are conditional `updateMany` + audit row in one transaction (409 on stale). Notifications (`SELLER_VERIFICATION` feed row + push, email fallback, `seller-verification.template.ts`) run after commit and never affect the outcome.
+
+### Migration
+
+`2026-09-05_seller_verification.sql` (auto-apply, after the commune file): three enums, seven nullable/defaulted columns on `seller_profiles` + index, `seller_documents` table + 4 indexes, `UserNotificationType.SELLER_VERIFICATION`. Every existing seller becomes `NOT_SUBMITTED`; no evidence migrated, nothing dropped. Applied to the dev DB with the same SQL; **not** to production. Config: `SELLER_DOCUMENT_MAX_MB` (5), `SELLER_DOCUMENT_RETENTION_DAYS` (90), `SELLER_DOCUMENT_URL_TTL_SECONDS` (120) — all with Joi defaults, no deploy env change required.
+
+### Verification
+
+**Automated:** `document-validation.spec` (sniff, forged MIME, exe/zip/svg/html, EXIF/PNG/WebP stripping, filename), `seller-document-storage.service.spec` (row-first order, failed upload → row deleted, discard, TTL link, retention deadline, purge, sweep), `seller-verification.service.spec` (own profile only, requirement sets, supersede + retention, D5 material replacement, self-verify impossible, failure isolation, notification failure, approve/reject/revoke + 409, SUPPORT-safe views, no storage id in any payload), `seller-verification.authz.spec` (decorator roles), `seller-verification.e2e-spec` (401 on every route incl. the legacy link), `browse.service.spec` (public seller shape), updated `sellers.service.spec` (legacy photo hardening) and admin/deletion specs.
+
+**Live smoke on the isolated dev stack (2026-09-05, disposable company seller + SUPPORT user, all rows/users/assets deleted afterwards — 0 raw assets left in the folder):** NOT_SUBMITTED with three missing types → PDF/PNG/JPEG accepted → PENDING_REVIEW once complete; PNG-declared-as-PDF 400, `.exe` as JPEG 400, 6 MB PDF 413 (French), OTHER without label 400; re-upload supersedes; seller → admin URL route 403; unauthenticated upload 401; admin GET shows every document + SELLER_* history, no `cloudinary` string in the payload; admin URL host `api.cloudinary.com`, PDF fetched 200, stored JPEG has no EXIF marker; SUPPORT: GET 200, URL 403, approve 403; reject without reason 400; approve → VERIFIED + ACCEPTED docs; stale approve 409; VERIFIED seller replaces RCCM → PENDING_REVIEW; reject with reason → seller sees the reason; re-approve; revoke without reason 400; revoke → REJECTED with `verificationRevokedAt`, `applicationStatus` still APPROVED; four feed rows (reçus / vérifiée / refusée / retiré); rejected + superseded rows carry `purgeAfter`; 0 API errors.

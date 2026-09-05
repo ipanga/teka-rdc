@@ -130,6 +130,8 @@ describe('Admin action center — counts and queues share one definition', () =>
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
+      {} as never,
     );
     await service.findSellerApplications({ status: 'PENDING' });
     expect(prisma.sellerProfile.findMany.mock.calls[0][0].where).toEqual(

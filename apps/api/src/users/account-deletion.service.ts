@@ -13,6 +13,8 @@ import { BuyerOtpService } from '../auth/buyer-otp.service';
 import { verifyPassword } from '../auth/utils/password.util';
 import { DeviceTokensService } from '../push/device-tokens.service';
 import { EmailService } from '../email/email.service';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
+import { SellerDocumentStorageService } from '../seller-verification/seller-document-storage.service';
 import { RequestAccountDeletionDto } from './dto/account-deletion.dto';
 
 /** Days between a deletion request and permanent anonymization. */
@@ -57,6 +59,8 @@ export class AccountDeletionService {
     private readonly buyerOtpService: BuyerOtpService,
     private readonly deviceTokens: DeviceTokensService,
     private readonly emailService: EmailService,
+    private cloudinary: CloudinaryService,
+    private sellerDocuments: SellerDocumentStorageService,
   ) {}
 
   async getStatus(userId: string): Promise<DeletionStatus> {
@@ -362,5 +366,35 @@ export class AccountDeletionService {
       });
     });
     this.logger.log(`Account ${userId} anonymized`);
+
+    // D7: sensitive verification binaries go with the account — the new
+    // seller_documents assets (rows kept, stamped purgedAt) and the legacy
+    // application ID photo (column cleared once the asset is gone). Runs
+    // after the anonymisation commit and is retried by the daily sweep on
+    // failure, so a Cloudinary hiccup can never block the purge above.
+    if (sellerProfileId) {
+      const { purged, failed } =
+        await this.sellerDocuments.purgeAllForSeller(sellerProfileId);
+      const profile = await this.prisma.sellerProfile.findUnique({
+        where: { id: sellerProfileId },
+        select: { idDocumentCloudinaryId: true },
+      });
+      let legacyGone = true;
+      if (profile?.idDocumentCloudinaryId) {
+        legacyGone = await this.cloudinary.deletePrivateAsset(
+          profile.idDocumentCloudinaryId,
+          'image',
+        );
+        if (legacyGone) {
+          await this.prisma.sellerProfile.update({
+            where: { id: sellerProfileId },
+            data: { idDocumentCloudinaryId: null },
+          });
+        }
+      }
+      this.logger.log(
+        `Seller ${sellerProfileId} documents purged: ${purged} ok, ${failed} retry, legacy photo ${legacyGone ? 'gone' : 'RETRY'}`,
+      );
+    }
   }
 }
