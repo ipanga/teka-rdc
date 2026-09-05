@@ -1,4 +1,4 @@
-# Status — 2026-09-04
+# Status — 2026-09-05
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative` gets long, move its contents into `PROGRESS.md` history and reset this file.
 >
@@ -6,111 +6,41 @@
 
 ## Active initiative
 
-**Admin Action Center · seller payout workflow · payout notifications · commission management —
-all eight PRs merged into `develop` (#646, #647, #648 `dccd864`, #649 `471b2e7`, #650 `c64f6e4`,
-#651 `3d859fa`, #652 `b6f48f5`) plus the F1 + D7 fix PR #654 (`fa62b96`); post-merge
-release-readiness verification done on `fa62b96` — verdict **SAFE TO RELEASE**, awaiting explicit
-approval for the release sequence.**
-Tracker: `docs/payouts-commission-action-center.md` (audit, approved decisions D1–D6, per-PR record).
+**Seller Commune (profile-edit parity) · business-document verification workflow · Verified badge —
+Phase 0 audit complete 2026-09-05 on `develop` `6e573a9`; BLOCKED on policy decisions D1–D8, no
+code written.** Tracker: `docs/seller-commune-verification.md` (audit, proposed data model, PR 1–5
+breakdown, decisions).
 
-PR 2 `feat/api-payout-ledger-foundation` → `develop`: per-item integer commission with
-seller → category → global precedence and delivery-time snapshot (earning + order items), auditable
-earning reversal (no more deletes), positive payability (`order.status = DELIVERED`), COD completion
-+ earning creation inside the delivery transaction, payout request under a seller row lock with a
-guarded reservation and a partial unique index, conditional admin transitions + `admin_audit_logs`,
-`PROCESSING → REJECTED`, PROCESSING blocks new requests. Migration
-`manual/2026-09-04_payout_commission_ledger_foundation.sql` (additive, in `auto-apply.list`) applied
-to the **dev** DB twice (idempotent) — **not** to production. API: 547 unit + 135 e2e green,
-type-check clean.
+Audit verdict: Commune already exists end-to-end for the *application* (required DTO, cascade on
+both clients, admin detail) but is missing from both profile-edit screens, the update DTO (which can
+silently break the city/commune pairing) and the admin list; buyer addresses are not validated at all.
+A private KYC photo pipeline (authenticated Cloudinary + 600 s signed admin URL) ships, with one
+terminal approval state, no revoke, no audit rows, no retention, no PDF, no magic-byte check, no
+multer limits; the buyer-facing « Vérifié » chip is hardcoded for every non-platform seller.
+Production: 4 approved sellers (2 legacy without commune/document); communes only for Lubumbashi (6)
+and Kolwezi (2), none for Likasi.
 
-PR 3 `feat/admin-action-center`: `ADMIN_QUEUES` shared where-builders (counts and lists reconcile
-by construction, spec-pinned), `/v1/admin/stats.actionCenter`, dashboard « À traiter » tiles with
-deep links, `?status=` honoured on payouts and sellers (applications endpoint), admin-web vitest.
-Browser-verified on the dev DB (1 payout à approuver 63.000 FC, 3 produits) — see the tracker.
-
-PR 4 `feat/admin-payout-workflow`: `GET /v1/admin/payouts/:id` carries balances + resolved actors +
-the audit trail (additive); stale/concurrent transitions answer **409**; reject reason 5–500 chars;
-admin-web `lib/payout-workflow.ts` mirrors the state machine (12 vitest) and the payouts page gained
-per-state actions, confirmation dialogs (reference required to mark paid, reason required to reject,
-« Transfert échoué » from PROCESSING), a detail drawer (financial context, snapshotted destination,
-timeline with actors, reserved earnings, audit history) and stale-state handling. Browser-verified
-end-to-end on the dev DB: the seeded 63.000 FC request went REQUESTED → APPROVED → PROCESSING →
-COMPLETED with three audit rows and the approved/paid seller emails; curl proved 409 on wrong-state
-approve and on a second complete. **Side effect on the dev DB:** that seeded payout is now `COMPLETED`
-(reference `MPESA-QA-20260904-001`); the seller still has 63.000 FC available for a fresh request.
-API 552 unit, admin-web 20 vitest, production build clean. **Merged as #648 (`dccd864`), CI green on
-`develop`.**
-
-PR 5 `feat/commission-admin`: re-audit confirmed the PR 2 model (seller override → category → platform
-default, resolved at delivery, snapshotted per item, never recomputed) — **no schema/migration
-change**. Added the per-seller override endpoints (`GET/PUT/DELETE /v1/admin/sellers/:spId/commission`,
-audited, 404/400/409), `GET /v1/admin/commission-settings/history`, and **optimistic concurrency**
-(`expectedPreviousRate` → 409 naming the current value) on every commission mutation after browser QA
-showed a stale screen could silently overwrite a colleague's change. admin-web: Commissions page
-reworked (default in force + last change, category rates, history, confirmations, no fabricated 10 %)
-and a seller « Commission » card (applied / specific / default side by side, radio « Utiliser le taux
-par défaut » vs « Taux spécifique », confirmations, 409 → reload). Browser-verified end to end on the
-dev DB (default 10 → 12,5 → 10 %, seller none → 8,25 → 6 → 5 → cleared, stale edit → 409, historical
-earnings untouched). API 576 unit / 141 e2e, admin-web 31 vitest, build clean. Dev DB left as found
-except six audit rows.
-
-PR 5 **merged as #649 (`471b2e7`), CI green on `develop`.**
-
-PR 6 `feat/payout-feed-notifications`: `UserNotificationType.PAYOUT` (additive migration
-`2026-09-04_user_notification_payout_type.sql`, auto-apply, dev DB done, **not prod**); approved / paid /
-rejected (refusal vs « Virement échoué ») write a durable feed row first (`createIfAbsent`) then push +
-email fallback, only after the committed conditional transition (retry → 409, no duplicate — verified);
-REQUESTED and PROCESSING stay silent; no Action Center entry (no payout state requires a seller
-action — decision recorded). `GET /v1/sellers/payouts/:id` owner-scoped (404 otherwise). seller-web:
-bell → `/dashboard/earnings?tab=payouts&payout=<id>` → detail card by id; login now honours a
-validated `redirect` (middleware keeps the query); vitest added. seller-mobile: push/feed →
-`/earnings/payouts/:id` detail (404 verbatim) or the Virements tab; `go` for tab roots; login
-`from` round-trip; earnings refresh on payout push/resume; shared payout vocabulary. Runtime-verified
-on the Android emulator and Chrome with a throwaway seller fixture (deleted). API 590 unit / 142 e2e,
-seller-web 11 vitest + build, seller-mobile 128 tests / analyze clean. **Not verified:** real FCM
-delivery / cold-start tap, iOS.
-
-PR 6 **merged as #650 (`c64f6e4`), CI green on `develop`.**
-
-PR 7 `feat/initiative-review`: audit recorded in the tracker — defects 1–11 closed by PR 2; every
-security item of the brief (RBAC/ownership, whitelisting, CSRF via SameSite + surface header + CORS,
-transactions/idempotency, audit, Sentry/PostHog scrubbing, destination exposure, CSV, throttling) and
-the performance items (no N+1, no new polling) verified in code; the four documented defect-12
-leftovers closed (API-derived `state` on seller earnings, percent-correct commission display on
-both clients, Rule 15 snackbar, « 5.000 FC »); **defect 13 → decision D7, not changed** (financial
-meaning). No schema/migration. Full regression green (API 594/142, admin 31, seller-web 14 + build,
-buyer-web 74, seller-mobile 131, buyer-mobile 238). Runtime-verified on Chrome + Android emulator
-with a deleted fixture.
-
-PR 7 **merged as #651 (`3d859fa`), CI green on `develop`.**
-
-PR 8 `docs/payouts-initiative-release-prep` (docs only): `docs/payouts.md`, `api-reference.md`,
-`push-notifications.md`, `architecture.md`, `order-workflow.md`, `CLAUDE.md` §2 Payments row brought
-in line with the final state; release-prep checklist in the tracker (two pending auto-apply
-migrations + ordering, no env change, seller-mobile needs a version bump at release, production
-untouched). D7 and the other follow-ups preserved for the re-audit.
-
-PR 8 **merged as #652 (`b6f48f5`)**. Pre-release audit (tracker → « Whole-initiative pre-release
-audit »): full regression green on the merged tree; runtime pass on Chrome + Android emulator with a
-deleted fixture; iOS build renders but cannot be driven. **F1:** `earningState()` labels an earning
-reserved in an open payout as `PAID` (reservation sets `isPaid`) — fix before release (read path,
-derive from the linked payout's status). **D7** analysed, decision pending. Two migrations pending
-for production, both auto-apply, neither on `main`. Seller-mobile release would be `0.1.8+10`.
-
-**F1 + D7 merged as #654 (`fa62b96`)** (API only, no schema/migration; production has 0 cancelled
-COD orders → no backfill). Post-merge verification (tracker → « Post-merge release-readiness
-verification »): CI + CodeQL green on `fa62b96`, all six-app local gates green, financial matrix and
-D7 invariants reconfirmed in the merged code, production read-only check: exactly two pending
-auto-apply migrations, preconditions hold (0 global commission rows → the 10 % row will be inserted).
-
-**Next exact step (only on explicit approval):** 1) `chore(mobile)` PR into `develop` bumping
-seller-mobile to `0.1.8+10` (buyer-mobile unchanged); 2) `develop → main` release PR, merged with a
-merge commit, which auto-applies the two migrations before the rolling swap; 3) post-deploy checks
-(`_manual_migrations` has both files, one global commission row, payout endpoints); 4) seller-mobile
-Android AAB + iOS TestFlight workflows from `main`. No deployment, production migration, data write,
-`db:push`, `main` merge or store upload without approval.
+**Next exact step (only on explicit approval):** decisions D1–D8 in the tracker → PR 1
+`feat/seller-commune-foundation` → PR 2 verification domain + secure upload (one additive migration)
+→ PR 3 seller UX → PR 4 admin review → PR 5 buyer badge. No migration, `db:push`, production write,
+`main` merge or deploy without approval.
 
 ## Most recently completed initiative
+
+**Admin Action Center · seller payout workflow · payout notifications · commission management —
+RELEASED TO PRODUCTION 2026-09-04; Seller Mobile 0.1.8+10 in TestFlight 2026-09-05.**
+
+Release PR **#657** (`develop → main`, merge commit **`6e573a9`**, 40 commits / 108 files),
+back-merged by fast-forward so **`main == develop == 6e573a9`**. Deploy run **`33920649661`**:
+success; the two auto-apply migrations (`2026-09-04_payout_commission_ledger_foundation.sql`,
+`2026-09-04_user_notification_payout_type.sql`) ran in the expand phase before the rolling swap;
+post-deploy verification (schema, one 10 % global commission row, health, authz 401s, Sentry clean)
+recorded in `docs/payouts-commission-action-center.md`. Seller Mobile `0.1.8+10`: iOS run
+`33964578704` → TestFlight 0.1.8 (1788609361) distributed to « Testers Teka RDC »; Android run
+`33964580962` → signed AAB artifact (manual Play Console internal-testing upload pending).
+Follow-ups F2/F3/outbox/FINANCE/current-rate/`field:"unknown"` remain open (see below).
+
+## Previous completed initiative — Seller / Admin UX modernization
 
 **Seller / Admin UX modernization — RELEASED TO PRODUCTION 2026-09-04.**
 
