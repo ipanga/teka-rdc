@@ -1,9 +1,14 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { AdminAuditService } from '../audit/admin-audit.service';
 import { ADMIN_QUEUES } from './admin-queues';
-import { Prisma } from '@prisma/client';
+import { Prisma, SellerVerificationStatus } from '@prisma/client';
 import { SearchUsersDto } from './dto/search-users.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { ReviewSellerDto } from './dto/review-seller.dto';
@@ -131,6 +136,7 @@ export class AdminUsersService {
               phone: true,
               applicationStatus: true,
               rejectionReason: true,
+              verificationStatus: true,
               city: { select: { id: true, name: true } },
               commune: { select: { id: true, name: true } },
             },
@@ -201,21 +207,44 @@ export class AdminUsersService {
     page?: number;
     limit?: number;
     status?: string;
+    verification?: string;
   }) {
     const page = query.page || 1;
     const limit = Math.min(query.limit || 20, 100);
     const skip = (page - 1) * limit;
 
+    if (
+      query.verification &&
+      !Object.values(SellerVerificationStatus).includes(
+        query.verification as SellerVerificationStatus,
+      )
+    ) {
+      throw new BadRequestException('Statut de vérification invalide');
+    }
+
     // The PENDING filter IS the dashboard "À traiter" queue definition, so the
     // count on the dashboard and the rows on /dashboard/sellers?status=PENDING
-    // can never disagree.
+    // can never disagree. Same for ?verification=PENDING_REVIEW and the
+    // "Vérifications à examiner" tile (ADMIN_QUEUES.sellerVerificationsPending).
     const where: Prisma.SellerProfileWhereInput =
       query.status === 'PENDING'
-        ? ADMIN_QUEUES.sellerApplicationsPending()
-        : {
-            deletedAt: null,
-            ...(query.status && { applicationStatus: query.status as any }),
-          };
+        ? {
+            ...ADMIN_QUEUES.sellerApplicationsPending(),
+            ...(query.verification && {
+              verificationStatus:
+                query.verification as SellerVerificationStatus,
+            }),
+          }
+        : query.verification === 'PENDING_REVIEW' && !query.status
+          ? ADMIN_QUEUES.sellerVerificationsPending()
+          : {
+              deletedAt: null,
+              ...(query.status && { applicationStatus: query.status as any }),
+              ...(query.verification && {
+                verificationStatus:
+                  query.verification as SellerVerificationStatus,
+              }),
+            };
 
     const [applications, total] = await Promise.all([
       this.prisma.sellerProfile.findMany({

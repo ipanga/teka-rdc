@@ -22,11 +22,13 @@ export class AdminSellersController {
     @Query('page') page?: number,
     @Query('limit') limit?: number,
     @Query('status') status?: string,
+    @Query('verification') verification?: string,
   ) {
     return this.adminUsersService.findSellerApplications({
       page,
       limit,
       status,
+      verification,
     });
   }
 

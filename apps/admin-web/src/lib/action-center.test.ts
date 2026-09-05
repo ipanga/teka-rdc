@@ -2,14 +2,17 @@ import { describe, expect, it } from 'vitest';
 import {
   buildActionQueues,
   QUEUE_HREFS,
+  readQueryParam,
   readStatusParam,
   totalPendingActions,
+  withQueryParam,
   withStatusParam,
   type ActionCenterStats,
 } from './action-center';
 
 const stats: ActionCenterStats = {
   sellerApplicationsPending: 3,
+  sellerVerificationsPending: 2,
   productsPendingReview: 5,
   returnsPending: 1,
   ordersReadyForPickup: 2,
@@ -27,8 +30,8 @@ describe('buildActionQueues', () => {
   it('each tile deep-links to the queue its count was computed from', () => {
     for (const q of buildActionQueues(stats)) {
       expect(q.href).toBe(QUEUE_HREFS[q.key]);
-      // The href carries the status filter the destination page honours.
-      expect(q.href).toMatch(/\?status=[A-Z_]+$/);
+      // The href carries the filter the destination page honours.
+      expect(q.href).toMatch(/\?(status|verification)=[A-Z_]+$/);
     }
     expect(QUEUE_HREFS.payoutsAwaitingReview).toBe('/dashboard/payouts?status=REQUESTED');
     expect(QUEUE_HREFS.sellerApplicationsPending).toBe('/dashboard/sellers?status=PENDING');
@@ -51,10 +54,11 @@ describe('buildActionQueues', () => {
   });
 
   it('totalPendingActions sums the counts (0 → "Rien à traiter")', () => {
-    expect(totalPendingActions(buildActionQueues(stats))).toBe(17);
+    expect(totalPendingActions(buildActionQueues(stats))).toBe(19);
     const empty: ActionCenterStats = {
       ...stats,
       sellerApplicationsPending: 0,
+      sellerVerificationsPending: 0,
       productsPendingReview: 0,
       returnsPending: 0,
       ordersReadyForPickup: 0,
@@ -78,8 +82,10 @@ describe('readStatusParam / withStatusParam', () => {
   it('round-trips through the dashboard hrefs', () => {
     for (const href of Object.values(QUEUE_HREFS)) {
       const search = href.slice(href.indexOf('?'));
-      const status = new URLSearchParams(search).get('status')!;
-      expect(readStatusParam(search, [status])).toBe(status);
+      const params = new URLSearchParams(search);
+      const key = params.has('status') ? 'status' : 'verification';
+      const value = params.get(key)!;
+      expect(readQueryParam(search, key, [value])).toBe(value);
     }
   });
 
@@ -87,5 +93,22 @@ describe('readStatusParam / withStatusParam', () => {
     expect(withStatusParam('/dashboard/payouts?page=2', 'APPROVED')).toBe('/dashboard/payouts?page=2&status=APPROVED');
     expect(withStatusParam('/dashboard/payouts?status=REQUESTED&page=2', 'APPROVED')).toBe('/dashboard/payouts?status=APPROVED&page=2');
     expect(withStatusParam('/dashboard/payouts?status=REQUESTED', '')).toBe('/dashboard/payouts');
+  });
+});
+
+describe('seller verification queue', () => {
+  it('has its own tile, linked to the ?verification= filter of the seller list (not the application status)', () => {
+    const tile = buildActionQueues(stats).find((q) => q.key === 'sellerVerificationsPending');
+    expect(tile).toMatchObject({ label: 'Vérifications à examiner', count: 2, tone: 'moderation' });
+    expect(tile?.href).toBe('/dashboard/sellers?verification=PENDING_REVIEW');
+    expect(readQueryParam('?verification=PENDING_REVIEW', 'verification', ['PENDING_REVIEW', 'VERIFIED'])).toBe('PENDING_REVIEW');
+    expect(readQueryParam('?verification=NOPE', 'verification', ['PENDING_REVIEW'])).toBe('');
+  });
+
+  it('status and verification params coexist in the URL', () => {
+    const href = withQueryParam('/dashboard/sellers?status=APPROVED', 'verification', 'VERIFIED');
+    expect(href).toBe('/dashboard/sellers?status=APPROVED&verification=VERIFIED');
+    expect(withQueryParam(href, 'verification', '')).toBe('/dashboard/sellers?status=APPROVED');
+    expect(readStatusParam(href.slice(href.indexOf('?')), ['APPROVED'])).toBe('APPROVED');
   });
 });

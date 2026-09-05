@@ -47,6 +47,11 @@ describe('Seller verification (e2e) — auth-protection contract', () => {
         .expect(401));
   }
 
+  it('GET /api/v1/admin/sellers/applications?verification=PENDING_REVIEW (the review queue) returns 401 without auth', () =>
+    request(app.getHttpServer())
+      .get('/api/v1/admin/sellers/applications?verification=PENDING_REVIEW')
+      .expect(401));
+
   it('the legacy application-photo link is also protected', () =>
     request(app.getHttpServer())
       .get(`/api/v1/admin/sellers/applications/${UUID}/document`)

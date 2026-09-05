@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
 import { SellerCommissionCard } from '@/components/sellers/seller-commission-card';
+import { SellerVerificationCard } from '@/components/sellers/seller-verification-card';
+import { verificationStatusUi } from '@/lib/seller-verification';
 
 interface SellerProfile {
   id: string;
@@ -14,6 +16,7 @@ interface SellerProfile {
   location?: string | null;
   description?: string | null;
   applicationStatus?: string | null;
+  verificationStatus?: string | null;
   avgRating?: number;
   totalReviews?: number;
   city?: { id: string; name: string } | null;
@@ -69,6 +72,17 @@ export default function SellerDetailPage() {
     fetchSeller();
   }, [fetchSeller]);
 
+  // Silent refresh (no loading state, the cards stay mounted) after a card action
+  // changes something the header chips display.
+  const refreshSeller = useCallback(async () => {
+    try {
+      const res = await apiFetch<SellerUser>(`/v1/admin/users/${sellerId}`);
+      setSeller(res.data);
+    } catch {
+      // keep what is on screen
+    }
+  }, [sellerId]);
+
   if (isLoading) {
     return <div className="p-8"><p className="text-muted-foreground">Chargement...</p></div>;
   }
@@ -116,9 +130,21 @@ export default function SellerDetailPage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">{seller.role === 'SELLER' ? 'Vendeur' : seller.role}</p>
         </div>
-        <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${userStatus.style}`}>
-          {userStatus.label}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${userStatus.style}`} title="Statut du compte">
+            Compte : {userStatus.label}
+          </span>
+          {appStatus && (
+            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${appStatus.style}`} title="Demande d’inscription vendeur">
+              Demande : {appStatus.label}
+            </span>
+          )}
+          {sp && (
+            <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-medium ${verificationStatusUi(sp.verificationStatus).tone}`} title="Vérification des documents">
+              Vérification : {verificationStatusUi(sp.verificationStatus).label}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -155,6 +181,20 @@ export default function SellerDetailPage() {
           <Row label="Commune" value={sp?.commune?.name} />
           <Row label="Localisation" value={sp?.location} />
         </div>
+
+        {/* Document verification — distinct from the account approval above */}
+        {sp?.id && (
+          <div className="lg:col-span-2">
+            <SellerVerificationCard
+              sellerProfileId={sp.id}
+              applicationStatus={sp.applicationStatus}
+              accountStatus={seller.status}
+              city={sp.city?.name}
+              commune={sp.commune?.name}
+              onChanged={refreshSeller}
+            />
+          </div>
+        )}
 
         {/* Commission — platform default vs seller-specific rate */}
         {sp?.id && (
