@@ -20,10 +20,17 @@ export interface ProductImage {
   position: number;
 }
 
-/** Seller info in browse product */
+/**
+ * Seller info in browse product. `verified` / `official` are derived by the
+ * API (verificationStatus === VERIFIED; platform seller id) — never inferred
+ * client-side from the name or the account approval. Optional only because
+ * recently-viewed entries persisted before PR 5 lack them.
+ */
 export interface BrowseSeller {
   id: string;
   businessName: string;
+  verified?: boolean;
+  official?: boolean;
 }
 
 /** Product from GET /api/v1/browse/products */
