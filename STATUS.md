@@ -7,9 +7,11 @@
 ## Active initiative
 
 **Seller Commune (profile-edit parity) · business-document verification workflow · Verified badge —
-PR 1 #659, PR 2 #660, PR 3 #661, PR 4 #662 (`eeeb063`) merged; PR 5 (buyer « Vérifié » badge, the
-last workstream) open on `feat/buyer-verified-badge`.** Tracker: `docs/seller-commune-verification.md`
-(audit, decisions, per-PR record, and the initiative completion audit at the end).
+ALL FIVE PRs MERGED to `develop` (#659 `3d4addf`, #660 `1a27585`, #661 `b5a5ed9`, #662 `eeeb063`,
+#663 `ba2abc3`); CI + CodeQL green on `ba2abc3`. NOT released: no release PR, no deploy, no
+production migration, no store release.** Tracker: `docs/seller-commune-verification.md` — final
+merge status, cross-PR check, remaining risks, deployment order and the production checklist are at
+the end of the file.
 
 Audit verdict: Commune already exists end-to-end for the *application* (required DTO, cascade on
 both clients, admin detail) but is missing from both profile-edit screens, the update DTO (which can
@@ -54,18 +56,11 @@ dropped at expiry, Vérifier / Refuser / Révoquer / Réexaminer rendered from t
 (approve now refused server-side while evidence is incomplete), 409 → reload + explanation, audit
 timeline with resolved actors. Runtime-tested in Chrome incl. real link expiry (401) and a stale 409.
 
-PR 5 `feat/buyer-verified-badge`: public seller shape `{ id, businessName, verified, official }`
-derived server-side (VERIFIED status; platform seller id), the hardcoded « Vérifié »/« Officiel »
-name checks removed from both buyer PDPs and cards, badge only when verified (nothing otherwise),
-help text « Teka a vérifié les documents justificatifs fournis par ce vendeur », static
-« Vendeurs vérifiés » claims reworded to « approuvés », mobile PDP provider autoDispose so a revoked
-badge never outlives the session, seller copy aligned. Emulator + Chrome runtime pass incl. real
-revoke/re-approve/replacement transitions. Initiative completion audit written to the tracker.
-
-**Next exact step (only on explicit approval):** merge PR 5 → release preparation for the whole
-initiative (release PR develop → main; the two auto-apply migrations run in the expand phase; both
-mobile apps need a store release). No `db:push`, production write, `main` merge or deploy without
-approval.
+**Next exact step (only on explicit approval):** release PR `develop → main` (merge commit) → the
+deploy auto-applies `2026-09-05_commune_is_active.sql` + `2026-09-05_seller_verification.sql` in the
+expand phase → post-deploy smoke checklist → `main → develop` back-merge → separate approval for the
+buyer-mobile and seller-mobile store releases. Known gap carried as a follow-up: buyer address
+`communeId` is not validated against `cityId` server-side.
 
 ## Most recently completed initiative
 

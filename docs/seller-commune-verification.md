@@ -369,3 +369,80 @@ admin-web itself signs any non-ADMIN role out at the dashboard layout (pre-exist
 | Deployment ordering | — | Expand-phase auto-apply runs both files before the rolling swap; old API code tolerates the new nullable/defaulted columns; every legacy seller becomes `NOT_SUBMITTED` (unverified) — so at release every current « Vérifié » chip disappears until an admin verifies someone (accepted in D5). Mobile: buyer-mobile and seller-mobile need a store release for the badge / verification screen; web ships with the deploy. |
 
 Stale copy sweep: no remaining `'Teka RDC Officiel'` comparison in any client; no remaining static « Vendeur(s) vérifié(s) » outside the conditional PDP row; seller/admin/email copy consistent (« fiches produits »). No overlap or conflict between PRs found.
+
+## Final merge status (2026-09-05) and release readiness
+
+| PR | Branch | Merge commit on `develop` |
+|---|---|---|
+| 1 Commune foundation | `feat/seller-commune-foundation` | #659 `3d4addf` |
+| 2 Verification domain + secure upload | `feat/seller-verification-domain` | #660 `1a27585` |
+| 3 Seller UX | `feat/seller-verification-ux` | #661 `b5a5ed9` |
+| 4 Admin review UI | `feat/admin-verification-review` | #662 `eeeb063` |
+| 5 Buyer badge | `feat/buyer-verified-badge` | #663 `ba2abc3` |
+
+`develop` = `ba2abc3`; CI run `33988785536` and CodeQL run `33988785346` green on that SHA. **Nothing deployed, no production migration, no production data touched, no store release.**
+
+### Final cross-PR compatibility check on `ba2abc3`
+
+| Area | Evidence |
+|---|---|
+| Commune selection | `CitiesService.resolveCommune` is the only city↔commune resolver; used by `sellers.service` (apply/update) and `cities.service`; retired communes hidden publicly, refused on delete while referenced; seller-web vitest 22 / seller-mobile 156 green. **Gap (pre-existing, not closed by PR 1):** `POST /v1/addresses` stores `cityId`/`communeId` from the buyer DTO without checking the commune belongs to the city or is active — data-integrity only (delivery zones key off `cityId`), no security impact. Follow-up below. |
+| Verification state machine | One `transition()` (conditional `updateMany` + audit in a transaction, 409 on stale) behind approve/reject/revoke; seller uploads own NOT_SUBMITTED → PENDING_REVIEW and VERIFIED → PENDING_REVIEW (D5); approve refused while evidence incomplete; `allowedAdminActions` mirrors the `from` lists. API 680 unit / 152 e2e green (one `reports.e2e` failure appeared once while the Flutter suites competed for CPU; 3 isolated runs + a second full run green). |
+| Document upload / retention | Row-first Cloudinary ownership, magic bytes, EXIF strip, PDF raw, orphan sweep + retention purge on `@Cron(EVERY_DAY_AT_4AM)`, purge on anonymisation — untouched since PR 2, specs green. |
+| Admin authorization | Controller roles: seller routes `SELLER`; admin GET `ADMIN, SUPPORT`; link/approve/reject/revoke `ADMIN`; list filter `ADMIN`. Live matrix (PR 4/5): 401 anonymous, 403 SELLER and BUYER, SUPPORT read-only. |
+| Buyer public API privacy | Every browse seller is `{ id, businessName, verified, official }` from `toPublicSeller()`; pinned by the select allow-list spec and the e2e VERIFIED case; SSR HTML and JSON-LD carry no internals. |
+| Verified / official badges | web `SellerBadge` (2 call sites: PDP card + trust row) and mobile `PdpSellerBadge` render only from the flags; cards use `seller.official`; no name comparison left in any client. |
+| Seller web / mobile | `/dashboard/verification` and `/profile/verification` present, notifications deep-link, copy says « fiches produits ». |
+| Buyer web / mobile | buyer-web vitest 78 + build; buyer-mobile 245 + analyze (6 pre-existing infos); connectivity layer and `auth_interceptor.dart` still byte-identical between the two Flutter apps. |
+| Admin web | vitest 46; `sellerVerificationsPending` tile/filter reconciled with the API queue. |
+| Root | `pnpm type-check` clean across the five TS projects. |
+
+### Remaining risks (carry into release notes)
+
+1. **Every legacy seller ships unverified.** The migration sets `verificationStatus = NOT_SUBMITTED` for all sellers, so the current always-on « Vérifié » chip disappears from every PDP at deploy until an admin verifies a seller — accepted in D5, but sellers should be told (seller feed/email exist for the outcome, not for the launch itself; a broadcast is available via admin « Notifications »).
+2. **Buyer address commune not validated server-side** (above). Low impact; fix as a small follow-up using `resolveCommune` in `addresses.service`.
+3. **« Officiel » not exercised live** (no platform seller in the dev DB); unit-tested only. Production has the seeded « Teka RDC Officiel » user `10000000-…-000000999999`, so cards/PDP will show « Officiel » there exactly where they did before.
+4. **Mobile store releases are a separate step**: the web badge and the admin/seller web UI ship with the deploy; buyer-mobile (badge, autoDispose PDP) and seller-mobile (verification screen, interceptor fix) need TestFlight/Play releases — until then mobile users keep the old name-based chip on buyer-mobile.
+5. **Cloudinary**: production must hold the `CLOUDINARY_*` credentials already used for the June KYC photo; no new secret. Private authenticated assets and expiry-enforced download URLs were probed on the dev cloud only.
+6. **Legacy KYC photo link** (`applications/:id/document`) now uses the expiry-enforced download URL — the admin list's « Voir la pièce » keeps working but links die after 120 s (expected).
+
+### Production deployment order (execute only on explicit approval)
+
+1. **Release PR** `develop → main` with a merge commit (`gh pr merge --merge`, never squash). Contents = the five merge commits above + the payouts release already on `main`; confirm `git diff main..develop --stat` shows only this initiative.
+2. **Deploy (automatic on `main`)** — `deploy.yml`: image build → pull on the VPS → **expand phase** `apply-auto.sh` from the new api image runs the un-applied files in `auto-apply.list` order: `2026-09-05_commune_is_active.sql` then `2026-09-05_seller_verification.sql` (both additive + idempotent, recorded in `_manual_migrations`) → rolling swap of api, then the three web apps. If a migration fails the deploy aborts before the swap and the old containers keep serving. No manual `Apply prod migration` dispatch is needed for this initiative.
+3. **Env**: nothing to add — `SELLER_DOCUMENT_MAX_MB`, `SELLER_DOCUMENT_RETENTION_DAYS`, `SELLER_DOCUMENT_URL_TTL_SECONDS` have Joi defaults (5 / 90 / 120). Optional overrides only.
+4. **Post-deploy verification** (checklist below), then **`main → develop` back-merge** to keep the SHAs aligned.
+5. **Mobile** (separate approval): seller-mobile version bump → `release-mobile-ipa.yml` / `release-mobile-aab.yml`; buyer-mobile the same. Web-only rollout is safe in between because the API changes are additive and old mobile builds ignore the new fields.
+
+### Production checklist
+
+**Before the release PR**
+- [ ] `develop` == `ba2abc3` (or later docs-only commits), CI + CodeQL green.
+- [ ] `apps/api/prisma/migrations/manual/auto-apply.list` ends with the two 2026-09-05 initiative files; both wrapped in `IF NOT EXISTS`/guards (17 and 2 occurrences).
+- [ ] Production census (read-only): number of sellers, communes per city, `_manual_migrations` row count — to compare after.
+- [ ] Sellers informed that the badge now requires document review (broadcast copy ready).
+
+**Deploy watch**
+- [ ] `deploy.yml` run: migration step logs both files as applied (or "already applied" on a re-run); rolling swap healthy.
+- [ ] `_manual_migrations` gained exactly the two rows.
+
+**Smoke tests (production, read-only unless stated)**
+- [ ] `GET /health`, `/health/ready` 200.
+- [ ] `GET /api/v1/browse/products?limit=3` → each `seller` is `{ id, businessName, verified, official }`; no `verificationStatus` string anywhere in the body.
+- [ ] A PDP on `teka.cd` renders without the « Vérifié » chip for an ordinary seller; a « Teka RDC Officiel » product still shows « Officiel »; JSON-LD unchanged.
+- [ ] `GET /api/v1/admin/sellers/<id>/verification` without cookie → 401; the admin list `?verification=PENDING_REVIEW` → 401.
+- [ ] Admin web: Action Center shows « Vérifications à examiner : 0 », seller list shows the « Vérification » column (all « Non soumis »), a seller detail shows the card with « Non soumis » and no actions.
+- [ ] Seller web (a real seller, with consent): `/dashboard/verification` loads, shows the required documents for its type; **no upload performed** unless the seller wants to start.
+- [ ] Sentry: no new issue tagged `SellerVerification*` / `browse` in the first hour.
+- [ ] Cron: next morning, api logs show the retention/orphan sweep ran (nothing to purge yet).
+
+**Rollback**
+- Code: redeploy the previous `main` SHA (`6e573a9`, the payouts release) via the standard rollback in `docs/deployment.md` — old code ignores the new columns/table/enum values, so **no schema rollback is needed** and none should be attempted (the migrations are expand-only; reverting them would drop seller evidence).
+- Data: nothing to undo — the migrations only add defaults; any verification decisions taken before a rollback stay in the DB and become visible again on re-deploy.
+- Mobile: not applicable until a store release is made.
+
+### Follow-ups (not blocking)
+
+- Validate `communeId` ↔ `cityId` on buyer addresses via `resolveCommune` (small API change + test).
+- Consider a seller broadcast at launch explaining the new badge.
+- Admin-web `sentry-scrub.ts` is shared across the three web apps; if a cloudinary-URL scrub is wanted in Sentry too, change all three together.
