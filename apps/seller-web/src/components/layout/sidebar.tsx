@@ -32,7 +32,10 @@ const navSections: { label: string; items: NavItem[] }[] = [
   },
   {
     label: 'Compte',
-    items: [{ href: '/dashboard/profile', label: 'Profil et réglages', icon: 'profile' }],
+    items: [
+      { href: '/dashboard/profile', label: 'Profil et réglages', icon: 'profile' },
+      { href: '/dashboard/verification', label: 'Vérification', icon: 'verification' },
+    ],
   },
 ];
 

@@ -5,6 +5,8 @@ import { apiFetch, ApiError } from '@/lib/api-client';
 import { communeHint, communeRequired, retainedCommuneId } from '@/lib/commune-rules';
 import { DeleteAccountSection } from '@/components/account/delete-account-section';
 import { PageHeader } from '@/components/ui/page-header';
+import Link from 'next/link';
+import { verificationStatusUi } from '@/lib/verification';
 
 interface SellerProfileShape {
   businessName: string;
@@ -18,6 +20,7 @@ interface SellerProfileShape {
   communeId: string | null;
   description: string | null;
   applicationStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
+  verificationStatus?: 'NOT_SUBMITTED' | 'PENDING_REVIEW' | 'VERIFIED' | 'REJECTED';
 }
 
 interface CityOption {
@@ -492,6 +495,19 @@ export default function SellerProfilePage() {
       </section>
 
       {/* Business */}
+      <section className="mb-6 bg-white rounded-xl border border-border p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">{"Vérification de la boutique"}</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {'Statut : '}
+              <span className="font-medium text-foreground">{verificationStatusUi(user?.sellerProfile?.verificationStatus).label}</span>
+            </p>
+          </div>
+          <Link href="/dashboard/verification" className="seller-button-secondary">{'Gérer mes documents'}</Link>
+        </div>
+      </section>
+
       <section className="bg-white rounded-xl border border-border p-6">
         <h2 className="text-base font-semibold text-foreground mb-4">{"Informations de la boutique"}</h2>
 
