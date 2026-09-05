@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { apiFetch } from '@/lib/api-client';
+import { apiFetch, ApiError } from '@/lib/api-client';
 
 const map: Record<string, string> = {
   "Common.loading": "Chargement...",
@@ -35,6 +35,9 @@ interface Commune {
   cityId: string;
   name: string;
   sortOrder: number;
+  // Retired communes stay referenced by sellers/addresses but leave the public
+  // pickers; the admin list shows them so they can be restored.
+  isActive: boolean;
 }
 
 interface City {
@@ -224,7 +227,23 @@ export default function CitiesPage() {
     }
   };
 
-  // Delete commune
+  // Retire / restore a commune without deleting it (Commune.isActive).
+  const toggleCommuneActive = async (commune: Commune) => {
+    if (!selectedCity) return;
+    try {
+      await apiFetch(`/v1/admin/cities/communes/${commune.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isActive: !commune.isActive }),
+      });
+      fetchCommunes(selectedCity.id);
+      showFeedback('success', map["Cities.saveSuccess"]);
+    } catch {
+      showFeedback('error', map["Cities.errorSaving"]);
+    }
+  };
+
+  // Delete commune — the API refuses (409) while sellers or addresses still
+  // point at it; the message tells the admin to deactivate instead.
   const deleteCommune = async (communeId: string) => {
     if (!selectedCity) return;
     try {
@@ -233,8 +252,10 @@ export default function CitiesPage() {
       fetchCommunes(selectedCity.id);
       fetchCities();
       showFeedback('success', map["Cities.deleteSuccess"]);
-    } catch {
-      showFeedback('error', map["Cities.errorDeleting"]);
+    } catch (err) {
+      setDeletingCommuneId(null);
+      const msg = err instanceof ApiError && err.status === 409 ? err.message : map["Cities.errorDeleting"];
+      showFeedback('error', msg);
     }
   };
 
@@ -333,10 +354,20 @@ export default function CitiesPage() {
             <div className="divide-y divide-border">
               {communes.map((commune) => (
                 <div key={commune.id} className="flex items-center justify-between p-4">
-                  <div>
-                    <span className="font-medium text-foreground">{commune.name}</span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={`font-medium truncate ${commune.isActive ? 'text-foreground' : 'text-muted-foreground line-through'}`}>{commune.name}</span>
+                    {!commune.isActive && (
+                      <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-medium bg-warning/10 text-warning">{map["Cities.inactive"]}</span>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => toggleCommuneActive(commune)}
+                      className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+                      aria-label={commune.isActive ? `Désactiver ${commune.name}` : `Réactiver ${commune.name}`}
+                    >
+                      {commune.isActive ? 'Désactiver' : 'Réactiver'}
+                    </button>
                     <button onClick={() => openEditCommune(commune)} className="px-2 py-1 text-xs text-primary hover:text-primary/80 font-medium">
                       {map["Common.edit"]}
                     </button>

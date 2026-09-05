@@ -1,12 +1,20 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { SellersService } from './sellers.service';
+import { CitiesService } from '../cities/cities.service';
 import { ApplySellerDto } from './dto/apply-seller.dto';
 
 const COMMUNE_ID = '02000000-0000-0000-0000-000000000001';
 const CITY_ID = '01000000-0000-0000-0000-000000000002';
+const OTHER_CITY_ID = '01000000-0000-0000-0000-000000000003';
 const DOC_ID = 'teka-rdc/seller-documents/abc123';
 
-// Minimal Prisma + Cloudinary mocks for the methods these tests touch.
+// Minimal Prisma + Cloudinary mocks for the methods these tests touch. The
+// REAL CitiesService runs on the same prisma mock so the city ↔ commune rule
+// is exercised end-to-end, not stubbed.
 function makeService() {
   const sellerProfile = {
     findUnique: jest.fn(),
@@ -14,18 +22,33 @@ function makeService() {
     update: jest.fn(),
   };
   const commune = {
-    // Default: the commune resolves to CITY_ID (apply derives cityId from it).
-    findUnique: jest
-      .fn()
-      .mockResolvedValue({ id: COMMUNE_ID, cityId: CITY_ID }),
+    // Default: an active commune of an active CITY_ID (apply derives cityId
+    // from it).
+    findUnique: jest.fn().mockResolvedValue({
+      id: COMMUNE_ID,
+      name: 'Kampemba',
+      cityId: CITY_ID,
+      isActive: true,
+      city: { isActive: true },
+    }),
+    // Default: every city has an active commune library.
+    count: jest.fn().mockResolvedValue(6),
+  };
+  const city = {
+    findFirst: jest.fn().mockResolvedValue({ id: CITY_ID }),
   };
   const cloudinary = {
     uploadPrivateImage: jest.fn(),
     getSignedImageUrl: jest.fn(),
   };
-  const prisma = { sellerProfile, commune };
-  const service = new SellersService(prisma as never, cloudinary as never);
-  return { service, sellerProfile, commune, cloudinary };
+  const prisma = { sellerProfile, commune, city };
+  const cities = new CitiesService(prisma as never);
+  const service = new SellersService(
+    prisma as never,
+    cloudinary as never,
+    cities,
+  );
+  return { service, sellerProfile, commune, city, cloudinary };
 }
 
 const dto: ApplySellerDto = {
@@ -86,6 +109,65 @@ describe('SellersService.apply', () => {
     expect(sellerProfile.create).not.toHaveBeenCalled();
   });
 
+  it('rejects a commune that belongs to another city than the one sent (city A + commune B)', async () => {
+    const { service, sellerProfile } = makeService();
+    sellerProfile.findUnique.mockResolvedValue(null);
+    await expect(
+      service.apply(userId, { ...dto, cityId: OTHER_CITY_ID }),
+    ).rejects.toThrow('La commune ne correspond pas à la ville sélectionnée');
+    expect(sellerProfile.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects an inactive commune', async () => {
+    const { service, commune, sellerProfile } = makeService();
+    commune.findUnique.mockResolvedValue({
+      id: COMMUNE_ID,
+      name: 'Kampemba',
+      cityId: CITY_ID,
+      isActive: false,
+      city: { isActive: true },
+    });
+    await expect(service.apply(userId, dto)).rejects.toThrow(
+      'Commune inactive',
+    );
+    expect(sellerProfile.create).not.toHaveBeenCalled();
+  });
+
+  it('requires the commune when the chosen city has an active commune library', async () => {
+    const { service, sellerProfile } = makeService();
+    sellerProfile.findUnique.mockResolvedValue(null);
+    const { communeId: _omit, ...withoutCommune } = dto;
+    await expect(
+      service.apply(userId, { ...withoutCommune, cityId: CITY_ID }),
+    ).rejects.toThrow('La commune est requise pour cette ville');
+    expect(sellerProfile.create).not.toHaveBeenCalled();
+  });
+
+  it('accepts city-only when that city has no commune library yet (D2: no invented communes)', async () => {
+    const { service, sellerProfile, commune } = makeService();
+    sellerProfile.findUnique.mockResolvedValue(null);
+    sellerProfile.create.mockResolvedValue({ id: 'p1' });
+    commune.count.mockResolvedValue(0); // e.g. Likasi today
+    const { communeId: _omit, ...withoutCommune } = dto;
+
+    await service.apply(userId, { ...withoutCommune, cityId: CITY_ID });
+
+    const calls = sellerProfile.create.mock.calls as unknown as WriteCall[];
+    expect(calls[0][0].data).toMatchObject({
+      cityId: CITY_ID,
+      communeId: null,
+    });
+  });
+
+  it('requires a city when no commune is sent', async () => {
+    const { service, sellerProfile } = makeService();
+    sellerProfile.findUnique.mockResolvedValue(null);
+    const { communeId: _omit, ...withoutCommune } = dto;
+    await expect(service.apply(userId, withoutCommune)).rejects.toThrow(
+      'La ville est requise',
+    );
+  });
+
   it('rejects with 409 when an application is already PENDING', async () => {
     const { service, sellerProfile } = makeService();
     sellerProfile.findUnique.mockResolvedValue({
@@ -135,6 +217,128 @@ describe('SellersService.apply', () => {
       approvedById: null,
     });
     expect(arg.data.idDocumentUploadedAt).toBeInstanceOf(Date);
+  });
+});
+
+describe('SellersService.updateProfile — the profile-edit path can no longer break the pair', () => {
+  const approved = (over: Record<string, unknown> = {}) => ({
+    id: 'p1',
+    userId,
+    applicationStatus: 'APPROVED',
+    cityId: CITY_ID,
+    communeId: COMMUNE_ID,
+    ...over,
+  });
+  const updateData = (sellerProfile: { update: jest.Mock }) =>
+    (sellerProfile.update.mock.calls as unknown as WriteCall[])[0][0].data;
+
+  it('a commune sent with its city is resolved and persisted as a pair', async () => {
+    const { service, sellerProfile } = makeService();
+    sellerProfile.findUnique.mockResolvedValue(approved({ communeId: null }));
+    sellerProfile.update.mockResolvedValue({});
+    await service.updateProfile(userId, {
+      cityId: CITY_ID,
+      communeId: COMMUNE_ID,
+    });
+    expect(updateData(sellerProfile)).toEqual({
+      cityId: CITY_ID,
+      communeId: COMMUNE_ID,
+    });
+  });
+
+  it('a commune sent alone derives the city from the commune', async () => {
+    const { service, sellerProfile } = makeService();
+    sellerProfile.findUnique.mockResolvedValue(approved({ cityId: null, communeId: null }));
+    sellerProfile.update.mockResolvedValue({});
+    await service.updateProfile(userId, { communeId: COMMUNE_ID });
+    expect(updateData(sellerProfile)).toEqual({
+      cityId: CITY_ID,
+      communeId: COMMUNE_ID,
+    });
+  });
+
+  it('city A + commune of city B is refused before any write (the pre-PR-1 hole)', async () => {
+    const { service, sellerProfile } = makeService();
+    sellerProfile.findUnique.mockResolvedValue(approved());
+    await expect(
+      service.updateProfile(userId, {
+        cityId: OTHER_CITY_ID,
+        communeId: COMMUNE_ID,
+      }),
+    ).rejects.toThrow('La commune ne correspond pas à la ville sélectionnée');
+    expect(sellerProfile.update).not.toHaveBeenCalled();
+  });
+
+  it('changing the city alone is refused when the new city has communes (the stale commune is never kept)', async () => {
+    const { service, sellerProfile, city } = makeService();
+    sellerProfile.findUnique.mockResolvedValue(approved());
+    city.findFirst.mockResolvedValue({ id: OTHER_CITY_ID });
+    await expect(
+      service.updateProfile(userId, { cityId: OTHER_CITY_ID }),
+    ).rejects.toThrow('La commune est requise pour cette ville');
+    expect(sellerProfile.update).not.toHaveBeenCalled();
+  });
+
+  it('changing the city alone to a city WITHOUT communes clears the old commune', async () => {
+    const { service, sellerProfile, city, commune } = makeService();
+    sellerProfile.findUnique.mockResolvedValue(approved());
+    city.findFirst.mockResolvedValue({ id: OTHER_CITY_ID });
+    commune.count.mockResolvedValue(0);
+    sellerProfile.update.mockResolvedValue({});
+    await service.updateProfile(userId, { cityId: OTHER_CITY_ID });
+    expect(updateData(sellerProfile)).toEqual({
+      cityId: OTHER_CITY_ID,
+      communeId: null,
+    });
+  });
+
+  it('re-sending the current city alone keeps the current commune (idempotent edit)', async () => {
+    const { service, sellerProfile } = makeService();
+    sellerProfile.findUnique.mockResolvedValue(approved());
+    sellerProfile.update.mockResolvedValue({});
+    await service.updateProfile(userId, { cityId: CITY_ID, location: 'Av. Lumumba' });
+    expect(updateData(sellerProfile)).toEqual({
+      cityId: CITY_ID,
+      location: 'Av. Lumumba',
+    });
+  });
+
+  it('a legacy seller with communeId = NULL stays editable without a commune', async () => {
+    const { service, sellerProfile } = makeService();
+    sellerProfile.findUnique.mockResolvedValue(approved({ communeId: null }));
+    sellerProfile.update.mockResolvedValue({});
+    await service.updateProfile(userId, {
+      businessName: 'Boutique Legacy',
+      cityId: '',
+      communeId: '',
+    });
+    expect(updateData(sellerProfile)).toEqual({ businessName: 'Boutique Legacy' });
+  });
+
+  it('inactive commune / inactive city / not-approved profile are refused', async () => {
+    const { service, sellerProfile, commune, city } = makeService();
+    sellerProfile.findUnique.mockResolvedValue(approved());
+    commune.findUnique.mockResolvedValueOnce({
+      id: COMMUNE_ID,
+      name: 'Kampemba',
+      cityId: CITY_ID,
+      isActive: false,
+      city: { isActive: true },
+    });
+    await expect(
+      service.updateProfile(userId, { communeId: COMMUNE_ID }),
+    ).rejects.toThrow('Commune inactive');
+    city.findFirst.mockResolvedValueOnce(null);
+    await expect(
+      service.updateProfile(userId, { cityId: OTHER_CITY_ID }),
+    ).rejects.toThrow('Ville invalide ou inactive');
+    sellerProfile.findUnique.mockResolvedValue(
+      approved({ applicationStatus: 'PENDING' }),
+    );
+    await expect(
+      service.updateProfile(userId, { businessName: 'X' }),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+    expect(sellerProfile.update).not.toHaveBeenCalled();
   });
 });
 

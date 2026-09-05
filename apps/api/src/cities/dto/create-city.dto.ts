@@ -69,6 +69,10 @@ export class CreateCommuneDto {
   @IsOptional()
   @IsNumber()
   sortOrder?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }
 
 export class UpdateCommuneDto {
@@ -80,4 +84,9 @@ export class UpdateCommuneDto {
   @IsOptional()
   @IsNumber()
   sortOrder?: number;
+
+  // Retire / restore a commune without deleting it (see Commune.isActive).
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
 }

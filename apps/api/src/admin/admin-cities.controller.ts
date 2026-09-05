@@ -40,9 +40,12 @@ export class AdminCitiesController {
     return this.citiesService.updateCity(id, dto);
   }
 
+  // Admin sees retired communes too (to restore them); public pickers don't.
   @Get(':id/communes')
   async getCommunes(@Param('id', ParseUUIDPipe) id: string) {
-    return this.citiesService.getCommunesByCityId(id);
+    return this.citiesService.getCommunesByCityId(id, {
+      includeInactive: true,
+    });
   }
 
   @Post(':id/communes')

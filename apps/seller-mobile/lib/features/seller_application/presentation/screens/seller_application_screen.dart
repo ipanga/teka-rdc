@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/utils/commune_rules.dart';
 import '../../../../core/utils/phone.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/seller_application_repository.dart';
@@ -42,6 +43,10 @@ class _SellerApplicationScreenState
   bool _submitting = false;
   bool _uploadingDoc = false;
   bool _loadingCommunes = false;
+  // True once the commune library of the selected city has been fetched, so
+  // the form knows whether a commune is required (library non-empty) or the
+  // city has no authoritative communes yet (D2/D4 — city alone is accepted).
+  bool _communesLoaded = false;
   String? _communesError;
   String? _docError;
   String? _error;
@@ -108,6 +113,11 @@ class _SellerApplicationScreenState
           _application = app;
           _cities = cities;
           _communes = communes;
+          _communesLoaded = _cityId != null && _cityId!.isNotEmpty;
+          _communeId = retainedCommuneId(
+            _communeId,
+            communes.map((c) => c.id),
+          );
           _loading = false;
         });
       }
@@ -127,6 +137,7 @@ class _SellerApplicationScreenState
       _cityId = cityId;
       _communeId = null;
       _communes = const [];
+      _communesLoaded = false;
       _loadingCommunes = cityId != null && cityId.isNotEmpty;
       _communesError = null;
     });
@@ -138,6 +149,7 @@ class _SellerApplicationScreenState
       if (mounted && _cityId == cityId) {
         setState(() {
           _communes = communes;
+          _communesLoaded = true;
           _loadingCommunes = false;
         });
       }
@@ -194,9 +206,21 @@ class _SellerApplicationScreenState
       return;
     }
 
-    if (_cityId == null || _cityId!.isEmpty || _communeId == null) {
-      setState(
-          () => _error = 'Veuillez sélectionner une ville et une commune.');
+    if (_cityId == null || _cityId!.isEmpty) {
+      setState(() => _error = 'Veuillez sélectionner une ville.');
+      return;
+    }
+    if (_loadingCommunes || (_communesError != null && !_communesLoaded)) {
+      setState(() => _error =
+          'Les communes de cette ville n’ont pas pu être chargées. Réessayez.');
+      return;
+    }
+    // A commune is required whenever the city has a commune library; a city
+    // without one yet (D2) is accepted alone — the API enforces the same rule.
+    if (communeRequired(
+            loaded: _communesLoaded, communeCount: _communes.length) &&
+        _communeId == null) {
+      setState(() => _error = 'Veuillez sélectionner votre commune.');
       return;
     }
 
@@ -219,7 +243,7 @@ class _SellerApplicationScreenState
             phone: normalizedPhone,
             location: _locationController.text.trim(),
             cityId: _cityId,
-            communeId: _communeId!,
+            communeId: _communeId,
             idDocumentCloudinaryId: _idDocumentCloudinaryId!,
             description: _descriptionController.text.trim(),
           );
@@ -523,27 +547,47 @@ class _SellerApplicationScreenState
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
+              // Rebuild when the library changes so the value tracks it.
+              key: ValueKey('commune-${_cityId ?? ''}-${_communes.length}'),
               isExpanded: true,
-              initialValue: _communeId,
+              initialValue:
+                  _communes.any((c) => c.id == _communeId) ? _communeId : null,
               decoration: InputDecoration(
-                labelText: 'Commune',
-                hintText: _loadingCommunes
-                    ? 'Chargement des communes…'
-                    : _cityId == null
-                        ? 'Sélectionnez d’abord une ville'
-                        : null,
+                labelText: communeRequired(
+                  loaded: _communesLoaded,
+                  communeCount: _communes.length,
+                )
+                    ? 'Commune *'
+                    : 'Commune',
+                hintText: communeHint(
+                  cityChosen: _cityId != null && _cityId!.isNotEmpty,
+                  loading: _loadingCommunes,
+                  loaded: _communesLoaded,
+                  communeCount: _communes.length,
+                ),
+                helperText: _communesLoaded && _communes.isEmpty
+                    ? 'Aucune commune enregistrée pour cette ville pour le moment. '
+                        'Précisez votre quartier ci-dessous.'
+                    : null,
+                helperMaxLines: 3,
               ),
               items: _communes
                   .map((c) => DropdownMenuItem(
                         value: c.id,
-                        child: Text(c.name),
+                        child: Text(c.name, overflow: TextOverflow.ellipsis),
                       ))
                   .toList(),
-              onChanged: _cityId == null || _loadingCommunes
-                  ? null
-                  : (v) => setState(() => _communeId = v),
-              validator: (v) =>
-                  (v == null || v.isEmpty) ? 'Commune requise' : null,
+              onChanged:
+                  _cityId == null || _loadingCommunes || _communes.isEmpty
+                      ? null
+                      : (v) => setState(() => _communeId = v),
+              validator: (v) => communeRequired(
+                        loaded: _communesLoaded,
+                        communeCount: _communes.length,
+                      ) &&
+                      (v == null || v.isEmpty)
+                  ? 'Commune requise'
+                  : null,
             ),
             if (_communesError != null) ...[
               const SizedBox(height: 8),

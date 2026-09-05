@@ -11,6 +11,9 @@ interface SellerProfileLite {
   phone: string | null;
   applicationStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
   rejectionReason: string | null;
+  // Structured location (Ville → Commune). Null on legacy profiles.
+  city?: { id: string; name: string } | null;
+  commune?: { id: string; name: string } | null;
 }
 
 interface User {
@@ -50,6 +53,8 @@ interface SellerApplication {
   phone: string | null;
   applicationStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
   rejectionReason: string | null;
+  city?: { id: string; name: string } | null;
+  commune?: { id: string; name: string } | null;
   createdAt: string;
   user: {
     id: string;
@@ -78,6 +83,8 @@ function applicationToRow(app: SellerApplication): User {
       phone: app.phone,
       applicationStatus: app.applicationStatus,
       rejectionReason: app.rejectionReason,
+      city: app.city ?? null,
+      commune: app.commune ?? null,
     },
   };
 }
@@ -288,6 +295,7 @@ export default function SellersPage() {
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Propriétaire</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Email</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Téléphone</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Ville / Commune</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Validation</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Compte</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Date</th>
@@ -296,14 +304,14 @@ export default function SellersPage() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">Chargement...</td></tr>
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">Chargement...</td></tr>
             ) : loadError ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center">
+              <tr><td colSpan={9} className="px-4 py-8 text-center">
                 <p className="text-sm text-destructive">Impossible de charger les vendeurs.</p>
                 <button type="button" onClick={fetchSellers} className="admin-button-secondary mt-3">Réessayer</button>
               </td></tr>
             ) : sellers.length === 0 ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+              <tr><td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
                 {filter === 'PENDING' ? 'Aucune demande vendeur en attente.' : 'Aucun vendeur trouvé'}
               </td></tr>
             ) : (
@@ -318,6 +326,10 @@ export default function SellersPage() {
                     </td>
                     <td className="px-4 py-3 text-sm text-foreground">{u.email ?? '—'}</td>
                     <td className="px-4 py-3 text-sm text-foreground">{sp?.phone ?? u.phone ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm text-foreground">
+                      {sp?.city?.name ?? '—'}
+                      {sp?.commune?.name ? <span className="text-muted-foreground"> · {sp.commune.name}</span> : null}
+                    </td>
                     <td className="px-4 py-3">
                       {appStatus ? (
                         <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${appStatusClass(appStatus)}`}>

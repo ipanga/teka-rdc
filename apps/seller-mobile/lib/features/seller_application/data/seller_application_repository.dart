@@ -148,8 +148,10 @@ class SellerApplicationRepository {
     required String idNumber,
     required String phone,
     required String location,
-    required String communeId,
     required String idDocumentCloudinaryId,
+    // Required by the API whenever the city has an active commune library;
+    // omitted only for a city without communes yet (D2/D4).
+    String? communeId,
     String? cityId,
     String? description,
   }) async {
@@ -162,7 +164,7 @@ class SellerApplicationRepository {
         'idNumber': idNumber,
         'phone': phone,
         'location': location,
-        'communeId': communeId,
+        if (communeId != null && communeId.isNotEmpty) 'communeId': communeId,
         'idDocumentCloudinaryId': idDocumentCloudinaryId,
         if (cityId != null && cityId.isNotEmpty) 'cityId': cityId,
         if (description != null && description.isNotEmpty)

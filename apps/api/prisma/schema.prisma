@@ -207,6 +207,12 @@ model Commune {
   cityId    String   @db.Uuid
   name      String
   sortOrder Int      @default(0)
+  // Retire a commune without deleting it (a DELETE would SET NULL the
+  // location of every seller/address in it). Inactive communes are hidden from
+  // the public pickers and rejected by the seller/commune resolver, while
+  // existing rows keep pointing at them. Added 2026-09-05
+  // (manual/2026-09-05_commune_is_active.sql).
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -215,6 +221,7 @@ model Commune {
   sellerProfiles SellerProfile[]
 
   @@index([cityId])
+  @@index([cityId, isActive])
   @@index([sortOrder])
   @@map("communes")
 }

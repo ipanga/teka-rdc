@@ -7,9 +7,9 @@
 ## Active initiative
 
 **Seller Commune (profile-edit parity) · business-document verification workflow · Verified badge —
-Phase 0 audit complete 2026-09-05 on `develop` `6e573a9`; BLOCKED on policy decisions D1–D8, no
-code written.** Tracker: `docs/seller-commune-verification.md` (audit, proposed data model, PR 1–5
-breakdown, decisions).
+Phase 0 audit complete, decisions D1–D8 approved 2026-09-05; PR 1 (Commune foundation) open on
+`feat/seller-commune-foundation`.** Tracker: `docs/seller-commune-verification.md` (audit, approved
+decisions, per-PR record).
 
 Audit verdict: Commune already exists end-to-end for the *application* (required DTO, cascade on
 both clients, admin detail) but is missing from both profile-edit screens, the update DTO (which can
@@ -20,10 +20,16 @@ multer limits; the buyer-facing « Vérifié » chip is hardcoded for every non-
 Production: 4 approved sellers (2 legacy without commune/document); communes only for Lubumbashi (6)
 and Kolwezi (2), none for Likasi.
 
-**Next exact step (only on explicit approval):** decisions D1–D8 in the tracker → PR 1
-`feat/seller-commune-foundation` → PR 2 verification domain + secure upload (one additive migration)
-→ PR 3 seller UX → PR 4 admin review → PR 5 buyer badge. No migration, `db:push`, production write,
-`main` merge or deploy without approval.
+PR 1 `feat/seller-commune-foundation`: `Commune.isActive` (one additive auto-apply migration,
+`2026-09-05_commune_is_active.sql`), `CitiesService.resolveCommune` as the city ↔ commune source
+of truth, hardened `apply`/`updateProfile`, commune on both seller profile screens, conditional
+commune on both onboarding forms (city without library accepted — D2), admin list column, admin
+retire/restore toggle, legacy `NULL` sellers untouched. Tests: API unit (cities + sellers),
+seller-web vitest, seller-mobile unit.
+
+**Next exact step (only on explicit approval):** merge PR 1 → PR 2 verification domain + secure
+upload (one additive migration) → PR 3 seller UX → PR 4 admin review → PR 5 buyer badge. No
+`db:push`, production write, `main` merge or deploy without approval.
 
 ## Most recently completed initiative
 
