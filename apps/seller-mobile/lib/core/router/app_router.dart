@@ -26,6 +26,7 @@ import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/screens/security_screen.dart';
 import '../../features/profile/presentation/screens/account_deletion_screen.dart';
 import '../../features/profile/presentation/screens/shop_profile_screen.dart';
+import '../../features/verification/presentation/screens/verification_screen.dart';
 import '../../features/profile/presentation/screens/help_support_screen.dart';
 import '../../features/promotions/presentation/screens/create_promotion_screen.dart';
 import '../../features/promotions/presentation/screens/promotions_list_screen.dart';
@@ -279,6 +280,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/profile/shop',
         builder: (context, state) => const ShopProfileScreen(),
+      ),
+      GoRoute(
+        path: '/profile/verification',
+        builder: (context, state) => const VerificationScreen(),
       ),
       GoRoute(
         path: '/profile/notifications',

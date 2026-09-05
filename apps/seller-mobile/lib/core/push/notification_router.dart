@@ -29,6 +29,9 @@ class NotificationRouter {
   /// The payouts tab of the Revenus screen (a bottom-navigation branch root).
   static const String payoutsTab = '/earnings?tab=payouts';
 
+  /// « Vérification de la boutique » (own status; no id).
+  static const String verification = '/profile/verification';
+
   /// Detail of one of the seller's own payouts.
   static String payoutDetail(String payoutId) => '/earnings/payouts/$payoutId';
 
@@ -60,6 +63,11 @@ class NotificationRouter {
         // an old / malformed payload still lands on the payouts tab.
         final id = _uuidOrNull(data['payoutId']);
         return id == null ? payoutsTab : payoutDetail(id);
+      case 'verification':
+        // Seller verification lifecycle (submitted / verified / rejected /
+        // revoked) → « Vérification de la boutique ». No id needed: the
+        // screen loads the caller's own status.
+        return verification;
       default:
         return null;
     }
@@ -77,6 +85,9 @@ class NotificationRouter {
     if (entityType == 'order' && id != null) return '/orders/$id';
     if (entityType == 'payout' || type == 'PAYOUT') {
       return id == null ? payoutsTab : payoutDetail(id);
+    }
+    if (entityType == 'seller_verification' || type == 'SELLER_VERIFICATION') {
+      return verification;
     }
     return null;
   }
