@@ -152,6 +152,67 @@ void main() {
     });
   });
 
+  group(
+      'AddressFormSheet — Ville → Commune cascade (server validates the pair)',
+      () {
+    FilledButton saveButton(WidgetTester tester) => tester
+        .widget<FilledButton>(find.widgetWithText(FilledButton, 'Enregistrer'));
+
+    testWidgets('offers no commune until a city is chosen', (tester) async {
+      await pumpSheet(tester, capture: (_) {});
+      expect(find.text('Commune *'), findsNothing);
+      expect(find.text('Selectionnez une commune'), findsNothing);
+      await _tapVisible(tester, find.text('Selectionnez une ville'));
+      await _tapVisible(tester, find.text('Lubumbashi (Haut-Katanga)').last);
+      expect(find.text('Commune *'), findsOneWidget);
+      expect(find.text('Selectionnez une commune'), findsOneWidget);
+    });
+
+    testWidgets(
+        'changing the city clears the chosen commune, reloads the new city’s list and blocks save',
+        (tester) async {
+      Map<String, dynamic>? sent;
+      await pumpSheet(tester, capture: (d) => sent = d);
+      await pickCityAndCommune(tester);
+      expect(find.text('Selectionnez une commune'), findsNothing);
+      expect(saveButton(tester).onPressed, isNotNull);
+
+      await _tapVisible(tester, find.text('Lubumbashi (Haut-Katanga)').first);
+      await _tapVisible(tester, find.text('Kolwezi (Lualaba)').last);
+      expect(find.text('Selectionnez une commune'), findsOneWidget,
+          reason: 'the previous commune belongs to another town');
+      expect(saveButton(tester).onPressed, isNull);
+
+      await _tapVisible(tester, find.text('Selectionnez une commune'));
+      await _tapVisible(tester, find.text('Kampemba').last);
+      await _tapVisible(
+          tester, find.widgetWithText(FilledButton, 'Enregistrer'));
+      expect(sent, isNotNull);
+      expect(sent!['cityId'], 'city-2');
+      expect(sent!['communeId'], 'city-2-c1',
+          reason: 'the commune comes from the new city’s list');
+    });
+
+    testWidgets(
+        'editing an address whose commune is no longer offered leaves the commune unselected and blocks save',
+        (tester) async {
+      const retired = AddressModel(
+        id: 'addr-1',
+        province: 'Haut-Katanga',
+        town: 'Lubumbashi',
+        neighborhood: 'Ancienne commune',
+        avenue: 'Av. Lumumba 24',
+        cityId: 'city-1',
+        communeId: 'city-1-retired',
+        isDefault: true,
+      );
+      await pumpSheet(tester, initial: retired, capture: (_) {});
+      expect(find.text('Selectionnez une ville'), findsNothing);
+      expect(find.text('Selectionnez une commune'), findsOneWidget);
+      expect(saveButton(tester).onPressed, isNull);
+    });
+  });
+
   group('AddressFormSheet — edit', () {
     const existing = AddressModel(
       id: 'addr-1',

@@ -82,16 +82,20 @@ export function AddressForm({ initial, onSaved, onCancel }: AddressFormProps) {
     apiFetch<Commune[]>(`/v1/cities/${form.cityId}/communes`)
       .then((res) => {
         setCommunes(res.data);
-        if (initial && !form.communeId && initial.neighborhood) {
-          const match = res.data.find((c) => c.name === initial.neighborhood);
-          if (match) {
-            setForm((prev) => ({
-              ...prev,
-              communeId: match.id,
-              neighborhood: match.name,
-            }));
+        setForm((prev) => {
+          // A commune the API no longer offers for this city (retired, or
+          // from a previous town) cannot stay selected: the server would
+          // refuse it, so make the buyer pick again (save stays disabled).
+          if (prev.communeId && !res.data.some((c) => c.id === prev.communeId)) {
+            return { ...prev, communeId: '' };
           }
-        }
+          // Older rows may predate communeId — recover it from the name.
+          if (initial && !prev.communeId && initial.neighborhood) {
+            const match = res.data.find((c) => c.name === initial.neighborhood);
+            if (match) return { ...prev, communeId: match.id, neighborhood: match.name };
+          }
+          return prev;
+        });
       })
       .catch(() => {})
       .finally(() => setIsLoadingCommunes(false));

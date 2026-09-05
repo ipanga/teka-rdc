@@ -4,12 +4,63 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CitiesService } from '../cities/cities.service';
 import { CreateAddressDto } from './dto/create-address.dto';
 import { UpdateAddressDto } from './dto/update-address.dto';
 
 @Injectable()
 export class AddressesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private cities: CitiesService,
+  ) {}
+
+  /**
+   * Server-side truth for the Ville → Commune pair on a buyer address (the
+   * dropdown filtering in buyer-web / buyer-mobile is a convenience, not the
+   * rule). Same authority as sellers: `CitiesService.resolveCommune` refuses a
+   * commune that does not exist, is retired, sits in an inactive city, or does
+   * not belong to the city the client sent; `assertActiveCity` covers a city
+   * without commune. Returns the pair to persist — the city always comes from
+   * the commune when one is given, so the two can never disagree.
+   *
+   * `previous` is the stored row on PATCH: fields the client omits keep their
+   * value, a city change without a new commune drops the old commune (it
+   * belongs to another city), and an untouched pair is not re-validated — an
+   * address whose commune was retired later stays readable and editable
+   * (label, phone…) as long as the client does not re-select that commune.
+   */
+  private async resolveLocation(
+    dto: { cityId?: string | null; communeId?: string | null },
+    previous?: { cityId: string | null; communeId: string | null },
+  ): Promise<{ cityId: string | null; communeId: string | null }> {
+    const cityTouched = dto.cityId !== undefined;
+    const communeTouched = dto.communeId !== undefined;
+    if (previous && !cityTouched && !communeTouched) {
+      return { cityId: previous.cityId, communeId: previous.communeId };
+    }
+    const cityId = cityTouched ? (dto.cityId ?? null) : (previous?.cityId ?? null);
+    let communeId = communeTouched
+      ? (dto.communeId ?? null)
+      : (previous?.communeId ?? null);
+    if (
+      previous &&
+      cityTouched &&
+      !communeTouched &&
+      communeId &&
+      cityId !== previous.cityId
+    ) {
+      // The client moved to another town but did not pick a commune there:
+      // the old commune cannot be carried over (it is in the previous town).
+      communeId = null;
+    }
+    if (communeId) {
+      const resolved = await this.cities.resolveCommune(communeId, cityId);
+      return { cityId: resolved.cityId, communeId: resolved.communeId };
+    }
+    if (cityId) await this.cities.assertActiveCity(cityId);
+    return { cityId, communeId: null };
+  }
 
   async findAll(userId: string) {
     return this.prisma.address.findMany({
@@ -40,6 +91,7 @@ export class AddressesService {
    * silently keeping the previous value (Prisma ignores `undefined`).
    */
   async create(userId: string, dto: CreateAddressDto) {
+    const location = await this.resolveLocation(dto);
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId}::uuid FOR UPDATE`;
 
@@ -53,8 +105,8 @@ export class AddressesService {
         province: dto.province,
         town: dto.town,
         neighborhood: dto.neighborhood,
-        cityId: dto.cityId ?? null,
-        communeId: dto.communeId ?? null,
+        cityId: location.cityId,
+        communeId: location.communeId,
         avenue: dto.avenue ?? null,
         reference: dto.reference ?? null,
         recipientName: dto.recipientName ?? null,
@@ -102,6 +154,10 @@ export class AddressesService {
     dto: UpdateAddressDto & { isDefault?: boolean },
   ) {
     const address = await this.findOneOrFail(userId, addressId);
+    const location = await this.resolveLocation(dto, {
+      cityId: address.cityId,
+      communeId: address.communeId,
+    });
 
     // If setting as default, unset existing default
     if (dto.isDefault) {
@@ -118,7 +174,7 @@ export class AddressesService {
 
     return this.prisma.address.update({
       where: { id: address.id },
-      data: dto,
+      data: { ...dto, ...location },
     });
   }
 
@@ -176,8 +232,10 @@ export class AddressesService {
 
     if (!city) return [];
 
+    // Retired communes are not offered for new addresses (same rule as
+    // GET /v1/cities/:id/communes).
     const communes = await this.prisma.commune.findMany({
-      where: { cityId: city.id },
+      where: { cityId: city.id, isActive: true },
       orderBy: { sortOrder: 'asc' },
     });
 
