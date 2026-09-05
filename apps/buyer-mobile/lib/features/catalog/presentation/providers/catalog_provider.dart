@@ -285,8 +285,11 @@ final browseProductsProvider = StateNotifierProvider.family<
 // Product detail provider
 // ──────────────────────────────────────────────
 
+// autoDispose (PR 5): a PDP is refetched on every open, so a seller's
+// « Vérifié » badge (and price/stock) can never outlive the API state for the
+// whole app session. Pull-to-refresh on the screen still invalidates it.
 final productDetailProvider =
-    FutureProvider.family<ProductDetailModel, String>((ref, id) {
+    FutureProvider.autoDispose.family<ProductDetailModel, String>((ref, id) {
   final repository = ref.read(catalogRepositoryProvider);
   return repository.getProductDetail(id);
 });

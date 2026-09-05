@@ -3,6 +3,7 @@ import {
   PayoutStatus,
   Prisma,
   ProductStatus,
+  SellerVerificationStatus,
 } from '@prisma/client';
 
 /**
@@ -17,6 +18,14 @@ export const ADMIN_QUEUES = {
   /** Seller applications awaiting KYC review → /dashboard/sellers?status=PENDING */
   sellerApplicationsPending: (): Prisma.SellerProfileWhereInput => ({
     applicationStatus: 'PENDING',
+    deletedAt: null,
+  }),
+  /**
+   * Seller document sets awaiting verification review (separate from the
+   * account application) → /dashboard/sellers?verification=PENDING_REVIEW
+   */
+  sellerVerificationsPending: (): Prisma.SellerProfileWhereInput => ({
+    verificationStatus: SellerVerificationStatus.PENDING_REVIEW,
     deletedAt: null,
   }),
   /** Products awaiting moderation → /dashboard/products?status=PENDING_REVIEW */

@@ -22,6 +22,7 @@ import { BrandsModule } from '../brands/brands.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { EmailModule } from '../email/email.module';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
+import { AuditModule } from '../audit/audit.module';
 import { PaymentsModule } from '../payments/payments.module';
 
 @Module({
@@ -32,6 +33,7 @@ import { PaymentsModule } from '../payments/payments.module';
     NotificationsModule,
     EmailModule,
     CloudinaryModule,
+    AuditModule,
     BrandsModule,
     PaymentsModule,
   ],

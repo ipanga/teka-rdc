@@ -73,6 +73,7 @@ const PERIOD_OPTIONS: Period[] = ['7d', '30d', '90d'];
 // Placeholder tiles while the stats load — same shape, no fabricated counts.
 const SKELETON_QUEUES = buildActionQueues({
   sellerApplicationsPending: 0,
+  sellerVerificationsPending: 0,
   productsPendingReview: 0,
   returnsPending: 0,
   ordersReadyForPickup: 0,

@@ -69,6 +69,13 @@ export const envValidationSchema = Joi.object({
   // Password hashing & resets
   BCRYPT_ROUNDS: Joi.number().min(10).max(14).default(12),
   PASSWORD_RESET_EXPIRY_MINUTES: Joi.number().default(60),
+
+  // Seller verification documents (docs/seller-commune-verification.md, D7).
+  // Max upload size, retention of rejected/superseded binaries, and the
+  // lifetime of an admin's on-demand private download link.
+  SELLER_DOCUMENT_MAX_MB: Joi.number().min(1).max(20).default(5),
+  SELLER_DOCUMENT_RETENTION_DAYS: Joi.number().min(1).default(90),
+  SELLER_DOCUMENT_URL_TTL_SECONDS: Joi.number().min(30).max(900).default(120),
   SELLER_SETUP_EXPIRY_HOURS: Joi.number().default(24),
   BUYER_SETUP_EXPIRY_HOURS: Joi.number().default(24),
 

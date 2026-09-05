@@ -29,6 +29,8 @@ class NotificationsScreen extends ConsumerWidget {
         return Icons.receipt_long;
       case 'PAYOUT':
         return Icons.payments_outlined;
+      case 'SELLER_VERIFICATION':
+        return Icons.verified_outlined;
       default:
         return Icons.notifications_outlined;
     }
@@ -44,6 +46,8 @@ class NotificationsScreen extends ConsumerWidget {
         return TekaColors.tekaRed;
       case 'PAYOUT':
         return TekaColors.success;
+      case 'SELLER_VERIFICATION':
+        return TekaColors.tekaRed;
       default:
         return TekaColors.mutedForeground;
     }

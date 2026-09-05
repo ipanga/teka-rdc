@@ -5,6 +5,7 @@ import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/profile_repository.dart';
+import '../../../verification/presentation/verification_status.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -168,6 +169,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   title: 'Profil de la boutique',
                   subtitle: 'Nom, ville, téléphone et description',
                   onTap: () => _open('/profile/shop', 'shop_profile'),
+                ),
+                _AccountMenuTile(
+                  icon: Icons.verified_outlined,
+                  title: 'Vérification de la boutique',
+                  subtitle: VerificationStatusUi.of(
+                          sellerProfile?.verificationStatus ?? 'NOT_SUBMITTED')
+                      .label,
+                  onTap: () => _open('/profile/verification', 'verification'),
                 ),
                 _AccountMenuTile(
                   icon: Icons.badge_outlined,

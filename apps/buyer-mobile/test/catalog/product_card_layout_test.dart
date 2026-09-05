@@ -26,6 +26,7 @@ const _stressProduct = BrowseProductModel(
   seller: BrowseProductSeller(
     id: 'seller-1',
     businessName: 'Teka RDC Officiel',
+    official: true, // the API flag, not the name, drives the badge
   ),
   avgRating: 4.6,
   totalReviews: 12345,

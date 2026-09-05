@@ -50,8 +50,17 @@ class SellerProfileInfo {
   // Structured business town (Town Architecture Refactor / D4) — picked from
   // /v1/cities; `location` stays free-text address detail.
   final String? cityId;
+  final String? cityName;
+  // Commune of the town (sub-division), picked from
+  // /v1/cities/:id/communes. Null for legacy sellers who applied before the
+  // commune existed — they stay editable (D4).
+  final String? communeId;
+  final String? communeName;
   final String? description;
   final String applicationStatus; // PENDING | APPROVED | REJECTED
+  // Seller verification (badge) lifecycle — separate from applicationStatus.
+  final String
+      verificationStatus; // NOT_SUBMITTED | PENDING_REVIEW | VERIFIED | REJECTED
 
   const SellerProfileInfo({
     required this.id,
@@ -59,20 +68,30 @@ class SellerProfileInfo {
     required this.phone,
     required this.location,
     this.cityId,
+    this.cityName,
+    this.communeId,
+    this.communeName,
     this.description,
     required this.applicationStatus,
+    this.verificationStatus = 'NOT_SUBMITTED',
   });
 
   factory SellerProfileInfo.fromJson(Map<String, dynamic> json) {
+    final city = json['city'];
+    final commune = json['commune'];
     return SellerProfileInfo(
       id: json['id'] as String? ?? '',
       businessName: json['businessName']?.toString() ?? '',
       phone: json['phone']?.toString() ?? '',
       location: json['location']?.toString() ?? '',
       cityId: json['cityId'] as String?,
+      cityName: city is Map ? city['name']?.toString() : null,
+      communeId: json['communeId'] as String?,
+      communeName: commune is Map ? commune['name']?.toString() : null,
       description: json['description'] as String?,
-      applicationStatus:
-          json['applicationStatus'] as String? ?? 'PENDING',
+      applicationStatus: json['applicationStatus'] as String? ?? 'PENDING',
+      verificationStatus:
+          json['verificationStatus'] as String? ?? 'NOT_SUBMITTED',
     );
   }
 }
@@ -94,6 +113,22 @@ class CityOption {
       id: json['id'] as String? ?? '',
       name: json['name']?.toString() ?? '',
       province: json['province']?.toString() ?? '',
+    );
+  }
+}
+
+/// A commune of the selected town (GET /v1/cities/:cityId/communes — active
+/// communes only).
+class CommuneOption {
+  final String id;
+  final String name;
+
+  const CommuneOption({required this.id, required this.name});
+
+  factory CommuneOption.fromJson(Map<String, dynamic> json) {
+    return CommuneOption(
+      id: json['id'] as String? ?? '',
+      name: json['name']?.toString() ?? '',
     );
   }
 }
@@ -125,12 +160,18 @@ class ProfileRepository {
   }
 
   /// PATCH /v1/sellers/profile — businessName, phone, location, cityId,
-  /// description. Server rejects with 400 if applicationStatus != APPROVED.
+  /// communeId, description. Server rejects with 400 if applicationStatus !=
+  /// APPROVED, and enforces the city ↔ commune rule (the commune must belong
+  /// to the sent city; a city with communes requires one). Pass
+  /// [clearCommune] to explicitly drop the commune (only accepted by the API
+  /// for a town without a commune library).
   Future<void> updateSellerProfile({
     String? businessName,
     String? phone,
     String? location,
     String? cityId,
+    String? communeId,
+    bool clearCommune = false,
     String? description,
   }) async {
     final body = <String, dynamic>{};
@@ -138,8 +179,26 @@ class ProfileRepository {
     if (phone != null) body['phone'] = phone;
     if (location != null) body['location'] = location;
     if (cityId != null) body['cityId'] = cityId;
+    if (communeId != null) {
+      body['communeId'] = communeId;
+    } else if (clearCommune) {
+      body['communeId'] = null;
+    }
     if (description != null) body['description'] = description;
     await _dio.patch('/v1/sellers/profile', data: body);
+  }
+
+  /// GET /v1/cities/:cityId/communes — active communes of a town, for the
+  /// shop-profile commune picker. Empty when the town has no library yet.
+  Future<List<CommuneOption>> getCommunes(String cityId) async {
+    final response = await _dio.get('/v1/cities/$cityId/communes');
+    final data = response.data;
+    final List<dynamic> rawList = data is Map && data['data'] != null
+        ? data['data'] as List
+        : (data is List ? data : const []);
+    return rawList
+        .map((e) => CommuneOption.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// GET /v1/cities — active towns for the seller profile city picker.

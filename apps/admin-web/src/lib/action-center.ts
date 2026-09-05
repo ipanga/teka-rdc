@@ -5,6 +5,7 @@
  */
 export interface ActionCenterStats {
   sellerApplicationsPending: number;
+  sellerVerificationsPending: number;
   productsPendingReview: number;
   returnsPending: number;
   ordersReadyForPickup: number;
@@ -29,6 +30,7 @@ export interface ActionQueue {
 
 export const QUEUE_HREFS: Record<keyof ActionCenterStats, string> = {
   sellerApplicationsPending: '/dashboard/sellers?status=PENDING',
+  sellerVerificationsPending: '/dashboard/sellers?verification=PENDING_REVIEW',
   productsPendingReview: '/dashboard/products?status=PENDING_REVIEW',
   returnsPending: '/dashboard/returns?status=REQUESTED',
   ordersReadyForPickup: '/dashboard/orders?status=READY_FOR_TEKA_PICKUP',
@@ -71,6 +73,14 @@ export function buildActionQueues(stats: ActionCenterStats): ActionQueue[] {
       tone: 'moderation',
     },
     {
+      key: 'sellerVerificationsPending',
+      label: 'Vérifications à examiner',
+      detail: 'documents vendeurs à contrôler',
+      count: stats.sellerVerificationsPending,
+      href: QUEUE_HREFS.sellerVerificationsPending,
+      tone: 'moderation',
+    },
+    {
       key: 'productsPendingReview',
       label: 'Produits à valider',
       detail: 'soumis par les vendeurs',
@@ -110,21 +120,34 @@ export function totalPendingActions(queues: ActionQueue[]): number {
 }
 
 /**
- * Read an allow-listed `?status=` from a search string. Anything not in the
+ * Read an allow-listed query param from a search string. Anything not in the
  * allow-list (including an empty value) yields `''` = "all".
  */
+export function readQueryParam<T extends string>(
+  search: string,
+  key: string,
+  allowed: readonly T[],
+): T | '' {
+  const value = new URLSearchParams(search).get(key);
+  return value && (allowed as readonly string[]).includes(value) ? (value as T) : '';
+}
+
+/** New `pathname?search` with `key` set or removed; other params untouched. */
+export function withQueryParam(href: string, key: string, value: string): string {
+  const url = new URL(href, 'http://local');
+  if (value) url.searchParams.set(key, value);
+  else url.searchParams.delete(key);
+  return `${url.pathname}${url.search}`;
+}
+
+/** `?status=` — the filter every queue page honours. */
 export function readStatusParam<T extends string>(
   search: string,
   allowed: readonly T[],
 ): T | '' {
-  const value = new URLSearchParams(search).get('status');
-  return value && (allowed as readonly string[]).includes(value) ? (value as T) : '';
+  return readQueryParam(search, 'status', allowed);
 }
 
-/** New `pathname?search` with `status` set or removed; other params untouched. */
 export function withStatusParam(href: string, status: string): string {
-  const url = new URL(href, 'http://local');
-  if (status) url.searchParams.set('status', status);
-  else url.searchParams.delete('status');
-  return `${url.pathname}${url.search}`;
+  return withQueryParam(href, 'status', status);
 }

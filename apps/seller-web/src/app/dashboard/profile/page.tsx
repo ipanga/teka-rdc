@@ -2,8 +2,11 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { apiFetch, ApiError } from '@/lib/api-client';
+import { communeHint, communeRequired, retainedCommuneId } from '@/lib/commune-rules';
 import { DeleteAccountSection } from '@/components/account/delete-account-section';
 import { PageHeader } from '@/components/ui/page-header';
+import Link from 'next/link';
+import { verificationStatusUi } from '@/lib/verification';
 
 interface SellerProfileShape {
   businessName: string;
@@ -12,14 +15,23 @@ interface SellerProfileShape {
   // Structured business town (Town Architecture Refactor / D4) — the seller
   // picks it from /v1/cities; `location` stays as free-text address detail.
   cityId: string | null;
+  // Commune of the town (D4). Null for legacy sellers who applied before the
+  // commune existed — they stay editable.
+  communeId: string | null;
   description: string | null;
   applicationStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
+  verificationStatus?: 'NOT_SUBMITTED' | 'PENDING_REVIEW' | 'VERIFIED' | 'REJECTED';
 }
 
 interface CityOption {
   id: string;
   name: string;
   province: string;
+}
+
+interface CommuneOption {
+  id: string;
+  name: string;
 }
 
 interface MeResponse {
@@ -57,6 +69,13 @@ export default function SellerProfilePage() {
   const [location, setLocation] = useState('');
   const [cityId, setCityId] = useState('');
   const [cities, setCities] = useState<CityOption[]>([]);
+  // Ville → Commune → Adresse: the commune library of the selected town.
+  const [communeId, setCommuneId] = useState('');
+  const [communes, setCommunes] = useState<CommuneOption[]>([]);
+  const [communesLoading, setCommunesLoading] = useState(false);
+  const [communesLoaded, setCommunesLoaded] = useState(false);
+  const [communesError, setCommunesError] = useState(false);
+  const [communesReload, setCommunesReload] = useState(0);
   const [description, setDescription] = useState('');
 
   // UI state
@@ -97,6 +116,7 @@ export default function SellerProfilePage() {
         setBusinessPhone(me.sellerProfile.phone);
         setLocation(me.sellerProfile.location);
         setCityId(me.sellerProfile.cityId ?? '');
+        setCommuneId(me.sellerProfile.communeId ?? '');
         setDescription(me.sellerProfile.description ?? '');
       }
     } catch {
@@ -128,6 +148,42 @@ export default function SellerProfilePage() {
       // Non-fatal: the town picker just stays empty.
     }
   }, []);
+
+  // Load the communes of the selected town. The chosen commune survives only
+  // when it belongs to the new list — a stale commune from another town is
+  // never kept (mirrors the API rule).
+  useEffect(() => {
+    if (!cityId) {
+      setCommunes([]);
+      setCommunesLoaded(false);
+      setCommunesLoading(false);
+      setCommunesError(false);
+      setCommuneId('');
+      return;
+    }
+    let cancelled = false;
+    setCommunesLoading(true);
+    setCommunesLoaded(false);
+    setCommunesError(false);
+    apiFetch<CommuneOption[]>(`/v1/cities/${cityId}/communes`)
+      .then((res) => {
+        if (cancelled) return;
+        setCommunes(res.data);
+        setCommunesLoaded(true);
+        setCommuneId((current) => retainedCommuneId(current, res.data.map((c) => c.id)));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setCommunes([]);
+        setCommunesError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setCommunesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [cityId, communesReload]);
 
   const loadSessions = useCallback(async () => {
     setSessionsLoading(true);
@@ -291,7 +347,26 @@ export default function SellerProfilePage() {
       if (businessName !== (original?.businessName ?? '')) body.businessName = businessName.trim();
       if (businessPhone !== (original?.phone ?? '')) body.phone = businessPhone.trim();
       if (location !== (original?.location ?? '')) body.location = location.trim();
-      if (cityId !== (original?.cityId ?? '')) body.cityId = cityId;
+      // Location: the town and its commune travel together so the API can
+      // verify the pair. A town with a commune library requires a commune; a
+      // legacy profile without one stays saveable while the town is unchanged.
+      const cityChanged = cityId !== '' && cityId !== (original?.cityId ?? '');
+      const communeChanged = communeId !== (original?.communeId ?? '');
+      const needsCommune = communeRequired({ loaded: communesLoaded, communeCount: communes.length });
+      if (communesLoading) {
+        showFeedback('error', 'Chargement des communes en cours, patientez…');
+        setSavingBusiness(false);
+        return;
+      }
+      if ((cityChanged || communeChanged) && needsCommune && !communeId) {
+        showFeedback('error', 'Veuillez sélectionner votre commune.');
+        setSavingBusiness(false);
+        return;
+      }
+      if (cityChanged || communeChanged) {
+        body.cityId = cityId;
+        body.communeId = communeId || null;
+      }
       if (description !== (original?.description ?? '')) body.description = description.trim();
       if (Object.keys(body).length === 0) {
         setSavingBusiness(false);
@@ -420,6 +495,19 @@ export default function SellerProfilePage() {
       </section>
 
       {/* Business */}
+      <section className="mb-6 bg-white rounded-xl border border-border p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-semibold text-foreground">{"Vérification de la boutique"}</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {'Statut : '}
+              <span className="font-medium text-foreground">{verificationStatusUi(user?.sellerProfile?.verificationStatus).label}</span>
+            </p>
+          </div>
+          <Link href="/dashboard/verification" className="seller-button-secondary">{'Gérer mes documents'}</Link>
+        </div>
+      </section>
+
       <section className="bg-white rounded-xl border border-border p-6">
         <h2 className="text-base font-semibold text-foreground mb-4">{"Informations de la boutique"}</h2>
 
@@ -473,6 +561,42 @@ export default function SellerProfilePage() {
                 ))}
               </select>
             </div>
+          </div>
+          <div>
+            <label htmlFor="communeId" className="block text-sm font-medium text-foreground mb-1">
+              {communeRequired({ loaded: communesLoaded, communeCount: communes.length }) ? 'Commune *' : 'Commune'}
+            </label>
+            <select
+              id="communeId"
+              value={communes.some((c) => c.id === communeId) ? communeId : ''}
+              onChange={(e) => setCommuneId(e.target.value)}
+              disabled={!businessEditable || !cityId || communesLoading || communes.length === 0}
+              aria-describedby="communeHelp"
+              className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              <option value="">
+                {communeHint(Boolean(cityId), { loaded: communesLoaded, loading: communesLoading, communeCount: communes.length })}
+              </option>
+              {communes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            {communesError ? (
+              <p id="communeHelp" className="text-xs text-destructive mt-1" role="alert">
+                {"Impossible de charger les communes. "}
+                <button type="button" className="underline" onClick={() => setCommunesReload((n) => n + 1)}>
+                  {"Réessayer"}
+                </button>
+              </p>
+            ) : (
+              <p id="communeHelp" className="text-xs text-muted-foreground mt-1">
+                {communesLoaded && communes.length === 0
+                  ? "Aucune commune enregistrée pour cette ville pour le moment. Précisez votre quartier ci-dessous."
+                  : "Sous-division de la ville, utilisée pour la livraison et l'annuaire des vendeurs."}
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-foreground mb-1">{"Adresse / quartier"}</label>

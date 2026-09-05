@@ -11,7 +11,16 @@ export type AdminAuditAction =
   | 'COMMISSION_SETTING_UPSERTED'
   | 'COMMISSION_SETTING_REMOVED'
   | 'SELLER_COMMISSION_OVERRIDE_SET'
-  | 'SELLER_COMMISSION_OVERRIDE_CLEARED';
+  | 'SELLER_COMMISSION_OVERRIDE_CLEARED'
+  // Seller verification (docs/seller-commune-verification.md, PR 2). The
+  // seller's own uploads are recorded with actorId = the seller's user id.
+  | 'SELLER_DOCUMENT_SUBMITTED'
+  | 'SELLER_DOCUMENT_REPLACED'
+  | 'SELLER_DOCUMENT_VIEWED'
+  | 'SELLER_VERIFICATION_SUBMITTED'
+  | 'SELLER_VERIFICATION_APPROVED'
+  | 'SELLER_VERIFICATION_REJECTED'
+  | 'SELLER_VERIFICATION_REVOKED';
 
 export interface AdminAuditEntry {
   actorId: string;
@@ -24,7 +33,8 @@ export interface AdminAuditEntry {
 }
 
 /**
- * Append-only audit trail for admin financial mutations.
+ * Append-only audit trail for admin financial mutations and seller
+ * verification (trust) actions.
  *
  * `record()` takes the caller's transaction client so the audit row commits
  * atomically with the mutation it describes — a transition that rolls back

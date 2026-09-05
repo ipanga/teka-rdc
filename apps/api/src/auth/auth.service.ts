@@ -506,7 +506,18 @@ export class AuthService {
       // preferredCity lets the buyer apps hydrate the selected town from the
       // profile on login (Town Architecture Refactor). preferredCityId scalar
       // is enough on its own; the resolved object saves a lookup.
-      include: { sellerProfile: true, preferredCity: true },
+      include: {
+        // Seller clients hydrate the shop profile from /me: ship the town +
+        // commune names alongside the ids so the pickers can label the
+        // current selection without a second round-trip.
+        sellerProfile: {
+          include: {
+            city: { select: { id: true, name: true } },
+            commune: { select: { id: true, name: true } },
+          },
+        },
+        preferredCity: true,
+      },
     });
     if (!user) {
       throw new UnauthorizedException('Utilisateur non trouvé');

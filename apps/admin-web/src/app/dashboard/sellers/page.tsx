@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
 import { PageHeader } from '@/components/ui/page-header';
-import { readStatusParam, withStatusParam } from '@/lib/action-center';
+import { readQueryParam, readStatusParam, withQueryParam, withStatusParam } from '@/lib/action-center';
+import { VERIFICATION_FILTERS, VERIFICATION_STATUS_UI, verificationStatusUi, type SellerVerificationStatus } from '@/lib/seller-verification';
 
 interface SellerProfileLite {
   id: string;
@@ -11,6 +13,11 @@ interface SellerProfileLite {
   phone: string | null;
   applicationStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
   rejectionReason: string | null;
+  // Document verification (separate axis from applicationStatus). Absent = legacy → « Non soumis ».
+  verificationStatus?: SellerVerificationStatus | null;
+  // Structured location (Ville → Commune). Null on legacy profiles.
+  city?: { id: string; name: string } | null;
+  commune?: { id: string; name: string } | null;
 }
 
 interface User {
@@ -50,6 +57,9 @@ interface SellerApplication {
   phone: string | null;
   applicationStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
   rejectionReason: string | null;
+  verificationStatus?: SellerVerificationStatus | null;
+  city?: { id: string; name: string } | null;
+  commune?: { id: string; name: string } | null;
   createdAt: string;
   user: {
     id: string;
@@ -78,6 +88,9 @@ function applicationToRow(app: SellerApplication): User {
       phone: app.phone,
       applicationStatus: app.applicationStatus,
       rejectionReason: app.rejectionReason,
+      verificationStatus: app.verificationStatus ?? null,
+      city: app.city ?? null,
+      commune: app.commune ?? null,
     },
   };
 }
@@ -104,15 +117,24 @@ export default function SellersPage() {
   const [loadError, setLoadError] = useState(false);
   // Deep links from the dashboard (?status=PENDING) — honoured on mount and
   // kept in the URL when a tab changes.
+  // Second, orthogonal axis: document verification (?verification=…), the
+  // filter the « Vérifications à examiner » tile deep-links to.
+  const [verification, setVerification] = useState<SellerVerificationStatus | ''>('');
   const [queryReady, setQueryReady] = useState(false);
   useEffect(() => {
     setFilter(readStatusParam(window.location.search, FILTERS));
+    setVerification(readQueryParam(window.location.search, 'verification', VERIFICATION_FILTERS));
     setQueryReady(true);
   }, []);
   const selectFilter = (value: Filter) => {
     setFilter(value);
     setPage(1);
     window.history.replaceState(null, '', withStatusParam(`${window.location.pathname}${window.location.search}`, value));
+  };
+  const selectVerification = (value: SellerVerificationStatus | '') => {
+    setVerification(value);
+    setPage(1);
+    window.history.replaceState(null, '', withQueryParam(`${window.location.pathname}${window.location.search}`, 'verification', value));
   };
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -142,13 +164,16 @@ export default function SellersPage() {
     setIsLoading(true);
     setLoadError(false);
     try {
-      if (APPLICATION_FILTERS.includes(filter)) {
-        // Application-status tabs read the applications endpoint, whose
-        // `status` filter is the same server-side definition the dashboard
-        // count uses (ADMIN_QUEUES.sellerApplicationsPending) — so the
-        // "Vendeurs à approuver" tile and this list always agree, and
-        // pagination happens on the filtered set rather than client-side.
-        const params = new URLSearchParams({ page: String(page), limit: '20', status: filter });
+      if (APPLICATION_FILTERS.includes(filter) || (verification && filter !== 'SUSPENDED')) {
+        // Application-status tabs (and any verification filter) read the
+        // applications endpoint, whose `status` / `verification` filters are
+        // the same server-side definitions the dashboard counts use
+        // (ADMIN_QUEUES.sellerApplicationsPending / sellerVerificationsPending)
+        // — so the tiles and this list always agree, and pagination happens on
+        // the filtered set rather than client-side.
+        const params = new URLSearchParams({ page: String(page), limit: '20' });
+        if (filter) params.set('status', filter);
+        if (verification) params.set('verification', verification);
         const res = await apiFetch<{ data: SellerApplication[]; pagination?: { totalPages: number } }>(
           `/v1/admin/sellers/applications?${params}`,
         );
@@ -186,7 +211,7 @@ export default function SellersPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, search, filter, queryReady]);
+  }, [page, search, filter, verification, queryReady]);
 
   useEffect(() => { fetchSellers(); }, [fetchSellers]);
 
@@ -262,6 +287,23 @@ export default function SellersPage() {
         ))}
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        <label htmlFor="verification-filter" className="text-sm text-muted-foreground">Vérification :</label>
+        <select
+          id="verification-filter"
+          value={verification}
+          onChange={(e) => selectVerification(e.target.value as SellerVerificationStatus | '')}
+          disabled={filter === 'SUSPENDED'}
+          className="rounded-lg border border-input bg-background px-3 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
+        >
+          <option value="">Toutes</option>
+          {VERIFICATION_FILTERS.map((v) => (
+            <option key={v} value={v}>{VERIFICATION_STATUS_UI[v].label}</option>
+          ))}
+        </select>
+        {filter === 'SUSPENDED' && <span className="text-xs text-muted-foreground">Filtre indisponible sur l’onglet Suspendus.</span>}
+      </div>
+
       <form onSubmit={handleSearch} className="mb-6">
         <div className="flex gap-2">
           <input
@@ -280,15 +322,18 @@ export default function SellersPage() {
         </div>
       </form>
 
-      <div className="bg-white rounded-xl border border-border overflow-hidden">
-        <table className="w-full">
+      {/* 10 columns: the table scrolls inside its card on narrow screens instead of being clipped. */}
+      <div className="bg-white rounded-xl border border-border overflow-x-auto">
+        <table className="w-full min-w-[900px]">
           <thead>
             <tr className="border-b border-border bg-muted">
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Boutique</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Propriétaire</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Email</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Téléphone</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Ville / Commune</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Validation</th>
+              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Vérification</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Compte</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Date</th>
               <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Actions</th>
@@ -296,15 +341,15 @@ export default function SellersPage() {
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">Chargement...</td></tr>
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">Chargement...</td></tr>
             ) : loadError ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center">
+              <tr><td colSpan={10} className="px-4 py-8 text-center">
                 <p className="text-sm text-destructive">Impossible de charger les vendeurs.</p>
                 <button type="button" onClick={fetchSellers} className="admin-button-secondary mt-3">Réessayer</button>
               </td></tr>
             ) : sellers.length === 0 ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
-                {filter === 'PENDING' ? 'Aucune demande vendeur en attente.' : 'Aucun vendeur trouvé'}
+              <tr><td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
+                {verification === 'PENDING_REVIEW' ? 'Aucune vérification vendeur en attente.' : filter === 'PENDING' ? 'Aucune demande vendeur en attente.' : 'Aucun vendeur trouvé'}
               </td></tr>
             ) : (
               sellers.map((u) => {
@@ -312,16 +357,29 @@ export default function SellersPage() {
                 const appStatus = sp?.applicationStatus;
                 return (
                   <tr key={u.id} className="border-b border-border last:border-0 hover:bg-muted/50">
-                    <td className="px-4 py-3 text-sm font-medium text-foreground">{sp?.businessName ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-foreground">
+                      <Link href={`/dashboard/sellers/${u.id}`} className="hover:underline text-primary">{sp?.businessName ?? '—'}</Link>
+                    </td>
                     <td className="px-4 py-3 text-sm text-foreground">
                       {u.firstName || u.lastName ? `${u.firstName || ''} ${u.lastName || ''}`.trim() : '—'}
                     </td>
                     <td className="px-4 py-3 text-sm text-foreground">{u.email ?? '—'}</td>
                     <td className="px-4 py-3 text-sm text-foreground">{sp?.phone ?? u.phone ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm text-foreground">
+                      {sp?.city?.name ?? '—'}
+                      {sp?.commune?.name ? <span className="text-muted-foreground"> · {sp.commune.name}</span> : null}
+                    </td>
                     <td className="px-4 py-3">
                       {appStatus ? (
                         <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${appStatusClass(appStatus)}`}>
                           {APP_STATUS_LABELS[appStatus] ?? appStatus}
+                        </span>
+                      ) : <span className="text-muted-foreground text-xs">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      {sp ? (
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${verificationStatusUi(sp.verificationStatus).tone}`}>
+                          {verificationStatusUi(sp.verificationStatus).label}
                         </span>
                       ) : <span className="text-muted-foreground text-xs">—</span>}
                     </td>

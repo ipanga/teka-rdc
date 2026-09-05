@@ -1,4 +1,5 @@
 import '../../../../core/constants/stock.dart';
+
 class ProductImageModel {
   final String id;
   final String url;
@@ -115,10 +116,8 @@ class BrowseProductModel {
   // `<= kLowStockThreshold`, not `< 5`: mobile previously disagreed with
   // buyer-web (which used <= 5), so a product with exactly 5 left showed as
   // low stock on the web and normal on mobile.
-  bool get isLowStock =>
-      stockStatusFor(quantity) == StockStatus.lowStock;
-  bool get isOutOfStock =>
-      stockStatusFor(quantity) == StockStatus.outOfStock;
+  bool get isLowStock => stockStatusFor(quantity) == StockStatus.lowStock;
+  bool get isOutOfStock => stockStatusFor(quantity) == StockStatus.outOfStock;
 
   /// Whether a valid seller-set promotion is active (discount < regular price).
   bool get hasDiscount {
@@ -178,22 +177,37 @@ class BrowseProductModel {
   }
 }
 
+/// Public seller shape. `verified` / `official` are derived by the API
+/// (verificationStatus == VERIFIED; platform seller id) and are never inferred
+/// here from the name or the account approval. Absent keys (older cached
+/// payloads) read as false — nothing is ever shown by default.
 class BrowseProductSeller {
   final String? id;
   final String? businessName;
+  final bool verified;
+  final bool official;
 
-  const BrowseProductSeller({this.id, this.businessName});
+  const BrowseProductSeller({
+    this.id,
+    this.businessName,
+    this.verified = false,
+    this.official = false,
+  });
 
   factory BrowseProductSeller.fromJson(Map<String, dynamic> json) {
     return BrowseProductSeller(
       id: json['id'] as String?,
       businessName: json['businessName'] as String?,
+      verified: json['verified'] == true,
+      official: json['official'] == true,
     );
   }
 
   Map<String, dynamic> toJson() => {
         'id': id,
         'businessName': businessName,
+        'verified': verified,
+        'official': official,
       };
 }
 
@@ -293,10 +307,8 @@ class ProductDetailModel {
   // `<= kLowStockThreshold`, not `< 5`: mobile previously disagreed with
   // buyer-web (which used <= 5), so a product with exactly 5 left showed as
   // low stock on the web and normal on mobile.
-  bool get isLowStock =>
-      stockStatusFor(quantity) == StockStatus.lowStock;
-  bool get isOutOfStock =>
-      stockStatusFor(quantity) == StockStatus.outOfStock;
+  bool get isLowStock => stockStatusFor(quantity) == StockStatus.lowStock;
+  bool get isOutOfStock => stockStatusFor(quantity) == StockStatus.outOfStock;
 
   bool get hasDiscount {
     final p = int.tryParse(priceCDF) ?? 0;
@@ -316,7 +328,8 @@ class ProductDetailModel {
   /// Savings in centimes (0 when no promotion).
   int get savingsCentimes {
     if (!hasDiscount) return 0;
-    return (int.tryParse(priceCDF) ?? 0) - (int.tryParse(discountPriceCDF!) ?? 0);
+    return (int.tryParse(priceCDF) ?? 0) -
+        (int.tryParse(discountPriceCDF!) ?? 0);
   }
 }
 

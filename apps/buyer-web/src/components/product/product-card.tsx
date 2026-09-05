@@ -64,8 +64,10 @@ export function ProductCard({ product }: ProductCardProps) {
     ? (BigInt(product.priceCDF) - BigInt(effectiveCDF)).toString()
     : null;
   const brandName = product.brand?.name?.trim();
-  // "Officiel" badge for the platform-owned seller (no fabricated data).
-  const isOfficial = product.seller?.businessName === 'Teka RDC Officiel';
+  // "Officiel" badge for the platform-owned seller — from the API flag, never
+  // the name. Cards deliberately carry no « Vérifié » (PR 5 policy: the PDP
+  // seller block is the trust surface; cards stay clean).
+  const isOfficial = product.seller?.official === true;
 
   // Quick-add (Phase D): add a single unit straight from the card. The PDP
   // keeps its own quantity selector for larger orders. addItem() already fires

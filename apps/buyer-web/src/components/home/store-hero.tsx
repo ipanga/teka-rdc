@@ -90,7 +90,8 @@ export function StoreHero({
       </div>
 
       {/* Trust signals — light band below the image (fast local delivery, COD,
-          verified sellers). */}
+          approved sellers). « Vérifié » is a per-seller state shown on the
+          PDP, so the platform-wide claim stays « approuvés ». */}
       <Container className="py-3 md:py-4">
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {[
@@ -110,7 +111,7 @@ export function StoreHero({
               ),
             },
             {
-              label: "Vendeurs vérifiés",
+              label: "Vendeurs approuvés",
               icon: (
                 <path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3zm-1 11l4-4-1.4-1.4L11 11.2 9.4 9.6 8 11l3 3z" />
               ),

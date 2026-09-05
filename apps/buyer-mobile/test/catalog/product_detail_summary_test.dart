@@ -201,6 +201,73 @@ void main() {
     distribution: {1: 0, 2: 1, 3: 4, 4: 40, 5: 83},
   );
 
+  group('seller badge (PR 5) — from the API flags only', () {
+    ProductDetailModel withSeller(BrowseProductSeller seller) =>
+        ProductDetailModel(
+          id: _product.id,
+          title: _product.title,
+          priceCDF: '3500000',
+          condition: 'NEW',
+          quantity: 10,
+          seller: seller,
+          shortCode: _product.shortCode,
+        );
+
+    testWidgets('verified seller shows « Vérifié » with the help text',
+        (tester) async {
+      await tester.pumpWidget(await _harness(stats,
+          product: withSeller(const BrowseProductSeller(
+              id: 's1', businessName: 'Boutique Kabila', verified: true))));
+      await tester.pumpAndSettle();
+      expect(find.text('Boutique Kabila'), findsOneWidget);
+      expect(find.text('Vérifié'), findsOneWidget);
+      expect(find.text('Officiel'), findsNothing);
+      final tooltip = tester.widget<Tooltip>(find.ancestor(
+          of: find.text('Vérifié'), matching: find.byType(Tooltip)));
+      expect(tooltip.message, kSellerVerifiedHelp);
+      expect(kSellerVerifiedHelp, isNot(contains('garanti')));
+    });
+
+    testWidgets(
+        'unverified seller shows no badge at all — even when named « Teka RDC Officiel »',
+        (tester) async {
+      await tester.pumpWidget(await _harness(stats,
+          product: withSeller(const BrowseProductSeller(
+              id: 's1', businessName: 'Teka RDC Officiel'))));
+      await tester.pumpAndSettle();
+      expect(find.text('Vérifié'), findsNothing);
+      expect(find.text('Officiel'), findsNothing);
+      expect(find.text('Non vérifié'), findsNothing);
+      expect(find.byKey(const Key('pdp-seller-verified')), findsNothing);
+    });
+
+    testWidgets('official wins over verified: one badge, « Officiel »',
+        (tester) async {
+      await tester.pumpWidget(await _harness(stats,
+          product: withSeller(const BrowseProductSeller(
+              id: 'p',
+              businessName: 'Teka RDC Officiel',
+              verified: true,
+              official: true))));
+      await tester.pumpAndSettle();
+      expect(find.text('Officiel'), findsOneWidget);
+      expect(find.text('Vérifié'), findsNothing);
+    });
+
+    testWidgets('a long seller name keeps the badge visible without overflow',
+        (tester) async {
+      await tester.pumpWidget(await _harness(stats,
+          product: withSeller(const BrowseProductSeller(
+              id: 's1',
+              businessName:
+                  'Établissements Kabila Mwamba Import-Export et Fils SARL Lubumbashi',
+              verified: true))));
+      await tester.pumpAndSettle();
+      expect(find.text('Vérifié'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   for (final discounted in [true, false]) {
     for (final inStock in [true, false]) {
       testWidgets(

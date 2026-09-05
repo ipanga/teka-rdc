@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/utils/commune_rules.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../data/profile_repository.dart';
 
 class ShopProfileScreen extends ConsumerStatefulWidget {
@@ -20,6 +23,12 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
   ProfileUser? _user;
   List<CityOption> _cities = const [];
   String? _selectedCityId;
+  // Commune library of the selected town (Ville → Commune → Adresse).
+  List<CommuneOption> _communes = const [];
+  String? _selectedCommuneId;
+  bool _communesLoading = false;
+  bool _communesLoaded = false;
+  String? _communesError;
   bool _loading = true;
   bool _saving = false;
   String? _error;
@@ -62,13 +71,67 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
         _locationCtrl.text = shop?.location ?? '';
         _descriptionCtrl.text = shop?.description ?? '';
         _selectedCityId = shop?.cityId;
+        _selectedCommuneId = shop?.communeId;
       });
+      // Load the commune library of the saved town so the picker can show
+      // the current commune (or reveal that the town has none yet).
+      await _loadCommunes(shop?.cityId, keepCurrent: true);
     } catch (_) {
       if (!mounted) return;
       setState(() => _error = 'Impossible de charger votre boutique.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// Fetch the communes of [cityId]. The selected commune survives only when
+  /// it belongs to the new list (`retainedCommuneId`) — a stale commune from
+  /// another town is never kept, mirroring the API rule.
+  Future<void> _loadCommunes(String? cityId, {bool keepCurrent = false}) async {
+    if (cityId == null || cityId.isEmpty) {
+      setState(() {
+        _communes = const [];
+        _communesLoaded = false;
+        _communesLoading = false;
+        _communesError = null;
+        _selectedCommuneId = null;
+      });
+      return;
+    }
+    setState(() {
+      _communesLoading = true;
+      _communesLoaded = false;
+      _communesError = null;
+      if (!keepCurrent) _selectedCommuneId = null;
+    });
+    try {
+      final communes =
+          await ref.read(profileRepositoryProvider).getCommunes(cityId);
+      if (!mounted || _selectedCityId != cityId) return;
+      setState(() {
+        _communes = communes;
+        _communesLoaded = true;
+        _selectedCommuneId = retainedCommuneId(
+          _selectedCommuneId,
+          communes.map((c) => c.id),
+        );
+      });
+    } catch (_) {
+      if (!mounted || _selectedCityId != cityId) return;
+      setState(() {
+        _communes = const [];
+        _communesError = 'Impossible de charger les communes.';
+      });
+    } finally {
+      if (mounted && _selectedCityId == cityId) {
+        setState(() => _communesLoading = false);
+      }
+    }
+  }
+
+  void _onCityChanged(String? cityId) {
+    setState(() => _selectedCityId = cityId);
+    _loadCommunes(cityId);
   }
 
   Future<void> _save() async {
@@ -85,14 +148,40 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
     if (_locationCtrl.text.trim() != shop.location) {
       body['location'] = _locationCtrl.text.trim();
     }
-    if ((_selectedCityId ?? '') != (shop.cityId ?? '') &&
-        (_selectedCityId ?? '').isNotEmpty) {
-      body['cityId'] = _selectedCityId!;
+    // Location: the town and its commune travel together so the API can
+    // verify the pair. A town with a commune library requires a commune
+    // before saving; a legacy profile without one stays saveable as long as
+    // the town is unchanged.
+    final cityId = _selectedCityId ?? '';
+    final cityChanged = cityId.isNotEmpty && cityId != (shop.cityId ?? '');
+    final communeChanged = (_selectedCommuneId ?? '') != (shop.communeId ?? '');
+    final needsCommune = communeRequired(
+      loaded: _communesLoaded,
+      communeCount: _communes.length,
+    );
+    if ((cityChanged || communeChanged) &&
+        needsCommune &&
+        (_selectedCommuneId ?? '').isEmpty) {
+      _toast('Veuillez sélectionner votre commune', error: true);
+      return;
+    }
+    if (_communesLoading) {
+      _toast('Chargement des communes en cours, patientez…');
+      return;
+    }
+    var clearCommune = false;
+    if (cityChanged || communeChanged) {
+      body['cityId'] = cityId;
+      if ((_selectedCommuneId ?? '').isNotEmpty) {
+        body['communeId'] = _selectedCommuneId!;
+      } else {
+        clearCommune = true;
+      }
     }
     if (_descriptionCtrl.text.trim() != (shop.description ?? '')) {
       body['description'] = _descriptionCtrl.text.trim();
     }
-    if (body.isEmpty) {
+    if (body.isEmpty && !clearCommune) {
       _toast('Aucune modification à enregistrer');
       return;
     }
@@ -104,25 +193,26 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
             phone: body['phone'],
             location: body['location'],
             cityId: body['cityId'],
+            communeId: body['communeId'],
+            clearCommune: clearCommune,
             description: body['description'],
           );
       await _load();
       if (!mounted) return;
       _toast('Boutique mise à jour');
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
-      _toast("Erreur lors de l'enregistrement", error: true);
+      _toast(friendlyErrorMessage(e), error: true);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
   void _toast(String message, {bool error = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: error ? TekaColors.destructive : null,
-      ),
+    showAppSnackbar(
+      context,
+      message: message,
+      tone: error ? AppSnackbarTone.error : AppSnackbarTone.neutral,
     );
   }
 
@@ -227,10 +317,10 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
                 ),
               )
               .toList(),
-          onChanged: editable
-              ? (value) => setState(() => _selectedCityId = value)
-              : null,
+          onChanged: editable ? _onCityChanged : null,
         ),
+        const SizedBox(height: 12),
+        _buildCommuneField(editable),
         const SizedBox(height: 12),
         TextField(
           controller: _locationCtrl,
@@ -254,6 +344,84 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
             hintText: 'Décrivez votre boutique en quelques phrases...',
           ),
         ),
+      ],
+    );
+  }
+
+  /// Ville → Commune → Adresse: the commune picker depends on the town. It is
+  /// disabled until a town is chosen, shows the library state (loading /
+  /// none yet / error + retry) and never offers a commune of another town.
+  Widget _buildCommuneField(bool editable) {
+    final cityChosen = (_selectedCityId ?? '').isNotEmpty;
+    final required = communeRequired(
+      loaded: _communesLoaded,
+      communeCount: _communes.length,
+    );
+    final noLibrary = _communesLoaded && _communes.isEmpty;
+    final value = _communes.any((c) => c.id == _selectedCommuneId)
+        ? _selectedCommuneId
+        : null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DropdownButtonFormField<String>(
+          // Rebuild when the library changes so the initial value tracks it.
+          key: ValueKey('commune-${_selectedCityId ?? ''}-${_communes.length}'),
+          initialValue: value,
+          isExpanded: true,
+          decoration: InputDecoration(
+            labelText: required ? 'Commune *' : 'Commune',
+            prefixIcon: const Icon(Icons.map_outlined),
+            helperText: noLibrary
+                ? 'Aucune commune enregistrée pour cette ville pour le moment. '
+                    'Précisez votre quartier ci-dessous.'
+                : null,
+            helperMaxLines: 3,
+          ),
+          hint: Text(
+            communeHint(
+              cityChosen: cityChosen,
+              loading: _communesLoading,
+              loaded: _communesLoaded,
+              communeCount: _communes.length,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+          items: _communes
+              .map(
+                (c) => DropdownMenuItem<String>(
+                  value: c.id,
+                  child: Text(c.name, overflow: TextOverflow.ellipsis),
+                ),
+              )
+              .toList(),
+          onChanged:
+              !editable || !cityChosen || _communesLoading || _communes.isEmpty
+                  ? null
+                  : (v) => setState(() => _selectedCommuneId = v),
+        ),
+        if (_communesError != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Row(
+              children: [
+                const Icon(Icons.error_outline,
+                    size: 18, color: TekaColors.destructive),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _communesError!,
+                    style: const TextStyle(color: TekaColors.destructive),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () =>
+                      _loadCommunes(_selectedCityId, keepCurrent: true),
+                  child: const Text('Réessayer'),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }

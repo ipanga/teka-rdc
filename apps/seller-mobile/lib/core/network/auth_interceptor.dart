@@ -40,9 +40,22 @@ class AuthInterceptor extends Interceptor {
 
               final options = err.requestOptions;
               options.headers['Authorization'] = 'Bearer $newAccess';
-              final retryResponse = await _refreshDio.fetch(options);
-              handler.resolve(retryResponse);
-              return;
+              try {
+                final retryResponse = await _refreshDio.fetch(options);
+                handler.resolve(retryResponse);
+                return;
+              } catch (_) {
+                // The REFRESH succeeded and the new tokens are stored; only
+                // the replay failed (typically a multipart body whose stream
+                // was consumed by the first attempt — Dio cannot re-send a
+                // finalised FormData). This is NOT an auth failure: keep the
+                // fresh session and surface the original 401 so the caller
+                // can rebuild its request (see verification_repository).
+                // Before 2026-09-05 this fell into the generic catch below
+                // and wiped a perfectly valid session.
+                handler.next(err);
+                return;
+              }
             }
           }
         } on DioException catch (refreshErr) {

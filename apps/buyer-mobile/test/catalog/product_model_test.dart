@@ -9,8 +9,37 @@ import 'package:buyer_mobile/features/city/data/models/city_model.dart';
 Map<String, dynamic> decode(String s) => jsonDecode(s) as Map<String, dynamic>;
 
 void main() {
+  group('public seller flags (PR 5)', () {
+    test('verified/official come from the API flags and default to false', () {
+      expect(
+          BrowseProductSeller.fromJson(const {
+            'id': 's1',
+            'businessName': 'Boutique Kabila',
+            'verified': true,
+            'official': false,
+          }).verified,
+          isTrue);
+      final legacy = BrowseProductSeller.fromJson(
+          const {'id': 's1', 'businessName': 'Teka RDC Officiel'});
+      expect(legacy.verified, isFalse);
+      expect(legacy.official, isFalse,
+          reason: 'the name never implies a badge');
+      final official = BrowseProductSeller.fromJson(
+          const {'id': 'p', 'businessName': 'X', 'official': true});
+      expect(official.official, isTrue);
+      expect(official.verified, isFalse);
+      expect(official.toJson(), {
+        'id': 'p',
+        'businessName': 'X',
+        'verified': false,
+        'official': true
+      });
+    });
+  });
+
   group('city-first API fields (parity sweep P1)', () {
-    test('BrowseProductModel parses slug/shortCode/city* from the list shape', () {
+    test('BrowseProductModel parses slug/shortCode/city* from the list shape',
+        () {
       final p = BrowseProductModel.fromJson(decode('''
         {
           "id": "31000000-0000-0000-0000-000000000186",
@@ -33,7 +62,8 @@ void main() {
       expect(p.cityName, 'Lubumbashi');
     });
 
-    test('BrowseProductModel tolerates missing city fields (legacy payload)', () {
+    test('BrowseProductModel tolerates missing city fields (legacy payload)',
+        () {
       final p = BrowseProductModel.fromJson(decode('''
         {"id": "x", "title": "T", "priceCDF": "100", "condition": "NEW",
          "quantity": 1, "seller": {}}'''));
@@ -41,7 +71,9 @@ void main() {
       expect(p.citySlug, isNull);
     });
 
-    test('ProductDetailModel reads citySlug/cityName from the nested city object', () {
+    test(
+        'ProductDetailModel reads citySlug/cityName from the nested city object',
+        () {
       final p = ProductDetailModel.fromJson(decode('''
         {
           "id": "x", "title": "T", "priceCDF": "100", "condition": "NEW",
@@ -65,7 +97,9 @@ void main() {
   });
 
   group('BrowseProductsParams cityId (parity sweep P1)', () {
-    test('cityId participates in equality + hashCode (drives the family refetch)', () {
+    test(
+        'cityId participates in equality + hashCode (drives the family refetch)',
+        () {
       const a = BrowseProductsParams(categoryId: 'cat1', cityId: 'lubumbashi');
       const b = BrowseProductsParams(categoryId: 'cat1', cityId: 'kolwezi');
       const c = BrowseProductsParams(categoryId: 'cat1', cityId: 'lubumbashi');
@@ -76,7 +110,9 @@ void main() {
   });
 
   group('BrowseProductsParams attributesJson (facet filter P-C2c)', () {
-    test('attributesJson participates in equality + hashCode (drives the family refetch)', () {
+    test(
+        'attributesJson participates in equality + hashCode (drives the family refetch)',
+        () {
       const a = BrowseProductsParams(
         categoryId: 'cat1',
         attributesJson: '{"attr1":["Samsung"]}',

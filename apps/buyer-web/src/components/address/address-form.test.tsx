@@ -179,3 +179,58 @@ describe('AddressForm — edit', () => {
     expect(body.reference).toBeNull();
   });
 });
+
+describe('AddressForm — Ville → Commune cascade (server validates; the form must not fight it)', () => {
+  /** Communes served per city, so a wrong-city commune can never be offered. */
+  function stubApiPerCity() {
+    mocks.apiFetch.mockImplementation((path: string, init?: { method?: string; body?: string }) => {
+      if (path === '/v1/cities') return Promise.resolve({ data: CITIES });
+      if (path === '/v1/cities/city-1/communes') return Promise.resolve({ data: COMMUNES });
+      if (path === '/v1/cities/city-2/communes') return Promise.resolve({ data: [{ id: 'com-9', cityId: 'city-2', name: 'Dilala' }] });
+      const body = init?.body ? JSON.parse(init.body) : {};
+      return Promise.resolve({ data: { id: 'addr-1', ...body } });
+    });
+  }
+
+  it('offers no commune until a city is chosen, then loads that city’s communes only', async () => {
+    stubApiPerCity();
+    const user = userEvent.setup();
+    render(<AddressForm onSaved={() => {}} onCancel={() => {}} />);
+    await screen.findByRole('combobox', { name: /Ville/i });
+    expect(screen.queryByRole('combobox', { name: /Commune/i })).toBeNull();
+    expect(mocks.apiFetch.mock.calls.some((c) => String(c[0]).endsWith('/communes'))).toBe(false);
+    await user.selectOptions(screen.getByRole('combobox', { name: /Ville/i }), 'city-1');
+    const commune = await screen.findByRole('combobox', { name: /Commune/i });
+    expect(Array.from(commune.querySelectorAll('option')).map((o) => o.textContent)).toEqual(['Sélectionnez une commune', 'Kampemba', 'Katuba']);
+    expect(mocks.apiFetch).toHaveBeenCalledWith('/v1/cities/city-1/communes');
+  });
+
+  it('changing the city clears the chosen commune and reloads the list for the new city', async () => {
+    stubApiPerCity();
+    const user = userEvent.setup();
+    render(<AddressForm onSaved={() => {}} onCancel={() => {}} />);
+    await screen.findByRole('combobox', { name: /Ville/i });
+    await user.selectOptions(screen.getByRole('combobox', { name: /Ville/i }), 'city-1');
+    await user.selectOptions(await screen.findByRole('combobox', { name: /Commune/i }), 'com-1');
+    expect((screen.getByRole('combobox', { name: /Commune/i }) as HTMLSelectElement).value).toBe('com-1');
+    await user.selectOptions(screen.getByRole('combobox', { name: /Ville/i }), 'city-2');
+    await waitFor(() => expect(mocks.apiFetch).toHaveBeenCalledWith('/v1/cities/city-2/communes'));
+    const commune = (await screen.findByRole('combobox', { name: /Commune/i })) as HTMLSelectElement;
+    await waitFor(() => expect(Array.from(commune.querySelectorAll('option')).map((o) => o.textContent)).toContain('Dilala'));
+    expect(commune.value).toBe('');
+    expect(screen.getByRole('button', { name: /Enregistrer/i })).toBeDisabled();
+  });
+
+  it('editing an address whose commune is no longer offered leaves the commune unselected and save disabled', async () => {
+    stubApiPerCity();
+    const existing = {
+      id: 'addr-1', province: 'Haut-Katanga', town: 'Lubumbashi', neighborhood: 'Ancienne commune',
+      avenue: 'Av. Lumumba 24', cityId: 'city-1', communeId: 'com-retired', isDefault: true,
+    };
+    render(<AddressForm initial={existing as never} onSaved={() => {}} onCancel={() => {}} />);
+    const commune = (await screen.findByRole('combobox', { name: /Commune/i })) as HTMLSelectElement;
+    await waitFor(() => expect(commune.querySelectorAll('option').length).toBe(3));
+    expect(Array.from(commune.options).map((o) => o.value)).not.toContain('com-retired');
+    expect(screen.getByRole('button', { name: /Enregistrer/i })).toBeDisabled();
+  });
+});

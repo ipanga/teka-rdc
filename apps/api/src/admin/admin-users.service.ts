@@ -1,7 +1,14 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { AdminAuditService } from '../audit/admin-audit.service';
 import { ADMIN_QUEUES } from './admin-queues';
-import { Prisma } from '@prisma/client';
+import { Prisma, SellerVerificationStatus } from '@prisma/client';
 import { SearchUsersDto } from './dto/search-users.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { ReviewSellerDto } from './dto/review-seller.dto';
@@ -20,6 +27,8 @@ export class AdminUsersService {
     private email: EmailService,
     private sellerNotifications: SellerNotificationService,
     private cloudinary: CloudinaryService,
+    private configService: ConfigService,
+    private audit: AdminAuditService,
   ) {}
 
   /**
@@ -27,7 +36,13 @@ export class AdminUsersService {
    * is stored privately (authenticated Cloudinary asset), so this signed URL
    * is the only way to view it; it is generated on demand, never persisted.
    */
-  async getApplicationDocumentUrl(applicationId: string) {
+  /**
+   * Legacy application ID photo. PR 2 hardening: the link is Cloudinary's
+   * expiry-ENFORCED private download URL (a signed delivery URL's
+   * `expires_at` was found not to be enforced), lives
+   * SELLER_DOCUMENT_URL_TTL_SECONDS, and every issue is an audit row.
+   */
+  async getApplicationDocumentUrl(applicationId: string, adminId: string) {
     const profile = await this.prisma.sellerProfile.findUnique({
       where: { id: applicationId },
       select: { idDocumentCloudinaryId: true },
@@ -38,9 +53,24 @@ export class AdminUsersService {
     if (!profile.idDocumentCloudinaryId) {
       throw new NotFoundException("Aucune pièce d'identité fournie");
     }
-    return {
-      url: this.cloudinary.getSignedImageUrl(profile.idDocumentCloudinaryId),
-    };
+    const format =
+      (await this.cloudinary.getPrivateAssetFormat(
+        profile.idDocumentCloudinaryId,
+      )) ?? 'jpg';
+    const expiresInSeconds =
+      this.configService.get<number>('SELLER_DOCUMENT_URL_TTL_SECONDS') ?? 120;
+    const url = this.cloudinary.getPrivateDownloadUrl(
+      profile.idDocumentCloudinaryId,
+      { resourceType: 'image', format, expiresInSeconds },
+    );
+    await this.audit.record(this.prisma, {
+      actorId: adminId,
+      action: 'SELLER_DOCUMENT_VIEWED',
+      entityType: 'seller_profile',
+      entityId: applicationId,
+      after: { document: 'application_id_photo', expiresInSeconds },
+    });
+    return { url, expiresInSeconds };
   }
 
   async findAllUsers(query: SearchUsersDto) {
@@ -106,6 +136,9 @@ export class AdminUsersService {
               phone: true,
               applicationStatus: true,
               rejectionReason: true,
+              verificationStatus: true,
+              city: { select: { id: true, name: true } },
+              commune: { select: { id: true, name: true } },
             },
           },
         },
@@ -174,21 +207,44 @@ export class AdminUsersService {
     page?: number;
     limit?: number;
     status?: string;
+    verification?: string;
   }) {
     const page = query.page || 1;
     const limit = Math.min(query.limit || 20, 100);
     const skip = (page - 1) * limit;
 
+    if (
+      query.verification &&
+      !Object.values(SellerVerificationStatus).includes(
+        query.verification as SellerVerificationStatus,
+      )
+    ) {
+      throw new BadRequestException('Statut de vérification invalide');
+    }
+
     // The PENDING filter IS the dashboard "À traiter" queue definition, so the
     // count on the dashboard and the rows on /dashboard/sellers?status=PENDING
-    // can never disagree.
+    // can never disagree. Same for ?verification=PENDING_REVIEW and the
+    // "Vérifications à examiner" tile (ADMIN_QUEUES.sellerVerificationsPending).
     const where: Prisma.SellerProfileWhereInput =
       query.status === 'PENDING'
-        ? ADMIN_QUEUES.sellerApplicationsPending()
-        : {
-            deletedAt: null,
-            ...(query.status && { applicationStatus: query.status as any }),
-          };
+        ? {
+            ...ADMIN_QUEUES.sellerApplicationsPending(),
+            ...(query.verification && {
+              verificationStatus:
+                query.verification as SellerVerificationStatus,
+            }),
+          }
+        : query.verification === 'PENDING_REVIEW' && !query.status
+          ? ADMIN_QUEUES.sellerVerificationsPending()
+          : {
+              deletedAt: null,
+              ...(query.status && { applicationStatus: query.status as any }),
+              ...(query.verification && {
+                verificationStatus:
+                  query.verification as SellerVerificationStatus,
+              }),
+            };
 
     const [applications, total] = await Promise.all([
       this.prisma.sellerProfile.findMany({
@@ -208,6 +264,8 @@ export class AdminUsersService {
               createdAt: true,
             },
           },
+          city: { select: { id: true, name: true } },
+          commune: { select: { id: true, name: true } },
         },
       }),
       this.prisma.sellerProfile.count({ where }),

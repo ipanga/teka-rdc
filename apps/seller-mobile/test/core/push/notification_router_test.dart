@@ -3,6 +3,7 @@ import 'package:seller_mobile/core/push/notification_router.dart';
 
 void main() {
   _payoutTests();
+  _verificationTests();
   group('NotificationRouter — screen payloads', () {
     test('order / product / reviews / broadcast route correctly', () {
       expect(
@@ -32,7 +33,8 @@ void main() {
 
     test('unknown / missing → null', () {
       expect(NotificationRouter.routeForData({'screen': 'mystery'}), isNull);
-      expect(NotificationRouter.routeForData({'screen': 'order-details'}), isNull);
+      expect(
+          NotificationRouter.routeForData({'screen': 'order-details'}), isNull);
       expect(NotificationRouter.routeForData(const {}), isNull);
     });
   });
@@ -50,7 +52,9 @@ void _payoutTests() {
       );
     });
 
-    test('earnings without / with a malformed payoutId → the payouts tab (old or stale payload)', () {
+    test(
+        'earnings without / with a malformed payoutId → the payouts tab (old or stale payload)',
+        () {
       expect(
         NotificationRouter.routeForData({'screen': 'earnings'}),
         '/earnings?tab=payouts',
@@ -67,7 +71,9 @@ void _payoutTests() {
       );
     });
 
-    test('non-uuid ids never become a path segment for orders / products either', () {
+    test(
+        'non-uuid ids never become a path segment for orders / products either',
+        () {
       expect(
         NotificationRouter.routeForData(
             {'screen': 'order-details', 'orderId': '../x'}),
@@ -75,7 +81,9 @@ void _payoutTests() {
       );
     });
 
-    test('feed items: payout → detail, PAYOUT type without entity → tab, unknown → null', () {
+    test(
+        'feed items: payout → detail, PAYOUT type without entity → tab, unknown → null',
+        () {
       expect(
         NotificationRouter.routeForFeedItem(
             type: 'PAYOUT', entityType: 'payout', entityId: _pay),
@@ -102,6 +110,44 @@ void _payoutTests() {
       expect(NotificationRouter.isTabRoot('/earnings/payouts/$_pay'), isFalse);
       expect(NotificationRouter.isTabRoot('/orders/$_pay'), isFalse);
       expect(NotificationRouter.isTabRoot('/notifications'), isFalse);
+    });
+  });
+}
+
+void _verificationTests() {
+  group('NotificationRouter — seller verification', () {
+    test(
+        'a verification push (any event) opens « Vérification de la boutique »',
+        () {
+      for (final event in [
+        'verification-submitted',
+        'verification-verified',
+        'verification-rejected',
+        'verification-revoked'
+      ]) {
+        expect(
+          NotificationRouter.routeForData(
+              {'screen': 'verification', 'event': event}),
+          '/profile/verification',
+        );
+      }
+    });
+    test(
+        'a SELLER_VERIFICATION feed row opens the same screen, by entityType or type',
+        () {
+      expect(
+        NotificationRouter.routeForFeedItem(
+            type: 'SELLER_VERIFICATION',
+            entityType: 'seller_verification',
+            entityId: 'not-a-uuid'),
+        '/profile/verification',
+      );
+      expect(
+        NotificationRouter.routeForFeedItem(
+            type: 'SELLER_VERIFICATION', entityType: null, entityId: null),
+        '/profile/verification',
+      );
+      expect(NotificationRouter.isTabRoot('/profile/verification'), isFalse);
     });
   });
 }

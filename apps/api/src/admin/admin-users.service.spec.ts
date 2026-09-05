@@ -46,6 +46,8 @@ function makeService() {
     email as never,
     sellerNotifications as never,
     {} as never,
+    { get: jest.fn().mockReturnValue(120) } as never,
+    { record: jest.fn() } as never,
   );
   return { service, prisma, email, sellerNotifications };
 }
@@ -106,6 +108,8 @@ describe('AdminUsersService.findAllUsers — seller phone (QA-4)', () => {
       {} as never,
       {} as never,
       {} as never,
+      { get: jest.fn().mockReturnValue(120) } as never,
+      { record: jest.fn() } as never,
     );
     return { service, findMany };
   }
@@ -141,39 +145,61 @@ describe('AdminUsersService.getApplicationDocumentUrl (KYC, P2a)', () => {
       sellerProfile: { findUnique: jest.fn().mockResolvedValue(profile) },
     };
     const cloudinary = {
-      getSignedImageUrl: jest
+      getPrivateAssetFormat: jest.fn().mockResolvedValue('jpg'),
+      getPrivateDownloadUrl: jest
         .fn()
-        .mockReturnValue('https://signed.example/doc'),
+        .mockReturnValue('https://api.cloudinary.example/download?sig=x'),
     };
+    const audit = { record: jest.fn().mockResolvedValue(undefined) };
     const service = new AdminUsersService(
       prisma as never,
       { capture: jest.fn() } as never,
       {} as never,
       {} as never,
       cloudinary as never,
+      { get: jest.fn().mockReturnValue(120) } as never,
+      audit as never,
     );
-    return { service, cloudinary };
+    return { service, cloudinary, audit };
   }
 
-  it('returns a signed URL when the application has a document', async () => {
-    const { service, cloudinary } = make({
+  it('returns an expiry-enforced private download link and audits the view (PR 2)', async () => {
+    const { service, cloudinary, audit } = make({
       idDocumentCloudinaryId: 'teka-rdc/seller-documents/x',
     });
-    const res = await service.getApplicationDocumentUrl('app1');
-    expect(cloudinary.getSignedImageUrl).toHaveBeenCalledWith(
+    const res = await service.getApplicationDocumentUrl('app1', 'admin-1');
+    expect(cloudinary.getPrivateDownloadUrl).toHaveBeenCalledWith(
       'teka-rdc/seller-documents/x',
+      { resourceType: 'image', format: 'jpg', expiresInSeconds: 120 },
     );
-    expect(res.url).toBe('https://signed.example/doc');
+    expect(res).toEqual({
+      url: 'https://api.cloudinary.example/download?sig=x',
+      expiresInSeconds: 120,
+    });
+    expect(audit.record).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        actorId: 'admin-1',
+        action: 'SELLER_DOCUMENT_VIEWED',
+        entityType: 'seller_profile',
+        entityId: 'app1',
+      }),
+    );
   });
 
   it('404s when the application has no document', async () => {
-    const { service } = make({ idDocumentCloudinaryId: null });
-    await expect(service.getApplicationDocumentUrl('app1')).rejects.toThrow();
+    const { service, audit } = make({ idDocumentCloudinaryId: null });
+    await expect(
+      service.getApplicationDocumentUrl('app1', 'admin-1'),
+    ).rejects.toThrow();
+    expect(audit.record).not.toHaveBeenCalled();
   });
 
   it('404s when the application does not exist', async () => {
     const { service } = make(null);
-    await expect(service.getApplicationDocumentUrl('nope')).rejects.toThrow();
+    await expect(
+      service.getApplicationDocumentUrl('nope', 'admin-1'),
+    ).rejects.toThrow();
   });
 });
 

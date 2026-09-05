@@ -333,12 +333,56 @@ describe('Browse (e2e)', () => {
         .get('/api/v1/browse/products/sample-product')
         .expect(200);
 
+      // PR 5: the public shape carries the two server-derived trust flags and
+      // nothing else — no status, no documents, no notes.
       expect(res.body.data.seller).toEqual({
         id: 'seller-1',
         businessName: 'Acme Shop',
+        verified: false,
+        official: false,
       });
       expect(res.body.data.seller.firstName).toBeUndefined();
       expect(res.body.data.seller.sellerProfile).toBeUndefined();
+    });
+
+    it('exposes verified=true only for a VERIFIED profile, and never the status itself', async () => {
+      mockPrismaService.product.findFirst.mockResolvedValue({
+        id: '00000000-0000-0000-0000-00000000000b',
+        slug: 'verified-product',
+        title: 'Produit vérifié',
+        description: 'd',
+        priceCDF: BigInt(100000),
+        priceUSD: null,
+        quantity: 1,
+        condition: 'NEW',
+        status: 'ACTIVE',
+        avgRating: 0,
+        totalReviews: 0,
+        unitsSold: 0,
+        cityId: null,
+        city: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        category: null,
+        images: [],
+        specifications: [],
+        seller: {
+          id: 'seller-2',
+          firstName: null,
+          lastName: null,
+          sellerProfile: { businessName: 'Boutique Kabila', verificationStatus: 'VERIFIED', verificationNote: 'interne' },
+        },
+      });
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/browse/products/verified-product')
+        .expect(200);
+      expect(res.body.data.seller).toEqual({
+        id: 'seller-2',
+        businessName: 'Boutique Kabila',
+        verified: true,
+        official: false,
+      });
+      expect(JSON.stringify(res.body)).not.toMatch(/verificationStatus|verificationNote|cloudinary|documents/);
     });
   });
 

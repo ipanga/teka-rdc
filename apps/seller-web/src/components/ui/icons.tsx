@@ -8,6 +8,7 @@ export type IconName =
   | 'reviews'
   | 'promotions'
   | 'profile'
+  | 'verification'
   | 'menu'
   | 'close'
   | 'bell'
@@ -22,6 +23,7 @@ const paths: Record<IconName, ReactNode> = {
   reviews: <><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z" /></>,
   promotions: <><path d="M20 13 13 20l-9-9V4h7l9 9Z" /><path d="M8.5 8.5h.01" /></>,
   profile: <><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></>,
+  verification: <><path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z" /><path d="M9 12l2 2 4-4" /></>,
   menu: <><path d="M4 7h16M4 12h16M4 17h16" /></>,
   close: <><path d="m6 6 12 12M18 6 6 18" /></>,
   bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></>,

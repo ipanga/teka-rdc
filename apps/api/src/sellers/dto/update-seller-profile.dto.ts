@@ -23,6 +23,15 @@ export class UpdateSellerProfileDto {
   @IsString()
   cityId?: string;
 
+  // Commune of the town above (D4). Resolved by DB lookup in the service:
+  // must exist, be active and belong to the (new or current) city — the
+  // service derives cityId from it so the pair can never disagree. `null`
+  // clears the commune (only allowed when the city has no active commune
+  // library); an empty string means "no change", like cityId.
+  @IsOptional()
+  @IsString()
+  communeId?: string | null;
+
   @IsOptional()
   @IsString()
   description?: string;
