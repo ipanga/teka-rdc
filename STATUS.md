@@ -7,10 +7,9 @@
 ## Active initiative
 
 **Seller Commune (profile-edit parity) · business-document verification workflow · Verified badge —
-PR 1 #659 (`3d4addf`), PR 2 #660 (`1a27585`), PR 3 #661 (`b5a5ed9`) merged; PR 4 (Admin
-verification review UI) open on `feat/admin-verification-review`.** Tracker:
-`docs/seller-commune-verification.md` (audit, approved decisions, per-PR record incl. the Cloudinary
-probe findings, the PR 3 emulator evidence and the PR 4 browser/120 s-link evidence).
+PR 1 #659, PR 2 #660, PR 3 #661, PR 4 #662 (`eeeb063`) merged; PR 5 (buyer « Vérifié » badge, the
+last workstream) open on `feat/buyer-verified-badge`.** Tracker: `docs/seller-commune-verification.md`
+(audit, decisions, per-PR record, and the initiative completion audit at the end).
 
 Audit verdict: Commune already exists end-to-end for the *application* (required DTO, cascade on
 both clients, admin detail) but is missing from both profile-edit screens, the update DTO (which can
@@ -55,9 +54,18 @@ dropped at expiry, Vérifier / Refuser / Révoquer / Réexaminer rendered from t
 (approve now refused server-side while evidence is incomplete), 409 → reload + explanation, audit
 timeline with resolved actors. Runtime-tested in Chrome incl. real link expiry (401) and a stale 409.
 
-**Next exact step (only on explicit approval):** merge PR 4 → PR 5 buyer badge (`sellerFlat.verified/
-official`, buyer-web + buyer-mobile PDP, trust copy, tests). No `db:push`, production write, `main`
-merge or deploy without approval.
+PR 5 `feat/buyer-verified-badge`: public seller shape `{ id, businessName, verified, official }`
+derived server-side (VERIFIED status; platform seller id), the hardcoded « Vérifié »/« Officiel »
+name checks removed from both buyer PDPs and cards, badge only when verified (nothing otherwise),
+help text « Teka a vérifié les documents justificatifs fournis par ce vendeur », static
+« Vendeurs vérifiés » claims reworded to « approuvés », mobile PDP provider autoDispose so a revoked
+badge never outlives the session, seller copy aligned. Emulator + Chrome runtime pass incl. real
+revoke/re-approve/replacement transitions. Initiative completion audit written to the tracker.
+
+**Next exact step (only on explicit approval):** merge PR 5 → release preparation for the whole
+initiative (release PR develop → main; the two auto-apply migrations run in the expand phase; both
+mobile apps need a store release). No `db:push`, production write, `main` merge or deploy without
+approval.
 
 ## Most recently completed initiative
 
