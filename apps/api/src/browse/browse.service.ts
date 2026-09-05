@@ -1,4 +1,5 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { isPlatformSeller } from '../common/platform-seller';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ProductStatus,
@@ -85,6 +86,47 @@ function resolveSearchIntent(raw?: string): SearchQueryIntent | null {
     default:
       return null;
   }
+}
+
+/**
+ * Everything a buyer may know about a seller. The select is an allow-list
+ * (`browse.service.spec` pins that no document/verification internals are
+ * read); the two booleans are derived server-side — `verified` only from
+ * `verificationStatus === 'VERIFIED'`, `official` only from the platform
+ * seller id — so clients never infer trust from a name or an approval state.
+ */
+const PUBLIC_SELLER_SELECT = {
+  id: true,
+  firstName: true,
+  lastName: true,
+  sellerProfile: { select: { businessName: true, verificationStatus: true } },
+} as const;
+
+export interface PublicSeller {
+  id: string;
+  businessName: string;
+  verified: boolean;
+  official: boolean;
+}
+
+export function toPublicSeller(
+  seller:
+    | {
+        id: string;
+        firstName?: string | null;
+        lastName?: string | null;
+        sellerProfile: { businessName: string; verificationStatus?: string | null } | null;
+      }
+    | null
+    | undefined,
+): PublicSeller {
+  const fullName = [seller?.firstName, seller?.lastName].filter(Boolean).join(' ');
+  return {
+    id: seller?.id ?? '',
+    businessName: seller?.sellerProfile?.businessName || fullName || 'Vendeur',
+    verified: seller?.sellerProfile?.verificationStatus === 'VERIFIED',
+    official: isPlatformSeller(seller?.id),
+  };
 }
 
 @Injectable()
@@ -418,7 +460,7 @@ export class BrowseService {
         select: { id: true, url: true, thumbnailUrl: true, displayOrder: true },
       },
       seller: {
-        select: { sellerProfile: { select: { businessName: true } } },
+        select: PUBLIC_SELLER_SELECT,
       },
       // Brand label for the product card (shown above the title when present).
       brand: { select: { name: true } },
@@ -604,9 +646,7 @@ export class BrowseService {
       totalReviews: p.totalReviews,
       unitsSold: p.unitsSold,
       image: p.images[0] ?? null,
-      seller: {
-        businessName: p.seller?.sellerProfile?.businessName ?? 'Vendeur',
-      },
+      seller: toPublicSeller(p.seller),
     }));
 
     return {
@@ -948,7 +988,7 @@ export class BrowseService {
         select: { id: true, url: true, thumbnailUrl: true, displayOrder: true },
       },
       seller: {
-        select: { sellerProfile: { select: { businessName: true } } },
+        select: PUBLIC_SELLER_SELECT,
       },
       // Brand label for the product card (shown above the title when present).
       brand: { select: { name: true } },
@@ -1008,9 +1048,7 @@ export class BrowseService {
       totalReviews: p.totalReviews,
       unitsSold: p.unitsSold,
       image: p.images[0] ?? null,
-      seller: {
-        businessName: p.seller?.sellerProfile?.businessName ?? 'Vendeur',
-      },
+      seller: toPublicSeller(p.seller),
     }));
     return { data };
   }
@@ -1053,14 +1091,7 @@ export class BrowseService {
         select: { id: true, name: true, slug: true },
       },
       seller: {
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          sellerProfile: {
-            select: { businessName: true },
-          },
-        },
+        select: PUBLIC_SELLER_SELECT,
       },
     };
 
@@ -1134,14 +1165,7 @@ export class BrowseService {
     // undefined, which crashed the cart page (`undefined.trim()`). The PDP
     // also rendered an empty "VENDEUR" label for the same reason.
     const { seller, specifications, ...rest } = product;
-    const sellerFullName = [seller.firstName, seller.lastName]
-      .filter(Boolean)
-      .join(' ');
-    const sellerFlat = {
-      id: seller.id,
-      businessName:
-        seller.sellerProfile?.businessName || sellerFullName || 'Vendeur',
-    };
+    const sellerFlat = toPublicSeller(seller);
 
     // Flatten specifications for the same reason the seller shape above is
     // flattened: the raw Prisma include nests the human label under

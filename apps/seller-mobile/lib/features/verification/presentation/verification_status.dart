@@ -40,7 +40,7 @@ class VerificationStatusUi {
       default:
         return const VerificationStatusUi._(
           'Non vérifié',
-          'Fournissez vos documents justificatifs pour que Teka RDC les examine et affiche le badge « Vérifié » sur votre boutique.',
+          'Fournissez vos documents justificatifs pour que Teka RDC les examine et affiche le badge « Vérifié » sur vos fiches produits.',
           TekaColors.mutedForeground,
           Icons.shield_outlined,
         );

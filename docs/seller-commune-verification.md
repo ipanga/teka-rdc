@@ -327,3 +327,45 @@ admin-web itself signs any non-ADMIN role out at the dashboard layout (pre-exist
 
 - The seller detail page is keyed by user id, the verification API by seller profile id; the page passes `sellerProfile.id` down. Nothing links from the list to the *application* KYC photo any more than before.
 - PR 5 still has to expose `seller.verified` to buyers and replace the hardcoded « Vérifié » chip; until then the card's « Badge « Vérifié » : Affiché » describes the intended state, not what buyers currently see.
+
+## PR 5 — `feat/buyer-verified-badge` (2026-09-05): Buyer « Vérifié » badge — initiative complete
+
+### What changed for buyers
+
+- **Public contract.** The seller shape every browse endpoint returns (product lists, popular/newest, detail `sellerFlat`) is now exactly `{ id, businessName, verified, official }` — `toPublicSeller()` in `browse.service.ts`, fed by the allow-list select `PUBLIC_SELLER_SELECT` (`id, firstName, lastName, sellerProfile { businessName, verificationStatus }`). `verified` is derived server-side from `verificationStatus === 'VERIFIED'` and nothing else; `official` from the platform seller user id (`common/platform-seller.ts`, the seed's `10000000-…-000000999999`), never from the business name. Neither the status, the documents, notes, reasons, actors, timestamps nor any link reaches a buyer payload (spec + e2e pinned).
+- **Hardcoded trust removed.** buyer-web PDP and buyer-mobile PDP rendered « Vérifié » for every seller not named `'Teka RDC Officiel'` and « Officiel » by name comparison; product cards keyed « Officiel » off the name too; the PDP trust strip, the cart and the home hero carried static « Vendeur(s) vérifié(s) » claims. Now: the PDP badge (`components/product/seller-badge.tsx` / `PdpSellerBadge`) renders « Vérifié » only when `seller.verified`, « Officiel » only when `seller.official` (official wins, one badge), nothing otherwise — no public « Non vérifié »; the PDP trust-strip row « Vendeur vérifié » appears only when `seller.verified`; cart and hero say « Vendeurs approuvés (par Teka RDC) », which is true of every seller allowed to sell; cards use `seller.official` for the existing « Officiel » line and carry no « Vérifié » (policy: PDP first, cards stay clean).
+- **Copy.** Visible badge « Vérifié »; help text (web `title` + `aria-label`, mobile long-press `Tooltip` + semantics label) « Teka a vérifié les documents justificatifs fournis par ce vendeur. » — no certification/guarantee wording (tested).
+- **No seller/store page** exists on either buyer client (Phase 0 §12 confirmed again); JSON-LD `offers.seller` stays `{ @type: Organization, name }`, no verification/certification property added; canonical, robots (`index, follow` on PDPs) and sitemap untouched; SSR HTML of a verified PDP contains no `verificationStatus`/`cloudinary`/note strings (checked).
+- **Freshness.** buyer-web fetches the product client-side on every PDP visit (unchanged); buyer-mobile's `productDetailProvider` is now `autoDispose` so every PDP open refetches (pull-to-refresh still works) — a revoked badge cannot outlive the app session. No polling added.
+- **Seller/admin copy corrected.** Seller « Non vérifié » hint now says the badge appears « sur vos fiches produits » (there is no shop page); the VERIFIED hint, the email and the admin card already described product pages.
+
+### Verification
+
+**Automated.** API 680 unit (`toPublicSeller`: VERIFIED → true, NOT_SUBMITTED/PENDING_REVIEW/REJECTED/null → false, `official` from the id only, exact key set, over-fetched internals never leak, name fallbacks; the PR 2 select pin now asserts the exact allow-list) / 152 e2e (public detail shape `{ id, businessName, verified, official }`, VERIFIED profile → `verified: true` with no status/note in the body); buyer-web vitest 78 (`seller-badge.test.tsx`: verified/unverified/name-only/official precedence/icon + help text), tsc, eslint (1 pre-existing warning), build; buyer-mobile 245 (`product_model_test`: flags from JSON, defaults false, name never implies; `product_detail_summary_test`: verified badge + tooltip, unverified named « Teka RDC Officiel » shows nothing, official precedence, long name no overflow; card/section-order fixtures now set `official: true` explicitly), analyze 6 pre-existing infos; seller-web 22, seller-mobile verification 17; root type-check.
+
+**Live authorization (isolated stack).** A mock-OTP BUYER got 403 on admin verification GET/url/approve, on the seller status route and on the filtered admin list; PR 2/4 suites untouched.
+
+**Actually exercised (disposable sellers with one product each, deleted afterwards — 0 `example.test` users, 0 QA products, 0 raw assets):**
+- Android emulator (dev flavor on the isolated API): VERIFIED PDP « ✓ Vérifié » next to the seller name; PENDING_REVIEW, revoked (REJECTED) and NOT_SUBMITTED PDPs show no badge and no « Non vérifié »; 70-character seller name wraps without overflow; long-press shows the help tooltip; real transitions on one seller through the API — upload → admin approve → open PDP → badge; revoke → back + reopen → badge gone; re-approve → reopen → badge back.
+- Chrome (1280 and 500 px): VERIFIED PDP with the « Vendeur vérifié » trust row and the « VÉRIFIÉ » chip (`title` + `aria-label`, icon + text), similar-product cards without any badge; after the same revoke the page shows neither the row nor the chip; after re-approval both return on reload; no horizontal overflow at 500 px.
+- API only (public flag after each step): PENDING_REVIEW → VERIFIED true; material identity-document replacement while VERIFIED → PENDING_REVIEW false; reject → false; re-submission → PENDING_REVIEW false; approve → true.
+
+**Not exercised.** « Officiel » live (the dev DB has no platform seller user/products — unit-tested only); a viewport narrower than 500 px on web; iOS.
+
+### Initiative completion audit (PRs 1–5 on the combined `develop` + this branch)
+
+| Contract | Owner | State on the combined branch |
+|---|---|---|
+| City ↔ Commune | PR 1 `CitiesService.resolveCommune`, `Commune.isActive` | apply/updateProfile/buyer address all go through it; legacy `NULL` communes untouched; admin toggle + list column; no later PR touched it. |
+| Verification state machine | PR 2 service, PR 4 `allowedAdminActions` + evidence-gated approve | Single `transition()` (conditional `updateMany` + audit, 409); seller uploads own the NOT_SUBMITTED → PENDING_REVIEW and D5 VERIFIED → PENDING_REVIEW moves; approve/reject/revoke admin-only. |
+| Document upload / storage / retention | PR 2 | Row-first Cloudinary ownership, magic bytes, EXIF strip, PDF raw, `purgeAfter` on rejected/superseded, daily sweep, purge on anonymisation; PR 3/4/5 read only. |
+| Admin authorization & signed links | PR 2 routes, PR 4 UI | ADMIN-only links (120 s, expiry enforced — re-proven live in PR 4), SUPPORT status-only, SELLER/BUYER 403, unauthenticated 401 (e2e). |
+| Notifications | PR 2 `notifyVerification` (feed + push + email fallback) | Consumed by seller surfaces (PR 3 deep links) and admin decisions (PR 4 invokes the API only); reasons only for refusals/revocations. |
+| Seller UX | PR 3 | Copy now matches the real placement (« fiches produits »). |
+| Admin Action Center | PR 4 `ADMIN_QUEUES.sellerVerificationsPending` | Count and list filter share one where. |
+| Public badge / buyer privacy | PR 5 | `{ id, businessName, verified, official }` everywhere; pins in `browse.service.spec` + `browse.e2e-spec`. |
+| Migrations | PR 1 `2026-09-05_commune_is_active.sql`, PR 2 `2026-09-05_seller_verification.sql` | Both additive, both in `manual/auto-apply.list` (lines 29–30, after the unrelated search-analytics file already listed at 26), applied to dev only. **Not applied to production.** PR 3/4/5 add no migration. |
+| Configuration | PR 2 | `SELLER_DOCUMENT_MAX_MB` (5), `SELLER_DOCUMENT_RETENTION_DAYS` (90), `SELLER_DOCUMENT_URL_TTL_SECONDS` (120) — Joi defaults, no env-file or secret change required; `UserNotificationType.SELLER_VERIFICATION` shipped in the PR 2 migration. Dependencies: `file_picker` (seller-mobile, PR 3) only. |
+| Deployment ordering | — | Expand-phase auto-apply runs both files before the rolling swap; old API code tolerates the new nullable/defaulted columns; every legacy seller becomes `NOT_SUBMITTED` (unverified) — so at release every current « Vérifié » chip disappears until an admin verifies someone (accepted in D5). Mobile: buyer-mobile and seller-mobile need a store release for the badge / verification screen; web ships with the deploy. |
+
+Stale copy sweep: no remaining `'Teka RDC Officiel'` comparison in any client; no remaining static « Vendeur(s) vérifié(s) » outside the conditional PDP row; seller/admin/email copy consistent (« fiches produits »). No overlap or conflict between PRs found.

@@ -41,7 +41,7 @@ export interface VerificationStatusPayload {
 export const VERIFICATION_STATUS_UI: Record<VerificationStatus, { label: string; hint: string; tone: string }> = {
   NOT_SUBMITTED: {
     label: 'Non vérifié',
-    hint: 'Fournissez vos documents justificatifs pour que Teka RDC les examine et affiche le badge « Vérifié » sur votre boutique.',
+    hint: 'Fournissez vos documents justificatifs pour que Teka RDC les examine et affiche le badge « Vérifié » sur vos fiches produits.',
     tone: 'bg-muted text-muted-foreground',
   },
   PENDING_REVIEW: {

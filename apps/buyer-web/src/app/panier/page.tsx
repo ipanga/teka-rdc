@@ -291,7 +291,7 @@ export default function CartPage() {
                     {[
                       'Paiement à la livraison',
                       'Livraison locale à votre adresse',
-                      'Vendeurs vérifiés par Teka RDC',
+                      'Vendeurs approuvés par Teka RDC',
                     ].map((label) => (
                       <div key={label} className="flex items-center gap-2 text-xs font-medium text-foreground">
                         <svg className="w-4 h-4 text-success shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden>

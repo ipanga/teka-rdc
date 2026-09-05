@@ -1,4 +1,5 @@
-import { BrowseService } from './browse.service';
+import { BrowseService, toPublicSeller } from './browse.service';
+import { PLATFORM_SELLER_USER_ID } from '../common/platform-seller';
 
 // Minimal Prisma mock — browseProducts builds a where + orderBy then calls
 // product.findMany. We assert the ordering, not the data.
@@ -736,5 +737,55 @@ describe('BrowseService — public seller shape never carries verification docum
     const sellerSelect = JSON.stringify(call.include?.seller ?? call.select?.seller ?? {});
     expect(sellerSelect).toContain('businessName');
     expect(sellerSelect).not.toMatch(/documents|cloudinary|idDocument|verificationNote|idNumber/);
+    // PR 5: the only verification column read is the status the public boolean derives from.
+    expect(call.select?.seller ?? call.include?.seller).toEqual({
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        sellerProfile: { select: { businessName: true, verificationStatus: true } },
+      },
+    });
+  });
+});
+
+describe('BrowseService — public seller flags (PR 5)', () => {
+  const seller = (status: string | null, id = 's1') => ({
+    id,
+    firstName: 'Aimé',
+    lastName: 'Kabila',
+    sellerProfile: { businessName: 'Boutique Kabila', verificationStatus: status },
+  });
+
+  it('verified is true only for VERIFIED; every other state (and legacy null) is false', () => {
+    expect(toPublicSeller(seller('VERIFIED')).verified).toBe(true);
+    for (const status of ['NOT_SUBMITTED', 'PENDING_REVIEW', 'REJECTED', null]) {
+      expect(toPublicSeller(seller(status)).verified).toBe(false);
+    }
+  });
+
+  it('official comes from the platform seller id only, never from the name, and is independent of verified', () => {
+    expect(toPublicSeller(seller(null, PLATFORM_SELLER_USER_ID))).toEqual({
+      id: PLATFORM_SELLER_USER_ID,
+      businessName: 'Boutique Kabila',
+      verified: false,
+      official: true,
+    });
+    expect(toPublicSeller({ id: 'x', firstName: null, lastName: null, sellerProfile: { businessName: 'Teka RDC Officiel', verificationStatus: 'VERIFIED' } })).toMatchObject({ official: false, verified: true });
+  });
+
+  it('the public seller is exactly { id, businessName, verified, official } — no status, documents, notes, actors or links', () => {
+    const out = toPublicSeller({
+      ...seller('VERIFIED'),
+      // Even if a caller over-fetched, nothing beyond the allow-list leaks.
+      sellerProfile: { businessName: 'Boutique Kabila', verificationStatus: 'VERIFIED', verificationNote: 'x', documents: [{ cloudinaryId: 'y' }] } as never,
+    });
+    expect(Object.keys(out).sort()).toEqual(['businessName', 'id', 'official', 'verified']);
+    expect(JSON.stringify(out)).not.toMatch(/verificationStatus|Note|document|cloudinary|verifiedBy|reason|history|https?:/);
+  });
+
+  it('falls back to the person name, then « Vendeur », when the profile has no business name', () => {
+    expect(toPublicSeller({ id: 's2', firstName: 'A', lastName: 'B', sellerProfile: null }).businessName).toBe('A B');
+    expect(toPublicSeller(null)).toEqual({ id: '', businessName: 'Vendeur', verified: false, official: false });
   });
 });
