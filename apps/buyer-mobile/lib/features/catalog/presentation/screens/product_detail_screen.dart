@@ -465,11 +465,11 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                             ),
                                           ),
                                           // Officiel (platform seller) /
-                                          // Vérifié badge.
-                                          _PdpSellerBadge(
-                                            isOfficial:
-                                                product.seller.businessName ==
-                                                    'Teka RDC Officiel',
+                                          // Vérifié badge — from the API
+                                          // flags only; nothing for an
+                                          // ordinary seller.
+                                          PdpSellerBadge(
+                                            seller: product.seller,
                                           ),
                                         ],
                                       ),
@@ -631,31 +631,47 @@ class _PdpStockStatus extends StatelessWidget {
   }
 }
 
-class _PdpSellerBadge extends StatelessWidget {
-  final bool isOfficial;
+/// What « Vérifié » means — and only that (D5). Shown on long-press.
+const kSellerVerifiedHelp =
+    'Teka a vérifié les documents justificatifs fournis par ce vendeur.';
+const kSellerOfficialHelp = 'Boutique gérée par Teka RDC.';
 
-  const _PdpSellerBadge({required this.isOfficial});
+/// Seller trust badge next to the seller name on the PDP. Renders nothing
+/// unless the API says the seller is official or verified (official wins;
+/// one badge, never two). Icon + text, never colour alone.
+class PdpSellerBadge extends StatelessWidget {
+  final BrowseProductSeller seller;
+
+  const PdpSellerBadge({super.key, required this.seller});
 
   @override
   Widget build(BuildContext context) {
-    final color = isOfficial ? TekaColors.tekaRed : TekaColors.success;
-    return Semantics(
-      label: isOfficial ? 'Vendeur officiel' : 'Vendeur vérifié',
-      excludeSemantics: true,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.verified, size: 15, color: color),
-          const SizedBox(width: 2),
-          Text(
-            isOfficial ? 'Officiel' : 'Vérifié',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: color,
+    final official = seller.official;
+    if (!official && !seller.verified) return const SizedBox.shrink();
+    final color = official ? TekaColors.tekaRed : TekaColors.success;
+    final help = official ? kSellerOfficialHelp : kSellerVerifiedHelp;
+    return Tooltip(
+      message: help,
+      triggerMode: TooltipTriggerMode.longPress,
+      child: Semantics(
+        key: Key(official ? 'pdp-seller-official' : 'pdp-seller-verified'),
+        label: '${official ? 'Vendeur officiel' : 'Vendeur vérifié'} — $help',
+        excludeSemantics: true,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.verified, size: 15, color: color),
+            const SizedBox(width: 2),
+            Text(
+              official ? 'Officiel' : 'Vérifié',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

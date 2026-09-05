@@ -76,7 +76,10 @@ class ProductCard extends ConsumerWidget {
     final price = formatCDF(product.effectivePriceCDF);
     final imageUrl = product.image?.thumbnailUrl ?? product.image?.url;
     final brandName = product.brandName?.trim();
-    final isOfficial = product.seller.businessName == 'Teka RDC Officiel';
+    // « Officiel » from the API flag, never the name. Cards carry no
+    // « Vérifié » on purpose (PR 5 policy: the PDP seller block is the trust
+    // surface; cards stay clean).
+    final isOfficial = product.seller.official;
     final showCatalogMetadata = variant == ProductCardVariant.catalog;
     final rating = product.avgRating.toStringAsFixed(1).replaceAll('.', ',');
 
@@ -162,7 +165,8 @@ class ProductCard extends ConsumerWidget {
                           child: _Pill(
                             // Never the exact remaining quantity — that is
                             // internal inventory. See core/constants/stock.dart.
-                            label: "🔥 ${stockStatusLabel(StockStatus.lowStock)}",
+                            label:
+                                "🔥 ${stockStatusLabel(StockStatus.lowStock)}",
                             background: TekaColors.warning,
                             foreground: Colors.white,
                             maxWidth: constraints.maxWidth - 16,

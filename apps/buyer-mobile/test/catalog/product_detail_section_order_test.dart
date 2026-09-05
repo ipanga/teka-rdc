@@ -97,6 +97,7 @@ const _product = ProductDetailModel(
   seller: BrowseProductSeller(
     id: 'seller-1',
     businessName: 'Teka RDC Officiel',
+    official: true, // the API flag, not the name, drives the badge
   ),
   specifications: [
     ProductSpecification(name: 'Matière', value: 'Coton'),
