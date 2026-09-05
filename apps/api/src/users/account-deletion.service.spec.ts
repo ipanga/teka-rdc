@@ -54,7 +54,12 @@ describe('AccountDeletionService', () => {
       returnRequest: { findFirst: jest.fn().mockResolvedValue(null) },
       sellerEarning: { findFirst: jest.fn().mockResolvedValue(null) },
       payout: { findFirst: jest.fn().mockResolvedValue(null) },
-      sellerProfile: { update: jest.fn().mockResolvedValue({}) },
+      sellerProfile: {
+        update: jest.fn().mockResolvedValue({}),
+        findUnique: jest
+          .fn()
+          .mockResolvedValue({ idDocumentCloudinaryId: null }),
+      },
       deviceToken: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
       refreshToken: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
       $transaction: jest.fn((cb: any) => cb(prisma)),
@@ -70,6 +75,12 @@ describe('AccountDeletionService', () => {
       buyerOtp as never,
       deviceTokens as never,
       email as never,
+      { deletePrivateAsset: jest.fn().mockResolvedValue(true) } as never,
+      {
+        purgeAllForSeller: jest
+          .fn()
+          .mockResolvedValue({ purged: 0, failed: 0 }),
+      } as never,
     );
   });
 

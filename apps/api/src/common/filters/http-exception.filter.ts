@@ -26,7 +26,11 @@ export class HttpExceptionFilter implements ExceptionFilter {
       status = exception.getStatus();
       const exResponse = exception.getResponse();
 
-      if (typeof exResponse === 'string') {
+      if (status === HttpStatus.PAYLOAD_TOO_LARGE) {
+        // multer's fileSize limit surfaces as PayloadTooLargeException with
+        // an English message; the seller must read French.
+        message = 'Le fichier dépasse la taille maximale autorisée';
+      } else if (typeof exResponse === 'string') {
         message = exResponse;
       } else if (typeof exResponse === 'object') {
         const res = exResponse as Record<string, unknown>;

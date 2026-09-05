@@ -1,5 +1,7 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
+import { AdminAuditService } from '../audit/admin-audit.service';
 import { ADMIN_QUEUES } from './admin-queues';
 import { Prisma } from '@prisma/client';
 import { SearchUsersDto } from './dto/search-users.dto';
@@ -20,6 +22,8 @@ export class AdminUsersService {
     private email: EmailService,
     private sellerNotifications: SellerNotificationService,
     private cloudinary: CloudinaryService,
+    private configService: ConfigService,
+    private audit: AdminAuditService,
   ) {}
 
   /**
@@ -27,7 +31,13 @@ export class AdminUsersService {
    * is stored privately (authenticated Cloudinary asset), so this signed URL
    * is the only way to view it; it is generated on demand, never persisted.
    */
-  async getApplicationDocumentUrl(applicationId: string) {
+  /**
+   * Legacy application ID photo. PR 2 hardening: the link is Cloudinary's
+   * expiry-ENFORCED private download URL (a signed delivery URL's
+   * `expires_at` was found not to be enforced), lives
+   * SELLER_DOCUMENT_URL_TTL_SECONDS, and every issue is an audit row.
+   */
+  async getApplicationDocumentUrl(applicationId: string, adminId: string) {
     const profile = await this.prisma.sellerProfile.findUnique({
       where: { id: applicationId },
       select: { idDocumentCloudinaryId: true },
@@ -38,9 +48,24 @@ export class AdminUsersService {
     if (!profile.idDocumentCloudinaryId) {
       throw new NotFoundException("Aucune pièce d'identité fournie");
     }
-    return {
-      url: this.cloudinary.getSignedImageUrl(profile.idDocumentCloudinaryId),
-    };
+    const format =
+      (await this.cloudinary.getPrivateAssetFormat(
+        profile.idDocumentCloudinaryId,
+      )) ?? 'jpg';
+    const expiresInSeconds =
+      this.configService.get<number>('SELLER_DOCUMENT_URL_TTL_SECONDS') ?? 120;
+    const url = this.cloudinary.getPrivateDownloadUrl(
+      profile.idDocumentCloudinaryId,
+      { resourceType: 'image', format, expiresInSeconds },
+    );
+    await this.audit.record(this.prisma, {
+      actorId: adminId,
+      action: 'SELLER_DOCUMENT_VIEWED',
+      entityType: 'seller_profile',
+      entityId: applicationId,
+      after: { document: 'application_id_photo', expiresInSeconds },
+    });
+    return { url, expiresInSeconds };
   }
 
   async findAllUsers(query: SearchUsersDto) {

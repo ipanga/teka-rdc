@@ -342,23 +342,56 @@ describe('SellersService.updateProfile — the profile-edit path can no longer b
   });
 });
 
-describe('SellersService.uploadDocument', () => {
+describe('SellersService.uploadDocument (legacy application photo, PR 2 hardening)', () => {
+  // A structurally valid JPEG: SOI, JFIF APP0, an EXIF APP1 carrying a
+  // marker, SOS, scan bytes, EOI.
+  const seg = (marker: number, payload: Buffer) => {
+    const len = Buffer.alloc(2);
+    len.writeUInt16BE(payload.length + 2);
+    return Buffer.concat([Buffer.from([0xff, marker]), len, payload]);
+  };
+  const JPEG = Buffer.concat([
+    Buffer.from([0xff, 0xd8]),
+    seg(0xe0, Buffer.from('JFIF\0', 'latin1')),
+    seg(0xe1, Buffer.from('Exif\0\0GPS-MARKER', 'latin1')),
+    seg(0xda, Buffer.alloc(2)),
+    Buffer.from([0x01, 0xff, 0xd9]),
+  ]);
   const file = (over: Partial<Express.Multer.File>) =>
     ({
-      size: 1024,
+      size: JPEG.length,
       mimetype: 'image/jpeg',
-      buffer: Buffer.from('x'),
+      buffer: JPEG,
       ...over,
     }) as unknown as Express.Multer.File;
 
-  it('uploads a valid image to the private folder', async () => {
+  it('uploads a valid image to the private folder with its EXIF stripped', async () => {
     const { service, cloudinary } = makeService();
     cloudinary.uploadPrivateImage.mockResolvedValue({ cloudinaryId: DOC_ID });
 
     const res = await service.uploadDocument(file({}));
 
-    expect(cloudinary.uploadPrivateImage).toHaveBeenCalled();
+    expect(cloudinary.uploadPrivateImage).toHaveBeenCalledTimes(1);
+    const sent: Buffer = cloudinary.uploadPrivateImage.mock.calls[0][0];
+    expect(sent.toString('latin1')).not.toContain('GPS-MARKER');
+    expect(sent.subarray(0, 2)).toEqual(Buffer.from([0xff, 0xd8]));
     expect(res.cloudinaryId).toBe(DOC_ID);
+  });
+
+  it('rejects bytes that are not an image even when labelled image/jpeg (forged MIME), and a PDF', async () => {
+    const { service, cloudinary } = makeService();
+    await expect(
+      service.uploadDocument(file({ buffer: Buffer.from('MZ......'), size: 8 })),
+    ).rejects.toThrow('Format non supporté');
+    await expect(
+      service.uploadDocument(
+        file({ buffer: Buffer.from('%PDF-1.4\n%%EOF\n', 'latin1'), size: 16 }),
+      ),
+    ).rejects.toThrow('Format non supporté');
+    await expect(
+      service.uploadDocument(file({ mimetype: 'image/png' })),
+    ).rejects.toThrow('ne correspond pas à son format déclaré');
+    expect(cloudinary.uploadPrivateImage).not.toHaveBeenCalled();
   });
 
   it('rejects an oversized file', async () => {

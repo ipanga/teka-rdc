@@ -10,6 +10,7 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { AddressesModule } from './addresses/addresses.module';
 import { SellersModule } from './sellers/sellers.module';
+import { SellerVerificationModule } from './seller-verification/seller-verification.module';
 import { AdminModule } from './admin/admin.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
@@ -58,6 +59,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
     UsersModule,
     AddressesModule,
     SellersModule,
+    SellerVerificationModule,
     AdminModule,
     CategoriesModule,
     ProductsModule,

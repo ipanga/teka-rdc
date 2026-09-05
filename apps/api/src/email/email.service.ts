@@ -19,6 +19,10 @@ import { paymentConfirmedTemplate } from './templates/payment-confirmed.template
 import { broadcastTemplate } from './templates/broadcast.template';
 import { sellerApplicationApprovedTemplate } from './templates/seller-application-approved.template';
 import { sellerApplicationRejectedTemplate } from './templates/seller-application-rejected.template';
+import {
+  sellerVerificationTemplate,
+  SellerVerificationEmailEvent,
+} from './templates/seller-verification.template';
 import { payoutApprovedTemplate } from './templates/payout-approved.template';
 import { payoutPaidTemplate } from './templates/payout-paid.template';
 import { payoutRejectedTemplate } from './templates/payout-rejected.template';
@@ -140,6 +144,30 @@ export class EmailService {
     const subject = 'Votre demande vendeur — Teka RDC';
     const html = sellerApplicationRejectedTemplate(firstName, reason, applyUrl);
     return this.sendEmail(email, subject, html);
+  }
+
+  /** Seller verification lifecycle (submitted / verified / rejected / revoked). */
+  async sendSellerVerificationUpdate(
+    email: string,
+    firstName: string | null,
+    event: SellerVerificationEmailEvent,
+    reason: string | null,
+  ): Promise<boolean> {
+    const url = `${this.configService.get<string>(
+      'SELLER_WEB_URL',
+      'https://seller.teka.cd',
+    )}/dashboard/profile`;
+    const subjects: Record<SellerVerificationEmailEvent, string> = {
+      submitted: 'Documents reçus — vérification en cours — Teka RDC',
+      verified: 'Votre boutique est vérifiée — Teka RDC',
+      rejected: 'Vérification refusée — Teka RDC',
+      revoked: 'Badge « Vérifié » retiré — Teka RDC',
+    };
+    return this.sendEmail(
+      email,
+      subjects[event],
+      sellerVerificationTemplate(firstName, event, reason, url),
+    );
   }
 
   /** Email fallback for the seller "payout approved" event. */
