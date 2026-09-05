@@ -5,6 +5,8 @@
  * answers 404 for anything the seller does not own).
  */
 
+import { VERIFICATION_HREF } from './verification';
+
 export interface SellerNotificationLike {
   type: string;
   entityType: string | null;
@@ -20,6 +22,9 @@ export function hrefForNotification(n: SellerNotificationLike): string {
   if (n.entityType === 'order' && id) return `/dashboard/orders/${id}`;
   if (n.entityType === 'payout' || n.type === 'PAYOUT') {
     return id ? payoutHref(id) : '/dashboard/earnings?tab=payouts';
+  }
+  if (n.entityType === 'seller_verification' || n.type === 'SELLER_VERIFICATION') {
+    return VERIFICATION_HREF;
   }
   return '/dashboard/products';
 }

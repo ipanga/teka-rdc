@@ -58,6 +58,9 @@ class SellerProfileInfo {
   final String? communeName;
   final String? description;
   final String applicationStatus; // PENDING | APPROVED | REJECTED
+  // Seller verification (badge) lifecycle — separate from applicationStatus.
+  final String
+      verificationStatus; // NOT_SUBMITTED | PENDING_REVIEW | VERIFIED | REJECTED
 
   const SellerProfileInfo({
     required this.id,
@@ -70,6 +73,7 @@ class SellerProfileInfo {
     this.communeName,
     this.description,
     required this.applicationStatus,
+    this.verificationStatus = 'NOT_SUBMITTED',
   });
 
   factory SellerProfileInfo.fromJson(Map<String, dynamic> json) {
@@ -86,6 +90,8 @@ class SellerProfileInfo {
       communeName: commune is Map ? commune['name']?.toString() : null,
       description: json['description'] as String?,
       applicationStatus: json['applicationStatus'] as String? ?? 'PENDING',
+      verificationStatus:
+          json['verificationStatus'] as String? ?? 'NOT_SUBMITTED',
     );
   }
 }

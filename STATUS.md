@@ -7,9 +7,9 @@
 ## Active initiative
 
 **Seller Commune (profile-edit parity) · business-document verification workflow · Verified badge —
-PR 1 merged as #659 (`3d4addf`); PR 2 (verification domain + secure document upload) open on
-`feat/seller-verification-domain`.** Tracker: `docs/seller-commune-verification.md` (audit, approved
-decisions, per-PR record incl. the Cloudinary probe findings).
+PR 1 merged as #659 (`3d4addf`), PR 2 merged as #660 (`1a27585`); PR 3 (Seller Mobile + Seller Web
+verification UX) open on `feat/seller-verification-ux`.** Tracker: `docs/seller-commune-verification.md`
+(audit, approved decisions, per-PR record incl. the Cloudinary probe findings and the PR 3 runtime evidence).
 
 Audit verdict: Commune already exists end-to-end for the *application* (required DTO, cascade on
 both clients, admin detail) but is missing from both profile-edit screens, the update DTO (which can
@@ -36,9 +36,19 @@ feed/push/email notifications, daily retention + orphan sweep, purge on account 
 additive auto-apply migration `2026-09-05_seller_verification.sql` + three Joi-defaulted vars.
 No seller/admin UI, no buyer badge.
 
-**Next exact step (only on explicit approval):** merge PR 2 → PR 3 seller UX (mobile + web
-verification section) → PR 4 admin review UI → PR 5 buyer badge. No `db:push`, production write,
-`main` merge or deploy without approval.
+PR 3 `feat/seller-verification-ux`: « Vérification de la boutique » in the existing account structure
+on both seller surfaces (mobile Paramètres tile + `/profile/verification`; web sidebar item + profile
+card + `/dashboard/verification`), four server-driven states with the same French labels, required
+tiles from `requiredTypes` (no client rule copy), camera / gallery / PDF picker on mobile and file
+picker on web, local pre-check from the new additive `limits` field, progress + retry + busy guard,
+D5 replacement warning, rejection reason + resubmission, feed/push deep links through the existing
+routers. Emulator pass found and fixed an auth-interceptor bug (multipart replay after refresh wiped
+the session) in both Flutter apps. All four states exercised on the emulator and in Chrome (see
+tracker). No admin UI, no buyer badge.
+
+**Next exact step (only on explicit approval):** merge PR 3 → PR 4 admin review UI (detail card,
+approve/reject/revoke, history, list filter, Action Center tile) → PR 5 buyer badge. No `db:push`,
+production write, `main` merge or deploy without approval.
 
 ## Most recently completed initiative
 

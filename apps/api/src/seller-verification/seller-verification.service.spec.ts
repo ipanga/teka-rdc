@@ -68,6 +68,7 @@ function make(opts: { profile?: Record<string, unknown> | null; docs?: any[]; pr
     discard: jest.fn().mockResolvedValue(undefined),
     retentionDeadline: jest.fn().mockReturnValue(new Date('2026-12-04T00:00:00Z')),
     downloadUrl: jest.fn().mockReturnValue({ url: 'https://api.cloudinary.example/download?sig=1', expiresInSeconds: 120 }),
+    maxBytes: 5 * 1024 * 1024,
   };
   const audit = { record: jest.fn().mockResolvedValue(undefined), listForEntity: jest.fn().mockResolvedValue([{ action: 'SELLER_DOCUMENT_SUBMITTED' }, { action: 'PAYOUT_APPROVED' }]) };
   const notifications = { notifyVerification: jest.fn().mockResolvedValue(undefined) };
@@ -83,6 +84,7 @@ describe('SellerVerificationService.getOwnStatus', () => {
     expect(res.verificationStatus).toBe('NOT_SUBMITTED');
     expect(res.requiredTypes).toEqual(['IDENTITY_DOCUMENT']);
     expect(res.missingTypes).toEqual(['IDENTITY_DOCUMENT']);
+    expect(res.limits).toEqual({ maxSizeBytes: 5 * 1024 * 1024, acceptedMimeTypes: ['application/pdf', 'image/jpeg', 'image/png'] });
     expect(JSON.stringify(res)).not.toContain('cloudinary');
   });
 

@@ -124,6 +124,12 @@ export class SellerVerificationService {
       businessType: profile.businessType,
       requiredTypes: requiredDocumentTypes(profile.businessType),
       missingTypes: missingDocumentTypes(profile.businessType, live),
+      // Authoritative upload limits so clients never advertise a rule that
+      // drifts from the server (PR 3 contract).
+      limits: {
+        maxSizeBytes: this.storage.maxBytes,
+        acceptedMimeTypes: ['application/pdf', 'image/jpeg', 'image/png'],
+      },
       documents: docs.map(toSellerDocumentView),
     };
   }
