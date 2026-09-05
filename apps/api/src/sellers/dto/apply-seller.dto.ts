@@ -44,14 +44,16 @@ export class ApplySellerDto {
   })
   cityId?: string;
 
-  // Required: the seller's commune (sub-division of the city). The applicant
-  // picks it from the communes of the chosen city; cityId is derived
-  // server-side from this commune so the two always stay consistent.
+  // The seller's commune (sub-division of the city), picked from
+  // GET /v1/cities/:id/communes. Required by the service whenever the chosen
+  // city has an active commune library; optional only for cities that have
+  // no authoritative commune data yet (D2/D4). When present, cityId is derived
+  // server-side from the commune so the two always stay consistent.
+  @IsOptional()
   @Matches(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, {
     message: 'Commune invalide',
   })
-  @IsNotEmpty({ message: 'La commune est requise' })
-  communeId: string;
+  communeId?: string;
 
   // Required: the Cloudinary public_id of the uploaded ID/RCCM photo, returned
   // by POST /v1/sellers/documents. Constrained to our private documents folder

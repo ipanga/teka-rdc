@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { normalizeDrcPhone } from '@teka/shared';
 import { apiFetch, ApiError } from '@/lib/api-client';
+import { communeHint, communeRequired, retainedCommuneId } from '@/lib/commune-rules';
 import { compressImageForUpload } from '@/lib/image-compress';
 import { useAuthStore } from '@/lib/auth-store';
 
@@ -51,6 +52,11 @@ export default function DevenirVendeurPage() {
   const [status, setStatus] = useState<ApplicationState | null>(null);
   const [cities, setCities] = useState<City[]>([]);
   const [communes, setCommunes] = useState<Commune[]>([]);
+  // True once the commune library of the selected city has been fetched, so
+  // the form knows whether a commune is required (non-empty library) or the
+  // city has no authoritative communes yet (D2/D4 — city alone is accepted).
+  const [communesLoaded, setCommunesLoaded] = useState(false);
+  const [communesLoading, setCommunesLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -104,15 +110,27 @@ export default function DevenirVendeurPage() {
   useEffect(() => {
     if (!cityId) {
       setCommunes([]);
+      setCommunesLoaded(false);
+      setCommunesLoading(false);
       return;
     }
     let cancelled = false;
+    setCommunesLoaded(false);
+    setCommunesLoading(true);
     apiFetch<Commune[]>(`/v1/cities/${cityId}/communes`)
       .then((res) => {
-        if (!cancelled) setCommunes(res.data);
+        if (cancelled) return;
+        setCommunes(res.data);
+        setCommunesLoaded(true);
+        // A prefilled (REJECTED) commune survives only if it still belongs
+        // to the library; anything else is cleared, never submitted stale.
+        setCommuneId((current) => retainedCommuneId(current, res.data.map((c) => c.id)));
       })
       .catch(() => {
         if (!cancelled) setCommunes([]);
+      })
+      .finally(() => {
+        if (!cancelled) setCommunesLoading(false);
       });
     return () => {
       cancelled = true;
@@ -179,8 +197,18 @@ export default function DevenirVendeurPage() {
       return;
     }
 
-    if (!cityId || !communeId) {
-      setError("Veuillez sélectionner une ville et une commune.");
+    if (!cityId) {
+      setError("Veuillez sélectionner une ville.");
+      return;
+    }
+    if (communesLoading || !communesLoaded) {
+      setError("Les communes de cette ville n’ont pas pu être chargées. Réessayez.");
+      return;
+    }
+    // A commune is required whenever the city has a commune library; a city
+    // without one yet (D2) is accepted alone — the API enforces the same rule.
+    if (communeRequired({ loaded: communesLoaded, communeCount: communes.length }) && !communeId) {
+      setError("Veuillez sélectionner votre commune.");
       return;
     }
 
@@ -201,7 +229,7 @@ export default function DevenirVendeurPage() {
           phone: normalizedPhone,
           location,
           cityId,
-          communeId,
+          ...(communeId ? { communeId } : {}),
           idDocumentCloudinaryId,
           ...(description ? { description } : {}),
         }),
@@ -421,18 +449,19 @@ export default function DevenirVendeurPage() {
                 htmlFor="communeId"
                 className="block text-sm font-medium text-foreground mb-1"
               >
-                {"Commune"}
+                {communeRequired({ loaded: communesLoaded, communeCount: communes.length }) ? "Commune *" : "Commune"}
               </label>
               <select
                 id="communeId"
-                value={communeId}
+                value={communes.some((c) => c.id === communeId) ? communeId : ''}
                 onChange={(e) => setCommuneId(e.target.value)}
-                disabled={!cityId}
+                disabled={!cityId || communesLoading || communes.length === 0}
+                aria-describedby="communeHelp"
                 className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
-                required
+                required={communeRequired({ loaded: communesLoaded, communeCount: communes.length })}
               >
                 <option value="">
-                  {cityId ? "Sélectionnez une commune" : "Sélectionnez d’abord une ville"}
+                  {communeHint(Boolean(cityId), { loaded: communesLoaded, loading: communesLoading, communeCount: communes.length })}
                 </option>
                 {communes.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -440,6 +469,11 @@ export default function DevenirVendeurPage() {
                   </option>
                 ))}
               </select>
+              {communesLoaded && communes.length === 0 && (
+                <p id="communeHelp" className="text-xs text-muted-foreground mt-1">
+                  {"Aucune commune enregistrée pour cette ville pour le moment. Précisez votre quartier ci-dessous."}
+                </p>
+              )}
             </div>
 
             <div>
