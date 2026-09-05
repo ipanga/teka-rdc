@@ -19,6 +19,7 @@ export interface OrderOpsStats {
  */
 export interface ActionCenterStats {
   sellerApplicationsPending: number;
+  sellerVerificationsPending: number;
   productsPendingReview: number;
   returnsPending: number;
   ordersReadyForPickup: number;
@@ -100,6 +101,7 @@ export class AdminStatsService {
       pendingReturns,
       payoutsAwaitingPaymentAgg,
       payoutsProcessingCount,
+      pendingSellerVerificationsCount,
     ] = await Promise.all([
       // Total active users (non-deleted)
       this.prisma.user.count({
@@ -201,6 +203,11 @@ export class AdminStatsService {
       this.prisma.payout.count({
         where: { status: PayoutStatus.PROCESSING },
       }),
+
+      // Seller document sets awaiting verification review — queue definition
+      this.prisma.sellerProfile.count({
+        where: ADMIN_QUEUES.sellerVerificationsPending(),
+      }),
     ]);
 
     const statusCount = (s: OrderStatus): number =>
@@ -234,6 +241,7 @@ export class AdminStatsService {
       },
       actionCenter: {
         sellerApplicationsPending: pendingSellerApplicationsCount,
+        sellerVerificationsPending: pendingSellerVerificationsCount,
         productsPendingReview: pendingProductsCount,
         returnsPending: pendingReturns,
         // Same groupBy as orderOps (deletedAt: null) — identical to the

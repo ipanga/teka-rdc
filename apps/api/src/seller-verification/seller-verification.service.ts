@@ -54,6 +54,61 @@ const LIVE_STATUSES: SellerDocumentStatus[] = [
   SellerDocumentStatus.ACCEPTED,
 ];
 
+export type AdminVerificationAction = 'approve' | 'reject' | 'revoke';
+
+/**
+ * The transitions the state machine permits from `status` (mirrors the
+ * `from` lists of approve / reject / revoke). `evidenceComplete` gates approve
+ * so an admin is never offered « Vérifier » on an incomplete set.
+ */
+export function allowedAdminActions(
+  status: SellerVerificationStatus,
+  evidenceComplete: boolean,
+): Record<AdminVerificationAction, boolean> {
+  return {
+    approve:
+      evidenceComplete &&
+      (status === SellerVerificationStatus.PENDING_REVIEW ||
+        status === SellerVerificationStatus.REJECTED),
+    reject: status === SellerVerificationStatus.PENDING_REVIEW,
+    revoke: status === SellerVerificationStatus.VERIFIED,
+  };
+}
+
+/** What an admin/SUPPORT timeline shows of one audit row — never the raw payload. */
+export interface VerificationHistoryEntry {
+  id: string;
+  action: string;
+  createdAt: Date;
+  reason: string | null;
+  actor: { id: string; firstName: string | null; lastName: string | null; role: string } | null;
+  fromStatus: string | null;
+  toStatus: string | null;
+  documentType: string | null;
+}
+
+function pickString(json: Prisma.JsonValue | null, key: string): string | null {
+  if (!json || typeof json !== 'object' || Array.isArray(json)) return null;
+  const v = (json as Record<string, unknown>)[key];
+  return typeof v === 'string' ? v : null;
+}
+
+export function toHistoryEntry(
+  row: { id: string; action: string; createdAt: Date; reason: string | null; before: Prisma.JsonValue | null; after: Prisma.JsonValue | null },
+  actor: VerificationHistoryEntry['actor'],
+): VerificationHistoryEntry {
+  return {
+    id: row.id,
+    action: row.action,
+    createdAt: row.createdAt,
+    reason: row.reason,
+    actor,
+    fromStatus: pickString(row.before, 'verificationStatus'),
+    toStatus: pickString(row.after, 'verificationStatus'),
+    documentType: pickString(row.after, 'type'),
+  };
+}
+
 const VERIFICATION_SELECT = {
   id: true,
   userId: true,
@@ -257,8 +312,11 @@ export class SellerVerificationService {
   }
 
   /**
-   * Status, every document (incl. superseded, with retention stamps) and the
-   * audit history. Safe for SUPPORT too: no storage id, no URL.
+   * Status, every document (incl. superseded, with retention stamps), the
+   * SELLER_* audit history with resolved actors, and the transitions the state
+   * machine allows right now (`actions`) — the client renders buttons from
+   * that and never re-encodes the rules. Safe for SUPPORT too: no storage id,
+   * no URL, and audit payloads are reduced to status/type/reason.
    */
   async getForAdmin(sellerProfileId: string) {
     const profile = await this.adminProfile(sellerProfileId);
@@ -270,6 +328,16 @@ export class SellerVerificationService {
       this.audit.listForEntity('seller_profile', sellerProfileId),
     ]);
     const live = docs.filter((d) => LIVE_STATUSES.includes(d.status)).map((d) => d.type);
+    const missingTypes = missingDocumentTypes(profile.businessType, live);
+    const sellerHistory = history.filter((h) => h.action.startsWith('SELLER_'));
+    const actorIds = [...new Set(sellerHistory.map((h) => h.actorId))];
+    const actors = actorIds.length
+      ? await this.prisma.user.findMany({
+          where: { id: { in: actorIds } },
+          select: { id: true, firstName: true, lastName: true, role: true },
+        })
+      : [];
+    const actorById = new Map(actors.map((a) => [a.id, a]));
     return {
       sellerProfileId,
       businessName: profile.businessName,
@@ -282,7 +350,8 @@ export class SellerVerificationService {
       verificationRevokedAt: profile.verificationRevokedAt,
       verificationNote: profile.verificationNote,
       requiredTypes: requiredDocumentTypes(profile.businessType),
-      missingTypes: missingDocumentTypes(profile.businessType, live),
+      missingTypes,
+      actions: allowedAdminActions(profile.verificationStatus, missingTypes.length === 0),
       documents: docs.map((d) => ({
         ...toSellerDocumentView(d),
         reviewedById: d.reviewedById,
@@ -292,7 +361,7 @@ export class SellerVerificationService {
         purgedAt: d.purgedAt,
         uploadedAt: d.uploadedAt,
       })),
-      history: history.filter((h) => h.action.startsWith('SELLER_')),
+      history: sellerHistory.map((h) => toHistoryEntry(h, actorById.get(h.actorId) ?? null)),
     };
   }
 
@@ -318,7 +387,23 @@ export class SellerVerificationService {
     return { ...link, mimeType: doc.mimeType, originalName: doc.originalName };
   }
 
+  /**
+   * Also allowed from REJECTED (re-review after a revoke, or an admin changing
+   * their mind) — but only while the required evidence is live, so a badge can
+   * never be granted on an incomplete or rejected document set.
+   */
   async approve(adminId: string, sellerProfileId: string, note?: string) {
+    const docs = await this.prisma.sellerDocument.findMany({
+      where: { sellerProfileId, status: { in: LIVE_STATUSES } },
+      select: { type: true },
+    });
+    const profile = await this.adminProfile(sellerProfileId);
+    const missing = missingDocumentTypes(profile.businessType, docs.map((d) => d.type));
+    if (missing.length > 0) {
+      throw new ConflictException(
+        'Vérification impossible : les documents requis ne sont pas tous fournis',
+      );
+    }
     return this.transition(adminId, sellerProfileId, {
       from: [SellerVerificationStatus.PENDING_REVIEW, SellerVerificationStatus.REJECTED],
       to: SellerVerificationStatus.VERIFIED,

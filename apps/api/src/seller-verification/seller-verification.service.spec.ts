@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, GoneException, NotFoundException } from '@nestjs/common';
 import { SellerDocumentStatus, SellerDocumentType, SellerVerificationStatus } from '@prisma/client';
-import { SellerVerificationService, toSellerDocumentView } from './seller-verification.service';
+import { SellerVerificationService, allowedAdminActions, toSellerDocumentView } from './seller-verification.service';
 
 const USER = '10000000-0000-0000-0000-000000000001';
 const OTHER_USER = '10000000-0000-0000-0000-000000000002';
@@ -56,13 +56,19 @@ function make(opts: { profile?: Record<string, unknown> | null; docs?: any[]; pr
     updateMany: jest.fn().mockResolvedValue({ count: 1 }),
   };
   const sellerDocument = {
-    findMany: jest.fn().mockResolvedValue(opts.docs ?? []),
+    // Honour a `status: { in }` filter so the approve evidence guard sees only live rows.
+    findMany: jest.fn().mockImplementation((args?: { where?: { status?: { in?: string[] } } }) => {
+      const rows: any[] = opts.docs ?? [];
+      const allowed = args?.where?.status?.in;
+      return Promise.resolve(allowed ? rows.filter((r) => allowed.includes(r.status)) : rows);
+    }),
     findFirst: jest.fn().mockResolvedValue(null),
     update: jest.fn().mockResolvedValue({}),
     updateMany: jest.fn().mockResolvedValue({ count: 0 }),
   };
   const tx = { sellerProfile, sellerDocument };
-  const prisma = { sellerProfile, sellerDocument, $transaction: jest.fn((cb: any) => cb(tx)) };
+  const user = { findMany: jest.fn().mockResolvedValue([{ id: ADMIN, firstName: 'Ange', lastName: 'Kalala', role: 'ADMIN' }]) };
+  const prisma = { sellerProfile, sellerDocument, user, $transaction: jest.fn((cb: any) => cb(tx)) };
   const storage = {
     createAndUpload: jest.fn().mockResolvedValue(docRow({ type: SellerDocumentType.RCCM, mimeType: 'application/pdf', resourceType: 'raw', uploadedAt: null })),
     discard: jest.fn().mockResolvedValue(undefined),
@@ -70,10 +76,15 @@ function make(opts: { profile?: Record<string, unknown> | null; docs?: any[]; pr
     downloadUrl: jest.fn().mockReturnValue({ url: 'https://api.cloudinary.example/download?sig=1', expiresInSeconds: 120 }),
     maxBytes: 5 * 1024 * 1024,
   };
-  const audit = { record: jest.fn().mockResolvedValue(undefined), listForEntity: jest.fn().mockResolvedValue([{ action: 'SELLER_DOCUMENT_SUBMITTED' }, { action: 'PAYOUT_APPROVED' }]) };
+  const auditRows = [
+    { id: 'a2', actorId: ADMIN, action: 'SELLER_VERIFICATION_APPROVED', entityType: 'seller_profile', entityId: PROFILE, before: { verificationStatus: 'PENDING_REVIEW' }, after: { verificationStatus: 'VERIFIED' }, reason: null, createdAt: new Date('2026-09-05T11:00:00Z') },
+    { id: 'a1', actorId: USER, action: 'SELLER_DOCUMENT_SUBMITTED', entityType: 'seller_profile', entityId: PROFILE, before: null, after: { documentId: 'doc-1', type: 'IDENTITY_DOCUMENT', mimeType: 'image/png', sizeBytes: 100, replaced: [] }, reason: null, createdAt: new Date('2026-09-05T10:00:00Z') },
+    { id: 'a0', actorId: ADMIN, action: 'PAYOUT_APPROVED', entityType: 'seller_profile', entityId: PROFILE, before: null, after: null, reason: null, createdAt: new Date('2026-09-05T09:00:00Z') },
+  ];
+  const audit = { record: jest.fn().mockResolvedValue(undefined), listForEntity: jest.fn().mockResolvedValue(auditRows) };
   const notifications = { notifyVerification: jest.fn().mockResolvedValue(undefined) };
   const service = new SellerVerificationService(prisma as never, storage as never, audit as never, notifications as never);
-  return { service, prisma, sellerProfile, sellerDocument, storage, audit, notifications };
+  return { service, prisma, sellerProfile, sellerDocument, user, storage, audit, notifications };
 }
 
 describe('SellerVerificationService.getOwnStatus', () => {
@@ -194,7 +205,7 @@ describe('SellerVerificationService.submitDocument — ownership, supersede, sta
 
 describe('SellerVerificationService — admin transitions', () => {
   it('approve: PENDING_REVIEW → VERIFIED, pending documents ACCEPTED, audit + notification', async () => {
-    const { service, sellerProfile, sellerDocument, audit, notifications } = make({ profile: { verificationStatus: 'PENDING_REVIEW' } });
+    const { service, sellerProfile, sellerDocument, audit, notifications } = make({ profile: { verificationStatus: 'PENDING_REVIEW' }, docs: [docRow()] });
     await service.approve(ADMIN, PROFILE);
     expect(sellerProfile.updateMany).toHaveBeenCalledWith({
       where: { id: PROFILE, deletedAt: null, verificationStatus: { in: ['PENDING_REVIEW', 'REJECTED'] } },
@@ -205,8 +216,25 @@ describe('SellerVerificationService — admin transitions', () => {
     expect(notifications.notifyVerification).toHaveBeenCalledWith(USER, 'verified', undefined);
   });
 
+  it('approve refuses (409, nothing written) while a required document is missing or not live — even from REJECTED', async () => {
+    const company = { businessType: 'company', verificationStatus: 'PENDING_REVIEW' };
+    const { service, sellerProfile, audit, notifications } = make({ profile: company, docs: [docRow({ type: 'RCCM' }), docRow({ id: 'doc-2', type: 'IDENTITY_DOCUMENT' })] });
+    await expect(service.approve(ADMIN, PROFILE)).rejects.toBeInstanceOf(ConflictException);
+    const rejected = make({ profile: { verificationStatus: 'REJECTED' }, docs: [docRow({ status: 'REJECTED' })] });
+    await expect(rejected.service.approve(ADMIN, PROFILE)).rejects.toBeInstanceOf(ConflictException);
+    for (const m of [sellerProfile, rejected.sellerProfile]) expect(m.updateMany).not.toHaveBeenCalled();
+    expect(audit.record).not.toHaveBeenCalled();
+    expect(notifications.notifyVerification).not.toHaveBeenCalled();
+  });
+
+  it('re-review: REJECTED (after a revoke) → VERIFIED is allowed while the accepted evidence is still live', async () => {
+    const { service, sellerProfile } = make({ profile: { verificationStatus: 'REJECTED', verificationRevokedAt: new Date() }, docs: [docRow({ status: 'ACCEPTED' })] });
+    await service.approve(ADMIN, PROFILE, 'Documents recontrôlés');
+    expect(sellerProfile.updateMany).toHaveBeenCalledWith(expect.objectContaining({ where: expect.objectContaining({ verificationStatus: { in: ['PENDING_REVIEW', 'REJECTED'] } }) }));
+  });
+
   it('a stale transition is refused with 409 and writes nothing else', async () => {
-    const { service, sellerProfile, audit } = make({ profile: { verificationStatus: 'NOT_SUBMITTED' } });
+    const { service, sellerProfile, audit } = make({ profile: { verificationStatus: 'NOT_SUBMITTED' }, docs: [docRow()] });
     sellerProfile.updateMany.mockResolvedValue({ count: 0 });
     await expect(service.approve(ADMIN, PROFILE)).rejects.toBeInstanceOf(ConflictException);
     expect(audit.record).not.toHaveBeenCalled();
@@ -257,12 +285,29 @@ describe('SellerVerificationService — admin document access', () => {
     expect(audit.record).not.toHaveBeenCalled();
   });
 
-  it('getForAdmin returns every document with retention stamps, the SELLER_* history, and no storage id', async () => {
-    const { service } = make({ docs: [docRow({ status: 'SUPERSEDED', purgeAfter: new Date() })] });
+  it('getForAdmin returns every document with retention stamps, the SELLER_* history with resolved actors, and no storage id', async () => {
+    const { service, user } = make({ docs: [docRow({ status: 'SUPERSEDED', purgeAfter: new Date() })] });
     const res = await service.getForAdmin(PROFILE);
     expect(res.documents[0]).toMatchObject({ status: 'SUPERSEDED', purgeAfter: expect.any(Date) });
-    expect(res.history).toEqual([{ action: 'SELLER_DOCUMENT_SUBMITTED' }]);
-    expect(JSON.stringify(res)).not.toMatch(/cloudinaryId|resourceType|https?:/);
+    expect(res.history.map((h) => h.action)).toEqual(['SELLER_VERIFICATION_APPROVED', 'SELLER_DOCUMENT_SUBMITTED']);
+    expect(res.history[0]).toEqual({ id: 'a2', action: 'SELLER_VERIFICATION_APPROVED', createdAt: expect.any(Date), reason: null, actor: { id: ADMIN, firstName: 'Ange', lastName: 'Kalala', role: 'ADMIN' }, fromStatus: 'PENDING_REVIEW', toStatus: 'VERIFIED', documentType: null });
+    // Seller actor unknown to the mock → null, never a crash; raw payload keys are not exposed.
+    expect(res.history[1]).toMatchObject({ actor: null, documentType: 'IDENTITY_DOCUMENT' });
+    expect(user.findMany).toHaveBeenCalledWith({ where: { id: { in: [ADMIN, USER] } }, select: { id: true, firstName: true, lastName: true, role: true } });
+    expect(JSON.stringify(res)).not.toMatch(/cloudinaryId|resourceType|https?:|documentId|expiresInSeconds/);
+    expect(Object.keys(res.history[1]).sort()).toEqual(['action', 'actor', 'createdAt', 'documentType', 'fromStatus', 'id', 'reason', 'toStatus']);
+    expect(res.actions).toEqual({ approve: false, reject: false, revoke: false });
+  });
+
+  it('actions mirror the state machine and gate approve on complete live evidence', async () => {
+    expect(allowedAdminActions('NOT_SUBMITTED', false)).toEqual({ approve: false, reject: false, revoke: false });
+    expect(allowedAdminActions('PENDING_REVIEW', true)).toEqual({ approve: true, reject: true, revoke: false });
+    expect(allowedAdminActions('PENDING_REVIEW', false)).toEqual({ approve: false, reject: true, revoke: false });
+    expect(allowedAdminActions('VERIFIED', true)).toEqual({ approve: false, reject: false, revoke: true });
+    expect(allowedAdminActions('REJECTED', true)).toEqual({ approve: true, reject: false, revoke: false });
+    expect(allowedAdminActions('REJECTED', false)).toEqual({ approve: false, reject: false, revoke: false });
+    const pending = make({ profile: { verificationStatus: 'PENDING_REVIEW' }, docs: [docRow()] });
+    expect((await pending.service.getForAdmin(PROFILE)).actions).toEqual({ approve: true, reject: true, revoke: false });
   });
 });
 

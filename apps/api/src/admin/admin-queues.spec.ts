@@ -42,8 +42,9 @@ function statsPrisma() {
     sellerProfile: {
       count: jest.fn().mockImplementation((args: { where: unknown }) => {
         cap('sellerProfile.count', args.where);
+        const w = JSON.stringify(args.where);
         return Promise.resolve(
-          JSON.stringify(args.where).includes('PENDING') ? 7 : 2,
+          w.includes('verificationStatus') ? 3 : w.includes('PENDING') ? 7 : 2,
         );
       }),
     },
@@ -73,6 +74,9 @@ describe('Admin action center — counts and queues share one definition', () =>
     expect(captured['sellerProfile.count']).toContainEqual(
       ADMIN_QUEUES.sellerApplicationsPending(),
     );
+    expect(captured['sellerProfile.count']).toContainEqual(
+      ADMIN_QUEUES.sellerVerificationsPending(),
+    );
     expect(captured['product.count']).toContainEqual(
       ADMIN_QUEUES.productsPendingReview(),
     );
@@ -89,6 +93,7 @@ describe('Admin action center — counts and queues share one definition', () =>
     const ac = res.data.actionCenter;
     expect(ac).toEqual({
       sellerApplicationsPending: 7,
+      sellerVerificationsPending: 3,
       productsPendingReview: 5,
       returnsPending: 8,
       ordersReadyForPickup: 6,
@@ -115,6 +120,44 @@ describe('Admin action center — counts and queues share one definition', () =>
     expect(ADMIN_QUEUES.payoutsAwaitingPayment()).toEqual({
       status: { in: [PayoutStatus.APPROVED, PayoutStatus.PROCESSING] },
     });
+  });
+
+  it('GET /v1/admin/sellers/applications?verification=PENDING_REVIEW uses the same where as the « Vérifications à examiner » tile; unknown values are 400', async () => {
+    const prisma = {
+      sellerProfile: {
+        findMany: jest.fn().mockResolvedValue([]),
+        count: jest.fn().mockResolvedValue(0),
+      },
+    };
+    const service = new AdminUsersService(
+      prisma as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      {} as never,
+    );
+    await service.findSellerApplications({ verification: 'PENDING_REVIEW' });
+    expect(prisma.sellerProfile.findMany.mock.calls[0][0].where).toEqual(
+      ADMIN_QUEUES.sellerVerificationsPending(),
+    );
+    expect(prisma.sellerProfile.count.mock.calls[0][0].where).toEqual(
+      ADMIN_QUEUES.sellerVerificationsPending(),
+    );
+    // Combined with an application status the two axes are ANDed.
+    await service.findSellerApplications({
+      status: 'APPROVED',
+      verification: 'VERIFIED',
+    });
+    expect(prisma.sellerProfile.findMany.mock.calls[1][0].where).toEqual({
+      deletedAt: null,
+      applicationStatus: 'APPROVED',
+      verificationStatus: 'VERIFIED',
+    });
+    await expect(
+      service.findSellerApplications({ verification: 'MAYBE' }),
+    ).rejects.toMatchObject({ status: 400 });
   });
 
   it('GET /v1/admin/sellers/applications?status=PENDING uses the same where as the dashboard count', async () => {
