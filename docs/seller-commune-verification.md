@@ -379,8 +379,9 @@ Stale copy sweep: no remaining `'Teka RDC Officiel'` comparison in any client; n
 | 3 Seller UX | `feat/seller-verification-ux` | #661 `b5a5ed9` |
 | 4 Admin review UI | `feat/admin-verification-review` | #662 `eeeb063` |
 | 5 Buyer badge | `feat/buyer-verified-badge` | #663 `ba2abc3` |
+| Follow-up: buyer address Ville ↔ Commune validation | `fix/buyer-address-commune-validation` | #664 `54c2c67` |
 
-`develop` = `ba2abc3`; CI run `33988785536` and CodeQL run `33988785346` green on that SHA. **Nothing deployed, no production migration, no production data touched, no store release.**
+`develop` = `54c2c67` after the follow-up fix (the release candidate); CI + CodeQL were green on `ba2abc3` (runs `33988785536` / `33988785346`) and are re-verified on the final SHA in STATUS.md. **Nothing deployed, no production migration, no production data touched, no store release.**
 
 ### Final cross-PR compatibility check on `ba2abc3`
 
@@ -408,7 +409,7 @@ Stale copy sweep: no remaining `'Teka RDC Officiel'` comparison in any client; n
 
 ### Production deployment order (execute only on explicit approval)
 
-1. **Release PR** `develop → main` with a merge commit (`gh pr merge --merge`, never squash). Contents = the five merge commits above + the payouts release already on `main`; confirm `git diff main..develop --stat` shows only this initiative.
+1. **Release PR** `develop → main` with a merge commit (`gh pr merge --merge`, never squash). Contents = the six merge commits above (five PRs + the address fix) on top of the payouts release already on `main`; confirm `git diff main..develop --stat` shows only this initiative.
 2. **Deploy (automatic on `main`)** — `deploy.yml`: image build → pull on the VPS → **expand phase** `apply-auto.sh` from the new api image runs the un-applied files in `auto-apply.list` order: `2026-09-05_commune_is_active.sql` then `2026-09-05_seller_verification.sql` (both additive + idempotent, recorded in `_manual_migrations`) → rolling swap of api, then the three web apps. If a migration fails the deploy aborts before the swap and the old containers keep serving. No manual `Apply prod migration` dispatch is needed for this initiative.
 3. **Env**: nothing to add — `SELLER_DOCUMENT_MAX_MB`, `SELLER_DOCUMENT_RETENTION_DAYS`, `SELLER_DOCUMENT_URL_TTL_SECONDS` have Joi defaults (5 / 90 / 120). Optional overrides only.
 4. **Post-deploy verification** (checklist below), then **`main → develop` back-merge** to keep the SHAs aligned.
@@ -417,7 +418,7 @@ Stale copy sweep: no remaining `'Teka RDC Officiel'` comparison in any client; n
 ### Production checklist
 
 **Before the release PR**
-- [ ] `develop` == `ba2abc3` (or later docs-only commits), CI + CodeQL green.
+- [ ] `develop` == `54c2c67` (or later docs-only commits), CI + CodeQL green.
 - [ ] `apps/api/prisma/migrations/manual/auto-apply.list` ends with the two 2026-09-05 initiative files; both wrapped in `IF NOT EXISTS`/guards (17 and 2 occurrences).
 - [ ] Production census (read-only): number of sellers, communes per city, `_manual_migrations` row count — to compare after.
 - [ ] Sellers informed that the badge now requires document review (broadcast copy ready).

@@ -8,7 +8,8 @@
 
 **Seller Commune (profile-edit parity) · business-document verification workflow · Verified badge —
 ALL FIVE PRs MERGED to `develop` (#659 `3d4addf`, #660 `1a27585`, #661 `b5a5ed9`, #662 `eeeb063`,
-#663 `ba2abc3`); CI + CodeQL green on `ba2abc3`. NOT released: no release PR, no deploy, no
+#663 `ba2abc3`) plus the follow-up address fix #664 `54c2c67`; CI + CodeQL green on `ba2abc3`,
+re-verified on the final SHA. NOT released: no release PR, no deploy, no
 production migration, no store release.** Tracker: `docs/seller-commune-verification.md` — final
 merge status, cross-PR check, remaining risks, deployment order and the production checklist are at
 the end of the file.
