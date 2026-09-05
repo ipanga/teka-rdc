@@ -169,3 +169,23 @@ Why not fold 5 into 2: the badge is the only buyer-visible change and must land 
 
 **Legacy compatibility.** Production has two approved sellers with `communeId = NULL`: they load, edit and save without a commune as long as the town is unchanged; picking a commune or changing town applies the rule. No backfill.
 
+**Tests (automated, fresh on the branch).** API 629 unit (+22: `cities.service.spec` resolver/visibility/retire matrix, `sellers.service.spec` apply + update matrix incl. wrong pair, inactive, city-without-library, legacy NULL) / 142 e2e; root type-check; seller-web vitest 4 files (+`commune-rules.test.ts`) + lint; admin-web vitest 3 + lint; seller-mobile analyze 0 warnings + 135 tests (+`commune_rules_test.dart`).
+
+**Runtime (2026-09-05, isolated dev stack: API `:5051` from the rebuilt dist with the dev DB migrated by the same idempotent SQL, seller-web `:5100`, admin-web `:5200`, Android emulator dev-flavor build pointed at `:5051`; disposable fixtures « Boutique QA Commune » (Lubumbashi · Kampemba), « Boutique QA Legacy » (Lubumbashi, no commune), an applicant without profile, and Likasi temporarily activated with 0 communes — all deleted/restored afterwards, 0 `@example.test` users left):**
+
+| Check | API (curl) | Seller Web | Seller Mobile (emulator) | Admin Web |
+|---|---|---|---|---|
+| Public library: Lubumbashi 6, Kolwezi 2, Likasi 0 | ✓ | ✓ (selects) | ✓ (dropdowns) | ✓ (cities page) |
+| City change clears/re-selects commune | ✓ (Kolwezi alone → 400 « commune requise ») | ✓ (list swapped, value cleared) | ✓ (value cleared, « Commune * ») | — |
+| Save without commune where required | ✓ 400 | ✓ blocked « Veuillez sélectionner votre commune. » | ✓ snackbar « Veuillez sélectionner votre commune » | — |
+| Valid pair saved (Kolwezi · Dilala / Lubumbashi · Kampemba) | ✓ | ✓ persisted (verified via API) | ✓ persisted (verified via API) | list shows « Lubumbashi · Kampemba » |
+| Wrong pair (city A + commune B) | ✓ 400 « ne correspond pas » | n/a (UI cannot build it) | n/a | — |
+| Commune alone derives city | ✓ | — | — | — |
+| City without library (Likasi) | ✓ 200, commune cleared | ✓ helper « Aucune commune enregistrée… », field disabled | ✓ same, saved, commune cleared | — |
+| Legacy seller (NULL) rename / same city | ✓ | ✓ rename saved, commune stays NULL | — | list shows « Lubumbashi » only |
+| Onboarding: Likasi optional vs Lubumbashi « Commune * » | apply rule unit-tested | ✓ loading → required (6) / optional | ✓ both states | — |
+| Retire commune (isActive=false) | ✓ public 5 / admin 6, seller pick → 400 « Commune inactive » | — | — | ✓ « Inactive » chip + Réactiver |
+| Delete referenced commune | ✓ 409 « désactivez-la plutôt » | — | — | (409 message surfaced by the handler; not clicked) |
+
+Not exercised at runtime: submitting a full application (needs the KYC photo upload — the apply location rule is covered by unit tests); the mobile onboarding submit; iOS (not driven). Buyer surfaces untouched by this PR.
+
