@@ -39,7 +39,23 @@ class DeepLinkTarget {
 class DeepLinkParser {
   DeepLinkParser._();
 
-  static const allowedHosts = {'teka.cd', 'www.teka.cd'};
+  /// `teka.cd` / `www.teka.cd` are the public hosts. `dev.teka.cd` and
+  /// `staging.teka.cd` are the App-Link hosts the development / staging
+  /// builds declare in their manifest (`appLinkHost`); before PR D
+  /// (2026-09-06) the parser rejected them, so a link that did open a dev or
+  /// staging build was immediately bounced back to the browser and universal
+  /// links could never be exercised outside production.
+  static const allowedHosts = {
+    'teka.cd',
+    'www.teka.cd',
+    'dev.teka.cd',
+    'staging.teka.cd',
+  };
+
+  static final _uuidRe = RegExp(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+    caseSensitive: false,
+  );
 
   /// First-segment keywords that are NOT a city or product token. Mirrors the
   /// buyer-web route tree. Auth/account/checkout are intentionally excluded
@@ -48,6 +64,7 @@ class DeepLinkParser {
     'recherche', 'promotions', 'categorie', 'categories',
     'connexion', 'reclamer-compte', 'paiement', 'panier', 'profil',
     'commandes', 'favoris', 'notifications', 'api', 'ingest', '_next',
+    'pages',
   };
 
   static final _shortCodeRe = RegExp(r'^[a-z0-9]{6}$');
@@ -78,6 +95,29 @@ class DeepLinkParser {
 
     // Promotions: /promotions
     if (first == 'promotions') return const DeepLinkTarget('/promotions');
+
+    // Account pages that exist in the app (PR D, 2026-09-06). They are
+    // PROTECTED routes: the router sends a guest to login and returns them
+    // here afterwards, and the API decides whether the order is theirs —
+    // the link carries no authority. Payment, cart and profile stay on the
+    // website (no in-app equivalent to deep-link into).
+    if (first == 'commandes') {
+      if (segs.length == 1) return const DeepLinkTarget('/orders');
+      if (segs.length == 2 && _uuidRe.hasMatch(segs[1])) {
+        return DeepLinkTarget('/orders/${segs[1].toLowerCase()}');
+      }
+      return null;
+    }
+    if (first == 'notifications' && segs.length == 1) {
+      return const DeepLinkTarget('/notifications');
+    }
+    // Static pages: /pages/{slug} — the app renders the same CMS content.
+    if (first == 'pages') {
+      if (segs.length == 2 && _slugRe.hasMatch(segs[1])) {
+        return DeepLinkTarget('/pages/${segs[1]}');
+      }
+      return null;
+    }
 
     // Legacy global category: /categorie/{slug}
     if (first == 'categorie' && segs.length >= 2) {

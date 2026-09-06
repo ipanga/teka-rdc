@@ -92,14 +92,40 @@ void main() {
         '/paiement/success',
         '/panier',
         '/profil',
-        '/commandes',
         '/commandes/abc',
+        '/commandes/abc/def',
         '/favoris',
-        '/notifications',
+        '/notifications/123',
         '/api/v1/whatever',
       ]) {
         expect(parse('https://teka.cd$p'), isNull, reason: p);
       }
+    });
+
+    // PR D (2026-09-06): the account pages the app HAS are deep-linkable. They
+    // are protected routes — a guest is sent to login and returned there, and
+    // the API alone decides whether the order belongs to the caller.
+    test('orders list / order detail (uuid only) / notifications open in-app', () {
+      expect(parse('https://teka.cd/commandes'), const DeepLinkTarget('/orders'));
+      expect(
+        parse('https://teka.cd/commandes/0CFD024B-0b0b-4d97-a2d7-65e7a071d3be'),
+        const DeepLinkTarget('/orders/0cfd024b-0b0b-4d97-a2d7-65e7a071d3be'),
+      );
+      expect(parse('https://teka.cd/notifications'),
+          const DeepLinkTarget('/notifications'));
+    });
+
+    test('static pages open the in-app CMS page', () {
+      expect(parse('https://teka.cd/pages/faq'), const DeepLinkTarget('/pages/faq'));
+      expect(parse('https://teka.cd/pages/../x'), isNull);
+    });
+
+    test('dev / staging App-Link hosts are accepted (only those builds receive them)', () {
+      expect(parse('https://dev.teka.cd/lubumbashi/whisky-rb7t4r'),
+          const DeepLinkTarget('/products/rb7t4r', citySlug: 'lubumbashi'));
+      expect(parse('https://staging.teka.cd/promotions'),
+          const DeepLinkTarget('/promotions'));
+      expect(parse('https://prod.teka.cd/promotions'), isNull);
     });
 
     test('single bare segment is left to the website (browser)', () {

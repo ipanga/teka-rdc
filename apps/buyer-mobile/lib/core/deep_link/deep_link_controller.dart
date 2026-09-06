@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../analytics/posthog_analytics.dart';
+import '../navigation/pending_route.dart';
 import '../router/app_router.dart';
 import '../../features/city/presentation/providers/city_provider.dart';
 import 'deep_link_parser.dart';
@@ -16,6 +17,8 @@ String _routeType(String route) {
   if (route.startsWith('/categories/')) return 'category';
   if (route.startsWith('/search')) return 'search';
   if (route.startsWith('/promotions')) return 'promotions';
+  if (route.startsWith('/orders')) return 'order';
+  if (route.startsWith('/notifications')) return 'notifications';
   return 'other';
 }
 
@@ -88,6 +91,20 @@ class DeepLinkController {
         // ignore: discarded_futures
         _ref.read(cityProvider.notifier).selectCity(match.first);
       }
+    }
+
+    // First launch with no town: park the route until the buyer picks one
+    // (the router would otherwise replace it with /city-selection).
+    final gate = resolveExternalRoute(hasCity: _ref.read(cityProvider).hasCity);
+    if (gate == ExternalRouteAction.deferBehindCityGate) {
+      _ref.read(pendingRouteProvider.notifier).state = target.route;
+      const PosthogAnalytics().capture('deep_link_opened', properties: {
+        'matched': true,
+        'route_type': _routeType(target.route),
+        'scheme': uri.scheme,
+        'deferred': true,
+      });
+      return;
     }
 
     try {
