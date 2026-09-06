@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/multipart_upload.dart';
 import '../../../core/providers/seller_refresh_provider.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../../../core/utils/image_compress.dart';
@@ -180,15 +181,17 @@ class ProductsRepository {
     // exceed 500 KB after that — and DRC 2G/3G uploads are where this
     // hurts most.
     final compressed = await compressImageForUpload(imageFile);
-    final formData = FormData.fromMap({
-      'image': MultipartFile.fromBytes(
-        compressed.bytes,
-        filename: compressed.filename,
-      ),
-    });
-    final response = await _dio.post(
+    // Not retry-safe (creates an image row + a Cloudinary asset): the only
+    // retry is the rebuilt-body one after an expired access token.
+    final response = await postMultipartWithAuthRetry<dynamic>(
+      _dio,
       '/v1/sellers/products/$productId/images',
-      data: formData,
+      buildForm: () => FormData.fromMap({
+        'image': MultipartFile.fromBytes(
+          compressed.bytes,
+          filename: compressed.filename,
+        ),
+      }),
     );
     return ProductImageModel.fromJson(
         response.data['data'] as Map<String, dynamic>);

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/multipart_upload.dart';
 import '../../../core/utils/image_compress.dart';
 
 /// A selectable city for the seller application (GET /v1/cities).
@@ -125,16 +126,21 @@ class SellerApplicationRepository {
 
   /// POST /v1/sellers/documents — upload the KYC document (ID/RCCM photo) to
   /// the private Cloudinary folder. Returns its public_id, passed to apply()
-  /// as idDocumentCloudinaryId.
+  /// as idDocumentCloudinaryId. Not retry-safe (creates a private asset):
+  /// the only retry is the rebuilt-body one after an expired access token
+  /// (see `postMultipartWithAuthRetry`).
   Future<String> uploadDocument(File file) async {
     final compressed = await compressImageForUpload(file);
-    final formData = FormData.fromMap({
-      'document': MultipartFile.fromBytes(
-        compressed.bytes,
-        filename: compressed.filename,
-      ),
-    });
-    final response = await _dio.post('/v1/sellers/documents', data: formData);
+    final response = await postMultipartWithAuthRetry<dynamic>(
+      _dio,
+      '/v1/sellers/documents',
+      buildForm: () => FormData.fromMap({
+        'document': MultipartFile.fromBytes(
+          compressed.bytes,
+          filename: compressed.filename,
+        ),
+      }),
+    );
     final data = response.data['data'] ?? response.data;
     return (data as Map<String, dynamic>)['cloudinaryId'] as String;
   }
