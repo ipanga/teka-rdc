@@ -465,10 +465,11 @@ OTP codes and rate limiting are stored in PostgreSQL tables:
 
 | Table | Purpose |
 |-------|---------|
-| `otps` | OTP code + attempt counter, with `expiresAt` for automatic expiry |
-| `otp_rate_limits` | Rate limiting entries (max 3 per 10min window), with `expiresAt` |
+| `otps` | OTP code (sha256) + attempt counter, with `expiresAt` for automatic expiry |
+| `auth_rate_limits` | **D8 (2026-09-06)** — identity-keyed throttle state for every auth surface (OTP issuance/verification per phone, login lock per email, reset/register per email, refresh per token, CSV/upload per user). Key = `scope:sha256(identifier)` — no PII; one atomic `INSERT … ON CONFLICT` per hit; hourly sweep. Shared by all API containers, survives restarts. |
+| `otp_rate_limits` | Legacy OTP issuance counter — **no longer read or written** since D8 (kept for a later drop migration). |
 
-Expired entries are cleaned up on each OTP request. This approach eliminates the need for Redis while maintaining the same security guarantees.
+Expired OTP rows are cleaned up on each OTP request. This approach eliminates the need for Redis while maintaining the same security guarantees.
 
 ## Security Model
 
@@ -487,12 +488,19 @@ Expired entries are cleaned up on each OTP request. This approach eliminates the
 
 ### Rate Limiting
 
+Two layers (D8, 2026-09-06): **identity-keyed limits** in PostgreSQL are the defence; **per-IP** layers only
+cap raw volume, because behind Cloudflare + DRC carrier NAT one IP is many users. Every 429 carries a French
+`message` + `Retry-After`. Full table: `docs/api-reference.md § Rate limits`.
+
 | Layer | Scope | Limit |
 |-------|-------|-------|
-| NGINX | General API per IP | 30 req/s (burst 20) |
-| NGINX | Auth endpoints per IP | 5 req/s (burst 5) |
-| NestJS ThrottlerModule | Per client | 100 req/60s |
-| Application | OTP per phone | Max 3 per 10 minutes |
+| NGINX | General API per real client IP (`CF-Connecting-IP` restored via `set_real_ip_from`) | 30 req/s (burst 20) |
+| NGINX | Auth endpoints per real client IP | 5 req/s (burst 5) |
+| NestJS ThrottlerModule | Per IP, in-memory backstop | 100 req/60s global; per-route on auth (e.g. login 60 / 15 min) |
+| `RateLimitService` (`auth_rate_limits`) | OTP per phone | 3 issuances / 10 min + 30 s cooldown; 10 verifications / 15 min |
+| `RateLimitService` | Login per email | 10 failures / 15 min → 15 min lock (success clears) |
+| `RateLimitService` | Reset / register per email | 3 / h each |
+| `RateLimitService` | Refresh per token · CSV per admin · uploads per user | 60 / 15 min · 10 / 10 min · 30 / 10 min |
 
 ### Input Validation
 - **DTOs**: `class-validator` + `class-transformer` with `whitelist: true` and `forbidNonWhitelisted: true`

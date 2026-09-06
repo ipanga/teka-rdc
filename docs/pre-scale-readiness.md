@@ -406,7 +406,7 @@ suites buyer has (identical code).
 |---|---|---|---|
 | 1 | **security/critical-hotfixes** | S2 `JsonLd` escaping (+test); S4 payments IDOR scoping (+cross-user e2e); S8 multer limits + magic-byte/EXIP reuse on product/avatar uploads; S10 scrub the app-review doc + prod boot warning; S7 `next` ≥ 15.5.21 bump (3 apps) | — |
 | 2 | **security/origin-and-surface-binding** | S1 `OriginGuard` + JWT `surface` claim; make `X-Teka-Surface` required for cookie auth; tests | decision 2 |
-| 3 | **security/auth-throttling** | S5 per-route `@Throttle`, login lockout, atomic OTP counter, resend cooldown on request, neutral register response; S3 OTP role restriction; S15 PII-safe logger; e2e | decisions 1, 8 |
+| 3 | **security/auth-throttling** | S5 per-route `@Throttle`, login lockout, atomic OTP counter, resend cooldown on request (neutral register response deferred); S3 OTP role restriction (shipped as D1 / #672); S15 PII-safe logger; S6 real client IP moved here; e2e — **PR open** | decisions 1, 8 |
 | 4 | **infra/edge-and-headers** | S6 Cloudflare real IP + origin firewall note; S9 per-host CSP (drop `unsafe-eval`, remove Google hosts, Sentry `tunnel`, Clarity per decision 4, admin `img-src api.cloudinary.com`), headers in static locations, `Permissions-Policy`/COOP/CORP, `poweredByHeader:false`, `private, no-store` on seller/admin; header golden tests | decision 4 |
 | 5 | **ci/tests-and-supply-chain** | `flutter test` + web vitest in CI; `permissions:` + SHA pins; `dependabot.yml`; `pnpm audit --audit-level=high` gate; fix stale ci.yml comment; refresh `pnpm.overrides`, Express/`path-to-regexp`/`qs` bumps | — |
 | 6 | **buyer-mobile/functional-1** | A1 cart/checkout totals (+tests); A2 offline cold-start session; A3 city gate offline; A4+MS5 session reset on logout/account switch; A5 avatar retry; A6 avatar orphan (API, decision 11) | decision 11 |
@@ -515,9 +515,75 @@ location like the dev config), admin cookies scoped to `Domain=admin.teka.cd`, `
 existing per-port origins, CI docker-build-check unchanged, Cloudflare rule parity, rollback = revert
 nginx + env (cookies re-issued on next login), one-time re-login for admins.
 
+### PR 3 — `security/auth-throttling` (D8, 2026-09-06)
+**Root cause (reconfirmed on `develop` `29ccb6f`):** the only application throttle was the global in-memory
+`@nestjs/throttler` at 100 / min **per IP** (per process) plus nginx zones keyed on `$binary_remote_addr` —
+which behind Cloudflare is the edge IP, and behind DRC carrier NAT is thousands of users. No auth route had
+its own cap, there was no login lockout, the OTP issuance counter (`OtpRateLimit`) was a read-then-write
+that parallel requests overshot, the 30 s resend cooldown was bypassable via `/request`, password-reset and
+registration probing were unbounded, and the password-reset log line carried the submitted email.
+**Design (D8 as approved — identity first, IP second, centralised, documented, tested):** new
+`apps/api/src/common/rate-limit/` — `RateLimitService` + `AUTH_LIMITS` (the single table of limits, pinned
+by a unit test), `RateLimitStore` (Postgres `auth_rate_limits`: key `scope:sha256(identifier)`, one atomic
+`INSERT … ON CONFLICT DO UPDATE … RETURNING` per hit, idempotent lock UPDATE, hourly `@Cron` sweep; in-memory
+twin with the same semantics for e2e), `TooManyRequestsException` (French copy + `retryAfterSeconds` →
+`Retry-After` header via `HttpExceptionFilter`), `@IdentityThrottle(scope)` + `IdentityThrottleGuard`
+(APP_GUARD after `JwtAuthGuard`, keyed on `req.user.userId`). Hooks: `BuyerOtpService` (issuance budget
+replaces `OtpRateLimit`; verification budget counted before the app-review bypass and shared by claim /
+account-deletion re-auth via `verifyOtpInternal`; cooldown now also on `/request`; cooldown 429 carries
+`Retry-After`), `AuthService` (login: lock check before any password work, failure counted for known and
+unknown emails alike, the 10th failure engages a 15 min lock, success clears; password reset counted before
+the lookup and the PII log line removed; register counted before the 409 check; refresh keyed on the token
+hash), six CSV routes (`reports`, `sales-analytics`, `search-analytics`) and both image-upload routes get a
+per-user budget. Per-IP layer: `ThrottlerModule` switched to the object form with a French `errorMessage`,
+loose per-route `@Throttle` on every auth route (values in `docs/api-reference.md § Rate limits`).
+Infra: `nginx/nginx.prod.conf` restores the real client IP from `CF-Connecting-IP` for the published
+Cloudflare ranges (`set_real_ip_from` ×22, `real_ip_recursive on`), so the nginx zones and the API's
+`trust proxy` see the visitor, not the POP; existing zone values unchanged; validated with `nginx -t`
+(nginx:alpine). Table `auth_rate_limits` = additive manual migration
+`2026-09-06_auth_rate_limits.sql` (idempotent, in `auto-apply.list`, applied to the dev DB twice via the
+manual path — never `db:push`); `OtpRateLimit` kept, no longer touched (drop in a later contract PR).
+Register 409 → neutral response deliberately **not** changed (contract change; the per-email budget bounds
+it instead).
+**Tests (fail before / pass after):** `rate-limit.service.spec.ts` (17: hashed PII-free keys, window,
+parallel hits without lost update, lock engagement on the limit-th hit, lock not extended, sweep, copy,
+the `AUTH_LIMITS` table), `identity-throttle.guard.spec.ts` (4), `buyer-otp.service.spec.ts` (+6:
+budget refusal before the Otp row, single count per call, clear on success, wrong code keeps budget,
+bypass counted, cooldown on request), `auth.service.spec.ts` (+8: lock before bcrypt, failure counted
+for known/unknown, success clears, reset/register/refresh budgets, no email in logs),
+`test/auth-throttling.e2e-spec.ts` (18: sequential + **parallel bursts** on OTP request / verify with
+exact 200/401 vs 429 counts, non-buyer phone counted with the same response, cooldown, claim/verify
+shares the budget, login lock refuses the right password, unknown email byte-identical, normalised key,
+success clears, reset known/unknown, register 409×3→429, refresh per token, CSV per admin with JSON and
+another admin unaffected, per-IP backstop French 429 in its own app). `test-utils.ts` now clears the
+memory store and every app's throttler counters between tests. Suites: **API 766 unit / 205 e2e**,
+workspace type-check green.
+**Runtime (isolated API :5051 on the real dev Postgres, disposable fixtures, mock WhatsApp):** parallel
+burst of 12 OTP requests → exactly 3×200 / 9×429; 4th request and resend 429 with `Retry-After` and the
+cooldown copy; 10 wrong codes → 401, then the correct dev code → 429 (`Retry-After: 891`); 10 wrong
+passwords → 401 then the **correct** password → 429 « Trop de tentatives. Veuillez patienter 15 min… »,
+case/whitespace variant of the email hits the same lock, another seller on the same IP logs in; parallel
+burst of 30 wrong passwords → exactly 10×401 / 20×429; unknown email identical; reset unknown and known
+3×200 → 429 (3 reset tokens created, not a 4th); register 409×3 → 429; refresh garbage ×60 → 429, other
+token 401; CSV 10×200 → 429 with the JSON report still 200; per-IP backstop after 60 distinct emails →
+« Trop de requêtes… » with `Retry-After: 900`; **the login lock survived an API restart** (state in
+Postgres); `auth_rate_limits` rows contain only `scope:hash`; API logs show only hash prefixes (the dev-only
+`MockWhatsappProvider` still prints the mock code — dev/mock provider only, refused in production, unchanged).
+Browser: seller-web login with the locked account's correct password renders the French 429 message
+verbatim. Buyer-web/admin-web/mobile need no change (all surface `error.message`; Dio maps 429 →
+`rate_limit` with the API message). Fixtures, temp admin password, OTP rows and all throttle rows deleted.
+**Cloudflare origin firewall (recommendation, not automated):** `set_real_ip_from` only trusts
+`CF-Connecting-IP` from Cloudflare addresses, so a direct-to-origin connection cannot spoof it — but a
+direct connection still bypasses Cloudflare's own protections. Restrict the origin's 443 to the Cloudflare
+IP ranges (cloud firewall / `ufw`), or enable Authenticated Origin Pulls; re-check the IP list
+(cloudflare.com/ips) when it changes.
+**Follow-ups:** drop `otp_rate_limits` in a later contract migration; consider a neutral `register/email`
+response (contract change) once the clients are updated.
+
 ## Next exact step
 
-PR 1 merged (`6201534`). PR 2 (D2a) open — awaiting merge approval. Then PR 3 `security/auth-throttling` (D8). Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
+PR 1 merged (`6201534`), PR 2 merged (`29ccb6f`). **PR 3 `security/auth-throttling` (D8) open — awaiting merge
+approval.** Then PR 4 `infra/edge-and-headers` (D4: Clarity removal from seller/admin, CSP per host, headers). Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
 branch `security/critical-hotfixes` from `develop`; files: `apps/buyer-web/src/components/seo/json-ld.tsx`
 (+ `json-ld.test.tsx`), `apps/api/src/payments/payments.{controller,service}.ts` (+ `test/payments.e2e-spec.ts`
 cross-user cases), `apps/api/src/products/products.controller.ts` + `products.service.ts`,
