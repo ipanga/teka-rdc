@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/multipart_upload.dart';
 import '../../../core/utils/image_compress.dart';
 
 /// Authenticated user shape returned by GET /v1/auth/me.
@@ -218,13 +219,18 @@ class ProfileRepository {
   /// 2G/3G networks.
   Future<String> uploadAvatar(File file) async {
     final compressed = await compressImageForUpload(file);
-    final formData = FormData.fromMap({
-      'image': MultipartFile.fromBytes(
-        compressed.bytes,
-        filename: compressed.filename,
-      ),
-    });
-    final response = await _dio.post('/v1/users/avatar', data: formData);
+    // Not retry-safe (replaces the avatar asset): the only retry is the
+    // rebuilt-body one after an expired access token.
+    final response = await postMultipartWithAuthRetry<dynamic>(
+      _dio,
+      '/v1/users/avatar',
+      buildForm: () => FormData.fromMap({
+        'image': MultipartFile.fromBytes(
+          compressed.bytes,
+          filename: compressed.filename,
+        ),
+      }),
+    );
     final data = response.data['data'] as Map<String, dynamic>;
     return data['avatar'] as String;
   }

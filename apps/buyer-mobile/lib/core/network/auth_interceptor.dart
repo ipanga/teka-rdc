@@ -1,6 +1,14 @@
 import 'package:dio/dio.dart';
 import '../storage/secure_storage.dart';
 
+/// `RequestOptions.extra` key the AuthInterceptor sets on a 401 it hands back
+/// AFTER a successful token refresh whose transparent replay failed (a
+/// consumed multipart body). It tells the caller "the session is fresh, the
+/// server created nothing, you may rebuild the body and send once more" —
+/// see `postMultipartWithAuthRetry` in multipart_upload.dart. A 401 without
+/// it means the refresh did not happen or was rejected: never retry those.
+const String authRefreshedExtraKey = 'teka.authRefreshed';
+
 class AuthInterceptor extends Interceptor {
   final TokenStorage _tokenStorage;
   final Dio _refreshDio;
@@ -50,9 +58,10 @@ class AuthInterceptor extends Interceptor {
                 // was consumed by the first attempt — Dio cannot re-send a
                 // finalised FormData). This is NOT an auth failure: keep the
                 // fresh session and surface the original 401 so the caller
-                // can rebuild its request (see verification_repository).
+                // can rebuild its request (see multipart_upload.dart).
                 // Before 2026-09-05 this fell into the generic catch below
                 // and wiped a perfectly valid session.
+                err.requestOptions.extra[authRefreshedExtraKey] = true;
                 handler.next(err);
                 return;
               }
