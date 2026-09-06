@@ -1,11 +1,13 @@
-# Status — 2026-09-06 (release)
+# Status — 2026-09-06 (pre-scale audit)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
-**None in flight.** Seller Mobile `0.1.9+11` was released to internal testing on 2026-09-06 (below).
-The only open action is manual: upload the signed AAB artefact of run `34026373085` to Google Play
-**Internal testing** (`versionCode` 11). Buyer Mobile (`0.1.7+9`, authoritative badge + autoDispose
-PDP) is still outstanding and needs its own approval.
+**Pre-scale readiness initiative — Phase 0 (audit) complete 2026-09-06; awaiting decisions before
+implementation.** Tracker: `docs/pre-scale-readiness.md` (findings for Buyer Mobile functional readiness,
+Buyer Web SEO, tablet support, cross-platform security; 11 decisions needed; 16-PR sequence). No code
+changed. Recommended first PR: `security/critical-hotfixes` (JSON-LD escaping, payments IDOR, upload
+limits, app-review doc scrub, `next` bump). Still open from the previous release: manual Google Play
+Internal-testing upload of the Seller Mobile `0.1.9+11` AAB; Buyer Mobile store release.
 
 ## Most recently completed initiative
 
