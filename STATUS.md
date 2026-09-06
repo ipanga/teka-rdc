@@ -1,10 +1,14 @@
-# Status — 2026-09-05
+# Status — 2026-09-06
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
-**None.** The Seller Commune + verification initiative was released to production on 2026-09-05
-(below). Next planned work needs explicit approval: the seller-mobile and buyer-mobile store
-releases that carry the verification screen and the authoritative badge.
+**Seller Mobile 0.1.9+11 store release — in preparation, awaiting explicit approval to ship.**
+Carries the « Vérification de la boutique » screen, the commune profile fields, the notification
+deep link, the 2026-09-05 auth-interceptor session fix and the 2026-09-06 shared multipart retry
+(PR #667, `82bd7b5`). `pubspec.yaml` bumped from `0.1.8+10` (the distributed build; Play refuses a
+repeated `versionCode`) to `0.1.9+11`. Nothing has been uploaded to TestFlight or Google Play.
+Buyer Mobile stays at `0.1.7+9` — not part of this release. The Seller Commune + verification
+initiative itself was released to production on 2026-09-05 (below).
 
 ## Most recently completed initiative
 
