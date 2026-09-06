@@ -13,37 +13,43 @@ class CartState {
   final bool isLoading;
   final String? error;
 
+  /// The API's `totalCDF` for [items] — null while an optimistic local edit is
+  /// in flight or when the items came from the offline snapshot only.
+  final String? serverTotalCDF;
+
   const CartState({
     this.items = const [],
     this.isLoading = false,
     this.error,
+    this.serverTotalCDF,
   });
 
   CartState copyWith({
     List<CartItemModel>? items,
     bool? isLoading,
     String? error,
+    String? serverTotalCDF,
     bool clearError = false,
+    bool clearServerTotal = false,
   }) {
     return CartState(
       items: items ?? this.items,
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
+      serverTotalCDF:
+          clearServerTotal ? null : (serverTotalCDF ?? this.serverTotalCDF),
     );
   }
 
   int get totalItems =>
       items.fold(0, (sum, item) => sum + item.quantity);
 
-  String get totalCDF {
-    final total = items.fold<int>(
-      0,
-      (sum, item) =>
-          sum +
-          (int.tryParse(item.product.priceCDF) ?? 0) * item.quantity,
-    );
-    return total.toString();
-  }
+  /// Cart total in centimes. A1 (2026-09-06): this used to sum the *regular*
+  /// price, so a promoted item showed the buyer more than the server charged
+  /// (11.000 FC for a 9.350 FC line). It is now the API's own total whenever
+  /// the last server response carried one, and otherwise the same effective
+  /// rule applied locally (optimistic edits, offline snapshot).
+  String get totalCDF => serverTotalCDF ?? computeEffectiveTotalCDF(items);
 
   bool get isEmpty => items.isEmpty;
 }
@@ -96,7 +102,9 @@ class CartNotifier extends StateNotifier<CartState> {
       },
     );
     if (entry != null && entry.value.isNotEmpty) {
-      state = state.copyWith(items: entry.value);
+      // The snapshot carries the promo fields, so the local rule reproduces
+      // the server's total; no stale server figure is carried over.
+      state = state.copyWith(items: entry.value, clearServerTotal: true);
     }
   }
 
@@ -118,6 +126,9 @@ class CartNotifier extends StateNotifier<CartState> {
                     'title': i.product.title,
                     'priceCDF': i.product.priceCDF,
                     'priceUSD': i.product.priceUSD,
+                    // Without these the snapshot lost the promotion and the
+                    // offline cart showed the regular price (A1 follow-on).
+                    'discountPriceCDF': i.product.discountPriceCDF,
                     'quantity': i.product.quantity,
                     'thumbnailUrl': i.product.thumbnailUrl,
                     'sellerId': i.product.sellerId,
@@ -136,6 +147,7 @@ class CartNotifier extends StateNotifier<CartState> {
       final cart = await _repository.getCart();
       state = state.copyWith(
         items: cart.items,
+        serverTotalCDF: cart.serverTotalCDF,
         isLoading: false,
       );
       _persistToCache();
@@ -161,7 +173,11 @@ class CartNotifier extends StateNotifier<CartState> {
   Future<void> addItem(String productId, {int quantity = 1}) async {
     try {
       final cart = await _repository.addItem(productId, quantity);
-      state = state.copyWith(items: cart.items, clearError: true);
+      state = state.copyWith(
+        items: cart.items,
+        serverTotalCDF: cart.serverTotalCDF,
+        clearError: true,
+      );
       _persistToCache();
       // Buyer-owned UI event (parity with buyer-web add_to_cart).
       const PosthogAnalytics().capture(
@@ -188,11 +204,20 @@ class CartNotifier extends StateNotifier<CartState> {
       }
       return item;
     }).toList();
-    state = state.copyWith(items: updatedItems, clearError: true);
+    // Optimistic: the server figure no longer matches the lines, so the
+    // local rule takes over until the response lands.
+    state = state.copyWith(
+      items: updatedItems,
+      clearError: true,
+      clearServerTotal: true,
+    );
 
     try {
       final cart = await _repository.updateQuantity(productId, quantity);
-      state = state.copyWith(items: cart.items);
+      state = state.copyWith(
+        items: cart.items,
+        serverTotalCDF: cart.serverTotalCDF,
+      );
       _persistToCache();
     } on DioException catch (e) {
       // Revert on failure
@@ -210,11 +235,18 @@ class CartNotifier extends StateNotifier<CartState> {
     final previousItems = state.items;
     final updatedItems =
         state.items.where((item) => item.productId != productId).toList();
-    state = state.copyWith(items: updatedItems, clearError: true);
+    state = state.copyWith(
+      items: updatedItems,
+      clearError: true,
+      clearServerTotal: true,
+    );
 
     try {
       final cart = await _repository.removeItem(productId);
-      state = state.copyWith(items: cart.items);
+      state = state.copyWith(
+        items: cart.items,
+        serverTotalCDF: cart.serverTotalCDF,
+      );
       _persistToCache();
       // Buyer-owned UI event (parity with buyer-web remove_from_cart).
       const PosthogAnalytics().capture(
@@ -234,7 +266,7 @@ class CartNotifier extends StateNotifier<CartState> {
 
   Future<void> clearCart() async {
     final previousItems = state.items;
-    state = state.copyWith(items: [], clearError: true);
+    state = state.copyWith(items: [], clearError: true, clearServerTotal: true);
     _cache.evict(CacheKeys.buyerCart);
 
     try {
@@ -265,7 +297,7 @@ class CartNotifier extends StateNotifier<CartState> {
   /// sequence navigation after the authoritative state has landed; if it
   /// fails offline it leaves the emptied state alone rather than reverting.
   Future<void> onOrderPlaced() async {
-    state = state.copyWith(items: [], clearError: true);
+    state = state.copyWith(items: [], clearError: true, clearServerTotal: true);
     await _cache.evict(CacheKeys.buyerCart);
     await fetchCart();
   }

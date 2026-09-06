@@ -724,6 +724,33 @@ class _ReviewStep extends StatelessWidget {
           ),
           child: Column(
             children: [
+              if (checkoutState.pricesChanged) ...[
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: TekaColors.tekaRed.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: TekaColors.tekaRed.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: const Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.info_outline, size: 18, color: TekaColors.tekaRed),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Les prix de votre panier ont été mis à jour. Vérifiez le montant avant de confirmer.',
+                          style: TextStyle(fontSize: 13, color: TekaColors.foreground),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               for (var i = 0; i < cartState.items.length; i++) ...[
                 if (i > 0)
                   const Divider(height: 1, color: TekaColors.border),
@@ -782,12 +809,30 @@ class _ReviewStep extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            Text(
-                              '${formatCDF(cartState.items[i].product.priceCDF)} x ${cartState.items[i].quantity}',
-                              style: const TextStyle(
-                                color: TekaColors.mutedForeground,
-                                fontSize: 12,
-                              ),
+                            // Unit price = what is charged (promo when one
+                            // applies); the regular price stays visible struck
+                            // through, as on the product page and the cart.
+                            Row(
+                              children: [
+                                Text(
+                                  '${formatCDF(cartState.items[i].product.effectiveCDF)} x ${cartState.items[i].quantity}',
+                                  style: const TextStyle(
+                                    color: TekaColors.mutedForeground,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                if (cartState.items[i].product.hasDiscount) ...[
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    formatCDF(cartState.items[i].product.priceCDF),
+                                    style: const TextStyle(
+                                      color: TekaColors.mutedForeground,
+                                      fontSize: 11,
+                                      decoration: TextDecoration.lineThrough,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ],
                         ),
@@ -855,7 +900,9 @@ class _ReviewStep extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    formatCDF(cartState.totalCDF),
+                    // The quote's subtotal is the server's figure at current
+                    // prices; the cart total (same rule) fills in until it lands.
+                    formatCDF(checkoutState.quoteSubtotalCDF ?? cartState.totalCDF),
                     style: const TextStyle(
                       color: TekaColors.foreground,
                       fontSize: 14,
@@ -964,11 +1011,19 @@ class _ReviewStep extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    formatCDF(
-                      (BigInt.parse(cartState.totalCDF) +
-                              BigInt.parse(checkoutState.deliveryFeeCDF ?? '0'))
-                          .toString(),
-                    ),
+                    // Grand total = the quote's total (subtotal + delivery fee
+                    // as the server computes them). Before the quote lands
+                    // there is no fee yet, so show the cart total with '…'
+                    // rather than a figure that is about to change.
+                    checkoutState.quoteTotalCDF != null
+                        ? formatCDF(checkoutState.quoteTotalCDF!)
+                        : checkoutState.deliveryFeeCDF != null
+                            ? formatCDF(
+                                (BigInt.parse(cartState.totalCDF) +
+                                        BigInt.parse(checkoutState.deliveryFeeCDF!))
+                                    .toString(),
+                              )
+                            : '${formatCDF(cartState.totalCDF)} + …',
                     style: const TextStyle(
                       color: TekaColors.tekaRed,
                       fontSize: 16,

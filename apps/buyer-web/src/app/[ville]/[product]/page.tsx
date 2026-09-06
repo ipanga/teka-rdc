@@ -1,3 +1,4 @@
+import { effectiveCentimes } from '@/lib/format';
 import type { Metadata } from 'next';
 import { notFound, permanentRedirect } from 'next/navigation';
 import ProductDetailPage from '@/components/pages/product-detail-page';
@@ -93,7 +94,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const desc = pickStr(product.description);
   const ogImage = ogImageUrl(product.images?.[0]?.url);
   // Use the effective (discounted) price in the title/description.
-  const effectiveCDF = product.discountPriceCDF ?? product.priceCDF;
+  const effectiveCDF = effectiveCentimes(product);
   const price = (Number(effectiveCDF) / 100).toLocaleString('fr-CD');
   const categoryName = pickStr(product.category?.name);
   const cityName = pickStr(product.city?.name);
@@ -200,8 +201,10 @@ export default async function Page({ params }: Props) {
     offers: {
       '@type': 'Offer',
       priceCurrency: 'CDF',
-      // Effective (discounted) price — what the buyer actually pays.
-      price: String(Number(product.discountPriceCDF ?? product.priceCDF) / 100),
+      // Effective (discounted) price — what the buyer actually pays. Same
+      // helper as the cart/checkout so search engines never see a different
+      // figure than the checkout charges (PR B, 2026-09-06).
+      price: String(Number(effectiveCentimes(product)) / 100),
       availability:
         product.quantity > 0
           ? 'https://schema.org/InStock'
