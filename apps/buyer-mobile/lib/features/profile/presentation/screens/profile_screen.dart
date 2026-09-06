@@ -294,7 +294,7 @@ class _AccountAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
-class _AccountHeader extends StatelessWidget {
+class _AccountHeader extends StatefulWidget {
   final String displayName;
   final String? phone;
   final String? email;
@@ -312,8 +312,23 @@ class _AccountHeader extends StatelessWidget {
   });
 
   @override
+  State<_AccountHeader> createState() => _AccountHeaderState();
+}
+
+class _AccountHeaderState extends State<_AccountHeader> {
+  /// The URL whose image failed to load (offline cold start): fall back to
+  /// the initials instead of an empty disc. Reset when the URL changes.
+  String? _failedUrl;
+
+  @override
   Widget build(BuildContext context) {
-    final hasAvatar = avatarUrl != null && avatarUrl!.isNotEmpty;
+    final avatarUrl = widget.avatarUrl;
+    final displayName = widget.displayName;
+    final phone = widget.phone;
+    final email = widget.email;
+    final initials = widget.initials;
+    final hasAvatar =
+        avatarUrl != null && avatarUrl.isNotEmpty && _failedUrl != avatarUrl;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -333,7 +348,12 @@ class _AccountHeader extends StatelessWidget {
           CircleAvatar(
             radius: 31,
             backgroundColor: TekaColors.tekaRedSubtle,
-            backgroundImage: hasAvatar ? NetworkImage(avatarUrl!) : null,
+            backgroundImage: hasAvatar ? NetworkImage(avatarUrl) : null,
+            onBackgroundImageError: hasAvatar
+                ? (_, __) {
+                    if (mounted) setState(() => _failedUrl = avatarUrl);
+                  }
+                : null,
             child: hasAvatar
                 ? null
                 : Text(
@@ -362,9 +382,9 @@ class _AccountHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  phone == null || phone!.isEmpty
+                  phone == null || phone.isEmpty
                       ? 'Numéro WhatsApp vérifié'
-                      : phone!,
+                      : phone,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -373,10 +393,10 @@ class _AccountHeader extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (email != null && email!.isNotEmpty) ...[
+                if (email != null && email.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
-                    email!,
+                    email,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -389,7 +409,7 @@ class _AccountHeader extends StatelessWidget {
             ),
           ),
           IconButton.filledTonal(
-            onPressed: onEditProfile,
+            onPressed: widget.onEditProfile,
             tooltip: 'Modifier le profil',
             icon: const Icon(Icons.edit_outlined),
             style: IconButton.styleFrom(

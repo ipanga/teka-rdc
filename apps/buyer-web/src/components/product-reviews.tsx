@@ -107,6 +107,25 @@ function RatingDistribution({
   );
 }
 
+/**
+ * « Achat vérifié » — every review on Teka is written against the reviewer's
+ * own DELIVERED order (the API refuses anything else), so the badge states
+ * that server-side rule on every review. Same wording as buyer-mobile.
+ */
+function VerifiedPurchaseBadge() {
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 bg-success/10 text-success rounded-full"
+      title="Ce client a acheté et reçu ce produit"
+    >
+      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+        <path fillRule="evenodd" d="M16.403 12.652a3 3 0 000-5.304 3 3 0 00-3.75-3.751 3 3 0 00-5.305 0 3 3 0 00-3.751 3.75 3 3 0 000 5.305 3 3 0 003.75 3.751 3 3 0 005.305 0 3 3 0 003.751-3.75zm-2.546-4.46a.75.75 0 00-1.214-.883l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+      </svg>
+      {"Achat vérifié"}
+    </span>
+  );
+}
+
 // ========================
 // Review modal
 // ========================
@@ -554,9 +573,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
                 <span className="text-sm font-medium text-foreground">
                   {getReviewerName(myReview)}
                 </span>
-                <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
-                  {"Acheteur vérifié"}
-                </span>
+                <VerifiedPurchaseBadge />
               </div>
               <div className="flex items-center gap-2">
                 <StarRating rating={myReview.rating} size="sm" />
@@ -629,9 +646,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
                   <span className="text-sm font-medium text-foreground">
                     {getReviewerName(review)}
                   </span>
-                  <span className="text-xs px-2 py-0.5 bg-muted text-muted-foreground rounded-full">
-                    {"Acheteur vérifié"}
-                  </span>
+                  <VerifiedPurchaseBadge />
                 </div>
                 <div className="flex items-center gap-2 mb-2">
                   <StarRating rating={review.rating} size="sm" />
