@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import '../../data/auth_repository.dart';
+import '../../data/session_scope.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/storage/secure_storage.dart';
@@ -35,11 +36,19 @@ class AuthState {
   final bool isLoading;
   final String? error;
 
+  /// `false` while the app is running on stored credentials that the server
+  /// has not confirmed in this launch (offline cold start, A2). The session
+  /// is still [AuthStatus.authenticated] — the buyer keeps their cart, orders
+  /// and profile — and [AuthNotifier.checkAuthStatus] runs again as soon as
+  /// connectivity returns. Only a server rejection ever ends a session.
+  final bool sessionVerified;
+
   const AuthState({
     this.status = AuthStatus.unknown,
     this.user,
     this.isLoading = false,
     this.error,
+    this.sessionVerified = true,
   });
 
   AuthState copyWith({
@@ -47,12 +56,14 @@ class AuthState {
     Map<String, dynamic>? user,
     bool? isLoading,
     String? error,
+    bool? sessionVerified,
   }) {
     return AuthState(
       status: status ?? this.status,
       user: user ?? this.user,
       isLoading: isLoading ?? this.isLoading,
       error: error,
+      sessionVerified: sessionVerified ?? this.sessionVerified,
     );
   }
 }
@@ -60,38 +71,78 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _authRepository;
   final TokenStorage _tokenStorage;
+  final SessionScope? _scope;
+  bool _checking = false;
 
-  AuthNotifier(this._authRepository, this._tokenStorage)
+  AuthNotifier(this._authRepository, this._tokenStorage, [this._scope])
       : super(const AuthState()) {
     checkAuthStatus();
   }
 
+  /// Resolve the stored session. Three outcomes (A2, 2026-09-06):
+  ///  * no tokens → unauthenticated;
+  ///  * server confirms → authenticated, profile cached for offline starts;
+  ///  * server rejects (401/403 after refresh) → tokens cleared, unauthenticated;
+  ///  * server unreachable → authenticated on the stored credentials with the
+  ///    cached profile, `sessionVerified: false`, re-checked on reconnect.
   Future<void> checkAuthStatus() async {
-    state = state.copyWith(isLoading: true);
+    if (_checking) return;
+    _checking = true;
+    try {
+      state = state.copyWith(isLoading: true);
 
-    final hasTokens = await _tokenStorage.hasTokens();
-    if (!hasTokens) {
-      state = state.copyWith(
-        status: AuthStatus.unauthenticated,
-        isLoading: false,
-      );
-      return;
+      bool hasTokens;
+      try {
+        hasTokens = await _tokenStorage.hasTokens();
+      } catch (_) {
+        // Secure storage unavailable (broken keystore, missing plugin in a
+        // widget test): there is no usable session, but nothing to clear either.
+        hasTokens = false;
+      }
+      if (!hasTokens) {
+        state = state.copyWith(
+          status: AuthStatus.unauthenticated,
+          isLoading: false,
+          sessionVerified: true,
+        );
+        return;
+      }
+
+      final result = await _authRepository.checkSession();
+      switch (result) {
+        case SessionOk(:final user):
+          _applySentryUser(user);
+          await _scope?.cacheProfile(user);
+          state = state.copyWith(
+            status: AuthStatus.authenticated,
+            user: user,
+            isLoading: false,
+            sessionVerified: true,
+          );
+        case SessionRejected():
+          await _tokenStorage.clearTokens();
+          await _scope?.clearPrivateState();
+          _applySentryUser(null);
+          state = const AuthState(status: AuthStatus.unauthenticated);
+        case SessionUnreachable():
+          final cached = state.user ?? _scope?.readCachedProfile();
+          if (cached != null) _applySentryUser(cached);
+          state = state.copyWith(
+            status: AuthStatus.authenticated,
+            user: cached,
+            isLoading: false,
+            sessionVerified: false,
+          );
+      }
+    } finally {
+      _checking = false;
     }
+  }
 
-    final user = await _authRepository.getCurrentUser();
-    if (user != null) {
-      _applySentryUser(user);
-      state = state.copyWith(
-        status: AuthStatus.authenticated,
-        user: user,
-        isLoading: false,
-      );
-    } else {
-      await _tokenStorage.clearTokens();
-      state = state.copyWith(
-        status: AuthStatus.unauthenticated,
-        isLoading: false,
-      );
+  /// Connectivity is back: confirm a session that was accepted offline.
+  Future<void> reverifyIfNeeded() async {
+    if (state.status == AuthStatus.authenticated && !state.sessionVerified) {
+      await checkAuthStatus();
     }
   }
 
@@ -140,7 +191,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
         throw SellerAccountException();
       }
 
+      // A4: whatever the previous account left on this device goes before
+      // the new session becomes visible (the OTP verify already replaced the
+      // tokens).
+      await _scope?.clearPrivateState();
       _applySentryUser(data['user'] as Map<String, dynamic>?);
+      if (user != null) await _scope?.cacheProfile(user);
       const PosthogAnalytics().capture(
         'auth_login_success',
         properties: {'method': 'otp'},
@@ -149,6 +205,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         status: AuthStatus.authenticated,
         user: data['user'],
         isLoading: false,
+        sessionVerified: true,
       );
     } on SellerAccountException {
       rethrow; // already handled state above; don't overwrite with a string error
@@ -184,10 +241,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
         phone: phone,
         code: code,
       );
+      await _scope?.clearPrivateState();
+      final claimed = data['user'];
+      if (claimed is Map<String, dynamic>) await _scope?.cacheProfile(claimed);
       state = state.copyWith(
         status: AuthStatus.authenticated,
         user: data['user'],
         isLoading: false,
+        sessionVerified: true,
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: friendlyErrorMessage(e));
@@ -197,14 +258,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     await _authRepository.logout();
+    // A4: the disk must be clean before the next person signs in — cart
+    // snapshot, cached profile, recently viewed, recent searches.
+    await _scope?.clearPrivateState();
     _applySentryUser(null);
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
+  // The scope needs SharedPreferences, which main() provides; widget tests
+  // that never touch the disk may leave it unoverridden — the session then
+  // simply has no on-disk state to cache or clear.
+  SessionScope? scope;
+  try {
+    scope = ref.read(sessionScopeProvider);
+  } catch (_) {
+    scope = null;
+  }
   return AuthNotifier(
     ref.read(authRepositoryProvider),
     ref.read(tokenStorageProvider),
+    scope,
   );
 });

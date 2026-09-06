@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/notification_model.dart';
 import '../../data/notifications_repository.dart';
 
@@ -52,6 +53,11 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
 
   Future<void> refresh() => loadNotifications();
 
+  /// Session ended (A4): the feed is per account.
+  void reset() {
+    state = const NotificationsState();
+  }
+
   Future<void> markRead(String id) async {
     state = state.copyWith(
       items: [
@@ -81,12 +87,28 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
 
 final notificationsProvider =
     StateNotifierProvider<NotificationsNotifier, NotificationsState>((ref) {
-  return NotificationsNotifier(ref.read(notificationsRepositoryProvider));
+  final notifier =
+      NotificationsNotifier(ref.read(notificationsRepositoryProvider));
+  // Account-scoped (A4): clear on logout, reload for the next account.
+  ref.listen<AuthState>(authProvider, (prev, next) {
+    final wasAuthed = prev?.status == AuthStatus.authenticated;
+    final isAuthed = next.status == AuthStatus.authenticated;
+    if (!isAuthed && wasAuthed) {
+      notifier.reset();
+    } else if (isAuthed && !wasAuthed && prev != null) {
+      notifier.loadNotifications();
+    }
+  });
+  return notifier;
 });
 
 /// Unread count for the home AppBar bell badge. Watched only when the buyer is
 /// authenticated (the caller guards). Refresh by invalidating this provider.
 final notificationUnreadCountProvider = FutureProvider<int>((ref) async {
+  // Re-evaluated on every session change so a badge never carries over from
+  // the previous account (A4); guests have no feed.
+  final status = ref.watch(authProvider.select((s) => s.status));
+  if (status != AuthStatus.authenticated) return 0;
   final repo = ref.read(notificationsRepositoryProvider);
   return repo.getUnreadCount();
 });
