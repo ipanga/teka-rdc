@@ -941,7 +941,13 @@ re-entry), not by a timer; USD totals are display-only and were not touched; the
 shows the raw `PENDING` status (PR D); the cart screen's own total does not refetch on tab focus (it
 refetches on every mutation and on checkout entry).
 
-**Dependabot follow-up (separate PR `ci/dependabot-pnpm`, opened, not merged):** exact failure from
+**Dependabot follow-up (separate PR `ci/dependabot-pnpm`, merged as #688 `adae24f`):** verified in the
+first security-update runs after the merge (2026-09-06 19:21 UTC): the updater now logs « Found
+"packageManager": "pnpm@9.15.9" … Installing "pnpm@9.15.9" », so the declaration is honoured; the two
+security jobs (`esbuild`, `sharp`) still end in the npm_and_yarn helper with exit 1 (the job log carries no
+reason — it is only in Dependabot's own error record), while the actions / pub / docker jobs succeed. Still
+to read from the Dependabot UI (Insights → Dependency graph → Dependabot) before deciding the next fix.
+Original diagnosis — exact failure from
 the run logs — Dependabot's updater runs pnpm 10, which logs « The "pnpm" field in package.json is no
 longer read … keys ignored: "pnpm.overrides", "pnpm.auditConfig" » and then `pnpm update … --lockfile-only`
 aborts (`HelperSubprocessFailed`) because the resolution no longer matches our lockfile. Correct
@@ -954,11 +960,10 @@ and in CI (`pnpm/action-setup` `version: 9` resolved to 9.15.x); the `version: 9
 
 ## Next exact step
 
-PR 1–6 merged (`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`). **PR 7
-`buyer-mobile/pricing-cart-checkout` open — awaiting merge approval**, plus the tiny `ci/dependabot-pnpm`
-PR. Then Buyer Mobile PR C (`buyer-mobile/ratings-profile-avatar`: A5 avatar multipart retry, A6/D11
-previous-avatar destroy, A8 review error surfacing, nameless buyers, stale profile header, own review
-twice, comment clearing). Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
+PR 1–7 merged (`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`) plus
+`ci/dependabot-pnpm` (#688, `adae24f`; develop CI + CodeQL green). **PR 8
+`buyer-mobile/ratings-profile-avatar` (Buyer Mobile PR C) in progress** — see its record above. Then
+Buyer Mobile PR D (notifications, deep links, address, enums, accents, `Occasion`, dead routes, guest PDP 401). Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
 branch `security/critical-hotfixes` from `develop`; files: `apps/buyer-web/src/components/seo/json-ld.tsx`
 (+ `json-ld.test.tsx`), `apps/api/src/payments/payments.{controller,service}.ts` (+ `test/payments.e2e-spec.ts`
 cross-user cases), `apps/api/src/products/products.controller.ts` + `products.service.ts`,
