@@ -424,9 +424,48 @@ suites buyer has (identical code).
 Recommended first PR: **#1 security/critical-hotfixes** — five independent, small, high-impact fixes,
 none needing a policy decision, each with a test.
 
+## PR records
+
+### PR 1 — `security/critical-hotfixes` (2026-09-06)
+Findings reconfirmed on `develop` `745e2d4` before changing code. Root causes and fixes:
+- **S2 stored XSS via JSON-LD** — root cause: `JSON.stringify` output injected verbatim into a
+  `<script>`; the HTML parser ends the element at any literal `</script`. Fix: `serializeJsonLd()` escapes
+  `< > &` and U+2028/2029 as `\uXXXX` (still valid JSON) — `apps/buyer-web/src/components/seo/json-ld.tsx`
+  (+ `json-ld.test.tsx`: no breakout sequence emitted, JSON round-trips, one script element renders).
+- **S4 payments IDOR** — root cause: `GET /v1/payments/orders/:orderId/transactions` had no
+  ownership predicate and no id validation. Fix: `UuidParam` + actor-scoped `order.findFirst`
+  (buyer → own, seller → own, admin → any) returning 404 « Commande non trouvée » otherwise —
+  `payments.controller.ts`, `payments.service.ts` (+ 6 e2e cases: owner 200, other buyer 404 with no
+  transaction query, wrong seller 404 / order seller 200, admin 200, non-UUID 400 before the DB).
+- **S8 unbounded, MIME-trusting public uploads** — root cause: bare `FileInterceptor('image')` (no
+  multer `limits`, size checked after full buffering) and declared-MIME allow-lists on product images and
+  avatars. Fix: shared `apps/api/src/common/uploads/image-upload.ts` — `imageUploadLimits` (5 MB,
+  1 file) handed to multer so oversized bodies are refused while streaming (French 413 from the existing
+  filter), `validateImageUpload()` sniffs the bytes (JPEG/PNG/WebP via the KYC primitives, GIF for
+  products only), requires the declared type to agree, and strips EXIF/XMP before the public upload;
+  `@Throttle 20/min` on both routes (IP-keyed for now; D8 will re-key). Spec: SVG-as-PNG, PDF,
+  mismatch, GIF gating, EXIF stripping, oversize/missing.
+- **S10 app-review bypass hygiene** — root cause: doc carried the review phone and code and a stale
+  "ENABLED" status; `===` comparison. Fix: placeholders in `docs/app-review-login.md` (status: disabled,
+  verified), constant-time comparison, `logger.error` on every production boot while the flag is on
+  (+ 2 unit cases).
+- **S7 `next` 15.5.18 → 15.5.25** in the three web apps (+ `eslint-config-next`), lockfile updated;
+  `pnpm audit --prod` now reports 0 `next` advisories (37 transitive items remain for the supply-chain
+  PR); production builds 30/22/32 pages.
+Gates: API 708 unit / 170 e2e, root type-check, buyer-web vitest 14 files (JSON-LD test added), three
+`next build`s. Runtime on the isolated API: transactions endpoint — non-owner buyer 404, wrong seller 404,
+owner 200, admin 200, bad id 400; avatar and product-image uploads — SVG declared PNG 400, PNG declared
+JPEG 400, 6 MB body 413 (streaming, French), valid JPEG 201; QA users, product and Cloudinary assets
+deleted afterwards. Not exercised at runtime: a hostile product title through a live PDP (covered by the
+vitest render test). Compatibility: avatar/product clients unchanged (same field, same French errors;
+SVG/HTML uploads that were already broken at Cloudinary now fail earlier); transactions endpoint now 404s
+for non-owners (buyer-web/mobile only ever request their own orders — no caller change); Next patch
+bump only.
+
 ## Next exact step
 
-Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
+D2–D11 approved 2026-09-06 (D2b later, D6 docs-only). PR 1 open — awaiting merge approval. Then PR 2
+`security/origin-and-surface-binding` (D2a). Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
 branch `security/critical-hotfixes` from `develop`; files: `apps/buyer-web/src/components/seo/json-ld.tsx`
 (+ `json-ld.test.tsx`), `apps/api/src/payments/payments.{controller,service}.ts` (+ `test/payments.e2e-spec.ts`
 cross-user cases), `apps/api/src/products/products.controller.ts` + `products.service.ts`,

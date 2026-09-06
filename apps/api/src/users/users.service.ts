@@ -4,6 +4,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { validateImageUpload } from '../common/uploads/image-upload';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 
@@ -89,19 +90,14 @@ export class UsersService {
     if (!file) {
       throw new BadRequestException('Aucun fichier reçu');
     }
-    // Sanity bounds — Cloudinary will also reject oversized payloads but a
-    // server-side guard saves a round-trip on bad clients. Mirror the
-    // ProductsService check (5 MB).
-    if (file.size > 5 * 1024 * 1024) {
-      throw new BadRequestException(
-        "L'image dépasse la taille maximale de 5 Mo",
-      );
-    }
-    if (!file.mimetype.startsWith('image/')) {
-      throw new BadRequestException(
-        'Format invalide — image attendue (jpg, png, webp)',
-      );
-    }
+    // Size / content / metadata hardening shared with product images (S8):
+    // multer refused anything above 5 MB while streaming; the bytes must
+    // sniff as JPEG/PNG/WebP (SVG and friends can never pass), agree with the
+    // declared type, and lose their EXIF/XMP (GPS) before the public upload.
+    const image = validateImageUpload(file, {
+      allowGif: false,
+      unsupportedMessage: 'Format invalide — image attendue (jpg, png, webp)',
+    });
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId, deletedAt: null },
@@ -111,7 +107,7 @@ export class UsersService {
     }
 
     const upload = await this.cloudinary.uploadImage(
-      file.buffer,
+      image.buffer,
       'teka-rdc/avatars',
     );
 

@@ -2,8 +2,9 @@
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
-**Pre-scale readiness initiative — implementation in progress (D1 confirmed and implemented in PR #672;
-decisions 2–11 still open).** Tracker: `docs/pre-scale-readiness.md` (findings for Buyer Mobile functional readiness,
+**Pre-scale readiness initiative — implementation in progress. D1 merged (#672). D2–D11 approved
+2026-09-06 (D2b = later design phase, D6 = docs only). PR 1 `security/critical-hotfixes` open, awaiting
+merge approval; next: PR 2 `security/origin-and-surface-binding` (D2a).** Tracker: `docs/pre-scale-readiness.md` (findings for Buyer Mobile functional readiness,
 Buyer Web SEO, tablet support, cross-platform security; 11 decisions needed; 16-PR sequence). No code
 changed. Recommended first PR: `security/critical-hotfixes` (JSON-LD escaping, payments IDOR, upload
 limits, app-review doc scrub, `next` bump). Still open from the previous release: manual Google Play

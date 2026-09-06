@@ -30,7 +30,7 @@ Env vars (root `.env.*`; **prod values are secrets — never commit real ones**)
 ```env
 APP_REVIEW_LOGIN_ENABLED=false        # default OFF
 APP_REVIEW_BUYER_PHONE_E164=+243XXXXXXXXX   # owner-provided/approved, NOT chosen in code
-APP_REVIEW_BUYER_OTP=123456
+APP_REVIEW_BUYER_OTP=<6-digit code kept only in the secret manager>
 ```
 
 **The review phone must be a dedicated, Teka-controlled number** (never a real
@@ -47,12 +47,12 @@ service `environment:` block in `docker-compose.prod.yml`** (same chain as
 **Enable (start of a review window):**
 ```bash
 gh secret set APP_REVIEW_LOGIN_ENABLED   --body true
-gh secret set APP_REVIEW_BUYER_PHONE_E164 --body +243810000000   # approved number
-gh secret set APP_REVIEW_BUYER_OTP       --body 123456
+gh secret set APP_REVIEW_BUYER_PHONE_E164 --body <approved E.164 number>   # never commit it
+gh secret set APP_REVIEW_BUYER_OTP       --body <fresh random 6-digit code>   # never reuse the dev code
 gh workflow run deploy.yml               # or push to main; recreates the api container
 ```
-Verify: `POST /v1/auth/buyer/otp/verify {phone:+243810000000, code:123456}` → 200;
-any other phone with 123456 → 401.
+Verify: `POST /v1/auth/buyer/otp/verify` with the allowlisted phone + code → 200;
+any other phone with that code → 401. Since D1 the allowlisted phone must belong to a BUYER.
 
 **Disable (review finished) — do this promptly:**
 ```bash
@@ -63,8 +63,10 @@ Keep it enabled **only** during an active review. A container restart is require
 for a secret change to take effect (env is read at container start) — a redeploy
 does exactly that.
 
-**Current status (2026-07-25):** ENABLED in production for a review window
-(phone `+243810000000`). Disable per the steps above once the review completes.
+**Current status (2026-09-06):** DISABLED in production (`APP_REVIEW_LOGIN_ENABLED=false`, verified).
+Enable only for an active review window, then disable. The API logs an error on every production
+boot while the flag is on, and the phone/code comparison is constant-time. Never write the real phone
+or code into this file or any commit — they live only in the GitHub secrets.
 
 ## Credential rotation
 

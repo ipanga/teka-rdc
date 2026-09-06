@@ -285,6 +285,51 @@ describe('BuyerOtpService', () => {
     });
   });
 
+  describe('app-review bypass — operational guards (S10)', () => {
+    it('logs an error on construction when the bypass is enabled in production', () => {
+      const errorSpy = jest
+        .spyOn(require('@nestjs/common').Logger.prototype, 'error')
+        .mockImplementation(() => undefined);
+      new BuyerOtpService(
+        makePrismaStub(),
+        { sendOtp: jest.fn() } as any,
+        makeConfig({ NODE_ENV: 'production', APP_REVIEW_LOGIN_ENABLED: 'true' }),
+        makeAuthStub(),
+        makeAnalytics(),
+      );
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('PRODUCTION'));
+      errorSpy.mockClear();
+      new BuyerOtpService(
+        makePrismaStub(),
+        { sendOtp: jest.fn() } as any,
+        makeConfig({ NODE_ENV: 'production', APP_REVIEW_LOGIN_ENABLED: 'false' }),
+        makeAuthStub(),
+        makeAnalytics(),
+      );
+      expect(errorSpy).not.toHaveBeenCalled();
+      errorSpy.mockRestore();
+    });
+
+    it('rejects a code of a different length and a same-length wrong code alike', async () => {
+      const prisma = makePrismaStub();
+      prisma.user.findFirst.mockResolvedValue(null);
+      prisma.otp.findFirst.mockResolvedValue(null);
+      const svc = new BuyerOtpService(
+        prisma,
+        { sendOtp: jest.fn() } as any,
+        makeConfig({
+          APP_REVIEW_LOGIN_ENABLED: 'true',
+          APP_REVIEW_BUYER_PHONE_E164: '+243999000777',
+          APP_REVIEW_BUYER_OTP: '654321',
+        }),
+        makeAuthStub(),
+        makeAnalytics(),
+      );
+      await expect(svc.verifyOtp('+243999000777', '65432')).rejects.toMatchObject({ status: 401 });
+      await expect(svc.verifyOtp('+243999000777', '654320')).rejects.toMatchObject({ status: 401 });
+    });
+  });
+
   describe('D1 — WhatsApp OTP authenticates BUYER accounts only', () => {
     const codeHash = createHash('sha256').update('123456').digest('hex');
     const seller = {
