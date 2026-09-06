@@ -44,7 +44,28 @@ export class BuyerOtpService {
     private configService: ConfigService,
     private authService: AuthService,
     private analytics: PostHogService,
-  ) {}
+  ) {
+    this.warnIfReviewLoginEnabledInProduction();
+  }
+
+  /**
+   * The app-review bypass is meant to live for one store-review window. It
+   * cannot be auto-expired without a redeploy, so make its presence loud on
+   * every production boot (and in Sentry, which captures error logs) until an
+   * operator turns it off again.
+   */
+  private warnIfReviewLoginEnabledInProduction(): void {
+    const enabledRaw = this.configService.get<string | boolean>(
+      'APP_REVIEW_LOGIN_ENABLED',
+    );
+    const enabled = enabledRaw === true || enabledRaw === 'true';
+    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
+    if (enabled && isProd) {
+      this.logger.error(
+        '[app-review] APP_REVIEW_LOGIN_ENABLED is true in PRODUCTION — the fixed-OTP review login is live. Disable it as soon as the store review completes.',
+      );
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Public surface — controller-facing
@@ -175,7 +196,9 @@ export class BuyerOtpService {
     // Never match on empty config — avoids accidentally allowing '' == ''.
     if (!allowPhone || !allowCode) return false;
 
-    const match = phone === allowPhone && code === allowCode;
+    const match =
+      constantTimeEquals(phone, allowPhone) &&
+      constantTimeEquals(code, allowCode);
     if (match) {
       this.logger.warn(
         '[app-review] review login accepted for the allowlisted phone',
@@ -400,4 +423,12 @@ export class BuyerOtpService {
     });
     return { user, isNew: true };
   }
+}
+
+/** Constant-time string equality (length is not secret here, only the value). */
+function constantTimeEquals(a: string, b: string): boolean {
+  const ab = Buffer.from(a, 'utf8');
+  const bb = Buffer.from(b, 'utf8');
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
 }

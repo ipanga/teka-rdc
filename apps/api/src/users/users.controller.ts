@@ -10,6 +10,8 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
+import { imageUploadLimits } from '../common/uploads/image-upload';
 import { UsersService } from './users.service';
 import { NotificationPrefsService } from './notification-prefs.service';
 import { SessionsService } from './sessions.service';
@@ -45,7 +47,10 @@ export class UsersController {
    * same User.avatar column). Returns `{ avatar: <url> }`.
    */
   @Post('avatar')
-  @UseInterceptors(FileInterceptor('image'))
+  // multer `limits` refuse an oversized body while it streams — nothing
+  // above the cap is ever buffered (S8 hardening, shared with avatars/products).
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @UseInterceptors(FileInterceptor('image', { limits: imageUploadLimits }))
   async uploadAvatar(
     @CurrentUser('userId') userId: string,
     @UploadedFile() file: Express.Multer.File,
