@@ -14,6 +14,7 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import { PostHogService } from '../analytics/posthog.service';
+import { RateLimitService } from '../common/rate-limit/rate-limit.service';
 import { EmailLoginDto } from './dto/email-login.dto';
 import { EmailRegisterDto } from './dto/email-register.dto';
 import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
@@ -55,6 +56,7 @@ export class AuthService {
     private configService: ConfigService,
     private emailService: EmailService,
     private analytics: PostHogService,
+    private rateLimit: RateLimitService,
   ) {}
 
   // ---------------------------------------------------------------------------
@@ -78,6 +80,11 @@ export class AuthService {
     role: AssignableRole,
     device?: { userAgent?: string; ipAddress?: string },
   ) {
+    // D8: per-email registration budget (AUTH_LIMITS.register), counted
+    // before the existence check so the 409 cannot be used to enumerate
+    // addresses at volume.
+    await this.rateLimit.enforce('register', dto.email);
+
     const existing = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -140,6 +147,13 @@ export class AuthService {
     dto: EmailLoginDto,
     device?: { userAgent?: string; ipAddress?: string },
   ) {
+    // D8 (2026-09-06): per-email failure budget (AUTH_LIMITS.login). A locked
+    // or exhausted email is refused before any password work; every failure
+    // counts — for unknown addresses too, so the 429 reveals nothing about
+    // existence; success clears the bucket. Same French copy whatever the
+    // reason.
+    await this.rateLimit.assertNotBlocked('login', dto.email);
+
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email, deletedAt: null },
     });
@@ -150,13 +164,16 @@ export class AuthService {
         dto.password,
         '$2b$10$invalidinvalidinvalidinvalidinvalidinvalidinvalidinvalidinv',
       );
+      await this.rateLimit.enforce('login', dto.email);
       throw new UnauthorizedException('Email ou mot de passe invalide');
     }
 
     const ok = await verifyPassword(dto.password, user.passwordHash);
     if (!ok) {
+      await this.rateLimit.enforce('login', dto.email);
       throw new UnauthorizedException('Email ou mot de passe invalide');
     }
+    await this.rateLimit.clear('login', dto.email);
 
     if (user.status === 'SUSPENDED' || user.status === 'BANNED') {
       throw new ForbiddenException('Votre compte a été suspendu.');
@@ -212,6 +229,10 @@ export class AuthService {
   // ---------------------------------------------------------------------------
 
   async requestPasswordReset(dto: PasswordResetRequestDto, ipAddress?: string) {
+    // D8: per-email budget (AUTH_LIMITS.passwordReset), counted for known and
+    // unknown addresses alike — a 429 must not become an existence oracle.
+    await this.rateLimit.enforce('passwordReset', dto.email);
+
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email, deletedAt: null },
     });
@@ -248,9 +269,9 @@ export class AuthService {
         role: user.role,
       });
     } else {
-      this.logger.log(
-        `Password reset requested for unknown email: ${dto.email}`,
-      );
+      // Deliberately not logging the address (PII); the per-email budget
+      // above already bounds probing.
+      this.logger.log('Password reset requested for an unknown or non-password email');
     }
 
     return {
@@ -380,6 +401,11 @@ export class AuthService {
     refreshToken: string,
     device?: { userAgent?: string; ipAddress?: string },
   ) {
+    // D8: per-token budget (AUTH_LIMITS.refresh) — keyed on a hash of the
+    // presented token, never on the IP, so one stolen/looping token cannot
+    // hammer the rotation path while other sessions behind the same NAT
+    // refresh normally. The token itself is never stored or logged.
+    await this.rateLimit.enforce('refresh', refreshToken);
     try {
       const payload = this.jwtService.verify(refreshToken, {
         secret: this.configService.get('JWT_REFRESH_SECRET'),

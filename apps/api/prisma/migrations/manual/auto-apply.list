@@ -28,3 +28,4 @@
 2026-09-04_user_notification_payout_type.sql
 2026-09-05_commune_is_active.sql
 2026-09-05_seller_verification.sql
+2026-09-06_auth_rate_limits.sql
