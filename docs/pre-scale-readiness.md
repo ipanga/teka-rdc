@@ -1176,12 +1176,11 @@ re-verified); unknown order uuid link → « Impossible de charger cette command
 buyer B → empty feed, no badge. **Not exercised:** a force-stopped app does not receive FCM at all (Android
 platform behaviour, the message is delivered on the next launch); iOS.
 
-**iOS:** not runtime-tested. The local `flutter build ios` is blocked by the workstation's CocoaPods
-state (spec repo out of date; the SwiftPM path needs a manual Podfile migration) — an environment issue,
-not the change; the Darwin settings are compiled by the analyzer against
-`flutter_local_notifications` 19.4.2 and CI's iOS lane (Fastlane + pods, `pod repo update`) will build it.
-Foreground display, tap routing and the permission prompt on iOS are therefore covered by code review +
-unit tests only.
+**iOS:** build verified, not runtime-tested. `flutter build ios --flavor development --no-codesign` →
+`✓ Built build/ios/iphoneos/Runner.app` after a `pod install --repo-update` (the workstation's CocoaPods
+spec repo was stale; with SwiftPM on, the project's non-standard Podfile would need a manual migration —
+both are environment matters, nothing was committed). Foreground display, tap routing and the permission
+prompt on iOS are covered by code review + unit tests only — no simulator input tooling.
 
 **Privacy:** the push hook passes only the FCM `data` block (never title/body) and the controllers log
 payload *keys*, not values; the deep-link breadcrumb stays scheme + route type; no new PostHog properties
