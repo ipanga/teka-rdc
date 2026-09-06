@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { createTestApp, resetMocks } from './test-utils';
+import { JwtService } from '@nestjs/jwt';
+import { createTestApp, mockPrismaService, resetMocks } from './test-utils';
 
 /**
  * Checkout & Cart & Orders — Protected endpoint tests.
@@ -54,6 +55,24 @@ describe('Checkout & Cart & Orders (e2e)', () => {
   // ---------------------------------------------------------------------------
   // Cart endpoints — require authentication
   // ---------------------------------------------------------------------------
+  describe('GET /api/v1/orders/:id — buyer-facing id validation (PR D, 2026-09-06)', () => {
+    it('answers a malformed order id (e.g. from a stale notification) with the French 400, never the framework text', async () => {
+      const jwt = app.get(JwtService, { strict: false });
+      const token = jwt.sign({ sub: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', role: 'BUYER', phone: '+243999000199', jti: 'o' });
+      const m = mockPrismaService as unknown as Record<string, any>;
+      m.user.findUnique.mockImplementation(({ select }: { select?: { role?: boolean } }) =>
+        Promise.resolve(select?.role ? { role: 'BUYER' } : { id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', role: 'BUYER', status: 'ACTIVE', deletedAt: null }),
+      );
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/orders/TK-QAC-189061')
+        .set('Authorization', `Bearer ${token}`)
+        .set('X-Teka-Surface', 'buyer')
+        .expect(400);
+      expect(res.body.error.message).toBe('Identifiant invalide.');
+      expect(res.body.error.message).not.toContain('uuid is expected');
+    });
+  });
+
   describe('GET /api/v1/cart', () => {
     it('should return 401 without authentication', () => {
       return request(app.getHttpServer()).get('/api/v1/cart').expect(401);

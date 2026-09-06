@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/navigation/pending_route.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../data/models/city_model.dart';
 import '../providers/city_provider.dart';
@@ -228,8 +229,15 @@ class _CitySelectionScreenState extends ConsumerState<CitySelectionScreen> {
                   isSelected: cityState.selectedCity?.id == city.id,
                   onTap: () async {
                     await ref.read(cityProvider.notifier).selectCity(city);
-                    if (context.mounted) {
-                      context.go('/');
+                    if (!context.mounted) return;
+                    context.go('/');
+                    // A notification tap or a shared link that arrived before
+                    // the town was chosen (PR D): open it now, on top of home
+                    // so Back returns to the app rather than to nothing.
+                    final pending = ref.read(pendingRouteProvider);
+                    if (pending != null) {
+                      ref.read(pendingRouteProvider.notifier).state = null;
+                      context.push(pending);
                     }
                   },
                 )),
