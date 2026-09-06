@@ -35,7 +35,7 @@ class ReviewModel {
       rating: json['rating'] as int? ?? 0,
       title: json['title'] as String?,
       text: json['text'] as String?,
-      status: json['status'] as String? ?? 'APPROVED',
+      status: json['status'] as String? ?? 'ACTIVE',
       createdAt: json['createdAt']?.toString() ?? '',
       buyer: json['buyer'] != null
           ? ReviewBuyerModel.fromJson(json['buyer'] as Map<String, dynamic>)

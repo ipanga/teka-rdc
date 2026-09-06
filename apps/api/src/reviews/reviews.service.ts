@@ -11,6 +11,7 @@ import { CreateReviewDto } from './dto/create-review.dto';
 import { UpdateReviewDto } from './dto/update-review.dto';
 import { ReviewQueryDto, ReviewSortOption } from './dto/review-query.dto';
 import { SellerNotificationService } from '../notifications/seller-notification.service';
+import { VISIBLE_REVIEW_WHERE } from './review-visibility';
 
 @Injectable()
 export class ReviewsService {
@@ -156,7 +157,8 @@ export class ReviewsService {
 
   /**
    * Gets paginated reviews for a product.
-   * Only returns active, non-deleted reviews with buyer info.
+   * Only returns VISIBLE reviews (VISIBLE_REVIEW_WHERE) with buyer info — the
+   * exact set the stats count and average.
    */
   async getProductReviews(productId: string, query: ReviewQueryDto) {
     const page = query.page ?? 1;
@@ -164,10 +166,11 @@ export class ReviewsService {
     const skip = (page - 1) * limit;
 
     // Build where clause
+    // Same predicate as the stats and the denormalised caches — see
+    // review-visibility.ts.
     const where: Record<string, unknown> = {
       productId,
-      deletedAt: null,
-      status: ReviewStatus.ACTIVE,
+      ...VISIBLE_REVIEW_WHERE,
     };
 
     if (query.rating) {
@@ -215,21 +218,13 @@ export class ReviewsService {
   async getProductReviewStats(productId: string) {
     const [aggregate, distribution] = await Promise.all([
       this.prisma.review.aggregate({
-        where: {
-          productId,
-          deletedAt: null,
-          status: ReviewStatus.ACTIVE,
-        },
+        where: { productId, ...VISIBLE_REVIEW_WHERE },
         _avg: { rating: true },
         _count: true,
       }),
       this.prisma.review.groupBy({
         by: ['rating'],
-        where: {
-          productId,
-          deletedAt: null,
-          status: ReviewStatus.ACTIVE,
-        },
+        where: { productId, ...VISIBLE_REVIEW_WHERE },
         _count: true,
       }),
     ]);
@@ -422,11 +417,7 @@ export class ReviewsService {
   ) {
     // Recalculate product ratings
     const productStats = await tx.review.aggregate({
-      where: {
-        productId,
-        deletedAt: null,
-        status: ReviewStatus.ACTIVE,
-      },
+      where: { productId, ...VISIBLE_REVIEW_WHERE },
       _avg: { rating: true },
       _count: true,
     });
@@ -450,8 +441,7 @@ export class ReviewsService {
       const sellerStats = await tx.review.aggregate({
         where: {
           product: { sellerId: product.sellerId },
-          deletedAt: null,
-          status: ReviewStatus.ACTIVE,
+          ...VISIBLE_REVIEW_WHERE,
         },
         _avg: { rating: true },
         _count: true,

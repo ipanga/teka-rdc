@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
 import { useAuthStore } from '@/lib/auth-store';
 import type { Review, ReviewStats, PaginatedReviews } from '@/lib/types';
@@ -106,6 +107,25 @@ function RatingDistribution({
   );
 }
 
+/**
+ * « Achat vérifié » — every review on Teka is written against the reviewer's
+ * own DELIVERED order (the API refuses anything else), so the badge states
+ * that server-side rule on every review. Same wording as buyer-mobile.
+ */
+function VerifiedPurchaseBadge() {
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 bg-success/10 text-success rounded-full"
+      title="Ce client a acheté et reçu ce produit"
+    >
+      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+        <path fillRule="evenodd" d="M16.403 12.652a3 3 0 000-5.304 3 3 0 00-3.75-3.751 3 3 0 00-5.305 0 3 3 0 00-3.751 3.75 3 3 0 000 5.305 3 3 0 003.75 3.751 3 3 0 005.305 0 3 3 0 003.751-3.75zm-2.546-4.46a.75.75 0 00-1.214-.883l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+      </svg>
+      {"Achat vérifié"}
+    </span>
+  );
+}
+
 // ========================
 // Review modal
 // ========================
@@ -113,6 +133,10 @@ function RatingDistribution({
 /** Shared with the API and buyer-mobile — keep the three in sync. */
 const TITLE_MIN = 5;
 const TITLE_MAX = 100;
+/** Comment cap — the API's `@MaxLength(1000)`; there was no cap here before. */
+const TEXT_MAX = 1000;
+/** Public name of a reviewer without a name — same word as buyer-mobile. */
+const ANONYMOUS_REVIEWER = 'Acheteur';
 
 function ReviewModal({
   productId,
@@ -152,7 +176,10 @@ function ReviewModal({
           method: isEditing ? 'PATCH' : 'POST',
           body: JSON.stringify(
             isEditing
-              ? { rating, title: trimmedTitle, text: text.trim() || undefined }
+              // `text` is always sent on edit: an empty string CLEARS the
+              // comment (stored as null). Omitting it kept the old comment,
+              // so a buyer could never remove one — same fix as buyer-mobile.
+              ? { rating, title: trimmedTitle, text: text.trim() }
               : {
                   productId,
                   orderId,
@@ -166,12 +193,20 @@ function ReviewModal({
       onSubmitted();
     } catch (err: unknown) {
       const message =
-        err instanceof Error ? err.message : 'Error';
+        err instanceof Error && err.message
+          ? err.message
+          : "Impossible d'enregistrer votre avis. Réessayez.";
       setError(message);
     } finally {
       setIsSubmitting(false);
     }
   }
+
+  const authUser = useAuthStore((s) => s.user);
+  const nameless =
+    !!authUser &&
+    !(authUser.firstName ?? '').trim() &&
+    !(authUser.lastName ?? '').trim();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -235,8 +270,17 @@ function ReviewModal({
             onChange={(e) => setText(e.target.value)}
             placeholder={"Partagez votre expérience avec ce produit..."}
             rows={4}
+            maxLength={TEXT_MAX}
             className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm resize-none"
           />
+          {nameless && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {`Votre avis sera publié sous le nom « ${ANONYMOUS_REVIEWER} ». `}
+              <Link href="/profil" className="font-semibold text-primary hover:underline">
+                {"Ajouter mon nom"}
+              </Link>
+            </p>
+          )}
         </div>
 
         {/* Error */}
@@ -290,6 +334,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
   // When set, the modal opens in edit mode for the buyer's own review.
   const [editingReview, setEditingReview] = useState<Review | null>(null);
   const [feedback, setFeedback] = useState('');
+  const [feedbackIsError, setFeedbackIsError] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const fetchStats = useCallback(async () => {
@@ -369,6 +414,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
   async function handleReviewSubmitted() {
     setShowModal(false);
     setFeedback("Avis soumis avec succès");
+    setFeedbackIsError(false);
     setTimeout(() => setFeedback(''), 3000);
     // Refresh data
     await Promise.all([fetchStats(), fetchReviews(1), fetchMyReview(), checkCanReview()]);
@@ -379,13 +425,22 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
     try {
       await apiFetch(`/v1/reviews/${reviewId}`, { method: 'DELETE' });
       setFeedback("Avis supprimé");
+      setFeedbackIsError(false);
       setTimeout(() => setFeedback(''), 3000);
       setConfirmDeleteId(null);
       // Refresh data
       await Promise.all([fetchStats(), fetchReviews(1), fetchMyReview(), checkCanReview()]);
       setPage(1);
-    } catch {
-      // delete failed
+    } catch (err: unknown) {
+      // A failed delete used to vanish silently; the review is still there.
+      setFeedback(
+        err instanceof Error && err.message
+          ? err.message
+          : "Impossible de supprimer l'avis. Réessayez.",
+      );
+      setFeedbackIsError(true);
+      setTimeout(() => setFeedback(''), 4000);
+      setConfirmDeleteId(null);
     }
   }
 
@@ -406,7 +461,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
     const parts = [review.buyer?.firstName, review.buyer?.lastName].filter(
       Boolean,
     );
-    return parts.length > 0 ? parts.join(' ') : 'Utilisateur';
+    return parts.length > 0 ? parts.join(' ') : ANONYMOUS_REVIEWER;
   }
 
   if (isLoading) {
@@ -441,9 +496,20 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
 
       {/* Feedback banner */}
       {feedback && (
-        <div className="mb-4 flex items-center gap-2 p-3 bg-success/10 border border-success/30 rounded-lg text-sm text-success">
+        <div
+          role={feedbackIsError ? 'alert' : 'status'}
+          className={
+            feedbackIsError
+              ? 'mb-4 flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-sm text-destructive'
+              : 'mb-4 flex items-center gap-2 p-3 bg-success/10 border border-success/30 rounded-lg text-sm text-success'
+          }
+        >
           <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            {feedbackIsError ? (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v4m0 4h.01M12 3l9 16H3L12 3z" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            )}
           </svg>
           {feedback}
         </div>
@@ -507,9 +573,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
                 <span className="text-sm font-medium text-foreground">
                   {getReviewerName(myReview)}
                 </span>
-                <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
-                  {"Acheteur vérifié"}
-                </span>
+                <VerifiedPurchaseBadge />
               </div>
               <div className="flex items-center gap-2">
                 <StarRating rating={myReview.rating} size="sm" />
@@ -582,9 +646,7 @@ export function ProductReviews({ productId }: ProductReviewsProps) {
                   <span className="text-sm font-medium text-foreground">
                     {getReviewerName(review)}
                   </span>
-                  <span className="text-xs px-2 py-0.5 bg-muted text-muted-foreground rounded-full">
-                    {"Acheteur vérifié"}
-                  </span>
+                  <VerifiedPurchaseBadge />
                 </div>
                 <div className="flex items-center gap-2 mb-2">
                   <StarRating rating={review.rating} size="sm" />

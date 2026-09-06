@@ -82,7 +82,7 @@ class OrderDetailScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text("Reinitialiser"),
+            child: const Text("Annuler"),
           ),
           FilledButton(
             onPressed: () async {

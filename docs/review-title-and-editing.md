@@ -120,6 +120,36 @@ Therefore an edit **does not** re-enter moderation, and **must not** reset statu
 This matches the instruction to preserve current moderation behaviour unless the implementation
 explicitly required re-moderation. It does not.
 
+## Visibility — one predicate for the list, the count and the average (2026-09-06)
+
+A review **exists for buyers** if and only if `deletedAt IS NULL AND status = ACTIVE`. That predicate
+lives once, as `VISIBLE_REVIEW_WHERE` in `apps/api/src/reviews/review-visibility.ts`, and every read
+and every recalculation spreads it:
+
+| Surface | Reads / recalculates with | Consequence |
+|---|---|---|
+| `GET /v1/reviews/products/:id` (list + `meta.total`) | `VISIBLE_REVIEW_WHERE` | a hidden or deleted review is neither listed nor counted |
+| `GET /v1/reviews/products/:id/stats` (avg, total, distribution) | `VISIBLE_REVIEW_WHERE` | same set as the list, so « N avis » = the rows a buyer can page through |
+| `Product.avgRating` / `Product.totalReviews`, `SellerProfile.avgRating` / `totalReviews` (denormalised caches shown on cards, PDP header, seller page) | recalculated with `VISIBLE_REVIEW_WHERE` on **every** mutation: buyer create / rating edit / delete, admin hide / unhide / delete | a moderation action moves the review out of the count and the average at the same moment it leaves the list |
+| Admin moderation list (`AdminReviewsService.listReviews`) | `deletedAt: null` only, `status` filterable | deliberately shows `HIDDEN` rows so they can be unhidden |
+
+States and what they contribute to:
+
+| State | Public list | Count / average | Admin list |
+|---|---|---|---|
+| `ACTIVE`, not deleted | yes | yes | yes |
+| `HIDDEN`, not deleted | no | no | yes |
+| deleted (`deletedAt` set), any status | no | no | no |
+
+Two things that can still make « counted but invisible » **appear**, neither of which is a rule
+divergence: (1) the denormalised caches are only recalculated on mutation, so anything that writes
+reviews without going through the services (the seed, a manual SQL fix) must recalculate them — the
+dev seed hand-writes `SellerProfile.totalReviews` and drifted (stored 2, live 3); (2) on a database
+missing the `reviews.title` column (dev before `2026-07-28_review_title.sql` was applied) the list and
+stats endpoints 500 while the cached `Product.totalReviews` still renders on cards. Pinned by
+`reviews.service.spec.ts` (« Review visibility »), `admin-reviews.service.spec.ts` and
+`test/reviews-authz.e2e-spec.ts`.
+
 ## Validation — identical across the three layers
 
 | | Rule | French message |

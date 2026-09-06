@@ -2,9 +2,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/app_states.dart';
+import '../../../../core/theme/teka_colors.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/profile_repository.dart';
 
 class PersonalInfoScreen extends ConsumerStatefulWidget {
@@ -87,10 +90,17 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
           role: _user!.role,
         );
       });
-      _toast('Photo mise à jour');
-    } catch (_) {
+      // The new URL is unique per upload (Cloudinary assigns the id), so
+      // every header that reads the session user re-fetches the image —
+      // no stale cached picture.
+      await ref.read(authProvider.notifier).updateUser({'avatar': url});
       if (!mounted) return;
-      _toast("Erreur lors de l'envoi de la photo", error: true);
+      _toast('Photo mise à jour');
+    } catch (e) {
+      if (!mounted) return;
+      // The API's French reason when there is one (format, size, session
+      // rejected…), a connectivity message otherwise — never a raw error.
+      _toast(friendlyErrorMessage(e), error: true);
     } finally {
       if (mounted) setState(() => _uploading = false);
     }
@@ -124,21 +134,22 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
           );
       if (!mounted) return;
       setState(() => _user = updated);
-      _toast('Profil mis à jour');
-    } catch (_) {
+      await ref.read(authProvider.notifier).updateUser(updated.toJson());
       if (!mounted) return;
-      _toast("Erreur lors de l'enregistrement", error: true);
+      _toast('Profil mis à jour');
+    } catch (e) {
+      if (!mounted) return;
+      _toast(friendlyErrorMessage(e), error: true);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
 
   void _toast(String message, {bool error = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: error ? TekaColors.destructive : null,
-      ),
+    showAppSnackbar(
+      context,
+      message: message,
+      tone: error ? AppSnackbarTone.error : AppSnackbarTone.success,
     );
   }
 

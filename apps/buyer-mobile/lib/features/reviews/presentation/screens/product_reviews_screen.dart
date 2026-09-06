@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/app_states.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/review_model.dart';
@@ -19,6 +20,19 @@ class ProductReviewsScreen extends ConsumerWidget {
     final reviewsState = ref.watch(reviewsProvider(productId));
     final authState = ref.watch(authProvider);
     final currentUserId = authState.user?['id'] as String?;
+    final myReview = reviewsState.myReview;
+    // The buyer's own review has its own « Votre avis » block above the list;
+    // the API's list contains it too, so it is dropped here (it rendered
+    // twice — pre-scale audit, 2026-09-06). buyer-web applies the same filter.
+    final others = myReview == null
+        ? reviewsState.reviews
+        : reviewsState.reviews.where((r) => r.id != myReview.id).toList();
+    // A failed load only takes over the screen when there is nothing to show;
+    // with reviews already loaded (e.g. « Charger plus » failed) the list
+    // stays and the failure is shown inline.
+    final blockingError = reviewsState.error != null &&
+        reviewsState.reviews.isEmpty &&
+        reviewsState.stats == null;
 
     return Scaffold(
       appBar: AppBar(
@@ -30,14 +44,14 @@ class ProductReviewsScreen extends ConsumerWidget {
               backgroundColor: TekaColors.tekaRed,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.rate_review_outlined),
-              label: Text("Ecrire un avis"),
+              label: const Text('Écrire un avis'),
             )
           : null,
       body: reviewsState.isLoading
           ? const Center(
               child: CircularProgressIndicator(strokeWidth: 2),
             )
-          : reviewsState.error != null
+          : blockingError
               ? AppErrorState(
                   message: reviewsState.error!,
                   onRetry: () => ref
@@ -60,9 +74,9 @@ class ProductReviewsScreen extends ConsumerWidget {
                       ],
 
                       // My review
-                      if (reviewsState.myReview != null) ...[
+                      if (myReview != null) ...[
                         Text(
-                          "Votre note",
+                          'Votre avis',
                           style:
                               Theme.of(context).textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.bold,
@@ -71,23 +85,31 @@ class ProductReviewsScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 8),
                         ReviewTile(
-                          review: reviewsState.myReview!,
+                          review: myReview,
                           isOwn: true,
                           onEdit: () => _showReviewForm(
                             context,
                             ref,
-                            existing: reviewsState.myReview,
+                            existing: myReview,
                           ),
-                          onDelete: () => _confirmDelete(
-                              context, ref, reviewsState.myReview!.id),
+                          onDelete: () =>
+                              _confirmDelete(context, ref, myReview.id),
                         ),
                         const SizedBox(height: 20),
                       ],
 
-                      // All reviews
-                      if (reviewsState.reviews.isNotEmpty) ...[
+                      if (reviewsState.error != null)
+                        _InlineLoadError(
+                          message: reviewsState.error!,
+                          onRetry: () => ref
+                              .read(reviewsProvider(productId).notifier)
+                              .loadReviews(),
+                        ),
+
+                      // Everyone else's reviews
+                      if (others.isNotEmpty) ...[
                         Text(
-                          'Avis (${reviewsState.stats?.totalReviews ?? reviewsState.reviews.length})',
+                          'Tous les avis (${reviewsState.stats?.totalReviews ?? reviewsState.reviews.length})',
                           style:
                               Theme.of(context).textTheme.titleSmall?.copyWith(
                                     fontWeight: FontWeight.bold,
@@ -95,7 +117,7 @@ class ProductReviewsScreen extends ConsumerWidget {
                                   ),
                         ),
                         const SizedBox(height: 12),
-                        ...reviewsState.reviews.map(
+                        ...others.map(
                           (review) => Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: ReviewTile(
@@ -127,7 +149,7 @@ class ProductReviewsScreen extends ConsumerWidget {
                               ),
                             ),
                           ),
-                      ] else ...[
+                      ] else if (myReview == null) ...[
                         const SizedBox(height: 40),
                         Center(
                           child: Column(
@@ -182,15 +204,10 @@ class ProductReviewsScreen extends ConsumerWidget {
       ),
     ).then((submitted) {
       if (submitted == true && context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              existing != null
-                  ? "Avis modifié avec succès"
-                  : "Avis soumis avec succès",
-            ),
-            backgroundColor: TekaColors.success,
-          ),
+        showAppSnackbar(
+          context,
+          message: existing != null ? 'Avis modifié' : 'Avis publié. Merci !',
+          tone: AppSnackbarTone.success,
         );
       }
     });
@@ -205,20 +222,30 @@ class ProductReviewsScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text("Reinitialiser"),
+            child: const Text('Annuler'),
           ),
           FilledButton(
             onPressed: () async {
               Navigator.of(dialogContext).pop();
-              final success = await ref
-                  .read(reviewsProvider(productId).notifier)
-                  .deleteReview(reviewId);
-              if (success && context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text("Avis supprime"),
-                    backgroundColor: TekaColors.success,
-                  ),
+              final notifier = ref.read(reviewsProvider(productId).notifier);
+              final success = await notifier.deleteReview(reviewId);
+              if (!context.mounted) return;
+              if (success) {
+                showAppSnackbar(
+                  context,
+                  message: 'Avis supprimé',
+                  tone: AppSnackbarTone.success,
+                );
+              } else {
+                // A8: a failed delete used to vanish silently (and the
+                // error replaced the list). The review is still there.
+                final message = ref.read(reviewsProvider(productId)).mutationError ??
+                    "Impossible de supprimer l'avis.";
+                notifier.clearMutationError();
+                showAppSnackbar(
+                  context,
+                  message: message,
+                  tone: AppSnackbarTone.error,
                 );
               }
             },
@@ -226,6 +253,43 @@ class ProductReviewsScreen extends ConsumerWidget {
               backgroundColor: TekaColors.destructive,
             ),
             child: Text("Supprimer l'avis"),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Load failure shown ABOVE an already-loaded list (never instead of it).
+class _InlineLoadError extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _InlineLoadError({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: TekaColors.destructive.withValues(alpha: 0.06),
+        border: Border.all(color: TekaColors.destructive.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, size: 18, color: TekaColors.destructive),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(fontSize: 13, color: TekaColors.foreground),
+            ),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            child: const Text('Réessayer'),
           ),
         ],
       ),

@@ -256,6 +256,22 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Apply a profile change the buyer just made (name, email, avatar) to the
+  /// session's user — the single in-memory source every screen's header
+  /// reads — and to the on-disk profile cache the next offline start
+  /// restores from. The API is authoritative: callers pass what the server
+  /// answered, never the form input. No-op when signed out.
+  ///
+  /// Pre-scale audit, 2026-09-06: the account header showed the old name and
+  /// photo after an edit because nothing ever updated `state.user`.
+  Future<void> updateUser(Map<String, dynamic> patch) async {
+    final current = state.user;
+    if (state.status != AuthStatus.authenticated || current == null) return;
+    final merged = <String, dynamic>{...current, ...patch};
+    state = state.copyWith(user: merged);
+    await _scope?.cacheProfile(merged);
+  }
+
   Future<void> logout() async {
     await _authRepository.logout();
     // A4: the disk must be clean before the next person signs in — cart

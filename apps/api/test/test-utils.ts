@@ -148,6 +148,7 @@ export const mockPrismaService: Record<string, any> = {
     count: jest.fn(),
   },
   orderItem: {
+    findFirst: jest.fn(),
     findMany: jest.fn(),
     create: jest.fn(),
     createMany: jest.fn(),

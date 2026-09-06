@@ -35,6 +35,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final me = await ref.read(profileRepositoryProvider).getMe();
       if (!mounted) return;
       setState(() => _user = me);
+      // Keep the session user (and its offline cache) as fresh as this
+      // screen: every header reads from there.
+      await ref.read(authProvider.notifier).updateUser(me.toJson());
     } catch (_) {
       if (!mounted) return;
       // A2: offline, the session still stands — show the profile the auth
@@ -113,7 +116,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
     }
 
-    final user = _user;
+    // The session user is updated by every profile edit (name, email,
+    // photo) through AuthNotifier.updateUser, so the header reflects an edit
+    // the moment the buyer comes back — no reload, no stale name/photo.
+    final sessionUser = ref.watch(authProvider).user;
+    BuyerProfile? user = _user;
+    if (sessionUser != null) {
+      try {
+        user = BuyerProfile.fromJson({...?_user?.toJson(), ...sessionUser});
+      } catch (_) {
+        user = _user;
+      }
+    }
     final fullName = [
       user?.firstName?.trim(),
       user?.lastName?.trim(),
@@ -139,6 +153,16 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               onEditProfile: () =>
                   _open('/profile/informations', 'personal_info'),
             ),
+            // Buyers are created from a phone number only (WhatsApp OTP):
+            // until they add a name, say so once — never a blocker, never a
+            // made-up name.
+            if (user != null && user.isNameless) ...[
+              const SizedBox(height: 12),
+              _CompleteProfileNudge(
+                onAddName: () =>
+                    _open('/profile/informations', 'complete_profile'),
+              ),
+            ],
             const SizedBox(height: 16),
             _MenuSection(
               title: 'Mon compte Teka',
@@ -270,7 +294,7 @@ class _AccountAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
-class _AccountHeader extends StatelessWidget {
+class _AccountHeader extends StatefulWidget {
   final String displayName;
   final String? phone;
   final String? email;
@@ -288,8 +312,23 @@ class _AccountHeader extends StatelessWidget {
   });
 
   @override
+  State<_AccountHeader> createState() => _AccountHeaderState();
+}
+
+class _AccountHeaderState extends State<_AccountHeader> {
+  /// The URL whose image failed to load (offline cold start): fall back to
+  /// the initials instead of an empty disc. Reset when the URL changes.
+  String? _failedUrl;
+
+  @override
   Widget build(BuildContext context) {
-    final hasAvatar = avatarUrl != null && avatarUrl!.isNotEmpty;
+    final avatarUrl = widget.avatarUrl;
+    final displayName = widget.displayName;
+    final phone = widget.phone;
+    final email = widget.email;
+    final initials = widget.initials;
+    final hasAvatar =
+        avatarUrl != null && avatarUrl.isNotEmpty && _failedUrl != avatarUrl;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -309,7 +348,12 @@ class _AccountHeader extends StatelessWidget {
           CircleAvatar(
             radius: 31,
             backgroundColor: TekaColors.tekaRedSubtle,
-            backgroundImage: hasAvatar ? NetworkImage(avatarUrl!) : null,
+            backgroundImage: hasAvatar ? NetworkImage(avatarUrl) : null,
+            onBackgroundImageError: hasAvatar
+                ? (_, __) {
+                    if (mounted) setState(() => _failedUrl = avatarUrl);
+                  }
+                : null,
             child: hasAvatar
                 ? null
                 : Text(
@@ -338,9 +382,9 @@ class _AccountHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  phone == null || phone!.isEmpty
+                  phone == null || phone.isEmpty
                       ? 'Numéro WhatsApp vérifié'
-                      : phone!,
+                      : phone,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -349,10 +393,10 @@ class _AccountHeader extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (email != null && email!.isNotEmpty) ...[
+                if (email != null && email.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
-                    email!,
+                    email,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -365,7 +409,7 @@ class _AccountHeader extends StatelessWidget {
             ),
           ),
           IconButton.filledTonal(
-            onPressed: onEditProfile,
+            onPressed: widget.onEditProfile,
             tooltip: 'Modifier le profil',
             icon: const Icon(Icons.edit_outlined),
             style: IconButton.styleFrom(
@@ -403,11 +447,15 @@ class _MenuSection extends StatelessWidget {
               ),
             ),
           ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: Colors.white,
+          // Material, not DecoratedBox: ListTile paints its ink on the nearest
+          // Material, so a coloured DecoratedBox above it hid every tap ripple
+          // (and trips a debug assertion).
+          Material(
+            color: Colors.white,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: TekaColors.border),
+              side: const BorderSide(color: TekaColors.border),
             ),
             child: Column(children: _withDividers(children)),
           ),
@@ -501,6 +549,53 @@ class _LogoutButton extends StatelessWidget {
         foregroundColor: TekaColors.destructive,
         side: const BorderSide(color: TekaColors.destructive),
         minimumSize: const Size.fromHeight(48),
+      ),
+    );
+  }
+}
+
+class _CompleteProfileNudge extends StatelessWidget {
+  final VoidCallback onAddName;
+
+  const _CompleteProfileNudge({required this.onAddName});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('complete-profile-nudge'),
+      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+      decoration: BoxDecoration(
+        color: TekaColors.tekaRedSubtle,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: TekaColors.tekaRed.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.person_add_alt_1_outlined,
+              size: 20, color: TekaColors.tekaRed),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'Ajoutez votre nom : il apparaîtra sur vos avis et vos commandes.',
+              style: TextStyle(
+                fontSize: 13,
+                color: TekaColors.foreground,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onAddName,
+            style: TextButton.styleFrom(
+              foregroundColor: TekaColors.tekaRed,
+              textStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            child: const Text('Ajouter'),
+          ),
+        ],
       ),
     );
   }

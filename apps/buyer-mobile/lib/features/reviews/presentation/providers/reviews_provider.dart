@@ -11,7 +11,16 @@ class ReviewsState {
   final CanReviewModel? canReviewResult;
   final bool isLoading;
   final bool isSubmitting;
+
+  /// Failure of a LOAD (list / stats). The screen shows a full error state
+  /// only when there is nothing to show; with reviews already on screen it is
+  /// rendered inline so the list is never blown away.
   final String? error;
+
+  /// Failure of the buyer's own submit / edit / delete (A8, 2026-09-06).
+  /// Kept apart from [error] so a rejected submission is shown in the form
+  /// (or as a snackbar for delete) and never replaces the list behind it.
+  final String? mutationError;
   final int page;
   final int totalPages;
 
@@ -23,6 +32,7 @@ class ReviewsState {
     this.isLoading = false,
     this.isSubmitting = false,
     this.error,
+    this.mutationError,
     this.page = 1,
     this.totalPages = 1,
   });
@@ -35,9 +45,11 @@ class ReviewsState {
     bool? isLoading,
     bool? isSubmitting,
     String? error,
+    String? mutationError,
     int? page,
     int? totalPages,
     bool clearError = false,
+    bool clearMutationError = false,
     bool clearMyReview = false,
   }) {
     return ReviewsState(
@@ -48,6 +60,8 @@ class ReviewsState {
       isLoading: isLoading ?? this.isLoading,
       isSubmitting: isSubmitting ?? this.isSubmitting,
       error: clearError ? null : (error ?? this.error),
+      mutationError:
+          clearMutationError ? null : (mutationError ?? this.mutationError),
       page: page ?? this.page,
       totalPages: totalPages ?? this.totalPages,
     );
@@ -183,7 +197,7 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
     required String title,
     String? text,
   }) async {
-    state = state.copyWith(isSubmitting: true, clearError: true);
+    state = state.copyWith(isSubmitting: true, clearMutationError: true);
     try {
       final review = await _repository.createReview(
         productId: _productId,
@@ -216,14 +230,14 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
       if (!mounted) return false;
       state = state.copyWith(
         isSubmitting: false,
-        error: extractDioErrorMessage(e),
+        mutationError: extractDioErrorMessage(e),
       );
       return false;
     } catch (e) {
       if (!mounted) return false;
       state = state.copyWith(
         isSubmitting: false,
-        error: friendlyErrorMessage(e),
+        mutationError: friendlyErrorMessage(e),
       );
       return false;
     }
@@ -241,7 +255,7 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
     required String title,
     String? text,
   }) async {
-    state = state.copyWith(isSubmitting: true, clearError: true);
+    state = state.copyWith(isSubmitting: true, clearMutationError: true);
     try {
       final review = await _repository.updateReview(
         reviewId: reviewId,
@@ -270,21 +284,29 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
       if (!mounted) return false;
       state = state.copyWith(
         isSubmitting: false,
-        error: extractDioErrorMessage(e),
+        mutationError: extractDioErrorMessage(e),
       );
       return false;
     } catch (e) {
       if (!mounted) return false;
       state = state.copyWith(
         isSubmitting: false,
-        error: friendlyErrorMessage(e),
+        mutationError: friendlyErrorMessage(e),
       );
       return false;
     }
   }
 
+  /// Forget the last submit / edit / delete failure (the form is reopened, or
+  /// the snackbar was shown).
+  void clearMutationError() {
+    if (state.mutationError != null) {
+      state = state.copyWith(clearMutationError: true);
+    }
+  }
+
   Future<bool> deleteReview(String reviewId) async {
-    state = state.copyWith(isSubmitting: true, clearError: true);
+    state = state.copyWith(isSubmitting: true, clearMutationError: true);
     try {
       await _repository.deleteReview(reviewId);
       if (!mounted) return true;
@@ -309,14 +331,14 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
       if (!mounted) return false;
       state = state.copyWith(
         isSubmitting: false,
-        error: extractDioErrorMessage(e),
+        mutationError: extractDioErrorMessage(e),
       );
       return false;
     } catch (e) {
       if (!mounted) return false;
       state = state.copyWith(
         isSubmitting: false,
-        error: friendlyErrorMessage(e),
+        mutationError: friendlyErrorMessage(e),
       );
       return false;
     }

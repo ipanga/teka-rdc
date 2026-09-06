@@ -51,16 +51,28 @@ class InteractiveStarRating extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: List.generate(5, (index) {
         final starValue = index + 1;
-        return GestureDetector(
-          onTap: () => onChanged(starValue),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Icon(
-              starValue <= rating ? Icons.star : Icons.star_border,
-              size: size,
-              color: starValue <= rating
-                  ? TekaColors.warning
-                  : TekaColors.mutedForeground,
+        // ≥ 44 px tap target per star (WCAG 2.5.5 / Material) whatever the
+        // icon size, and a spoken label instead of five identical icons.
+        return Semantics(
+          button: true,
+          selected: starValue <= rating,
+          label: starValue == 1 ? '1 étoile' : '$starValue étoiles',
+          excludeSemantics: true,
+          child: InkResponse(
+            onTap: () => onChanged(starValue),
+            radius: size,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Icon(
+                  starValue <= rating ? Icons.star : Icons.star_border,
+                  size: size,
+                  color: starValue <= rating
+                      ? TekaColors.warning
+                      : TekaColors.mutedForeground,
+                ),
+              ),
             ),
           ),
         );
