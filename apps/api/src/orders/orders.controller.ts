@@ -5,9 +5,9 @@ import {
   Param,
   Query,
   Body,
-  ParseUUIDPipe,
 } from '@nestjs/common';
 import { OrdersService } from './orders.service';
+import { UuidParam } from '../common/pipes/uuid-param.pipe';
 import { OrderQueryDto } from './dto/order-query.dto';
 import { CancelOrderDto } from './dto/cancel-order.dto';
 import { RequestReturnDto } from './dto/request-return.dto';
@@ -32,7 +32,7 @@ export class OrdersController {
   @Get(':id')
   findById(
     @CurrentUser('userId') userId: string,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', UuidParam) id: string,
   ) {
     return this.ordersService.findBuyerOrderById(userId, id);
   }
@@ -40,7 +40,7 @@ export class OrdersController {
   @Post(':id/cancel')
   cancel(
     @CurrentUser('userId') userId: string,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', UuidParam) id: string,
     @Body() dto: CancelOrderDto,
   ) {
     return this.ordersService.cancelOrder(userId, id, dto.reason);
@@ -50,7 +50,7 @@ export class OrdersController {
   @Post(':id/return')
   requestReturn(
     @CurrentUser('userId') userId: string,
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id', UuidParam) id: string,
     @Body() dto: RequestReturnDto,
   ) {
     return this.returnsService.createReturnRequest(userId, id, dto.reason);
