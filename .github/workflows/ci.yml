@@ -6,6 +6,11 @@ on:
   push:
     branches: [main, develop]
 
+# Least privilege (PR 5): the workflow token can only read the repo; jobs that
+# need more declare it themselves.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -15,13 +20,12 @@ jobs:
     name: Lint & Type Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
         with:
           version: 9
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
           cache: 'pnpm'
@@ -48,13 +52,12 @@ jobs:
     name: API Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
         with:
           version: 9
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 20
           cache: 'pnpm'
@@ -74,8 +77,8 @@ jobs:
       # Unit tests with Jest default config find 0 matches under src/ — the real
       # test surface is the e2e suite under apps/api/test/ which mocks Prisma
       # (no live DB needed). --passWithNoTests also guards the src/ step.
-      - name: Run API unit tests (noop — e2e covers real cases)
-        run: pnpm --filter api test -- --passWithNoTests
+      - name: Run API unit tests
+        run: pnpm --filter api test
         env:
           NODE_ENV: test
           DATABASE_URL: postgresql://ci:ci@localhost:5432/teka_ci
@@ -94,6 +97,112 @@ jobs:
           AT_API_KEY: ''
           GOOGLE_WEB_CLIENT_ID: test-web-client-id
 
+  web-tests:
+    name: Web Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+        with:
+          version: 9
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build shared package
+        run: pnpm --filter @teka/shared build
+      # The three Vitest suites (middleware, security headers, JSON-LD escaping,
+      # safe redirects, URL helpers, PostHog scrub, workflow logic). Each app is
+      # its own step so one failure is never masked by the others.
+      - name: buyer-web tests
+        run: pnpm --filter buyer-web test
+      - name: seller-web tests
+        if: ${{ !cancelled() }}
+        run: pnpm --filter seller-web test
+      - name: admin-web tests
+        if: ${{ !cancelled() }}
+        run: pnpm --filter admin-web test
+
+  web-build:
+    name: Web Build (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [buyer-web, seller-web, admin-web]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+        with:
+          version: 9
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build shared package
+        run: pnpm --filter @teka/shared build
+      # A real `next build` (what the Dockerfile runs) so a page that only
+      # breaks at build time — a bad import in a server component, a
+      # next.config error, an unserialisable prop — fails the PR, not the deploy.
+      - name: next build
+        run: pnpm --filter ${{ matrix.app }} build
+        env:
+          NEXT_PUBLIC_API_URL: https://api.teka.cd/api
+          NEXT_PUBLIC_BASE_PATH: ''
+          NEXT_TELEMETRY_DISABLED: '1'
+
+  flutter-test:
+    name: Flutter Tests (${{ matrix.app }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [buyer-mobile, seller-mobile]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: 'stable'
+          cache: true
+      - name: Get dependencies
+        working-directory: apps/${{ matrix.app }}
+        run: flutter pub get
+      # Unit + widget tests (connectivity machine, interceptors, deep links,
+      # privacy-manifest guards…). Separate matrix legs so a buyer failure can
+      # never hide behind a seller pass, or vice versa.
+      - name: flutter test
+        working-directory: apps/${{ matrix.app }}
+        run: flutter test --reporter expanded
+
+  dependency-audit:
+    name: Dependency Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4.3.0
+        with:
+          version: 9
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      # Blocking: anything high/critical reachable from a production dependency
+      # (API process, Next.js server, browser bundles). Known, documented
+      # exceptions live in package.json → pnpm.auditConfig.ignoreGhsas with a
+      # follow-up each (docs/pre-scale-readiness.md, PR 5).
+      - name: pnpm audit (production dependencies, high+)
+        run: pnpm audit --prod --audit-level=high
+      # Informational: the full tree incl. dev/build tooling.
+      - name: pnpm audit (full tree, report only)
+        if: ${{ !cancelled() }}
+        run: pnpm audit --audit-level=moderate || echo "::warning::dev/build-time advisories present — see job log"
+
   flutter-analyze:
     name: Flutter Analysis
     runs-on: ubuntu-latest
@@ -102,9 +211,8 @@ jobs:
       matrix:
         app: [buyer-mobile, seller-mobile]
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: subosito/flutter-action@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: 'stable'
 
@@ -135,9 +243,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: ruby/setup-ruby@v1
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1.321.0
         with:
           ruby-version: '3.3'
 
@@ -149,3 +256,9 @@ jobs:
       # network, no App Store Connect credentials.
       - name: TestFlight distribution config
         run: ruby fastlane/testflight_groups_test.rb
+      # Deploy runs the auto-apply manifest before the rolling swap; catch a
+      # missing file, a duplicate entry, a destructive statement or a
+      # non-idempotent CREATE here instead of mid-deploy.
+      - name: Auto-apply migration manifest
+        working-directory: apps/api
+        run: sh prisma/migrations/check-manifest.sh
