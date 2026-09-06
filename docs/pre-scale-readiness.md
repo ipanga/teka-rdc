@@ -958,11 +958,141 @@ and in CI (`pnpm/action-setup` `version: 9` resolved to 9.15.x); the `version: 9
 `ignore: semver-major` to the `docker` and `github-actions` groups (the first run proposed `node:20-alpine
 → 26-alpine` ×4 and major action bumps). Recommend closing Dependabot PRs #679–#683 unmerged.
 
+### PR 8 — `buyer-mobile/ratings-profile-avatar` (Buyer Mobile PR C, 2026-09-06)
+
+**Re-audit of the Phase 0 findings (on `develop` `adae24f`, before any change):**
+
+| Finding | Status | Evidence |
+|---|---|---|
+| A5 buyer avatar upload not through `postMultipartWithAuthRetry` | **confirmed** | `profile_repository.dart:71-78` posted a `FormData` with `_dio.post` — a refreshed 401 surfaced as an error and the picked photo had to be re-picked |
+| A6 / D11 previous Cloudinary avatar never destroyed | **confirmed** | `users.service.ts:109-118` uploaded a random-id asset to `teka-rdc/avatars` and overwrote `User.avatar`; nothing referenced the old asset; `UpdateProfileDto.avatar` also let any client store an arbitrary URL |
+| A8 review submit/edit/delete failures invisible, list wiped | **confirmed** | `review_form_dialog.dart` never read `reviewsState.error`; `product_reviews_screen.dart:40-46` rendered the shared `error` INSTEAD of the list; a failed delete showed nothing (snackbar on success only) |
+| new buyers nameless | **confirmed** | `otp_verify_screen.dart:64` passes no names (the API supports them and buyer-web offers an optional « Indiquez votre nom » disclosure); dev DB: 1 nameless buyer; reviews fell back to « Acheteur » on mobile but « Utilisateur » on web |
+| profile header stale after an edit | **confirmed** | `profile_screen.dart` loaded `/me` once in `initState`; `personal_info_screen.dart` updated its own local copy only; `AuthNotifier` had no update path, so `authProvider.user` (and the offline profile cache) kept the old name/photo |
+| own review rendered twice | **confirmed** | the API list includes the caller's review; the screen rendered `myReview` AND the unfiltered list (buyer-web already filtered by id) |
+| comment cannot be cleared | **confirmed, on both clients** | mobile `reviews_repository.dart:170-176` omitted empty `text`; buyer-web sent `text: text.trim() \|\| undefined` — the API only clears on `''` (`dto.text?.trim() \|\| null`) |
+| cancel labelled « Reinitialiser » | **confirmed** | `product_reviews_screen.dart:208` (delete dialog) and `order_detail_screen.dart:85` (cancel-order dialog) |
+| comment cap 500 vs API 1000 | **confirmed** | mobile `maxLength: 500`; buyer-web textarea had no cap at all (a 1 001-char comment 400s) |
+| « reviews invisible while still counted » | **partially confirmed — not a rule divergence** | every read and recalculation already used `deletedAt IS NULL AND status = ACTIVE`, restated in 6 places across `ReviewsService` and `AdminReviewsService`. Two real ways the symptom appears: the dev database was missing the `reviews.title` column (the D4 runtime observation: list/stats/mine endpoints 500 while `Product.totalReviews` still rendered on cards) and the seed hand-writes the denormalised caches (dev: `SellerProfile.totalReviews` stored 2, live 3) |
+| legacy reviews without title | **already handled** | `title` nullable, tile renders no title line (PR of 2026-07-28, tests kept) |
+| eligibility / duplicate / authorisation | **already enforced server-side; test coverage was thin** | `canReview` + `createReview` scope the order to `buyerId` + `productId` + DELIVERED; `@@unique([buyerId, productId])`; PATCH/DELETE check ownership; only `updateReview` had specs, nothing over HTTP |
+| Dio `LogInterceptor` request URIs | **already fixed** (PR 6) | `requestBody: false`, `responseBody: false`, no URI logging in release |
+
+**Source of truth for review visibility (defined and pinned):** a review contributes to the public
+list, to the count and to the average iff `deletedAt IS NULL AND status = ACTIVE`; `HIDDEN` and
+soft-deleted rows contribute to nothing; the denormalised `Product.avgRating/totalReviews` and
+`SellerProfile.*` caches are recalculated with the same predicate on every mutation (buyer create /
+rating change / delete, admin hide / unhide / delete); the admin moderation list alone shows `HIDDEN`
+rows. Implemented as ONE constant `VISIBLE_REVIEW_WHERE` (`apps/api/src/reviews/review-visibility.ts`)
+spread by both services — the three numbers can no longer be edited apart. Documented in
+`docs/review-title-and-editing.md § Visibility`.
+
+**API changes:** `review-visibility.ts` + both services use it; `UsersService.uploadAvatar` now runs
+validate → upload new → persist → destroy the previous asset (`invalidate: true`) — a failed persist
+removes the just-uploaded asset and surfaces the error (the row still holds the old avatar), a failed
+destroy is logged and never fails the request; the previous asset's public id is derived by the strict
+`avatarPublicIdFromUrl` (`res.cloudinary.com`, our cloud, `image/upload`, directly under
+`teka-rdc/avatars/`, no transformation segment — anything else yields `null`, so nothing is ever deleted
+on a guess); `CloudinaryService.deleteImage` takes `{ invalidate }` and exposes `cloudName`;
+`UpdateProfileDto` no longer accepts `avatar` (no client sent it; with the destroy path it would have let
+a buyer point at another asset and get it destroyed). `test/test-utils.ts` gained the `orderItem.findFirst`
+delegate. Read-only `apps/api/scripts/report-avatar-orphans.ts` (lists, never deletes).
+
+**Legacy orphan quantification (read-only):** dev and prod share ONE Cloudinary cloud. `teka-rdc/avatars/`
+holds **4 assets, 353 959 bytes**; the dev database references **0** of them (0 users with an avatar)
+— they are almost certainly prod avatars, so nothing was deleted and the report script says to
+intersect across environments before any cleanup. During QA the fixture buyer's two uploads were
+handled by the new path (first asset destroyed on replace — verified 404 on Cloudinary; the last one
+destroyed with the fixture, by its exact public id).
+
+**Buyer Mobile changes:** `ReviewsState.mutationError` (separate from the load `error`); the form sheet
+shows the failure inline with the input intact and a « Réessayer » button, and clears it when reopened;
+the screen keeps the list on a « Charger plus » failure (inline error row) and only shows the full error
+state when nothing is loaded; a failed delete shows the API's reason in a snackbar and the review stays;
+the buyer's own review is rendered once (« Votre avis ») and filtered from « Tous les avis (N) »;
+`updateReview` always sends `text` (`''` clears); `kReviewTextMax = 1000`; « Annuler » in both dialogs;
+« Écrire un avis » / « Modifier mon avis » / « Publier l'avis » / « Enregistrer les modifications »;
+`InteractiveStarRating` stars are 44 px targets with « N étoiles » semantics; **« Achat vérifié »**
+badge on every tile (`VerifiedPurchaseBadge`, added on the user's mid-PR request — every review is by
+construction written against the reviewer's own DELIVERED order, so the badge states that server rule;
+same wording and green pill on buyer-web, which previously said « Acheteur vérifié »). Profile:
+`AuthNotifier.updateUser(patch)` merges the server's answer into the session user and re-caches it for
+offline starts (no-op when signed out); `personal_info_screen` calls it after PATCH profile and after
+the avatar upload, surfaces the API's French message (`friendlyErrorMessage`) instead of a generic
+string, uses `showAppSnackbar`; `profile_screen` renders the header from `authProvider.user` (merged
+over its own `/me` load, which it also pushes into the session) so the name and photo are right the
+moment the buyer comes back; nameless buyers get a one-line « Ajoutez votre nom… » nudge under the
+header (link to personal information; never blocks browsing, never invents a name) and the review sheet
+says « Votre avis sera publié sous le nom « Acheteur ». Ajouter mon nom »; the account header falls back
+to initials when the avatar image cannot load (offline); `_MenuSection` is a `Material` (its coloured
+`DecoratedBox` hid every ListTile ripple and tripped a debug assertion). Avatar: `uploadAvatar` goes
+through `postMultipartWithAuthRetry` (body rebuilt with `MultipartFile.fromFileSync`; retry exactly once,
+only on a 401 the AuthInterceptor marked as refreshed). Each upload yields a new Cloudinary URL, so no
+image cache can serve the old picture.
+
+**Buyer Web parity:** edit sends `text: text.trim()` (`''` clears — the same bug existed there);
+textarea `maxLength={1000}`; fallback name « Acheteur » (was « Utilisateur »); a failed delete shows an
+error banner (was a silent `catch {}`); the modal shows the same nameless notice with a link to
+`/profil`; « Achat vérifié » badge component. No review rule lives on a client: eligibility, ownership
+and one-per-product are the API's.
+
+**Tests:** API +40 (unit 766 → 806: `reviews.service.spec` createReview foreign order / no delivered
+order / duplicate / happy path + deleteReview owner-only + visibility predicate on list/stats;
+`admin-reviews.service.spec` hide/unhide/delete recalc with the predicate; `avatar-asset.spec` 16 cases;
+`users.service.spec` uploadAvatar order of operations, first upload, foreign previous value untouched,
+persist failure, cleanup failure, 404; e2e 214 → 224: `reviews-authz.e2e-spec` — 401 without session,
+403 for a SELLER, 400 on another buyer's order / foreign orderId / duplicate, 403 PATCH + DELETE on
+another buyer's review, 400 on re-pointing productId/orderId, owner edit clears text, public list + stats
+read with the predicate). Buyer Mobile +23 (297 → 320): `reviews_lifecycle_test` (provider: edit/delete/
+offline failures keep the list and set `mutationError`, `''` sent to clear; repository payload; screen:
+own review once, load error state + retry, « Annuler » + failed delete keeps the review, submit rejected
+→ inline message + input intact + retry succeeds, nameless notice shown/hidden), `review_title_test`
+badge, `profile_state_sync_test` (updateUser merge + cache, no-op signed out, A's edits gone after logout
+and invisible to B, header rebuilds on updateUser, nudge shown/hidden), `avatar_upload_test` (refreshed
+401 → one rebuilt retry; plain 401 / second 401 / 400 / 413 / 500 → no retry), `multipart_upload_test`
+mirrored from seller-mobile (helper byte-identical). Buyer Web 98 (unchanged; component covered by
+type-check + lint + browser QA).
+
+**Runtime verification (emulator `emulator-5554`, dev flavor, API `dist` on :5050 against the dev DB,
+disposable buyers `+243999000850/851`, fixture order `TK-QAC-189061` DELIVERED for the Johnnie Walker
+product, all removed afterwards; the `reviews.title` column was applied to the dev DB with the
+idempotent manual migration file — not `db:push`):** nameless buyer signs in → « Compte Teka » + nudge;
+Mes commandes → « Noter le produit » → reviews screen (0 avis, FAB « Écrire un avis ») → sheet shows
+« publié sous le nom « Acheteur » », 0/1000 cap; **offline publish** → « Aucune connexion Internet… »
+inline, 4 stars + title + comment intact, button « Réessayer »; **online retry** → « Avis publié.
+Merci ! », 4.0 / 1 avis, the review once under « Votre avis », list empty; edit with the comment
+emptied → DB `text: null`, tile without comment, `Product.totalReviews 1 / avgRating 4`; delete dialog
+« Annuler » (cancelled to keep the review for the web check); nudge « Ajouter » → personal information;
+saving with `kabila` as email → red snackbar « Adresse email invalide » (the API's message); name saved
+→ « Profil mis à jour », initials AK; back → header « amina kabila » **without reload**, nudge gone; photo
+1 (blue) → `teka-rdc/avatars/qevhxx…`; photo 2 (red) → `…/rxtgn7…`, **Cloudinary: old 404, new 4 244 B**;
+back → header shows the red photo; **offline cold start** → header « amina kabila » from the cached
+profile (name + avatar URL on disk); logout → `teka_cache_user_profile_v1` gone; sign-in as buyer B →
+« Compte Teka » + nudge, cache holds B only. **Buyer Web (Chrome, :5001 → :5050):** guest PDP shows the
+review once with « Achat vérifié » and no comment; signed in as the same buyer → « Vous avez déjà donné
+votre avis », own block once (not duplicated below), « Modifier mon avis » → comment added → shown;
+edited again with the comment cleared → DB `text: null` (the web bug fixed). Tablet: touched screens use
+full-width columns/Wrap; nothing hard-codes a phone width (no tablet run this PR).
+
+**Privacy:** no new PostHog/Sentry properties; `updateUser` never touches Sentry (id + role only);
+nothing logs names, phone numbers, avatar URLs or upload bodies; the API log line on avatar replace
+carries the user id only.
+
+**Not done / follow-ups:** PR D scope untouched (notifications, deep links, address, enums, accents
+elsewhere, `Occasion`, dead routes, guest PDP 401 — a universal link into the dev flavor did not open
+the PDP on the emulator, noted for PR D); no avatar *removal* endpoint (was listed Medium; not in this
+PR's spec); buyer-mobile's login could offer the same optional « Indiquez votre nom » disclosure
+buyer-web has (kept the smaller nudge per the brief); `Product.totalReviews` drift caused by the seed's
+hand-written caches is documented, not auto-repaired; Dependabot security jobs still fail in the
+npm_and_yarn helper with the correct pnpm installed (see PR 7 record); the 4 unreferenced Cloudinary
+avatar assets are left in place (prod reference check needed first).
+
 ## Next exact step
 
 PR 1–7 merged (`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`) plus
 `ci/dependabot-pnpm` (#688, `adae24f`; develop CI + CodeQL green). **PR 8
-`buyer-mobile/ratings-profile-avatar` (Buyer Mobile PR C) in progress** — see its record above. Then
+`buyer-mobile/ratings-profile-avatar` (Buyer Mobile PR C) open — awaiting merge approval** — see its
+record above. Then
 Buyer Mobile PR D (notifications, deep links, address, enums, accents, `Occasion`, dead routes, guest PDP 401). Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
 branch `security/critical-hotfixes` from `develop`; files: `apps/buyer-web/src/components/seo/json-ld.tsx`
 (+ `json-ld.test.tsx`), `apps/api/src/payments/payments.{controller,service}.ts` (+ `test/payments.e2e-spec.ts`
