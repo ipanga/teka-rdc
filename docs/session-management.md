@@ -30,26 +30,37 @@ touch the others. A logged-in buyer who visits `seller.teka.cd` is treated as a
 guest (seller-web only reads `teka_seller_*`), so the dashboard role-gate is now
 pure defense-in-depth rather than load-bearing.
 
-### How the surface is resolved
+### How the surface is resolved (D2a, 2026-09-06)
 
-Each web api-client sends an **`X-Teka-Surface: {admin|seller|buyer}`** header on
-every request (`apps/{app}-web/src/lib/api-client.ts`, the `SURFACE` constant).
-The API resolves it via `apps/api/src/auth/surface.util.ts` (`resolveSurface`)
-to pick which cookie set to read/write/clear:
+All three cookie namespaces share `Domain=.teka.cd`, so a browser signed in on several surfaces sends
+**all** of their cookies to `api.teka.cd` on every request. Which one authenticates a request is a
+security decision made from two trusted inputs only (`apps/api/src/auth/surface.util.ts`):
 
-- JWT cookie extractor (`auth/strategies/jwt.strategy.ts`) reads
-  `teka_{surface}_access_token`; the `Authorization: Bearer` fallback (mobile)
-  is unchanged.
-- `setAuthCookies` / `clearAuthCookies` / `refreshSessionHint` / `/refresh`
-  (`auth/auth.controller.ts`) all operate on the resolved surface.
-- `X-Teka-Surface` is allow-listed in CORS (`main.ts`). A request with no
-  surface header falls back to `buyer` (harmless — only matters for cookie
-  requests, and the web apps always send it).
+1. **The request `Origin`**, matched exactly (`URL.origin`, no prefix/suffix/substring) against the
+   configured web URLs — `ADMIN_WEB_URL` → `admin`, `SELLER_WEB_URL` → `seller`, `BUYER_WEB_URL` and every
+   remaining `CORS_ORIGINS` entry (the `www.` twin, the dev ports) → `buyer`. It selects the **only**
+   cookie namespace the `JwtStrategy` may read. No `Origin`, or an `Origin` that is not one of the web
+   apps (`https://teka.cd.attacker.example`, `https://admin.teka.cd.attacker.example`, a wrong scheme or
+   port, `null`), means **no cookie is read at all** — the request can still carry a bearer token.
+2. **The account's stored role** fixes the namespace a session is written to
+   (`surfaceForRole`: BUYER → buyer, SELLER → seller, ADMIN/SUPPORT/FINANCE → admin). Cookies are set
+   and cleared for that surface on login / OTP verify / refresh / logout / `/me` / account deletion —
+   never for a client claim — and a token read from namespace X whose stored role belongs to namespace Y
+   is refused with 401 « Session invalide pour cette interface ». The role is re-read from the database
+   on every request, so a forged role claim inside a token changes nothing either.
 
-Raw `fetch` calls that rely on cookie auth (e.g. the admin CSV blob download)
-must send `X-Teka-Surface` themselves — everything else goes through `apiFetch`,
-which adds it. `apiFetch` is FormData-aware (it omits `Content-Type` for
-multipart so uploads keep auto-refresh).
+`X-Teka-Surface` is still sent by every web api-client (and stays CORS allow-listed so preflights keep
+passing) but is **telemetry only**: the strategy logs a warning when it disagrees with the origin surface
+and otherwise ignores it. It can never grant, widen or switch a session. Mobile apps send neither cookies
+nor the header: the bearer path is unchanged and needs no `Origin`.
+
+CORS (`CORS_ORIGINS`, credentials) only decides which browser origins may read responses; it is not an
+authorization mechanism.
+
+Cookie attributes since D2a: admin and seller cookies are `SameSite=Strict` (`api.teka.cd` is same-site
+with `admin.teka.cd` / `seller.teka.cd`, and nothing legitimately navigates into those apps cross-site);
+the public buyer site keeps `Lax` so a session survives an inbound WhatsApp / search link. The shared
+`.teka.cd` domain itself is the D2b topic (dedicated admin API boundary).
 
 ## Refresh-token rotation & the grace window
 
@@ -94,6 +105,8 @@ users (the old `teka_access_token` is no longer read). Deploy at low traffic.
 
 ## Not done (possible follow-ups)
 
-- No CSRF token mechanism — protection is `sameSite=lax` only.
+- No CSRF token mechanism. Cross-site: `SameSite` (Strict on admin/seller, Lax on buyer). Same-site (another
+  `*.teka.cd` origin): since D2a a cookie can only authenticate a request whose `Origin` is that cookie's
+  own web app, which closes the cross-surface case that `SameSite` cannot see.
 - Refresh tokens are per-session but not per-app-origin scoped on `/refresh`
   (the surface header + cookie name already isolate them in practice).

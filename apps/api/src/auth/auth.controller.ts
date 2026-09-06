@@ -10,6 +10,7 @@ import {
   HttpStatus,
   Ip,
   BadRequestException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import type { Response, Request } from 'express';
 import { ConfigService } from '@nestjs/config';
@@ -30,8 +31,11 @@ import { BuyerClaimVerifyDto } from './dto/buyer-claim-verify.dto';
 import { Public } from '../common/decorators/public.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import {
-  resolveSurface,
   cookieNamesFor,
+  surfaceForRole,
+  surfaceFromOrigin,
+  buildSurfaceOriginMap,
+  type SurfaceOriginMap,
   type AuthSurface,
 } from './surface.util';
 
@@ -42,7 +46,16 @@ export class AuthController {
     private buyerOtpService: BuyerOtpService,
     private buyerClaimService: BuyerClaimService,
     private configService: ConfigService,
-  ) {}
+  ) {
+    this.surfaceOrigins = buildSurfaceOriginMap({
+      adminWebUrl: this.configService.get<string>('ADMIN_WEB_URL'),
+      sellerWebUrl: this.configService.get<string>('SELLER_WEB_URL'),
+      buyerWebUrl: this.configService.get<string>('BUYER_WEB_URL'),
+      corsOrigins: this.configService.get<string>('CORS_ORIGINS'),
+    });
+  }
+
+  private readonly surfaceOrigins: SurfaceOriginMap;
 
   // ---------------------------------------------------------------------------
   // Email + password registration (sellers + admins only since 2026-05-15).
@@ -62,7 +75,7 @@ export class AuthController {
       dto,
       this.extractDevice(req),
     );
-    this.setAuthCookies(res, result.tokens, resolveSurface(req));
+    this.setAuthCookies(res, result.tokens, surfaceForRole(result.user.role));
     return result;
   }
 
@@ -78,7 +91,7 @@ export class AuthController {
       dto,
       this.extractDevice(req),
     );
-    this.setAuthCookies(res, result.tokens, resolveSurface(req));
+    this.setAuthCookies(res, result.tokens, surfaceForRole(result.user.role));
     return result;
   }
 
@@ -141,7 +154,7 @@ export class AuthController {
       dto.lastName,
       this.extractDevice(req),
     );
-    this.setAuthCookies(res, result.tokens, resolveSurface(req));
+    this.setAuthCookies(res, result.tokens, surfaceForRole(result.user.role));
     return result;
   }
 
@@ -179,7 +192,7 @@ export class AuthController {
       dto.code,
       this.extractDevice(req),
     );
-    this.setAuthCookies(res, result.tokens, resolveSurface(req));
+    this.setAuthCookies(res, result.tokens, surfaceForRole(result.user.role));
     return result;
   }
 
@@ -204,16 +217,30 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const surface = resolveSurface(req);
-    const token =
-      dto.refreshToken || req.cookies?.[cookieNamesFor(surface).refresh];
+    // Cookie refresh (web): the namespace is chosen from the trusted Origin,
+    // never from a client header. Body refresh (mobile) is unchanged.
+    const originSurface = surfaceFromOrigin(
+      this.surfaceOrigins,
+      req.headers.origin,
+    );
+    const cookieToken = originSurface
+      ? req.cookies?.[cookieNamesFor(originSurface).refresh]
+      : undefined;
+    const token = dto.refreshToken || cookieToken;
     if (!token) {
       throw new BadRequestException('Token de rafraîchissement requis');
     }
-    const tokens = await this.authService.refreshTokens(
+    const { role, ...tokens } = await this.authService.refreshTokens(
       token,
       this.extractDevice(req),
     );
+    const surface = surfaceForRole(role);
+    // A refresh token found in the `{originSurface}` namespace must belong to
+    // a role of that namespace (cookies are only written for the role's own
+    // surface) — anything else is a planted cookie.
+    if (!dto.refreshToken && surface !== originSurface) {
+      throw new UnauthorizedException('Session invalide pour cette interface');
+    }
     this.setAuthCookies(res, tokens, surface);
     return { tokens };
   }
@@ -223,7 +250,7 @@ export class AuthController {
   async logout(
     @CurrentUser('userId') userId: string,
     @CurrentUser('jti') jti: string | undefined,
-    @Req() req: Request,
+    @CurrentUser('surface') surface: AuthSurface | null,
     @Res({ passthrough: true }) res: Response,
   ) {
     // Scope the logout to the current session (jti from the access token) so
@@ -231,14 +258,14 @@ export class AuthController {
     // other surfaces. Falls back to a full logout when jti is absent (e.g. a
     // bearer/mobile token issued before jti was carried).
     await this.authService.logout(userId, jti);
-    this.clearAuthCookies(res, resolveSurface(req));
+    this.clearAuthCookies(res, surface);
     return { message: 'Déconnexion réussie' };
   }
 
   @Get('me')
   async getProfile(
     @CurrentUser('userId') userId: string,
-    @Req() req: Request,
+    @CurrentUser('surface') surface: AuthSurface | null,
     @Res({ passthrough: true }) res: Response,
   ) {
     // Auto-heal the session-hint cookie. Users whose sessions predate the
@@ -247,7 +274,7 @@ export class AuthController {
     // circuits the /me call and renders them as logged out. Re-issuing
     // the hint cookie on every successful /me restores parity for those
     // sessions without forcing a re-login.
-    this.refreshSessionHint(res, resolveSurface(req));
+    this.refreshSessionHint(res, surface);
     return this.authService.getProfile(userId);
   }
 
@@ -271,14 +298,25 @@ export class AuthController {
   // names (teka_{surface}_access_token, …) even though all share the
   // `.teka.cd` domain (required so the API on api.teka.cd receives them).
   // This keeps the three sessions isolated in one browser — logging out or
-  // expiring on one surface no longer touches the others. The surface is
-  // resolved from the `X-Teka-Surface` header each web app's api-client sends.
+  // expiring on one surface no longer touches the others. D2a: the surface a
+  // session is written to is a pure function of the account's stored role
+  // (`surfaceForRole`), never a client claim; reading is bound to the request
+  // Origin (JwtStrategy). Admin and seller cookies are `SameSite=Strict`
+  // (api.teka.cd is same-site with them, and nothing legitimately navigates
+  // into those apps cross-site); the public buyer site keeps `Lax` so a
+  // session survives an inbound WhatsApp / search link.
+  private cookieSameSite(surface: AuthSurface): 'strict' | 'lax' {
+    return surface === 'buyer' ? 'lax' : 'strict';
+  }
+
   private setAuthCookies(
     res: Response,
     tokens: { accessToken: string; refreshToken: string },
-    surface: AuthSurface,
+    surface: AuthSurface | null,
   ) {
+    if (!surface) return; // role without a web surface: bearer-only session
     const isProduction = this.configService.get('NODE_ENV') === 'production';
+    const sameSite = this.cookieSameSite(surface);
     // Cross-subdomain cookies: API runs on api.teka.cd but the cookie has to
     // be visible on admin.teka.cd / seller.teka.cd / teka.cd so the web
     // middlewares can detect auth state. Without this, browsers scope the
@@ -289,7 +327,7 @@ export class AuthController {
     res.cookie(names.access, tokens.accessToken, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: 'lax',
+      sameSite,
       maxAge: 15 * 60 * 1000,
       path: '/',
       ...(domain ? { domain } : {}),
@@ -298,7 +336,7 @@ export class AuthController {
     res.cookie(names.refresh, tokens.refreshToken, {
       httpOnly: true,
       secure: isProduction,
-      sameSite: 'lax',
+      sameSite,
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/',
       ...(domain ? { domain } : {}),
@@ -314,14 +352,15 @@ export class AuthController {
     res.cookie(names.session, '1', {
       httpOnly: false,
       secure: isProduction,
-      sameSite: 'lax',
+      sameSite,
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/',
       ...(domain ? { domain } : {}),
     });
   }
 
-  private clearAuthCookies(res: Response, surface: AuthSurface) {
+  private clearAuthCookies(res: Response, surface: AuthSurface | null) {
+    if (!surface) return;
     const domain = this.configService.get<string>('COOKIE_DOMAIN') || undefined;
     const names = cookieNamesFor(surface);
     res.clearCookie(names.access, {
@@ -341,13 +380,14 @@ export class AuthController {
   // Idempotent helper: re-sets the non-HttpOnly session-hint cookie with
   // the canonical attributes. Called by /me to auto-heal sessions whose hint
   // cookie is missing and to bump the cookie's TTL on every active check.
-  private refreshSessionHint(res: Response, surface: AuthSurface) {
+  private refreshSessionHint(res: Response, surface: AuthSurface | null) {
+    if (!surface) return;
     const isProduction = this.configService.get('NODE_ENV') === 'production';
     const domain = this.configService.get<string>('COOKIE_DOMAIN') || undefined;
     res.cookie(cookieNamesFor(surface).session, '1', {
       httpOnly: false,
       secure: isProduction,
-      sameSite: 'lax',
+      sameSite: this.cookieSameSite(surface),
       maxAge: 7 * 24 * 60 * 60 * 1000,
       path: '/',
       ...(domain ? { domain } : {}),
