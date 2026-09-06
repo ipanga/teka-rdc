@@ -1,8 +1,17 @@
-# Microsoft Clarity (buyer-web + seller-web)
+# Microsoft Clarity (buyer-web only)
 
 [Microsoft Clarity](https://clarity.microsoft.com) provides session recordings
-and heatmaps. It is wired into **`apps/buyer-web`** and **`apps/seller-web`**
-only — **not** `admin-web`, `api`, or the Flutter apps.
+and heatmaps. It is wired into **`apps/buyer-web` only** — **not** `seller-web`
+(removed by D4, 2026-09-06), `admin-web`, `api`, or the Flutter apps.
+
+> **D4 (2026-09-06):** session-replay tooling was removed from the seller
+> portal, which shows identity, payout and verification (KYC) data — masking
+> is a dashboard setting we cannot verify from the repository, so the portal
+> now runs no recorder at all (PostHog replay is also disabled there, see
+> `docs/analytics.md`). The buyer storefront keeps Clarity: its pages are
+> public catalogue pages; the only personal surfaces (profile, orders,
+> checkout) are inputs, which the project's masking mode must cover — see
+> *Privacy* below, a **required** dashboard check before relying on it.
 
 It runs alongside the existing analytics with no conflict: Clarity only touches
 `window.clarity`, while PostHog uses `window.posthog` and Sentry its own SDK.
@@ -14,26 +23,33 @@ A small component renders the official Clarity tag via `next/script`
 scripts, and easy on slow connections since it loads after hydration):
 
 - `apps/buyer-web/src/components/analytics/clarity.tsx`
-- `apps/seller-web/src/components/analytics/clarity.tsx`
 
-Each is mounted once in the app's `src/app/layout.tsx`. The component renders
+It is mounted once in `apps/buyer-web/src/app/layout.tsx` and renders
 **nothing** unless **both** are true:
 
 1. `process.env.NODE_ENV === 'production'` — so `next dev` never loads Clarity.
-2. The per-app project-id env var is set — empty → no-op (same gate as Sentry/PostHog).
+2. `NEXT_PUBLIC_CLARITY_PROJECT_ID_BUYER_WEB` is set — empty → no-op (same gate as Sentry/PostHog).
+
+### Content-Security-Policy
+
+The buyer CSP (`apps/buyer-web/src/lib/security-headers.ts`) grants the Clarity
+hosts **only when the project id is baked in**: `https://www.clarity.ms` +
+`https://scripts.clarity.ms` in `script-src`, `https://*.clarity.ms` in
+`connect-src`. Without the id the policy contains no `clarity.ms` entry at all.
+The tag itself is an inline script, which is why the storefront's `script-src`
+keeps `'unsafe-inline'` (its SEO pages are prerendered and cannot carry a
+per-request nonce — the seller/admin portals use nonces instead).
 
 ## Configuration
 
-Per-app project id (public; baked into the browser bundle at build time):
+Public project id, baked into the browser bundle at build time:
 
 | App | Env var |
 |---|---|
 | buyer-web | `NEXT_PUBLIC_CLARITY_PROJECT_ID_BUYER_WEB` |
-| seller-web | `NEXT_PUBLIC_CLARITY_PROJECT_ID_SELLER_WEB` |
 
-Get each id from **clarity.microsoft.com → (project) → Settings → Overview**
-(the value in the install snippet, e.g. `abcde12345`). Use a **separate Clarity
-project per app** so buyer and seller sessions don't mix.
+Get the id from **clarity.microsoft.com → (project) → Settings → Overview**
+(the value in the install snippet, e.g. `abcde12345`).
 
 `NEXT_PUBLIC_*` is **compile-time only** — the id must be present at *build* time,
 not runtime.
@@ -42,26 +58,22 @@ not runtime.
 
 | Environment | Source |
 |---|---|
-| **Local dev** | Root `.env.development` — left empty; Clarity is gated on `NODE_ENV=production` so it won't load under `next dev` regardless. |
-| **Production** | GitHub Secrets `NEXT_PUBLIC_CLARITY_PROJECT_ID_BUYER_WEB` / `NEXT_PUBLIC_CLARITY_PROJECT_ID_SELLER_WEB` → passed as Docker build-args in `.github/workflows/deploy.yml` → `ARG`/`ENV` in each app's `Dockerfile`. **Not** a runtime/compose var (same handling as the PostHog key and the client Sentry DSNs). |
+| **Local dev** | Root `.env.development` — Clarity is gated on `NODE_ENV=production` so it never loads under `next dev`. |
+| **Production** | GitHub Secret `NEXT_PUBLIC_CLARITY_PROJECT_ID_BUYER_WEB` → Docker build-arg in `.github/workflows/deploy.yml` → `ARG`/`ENV` in `apps/buyer-web/Dockerfile`. **Not** a runtime/compose var (same handling as the PostHog key and the client Sentry DSNs). |
 
-## Deployment requirements
+The former `NEXT_PUBLIC_CLARITY_PROJECT_ID_SELLER_WEB` secret is no longer read
+by anything and can be deleted from the repository secrets.
 
-Before a prod deploy can collect Clarity data:
+## Privacy — required dashboard check
 
-1. Create two Clarity projects (one for buyer-web, one for seller-web).
-2. Add the two GitHub repo Secrets above with the respective project ids.
-3. Deploy (merge to `main`). The deploy workflow bakes each id into its image;
-   `docker-build-check` already validates the Dockerfiles build with the new ARGs.
-
-No nginx, compose, or runtime env change is needed — the ids are compile-time.
-
-## Privacy
-
-Per Rule 10 / Rule 15 (never expose phone numbers), set the recording **masking
-mode to "Mask" or "Balanced"** in each Clarity project's settings
-(Settings → Project setup → Masking). The install snippet carries no masking
-config — masking is enforced server-side by Clarity based on the project setting.
+Per Rule 10 / Rule 15 (never expose phone numbers), the buyer project's
+recording **masking mode must be "Strict"** (Settings → Project setup →
+Masking) — or at minimum "Balanced" with the profile, address, checkout and
+order pages excluded. The install snippet carries no masking config; masking is
+enforced by Clarity from the project setting, so **this cannot be verified from
+the repository**. If the setting cannot be confirmed, set
+`NEXT_PUBLIC_CLARITY_PROJECT_ID_BUYER_WEB` empty in the deploy secrets — the
+tag then never loads and the CSP grants nothing to `clarity.ms`.
 
 ## Verifying Clarity is working
 
@@ -75,8 +87,9 @@ prod) build, not `next dev`:
    ```
    Open the page → DevTools **Network** tab → you should see a request to
    `https://www.clarity.ms/tag/<project-id>` (and follow-up `clarity.ms/collect`
-   beacons). In the **Console**, `window.clarity` should be a function.
-   Building **without** the id (or running `next dev`) → no `clarity.ms` request.
+   beacons) and **no CSP violation** in the Console. `window.clarity` should be a
+   function. Building **without** the id (or running `next dev`) → no `clarity.ms`
+   request.
 
 2. **Clarity dashboard** — after the prod deploy, open the project at
    clarity.microsoft.com. "Recordings" / "Dashboard" populate within a few
@@ -96,10 +109,8 @@ change is needed — just expect the split when comparing pre/post-migration dat
 ```
 apps/buyer-web/src/components/analytics/clarity.tsx    # tag loader (prod + id gated)
 apps/buyer-web/src/app/layout.tsx                      # mounts <Clarity/>
+apps/buyer-web/src/lib/security-headers.ts             # CSP grants clarity.ms only when the id is set
 apps/buyer-web/Dockerfile                              # NEXT_PUBLIC_CLARITY_PROJECT_ID_BUYER_WEB ARG/ENV
-apps/seller-web/src/components/analytics/clarity.tsx   # tag loader
-apps/seller-web/src/app/layout.tsx                     # mounts <Clarity/>
-apps/seller-web/Dockerfile                             # NEXT_PUBLIC_CLARITY_PROJECT_ID_SELLER_WEB ARG/ENV
-.github/workflows/deploy.yml                           # build-args from GitHub Secrets
-.env.{example,development,production}                  # env documentation
+.github/workflows/deploy.yml                           # build-arg from the GitHub Secret
+.env.{development,production}                          # env documentation
 ```

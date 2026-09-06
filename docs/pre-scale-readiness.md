@@ -407,7 +407,7 @@ suites buyer has (identical code).
 | 1 | **security/critical-hotfixes** | S2 `JsonLd` escaping (+test); S4 payments IDOR scoping (+cross-user e2e); S8 multer limits + magic-byte/EXIP reuse on product/avatar uploads; S10 scrub the app-review doc + prod boot warning; S7 `next` ≥ 15.5.21 bump (3 apps) | — |
 | 2 | **security/origin-and-surface-binding** | S1 `OriginGuard` + JWT `surface` claim; make `X-Teka-Surface` required for cookie auth; tests | decision 2 |
 | 3 | **security/auth-throttling** | S5 per-route `@Throttle`, login lockout, atomic OTP counter, resend cooldown on request (neutral register response deferred); S3 OTP role restriction (shipped as D1 / #672); S15 PII-safe logger; S6 real client IP moved here; e2e — **PR open** | decisions 1, 8 |
-| 4 | **infra/edge-and-headers** | S6 Cloudflare real IP + origin firewall note; S9 per-host CSP (drop `unsafe-eval`, remove Google hosts, Sentry `tunnel`, Clarity per decision 4, admin `img-src api.cloudinary.com`), headers in static locations, `Permissions-Policy`/COOP/CORP, `poweredByHeader:false`, `private, no-store` on seller/admin; header golden tests | decision 4 |
+| 4 | **security/edge-and-headers** | S9 per-surface CSP owned by each app (no `unsafe-eval`; nonce + `strict-dynamic` on seller/admin; Google hosts gone; Sentry ingest + Clarity hosts derived at build; admin `img-src api.cloudinary.com`), headers on static assets, `Permissions-Policy`/COOP/CORP, `poweredByHeader:false`, `private, no-store` on seller/admin + buyer account pages, API helmet profile + no-store; Clarity off seller (D4), PostHog replay off seller/admin; S6 real IP shipped in PR 3, origin-firewall recommendation documented — **PR open** | decision 4 |
 | 5 | **ci/tests-and-supply-chain** | `flutter test` + web vitest in CI; `permissions:` + SHA pins; `dependabot.yml`; `pnpm audit --audit-level=high` gate; fix stale ci.yml comment; refresh `pnpm.overrides`, Express/`path-to-regexp`/`qs` bumps | — |
 | 6 | **buyer-mobile/functional-1** | A1 cart/checkout totals (+tests); A2 offline cold-start session; A3 city gate offline; A4+MS5 session reset on logout/account switch; A5 avatar retry; A6 avatar orphan (API, decision 11) | decision 11 |
 | 7 | **buyer-mobile/functional-2** | A7 category-by-slug; A8 review error surfacing; A9 iOS local notifications; A10 address phone normalisation + error surfacing; nameless buyers; French copy/accents/status labels; dead routes; guest PDP cart 401; notifications refetch-on-open | — |
@@ -580,10 +580,135 @@ IP ranges (cloud firewall / `ufw`), or enable Authenticated Origin Pulls; re-che
 **Follow-ups:** drop `otp_rate_limits` in a later contract migration; consider a neutral `register/email`
 response (contract change) once the clients are updated.
 
+### PR 4 — `security/edge-and-headers` (D4, 2026-09-06)
+**Root causes (reconfirmed on `develop` `5af6b94`, after PRs #674–#676):**
+- One nginx CSP map served all three hosts with `script-src 'self' 'unsafe-inline' 'unsafe-eval'` plus the
+  retired Google OAuth hosts, no Clarity/Sentry hosts (so both were blocked in production) and no
+  `api.cloudinary.com` (admin document previews blocked). `'unsafe-eval'` had no consumer: Next.js production
+  bundles, posthog-js, Sentry and the Clarity tag never eval — only `next dev` does.
+- nginx `add_header` is not inherited into a `location` that sets its own `add_header`: the `/_next/static/`
+  and image locations (Cache-Control/expires) shipped JS/CSS/images with **no** HSTS, CSP, XFO or nosniff.
+- The headers were only in the production nginx, so `next dev`, `next start` and every test ran without them;
+  nothing could assert the policy. `X-Powered-By: Next.js` disclosed; no `Permissions-Policy`, COOP or CORP;
+  `X-XSS-Protection` (legacy, buyer only); admin `X-Frame-Options: DENY` disagreed with CSP `frame-ancestors 'self'`.
+- Seller/admin login pages were static (`Cache-Control: s-maxage=31536000`); the API sent no cache policy on
+  personal responses; helmet's default CSP on the API advertised script/style sources for JSON.
+- nginx and helmet both emitted `Strict-Transport-Security` with different values; the nginx one carried
+  `preload` although the domain was never submitted.
+- Clarity (session replay) was mounted on the authenticated seller dashboard; PostHog replay was enabled on
+  seller and admin.
+**Ownership (the design):** nginx emits **only HSTS** (`max-age=63072000; includeSubDomains`, `preload`
+dropped; location blocks add_header-free so it inherits). Every page-level header is emitted by the app that
+serves the page, so dev/start/Docker behave identically and tests assert the policy. Web: `next.config.ts
+headers()` on `/:path*` (HTML + `_next/static` + `public/`) + `src/lib/security-headers.ts` (builder, unit
+tested) + `middleware.ts`. API: `common/security/http-security.ts` (`applyHttpSecurity`, shared with the e2e
+app). `poweredByHeader: false` ×3.
+**Effective headers — before → after** (production, from the nginx map / helmet default → measured on
+`next start` + the built API):
+| | before | after |
+|---|---|---|
+| CSP script-src (all 3 web) | `'self' 'unsafe-inline' 'unsafe-eval' accounts.google.com apis.google.com www.gstatic.com` | buyer `'self' 'unsafe-inline'` (+ `www.clarity.ms scripts.clarity.ms` only when the id is baked in); seller/admin `'nonce-…' 'strict-dynamic' 'self'` |
+| CSP connect-src | `'self' https://api.teka.cd accounts.google.com` | `'self'` + API origin + Sentry ingest origin derived from the public DSN (+ `*.clarity.ms` buyer with id) |
+| CSP img-src | `'self' data: blob: res.cloudinary.com lh3.googleusercontent.com` | `'self' data: blob: res.cloudinary.com` (+ `api.cloudinary.com` admin only) |
+| CSP frame-ancestors / frame-src | `'self'` / `'self' accounts.google.com` | `'none'` / `'none'` everywhere |
+| also | — | `base-uri 'self'`, `object-src 'none'`, `form-action 'self'`, `worker-src 'self'`, `manifest-src 'self'`, `upgrade-insecure-requests` (prod) |
+| X-Frame-Options | SAMEORIGIN (buyer, seller), DENY (admin) | DENY ×3 |
+| Referrer-Policy | strict-origin-when-cross-origin ×3 | buyer unchanged; seller + admin `same-origin` (signed document URLs / internal paths never leave the origin) |
+| Permissions-Policy / COOP / CORP | none | camera, microphone, geolocation, payment, usb, bluetooth, accelerometer, gyroscope, magnetometer, display-capture `=()`, `fullscreen=(self)`; COOP + CORP `same-origin` (no COEP — Cloudinary images) |
+| HSTS | nginx `…; preload` + helmet `max-age=31536000; includeSubDomains` on the API (two headers) | nginx only, `max-age=63072000; includeSubDomains` |
+| X-XSS-Protection / X-Powered-By | `1; mode=block` (buyer) / `Next.js` | gone / gone |
+| Static assets (`/_next/static`, `public/`) | no security headers | full set; `_next/static` immutable (Next), public images/fonts `public, max-age=86400` (buyer) |
+| Cache-Control seller/admin HTML | `s-maxage=31536000` on login | `private, no-store` on every HTML response (middleware) |
+| Cache-Control buyer account pages | static `s-maxage` | `private, no-store` on `/profil`, `/commandes`, `/paiement`, `/favoris`, `/addresses` (public SEO pages untouched) |
+| API | helmet default CSP (`script-src 'self'…`), no cache policy | CSP `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'`; `Cache-Control: no-store` on any request carrying a cookie or bearer; nosniff, no-referrer, COOP/CORP same-origin, no HSTS from the app |
+**Why `'unsafe-inline'` stays on the buyer script-src (the one exception):** the storefront is the SEO
+surface — `next build` prerenders/ISR-caches `/`, `/[ville]`, `/categories`, `/connexion`, `/panier`,
+`/profil`… (route table checked) and a per-request nonce would force every page dynamic. Next.js's own
+hydration payloads, the service-worker registration and the Clarity tag are inline scripts. Data blocks
+(`application/ld+json`) are not executed and need no nonce. Hashes cannot cover per-page hydration
+payloads. `style-src 'unsafe-inline'` stays on all three (React `style` props / next/image sizing are
+style attributes; no nonce exists for attributes). **No `'unsafe-eval'` anywhere in production**; `next dev`
+adds `'unsafe-eval'` + `ws:`/`wss:` (HMR) + `picsum.photos` (buyer) only.
+**Nonce architecture (seller/admin):** middleware generates a 128-bit nonce, sets `x-nonce` +
+`content-security-policy` on the *request* headers (Next.js stamps every framework script from there) and
+the CSP + `X-Robots-Tag` + `private, no-store` on the response; the root layout `await headers()` so every
+route renders per request. Measured: 16/16 scripts on the login page carry the nonce, 0 without. Negative
+tests in the browser: an injected `onerror=` handler is refused (`script-src-attr`), a parser-inserted
+`<script>` without nonce does not run, `fetch`/`<img>`/`<iframe>` to a foreign origin are refused
+(connect-src / img-src / frame-src violations), and all four surfaces refuse framing from a foreign
+origin (`frame-ancestors 'none'`, checked from a page on :5099).
+**Clarity:** removed from seller-web (component, layout, Dockerfile ARG, deploy build-arg, dev env,
+docs; the `NEXT_PUBLIC_CLARITY_PROJECT_ID_SELLER_WEB` secret can be deleted). Kept on buyer-web; its CSP
+entries appear only when the id is baked in. The buyer project's masking mode is a Clarity-dashboard setting
+that cannot be verified from the repository — `docs/clarity.md` now makes "Strict" a required check and
+says how to switch the tag off (empty secret) if it cannot be confirmed. PostHog session replay disabled
+in code on seller-web and admin-web (`disable_session_recording: true`); buyer unchanged
+(`maskAllInputs`).
+**Third-party origins (from actual runtime traffic):** API origin (`NEXT_PUBLIC_API_URL`),
+`res.cloudinary.com` (images), `api.cloudinary.com` (admin signed private downloads only), Sentry
+`o…ingest.de.sentry.io` (derived from the DSN at build time; absent when no DSN), `clarity.ms` (buyer, id
+present). PostHog via `/ingest` rewrite (same origin) — no `posthog.com` in any CSP. Fonts self-hosted
+(next/font). No WebSocket/EventSource in the apps.
+**Files:** `apps/{buyer,seller,admin}-web/src/lib/security-headers.ts` (+ `.test.ts`),
+`apps/{seller,admin}-web/src/middleware.ts` (+ `.test.ts`), `apps/buyer-web/src/middleware.ts` (+ test),
+three `next.config.ts`, two root layouts, `apps/seller-web/src/components/analytics/clarity.tsx` (deleted),
+two `posthog-provider.tsx`, `apps/seller-web/Dockerfile`, `.github/workflows/deploy.yml`,
+`.env.development`/`.env.production` (comments), `apps/api/src/common/security/http-security.ts`,
+`apps/api/src/main.ts`, `apps/api/test/test-utils.ts`, `apps/api/test/security-headers.e2e-spec.ts`,
+`apps/buyer-web/src/components/seo/json-ld.test.tsx` (+2 cases), `nginx/nginx.prod.conf`,
+`docs/{clarity,analytics,architecture,deployment}.md`.
+**Tests:** buyer-web 12 header cases + 2 middleware cache cases + 2 JSON-LD cases (`</SCRIPT >`, U+2028/9,
+no nonce on data blocks); seller-web/admin-web 11 header cases each (nonce format, strict-dynamic, no
+unsafe-inline/eval, nonce validation, frame-ancestors, exact connect-src, no Clarity/Google/PostHog host,
+img-src per surface, dev additions, fixed header set) + 4 middleware cases each (nonce CSP + robots +
+no-store on 200/307, fresh nonce per request, request-header hand-off); API e2e 9 cases (baseline on
+200/400/401/404/429, no misleading CSP, no HSTS, no-store on bearer/cookie, CSV nosniff attachment
+no-store, anonymous catalogue untouched). Suites: API 766 unit / 214 e2e, buyer-web 97, seller-web 36,
+admin-web 60, workspace type-check, three production builds, `nginx -t` on the full prod config (dummy
+cert, stub upstreams).
+**Runtime (isolated API :5051 + `next start` ×3 on the production builds, fixtures: one QA seller with
+`</script><script>alert(1)</script>` / `<!--` / U+2028/U+2029 in product title, description and shop name,
+one uploaded identity document, temp admin, one OTP buyer):** curl matrix per surface on 200 / 307 / 308 /
+404 / static chunk / public asset / robots / sitemap / API 200-401-404 (all as in the table above; the
+only response without the set is Next.js's own 308 redirects from `next.config` `redirects()` — no body,
+nothing to protect). Browser (Chrome, isolated context): buyer home, search, category, hostile PDP (title
+rendered literally, 2 valid JSON-LD blocks, no script executed, no CSP violation), login → OTP (mock) →
+home → profile → checkout; seller login → dashboard → verification → profile → products → earnings; admin
+login → dashboard (Action Center) → sellers list (hostile shop name rendered literally) → seller detail with
+the signed `api.cloudinary.com` document preview loading → payouts → commission — **zero CSP violations,
+zero hydration errors, Recharts and PostHog fine under the nonce**. Console noise seen and explained:
+`/_next/image` 400s for `picsum.photos` demo images (production build excludes the dev host — data, not
+headers), a pre-existing dev-DB drift (`reviews.title` column missing → reviews list 500), guest `/me` 401s.
+Fixtures, temp admin password, uploaded document (Cloudinary asset destroyed) and throttle rows deleted.
+**Cloudflare / direct origin (findings, no changes made):** `docker-compose.prod.yml` publishes 80/443 on
+the VPS; nothing in the repository restricts who may connect, so the origin currently accepts arbitrary
+public connections. `set_real_ip_from` (D8) only trusts `CF-Connecting-IP` from Cloudflare addresses, so a
+direct connection cannot spoof the IP — but it bypasses Cloudflare's WAF/DDoS layer and hits nginx's per-IP
+zones with its own address. nginx could reject non-Cloudflare peers itself (`geo $realip_remote_addr` +
+`return 403`), but that belongs with a decision on emergency direct access. **Recommended infrastructure
+action (manual):** VPS firewall allowing 443 only from Cloudflare's published ranges (or Authenticated
+Origin Pulls), Cloudflare SSL/TLS *Full (strict)*; re-check the IP list when Cloudflare updates it.
+**D2b interaction:** the nonce CSP and `Referrer-Policy: same-origin` on admin are independent of where the
+admin API lives; when D2b moves it to `admin.teka.cd/api`, `connect-src` shrinks to `'self'` (the builder
+takes the API origin from `NEXT_PUBLIC_API_URL`, so no code change beyond the env). The admin `img-src`
+allowance for `api.cloudinary.com` stays.
+**Production / config implications:** no env or migration change; nginx reloads on deploy; the buyer
+CSP is fixed at build time from the three `NEXT_PUBLIC_*` build-args (API URL, Sentry DSN, Clarity id) —
+a new Sentry org/region or a Clarity id change needs a rebuild, not a runtime edit; the seller Clarity
+secret is unused. HSTS `preload` was removed from the header: browsers that cached the previous policy
+keep it until `max-age` elapses, which is harmless (the hosts stay HTTPS-only).
+**Remaining risks:** buyer script-src keeps `'unsafe-inline'` (mitigated by output encoding — the JSON-LD
+fix — and by having no `eval`, `base-uri`, `object-src` or foreign hosts); `style-src 'unsafe-inline'`
+everywhere; `strict-dynamic` trusts scripts created by trusted code (DOM-XSS via `createElement('script')`
+is not stopped — markup injection is); Clarity masking on the buyer is unverifiable from the repo; the
+origin is reachable directly until the firewall rule is applied; CI still runs no web tests / production
+builds (PR 5); the `X-Robots-Tag`/`noindex` on seller/admin is unchanged and re-verified.
+
 ## Next exact step
 
-PR 1 merged (`6201534`), PR 2 merged (`29ccb6f`). **PR 3 `security/auth-throttling` (D8) open — awaiting merge
-approval.** Then PR 4 `infra/edge-and-headers` (D4: Clarity removal from seller/admin, CSP per host, headers). Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
+PR 1 merged (`6201534`), PR 2 merged (`29ccb6f`), PR 3 merged (`5af6b94`). **PR 4
+`security/edge-and-headers` (D4) open — awaiting merge approval.** Then PR 5 `ci/tests-and-supply-chain`
+(web vitest + production builds + `flutter test` in CI, action pinning, dependabot, audit gate). Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
 branch `security/critical-hotfixes` from `develop`; files: `apps/buyer-web/src/components/seo/json-ld.tsx`
 (+ `json-ld.test.tsx`), `apps/api/src/payments/payments.{controller,service}.ts` (+ `test/payments.e2e-spec.ts`
 cross-user cases), `apps/api/src/products/products.controller.ts` + `products.service.ts`,

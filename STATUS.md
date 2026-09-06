@@ -4,9 +4,11 @@
 
 **Pre-scale readiness initiative — implementation in progress. D1 merged (#672). D2–D11 approved
 2026-09-06 (D2b = later design phase, D6 = docs only). PR 1 merged (`6201534`), PR 2 (D2a) merged
-(`29ccb6f`). PR 3 `security/auth-throttling` (D8: identity-keyed limits in `auth_rate_limits`, login lock,
-atomic OTP budgets, per-route IP backstops, French 429 + `Retry-After`, Cloudflare real IP in nginx) open,
-awaiting merge approval; next: PR 4 `infra/edge-and-headers` (D4).** Tracker: `docs/pre-scale-readiness.md` (findings for Buyer Mobile functional readiness,
+(`29ccb6f`), PR 3 (D8) merged (`5af6b94`). PR 4 `security/edge-and-headers` (D4: security headers owned by
+each Next.js app + helmet — nonce/strict-dynamic CSP on seller/admin, no `unsafe-eval` anywhere, headers on
+static assets, Permissions-Policy/COOP/CORP, private no-store on portals and buyer account pages, API
+no-store on credentialed responses; nginx keeps only HSTS; Clarity removed from seller-web, PostHog replay
+off on seller/admin) open, awaiting merge approval; next: PR 5 `ci/tests-and-supply-chain`.** Tracker: `docs/pre-scale-readiness.md` (findings for Buyer Mobile functional readiness,
 Buyer Web SEO, tablet support, cross-platform security; 11 decisions needed; 16-PR sequence). No code
 changed. Recommended first PR: `security/critical-hotfixes` (JSON-LD escaping, payments IDOR, upload
 limits, app-review doc scrub, `next` bump). Still open from the previous release: manual Google Play

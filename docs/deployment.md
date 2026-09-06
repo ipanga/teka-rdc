@@ -347,12 +347,17 @@ The production NGINX (`nginx/nginx.prod.conf`) provides:
 - HTTP to HTTPS redirect
 
 ### Security Headers
-- `Strict-Transport-Security` (HSTS with 2-year max-age, preload)
-- `X-Frame-Options: SAMEORIGIN`
-- `X-Content-Type-Options: nosniff`
-- `X-XSS-Protection: 1; mode=block`
-- `Referrer-Policy: strict-origin-when-cross-origin`
-- `Content-Security-Policy` (restricts sources for scripts, styles, images, fonts, connections)
+- nginx emits **only** `Strict-Transport-Security: max-age=63072000; includeSubDomains` (no `preload` —
+  the domain is not submitted to the browser preload list; every `teka.cd` host nginx serves is HTTPS-only,
+  port 80 redirects). Do not add `preload` without a separate decision.
+- CSP, `X-Frame-Options`, nosniff, `Referrer-Policy`, `Permissions-Policy`, COOP/CORP and cache policy are
+  emitted by each Next.js app and by helmet in the API (D4, 2026-09-06) — see `docs/architecture.md`
+  → *Security Headers*. nginx `location` blocks must stay free of `add_header` so HSTS is inherited.
+- Cloudflare sits in front of nginx: the real client IP is restored from `CF-Connecting-IP`
+  (`set_real_ip_from`, D8). **Recommended, not automated:** restrict the origin's port 443 to Cloudflare's
+  published ranges (VPS firewall) or enable Authenticated Origin Pulls, so direct-to-origin traffic cannot
+  bypass the edge; and keep Cloudflare's SSL/TLS mode at *Full (strict)* (the origin holds a valid
+  Let's Encrypt certificate).
 
 ### Rate Limiting
 - **General API**: 30 requests/second per IP (burst 20)
@@ -528,11 +533,9 @@ To run multiple API containers behind NGINX:
 ### CDN
 
 - Cloudinary serves as the image CDN (product images, banners)
-- Consider adding Cloudflare in front of NGINX for:
-  - DDoS protection
-  - Static asset caching at edge locations closer to DRC
-  - Additional SSL layer
-  - Analytics and security insights
+- Cloudflare is in front of NGINX (CDN/edge, DDoS protection, TLS to the visitor). The origin
+  restores the visitor IP from `CF-Connecting-IP`; see *Security Headers* above for the recommended
+  origin firewall rule.
 
 ### Mobile App Distribution
 
