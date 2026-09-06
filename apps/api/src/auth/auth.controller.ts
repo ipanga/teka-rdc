@@ -14,6 +14,7 @@ import {
 } from '@nestjs/common';
 import type { Response, Request } from 'express';
 import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { BuyerOtpService } from './buyer-otp.service';
 import { BuyerClaimService } from './buyer-claim.service';
@@ -40,6 +41,17 @@ import {
 } from './surface.util';
 
 @Controller('v1/auth')
+/**
+ * Throttling (D8, 2026-09-06). Two layers on every auth route:
+ *  1. `@Throttle` below — per-IP backstop (@nestjs/throttler, in-memory).
+ *     Behind Cloudflare + carrier NAT an IP is shared by many users, so these
+ *     caps are deliberately loose: they stop raw floods, not credential
+ *     guessing.
+ *  2. Identity-keyed limits in the services (RateLimitService / AUTH_LIMITS):
+ *     per phone, per email, per refresh token — the limits that actually
+ *     defend an account. 429 + Retry-After, French copy, no enumeration.
+ * See docs/api-reference.md → "Rate limits".
+ */
 export class AuthController {
   constructor(
     private authService: AuthService,
@@ -65,6 +77,7 @@ export class AuthController {
   // ---------------------------------------------------------------------------
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 3_600_000 } })
   @Post('register/email')
   async registerSeller(
     @Body() dto: EmailRegisterDto,
@@ -80,6 +93,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 60, ttl: 900_000 } })
   @Post('login/email')
   @HttpCode(HttpStatus.OK)
   async loginWithEmail(
@@ -96,6 +110,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 20, ttl: 3_600_000 } })
   @Post('password-reset/request')
   @HttpCode(HttpStatus.OK)
   async requestPasswordReset(
@@ -106,6 +121,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 20, ttl: 3_600_000 } })
   @Post('password-reset/confirm')
   @HttpCode(HttpStatus.OK)
   async confirmPasswordReset(@Body() dto: PasswordResetConfirmDto) {
@@ -118,6 +134,7 @@ export class AuthController {
    * needed; any logged-in user can hit this. Service layer rejects buyers
    * (no password, WhatsApp OTP since 2026-05-15) with a 400.
    */
+  @Throttle({ default: { limit: 10, ttl: 900_000 } })
   @Post('password/change')
   @HttpCode(HttpStatus.OK)
   async changePassword(
@@ -133,6 +150,7 @@ export class AuthController {
   // ---------------------------------------------------------------------------
 
   @Public()
+  @Throttle({ default: { limit: 30, ttl: 900_000 } })
   @Post('buyer/otp/request')
   @HttpCode(HttpStatus.OK)
   async buyerOtpRequest(@Body() dto: BuyerOtpRequestDto) {
@@ -140,6 +158,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 60, ttl: 900_000 } })
   @Post('buyer/otp/verify')
   @HttpCode(HttpStatus.OK)
   async buyerOtpVerify(
@@ -159,6 +178,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 30, ttl: 900_000 } })
   @Post('buyer/otp/resend')
   @HttpCode(HttpStatus.OK)
   async buyerOtpResend(@Body() dto: BuyerOtpResendDto) {
@@ -172,6 +192,7 @@ export class AuthController {
   // ---------------------------------------------------------------------------
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 3_600_000 } })
   @Post('buyer/claim/request')
   @HttpCode(HttpStatus.OK)
   async buyerClaimRequest(@Body() dto: BuyerClaimRequestDto) {
@@ -179,6 +200,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 30, ttl: 900_000 } })
   @Post('buyer/claim/verify')
   @HttpCode(HttpStatus.OK)
   async buyerClaimVerify(
@@ -210,6 +232,7 @@ export class AuthController {
   // ---------------------------------------------------------------------------
 
   @Public()
+  @Throttle({ default: { limit: 120, ttl: 900_000 } })
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refresh(
@@ -285,6 +308,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 20, ttl: 3_600_000 } })
   @Get('email/verify')
   async verifyEmail(@Query('token') token: string) {
     return this.authService.verifyEmail(token);

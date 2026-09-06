@@ -3,6 +3,7 @@ import type { Response } from 'express';
 import { ReportsService } from './reports.service';
 import { ReportQueryDto } from './dto/report-query.dto';
 import { Roles } from '../common/decorators/roles.decorator';
+import { IdentityThrottle } from '../common/rate-limit/identity-throttle.decorator';
 
 @Controller('v1/admin/reports')
 @Roles('ADMIN')
@@ -24,6 +25,8 @@ export class ReportsController {
    * Admin: sales report (CSV download).
    */
   @Get('sales/csv')
+  // D8: CSV exports are full-table scans — per-admin budget (AUTH_LIMITS.csvExport).
+  @IdentityThrottle('csvExport')
   async getSalesCsv(@Query() query: ReportQueryDto, @Res() res: Response) {
     await this.reportsService.generateSalesCsv(query, res);
   }
@@ -43,6 +46,8 @@ export class ReportsController {
    * Admin: financial report (CSV download).
    */
   @Get('financial/csv')
+  // D8: CSV exports are full-table scans — per-admin budget (AUTH_LIMITS.csvExport).
+  @IdentityThrottle('csvExport')
   async getFinancialCsv(@Query() query: ReportQueryDto, @Res() res: Response) {
     await this.reportsService.generateFinancialCsv(query, res);
   }
@@ -62,6 +67,8 @@ export class ReportsController {
    * Admin: seller performance report (CSV download).
    */
   @Get('sellers/csv')
+  // D8: CSV exports are full-table scans — per-admin budget (AUTH_LIMITS.csvExport).
+  @IdentityThrottle('csvExport')
   async getSellerPerformanceCsv(
     @Query() query: ReportQueryDto,
     @Res() res: Response,
@@ -84,6 +91,8 @@ export class ReportsController {
    * Admin: payouts report (CSV download).
    */
   @Get('payouts/csv')
+  // D8: CSV exports are full-table scans — per-admin budget (AUTH_LIMITS.csvExport).
+  @IdentityThrottle('csvExport')
   async getPayoutsCsv(@Query() query: ReportQueryDto, @Res() res: Response) {
     await this.reportsService.generatePayoutsCsv(query, res);
   }

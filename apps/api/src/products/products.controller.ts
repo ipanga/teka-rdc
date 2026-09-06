@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
+import { IdentityThrottle } from '../common/rate-limit/identity-throttle.decorator';
 import { imageUploadLimits } from '../common/uploads/image-upload';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -122,6 +123,8 @@ export class ProductsController {
   // multer `limits` refuse an oversized body while it streams — nothing
   // above the cap is ever buffered (S8 hardening, shared with avatars/products).
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  // D8: per-user budget too (AUTH_LIMITS.upload) — a shared IP is not a user.
+  @IdentityThrottle('upload')
   @UseInterceptors(FileInterceptor('image', { limits: imageUploadLimits }))
   uploadImage(
     @CurrentUser('userId') userId: string,

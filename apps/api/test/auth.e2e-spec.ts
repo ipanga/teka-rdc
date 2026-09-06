@@ -240,20 +240,25 @@ describe('Auth (e2e)', () => {
       expect(mockPrismaService.otp.create).toHaveBeenCalled();
     });
 
-    it('returns 429 when rate limit ceiling is exceeded', async () => {
-      mockPrismaService.otpRateLimit.deleteMany.mockResolvedValue({ count: 0 });
-      // Existing window already at max attempts.
-      mockPrismaService.otpRateLimit.findFirst.mockResolvedValue({
-        id: 'rate-id',
-        phone: '+243999000001',
-        count: 3,
-        expiresAt: new Date(Date.now() + 60_000),
-      });
+    it('returns 429 once the per-phone issuance budget is spent (D8: 3 per 10 min)', async () => {
+      mockPrismaService.otp.findFirst.mockResolvedValue(null); // no active OTP → no cooldown
+      mockPrismaService.otp.deleteMany.mockResolvedValue({ count: 0 });
+      mockPrismaService.otp.create.mockResolvedValue({});
+      mockPrismaService.user.findFirst.mockResolvedValue(null);
 
-      await request(app.getHttpServer())
+      for (let i = 0; i < 3; i++) {
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/buyer/otp/request')
+          .send({ phone: '+243999000001' })
+          .expect(200);
+      }
+      const res = await request(app.getHttpServer())
         .post('/api/v1/auth/buyer/otp/request')
         .send({ phone: '+243999000001' })
         .expect(429);
+      expect(res.headers['retry-after']).toMatch(/^\d+$/);
+      // The legacy OtpRateLimit table is no longer consulted.
+      expect(mockPrismaService.otpRateLimit.findFirst).not.toHaveBeenCalled();
     });
   });
 
@@ -456,6 +461,7 @@ describe('Auth (e2e)', () => {
       mockPrismaService.otpRateLimit.create.mockResolvedValue({});
       mockPrismaService.otp.deleteMany.mockResolvedValue({ count: 0 });
       mockPrismaService.otp.create.mockResolvedValue({});
+      mockPrismaService.otp.findFirst.mockResolvedValue(null); // no active OTP → no D8 cooldown
       mockPrismaService.user.findFirst.mockResolvedValue(privileged.SELLER);
 
       const res = await request(app.getHttpServer())
@@ -465,7 +471,13 @@ describe('Auth (e2e)', () => {
 
       expect(res.body.data).toEqual({ expiresInSeconds: 300, cooldownSeconds: 30 });
       expect(mockPrismaService.otp.create).not.toHaveBeenCalled();
-      expect(mockPrismaService.otpRateLimit.create).toHaveBeenCalledTimes(1);
+      // D8: the issuance budget lives in auth_rate_limits (memory store in
+      // e2e); the legacy OtpRateLimit table is no longer written.
+      expect(mockPrismaService.otpRateLimit.create).not.toHaveBeenCalled();
+      const spent = await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/otp/request')
+        .send({ phone: privileged.SELLER.phone });
+      expect(spent.status).toBe(200);
     });
   });
 

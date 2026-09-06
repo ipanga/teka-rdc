@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import * as Sentry from '@sentry/node';
+import { TooManyRequestsException } from '../rate-limit/too-many-requests.exception';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -25,6 +26,15 @@ export class HttpExceptionFilter implements ExceptionFilter {
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exResponse = exception.getResponse();
+
+      if (exception instanceof TooManyRequestsException) {
+        // D8: identity-keyed 429s carry the exact wait; the per-IP
+        // ThrottlerGuard sets its own Retry-After before throwing.
+        response.setHeader(
+          'Retry-After',
+          String(Math.max(1, Math.ceil(exception.retryAfterSeconds))),
+        );
+      }
 
       if (status === HttpStatus.PAYLOAD_TOO_LARGE) {
         // multer's fileSize limit surfaces as PayloadTooLargeException with

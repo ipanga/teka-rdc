@@ -3,6 +3,7 @@ import type { Response } from 'express';
 import { SalesAnalyticsService } from './sales-analytics.service';
 import { SalesBreakdownQueryDto } from './dto/sales-breakdown-query.dto';
 import { Roles } from '../common/decorators/roles.decorator';
+import { IdentityThrottle } from '../common/rate-limit/identity-throttle.decorator';
 
 /**
  * Admin sales analytics.
@@ -37,6 +38,8 @@ export class SalesAnalyticsController {
   }
 
   @Get('breakdown/csv')
+  // D8: CSV exports are full-table scans — per-admin budget (AUTH_LIMITS.csvExport).
+  @IdentityThrottle('csvExport')
   async getBreakdownCsv(
     @Query() query: SalesBreakdownQueryDto,
     @Res() res: Response,

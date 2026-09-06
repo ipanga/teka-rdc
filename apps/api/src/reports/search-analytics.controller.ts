@@ -6,6 +6,7 @@ import {
   SearchBreakdownQueryDto,
 } from './dto/search-analytics-query.dto';
 import { Roles } from '../common/decorators/roles.decorator';
+import { IdentityThrottle } from '../common/rate-limit/identity-throttle.decorator';
 
 /**
  * Admin search analytics — what buyers are looking for, and what Teka is not
@@ -54,6 +55,8 @@ export class SearchAnalyticsController {
 
   /** Raw events matching the active filters, as CSV. */
   @Get('csv')
+  // D8: CSV exports are full-table scans — per-admin budget (AUTH_LIMITS.csvExport).
+  @IdentityThrottle('csvExport')
   async getCsv(
     @Query() query: SearchAnalyticsQueryDto,
     @Res() res: Response,

@@ -297,7 +297,7 @@ class-validator + class-transformer on DTOs, Zod in `@teka/shared`. Pagination: 
 admin tables. Uploads go multipart → backend → Cloudinary, never to local disk. The part worth memorizing:
 
 - **Response envelope (as actually emitted):** success → `{ success: true, data: T }`; error → `{ success: false, error: { status, message, errors?: [{ field, message }] } }`. `ResponseInterceptor` wraps any return value lacking a `success` key — so a controller returning `{ data, meta }` passes through with `meta` intact, and **there is no global meta-hoisting**. `HttpExceptionFilter` builds the error shape. Note `error.status` (the HTTP code), **not** `error.code`.
-- Rate limiting is in-memory `@nestjs/throttler`, stricter on auth endpoints; `@SkipThrottle()` on health.
+- Rate limiting is two-layered (D8, 2026-09-06): identity-keyed limits (per phone / email / refresh token / user id, durable in `auth_rate_limits`, `RateLimitService` + `AUTH_LIMITS` in `apps/api/src/common/rate-limit/`) are the real defence; in-memory `@nestjs/throttler` per IP is only a backstop (loose per-route `@Throttle` on auth). Every 429 is French + `Retry-After`. `@SkipThrottle()` on health. → `docs/api-reference.md § Rate limits`.
 
 ---
 

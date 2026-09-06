@@ -1295,6 +1295,22 @@ model Otp {
   @@map("otps")
 }
 
+/// D8 (2026-09-06) — identifier-keyed authentication throttling, shared by every
+/// API container and durable across restarts. One row per (scope, identifier
+/// hash); `key` never contains a raw phone or email. Fixed window: `count`
+/// resets when `expiresAt` passes; `lockedUntil` is a temporary lock (login).
+/// Swept hourly (RateLimitService). Supersedes OtpRateLimit for OTP issuance.
+model AuthRateLimit {
+  key         String    @id
+  count       Int       @default(1)
+  expiresAt   DateTime
+  lockedUntil DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  @@index([expiresAt])
+  @@map("auth_rate_limits")
+}
+
 model OtpRateLimit {
   id        String   @id @default(uuid()) @db.Uuid
   phone     String
