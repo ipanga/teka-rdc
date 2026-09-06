@@ -95,13 +95,17 @@ class PushController {
     // First launch, no town yet: the router would replace the pushed route
     // with /city-selection and the tap would be lost. Park it; the
     // city-selection screen opens it once a town is chosen.
+    final city = _ref.read(cityProvider);
     final action = resolveExternalRoute(
-      hasCity: _ref.read(cityProvider).hasCity,
+      hasCity: city.hasCity,
+      isLoadingCity: city.isLoading,
     );
-    if (action == ExternalRouteAction.deferBehindCityGate) {
+    if (action != ExternalRouteAction.navigate) {
       _ref.read(pendingRouteProvider.notifier).state = route;
-      _log('tap deferred behind the city gate');
-      return;
+      if (action == ExternalRouteAction.deferBehindCityGate) {
+        _log('tap deferred behind the city gate');
+        return;
+      }
     }
     try {
       _ref.read(appRouterProvider).push(route);

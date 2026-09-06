@@ -95,16 +95,22 @@ class DeepLinkController {
 
     // First launch with no town: park the route until the buyer picks one
     // (the router would otherwise replace it with /city-selection).
-    final gate = resolveExternalRoute(hasCity: _ref.read(cityProvider).hasCity);
-    if (gate == ExternalRouteAction.deferBehindCityGate) {
+    final city = _ref.read(cityProvider);
+    final gate = resolveExternalRoute(
+      hasCity: city.hasCity,
+      isLoadingCity: city.isLoading,
+    );
+    if (gate != ExternalRouteAction.navigate) {
       _ref.read(pendingRouteProvider.notifier).state = target.route;
-      const PosthogAnalytics().capture('deep_link_opened', properties: {
-        'matched': true,
-        'route_type': _routeType(target.route),
-        'scheme': uri.scheme,
-        'deferred': true,
-      });
-      return;
+      if (gate == ExternalRouteAction.deferBehindCityGate) {
+        const PosthogAnalytics().capture('deep_link_opened', properties: {
+          'matched': true,
+          'route_type': _routeType(target.route),
+          'scheme': uri.scheme,
+          'deferred': true,
+        });
+        return;
+      }
     }
 
     try {

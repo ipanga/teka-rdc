@@ -56,7 +56,13 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
   /// alongside them (PR D, 2026-09-06 — a failed refresh used to leave a
   /// bare « Une erreur est survenue » with no retry and no list).
   Future<void> loadNotifications() async {
-    if (_inFlight) return;
+    // A reload asked for while one is running (a push arriving as the screen
+    // opens, a sign-in right after creation) is coalesced into ONE more load
+    // after the current one — never dropped, never duplicated.
+    if (_inFlight) {
+      _reloadRequested = true;
+      return;
+    }
     _inFlight = true;
     state = state.copyWith(isLoading: true, clearError: true);
     try {
@@ -83,10 +89,16 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
       );
     } finally {
       _inFlight = false;
+      if (_reloadRequested && mounted) {
+        _reloadRequested = false;
+        // ignore: discarded_futures
+        loadNotifications();
+      }
     }
   }
 
   bool _inFlight = false;
+  bool _reloadRequested = false;
 
   Future<void> refresh() => loadNotifications();
 
