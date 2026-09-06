@@ -462,10 +462,62 @@ SVG/HTML uploads that were already broken at Cloudinary now fail earlier); trans
 for non-owners (buyer-web/mobile only ever request their own orders — no caller change); Next patch
 bump only.
 
+### PR 2 — `security/origin-and-surface-binding` (D2a, 2026-09-06)
+**Root cause (reconfirmed on `develop` `6201534`):** the role was already trusted (re-read from the DB on
+every request), but *which* of the three `.teka.cd` cookie namespaces authenticated a request was chosen
+from the client header `X-Teka-Surface` (`surface.util.ts` `resolveSurface`, default `buyer`), `Origin`
+was never checked, and CORS admits `teka.cd` with credentials — so JavaScript on the storefront could
+select an admin's cookie by header. Cookies were also written for the header-chosen namespace.
+**Security invariant now:** a session may only be READ from the namespace selected by the request
+`Origin` (exact match against `ADMIN_WEB_URL` / `SELLER_WEB_URL` / `BUYER_WEB_URL` + remaining
+`CORS_ORIGINS`; no Origin or an unknown/spoofed Origin ⇒ no cookie is read at all) and only WRITTEN to
+the namespace of the account's stored role (`surfaceForRole`: BUYER→buyer, SELLER→seller,
+ADMIN/SUPPORT/FINANCE→admin); a token found in namespace X whose stored role belongs to Y is refused
+(401 « Session invalide pour cette interface »). `X-Teka-Surface` is telemetry only (mismatch logged),
+still CORS-allow-listed for compatibility. Bearer (mobile) needs neither cookie nor Origin — unchanged.
+No new JWT claim: the surface is a pure function of the trusted role, so a claim would add nothing the
+role does not already bind. Admin and seller cookies are now `SameSite=Strict` (buyer stays `Lax`);
+`Domain=.teka.cd` unchanged (D2b).
+**Files:** `apps/api/src/auth/surface.util.ts` (rewritten: `surfaceForRole`, `buildSurfaceOriginMap`,
+`surfaceFromOrigin`, `headerSurfaceHint`, request auth context), `auth/strategies/jwt.strategy.ts`
+(origin-selected cookie extractor with `passReqToCallback`, role/namespace check, returns `surface` +
+`authVia`), `auth/auth.controller.ts` (cookies set/cleared for `surfaceForRole`; cookie refresh reads the
+Origin's namespace and rejects a role/namespace mismatch; logout, `/me` hint and account deletion use the
+session's own surface; Strict/Lax helper), `auth/auth.service.ts` (`refreshTokens` also returns `role`),
+`users/account-deletion.controller.ts`, `main.ts` (CORS comment), `test/test-utils.ts`
+(`cookie-parser` registered — cookie paths were never testable before), `docs/session-management.md`.
+**Tests:** `surface.util.spec.ts` (role→surface incl. unknown roles; exact origin matching incl. suffix/
+prefix spoofs, scheme/port mismatch, `null`, multi-valued header; dev-port classification; CORS entries
+never override admin/seller) and `test/auth-surface.e2e-spec.ts` (18 cases: all three sessions present in
+one browser — each origin authenticates its own session; the six forged-header combinations change
+nothing; storefront origin never reaches an admin-only route (403) whatever the header; missing /
+unknown / malformed / spoofed Origin ⇒ 401; seller token planted in the buyer cookie ⇒ 401; forged role
+claim in a token ⇒ stored role wins; bearer with no Origin / with a hostile Origin works; admin login sets
+admin cookies (Strict) never buyer ones; logout clears only the session's surface; cookie refresh reads
+the Origin's namespace only). Regression: API 736 unit / 188 e2e, type-check, buyer- and seller-mobile
+auth-interceptor suites; the D1 OTP e2e (incl. surface-header cases) unchanged.
+**Runtime (isolated API + all three web dev servers, one browser context holding admin + seller + buyer
+sessions):** curl — buyer origin + `X-Teka-Surface: admin` ⇒ BUYER; admin-only route from the storefront
+403, from the admin origin 200; no / evil / suffix-spoofed Origin ⇒ 401; planted seller cookie ⇒ 401;
+bearer without Origin 200; cookie refresh 400 without Origin, 200 with the buyer origin (buyer cookies
+re-issued); logout from the seller origin clears the three seller cookies only; admin `Set-Cookie`
+`SameSite=Strict`, buyer `Lax`; API logged the forged-header mismatch. Browser — admin-web login →
+dashboard with admin data, seller-web login → dashboard, buyer-web OTP login (mock provider) → signed-in
+home; then from the buyer page's JS with credentials + forged admin header: `/me` ⇒ BUYER, admin route ⇒
+403. Fixtures, QA buyer and temp admin password removed.
+**Compatibility:** web api-clients unchanged (browsers always send `Origin` on cross-origin fetch; no
+server-side cookie forwarding exists in any Next app); distributed mobile builds unaffected (bearer path,
+no header, no Origin); non-browser cookie clients (curl) must now send `Origin` — none exist in
+production. Tokens issued before the change keep working (no new claim).
+**D2b requirements recorded:** dedicated admin API boundary under `admin.teka.cd/api` (nginx prod
+location like the dev config), admin cookies scoped to `Domain=admin.teka.cd`, `CORS_ORIGINS` without
+`admin.teka.cd` (same-origin), keep the Origin/role binding as defence in depth, local dev via the
+existing per-port origins, CI docker-build-check unchanged, Cloudflare rule parity, rollback = revert
+nginx + env (cookies re-issued on next login), one-time re-login for admins.
+
 ## Next exact step
 
-D2–D11 approved 2026-09-06 (D2b later, D6 docs-only). PR 1 open — awaiting merge approval. Then PR 2
-`security/origin-and-surface-binding` (D2a). Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
+PR 1 merged (`6201534`). PR 2 (D2a) open — awaiting merge approval. Then PR 3 `security/auth-throttling` (D8). Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
 branch `security/critical-hotfixes` from `develop`; files: `apps/buyer-web/src/components/seo/json-ld.tsx`
 (+ `json-ld.test.tsx`), `apps/api/src/payments/payments.{controller,service}.ts` (+ `test/payments.e2e-spec.ts`
 cross-user cases), `apps/api/src/products/products.controller.ts` + `products.service.ts`,

@@ -80,10 +80,11 @@ async function bootstrap() {
       'http://localhost:8080',
     ],
     credentials: true,
-    // `X-Teka-Surface` lets the web api-clients tell the API which session
-    // cookie namespace (admin/seller/buyer) they belong to — required for the
-    // per-surface cookie isolation. The other two are the only headers the
-    // API consumes (JSON body + mobile bearer auth).
+    // `X-Teka-Surface` is still sent by every web api-client (kept allow-listed
+    // so preflights keep passing) but since D2a it is telemetry only: the
+    // session namespace is bound to the request Origin + the stored role
+    // (auth/surface.util.ts). CORS is not an authorization mechanism here —
+    // it only decides which browser origins may READ responses.
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Teka-Surface'],
   });
 

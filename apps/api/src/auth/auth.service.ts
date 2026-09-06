@@ -464,12 +464,13 @@ export class AuthService {
         ipAddress: storedToken.ipAddress ?? undefined,
       };
 
-      return this.generateTokens(
+      const tokens = await this.generateTokens(
         user.id,
         user.role,
         user.phone,
         effectiveDevice,
       );
+      return { ...tokens, role: user.role };
     } catch (error) {
       if (
         error instanceof UnauthorizedException ||
