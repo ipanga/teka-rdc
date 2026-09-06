@@ -1,4 +1,6 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/notification_model.dart';
 import '../../data/notifications_repository.dart';
@@ -6,12 +8,21 @@ import '../../data/notifications_repository.dart';
 class NotificationsState {
   final List<NotificationModel> items;
   final bool isLoading;
+
+  /// Last load failure (French, connectivity-aware). With items already
+  /// loaded it is shown inline and the list stays; with none it is the
+  /// screen's error state with a retry.
   final String? error;
+
+  /// True once a load has completed (success or failure) in this session —
+  /// distinguishes « Aucune notification » from « not loaded yet ».
+  final bool hasLoaded;
 
   const NotificationsState({
     this.items = const [],
     this.isLoading = false,
     this.error,
+    this.hasLoaded = false,
   });
 
   int get unreadCount => items.where((n) => !n.isRead).length;
@@ -20,12 +31,14 @@ class NotificationsState {
     List<NotificationModel>? items,
     bool? isLoading,
     String? error,
+    bool? hasLoaded,
     bool clearError = false,
   }) {
     return NotificationsState(
       items: items ?? this.items,
       isLoading: isLoading ?? this.isLoading,
       error: clearError ? null : (error ?? this.error),
+      hasLoaded: hasLoaded ?? this.hasLoaded,
     );
   }
 }
@@ -38,20 +51,50 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
     loadNotifications();
   }
 
+  /// Loads (or reloads) the feed. Items already on screen stay visible while
+  /// the request runs and are KEPT on failure; the failure message is set
+  /// alongside them (PR D, 2026-09-06 — a failed refresh used to leave a
+  /// bare « Une erreur est survenue » with no retry and no list).
   Future<void> loadNotifications() async {
+    if (_inFlight) return;
+    _inFlight = true;
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       final result = await _repository.getNotifications();
-      state = state.copyWith(items: result.items, isLoading: false);
-    } catch (_) {
+      if (!mounted) return;
+      state = state.copyWith(
+        items: result.items,
+        isLoading: false,
+        hasLoaded: true,
+      );
+    } on DioException catch (e) {
+      if (!mounted) return;
       state = state.copyWith(
         isLoading: false,
-        error: 'Une erreur est survenue. Veuillez réessayer.',
+        hasLoaded: true,
+        error: extractDioErrorMessage(e),
       );
+    } catch (e) {
+      if (!mounted) return;
+      state = state.copyWith(
+        isLoading: false,
+        hasLoaded: true,
+        error: friendlyErrorMessage(e),
+      );
+    } finally {
+      _inFlight = false;
     }
   }
 
+  bool _inFlight = false;
+
   Future<void> refresh() => loadNotifications();
+
+  /// The Notification Center was just opened (or came back to the front).
+  /// The feed is per account and changes server-side while the app is open,
+  /// so it is refreshed on every entry — the smallest reliable trigger short
+  /// of polling. A load already in flight is not duplicated.
+  Future<void> refreshOnOpen() => loadNotifications();
 
   /// Session ended (A4): the feed is per account.
   void reset() {
