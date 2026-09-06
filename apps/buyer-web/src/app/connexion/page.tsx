@@ -43,8 +43,9 @@ function ConnexionInner() {
   // and the wishlist heart's guest redirect bounced back (looked inert). It's
   // now gated on the REAL session state (auth store, resolved via /me), so a
   // stale-cookie/guest user (`currentUser` null once `authLoading` clears)
-  // correctly sees the login form and can recover. Sellers go to the seller
-  // app; everyone else returns to the safe `?redirect=` target.
+  // correctly sees the login form and can recover. Everyone returns to the safe
+  // `?redirect=` target; the SELLER branch below is defensive dead code since
+  // D1 (2026-09-06): the API refuses the buyer OTP flow for seller phones.
   useEffect(() => {
     if (authLoading || !currentUser || redirectedRef.current) return;
     redirectedRef.current = true;

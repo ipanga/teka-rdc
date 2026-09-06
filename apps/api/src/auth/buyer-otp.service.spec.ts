@@ -285,6 +285,166 @@ describe('BuyerOtpService', () => {
     });
   });
 
+  describe('D1 — WhatsApp OTP authenticates BUYER accounts only', () => {
+    const codeHash = createHash('sha256').update('123456').digest('hex');
+    const seller = {
+      id: 'seller-1',
+      phone: '+243999000003',
+      role: 'SELLER',
+      status: 'ACTIVE',
+      authProvider: 'EMAIL_PASSWORD',
+      deletedAt: null,
+    };
+    const admin = { ...seller, id: 'admin-1', phone: '+243999000004', role: 'ADMIN' };
+    const buyer = {
+      id: 'buyer-1',
+      phone: '+243999000005',
+      role: 'BUYER',
+      status: 'ACTIVE',
+      authProvider: 'PHONE_OTP',
+      deletedAt: null,
+    };
+
+    function primeValidOtp(prisma: any, phone: string) {
+      prisma.otp.findFirst.mockResolvedValue({
+        id: 'otp-1',
+        phone,
+        code: codeHash,
+        attempts: 0,
+        expiresAt: new Date(Date.now() + 300_000),
+        createdAt: new Date(),
+      });
+      prisma.otp.deleteMany.mockResolvedValue({ count: 1 });
+    }
+
+    function build(prisma: any, whatsapp?: any, env: Record<string, string> = {}) {
+      const auth = makeAuthStub();
+      const svc = new BuyerOtpService(
+        prisma,
+        whatsapp ?? ({ sendOtp: jest.fn().mockResolvedValue(true) } as any),
+        makeConfig(env),
+        auth,
+        makeAnalytics(),
+      );
+      return { svc, auth };
+    }
+
+    it.each([
+      ['SELLER', seller],
+      ['ADMIN', admin],
+    ])('requestOtp for a %s phone sends nothing and stores no OTP row, with the buyer-shaped response', async (_role, account) => {
+      const prisma = makePrismaStub();
+      prisma.user.findFirst.mockResolvedValue(account);
+      const whatsapp = { sendOtp: jest.fn().mockResolvedValue(true) } as any;
+      const { svc } = build(prisma, whatsapp);
+
+      const res = await svc.requestOtp(account.phone);
+
+      expect(res).toEqual({ expiresInSeconds: 300, cooldownSeconds: 30 });
+      expect(whatsapp.sendOtp).not.toHaveBeenCalled();
+      expect(prisma.otp.create).not.toHaveBeenCalled();
+      // The rate-limit window is still recorded, exactly like a buyer request.
+      expect(prisma.otpRateLimit.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('resendOtp for a SELLER phone sends nothing either', async () => {
+      const prisma = makePrismaStub();
+      prisma.user.findFirst.mockResolvedValue(seller);
+      const whatsapp = { sendOtp: jest.fn().mockResolvedValue(true) } as any;
+      const { svc } = build(prisma, whatsapp);
+
+      await svc.resendOtp(seller.phone);
+
+      expect(whatsapp.sendOtp).not.toHaveBeenCalled();
+      expect(prisma.otp.create).not.toHaveBeenCalled();
+    });
+
+    it('requestOtp for an unknown phone and for a BUYER phone both send an OTP', async () => {
+      for (const account of [null, buyer]) {
+        const prisma = makePrismaStub();
+        prisma.user.findFirst.mockResolvedValue(account);
+        const whatsapp = { sendOtp: jest.fn().mockResolvedValue(true) } as any;
+        const { svc } = build(prisma, whatsapp);
+        const res = await svc.requestOtp('+243999000005');
+        expect(res).toEqual({ expiresInSeconds: 300, cooldownSeconds: 30 });
+        expect(whatsapp.sendOtp).toHaveBeenCalledTimes(1);
+        expect(prisma.otp.create).toHaveBeenCalledTimes(1);
+      }
+    });
+
+    it.each([
+      ['SELLER', seller],
+      ['ADMIN', admin],
+    ])('verifyOtp with a valid code for a %s phone is refused with the generic invalid-code 401 and issues no token', async (_role, account) => {
+      const prisma = makePrismaStub();
+      primeValidOtp(prisma, account.phone);
+      prisma.user.findFirst.mockResolvedValue(account);
+      const { svc, auth } = build(prisma);
+
+      await expect(svc.verifyOtp(account.phone, '123456')).rejects.toMatchObject({
+        status: 401,
+        message: 'Code OTP invalide ou expiré',
+      });
+      expect(auth.generateTokensForUser).not.toHaveBeenCalled();
+      expect(prisma.user.create).not.toHaveBeenCalled();
+      expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    it('the refusal is indistinguishable from a wrong code (same status + message)', async () => {
+      const prisma = makePrismaStub();
+      primeValidOtp(prisma, buyer.phone);
+      prisma.user.findFirst.mockResolvedValue(buyer);
+      prisma.otp.update.mockResolvedValue({});
+      const { svc } = build(prisma);
+      let wrongCode: any;
+      await svc.verifyOtp(buyer.phone, '000000').catch((e) => (wrongCode = e));
+
+      const prisma2 = makePrismaStub();
+      primeValidOtp(prisma2, seller.phone);
+      prisma2.user.findFirst.mockResolvedValue(seller);
+      const { svc: svc2 } = build(prisma2);
+      let refused: any;
+      await svc2.verifyOtp(seller.phone, '123456').catch((e) => (refused = e));
+
+      expect(refused.status).toBe(wrongCode.status);
+      expect(refused.message).toBe(wrongCode.message);
+    });
+
+    it('the app-review bypass cannot open a SELLER account either', async () => {
+      const prisma = makePrismaStub();
+      prisma.user.findFirst.mockResolvedValue(seller);
+      const { svc, auth } = build(prisma, undefined, {
+        APP_REVIEW_LOGIN_ENABLED: 'true',
+        APP_REVIEW_BUYER_PHONE_E164: seller.phone,
+        APP_REVIEW_BUYER_OTP: '111111',
+      });
+
+      await expect(svc.verifyOtp(seller.phone, '111111')).rejects.toMatchObject({
+        status: 401,
+      });
+      expect(auth.generateTokensForUser).not.toHaveBeenCalled();
+    });
+
+    it('a BUYER phone with a valid code gets tokens minted with the stored BUYER role', async () => {
+      const prisma = makePrismaStub();
+      primeValidOtp(prisma, buyer.phone);
+      prisma.user.findFirst.mockResolvedValue(buyer);
+      prisma.user.update.mockResolvedValue(buyer);
+      const { svc, auth } = build(prisma);
+
+      const res = await svc.verifyOtp(buyer.phone, '123456');
+
+      expect(auth.generateTokensForUser).toHaveBeenCalledWith(
+        'buyer-1',
+        'BUYER',
+        buyer.phone,
+        undefined,
+      );
+      expect(res.user.role).toBe('BUYER');
+      expect(prisma.user.create).not.toHaveBeenCalled();
+    });
+  });
+
   describe('app-review login (allowlisted bypass)', () => {
     const REVIEW_PHONE = '+243900000000';
     const reviewConfig = (over: Record<string, string> = {}) =>

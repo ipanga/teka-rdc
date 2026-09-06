@@ -83,8 +83,25 @@ export class BuyerOtpService {
       throw new UnauthorizedException('Code OTP invalide ou expiré');
     }
 
+    // D1 (2026-09-06): WhatsApp OTP authenticates BUYER accounts only. Phone
+    // uniqueness is global, so a phone that already belongs to a SELLER/ADMIN
+    // can never become a buyer session here — and must never yield that
+    // privileged account's tokens either. The refusal is the same 401 as an
+    // invalid code so the response never reveals that a privileged account
+    // exists for this phone. Issuance already refuses to send an OTP to such
+    // a phone (see issueOtp), so this branch only fires for a row that
+    // predates that rule or for the app-review bypass.
+    const existing = await this.findAccountByPhone(phone);
+    if (existing && !this.isOtpEligible(existing)) {
+      this.logger.warn(
+        `OTP verify refused for non-buyer account ${existing.id} (role=${existing.role})`,
+      );
+      throw new UnauthorizedException('Code OTP invalide ou expiré');
+    }
+
     const { user, isNew } = await this.findOrCreateUserByPhone(
       phone,
+      existing,
       firstName,
       lastName,
     );
@@ -214,6 +231,27 @@ export class BuyerOtpService {
     phone: string,
     opts: { isResend: boolean },
   ): Promise<RequestOtpResult> {
+    const expiryMinutesForResult = this.configService.get<number>(
+      'OTP_EXPIRY_MINUTES',
+      OTP_EXPIRY_MINUTES,
+    );
+    // D1: never send an OTP to a phone that cannot authenticate through this
+    // flow (SELLER / ADMIN). The rate-limit row was already recorded by the
+    // caller and the response is byte-identical to the buyer case, so an
+    // attacker without the handset cannot tell a privileged phone from an
+    // unknown one — the only side effect is that no WhatsApp message goes
+    // out, which also closes OTP-bombing of seller/admin phones.
+    const account = await this.findAccountByPhone(phone);
+    if (account && !this.isOtpEligible(account)) {
+      this.logger.warn(
+        `OTP issuance skipped for non-buyer account ${account.id} (role=${account.role}, resend=${opts.isResend})`,
+      );
+      return {
+        expiresInSeconds: expiryMinutesForResult * 60,
+        cooldownSeconds: this.computeResendCooldown(1),
+      };
+    }
+
     const code = this.generateCode();
     const hash = this.hashCode(code);
     const expiryMinutes = this.configService.get<number>(
@@ -324,14 +362,28 @@ export class BuyerOtpService {
     return createHash('sha256').update(code).digest('hex');
   }
 
+  /** The live account owning `phone`, if any (`User.phone` is globally unique). */
+  private async findAccountByPhone(phone: string) {
+    return this.prisma.user.findFirst({
+      where: { phone, deletedAt: null },
+    });
+  }
+
+  /**
+   * D1 invariant: `WhatsApp OTP => BUYER only`. The role stored server-side
+   * is the sole authority — never the surface header, the client or the
+   * user agent.
+   */
+  private isOtpEligible(user: { role: string }): boolean {
+    return user.role === 'BUYER';
+  }
+
   private async findOrCreateUserByPhone(
     phone: string,
+    existing: Awaited<ReturnType<BuyerOtpService['findAccountByPhone']>>,
     firstName?: string,
     lastName?: string,
   ) {
-    const existing = await this.prisma.user.findFirst({
-      where: { phone, deletedAt: null },
-    });
     if (existing) {
       return { user: existing, isNew: false };
     }
