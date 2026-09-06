@@ -1087,13 +1087,122 @@ hand-written caches is documented, not auto-repaired; Dependabot security jobs s
 npm_and_yarn helper with the correct pnpm installed (see PR 7 record); the 4 unreferenced Cloudinary
 avatar assets are left in place (prod reference check needed first).
 
+### PR 9 — `buyer-mobile/notifications-deeplinks-localization-addresses` (Buyer Mobile PR D1: notifications + deep links, 2026-09-07)
+
+**PR #693 merged** as `c6ce951` (merge commit, head `5c7527e` unchanged, 15/15 checks + CodeQL green,
+no schema/env/dependency change); develop CI + CodeQL green at `c6ce951`.
+
+**Re-audit of every remaining Buyer Mobile finding (on `develop` `c6ce951`), with the PR that owns it:**
+
+| Item | Status | Evidence | PR |
+|---|---|---|---|
+| Notifications feed loads once, never refetches on open | **confirmed** | `NotificationsNotifier` loaded in its constructor; `NotificationsScreen` only `watch`ed; nothing invalidated the badge on push or resume (only home pull-to-refresh and the center's own actions) | D1 ✔ |
+| Foreground push never refreshed feed/badge; data-only messages never shown | **confirmed** | `PushService._handleForegroundMessage` returned early on `notification == null` (the data fallback below it was dead code); no hook back into the providers | D1 ✔ |
+| A9 iOS foreground notifications + taps dead | **confirmed** | `_initLocalNotifications` had `InitializationSettings(android: …)` only, `_local.show` Android details only | D1 ✔ (code + tests; no iOS runtime — see below) |
+| Cold-start push tap / deep link lost behind the city gate | **confirmed** | both controllers `push`ed immediately; the router's city-first redirect replaced the route with `/city-selection` and the city screen `go('/')` | D1 ✔ |
+| Notification error state without retry | **confirmed** | the failure text was rendered as the empty state's caption | D1 ✔ |
+| A7 category from a web/banner/deep link (slug) → 400 + generic title | **confirmed** | `CategoryScreen` matched the tree by id only and sent the slug as `categoryId` (`@Matches(uuid)` → 400; `categories/:id/attributes` is `ParseUUIDPipe`) | D1 ✔ |
+| Category deep links expose internal UUIDs (item 9) | **stale as phrased — the public link model is slug-based** | web URLs and App Links carry `/{ville}/categorie/{slug}`; the UUID appears only in the app's internal `/categories/:id` route (never shared); the real defect was the app not accepting the slug (A7) | D1 ✔ |
+| Universal links never work on dev/staging builds | **new, confirmed during QA** | the manifest's `appLinkHost` is `dev.teka.cd` / `staging.teka.cd` but the parser's allow-list was `teka.cd`/`www.teka.cd` → every link bounced to the browser | D1 ✔ |
+| Order / notification links go to the browser | **design gap** | `/commandes/*` and `/notifications` were reserved (browser) although the app has both screens and the router already sends guests to login with return-to | D1 ✔ |
+| CMS relative links (`/pages/faq`) do nothing | **confirmed** | `MarkdownContent._launch` handed a relative path to `launchUrl` | D1 ✔ |
+| Malformed order id from a push → English « Validation failed (uuid is expected) » | **confirmed** | `orders.controller.ts` used `ParseUUIDPipe` on buyer routes | D1 ✔ (API) |
+| Guest PDP fires doomed private calls | **partially fixed / low** | the cart no longer fetches for guests (PR A); `reviewsProvider._init` still calls `can-review` + `mine` for a guest (two 401s tolerated per PDP, no logout — the interceptor only clears tokens when a *refresh* is rejected) | D2 |
+| A10 recipient phone sent raw; address errors generic; city-list failure = empty disabled form | **confirmed** — and buyer-web's `address-form.tsx` sends the raw phone too | `address_form_sheet.dart` never calls `normalizeDrcPhone`; `my_address_screen._save` catches everything into « Impossible d'enregistrer l'adresse »; `_loadCities` catch stops the spinner and leaves no retry | D2 |
+| Order address snapshot | **established** (`Order.delivery*` columns, `resolveDeliveryAddress`) | regression test to add with the address work | D2 |
+| Missing accents | **confirmed, 9 left** | `Reinitialiser` (filter sheet), `Verification du paiement...`, `Aucune adresse enregistree`, `Paiement a la livraison` ×2, `Commande confirmee !`, `Selectionnez une ville/commune`, `Telephone du destinataire` | D3 |
+| Raw enums | **confirmed** | `REFUNDED` payment status rendered raw (`order_detail_screen.dart`), `checkout_success_screen.dart` prints `order.status` raw, order filters lack `RETURNED` and the Teka-collection statuses | D3 |
+| Status terminology | **established** — mobile badge already matches seller/admin/web: « En attente », « Confirmée », « En préparation », « Prête pour collecte », « Reçue par Teka », « Expédiée », « En livraison », « Livrée », « Annulée », « Retournée » (web's PENDING says « Commande reçue ») — three mobile mappings (badge, filters, colors) to fold into one | D3 |
+| Obsolete « Neuf / Occasion » filter | **confirmed** — mobile `category_screen.dart` still shows the chips (seen live on the Boissons deep link); web removed it 2026-07-28; API keeps the optional param (docs/product-condition-deprecation.md) | D3 |
+| Dead routes | **classified**: `/checkout/payment-pending` obsolete (COD-only, `paymentPending` can no longer be true) → remove route + screen + branch; `/auth/reclamer-compte/confirmer` compatibility route with no in-app entry (the magic link is a website URL the parser deliberately keeps in the browser) → keep, document; `mergeGuestCart` dead code → remove; CMS relative links → fixed in D1 | D3 |
+| Pull-to-refresh blanks orders/cart; cart errors never rendered | **to re-verify** on touched screens | `orders_screen` shows the spinner whenever `isLoading` | D3 |
+
+**Chosen split:** D1 (this PR) = notifications + push routing + deep links + category slug + CMS links +
+the API order-id pipe. D2 = addresses/phone normalisation (+ web parity) + guest/public routing + order
+snapshot regression test. D3 = localisation (accents, raw enums, one status mapping, filters), obsolete
+filter, dead routes, refresh blanking.
+
+**Notification refresh semantics (D1):** the feed reloads on screen entry, on pull-to-refresh, on every
+foreground push (`PushService.onForegroundMessage` → `PushController` → `notificationsProvider.refresh()`
+only if the feed is alive + badge invalidation) and on app resume while the center is showing; the bell
+badge is re-fetched on app resume (`resumeHooksProvider`, one GET) and on every push. No polling. A reload
+requested while one is running is coalesced into one more load, never dropped (the first version dropped
+it, which broke the sign-in reload — caught by the isolation test). Items stay on screen through a failed
+refresh (inline error + « Réessayer »); nothing loaded + failure = error state with retry; empty = « Aucune
+notification ».
+
+**Push routing (D1):** `resolveExternalRoute(hasCity, isLoadingCity)` mirrors the router's gate: town
+selected → push; town restoring (cold start) → push now AND park (the router does not gate while the
+restore runs; if it ends without a town the city screen replays the parked route, and
+`pendingRouteConsumerProvider` drops the parked copy once a town is restored); no town, nothing loading
+(first launch) → park until the buyer picks a town. Same gate for App Links. Authorisation stays the API's:
+`/orders/:id` from any source is a protected route (guest → login → return-to) and the order endpoint
+scopes by buyer (unknown / foreign order → « Impossible de charger cette commande » with retry; malformed id
+→ French 400 → same error state). iOS: `DarwinInitializationSettings` (permission left to FCM's single
+prompt) + `DarwinNotificationDetails` (alert/badge/sound) so a foreground message is displayed and its tap
+reaches `onDidReceiveNotificationResponse`.
+
+**Deep links (D1):** hosts `dev.teka.cd` / `staging.teka.cd` accepted (only those builds receive them);
+`/commandes` → `/orders`, `/commandes/{uuid}` → `/orders/{uuid}` (uuid only, lower-cased), `/notifications`,
+`/pages/{slug}` → in-app; `panier` / `paiement` / `profil` / `favoris` / `connexion` / `reclamer-compte` stay
+in the browser (no in-app equivalent worth deep-linking into). Category slugs: `CategoryScreen` resolves a
+non-UUID identifier through the loaded tree (id, then slug, case-insensitive) or one
+`GET /v1/browse/categories/:identifier`, then uses the id for products / attributes / brands; an unknown slug
+shows « Cette catégorie est introuvable » with « Voir les catégories ». CMS links: `classifyInAppLink` —
+relative or teka.cd links the app renders → in-app route, `tel:`/`mailto:`/`wa.me`/foreign → OS, unusable
+→ ignored.
+
+**Tests:** buyer-mobile 320 → **340** (+20): `notifications_screen_test` (refetch on open of an
+already-loaded feed, pull-to-refresh + resume reload, failed refresh keeps the list + inline error + retry,
+error state → retry → empty state, tap routes order / stays for a broadcast, `deepLinkPath`),
+`pending_route_test` (navigate / navigate-and-remember / defer, drop-after-restore rule, park + consume),
+`deep_link_parser_test` (orders, order uuid, notifications, pages, dev/staging hosts, prod.teka.cd
+refused), `in_app_link_test`, `category_identifier_test`. API 806 unit / **225 e2e** (+1: malformed order id
+→ « Identifiant invalide. »). `flutter analyze` 6 baseline infos; `pnpm type-check` clean; seller/admin
+untouched.
+
+**Runtime verification (Android emulator, dev flavor, local API on the dev DB, disposable buyers
+`+243999000850/851`, fixture order `TK-QAC-065381`, 3 feed rows, all removed afterwards):** cold launch from
+`https://dev.teka.cd/lubumbashi/johnnie-walker-rb7t4r` with no town → city selection → Lubumbashi → the PDP
+opens (guest); `/lubumbashi/categorie/boissons` → « Boissons » with children chips + products (A7);
+`/commandes/{id}` as a guest → login → OTP → the order detail; **real FCM** (one message per step, sent
+through the API's own firebase-admin credentials to the emulator's registered token) in the foreground →
+heads-up shown, badge 2 → 3, feed refreshed; tap → order detail; bell → feed (2 rows); a row inserted while
+the app was open → reopening the center shows 3 (refetch on open); offline pull-to-refresh → list kept +
+« Aucune connexion Internet… » inline; reconnect → « Réessayer » → clean list; app backgrounded → push →
+tray tap → order detail; app process killed (`am kill`, 0 processes) → push → tray tap → cold start → order
+detail (the first build lost it: the town restore was still running — fixed by navigate-and-remember and
+re-verified); unknown order uuid link → « Impossible de charger cette commande » + retry; logout → login as
+buyer B → empty feed, no badge. **Not exercised:** a force-stopped app does not receive FCM at all (Android
+platform behaviour, the message is delivered on the next launch); iOS.
+
+**iOS:** not runtime-tested. The local `flutter build ios` is blocked by the workstation's CocoaPods
+state (spec repo out of date; the SwiftPM path needs a manual Podfile migration) — an environment issue,
+not the change; the Darwin settings are compiled by the analyzer against
+`flutter_local_notifications` 19.4.2 and CI's iOS lane (Fastlane + pods, `pod repo update`) will build it.
+Foreground display, tap routing and the permission prompt on iOS are therefore covered by code review +
+unit tests only.
+
+**Privacy:** the push hook passes only the FCM `data` block (never title/body) and the controllers log
+payload *keys*, not values; the deep-link breadcrumb stays scheme + route type; no new PostHog properties
+beyond `deferred: true` on `deep_link_opened`.
+
+**Backward compatibility:** all previously accepted links still resolve identically; new hosts/paths are
+additive; the API change only swaps the error text of an already-400 response; no schema / env / dependency
+change.
+
+**Follow-ups (D2, D3 as split above)** plus: buyer-web `address-form.tsx` raw recipient phone (D2, parity);
+guest PDP still issues two tolerated 401s (D2); the dev/staging App-Link hosts have no `assetlinks.json`
+served (links open via the chooser / `am start` only — production is verified on `teka.cd`).
+
 ## Next exact step
 
-PR 1–7 merged (`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`) plus
-`ci/dependabot-pnpm` (#688, `adae24f`; develop CI + CodeQL green). **PR 8
-`buyer-mobile/ratings-profile-avatar` (Buyer Mobile PR C) open — awaiting merge approval** — see its
-record above. Then
-Buyer Mobile PR D (notifications, deep links, address, enums, accents, `Occasion`, dead routes, guest PDP 401). Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
+PR 1–8 merged (`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`, `c6ce951`)
+plus `ci/dependabot-pnpm` (#688, `adae24f`). **PR 9 `buyer-mobile/notifications-deeplinks-localization-addresses`
+(Buyer Mobile PR D1: notifications + deep links) open — awaiting merge approval** — see its record above.
+Then D2 (addresses / phone normalisation + web parity, guest/public routing, order-snapshot regression test)
+and D3 (accents, raw enums, one status mapping, order filters, obsolete « Neuf / Occasion » filter, dead
+routes, refresh blanking), each as its own small PR from `develop`. Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
 branch `security/critical-hotfixes` from `develop`; files: `apps/buyer-web/src/components/seo/json-ld.tsx`
 (+ `json-ld.test.tsx`), `apps/api/src/payments/payments.{controller,service}.ts` (+ `test/payments.e2e-spec.ts`
 cross-user cases), `apps/api/src/products/products.controller.ts` + `products.service.ts`,
