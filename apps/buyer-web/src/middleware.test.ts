@@ -66,6 +66,17 @@ describe('middleware', () => {
     });
   });
 
+  describe('cache policy (D4)', () => {
+    it('a signed-in account page is marked private, no-store', () => {
+      const res = middleware(req('/commandes', 'teka_buyer_access_token=live'));
+      expect(res.headers.get('cache-control')).toBe('private, no-store');
+    });
+    it('public SEO pages carry no cache override (ISR/edge caching untouched)', () => {
+      expect(middleware(req('/lubumbashi')).headers.get('cache-control')).toBeNull();
+      expect(middleware(req('/')).headers.get('cache-control')).toBeNull();
+    });
+  });
+
   describe('public routes pass through', () => {
     it('a city landing page is not touched', () => {
       expect(location(middleware(req('/lubumbashi')))).toBeNull();

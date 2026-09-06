@@ -20,6 +20,25 @@ describe('serializeJsonLd', () => {
     expect(out).not.toContain('\u2029');
   });
 
+  it('D4: closing-tag variants and both Unicode line terminators are neutralised, whatever the case or spacing', () => {
+    const nasty = {
+      name: 'A</SCRIPT ><script>alert(1)</script>',
+      description: 'x\u2029y\u2028z </script\t>',
+      offers: { price: '1\u2028000' },
+    };
+    const out = serializeJsonLd(nasty);
+    expect(out).not.toMatch(/<\/script/i);
+    expect(out).not.toMatch(/<script/i);
+    expect(out).not.toMatch(/[\u2028\u2029]/);
+    expect(JSON.parse(out)).toEqual(nasty);
+    // The data block carries no nonce and must not need one: `application/ld+json`
+    // is never executed, so a nonce/strict-dynamic CSP does not block it.
+    const { container } = render(<JsonLd data={nasty} />);
+    const script = container.querySelector('script')!;
+    expect(script.getAttribute('type')).toBe('application/ld+json');
+    expect(script.hasAttribute('nonce')).toBe(false);
+  });
+
   it('stays valid JSON that round-trips to the original data (no SEO cost)', () => {
     expect(JSON.parse(serializeJsonLd(hostile))).toEqual(hostile);
   });
