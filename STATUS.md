@@ -1,16 +1,31 @@
-# Status — 2026-09-06
+# Status — 2026-09-06 (release)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
-**Seller Mobile 0.1.9+11 store release — in preparation, awaiting explicit approval to ship.**
-Carries the « Vérification de la boutique » screen, the commune profile fields, the notification
-deep link, the 2026-09-05 auth-interceptor session fix and the 2026-09-06 shared multipart retry
-(PR #667, `82bd7b5`). `pubspec.yaml` bumped from `0.1.8+10` (the distributed build; Play refuses a
-repeated `versionCode`) to `0.1.9+11`. Nothing has been uploaded to TestFlight or Google Play.
-Buyer Mobile stays at `0.1.7+9` — not part of this release. The Seller Commune + verification
-initiative itself was released to production on 2026-09-05 (below).
+**None in flight.** Seller Mobile `0.1.9+11` was released to internal testing on 2026-09-06 (below).
+The only open action is manual: upload the signed AAB artefact of run `34026373085` to Google Play
+**Internal testing** (`versionCode` 11). Buyer Mobile (`0.1.7+9`, authoritative badge + autoDispose
+PDP) is still outstanding and needs its own approval.
 
 ## Most recently completed initiative
+
+**Seller Mobile `0.1.9+11` — verification screen · commune fields · notification deep link · shared
+multipart retry — RELEASED TO INTERNAL TESTING 2026-09-06.** Release PR **#669** (`develop → main`,
+merge commit **`78c6ef9`**, 09:55 UTC, 6 commits / 22 files, mobile + docs only), fast-forwarded so
+**`main == develop == 78c6ef9`**. The merge deploy (run `34025985620`) applied 0 migrations (9 skipped),
+swapped cleanly, API healthy; API/database/production data untouched. **iOS:** run `34026370681` —
+`com.tootiye.tekaseller` `0.1.9 (1788689147)` built with match signing, 13 dSYMs uploaded to Sentry
+(release `78c6ef9…`), gate `ios-testflight` approved, uploaded to App Store Connect app `6787212774`,
+processed, export compliance set, **distributed to and verified available for « Testers Teka RDC »**
+(internal only, no App Review). **Android:** run `34026373085` — signed production AAB
+`seller-mobile-production-release-aab` (65.7 MB, `versionCode` 11 / `versionName` 0.1.9, upload key
+verified locally, artefact retained until 2026-10-06) — **not uploaded to Play** (the workflow
+produces the artefact only). Validation: Android emulator with a production-flavor build of the same
+SHA installs, launches, reaches login and gets a real 401 from `api.teka.cd`; iOS runtime not
+exercised (no device/simulator input tooling). Multipart-retry fix (#667) verified earlier on the
+emulator for all four seller upload paths.
+
+## Previous completed initiative — Seller Commune · verification · Verified badge
 
 **Seller Commune (profile-edit parity) · business-document verification workflow · Verified badge —
 RELEASED TO PRODUCTION 2026-09-05 21:26 UTC.** Release PR **#665** (`develop → main`, merge commit
