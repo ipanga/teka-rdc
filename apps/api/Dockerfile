@@ -1,4 +1,4 @@
-FROM node:20-alpine AS base
+FROM node:26-alpine AS base
 RUN corepack enable && corepack prepare pnpm@9 --activate
 WORKDIR /app
 
@@ -16,7 +16,7 @@ COPY . .
 RUN cd packages/shared && pnpm build
 RUN cd apps/api && npx prisma generate && pnpm build
 
-FROM node:20-alpine AS runner
+FROM node:26-alpine AS runner
 # postgresql-client provides `psql` for one-shot manual migrations via
 # `docker compose exec api sh -c 'psql "$DATABASE_URL" -f ...'`. Added
 # 2026-05-21 after the DeviceToken migration hit `psql: not found` on
