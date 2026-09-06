@@ -57,7 +57,13 @@ export default function middleware(request: NextRequest) {
   // benign (its API calls 401 and it can now reach /connexion to recover),
   // whereas locking them *out* of login was the harmful failure mode.
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  if (isProtected) {
+    // D4: account pages (profile, orders, checkout, wishlist) are personal —
+    // never let a shared cache or the back/forward cache keep them.
+    response.headers.set('Cache-Control', 'private, no-store');
+  }
+  return response;
 }
 
 export const config = {

@@ -507,16 +507,33 @@ cap raw volume, because behind Cloudflare + DRC carrier NAT one IP is many users
 - **Global pipe**: `ValidationPipe` on all endpoints
 - **File uploads**: Max 5MB, validated MIME types, processed through Cloudinary
 
-### Security Headers (Production NGINX)
-- HSTS (2-year max-age, includeSubDomains, preload)
-- X-Frame-Options: SAMEORIGIN
-- X-Content-Type-Options: nosniff
-- X-XSS-Protection: 1; mode=block
-- Content-Security-Policy (restricts script, style, image, font, and connection sources)
-- Referrer-Policy: strict-origin-when-cross-origin
+### Security Headers (D4, 2026-09-06)
+
+**Ownership.** nginx (`nginx/nginx.prod.conf`) emits only `Strict-Transport-Security`
+(`max-age=63072000; includeSubDomains`, no `preload` — not submitted to the browser list). Every
+header a browser evaluates about a *page* is emitted by the app that serves it, so `next dev`,
+`next start` and Docker all behave identically and a test can assert the policy:
+
+| Surface | Where | CSP `script-src` | Notes |
+|---|---|---|---|
+| buyer-web (`teka.cd`) | `next.config.ts headers()` + `src/lib/security-headers.ts` | `'self' 'unsafe-inline'` (+ Clarity hosts only when the id is baked in) | Static policy: SEO pages are prerendered/ISR and cannot carry a per-request nonce. **No `'unsafe-eval'`** in production. `Referrer-Policy: strict-origin-when-cross-origin`. Account pages (`/profil`, `/commandes`, `/paiement`, `/favoris`) are `private, no-store` (middleware). |
+| seller-web, admin-web | `src/middleware.ts` (CSP with a per-request nonce) + `next.config.ts headers()` | `'nonce-…' 'strict-dynamic' 'self'` | No `'unsafe-inline'`, no `'unsafe-eval'`; the root layout reads the request headers so every page renders per request. `Referrer-Policy: same-origin` (signed document URLs never leak). Every HTML response `private, no-store` + `X-Robots-Tag` noindex. Admin `img-src` additionally allows `https://api.cloudinary.com` (signed private-download previews of seller documents). |
+| api | helmet (`src/common/security/http-security.ts`) | n/a — CSP `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'` | nosniff, `Referrer-Policy: no-referrer`, COOP/CORP `same-origin`, no `X-Powered-By`, **no HSTS from the app**. Any request carrying a session (cookie or bearer) gets `Cache-Control: no-store`. |
+
+Common to the three web apps: `X-Frame-Options: DENY` + CSP `frame-ancestors 'none'` (nothing is
+frameable), `X-Content-Type-Options: nosniff`, `Permissions-Policy` denying camera, microphone,
+geolocation, payment, USB, Bluetooth and motion sensors (`fullscreen=(self)`), `Cross-Origin-Opener-Policy`
+and `Cross-Origin-Resource-Policy: same-origin`, `poweredByHeader: false`. **No
+`Cross-Origin-Embedder-Policy`** (Cloudinary images carry no CORP header). `style-src` keeps
+`'unsafe-inline'` everywhere (React `style` props / next/image sizing are style attributes, which have
+no nonce). Third-party origins are exactly what the browser contacts: the API origin, `res.cloudinary.com`,
+the Sentry ingest origin derived from the public DSN at build time, `clarity.ms` on the buyer only; PostHog
+is proxied through `/ingest` (same origin); fonts are self-hosted by next/font. Static assets (`/_next/static`,
+`public/`) carry the same headers — the old nginx `add_header` in static locations had silently dropped them.
+Full table + rationale: `docs/pre-scale-readiness.md` → PR 4.
 
 ### Additional Protections
-- **Helmet.js**: Applied at NestJS application level
+- **Helmet.js**: Applied at NestJS application level via `applyHttpSecurity()` (shared with the e2e app)
 - **CORS**: Restricted to configured frontend origins
 - **Payment webhooks**: Signature verification + idempotency keys
 - **Sensitive data**: Password hashes, tokens, and internal IDs stripped from API responses

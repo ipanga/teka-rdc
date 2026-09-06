@@ -4,7 +4,7 @@
 import './instrument';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
-import helmet from 'helmet';
+import { applyHttpSecurity } from './common/security/http-security';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
@@ -65,8 +65,8 @@ async function bootstrap() {
   // `1` = trust exactly one hop, which matches our nginx → api topology.
   app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
-  // Security
-  app.use(helmet());
+  // Security headers + private-response caching (shared with the e2e app).
+  applyHttpSecurity(app);
   app.use(compression());
   app.use(cookieParser());
 

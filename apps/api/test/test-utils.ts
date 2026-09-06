@@ -5,6 +5,7 @@ import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { ResponseInterceptor } from '../src/common/interceptors/response.interceptor';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
+import { applyHttpSecurity } from '../src/common/security/http-security';
 import {
   MemoryRateLimitStore,
   RateLimitStore,
@@ -397,6 +398,7 @@ export async function createTestApp(): Promise<INestApplication> {
   // Mirror main.ts configuration exactly
   app.setGlobalPrefix('api');
   // Mirrors main.ts so cookie-authenticated paths (web sessions) are testable.
+  applyHttpSecurity(app);
   app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({
