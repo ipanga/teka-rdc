@@ -71,7 +71,6 @@ jobs:
           SELLER_WEB_PH_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY_SELLER_WEB }}
           ADMIN_WEB_PH_KEY: ${{ secrets.NEXT_PUBLIC_POSTHOG_KEY_ADMIN_WEB }}
           BUYER_WEB_CLARITY: ${{ secrets.NEXT_PUBLIC_CLARITY_PROJECT_ID_BUYER_WEB }}
-          SELLER_WEB_CLARITY: ${{ secrets.NEXT_PUBLIC_CLARITY_PROJECT_ID_SELLER_WEB }}
         run: |
           set -eu
           case "${{ matrix.name }}" in
@@ -96,7 +95,6 @@ jobs:
                 echo "NEXT_PUBLIC_BASE_PATH="
                 echo "NEXT_PUBLIC_SENTRY_DSN_SELLER_WEB=${SELLER_WEB_DSN}"
                 echo "NEXT_PUBLIC_POSTHOG_KEY_SELLER_WEB=${SELLER_WEB_PH_KEY}"
-                echo "NEXT_PUBLIC_CLARITY_PROJECT_ID_SELLER_WEB=${SELLER_WEB_CLARITY}"
                 echo "SENTRY_RELEASE=${{ github.sha }}"
                 echo "__END__"
               } >> "$GITHUB_OUTPUT"
