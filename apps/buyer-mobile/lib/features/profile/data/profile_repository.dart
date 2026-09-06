@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/multipart_upload.dart';
 
 /// Authenticated user shape returned by GET /v1/auth/me. Buyers don't have
 /// a SellerProfile attached, so this is simpler than the seller-mobile
@@ -24,6 +25,23 @@ class BuyerProfile {
     this.avatar,
     required this.role,
   });
+
+  /// Same keys as `/v1/auth/me` — what [AuthNotifier.updateUser] merges into
+  /// the session user and caches for offline starts.
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'firstName': firstName,
+        'lastName': lastName,
+        'email': email,
+        'phone': phone,
+        'avatar': avatar,
+        'role': role,
+      };
+
+  /// True when neither name is set: the account shows a generic label and
+  /// reviews are published under « Acheteur ».
+  bool get isNameless =>
+      (firstName ?? '').trim().isEmpty && (lastName ?? '').trim().isEmpty;
 
   factory BuyerProfile.fromJson(Map<String, dynamic> json) {
     return BuyerProfile(
@@ -68,11 +86,25 @@ class ProfileRepository {
   /// POST /v1/users/avatar — multipart `image` field. The API caps payloads
   /// at 5 MB; image_picker's maxWidth/maxHeight/imageQuality knobs keep
   /// avatars well under that without a separate compress step.
+  ///
+  /// Not retry-safe (it replaces the avatar asset), so it goes through the
+  /// shared [postMultipartWithAuthRetry] (Rule 15, same as seller-mobile):
+  /// the ONLY retry is the rebuilt-body one after the AuthInterceptor
+  /// refreshed an expired access token — sent exactly once, and never when
+  /// the refresh itself was rejected or on any non-401 failure (A5, 2026-09-06).
   Future<String> uploadAvatar(File file) async {
-    final formData = FormData.fromMap({
-      'image': await MultipartFile.fromFile(file.path),
-    });
-    final response = await _dio.post('/v1/users/avatar', data: formData);
+    final response = await postMultipartWithAuthRetry<dynamic>(
+      _dio,
+      '/v1/users/avatar',
+      buildForm: () => FormData.fromMap({
+        'image': MultipartFile.fromFileSync(
+          file.path,
+          filename: file.uri.pathSegments.isNotEmpty
+              ? file.uri.pathSegments.last
+              : 'avatar.jpg',
+        ),
+      }),
+    );
     final data = response.data['data'] as Map<String, dynamic>;
     return data['avatar'] as String;
   }
