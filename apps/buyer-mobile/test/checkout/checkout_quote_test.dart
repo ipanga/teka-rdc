@@ -25,7 +25,9 @@ void main() {
     });
 
     test('total displayed = cart subtotal + previewed delivery fee', () {
-      // Mirrors the checkout_screen computation: BigInt centimes, no float drift.
+      // Since PR B (2026-09-06) the review screen shows the quote's own
+      // totalCDF; this asserts the server keeps the identity the fallback
+      // arithmetic (cart total + fee, used only before the quote lands) relies on.
       const cartSubtotalCDF = '3000000';
       final q = CheckoutQuote.fromJson(decode(
           '{"subtotalCDF":"3000000","deliveryFeeCDF":"1800000","totalCDF":"4800000"}'));

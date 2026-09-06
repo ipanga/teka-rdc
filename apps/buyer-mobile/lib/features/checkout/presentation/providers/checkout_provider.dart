@@ -34,6 +34,17 @@ class CheckoutState {
   // a NON-blocking warning that transport cost may rise.
   final bool townMismatch;
 
+  /// Subtotal and grand total as computed by `POST /v1/checkout/quote` from
+  /// the buyer's cart at *current* prices — the same calculation the order
+  /// will be charged (`CheckoutService.checkout`). Null until the quote lands.
+  final String? quoteSubtotalCDF;
+  final String? quoteTotalCDF;
+
+  /// True when the quote's subtotal differed from the cart the buyer was
+  /// looking at (a price or promotion changed since the item was added). The
+  /// cart is refreshed and the review screen says so before confirmation.
+  final bool pricesChanged;
+
   const CheckoutState({
     this.step = CheckoutStep.address,
     this.addresses = const [],
@@ -50,6 +61,9 @@ class CheckoutState {
     this.isLoadingQuote = false,
     this.deliveryAvailable,
     this.townMismatch = false,
+    this.quoteSubtotalCDF,
+    this.quoteTotalCDF,
+    this.pricesChanged = false,
   });
 
   CheckoutState copyWith({
@@ -68,6 +82,9 @@ class CheckoutState {
     bool? isLoadingQuote,
     bool? deliveryAvailable,
     bool? townMismatch,
+    String? quoteSubtotalCDF,
+    String? quoteTotalCDF,
+    bool? pricesChanged,
     bool clearError = false,
     bool clearAddress = false,
     bool clearDeliveryFee = false,
@@ -92,6 +109,11 @@ class CheckoutState {
           clearDeliveryFee ? null : (deliveryAvailable ?? this.deliveryAvailable),
       townMismatch:
           clearDeliveryFee ? false : (townMismatch ?? this.townMismatch),
+      quoteSubtotalCDF:
+          clearDeliveryFee ? null : (quoteSubtotalCDF ?? this.quoteSubtotalCDF),
+      quoteTotalCDF:
+          clearDeliveryFee ? null : (quoteTotalCDF ?? this.quoteTotalCDF),
+      pricesChanged: pricesChanged ?? this.pricesChanged,
     );
   }
 
@@ -172,12 +194,24 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
       final quote = await _repository.getQuote(address.id);
       if (!mounted) return;
       if (state.selectedAddress?.id != address.id) return;
+      // A1: the quote is the server's arithmetic on the cart at current
+      // prices. If it disagrees with the cart the buyer was shown, a price or
+      // promotion moved since the item was added — refresh the lines and
+      // flag it so the buyer confirms the new amount knowingly.
+      final shownSubtotal = _ref.read(cartProvider).totalCDF;
+      final changed = quote.subtotalCDF != shownSubtotal;
       state = state.copyWith(
         deliveryFeeCDF: quote.deliveryAvailable ? quote.deliveryFeeCDF : null,
         deliveryAvailable: quote.deliveryAvailable,
         townMismatch: quote.townMismatch,
+        quoteSubtotalCDF: quote.subtotalCDF,
+        quoteTotalCDF: quote.deliveryAvailable ? quote.totalCDF : null,
+        pricesChanged: state.pricesChanged || changed,
         isLoadingQuote: false,
       );
+      if (changed) {
+        await _ref.read(cartProvider.notifier).fetchCart();
+      }
     } catch (_) {
       if (!mounted) return;
       if (state.selectedAddress?.id != address.id) return;

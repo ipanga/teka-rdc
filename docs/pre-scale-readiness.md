@@ -883,13 +883,82 @@ relative links, `RETURNED` filter. Observed but out of scope: offline requests t
 cold start before the connectivity machine settles (retry interceptor), and the home does not refetch
 after reconnect.
 
+### PR 7 — `buyer-mobile/pricing-cart-checkout` (Buyer Mobile PR B, A1, 2026-09-06)
+**Root cause (reconfirmed on `develop` `c470e63`):** the API has always been authoritative — `GET
+/v1/cart` returns `totalCDF` (promo when set, else regular, × qty; `CartService.serializeCart`), `POST
+/v1/checkout/quote` returns `subtotalCDF` / `deliveryFeeCDF` / `totalCDF` at current prices, and
+`CheckoutService.checkout` persists `unitPriceCDF = discountPriceCDF ?? priceCDF` with
+`listUnitPriceCDF` for the struck-through original. Buyer Mobile ignored all three: `CartState.totalCDF`
+summed `priceCDF × qty` (the regular price — the cart line already used `effectiveCDF`, so the line and
+the total disagreed on the same screen), the checkout line showed the regular unit price, « Sous-total »
+reused that wrong total and « Total » added the quoted fee to it, and the offline cart snapshot dropped
+`discountPriceCDF` so a relaunch showed the regular price. Observed live before the fix: line 9.350 FC,
+total 11.000 FC. Buyer Web computes with `effectiveCentimes` (0 < promo < price ⇒ promo) everywhere;
+only the PDP title and the Product JSON-LD `Offer.price` used a second expression — aligned to the helper.
+**Authoritative rule used:** `effective = discountPriceCDF ?? priceCDF`, where the API guarantees on
+write `0 < discountPriceCDF < priceCDF` (`ProductsService.validateDiscount`). The client keeps one
+implementation of that rule (`CartItemProduct.effectiveCDF`, with the range check as a defensive
+no-op) for optimistic edits and the offline snapshot, and otherwise displays the server's numbers: the
+cart's `totalCDF` from the last response (`CartState.serverTotalCDF`, cleared during an in-flight
+optimistic edit, restored from the response), the quote's `subtotalCDF`/`totalCDF` on the review screen.
+No competing promotional rule was introduced; no expiry semantics exist in the API and none were invented.
+**Price change between cart and checkout:** the quote is recomputed at current prices; when its subtotal
+differs from the cart the buyer was shown, the cart lines are refetched and the review screen shows « Les
+prix de votre panier ont été mis à jour. Vérifiez le montant avant de confirmer. » — the buyer confirms
+the new amount knowingly; nothing is reserved or held. Delivery unavailable ⇒ no grand total, order
+blocked (unchanged).
+**Files:** `apps/buyer-mobile/lib/features/cart/data/models/cart_model.dart` (`serverTotalCDF`,
+`computeEffectiveTotalCDF`, BigInt line totals), `features/cart/presentation/providers/cart_provider.dart`
+(state total, snapshot keeps the promo), `features/checkout/presentation/providers/checkout_provider.dart`
+(`quoteSubtotalCDF`, `quoteTotalCDF`, `pricesChanged` + refetch),
+`features/checkout/presentation/screens/checkout_screen.dart` (effective unit price with the regular
+struck through, quote-driven Sous-total / Total, notice); `apps/buyer-web/src/app/[ville]/[product]/page.tsx`
+(title + JSON-LD via `effectiveCentimes`); `apps/api/src/cart/cart.service.spec.ts` (new, pins the total).
+**No API behaviour or contract change**, no schema, no env.
+**Tests:** buyer-mobile +14 — `cart/cart_pricing_test` (effective rule incl. promo ≥ price / 0 / garbage,
+no promo ×1/×3, promo ×1/×2 = 9.350 / 18.700 FC, mixed 43.700 FC, the old regular-price sum is rejected,
+2.700.000.000 FC BigInt, root `totalCDF` parsed and preferred, optimistic edit drops then restores the
+server total, snapshot keeps the promo offline), `checkout/checkout_pricing_test` (quote-driven 9.350 /
+2.000 / 11.350, quote ≠ cart ⇒ refetch + flag, delivery unavailable ⇒ no total). API +3
+(`cart.service.spec`). Formatting covered by the existing `price_formatter_test` (`.` thousands, `FC`).
+**buyer-mobile 297 · API cart spec 3 · buyer-web 98 · type-check green.**
+**Emulator (dev API, disposable buyer, real dev DB — promo « Accessoires salle de bain » 11.000 → 9.350
+FC ×2, full-price « Johnnie Walker » 25.000 FC ×1, Lubumbashi address, zone fee 3.000 FC):**
+| step | shown | API / DB |
+|---|---|---|
+| cart lines | 9.350 FC × 2 = 18.700 FC · 25.000 FC | `GET /cart` items promo 935000 / regular 2500000 |
+| cart total | **43.700 FC** (was 47.000 with the old sum) | `totalCDF` 4370000 |
+| review | 9.350 FC × 2 ~~11.000~~ 18.700 · Sous-total 43.700 · Frais 3.000 · Total **46.700 FC** | quote 4370000 / 300000 / 4670000 |
+| promo lowered to 9.000 FC in the DB while in the cart, checkout re-entered | notice shown, lines 9.000 × 2 = 18.000, Sous-total 43.000, Total **46.000 FC** | quote at current prices |
+| order confirmed | order detail 9.000 × 2 = 18.000 · 25.000 · 43.000 + 3.000 = **46.000 FC** | persisted `subtotalCDF` 4300000, `deliveryFeeCDF` 300000, `totalCDF` 4600000; items unit 900000 (list 1100000) ×2, 2500000 ×1 |
+Buyer Web (dev server against the same API): PDP `<title>` « … - 9 350 FC à Lubumbashi », Product
+JSON-LD `Offer.price` = `9350` CDF (effective). The visible PDP price is client-rendered (Phase 0 H3) and
+was not exercised in a browser. Order, buyer, address, cart, tokens deleted; product stock and promo
+restored. iOS not exercised. Fixtures, screenshots removed.
+**Unresolved pricing edge cases (recorded, not in scope):** the API has no promo expiry; a seller
+editing a promo while a buyer is on the review screen is caught only on the next quote (address change or
+re-entry), not by a timer; USD totals are display-only and were not touched; the success screen still
+shows the raw `PENDING` status (PR D); the cart screen's own total does not refetch on tab focus (it
+refetches on every mutation and on checkout entry).
+
+**Dependabot follow-up (separate PR `ci/dependabot-pnpm`, opened, not merged):** exact failure from
+the run logs — Dependabot's updater runs pnpm 10, which logs « The "pnpm" field in package.json is no
+longer read … keys ignored: "pnpm.overrides", "pnpm.auditConfig" » and then `pnpm update … --lockfile-only`
+aborts (`HelperSubprocessFailed`) because the resolution no longer matches our lockfile. Correct
+declaration: `"packageManager": "pnpm@9.15.9"` in the root `package.json` (Dependabot and
+`pnpm/action-setup` both honour it). Effect on resolution: none — 9.15.9 is the pnpm already used locally
+and in CI (`pnpm/action-setup` `version: 9` resolved to 9.15.x); the `version: 9` inputs are removed from
+`ci.yml`/`pr-validation.yml` because action-setup refuses two sources. The same PR adds
+`ignore: semver-major` to the `docker` and `github-actions` groups (the first run proposed `node:20-alpine
+→ 26-alpine` ×4 and major action bumps). Recommend closing Dependabot PRs #679–#683 unmerged.
+
 ## Next exact step
 
-PR 1–5 merged (`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`). **PR 6
-`buyer-mobile/functional-readiness-1` open — awaiting merge approval.** Then the small Dependabot
-follow-up (`packageManager` + major ignores for docker/actions), then Buyer Mobile PR B
-(`buyer-mobile/functional-readiness-2`: A1 cart/checkout totals with discounts, cached cart losing
-discounts, cart error rendering). Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
+PR 1–6 merged (`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`). **PR 7
+`buyer-mobile/pricing-cart-checkout` open — awaiting merge approval**, plus the tiny `ci/dependabot-pnpm`
+PR. Then Buyer Mobile PR C (`buyer-mobile/ratings-profile-avatar`: A5 avatar multipart retry, A6/D11
+previous-avatar destroy, A8 review error surfacing, nameless buyers, stale profile header, own review
+twice, comment clearing). Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
 branch `security/critical-hotfixes` from `develop`; files: `apps/buyer-web/src/components/seo/json-ld.tsx`
 (+ `json-ld.test.tsx`), `apps/api/src/payments/payments.{controller,service}.ts` (+ `test/payments.e2e-spec.ts`
 cross-user cases), `apps/api/src/products/products.controller.ts` + `products.service.ts`,
