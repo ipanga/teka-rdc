@@ -23,11 +23,10 @@ void _applySentryUser(Map<String, dynamic>? user) {
 
 enum AuthStatus { unknown, authenticated, unauthenticated }
 
-/// Thrown by [AuthNotifier.verifyOtp] when the phone resolves to a SELLER
-/// account. Phone uniqueness is global, so a buyer-OTP login can match a seller
-/// (the API signs into it). buyer-web redirects such users to SELLER_WEB_URL;
-/// mobile can't deep-link into the separate seller APK, so we block the
-/// buyer-app login and tell the user to use the seller app instead.
+/// Thrown by [AuthNotifier.verifyOtp] if the API ever returned a SELLER user.
+/// Since D1 (2026-09-06) the API refuses the buyer OTP flow for a phone owned
+/// by a seller or admin (generic 401), so this is defensive dead code kept so
+/// a regression server-side can never land a seller session in the buyer app.
 class SellerAccountException implements Exception {}
 
 class AuthState {

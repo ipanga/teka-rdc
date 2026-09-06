@@ -56,8 +56,8 @@ Authentication is role-specific since 2026-05-15: **sellers + admins use email +
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/v1/auth/buyer/otp/request` | Public | Issue 6-digit OTP, deliver via WhatsApp (Gupshup template). sha256-hashed in DB. Rate-limited 3 / 600s. |
-| POST | `/v1/auth/buyer/otp/verify` | Public | Verify OTP → find-or-create User by phone, issue tokens + cookies. Optional `firstName/lastName` on first verify. |
+| POST | `/v1/auth/buyer/otp/request` | Public | Issue 6-digit OTP, deliver via WhatsApp (Gupshup template). sha256-hashed in DB. Rate-limited 3 / 600s. **D1:** a phone owned by a SELLER/ADMIN gets the same `{ expiresInSeconds, cooldownSeconds }` but no OTP row and no message. |
+| POST | `/v1/auth/buyer/otp/verify` | Public | Verify OTP → sign into the BUYER owning the phone or create a new BUYER, issue tokens + cookies. Optional `firstName/lastName` on first verify. **D1:** a phone owned by a SELLER/ADMIN → 401 « Code OTP invalide ou expiré » (byte-identical to a wrong code), no token. |
 | POST | `/v1/auth/buyer/otp/resend` | Public | Re-issue OTP. 30s minimum cooldown between resends. Returns `{ expiresInSeconds, cooldownSeconds }`. |
 | POST | `/v1/auth/buyer/claim/request` | Public | Step 1 of email-only legacy claim. Always neutral 200. Emails a 24h magic link if a matching email-only buyer exists. |
 | POST | `/v1/auth/buyer/claim/verify` | Public | Step 2 — verify magic-link JWT + fresh OTP, attach phone to existing User, revoke refresh tokens, issue new ones. |

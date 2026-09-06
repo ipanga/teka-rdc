@@ -356,8 +356,16 @@ describe('Auth (e2e)', () => {
       expect(createArgs.data.authProvider).toBe('PHONE_OTP');
     });
 
-    it('signs into seller account when phone belongs to a seller (decision #3)', async () => {
-      const seller = {
+    const validOtpRow = (phone: string) => ({
+      id: 'otp-1',
+      phone,
+      code: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92',
+      attempts: 0,
+      expiresAt: new Date(Date.now() + 300_000),
+      createdAt: new Date(),
+    });
+    const privileged = {
+      SELLER: {
         id: 'seller-1',
         phone: '+243999000003',
         email: 'seller@example.cd',
@@ -366,27 +374,98 @@ describe('Auth (e2e)', () => {
         authProvider: 'EMAIL_PASSWORD',
         passwordHash: 'hashed',
         deletedAt: null,
-      };
-      mockPrismaService.otp.findFirst.mockResolvedValue({
-        id: 'otp-1',
-        phone: '+243999000003',
-        code: '8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92',
-        attempts: 0,
-        expiresAt: new Date(Date.now() + 300_000),
-        createdAt: new Date(),
-      });
+      },
+      ADMIN: {
+        id: 'admin-1',
+        phone: '+243999000004',
+        email: 'admin@example.cd',
+        role: 'ADMIN',
+        status: 'ACTIVE',
+        authProvider: 'EMAIL_PASSWORD',
+        passwordHash: 'hashed',
+        deletedAt: null,
+      },
+    } as const;
+
+    // D1 (2026-09-06): WhatsApp OTP authenticates BUYER accounts only. A phone
+    // that belongs to a seller or an admin gets the same 401 as a wrong code,
+    // no token, no cookie, no user mutation — whatever the caller claims to be.
+    it.each(['SELLER', 'ADMIN'] as const)(
+      'refuses a valid OTP for a %s phone with the generic invalid-code response (D1)',
+      async (role) => {
+        const account = privileged[role];
+        mockPrismaService.otp.findFirst.mockResolvedValue(validOtpRow(account.phone));
+        mockPrismaService.otp.deleteMany.mockResolvedValue({ count: 1 });
+        mockPrismaService.user.findFirst.mockResolvedValue(account);
+
+        const res = await request(app.getHttpServer())
+          .post('/api/v1/auth/buyer/otp/verify')
+          .send({ phone: account.phone, code: '123456' })
+          .expect(401);
+
+        expect(res.body.error.message).toBe('Code OTP invalide ou expiré');
+        expect(JSON.stringify(res.body)).not.toMatch(/SELLER|ADMIN|vendeur|administrateur/i);
+        expect(res.headers['set-cookie']).toBeUndefined();
+        expect(mockPrismaService.refreshToken.create).not.toHaveBeenCalled();
+        expect(mockPrismaService.user.create).not.toHaveBeenCalled();
+        expect(mockPrismaService.user.update).not.toHaveBeenCalled();
+      },
+    );
+
+    it('the refusal matches a wrong code byte-for-byte (no privileged-account oracle)', async () => {
+      mockPrismaService.otp.findFirst.mockResolvedValue(validOtpRow('+243999000009'));
+      mockPrismaService.otp.update.mockResolvedValue({});
+      mockPrismaService.user.findFirst.mockResolvedValue(null);
+      const wrong = await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/otp/verify')
+        .send({ phone: '+243999000009', code: '000000' })
+        .expect(401);
+
+      jest.clearAllMocks();
+      mockPrismaService.otp.findFirst.mockResolvedValue(validOtpRow(privileged.SELLER.phone));
       mockPrismaService.otp.deleteMany.mockResolvedValue({ count: 1 });
-      mockPrismaService.user.findFirst.mockResolvedValue(seller);
-      mockPrismaService.user.update.mockResolvedValue(seller);
-      mockPrismaService.refreshToken.create.mockResolvedValue({});
+      mockPrismaService.user.findFirst.mockResolvedValue(privileged.SELLER);
+      const refused = await request(app.getHttpServer())
+        .post('/api/v1/auth/buyer/otp/verify')
+        .send({ phone: privileged.SELLER.phone, code: '123456' })
+        .expect(401);
+
+      expect(refused.body).toEqual(wrong.body);
+    });
+
+    it.each(['seller', 'admin', 'buyer'])(
+      'ignores X-Teka-Surface=%s — the stored role is the only authority',
+      async (surface) => {
+        mockPrismaService.otp.findFirst.mockResolvedValue(validOtpRow(privileged.ADMIN.phone));
+        mockPrismaService.otp.deleteMany.mockResolvedValue({ count: 1 });
+        mockPrismaService.user.findFirst.mockResolvedValue(privileged.ADMIN);
+
+        await request(app.getHttpServer())
+          .post('/api/v1/auth/buyer/otp/verify')
+          .set('X-Teka-Surface', surface)
+          .send({ phone: privileged.ADMIN.phone, code: '123456' })
+          .expect(401);
+
+        expect(mockPrismaService.refreshToken.create).not.toHaveBeenCalled();
+      },
+    );
+
+    it('does not send an OTP to a seller phone but answers exactly like a buyer request (D1)', async () => {
+      mockPrismaService.otpRateLimit.deleteMany.mockResolvedValue({ count: 0 });
+      mockPrismaService.otpRateLimit.findFirst.mockResolvedValue(null);
+      mockPrismaService.otpRateLimit.create.mockResolvedValue({});
+      mockPrismaService.otp.deleteMany.mockResolvedValue({ count: 0 });
+      mockPrismaService.otp.create.mockResolvedValue({});
+      mockPrismaService.user.findFirst.mockResolvedValue(privileged.SELLER);
 
       const res = await request(app.getHttpServer())
-        .post('/api/v1/auth/buyer/otp/verify')
-        .send({ phone: '+243999000003', code: '123456' })
+        .post('/api/v1/auth/buyer/otp/request')
+        .send({ phone: privileged.SELLER.phone })
         .expect(200);
 
-      expect(res.body.data.user.role).toBe('SELLER');
-      expect(mockPrismaService.user.create).not.toHaveBeenCalled();
+      expect(res.body.data).toEqual({ expiresInSeconds: 300, cooldownSeconds: 30 });
+      expect(mockPrismaService.otp.create).not.toHaveBeenCalled();
+      expect(mockPrismaService.otpRateLimit.create).toHaveBeenCalledTimes(1);
     });
   });
 

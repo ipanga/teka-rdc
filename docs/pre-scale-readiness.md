@@ -9,7 +9,7 @@
 
 ## Current phase
 
-**Phase 0 — audit (read-only), started 2026-09-06 on `develop` `16d8737`.** No code changed yet.
+**Phase 0 audit complete (PR #671). Implementation started 2026-09-06 with D1 (`security/otp-buyer-only`).**
 
 ## Baseline (verified first-hand, 2026-09-06)
 
@@ -380,6 +380,25 @@ suites buyer has (identical code).
 11. **Avatar orphan cleanup (A6).** API change: store the avatar `public_id` (new nullable column,
     additive migration) or derive it from the stored URL (no migration). Recommendation: derive from URL
     now, no schema change.
+
+## Decision log
+
+- **D1 (2026-09-06, confirmed by the owner): WhatsApp OTP ⇒ BUYER authentication only; SELLER/ADMIN ⇒
+  email + password only, enforced by the API from the stored role.** Implemented in
+  `security/otp-buyer-only`: `BuyerOtpService.issueOtp` skips the OTP row + WhatsApp send for a phone owned
+  by a non-BUYER (response byte-identical to the buyer case; rate-limit row still recorded — closes OTP
+  bombing of seller/admin phones; the only side channel is the absence of a message, observable solely by
+  the handset owner); `verifyOtp` refuses such a phone with the same 401 as a wrong code before any token,
+  cookie or user mutation (covers the app-review bypass too); `findOrCreateUserByPhone` only ever creates
+  `role: 'BUYER'`. Schema note: `User.phone @unique` means one phone ⇒ exactly one account, so "same phone,
+  buyer + seller" cannot exist and no identity merge is possible. Refresh, `/me`, logout and session
+  restoration read the role from the DB row (`JwtStrategy.validate`, `AuthService.refresh`) — unchanged.
+  Buyer-web's SELLER redirect and buyer-mobile's `SellerAccountException` are now defensive dead code
+  (comments updated, logic kept). Tests: 8 unit cases + 7 e2e cases (issuance skip for SELLER/ADMIN and on
+  resend, unknown + buyer still sent, verify refusal for SELLER/ADMIN with no cookie/token/user mutation,
+  refusal byte-identical to a wrong code, `X-Teka-Surface` seller/admin/buyer ignored, app-review bypass
+  refused, BUYER tokens minted with the stored role). The old e2e "signs into seller account (decision #3)"
+  was inverted on purpose.
 
 ## Proposed PR sequence (small PRs into `develop`, merge commits)
 
