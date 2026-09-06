@@ -38,6 +38,11 @@ on:
         required: true
         type: string
 
+# Least privilege (PR 5): the workflow token can only read the repo; jobs that
+# need more declare it themselves.
+permissions:
+  contents: read
+
 concurrency:
   group: production-deploy
   cancel-in-progress: false
@@ -65,7 +70,7 @@ jobs:
           echo "MIGRATION_FILE=$MIGRATION_INPUT" >> "$GITHUB_ENV"
 
       - name: SSH apply
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}

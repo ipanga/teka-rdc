@@ -32,10 +32,7 @@ describe('Auth throttling (e2e, D8)', () => {
   let jwt: JwtService;
 
   beforeAll(async () => {
-    app = await createTestApp();
-    // Listen once up front: supertest would otherwise start/stop the server
-    // per request, which breaks the parallel bursts below (ECONNRESET).
-    await app.listen(0);
+    app = await createTestApp(); // listens once (see test-utils) — parallel bursts need a live server
     jwt = app.get(JwtService, { strict: false });
   });
   afterAll(async () => app.close());

@@ -44,7 +44,7 @@ pnpm clean                      # nuke node_modules / dist / .next / .turbo ever
 
 > **⚠️ `pnpm lint` rewrites files.** `apps/api`'s lint script is `eslint … --fix`, so a root `pnpm lint` silently modifies ~28 api files you never touched — this is the recurring "modified files nobody edited". `apps/api` currently reports **1,044 errors / 218 warnings** raw (≈948 errors after the script's own `--fix` pass): pre-existing debt, not something you broke. **`pnpm type-check` is the real gate** — CI's `ci.yml` job is *named* "Lint & Type Check" but runs type-check only, and root lint runs only in `pr-validation.yml`, where it is explicitly non-blocking. If you do run lint, `git checkout` the incidental churn before committing.
 
-> **What the workspace actually covers.** `apps/{buyer,seller}-mobile` have **no `package.json`**, so they are not workspace members — `pnpm lint` / `type-check` / `test` never reach them regardless of `--recursive`. Their gates are `flutter analyze` + `flutter test`, run from each app directory — and CI runs **only `flutter analyze`** on both apps, never `flutter test`, so the mobile suites are yours to run. Likewise `pnpm test` resolves only in `api` and `buyer-web`; `seller-web`, `admin-web`, and `@teka/shared` define no `test` script and are skipped silently.
+> **What the workspace actually covers.** `apps/{buyer,seller}-mobile` have **no `package.json`**, so they are not workspace members — `pnpm lint` / `type-check` / `test` never reach them regardless of `--recursive`. Their gates are `flutter analyze` + `flutter test`, run from each app directory — since PR 5 (2026-09-06) CI runs **both** on both apps (`Flutter Analysis` + `Flutter Tests` matrix legs). `pnpm test` resolves in `api` and the three web apps (Vitest); `@teka/shared` defines no `test` script and is skipped silently.
 
 ### Running tests
 
@@ -61,9 +61,9 @@ pnpm test:cov                              # with coverage
 
 Jest matches the path argument against the *full* path, so a repo-root-relative path silently matches zero tests — always write it relative to `apps/api`.
 
-buyer-web has a **Vitest** suite (`pnpm --filter buyer-web test`; jsdom, `vitest.config.ts`) covering middleware, sitemap, URL helpers, and a few components. **CI does not run it** — run it yourself when touching those files.
+All three web apps have a **Vitest** suite (`pnpm --filter <app> test`; buyer-web is jsdom, seller/admin are node-only pure-logic) covering middleware, security headers, JSON-LD escaping, sitemap, URL helpers, PostHog scrub and workflow logic. Since PR 5 (2026-09-06) CI runs them (`Web Tests`) plus a real `next build` per app (`Web Build`), `pnpm audit --prod --audit-level=high` (`Dependency Audit`, exceptions documented in `package.json → pnpm.auditConfig.ignoreGhsas`) and the auto-apply migration manifest gate (`Release Config`). Lint remains non-blocking.
 
-Green baseline for telling "I broke it" from "already red": **API 271 unit + 118 e2e · buyer-mobile 231 · seller-mobile 42 · buyer-web 68 (vitest).** buyer-mobile was re-run 2026-09-02 (after the PDP work); the other three were last re-run 2026-09-01.
+Green baseline for telling "I broke it" from "already red": **API 766 unit + 214 e2e · buyer-mobile 258 · seller-mobile 186 · buyer-web 97 · seller-web 36 · admin-web 60 (vitest).** All re-run 2026-09-06 (PR 5).
 
 `flutter analyze` is **not** at zero: buyer-mobile carries **6 info-level SDK deprecations** in `secure_storage.dart`, `filter_bottom_sheet.dart` and `checkout_screen.dart`. CI runs `flutter analyze --no-fatal-infos`, so infos pass and **warnings fail** — read the output by severity, not by the total count. Locally, scope it (`flutter analyze --no-fatal-infos lib test`): once an iOS build has populated the gitignored `build/`, a bare run adds ~74 *error*-level hits from vendored SDK sources that CI's fresh checkout never sees.
 
@@ -150,7 +150,7 @@ Before making ANY architectural or UX decision, internalize these constraints:
 | Payments | **COD only** | `CheckoutService` writes `Transaction{provider:COD}`; `markDelivered()` → `COMPLETED` **and** creates the seller earning in the same transaction (commission snapshotted per item: seller override → category → platform default; never recomputed). Seller payouts are manual: admin approve ≠ paid, conditional transitions + audit, 409 on retry. No provider/webhook. `MOBILE_MONEY`/`FLEXPAY` enums kept for historical rows. → `docs/payouts.md` |
 | Reverse Proxy | NGINX | SSL, routing, rate limiting, gzip. `nginx/nginx.conf` (dev) / `nginx.prod.conf`. |
 | Containerization | Docker + Docker Compose | 5 dev services (api, 3 web, nginx). Cloud DB — no local Postgres. |
-| CI/CD | GitHub Actions | type-check → test → build → deploy. **Lint is not an enforced gate** — see the §0 warning. |
+| CI/CD | GitHub Actions | type-check → API unit + e2e → web vitest → `next build` ×3 → `flutter test` ×2 → dependency audit → release gates; deploy on `main`. Actions pinned to commit SHAs, workflow tokens read-only by default, Dependabot weekly. **Lint is not an enforced gate** — see the §0 warning. |
 | Monitoring | Prometheus + Grafana; Sentry | Health/latency/errors. Sentry: `docs/sentry.md`. |
 | Product analytics | PostHog (6 surfaces) + Clarity (web) | `distinctId=user.id`; identity = id+role only; one authoritative owner per event. Details: `docs/analytics.md` + `docs/clarity.md`. |
 

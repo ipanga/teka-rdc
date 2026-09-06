@@ -412,6 +412,14 @@ export async function createTestApp(): Promise<INestApplication> {
   app.useGlobalFilters(new HttpExceptionFilter());
 
   await app.init();
+  // Listen once on an ephemeral port (PR 5, 2026-09-06). Without this,
+  // supertest starts AND stops the shared http.Server for every single
+  // request; the resulting listen/close churn on Node ≥ 19's keep-alive
+  // sockets was the one intermittent failure source left in this suite
+  // (a request occasionally answered from below the application layer, or
+  // ECONNRESET under parallel bursts). One live server per test file makes
+  // every request go to the same, fully-initialised Nest app.
+  await app.listen(0);
   createdApps.push(app);
   return app;
 }
