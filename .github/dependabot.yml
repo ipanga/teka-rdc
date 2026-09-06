@@ -1,0 +1,87 @@
+# Dependabot (PR 5, 2026-09-06). Security updates are always on; version
+# updates are weekly and grouped so the queue stays reviewable. Nothing is
+# auto-merged — every PR goes through CI and a human.
+version: 2
+updates:
+  # pnpm workspace: one manifest set (root + apps/* + packages/*) — Dependabot
+  # resolves the workspace from the root lockfile.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Africa/Lubumbashi
+    open-pull-requests-limit: 5
+    groups:
+      # Patch + minor bumps of everything, one PR per week.
+      minor-and-patch:
+        update-types: [minor, patch]
+      # Framework majors stay separate so they can be planned (Next, Nest, Prisma…).
+    ignore:
+      # Majors are deliberate migrations, not weekly chores (see docs/pre-scale-readiness.md).
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    labels: [dependencies, npm]
+    commit-message:
+      prefix: "chore(deps)"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Africa/Lubumbashi
+    open-pull-requests-limit: 3
+    groups:
+      actions:
+        patterns: ["*"]
+    labels: [dependencies, ci]
+    commit-message:
+      prefix: "chore(ci)"
+
+  - package-ecosystem: pub
+    directory: /apps/buyer-mobile
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Africa/Lubumbashi
+    open-pull-requests-limit: 2
+    groups:
+      pub-minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    labels: [dependencies, buyer-mobile]
+    commit-message:
+      prefix: "chore(buyer-mobile)"
+
+  - package-ecosystem: pub
+    directory: /apps/seller-mobile
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Africa/Lubumbashi
+    open-pull-requests-limit: 2
+    groups:
+      pub-minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    labels: [dependencies, seller-mobile]
+    commit-message:
+      prefix: "chore(seller-mobile)"
+
+  - package-ecosystem: docker
+    directories: ["/apps/api", "/apps/buyer-web", "/apps/seller-web", "/apps/admin-web"]
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 1
+    labels: [dependencies, docker]
+    commit-message:
+      prefix: "chore(docker)"
