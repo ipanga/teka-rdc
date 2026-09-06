@@ -37,7 +37,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       setState(() => _user = me);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'Impossible de charger votre compte.');
+      // A2: offline, the session still stands — show the profile the auth
+      // layer restored from the last verified `/me` instead of a dead end.
+      final cached = ref.read(authProvider).user;
+      BuyerProfile? fallback;
+      if (cached != null) {
+        try {
+          fallback = BuyerProfile.fromJson(cached);
+        } catch (_) {
+          fallback = null;
+        }
+      }
+      setState(() {
+        if (fallback != null) {
+          _user = fallback;
+        } else {
+          _error = 'Impossible de charger votre compte.';
+        }
+      });
     } finally {
       if (mounted) setState(() => _loading = false);
     }
