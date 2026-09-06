@@ -8,7 +8,9 @@ import 'package:buyer_mobile/core/cache/typed_cache.dart';
 import 'package:buyer_mobile/core/config/flavor.dart';
 import 'package:buyer_mobile/features/cart/data/cart_repository.dart';
 import 'package:buyer_mobile/features/cart/data/models/cart_model.dart';
+import 'package:buyer_mobile/features/auth/presentation/providers/auth_provider.dart';
 import 'package:buyer_mobile/features/cart/presentation/providers/cart_provider.dart';
+import '../session/fake_auth.dart';
 import 'package:buyer_mobile/features/checkout/data/checkout_repository.dart';
 import 'package:buyer_mobile/features/checkout/data/models/checkout_model.dart';
 import 'package:buyer_mobile/features/checkout/presentation/providers/checkout_provider.dart';
@@ -149,7 +151,7 @@ void main() {
   group('CartNotifier.onOrderPlaced', () {
     test('empties items and zeroes the badge count', () async {
       final repo = _FakeCartRepo()..serverItems = [_item('p1', quantity: 2)];
-      final n = CartNotifier(repo, cache);
+      final n = CartNotifier(repo, cache)..onSessionStarted();
       await _settle();
       expect(n.state.items, isNotEmpty, reason: 'precondition: cart is loaded');
       expect(n.state.totalItems, 2);
@@ -165,7 +167,7 @@ void main() {
     test('evicts the cached snapshot so a relaunch cannot resurrect the order',
         () async {
       final repo = _FakeCartRepo()..serverItems = [_item('p1')];
-      final n = CartNotifier(repo, cache);
+      final n = CartNotifier(repo, cache)..onSessionStarted();
       await _settle();
       await seedCache([_item('p1')]);
       expect(prefs.getString(CacheKeys.buyerCart), isNotNull);
@@ -178,14 +180,14 @@ void main() {
       // Without the evict, _hydrateFromCache() would re-surface it on the next
       // cold start (the entry has a 30-day TTL).
       expect(prefs.getString(CacheKeys.buyerCart) ?? '', isNot(contains('p1')));
-      expect(CartNotifier(repo, cache).state.items, isEmpty,
+      expect((CartNotifier(repo, cache)..onSessionStarted()).state.items, isEmpty,
           reason: 'a fresh cold start must hydrate to an empty cart');
     });
 
     test('does not call DELETE /v1/cart — the server already cleared it',
         () async {
       final repo = _FakeCartRepo()..serverItems = [_item('p1')];
-      final n = CartNotifier(repo, cache);
+      final n = CartNotifier(repo, cache)..onSessionStarted();
       await _settle();
 
       repo.serverItems = [];
@@ -199,7 +201,7 @@ void main() {
       // clearCart() restores items when its request fails. Reusing it here
       // would resurrect products the buyer has already bought.
       final repo = _FakeCartRepo()..serverItems = [_item('p1')];
-      final n = CartNotifier(repo, cache);
+      final n = CartNotifier(repo, cache)..onSessionStarted();
       await _settle();
 
       repo.failFetch = true;
@@ -213,7 +215,7 @@ void main() {
         () async {
       // A line added from another device after checkout must survive.
       final repo = _FakeCartRepo()..serverItems = [_item('p1')];
-      final n = CartNotifier(repo, cache);
+      final n = CartNotifier(repo, cache)..onSessionStarted();
       await _settle();
 
       repo.serverItems = [_item('p9', quantity: 3)];
@@ -233,6 +235,8 @@ void main() {
       cartRepo = _FakeCartRepo()..serverItems = [_item('p1', quantity: 2)];
       checkoutRepo = _FakeCheckoutRepo();
       container = ProviderContainer(overrides: [
+        // The cart is account-scoped (A4): it loads for a signed-in session.
+        authProvider.overrideWith((ref) => FakeAuthNotifier.signedIn('user-1')),
         cartRepositoryProvider.overrideWithValue(cartRepo),
         typedCacheProvider.overrideWithValue(cache),
         checkoutRepositoryProvider.overrideWithValue(checkoutRepo),

@@ -23,6 +23,8 @@ class _FakeAuthRepo extends AuthRepository {
 
   @override
   Future<Map<String, dynamic>?> getCurrentUser() async => null;
+  @override
+  Future<SessionCheck> checkSession() async => const SessionRejected();
 
   @override
   Future<Map<String, dynamic>> verifyBuyerOtp({

@@ -4,6 +4,7 @@ import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/cache/cache_keys.dart';
 import '../../../../core/cache/typed_cache.dart';
 import '../../../../core/network/dio_error_messages.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/cart_repository.dart';
 import '../../data/models/cart_model.dart';
 
@@ -60,14 +61,24 @@ class CartNotifier extends StateNotifier<CartState> {
   /// any plausible offline session.
   static const Duration _cartCacheTtl = Duration(days: 30);
 
-  CartNotifier(this._repository, this._cache) : super(const CartState()) {
-    // First paint: hydrate from the cached snapshot synchronously so
-    // the cart icon / cart screen show the user's last-known items
-    // immediately on app launch (works even when offline). The actual
-    // fetchCart() below replaces these with fresh server data when
-    // the network comes back.
+  /// The cart belongs to a signed-in account, so nothing is loaded here.
+  /// [onSessionStarted] (from the auth listener in [cartProvider]) hydrates
+  /// the cached snapshot for the first paint and fetches the server cart;
+  /// [reset] wipes both when the session ends (A4, 2026-09-06). Guests no
+  /// longer fire a doomed `GET /v1/cart` on every product page either.
+  CartNotifier(this._repository, this._cache) : super(const CartState());
+
+  /// A session is (or just became) active: last-known items first — works
+  /// offline, including the A2 unverified-session start — then the server.
+  Future<void> onSessionStarted() async {
     _hydrateFromCache();
-    fetchCart();
+    await fetchCart();
+  }
+
+  /// The session ended: nothing of it may remain in memory or on disk.
+  Future<void> reset() async {
+    state = const CartState();
+    await _cache.evict(CacheKeys.buyerCart);
   }
 
   /// Pulls the last persisted cart snapshot off SharedPreferences and
@@ -261,10 +272,23 @@ class CartNotifier extends StateNotifier<CartState> {
 }
 
 final cartProvider = StateNotifierProvider<CartNotifier, CartState>((ref) {
-  return CartNotifier(
+  final notifier = CartNotifier(
     ref.read(cartRepositoryProvider),
     ref.read(typedCacheProvider),
   );
+  // Account-scoped (A4): load when a session is active (also when the app
+  // boots already signed in — fireImmediately), wipe when it ends. Mirrors
+  // wishlist_provider.
+  ref.listen<AuthState>(authProvider, (prev, next) {
+    final wasAuthed = prev?.status == AuthStatus.authenticated;
+    final isAuthed = next.status == AuthStatus.authenticated;
+    if (isAuthed && !wasAuthed) {
+      notifier.onSessionStarted();
+    } else if (!isAuthed && wasAuthed) {
+      notifier.reset();
+    }
+  }, fireImmediately: true);
+  return notifier;
 });
 
 /// Derived provider returning just the item count for badges
