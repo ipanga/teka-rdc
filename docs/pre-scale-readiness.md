@@ -789,12 +789,107 @@ CodeQL config-as-code (default setup is adequate), major dependency upgrades.
 tests ~1.5 min, each `next build` ~3 min, each `flutter test` ~3 min incl. SDK setup, audit ~1 min —
 so wall time ≈ 5 min, minutes ≈ 25 per run.
 
+### Branch protection — recommended required checks (repository setting, not code; 2026-09-06)
+Exact GitHub check names on `develop` after PR 5 (`db1b5fb`): `Lint & Type Check`, `API Tests`,
+`Web Tests`, `Web Build (buyer-web)`, `Web Build (seller-web)`, `Web Build (admin-web)`,
+`Flutter Tests (buyer-mobile)`, `Flutter Tests (seller-mobile)`, `Flutter Analysis (buyer-mobile)`,
+`Flutter Analysis (seller-mobile)`, `Dependency Audit`, `Release Config`. CodeQL (default setup) reports
+`Analyze (javascript-typescript)` and `Analyze (actions)` plus the umbrella `CodeQL`; require the two
+`Analyze (…)` checks. Apply to `develop` and `main` (PRs to `main` additionally run `pr-validation.yml`:
+`lint-typecheck-test`, `docker-build-check (…)` — recommend requiring the four `docker-build-check` legs
+on `main` only). Not applied automatically: no approval yet and the API reports no readable protection.
+
+**Dependabot after PR 5 (observed on `db1b5fb`):** the first run opened 7 PRs (#679–#685) and its three
+npm jobs failed. Cause from the job logs: Dependabot runs pnpm 10, which ignores the `pnpm` field of
+`package.json` ("The pnpm field … is no longer read … keys ignored: pnpm.overrides, pnpm.auditConfig"),
+so its `pnpm update --lockfile-only` resolves without our security overrides and aborts
+(`HelperSubprocessFailed`). Fix (small follow-up PR, not folded into the buyer work): declare
+`"packageManager": "pnpm@9.15.9"` in the root `package.json` so Dependabot uses the same pnpm as CI, add
+`ignore: semver-major` to the `docker` and `github-actions` groups (the first run proposed
+`node:20-alpine → 26-alpine` ×4 and `checkout v4 → v7`-class bumps), and close #679–#683 unmerged.
+
+### PR 6 — `buyer-mobile/functional-readiness-1` (session · offline · account isolation, 2026-09-06)
+**Split (as suggested in the brief) and why:** the Buyer Mobile audit lists 2 Critical + 8 High + ~20
+Medium items across five unrelated areas; one PR would be unreviewable. Order chosen by blast radius:
+**A** session/offline/account isolation (this PR — every other flow sits on top of a session that must
+survive an offline start and never leak between accounts), **B** pricing/cart/checkout (A1, next),
+**C** ratings/profile/avatar (A5, A6/D11, A8, nameless buyers, stale header), **D** notifications/deep
+links/localization/obsolete UI (A7, A9, A10, enums, accents, `Occasion`, dead routes, guest PDP 401).
+**Phase 0 findings reconfirmed on `develop` `db1b5fb` (after PRs #674–#678):** A1 confirmed live on the
+emulator (cart line 9.350 FC vs total 11.000 FC for the -15 % demo product) — deferred to PR B; A2, A3,
+A4 confirmed in code and on the emulator (the pre-fix app would have cleared tokens on any `/me` failure,
+fetched cities before reading the stored town, and kept the cart snapshot/orders/notifications across
+accounts); the Medium "guests fire a doomed `/v1/cart` on every PDP" confirmed (constructor fetch) and
+fixed here as part of the cart lifecycle; "profile header stale after edit" still open (PR C). Nothing in
+the A2–A4 set proved stale.
+**Root causes and fixes:**
+- **A2** — `AuthRepository.getCurrentUser()` returned `null` on *any* error and `checkAuthStatus()`
+  cleared the tokens. Now `checkSession()` returns `SessionOk` / `SessionRejected` (401 or 403 after the
+  interceptor's refresh attempt) / `SessionUnreachable` (no network, DNS, timeouts, 5xx, 429, malformed
+  body). Only a rejection clears tokens (and the private disk state). Unreachable ⇒ the app stays
+  `authenticated` on the stored credentials with the cached profile and `AuthState.sessionVerified:false`;
+  `app.dart` re-runs the check when the connectivity machine comes back online; a verified session is not
+  re-checked on every reconnect. Profile cached in `TypedCache` (`userProfile`, 30 d) on every verified
+  session and login. The account screen falls back to that cached profile when its own `/me` fails.
+  `AuthInterceptor.isConnectivityError` made public (identical mirror in seller-mobile — `diff -r` clean).
+- **A3** — `CityNotifier` fetched `/v1/cities` before reading the stored town, inside one `try`, so an
+  offline start left `selectedCity` null and the router forced `/city-selection`. Now the active town
+  list is cached (`citiesList`, 30 d, public data); on a fetch failure the stored town is restored from
+  the cache and the gate stays shut; a first launch offline with nothing cached still shows the picker
+  with its retry.
+- **A4** — logout only cleared tokens. New `SessionScope` (`features/auth/data/session_scope.dart`) owns
+  the per-account disk state — cached profile, cart snapshot, recently viewed, recent searches — and
+  `clearPrivateState()` runs on logout, on a server rejection and *before* another account's session
+  becomes visible (OTP verify + claim). Public catalogue caches are untouched. In memory: `cartProvider`,
+  `ordersProvider`, `notificationsProvider` now listen to `authProvider` (as wishlist/city already did) —
+  reset on logout, load on sign-in; the cart no longer auto-fetches in its constructor (guest 401 gone);
+  `notificationUnreadCountProvider` watches the session and is 0 for guests; the recently-viewed section
+  rebuilds on session change. PostHog `reset()` and the Sentry user were already handled.
+**Files:** `apps/buyer-mobile/lib/features/auth/data/{auth_repository,session_scope}.dart`,
+`features/auth/presentation/providers/auth_provider.dart`, `app.dart`,
+`features/city/presentation/providers/city_provider.dart`, `core/cache/cache_keys.dart`,
+`features/{cart,orders,notifications}/presentation/providers/*_provider.dart`,
+`features/catalog/data/recently_viewed_store.dart`,
+`features/catalog/presentation/widgets/recently_viewed_section.dart`,
+`features/profile/presentation/screens/profile_screen.dart`, `core/network/auth_interceptor.dart`
+(+ seller-mobile mirror). No API, web or contract change.
+**Tests (+24, all fail on the old code):** `auth/session_check_test` (10: 200/401/403/no network/timeout/
+429/5xx/malformed body classification), `auth/offline_cold_start_test` (6: unreachable keeps tokens +
+cached profile, unreachable without cache, rejection clears tokens + disk, confirmation caches the
+profile, no tokens ⇒ no server call, reconnect re-verification then a later rejection),
+`city/city_offline_start_test` (4), `session/account_isolation_test` (3: A → logout → B with cart/orders/
+notifications/badge/profile/history/searches; guest never fetches the cart; offline session hydrates the
+cached cart) + shared `session/fake_auth.dart`; existing cart tests adapted to the session-scoped
+lifecycle. **buyer-mobile 282 / seller-mobile 186 tests pass; `flutter analyze` at the 6-info baseline.**
+**Emulator (Android, development flavor debug build, dev API on :5050 with the mock WhatsApp provider,
+two disposable OTP buyers):** fresh install → town gate → Lubumbashi → home; Buyer A login → discounted
+product added (A1 evidence) → kill app → **wifi + data off → cold start: home with Lubumbashi (no gate),
+cart badge 1 from the snapshot, "Vus récemment" from disk, offline toast, account tab shows the cached
+profile, no login screen** → network back → the app re-checked `/me` on its own (device log 19:30:01,
+before any tap) → logout → cart badge gone, disk holds only `teka_cache_cities_v1` (verified with
+`run-as`), home no longer lists the history → Buyer B login → own account, empty cart, no A item → B
+logout → A login → A's server cart (1 item) is back. Two debug-build ANRs came from emulator input
+injection speed (system_server ANR'd too), not the app — typing digit-by-digit avoided them. **iOS not
+exercised** (no simulator input tooling in this environment); the changed code is platform-neutral Dart.
+**Real push delivery not exercised** (out of this PR's scope).
+**Privacy:** nothing new reaches Sentry or PostHog — the cached profile lives in SharedPreferences only;
+identity stays id + role.
+**Remaining Buyer Mobile issues (next PRs):** B — A1 totals; C — A5 avatar retry via
+`postMultipartWithAuthRetry`, A6/D11 previous-avatar destroy (API), A8 review errors, nameless buyers,
+stale profile header, own review twice, comment cannot be cleared; D — A7 category slug deep link, A9 iOS
+foreground notifications, A10 address phone normalisation + error surfacing, raw `REFUNDED`/unknown
+status enums, ~12 missing accents, `Occasion` filter, notifications refetch-on-open, dead routes, CMS
+relative links, `RETURNED` filter. Observed but out of scope: offline requests take ~15 s to fail on a
+cold start before the connectivity machine settles (retry interceptor), and the home does not refetch
+after reconnect.
+
 ## Next exact step
 
-PR 1 merged (`6201534`), PR 2 merged (`29ccb6f`), PR 3 merged (`5af6b94`), PR 4 merged (`1d74149`).
-**PR 5 `security/ci-test-supply-chain` open — awaiting merge approval.** Then PR 6
-`buyer-mobile/functional-1` (A1 cart/checkout totals, A2 offline cold start, A3 city gate, A4+MS5 session
-reset, A5 avatar retry, A6 avatar orphan / D11). Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
+PR 1–5 merged (`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`). **PR 6
+`buyer-mobile/functional-readiness-1` open — awaiting merge approval.** Then the small Dependabot
+follow-up (`packageManager` + major ignores for docker/actions), then Buyer Mobile PR B
+(`buyer-mobile/functional-readiness-2`: A1 cart/checkout totals with discounts, cached cart losing
+discounts, cart error rendering). Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
 branch `security/critical-hotfixes` from `develop`; files: `apps/buyer-web/src/components/seo/json-ld.tsx`
 (+ `json-ld.test.tsx`), `apps/api/src/payments/payments.{controller,service}.ts` (+ `test/payments.e2e-spec.ts`
 cross-user cases), `apps/api/src/products/products.controller.ts` + `products.service.ts`,

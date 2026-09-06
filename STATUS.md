@@ -4,11 +4,11 @@
 
 **Pre-scale readiness initiative — implementation in progress. D1 merged (#672). D2–D11 approved
 2026-09-06 (D2b = later design phase, D6 = docs only). PR 1 merged (`6201534`), PR 2 (D2a) merged
-(`29ccb6f`), PR 3 (D8) merged (`5af6b94`), PR 4 (D4) merged (`1d74149`). PR 5
-`security/ci-test-supply-chain` (CI now runs web vitest ×3, `next build` ×3, `flutter test` ×2, a
-blocking production dependency audit and the migration manifest gate; all actions SHA-pinned; read-only
-workflow tokens; Dependabot; 24 same-major overrides take `pnpm audit` from 71 to 5 advisories with 3
-documented exceptions) open, awaiting merge approval; next: PR 6 `buyer-mobile/functional-1`.** Tracker: `docs/pre-scale-readiness.md` (findings for Buyer Mobile functional readiness,
+(`29ccb6f`), PR 3 (D8) merged (`5af6b94`), PR 4 (D4) merged (`1d74149`), PR 5 (CI/supply chain)
+merged (`db1b5fb`). PR 6 `buyer-mobile/functional-readiness-1` (Buyer Mobile PR A: offline cold start
+keeps the session and the town, only a server rejection logs out, per-account disk + memory state wiped on
+logout/switch; 24 new tests; emulator-verified) open, awaiting merge approval; next: Dependabot
+follow-up (pnpm 10 ignores `pnpm.overrides` → `packageManager`), then Buyer Mobile PR B (A1 totals).** Tracker: `docs/pre-scale-readiness.md` (findings for Buyer Mobile functional readiness,
 Buyer Web SEO, tablet support, cross-platform security; 11 decisions needed; 16-PR sequence). No code
 changed. Recommended first PR: `security/critical-hotfixes` (JSON-LD escaping, payments IDOR, upload
 limits, app-review doc scrub, `next` bump). Still open from the previous release: manual Google Play
