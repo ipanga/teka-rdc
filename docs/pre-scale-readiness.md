@@ -408,7 +408,7 @@ suites buyer has (identical code).
 | 2 | **security/origin-and-surface-binding** | S1 `OriginGuard` + JWT `surface` claim; make `X-Teka-Surface` required for cookie auth; tests | decision 2 |
 | 3 | **security/auth-throttling** | S5 per-route `@Throttle`, login lockout, atomic OTP counter, resend cooldown on request (neutral register response deferred); S3 OTP role restriction (shipped as D1 / #672); S15 PII-safe logger; S6 real client IP moved here; e2e — **PR open** | decisions 1, 8 |
 | 4 | **security/edge-and-headers** | S9 per-surface CSP owned by each app (no `unsafe-eval`; nonce + `strict-dynamic` on seller/admin; Google hosts gone; Sentry ingest + Clarity hosts derived at build; admin `img-src api.cloudinary.com`), headers on static assets, `Permissions-Policy`/COOP/CORP, `poweredByHeader:false`, `private, no-store` on seller/admin + buyer account pages, API helmet profile + no-store; Clarity off seller (D4), PostHog replay off seller/admin; S6 real IP shipped in PR 3, origin-firewall recommendation documented — **PR open** | decision 4 |
-| 5 | **ci/tests-and-supply-chain** | `flutter test` + web vitest in CI; `permissions:` + SHA pins; `dependabot.yml`; `pnpm audit --audit-level=high` gate; fix stale ci.yml comment; refresh `pnpm.overrides`, Express/`path-to-regexp`/`qs` bumps | — |
+| 5 | **security/ci-test-supply-chain** | `flutter test` ×2 + web vitest ×3 + `next build` ×3 in CI; `permissions:` on all workflows + SHA pins (14 actions); `dependabot.yml`; `pnpm audit --prod --audit-level=high` gate (71 → 5 advisories via 24 same-major overrides, 3 documented exceptions); migration manifest gate; e2e flake investigation — **PR open** | — |
 | 6 | **buyer-mobile/functional-1** | A1 cart/checkout totals (+tests); A2 offline cold-start session; A3 city gate offline; A4+MS5 session reset on logout/account switch; A5 avatar retry; A6 avatar orphan (API, decision 11) | decision 11 |
 | 7 | **buyer-mobile/functional-2** | A7 category-by-slug; A8 review error surfacing; A9 iOS local notifications; A10 address phone normalisation + error surfacing; nameless buyers; French copy/accents/status labels; dead routes; guest PDP cart 401; notifications refetch-on-open | — |
 | 8 | **mobile/security-hardening** | MS1 allowBackup; MS2 router UUID; MS3 `teka://` host; MS4 keychain accessibility; MS6 scrub breadth (+tests both apps); L LogInterceptor gate, markdown scheme allow-list; seller-mobile test parity | — |
@@ -704,11 +704,97 @@ is not stopped — markup injection is); Clarity masking on the buyer is unverif
 origin is reachable directly until the firewall rule is applied; CI still runs no web tests / production
 builds (PR 5); the `X-Robots-Tag`/`noindex` on seller/admin is unchanged and re-verified.
 
+### PR 5 — `security/ci-test-supply-chain` (2026-09-06)
+**Baseline reconfirmed on `develop` `1d74149` (after PRs #674–#677) — what changed since Phase 0:** API
+unit specs already ran in CI (the "noop" step name was stale); seller-web and admin-web have since gained
+Vitest suites (36 + 60 cases) and buyer-web grew to 97; `flutter test` had grown to 258 (buyer) + 186
+(seller) and still ran in no workflow; no workflow ran `next build` on `develop` (only the Docker build
+check on PRs to `main`). Still true from Phase 0: 8/10 workflows had no `permissions:` block, all 14
+distinct actions were on moving tags (incl. `appleboy/ssh-action@v1` holding the production SSH key), no
+`.github/dependabot.yml`, no dependency-audit gate, `pnpm audit` at **71 advisories (2 critical / 41
+high / 22 moderate / 6 low; 37 reachable from production dependencies)**, secrets expanded into the
+remote shell string in `deploy.yml`, no `pull_request_target` (good), CodeQL via GitHub default setup
+(JavaScript/TypeScript + Actions — no repo workflow to maintain), no branch protection readable via the
+API (repository setting, not code). Secret hygiene: no credential-shaped string in any tracked file, no
+`.env`/keystore/service-account/provisioning file ever committed (history checked; only `.env*.example`),
+`.dockerignore` excludes `.env.*`, artifacts uploaded are the AAB/IPA only, no step prints secret values.
+**Changes:**
+- **CI matrix (`ci.yml`)** — new jobs: `Web Tests` (three Vitest suites, one step each so a failure is
+  never masked), `Web Build (buyer|seller|admin)` (real `next build`, matrix, `fail-fast: false`),
+  `Flutter Tests (buyer|seller)` (matrix legs, `flutter test --reporter expanded`, SDK cache),
+  `Dependency Audit` (`pnpm audit --prod --audit-level=high` blocking + full-tree report, non-blocking);
+  `API Tests` now runs the unit suite for real (`--passWithNoTests` and the stale "noop" name removed);
+  `Release Config` also runs the new auto-apply manifest gate. Existing `Lint & Type Check`, `Flutter
+  Analysis` ×2, `Release Config` unchanged in substance. `pr-validation.yml` (PRs to `main`) untouched
+  apart from pins/permissions.
+- **Workflow token least privilege** — top-level `permissions: contents: read` on all 10 workflows;
+  `deploy.yml` keeps its job-level `packages: write` (build/push) and `packages: read` (VPS pull) —
+  everything else needs only checkout. Artifact upload/download use the runtime token, not `GITHUB_TOKEN`.
+- **Action pinning** — every `uses:` (14 distinct actions, 45 references) pinned to the commit SHA the
+  moving tag resolved to on 2026-09-06, with the release tag in a trailing comment
+  (`actions/checkout@11d5960a… # v4.4.0`, `appleboy/ssh-action@0ff4204d… # v1.2.5`, …). No version
+  changed except `ruby/setup-ruby`, whose `v1` is a branch, pinned to release `v1.321.0`. Dependabot's
+  `github-actions` group keeps the SHAs current. `actionlint 1.7.7` passes (two pre-existing
+  info-level shellcheck notes in `release-mobile-ipa.yml` about `ls` remain).
+- **Dependabot** (`.github/dependabot.yml`, new) — npm workspace (weekly, minor+patch grouped, majors
+  ignored so they stay deliberate, limit 5), github-actions (weekly, grouped), pub for both Flutter apps
+  (weekly, minor+patch grouped, limit 2 each), docker base images (monthly). Security updates always on.
+  Nothing auto-merges.
+- **Dependency advisories** — `pnpm.overrides` extended with 24 same-major pins (path-to-regexp, qs,
+  body-parser, lodash, websocket-driver, file-type, dompurify, fflate, protobufjs, brace-expansion ×2,
+  js-yaml ×2, nanoid, postcss, fast-uri, browserslist, flatted, picomatch, handlebars, defu, ajv,
+  @babel/core, @humanfs/node; five superseded rules removed). Result: **71 → 5 advisories (0 critical, 3
+  high, 0 moderate, 2 low)**; the 3 remaining high are documented exceptions in
+  `pnpm.auditConfig.ignoreGhsas` with follow-ups: `sharp` 0.34.5 → 0.35 (GHSA-f88m-g3jw-g9cj, libvips
+  CVEs; the Next.js image optimizer — needs a Next-compatible bump), `effect` 3.18 → 3.20
+  (GHSA-38f7-945m-qr2g) and `deepmerge-ts` 7 → 8 (GHSA-ggr8-5vv4-36mx) — both only inside `@prisma/config`
+  (CLI config loading at generate/migrate time, never the API process). `esbuild` 0.27 → 0.28 (low,
+  dev-only via tsx/vite) left for Dependabot. **Next.js**: `15.5.25` is the latest 15.x and no GitHub
+  advisory affects it — the PR #674 bump stands; nothing to do.
+- **Flutter/Dart** — `flutter pub outdated`: no security advisory on any dependency (pub.dev reports
+  none); behind on majors only (go_router 14→18, riverpod 2→3, flutter_secure_storage 10→11,
+  app_links 6→7, connectivity_plus 6→7, flutter_local_notifications 19→22, share_plus 10→13) — planned
+  migrations (PR 8 / mobile hardening), not this PR. Dependabot `pub` will surface minors.
+- **Release gates** — `apps/api/prisma/migrations/check-manifest.sh`: every auto-apply entry exists, no
+  duplicates, no destructive statement (DROP/TRUNCATE/DELETE) in an auto-applied file, every CREATE
+  TABLE/INDEX is `IF NOT EXISTS`, `ADD COLUMN` without `IF NOT EXISTS` warns; SQL comments stripped first.
+  Proven on the real manifest (10 entries OK) and on a synthetic bad manifest (all four failures fire).
+  TestFlight group mapping test unchanged.
+- **Security regression gate — decision:** keep the invariants distributed in their suites (D1 OTP in
+  `auth.e2e`/`buyer-otp.service.spec`, JSON-LD in `json-ld.test`, payments IDOR in `payments.e2e`,
+  uploads in `image-upload.spec`, D2a in `auth-surface.e2e`, D8 in `auth-throttling.e2e`, D4 headers in
+  `security-headers.e2e` + the three web header/middleware tests). They all run on every PR now (API,
+  web, mobile jobs), so a named duplicate suite would only drift. The mapping above is the "gate".
+- **API e2e flake — reproduced, explained, fixed, measured.** Baseline on `1d74149`: 1 failure in 6
+  full runs (`password-reset/request … SELLER` answered non-200) and 1 in 25 runs of `auth.e2e` alone
+  (`POST /api/v1/auth/register` expected 404, got **501 Not Implemented**), both while the machine was
+  under concurrent load (`flutter test` running); 0 in 40 unloaded runs — plus the earlier
+  `reports.e2e` "bare Bearer token" failure recorded in this initiative. Elimination: no code in the API,
+  Nest core, Express 5, `router`, `finalhandler`, helmet, the throttler, supertest or superagent emits a
+  501 — the status came from below the application layer. Mechanism: `createTestApp()` never listened, so
+  supertest started **and stopped the shared `http.Server` for every request**; on Node ≥ 19 (keep-alive
+  agent by default) that listen/close churn is exactly the window in which a request can be answered by
+  a closing server — the same class of failure the D8 parallel bursts hit as ECONNRESET, which the
+  throttling spec had already worked around with its own `app.listen(0)`. Narrow fix: `createTestApp()`
+  now listens once on an ephemeral port (`test/test-utils.ts`; the spec-local listen removed). After:
+  **0 failures in 6 full runs and 0 in 40 `auth`+`reports` runs under a four-core CPU load** (same
+  protocol). No retries, no `continue-on-error`, no relaxed assertion; the regression coverage is the
+  suite itself running on every PR, with the mechanism documented at the bootstrap. Confidence: high on
+  the mechanism (churn removed, symptom gone under load), not a captured packet-level proof of the 501.
+**Not done here (scope):** secrets passed to the remote shell via `envs:` (PR 15), branch protection /
+required checks (repository setting — recommended: require `Lint & Type Check`, `API Tests`, `Web Tests`,
+`Web Build (*)`, `Flutter Tests (*)`, `Dependency Audit`, `Release Config` on `develop` and `main`),
+CodeQL config-as-code (default setup is adequate), major dependency upgrades.
+**Cost:** the CI run grows from 4 jobs (~2.5 min wall) to 12 jobs; the new legs run in parallel — web
+tests ~1.5 min, each `next build` ~3 min, each `flutter test` ~3 min incl. SDK setup, audit ~1 min —
+so wall time ≈ 5 min, minutes ≈ 25 per run.
+
 ## Next exact step
 
-PR 1 merged (`6201534`), PR 2 merged (`29ccb6f`), PR 3 merged (`5af6b94`). **PR 4
-`security/edge-and-headers` (D4) open — awaiting merge approval.** Then PR 5 `ci/tests-and-supply-chain`
-(web vitest + production builds + `flutter test` in CI, action pinning, dependabot, audit gate). Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
+PR 1 merged (`6201534`), PR 2 merged (`29ccb6f`), PR 3 merged (`5af6b94`), PR 4 merged (`1d74149`).
+**PR 5 `security/ci-test-supply-chain` open — awaiting merge approval.** Then PR 6
+`buyer-mobile/functional-1` (A1 cart/checkout totals, A2 offline cold start, A3 city gate, A4+MS5 session
+reset, A5 avatar retry, A6 avatar orphan / D11). Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
 branch `security/critical-hotfixes` from `develop`; files: `apps/buyer-web/src/components/seo/json-ld.tsx`
 (+ `json-ld.test.tsx`), `apps/api/src/payments/payments.{controller,service}.ts` (+ `test/payments.e2e-spec.ts`
 cross-user cases), `apps/api/src/products/products.controller.ts` + `products.service.ts`,
