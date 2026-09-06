@@ -1,6 +1,7 @@
 {
   "name": "teka-rdc",
   "version": "0.0.1",
+  "packageManager": "pnpm@9.15.9",
   "private": true,
   "description": "Teka RDC \u2014 E-commerce marketplace for DR Congo",
   "scripts": {
