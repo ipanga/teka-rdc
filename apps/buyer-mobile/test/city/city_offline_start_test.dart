@@ -35,7 +35,11 @@ class _Storage extends FlutterSecureStorage {
   Future<String?> read({required String key, AppleOptions? iOptions, AndroidOptions? aOptions, LinuxOptions? lOptions, WebOptions? webOptions, AppleOptions? mOptions, WindowsOptions? wOptions}) async => _store[key];
   @override
   Future<void> write({required String key, required String? value, AppleOptions? iOptions, AndroidOptions? aOptions, LinuxOptions? lOptions, WebOptions? webOptions, AppleOptions? mOptions, WindowsOptions? wOptions}) async {
-    if (value == null) _store.remove(key); else _store[key] = value;
+    if (value == null) {
+      _store.remove(key);
+    } else {
+      _store[key] = value;
+    }
   }
   @override
   Future<void> delete({required String key, AppleOptions? iOptions, AndroidOptions? aOptions, LinuxOptions? lOptions, WebOptions? webOptions, AppleOptions? mOptions, WindowsOptions? wOptions}) async => _store.remove(key);
