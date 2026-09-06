@@ -113,6 +113,58 @@ void main() {
     expect(tokens.access, 'new-access',
         reason: 'refreshed tokens must survive a replay failure');
     expect(tokens.clears, 0, reason: 'a replay failure is not an auth failure');
+    expect(propagated?.requestOptions.extra[authRefreshedExtraKey], isTrue,
+        reason: 'the marker tells postMultipartWithAuthRetry it may rebuild '
+            'and send once more');
+  });
+
+  test(
+      'a 401 whose REFRESH is rejected clears the session and carries NO retry marker',
+      () async {
+    final tokens = _MemoryTokens();
+    final refreshDio = Dio()
+      ..interceptors.add(InterceptorsWrapper(onRequest: (o, h) {
+        h.reject(_unauthorized(o));
+      }));
+    final interceptor = AuthInterceptor(tokens, refreshDio);
+    final options = RequestOptions(
+      path: '/v1/sellers/documents',
+      method: 'POST',
+      data: FormData.fromMap({
+        'document': MultipartFile.fromBytes([1, 2, 3], filename: 'x.jpg')
+      }),
+    );
+    DioException? propagated;
+    final handler = _Handler(onResolve: (_) {}, onNext: (e) => propagated = e);
+    interceptor.onError(_unauthorized(options), handler);
+    await handler.done.future;
+    expect(propagated?.response?.statusCode, 401);
+    expect(tokens.clears, 1, reason: 'a rejected refresh IS an auth failure');
+    expect(propagated?.requestOptions.extra.containsKey(authRefreshedExtraKey),
+        isFalse,
+        reason: 'no refresh happened, so the caller must not upload again');
+  });
+
+  test(
+      'a 401 whose refresh call is OFFLINE keeps the session and carries NO retry marker',
+      () async {
+    final tokens = _MemoryTokens();
+    final refreshDio = Dio()
+      ..interceptors.add(InterceptorsWrapper(onRequest: (o, h) {
+        h.reject(DioException(
+            requestOptions: o, type: DioExceptionType.connectionError));
+      }));
+    final interceptor = AuthInterceptor(tokens, refreshDio);
+    final options = RequestOptions(path: '/v1/users/avatar', method: 'POST');
+    DioException? propagated;
+    final handler = _Handler(onResolve: (_) {}, onNext: (e) => propagated = e);
+    interceptor.onError(_unauthorized(options), handler);
+    await handler.done.future;
+    expect(propagated?.response?.statusCode, 401);
+    expect(tokens.clears, 0);
+    expect(tokens.access, 'old-access');
+    expect(propagated?.requestOptions.extra.containsKey(authRefreshedExtraKey),
+        isFalse);
   });
 }
 

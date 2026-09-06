@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/network/multipart_upload.dart';
 
 /// One of the seller's own verification documents as the API exposes it to
 /// the seller (`GET /v1/sellers/verification`). Deliberately carries NO
@@ -150,8 +151,8 @@ class VerificationRepository {
   /// One deliberate exception to "never retry a POST": when the access token
   /// expired mid-session the AuthInterceptor refreshes it but cannot replay a
   /// multipart body (the stream is consumed), so the first attempt surfaces
-  /// a 401 without the API having created anything. We rebuild the FormData
-  /// and send exactly once more with the refreshed token.
+  /// a 401 without the API having created anything. `postMultipartWithAuthRetry`
+  /// rebuilds the FormData and sends exactly once more with the refreshed token.
   Future<VerificationStatusModel> uploadDocument({
     required String type,
     String? label,
@@ -160,27 +161,20 @@ class VerificationRepository {
     required String mimeType,
     void Function(int sent, int total)? onProgress,
   }) async {
-    FormData form() => FormData.fromMap({
-          'type': type,
-          if (label != null && label.trim().isNotEmpty) 'label': label.trim(),
-          'document': MultipartFile.fromBytes(
-            bytes,
-            filename: filename,
-            contentType: DioMediaType.parse(mimeType),
-          ),
-        });
-    Future<Response<dynamic>> send() => _dio.post(
-          '/v1/sellers/verification/documents',
-          data: form(),
-          onSendProgress: onProgress,
-        );
-    Response<dynamic> response;
-    try {
-      response = await send();
-    } on DioException catch (e) {
-      if (e.response?.statusCode != 401) rethrow;
-      response = await send();
-    }
+    final response = await postMultipartWithAuthRetry<dynamic>(
+      _dio,
+      '/v1/sellers/verification/documents',
+      buildForm: () => FormData.fromMap({
+        'type': type,
+        if (label != null && label.trim().isNotEmpty) 'label': label.trim(),
+        'document': MultipartFile.fromBytes(
+          bytes,
+          filename: filename,
+          contentType: DioMediaType.parse(mimeType),
+        ),
+      }),
+      onSendProgress: onProgress,
+    );
     final data = response.data['data'] ?? response.data;
     return VerificationStatusModel.fromJson(data as Map<String, dynamic>);
   }
