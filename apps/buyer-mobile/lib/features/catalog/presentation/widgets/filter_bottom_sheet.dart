@@ -4,7 +4,6 @@ import '../../../../core/theme/teka_colors.dart';
 import '../../data/catalog_repository.dart';
 
 class FilterOptions {
-  final String? condition;
   final String? sortBy;
 
   /// Price range (CDF, as strings to match the query params). Null = unset.
@@ -22,7 +21,6 @@ class FilterOptions {
   final List<String> brandIds;
 
   const FilterOptions({
-    this.condition,
     this.sortBy,
     this.minPrice,
     this.maxPrice,
@@ -33,7 +31,6 @@ class FilterOptions {
 
   /// Count of active filters (for an active-filter badge/chip count).
   int get activeCount =>
-      (condition != null ? 1 : 0) +
       (sortBy != null ? 1 : 0) +
       ((minPrice != null && minPrice!.isNotEmpty) ? 1 : 0) +
       ((maxPrice != null && maxPrice!.isNotEmpty) ? 1 : 0) +
@@ -42,21 +39,18 @@ class FilterOptions {
       brandIds.length;
 
   FilterOptions copyWith({
-    String? condition,
     String? sortBy,
     String? minPrice,
     String? maxPrice,
     bool? onPromotion,
     Map<String, List<String>>? attributes,
     List<String>? brandIds,
-    bool clearCondition = false,
     bool clearSortBy = false,
     bool clearPrice = false,
     bool clearAttributes = false,
     bool clearBrandIds = false,
   }) {
     return FilterOptions(
-      condition: clearCondition ? null : (condition ?? this.condition),
       sortBy: clearSortBy ? null : (sortBy ?? this.sortBy),
       minPrice: clearPrice ? null : (minPrice ?? this.minPrice),
       maxPrice: clearPrice ? null : (maxPrice ?? this.maxPrice),
@@ -101,7 +95,6 @@ class FilterBottomSheet extends ConsumerStatefulWidget {
 }
 
 class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
-  String? _condition;
   String? _sortBy;
   bool _onPromotion = false;
   late final TextEditingController _minPriceController;
@@ -116,7 +109,6 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
   @override
   void initState() {
     super.initState();
-    _condition = widget.initialFilters.condition;
     _sortBy = widget.initialFilters.sortBy;
     _onPromotion = widget.initialFilters.onPromotion;
     _minPriceController =
@@ -243,12 +235,12 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // The Etat (Neuf / Occasion) filter was removed
-                    // 2026-07-28: Teka sells new products only, so it could
-                    // only filter everything in or everything out. The
-                    // `condition` field stays on ProductFilters and the API
-                    // still accepts the param — see
-                    // docs/product-condition-deprecation.md.
+                    // No « État » (Neuf / Occasion) filter: Teka sells new
+                    // products only. The sheet dropped it 2026-07-28 and the
+                    // last chips left in the category screen went with PR D3
+                    // (2026-09-07); `FilterOptions` no longer carries the
+                    // field at all. The API still accepts `?condition=` for
+                    // older builds — see docs/product-condition-deprecation.md.
 
                     // Sort options
                     Text(
@@ -331,7 +323,6 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                   child: OutlinedButton(
                     onPressed: () {
                       setState(() {
-                        _condition = null;
                         _sortBy = null;
                         _onPromotion = false;
                         _minPriceController.clear();
@@ -343,7 +334,7 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: TekaColors.border),
                     ),
-                    child: Text("Reinitialiser"),
+                    child: Text("Réinitialiser"),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -351,7 +342,6 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
                   child: FilledButton(
                     onPressed: () {
                       Navigator.of(context).pop(FilterOptions(
-                        condition: _condition,
                         sortBy: _sortBy,
                         minPrice: _trimToNull(_minPriceController.text),
                         maxPrice: _trimToNull(_maxPriceController.text),

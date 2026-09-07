@@ -18,7 +18,6 @@ import '../../features/catalog/presentation/screens/promotions_screen.dart';
 import '../../features/checkout/data/models/checkout_model.dart';
 import '../../features/checkout/presentation/screens/checkout_screen.dart';
 import '../../features/checkout/presentation/screens/checkout_success_screen.dart';
-import '../../features/checkout/presentation/screens/payment_pending_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/orders/presentation/screens/order_detail_screen.dart';
@@ -156,6 +155,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/auth/reclamer-compte',
         builder: (context, state) => const ClaimRequestScreen(),
       ),
+      // Compatibility route: the claim magic link is a WEBSITE URL, and the
+      // deep-link parser deliberately leaves `/reclamer-compte/confirmer` to
+      // the browser. The in-app screen stays so a link opened inside the app
+      // (or a future in-app claim flow) resolves instead of 404-ing.
       GoRoute(
         path: '/auth/reclamer-compte/confirmer',
         builder: (context, state) {
@@ -216,14 +219,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return CheckoutSuccessScreen(orders: orders);
         },
       ),
-      GoRoute(
-        path: '/checkout/payment-pending',
-        builder: (context, state) {
-          final extra = state.extra as Map<String, dynamic>?;
-          final orders = extra?['orders'] as List<CheckoutOrderModel>? ?? [];
-          return PaymentPendingScreen(orders: orders);
-        },
-      ),
+      // `/checkout/payment-pending` was removed with PR D3 (2026-09-07):
+      // Teka is cash-on-delivery only, `CheckoutService` answers
+      // `paymentPending: false` on every order, and no other caller pushed
+      // the route — the screen polled a payment status that can never be
+      // pending. Bring both back with the payment provider, not before.
       GoRoute(
         path: '/orders',
         builder: (context, state) => const OrdersScreen(),

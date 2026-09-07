@@ -10,6 +10,7 @@ import '../../../../core/widgets/app_states.dart';
 import '../../data/models/order_model.dart';
 import '../../data/orders_repository.dart';
 import '../providers/orders_provider.dart';
+import '../../domain/order_status.dart';
 import '../widgets/order_status_badge.dart';
 import '../widgets/order_timeline.dart';
 
@@ -773,28 +774,27 @@ class _PaymentStatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = paymentStatus.toUpperCase();
+    // Label from the ONE mapping (PR D3): `REFUNDED` used to render as the
+    // raw English enum, and an unknown value silently read « En attente ».
+    final label = paymentStatusLabel(status);
     final Color chipColor;
-    final String label;
-
     switch (status) {
       case 'COMPLETED':
       case 'PAID':
         chipColor = TekaColors.success;
-        label = "Payé";
         break;
       case 'FAILED':
         chipColor = TekaColors.destructive;
-        label = "Échoué";
         break;
       case 'REFUNDED':
         chipColor = const Color(0xFF2563EB);
-        label = status;
         break;
       case 'PENDING':
       case 'PROCESSING':
-      default:
         chipColor = TekaColors.warning;
-        label = "En attente";
+        break;
+      default:
+        chipColor = TekaColors.mutedForeground;
         break;
     }
 

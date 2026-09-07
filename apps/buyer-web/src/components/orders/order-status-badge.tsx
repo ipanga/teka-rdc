@@ -21,11 +21,14 @@ interface OrderStatusBadgeProps {
 
 export function OrderStatusBadge({ status }: OrderStatusBadgeProps) {
   // Fallback so an unexpected/empty status degrades to a neutral chip instead
-  // of throwing (white-screen) during render.
+  // of throwing (white-screen) during render. It reads « Statut inconnu »
+  // rather than echoing the enum — a status added to the API before this app
+  // is redeployed must not surface as `SOME_NEW_ENUM` to a buyer (PR D3,
+  // 2026-09-07; same wording as buyer-mobile's `orderStatusLabel`).
   const config = statusConfig[status] ?? {
     bgClass: 'bg-muted',
     textClass: 'text-muted-foreground',
-    label: String(status ?? '—'),
+    label: 'Statut inconnu',
   };
 
   return (

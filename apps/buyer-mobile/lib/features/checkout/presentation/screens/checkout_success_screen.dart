@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../orders/domain/order_status.dart';
 import '../../data/models/checkout_model.dart';
 
 class CheckoutSuccessScreen extends ConsumerWidget {
@@ -29,7 +30,7 @@ class CheckoutSuccessScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(
-                  "Commande confirmee !",
+                  "Commande confirmée !",
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
                         color: TekaColors.foreground,
@@ -71,7 +72,10 @@ class CheckoutSuccessScreen extends ConsumerWidget {
                                     ),
                                   ),
                                   Text(
-                                    order.status,
+                                    // Was `order.status` — the raw enum
+                                    // (« PENDING ») on the buyer's success
+                                    // screen (PR D3).
+                                    orderStatusLabel(order.status),
                                     style: const TextStyle(
                                       color: TekaColors.mutedForeground,
                                       fontSize: 13,

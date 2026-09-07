@@ -96,7 +96,7 @@ void main() {
       await pickCityAndCommune(tester);
 
       await tester.enterText(
-        find.widgetWithText(TextField, 'Point de repere'),
+        find.widgetWithText(TextField, 'Point de repère'),
         'En face de la pharmacie',
       );
       await tester.enterText(
@@ -262,7 +262,7 @@ void main() {
       await pumpSheet(tester, initial: existing, capture: (d) => sent = d);
 
       await tester.enterText(
-        find.widgetWithText(TextField, 'Point de repere'),
+        find.widgetWithText(TextField, 'Point de repère'),
         '',
       );
       await _tapVisible(tester, find.text('Enregistrer'));
