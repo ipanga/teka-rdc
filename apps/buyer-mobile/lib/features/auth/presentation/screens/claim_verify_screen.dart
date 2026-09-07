@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../core/utils/phone.dart';
@@ -94,11 +95,14 @@ class _ClaimVerifyScreenState extends ConsumerState<ClaimVerifyScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Ajouter votre WhatsApp')),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: _step == _Step.phone ? _buildPhoneStep() : _buildCodeStep(),
-        ),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: _step == _Step.phone ? _buildPhoneStep() : _buildCodeStep(),
+            ),
+          ),
       ),
     );
   }

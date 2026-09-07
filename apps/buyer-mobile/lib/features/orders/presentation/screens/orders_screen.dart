@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
 import '../../../../core/widgets/app_states.dart';
@@ -28,132 +29,135 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
         leading: const AdaptiveLeading(),
         title: const Text("Mes commandes"),
       ),
-      body: Column(
-        children: [
-          // Status filter chips
-          SizedBox(
-            height: 48,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: orderStatusFilters.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (context, index) {
-                final filter = orderStatusFilters[index];
-                final isSelected = ordersState.selectedStatus == filter.wire;
-                return FilterChip(
-                  label: Text(filter.label),
-                  selected: isSelected,
-                  onSelected: (_) {
-                    ref
-                        .read(ordersProvider.notifier)
-                        .setStatusFilter(filter.wire);
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: Column(
+            children: [
+              // Status filter chips
+              SizedBox(
+                height: 48,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: orderStatusFilters.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final filter = orderStatusFilters[index];
+                    final isSelected = ordersState.selectedStatus == filter.wire;
+                    return FilterChip(
+                      label: Text(filter.label),
+                      selected: isSelected,
+                      onSelected: (_) {
+                        ref
+                            .read(ordersProvider.notifier)
+                            .setStatusFilter(filter.wire);
+                      },
+                      selectedColor: TekaColors.tekaRed.withValues(alpha: 0.12),
+                      checkmarkColor: TekaColors.tekaRed,
+                      labelStyle: TextStyle(
+                        color: isSelected
+                            ? TekaColors.tekaRed
+                            : TekaColors.mutedForeground,
+                        fontSize: 13,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                      side: BorderSide(
+                        color: isSelected ? TekaColors.tekaRed : TekaColors.border,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      visualDensity: VisualDensity.compact,
+                    );
                   },
-                  selectedColor: TekaColors.tekaRed.withValues(alpha: 0.12),
-                  checkmarkColor: TekaColors.tekaRed,
-                  labelStyle: TextStyle(
-                    color: isSelected
-                        ? TekaColors.tekaRed
-                        : TekaColors.mutedForeground,
-                    fontSize: 13,
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.normal,
-                  ),
-                  side: BorderSide(
-                    color: isSelected ? TekaColors.tekaRed : TekaColors.border,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  visualDensity: VisualDensity.compact,
-                );
-              },
-            ),
-          ),
+                ),
+              ),
 
-          // Orders list.
-          //
-          // Only a first load with nothing on screen takes the whole area
-          // (spinner, or the error state with a retry). Once orders are
-          // shown they STAY shown through a refresh and through a failed
-          // refresh — the pull-to-refresh spinner and an inline error row
-          // carry that news instead of blanking the list (PR D3).
-          Expanded(
-            child: ordersState.isLoading && ordersState.orders.isEmpty
-                ? const Center(
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : ordersState.error != null && ordersState.orders.isEmpty
-                    ? AppErrorState(
-                        message: ordersState.error,
-                        onRetry: () =>
-                            ref.read(ordersProvider.notifier).refresh(),
+              // Orders list.
+              //
+              // Only a first load with nothing on screen takes the whole area
+              // (spinner, or the error state with a retry). Once orders are
+              // shown they STAY shown through a refresh and through a failed
+              // refresh — the pull-to-refresh spinner and an inline error row
+              // carry that news instead of blanking the list (PR D3).
+              Expanded(
+                child: ordersState.isLoading && ordersState.orders.isEmpty
+                    ? const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : ordersState.orders.isEmpty
-                        ? RefreshIndicator(
-                            color: TekaColors.tekaRed,
-                            onRefresh: () =>
+                    : ordersState.error != null && ordersState.orders.isEmpty
+                        ? AppErrorState(
+                            message: ordersState.error,
+                            onRetry: () =>
                                 ref.read(ordersProvider.notifier).refresh(),
-                            child: ListView(
-                              physics: const AlwaysScrollableScrollPhysics(),
-                              children: const [
-                                SizedBox(height: 80),
-                                AppEmptyState(
-                                  icon: Icons.receipt_long_outlined,
-                                  title: "Vous n'avez aucune commande",
-                                ),
-                              ],
-                            ),
                           )
-                        : RefreshIndicator(
-                            color: TekaColors.tekaRed,
-                            onRefresh: () =>
-                                ref.read(ordersProvider.notifier).refresh(),
-                            child: Column(
-                              children: [
-                                if (ordersState.error != null)
-                                  _InlineRefreshError(
-                                    message: ordersState.error!,
-                                    onRetry: () => ref
-                                        .read(ordersProvider.notifier)
-                                        .refresh(),
-                                  ),
-                                Expanded(
-                                  child: ListView.separated(
-                                    physics:
-                                        const AlwaysScrollableScrollPhysics(),
-                                    padding: const EdgeInsets.all(16),
-                                    itemCount: ordersState.orders.length,
-                                    separatorBuilder: (_, __) =>
-                                        const SizedBox(height: 12),
-                                    itemBuilder: (context, index) {
-                                      return OrderCard(
-                                        order: ordersState.orders[index],
-                                      );
-                                    },
-                                  ),
+                        : ordersState.orders.isEmpty
+                            ? RefreshIndicator(
+                                color: TekaColors.tekaRed,
+                                onRefresh: () =>
+                                    ref.read(ordersProvider.notifier).refresh(),
+                                child: ListView(
+                                  physics: const AlwaysScrollableScrollPhysics(),
+                                  children: const [
+                                    SizedBox(height: 80),
+                                    AppEmptyState(
+                                      icon: Icons.receipt_long_outlined,
+                                      title: "Vous n'avez aucune commande",
+                                    ),
+                                  ],
                                 ),
+                              )
+                            : RefreshIndicator(
+                                color: TekaColors.tekaRed,
+                                onRefresh: () =>
+                                    ref.read(ordersProvider.notifier).refresh(),
+                                child: Column(
+                                  children: [
+                                    if (ordersState.error != null)
+                                      _InlineRefreshError(
+                                        message: ordersState.error!,
+                                        onRetry: () => ref
+                                            .read(ordersProvider.notifier)
+                                            .refresh(),
+                                      ),
+                                    Expanded(
+                                      child: ListView.separated(
+                                        physics:
+                                            const AlwaysScrollableScrollPhysics(),
+                                        padding: const EdgeInsets.all(16),
+                                        itemCount: ordersState.orders.length,
+                                        separatorBuilder: (_, __) =>
+                                            const SizedBox(height: 12),
+                                        itemBuilder: (context, index) {
+                                          return OrderCard(
+                                            order: ordersState.orders[index],
+                                          );
+                                        },
+                                      ),
+                                    ),
 
-                                // Pagination
-                                if (ordersState.totalPages > 1)
-                                  _PaginationBar(
-                                    page: ordersState.page,
-                                    totalPages: ordersState.totalPages,
-                                    hasNext: ordersState.hasNextPage,
-                                    hasPrevious: ordersState.hasPreviousPage,
-                                    onPrevious: () => ref
-                                        .read(ordersProvider.notifier)
-                                        .loadOrders(page: ordersState.page - 1),
-                                    onNext: () => ref
-                                        .read(ordersProvider.notifier)
-                                        .loadOrders(page: ordersState.page + 1),
-                                  ),
-                              ],
-                            ),
-                          ),
+                                    // Pagination
+                                    if (ordersState.totalPages > 1)
+                                      _PaginationBar(
+                                        page: ordersState.page,
+                                        totalPages: ordersState.totalPages,
+                                        hasNext: ordersState.hasNextPage,
+                                        hasPrevious: ordersState.hasPreviousPage,
+                                        onPrevious: () => ref
+                                            .read(ordersProvider.notifier)
+                                            .loadOrders(page: ordersState.page - 1),
+                                        onNext: () => ref
+                                            .read(ordersProvider.notifier)
+                                            .loadOrders(page: ordersState.page + 1),
+                                      ),
+                                  ],
+                                ),
+                              ),
+              ),
+            ],
           ),
-        ],
       ),
     );
   }

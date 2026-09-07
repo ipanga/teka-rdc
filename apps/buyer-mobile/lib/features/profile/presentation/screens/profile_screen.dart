@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/app_states.dart';
@@ -138,133 +139,136 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Scaffold(
       backgroundColor: TekaColors.background,
       appBar: const _AccountAppBar(),
-      body: RefreshIndicator(
-        color: TekaColors.tekaRed,
-        onRefresh: _load,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          children: [
-            _AccountHeader(
-              displayName: displayName,
-              phone: user?.phone,
-              email: user?.email,
-              avatarUrl: user?.avatar,
-              initials: initials,
-              onEditProfile: () =>
-                  _open('/profile/informations', 'personal_info'),
-            ),
-            // Buyers are created from a phone number only (WhatsApp OTP):
-            // until they add a name, say so once — never a blocker, never a
-            // made-up name.
-            if (user != null && user.isNameless) ...[
-              const SizedBox(height: 12),
-              _CompleteProfileNudge(
-                onAddName: () =>
-                    _open('/profile/informations', 'complete_profile'),
-              ),
-            ],
-            const SizedBox(height: 16),
-            _MenuSection(
-              title: 'Mon compte Teka',
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: RefreshIndicator(
+            color: TekaColors.tekaRed,
+            onRefresh: _load,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               children: [
-                _AccountMenuTile(
-                  icon: Icons.receipt_long_outlined,
-                  title: 'Mes commandes',
-                  subtitle: 'Suivi, annulation et retours',
-                  onTap: () => _open('/orders', 'orders'),
+                _AccountHeader(
+                  displayName: displayName,
+                  phone: user?.phone,
+                  email: user?.email,
+                  avatarUrl: user?.avatar,
+                  initials: initials,
+                  onEditProfile: () =>
+                      _open('/profile/informations', 'personal_info'),
                 ),
-                _AccountMenuTile(
-                  icon: Icons.favorite_border_rounded,
-                  title: 'Mes favoris',
-                  subtitle: 'Produits sauvegardés',
-                  onTap: () => _open('/wishlist', 'wishlist'),
+                // Buyers are created from a phone number only (WhatsApp OTP):
+                // until they add a name, say so once — never a blocker, never a
+                // made-up name.
+                if (user != null && user.isNameless) ...[
+                  const SizedBox(height: 12),
+                  _CompleteProfileNudge(
+                    onAddName: () =>
+                        _open('/profile/informations', 'complete_profile'),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                _MenuSection(
+                  title: 'Mon compte Teka',
+                  children: [
+                    _AccountMenuTile(
+                      icon: Icons.receipt_long_outlined,
+                      title: 'Mes commandes',
+                      subtitle: 'Suivi, annulation et retours',
+                      onTap: () => _open('/orders', 'orders'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.favorite_border_rounded,
+                      title: 'Mes favoris',
+                      subtitle: 'Produits sauvegardés',
+                      onTap: () => _open('/wishlist', 'wishlist'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.notifications_none_rounded,
+                      title: 'Boîte de réception',
+                      subtitle: 'Commandes, promotions et annonces',
+                      onTap: () => _open('/notifications', 'notifications'),
+                    ),
+                  ],
                 ),
-                _AccountMenuTile(
-                  icon: Icons.notifications_none_rounded,
-                  title: 'Boîte de réception',
-                  subtitle: 'Commandes, promotions et annonces',
-                  onTap: () => _open('/notifications', 'notifications'),
+                _MenuSection(
+                  title: 'Paramètres',
+                  children: [
+                    _AccountMenuTile(
+                      icon: Icons.location_on_outlined,
+                      title: 'Mon adresse',
+                      subtitle: 'Votre adresse de livraison',
+                      onTap: () => _open('/profile/addresses', 'addresses'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.badge_outlined,
+                      title: 'Informations personnelles',
+                      subtitle: 'Nom, email, photo et numéro WhatsApp',
+                      onTap: () => _open('/profile/informations', 'personal_info'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.tune_rounded,
+                      title: 'Notifications',
+                      subtitle: 'Commandes, promotions et annonces',
+                      onTap: () =>
+                          _open('/profile/notifications', 'notification_settings'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.verified_user_outlined,
+                      title: 'Gestion du compte',
+                      subtitle: 'Appareils connectés et sécurité',
+                      onTap: () => _open('/profile/security', 'security'),
+                    ),
+                  ],
                 ),
+                _MenuSection(
+                  title: 'Aide',
+                  children: [
+                    _AccountMenuTile(
+                      icon: Icons.help_outline_rounded,
+                      title: "Centre d'aide",
+                      subtitle: 'Aide pour acheter sur Teka RDC',
+                      onTap: () => _open('/pages/help', 'help'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.shopping_bag_outlined,
+                      title: 'Comment acheter',
+                      subtitle: 'Passer une commande étape par étape',
+                      onTap: () => _open('/pages/how-to-buy', 'how_to_buy'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.support_agent_outlined,
+                      title: 'Contacter le support',
+                      subtitle: 'Assistance commandes et compte',
+                      onTap: () => _open('/pages/contact', 'support'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.quiz_outlined,
+                      title: 'FAQ',
+                      subtitle: 'Questions fréquentes',
+                      onTap: () => _open('/pages/faq', 'faq'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.info_outline_rounded,
+                      title: 'À propos',
+                      subtitle: 'En savoir plus sur Teka RDC',
+                      onTap: () => _open('/pages/about', 'about'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.description_outlined,
+                      title: "Conditions d'utilisation",
+                      onTap: () => _open('/pages/terms', 'terms'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.privacy_tip_outlined,
+                      title: 'Politique de confidentialité',
+                      onTap: () => _open('/pages/privacy', 'privacy'),
+                    ),
+                  ],
+                ),
+                _LogoutButton(onPressed: _confirmLogout),
               ],
             ),
-            _MenuSection(
-              title: 'Paramètres',
-              children: [
-                _AccountMenuTile(
-                  icon: Icons.location_on_outlined,
-                  title: 'Mon adresse',
-                  subtitle: 'Votre adresse de livraison',
-                  onTap: () => _open('/profile/addresses', 'addresses'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.badge_outlined,
-                  title: 'Informations personnelles',
-                  subtitle: 'Nom, email, photo et numéro WhatsApp',
-                  onTap: () => _open('/profile/informations', 'personal_info'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.tune_rounded,
-                  title: 'Notifications',
-                  subtitle: 'Commandes, promotions et annonces',
-                  onTap: () =>
-                      _open('/profile/notifications', 'notification_settings'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.verified_user_outlined,
-                  title: 'Gestion du compte',
-                  subtitle: 'Appareils connectés et sécurité',
-                  onTap: () => _open('/profile/security', 'security'),
-                ),
-              ],
-            ),
-            _MenuSection(
-              title: 'Aide',
-              children: [
-                _AccountMenuTile(
-                  icon: Icons.help_outline_rounded,
-                  title: "Centre d'aide",
-                  subtitle: 'Aide pour acheter sur Teka RDC',
-                  onTap: () => _open('/pages/help', 'help'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.shopping_bag_outlined,
-                  title: 'Comment acheter',
-                  subtitle: 'Passer une commande étape par étape',
-                  onTap: () => _open('/pages/how-to-buy', 'how_to_buy'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.support_agent_outlined,
-                  title: 'Contacter le support',
-                  subtitle: 'Assistance commandes et compte',
-                  onTap: () => _open('/pages/contact', 'support'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.quiz_outlined,
-                  title: 'FAQ',
-                  subtitle: 'Questions fréquentes',
-                  onTap: () => _open('/pages/faq', 'faq'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.info_outline_rounded,
-                  title: 'À propos',
-                  subtitle: 'En savoir plus sur Teka RDC',
-                  onTap: () => _open('/pages/about', 'about'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.description_outlined,
-                  title: "Conditions d'utilisation",
-                  onTap: () => _open('/pages/terms', 'terms'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.privacy_tip_outlined,
-                  title: 'Politique de confidentialité',
-                  onTap: () => _open('/pages/privacy', 'privacy'),
-                ),
-              ],
-            ),
-            _LogoutButton(onPressed: _confirmLogout),
-          ],
-        ),
+          ),
       ),
     );
   }

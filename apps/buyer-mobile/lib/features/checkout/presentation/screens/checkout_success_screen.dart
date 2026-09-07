@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../orders/domain/order_status.dart';
 import '../../data/models/checkout_model.dart';
@@ -16,7 +17,9 @@ class CheckoutSuccessScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      body: SafeArea(
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: SafeArea(
         child: Center(
           child: Padding(
             padding: const EdgeInsets.all(32),
@@ -126,6 +129,7 @@ class CheckoutSuccessScreen extends ConsumerWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

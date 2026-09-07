@@ -105,9 +105,16 @@ class ProductDetailSkeleton extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const AspectRatio(
-                aspectRatio: kProductDetailGalleryAspectRatio,
-                child: ShimmerBox(height: double.infinity, radius: 0),
+              // Same capped frame as the real gallery (tablet phase), so the
+              // page does not jump when the product resolves.
+              LayoutBuilder(
+                builder: (context, constraints) => SizedBox(
+                  height: heroImageHeight(
+                    constraints.maxWidth,
+                    aspectRatio: kProductDetailGalleryAspectRatio,
+                  ),
+                  child: const ShimmerBox(height: double.infinity, radius: 0),
+                ),
               ),
               Container(
                 width: double.infinity,

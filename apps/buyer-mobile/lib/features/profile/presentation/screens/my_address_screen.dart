@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/layout/responsive.dart';
 
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/network/dio_error_messages.dart';
@@ -117,10 +118,13 @@ class _MyAddressScreenState extends ConsumerState<MyAddressScreen> {
         leading: const AdaptiveLeading(),
         title: const Text('Mon adresse'),
       ),
-      body: RefreshIndicator(
-        color: TekaColors.tekaRed,
-        onRefresh: _load,
-        child: _buildBody(),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: RefreshIndicator(
+            color: TekaColors.tekaRed,
+            onRefresh: _load,
+            child: _buildBody(),
+          ),
       ),
     );
   }

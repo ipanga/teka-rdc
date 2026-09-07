@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/router/app_router.dart';
 import '../providers/auth_provider.dart';
@@ -137,63 +138,66 @@ class _OtpVerifyScreenState extends ConsumerState<OtpVerifyScreen> {
     final isLoading = ref.watch(authProvider).isLoading;
     return Scaffold(
       appBar: AppBar(title: const Text('Code WhatsApp')),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Saisissez le code envoyé au ${widget.phone}'),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _codeController,
-                focusNode: _focusNode,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  LengthLimitingTextInputFormatter(6),
-                ],
-                style: const TextStyle(
-                  fontSize: 24,
-                  letterSpacing: 8,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-                onChanged: (v) {
-                  if (v.length == 6) _submit(v);
-                },
-                decoration: const InputDecoration(
-                  labelText: 'Code à 6 chiffres',
-                  border: OutlineInputBorder(),
-                  counterText: '',
-                ),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 8),
-                Text(_error!, style: const TextStyle(color: Colors.red)),
-              ],
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  TextButton(
-                    onPressed: () => context.pop(),
-                    child: const Text('← Modifier le numéro'),
-                  ),
-                  TextButton(
-                    onPressed: _cooldown > 0 || isLoading ? null : _resend,
-                    child: Text(
-                      _cooldown > 0
-                          ? 'Renvoyer dans ${_cooldown}s'
-                          : 'Renvoyer le code',
+                  Text('Saisissez le code envoyé au ${widget.phone}'),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: _codeController,
+                    focusNode: _focusNode,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(6),
+                    ],
+                    style: const TextStyle(
+                      fontSize: 24,
+                      letterSpacing: 8,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                    onChanged: (v) {
+                      if (v.length == 6) _submit(v);
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'Code à 6 chiffres',
+                      border: OutlineInputBorder(),
+                      counterText: '',
                     ),
                   ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 8),
+                    Text(_error!, style: const TextStyle(color: Colors.red)),
+                  ],
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      TextButton(
+                        onPressed: () => context.pop(),
+                        child: const Text('← Modifier le numéro'),
+                      ),
+                      TextButton(
+                        onPressed: _cooldown > 0 || isLoading ? null : _resend,
+                        child: Text(
+                          _cooldown > 0
+                              ? 'Renvoyer dans ${_cooldown}s'
+                              : 'Renvoyer le code',
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-            ],
+            ),
           ),
-        ),
       ),
     );
   }

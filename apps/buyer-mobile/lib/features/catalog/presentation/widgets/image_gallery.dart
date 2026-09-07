@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/product_skeletons.dart';
 import '../../data/models/product_model.dart';
@@ -29,11 +30,33 @@ class _ImageGalleryState extends State<ImageGallery> {
     super.dispose();
   }
 
+  /// Sizes the gallery for the width it is given (tablet phase, 2026-09-07).
+  ///
+  /// It used to be a bare `AspectRatio`, so on a 1024 pt tablet the photo
+  /// became an 819 pt wall and the title, price and « Ajouter au panier » all
+  /// fell below the fold. On a phone this renders exactly the previous box;
+  /// above 600 pt the height is capped and the image (already
+  /// `BoxFit.contain`) letterboxes instead of being cropped. The decode width
+  /// follows the frame rather than the window, so a constrained gallery no
+  /// longer decodes a full-tablet-width bitmap.
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) =>
+          _buildGallery(context, constraints.maxWidth),
+    );
+  }
+
+  Widget _buildGallery(BuildContext context, double frameWidth) {
+    final frameHeight = heroImageHeight(
+      frameWidth,
+      aspectRatio: kProductDetailGalleryAspectRatio,
+    );
+
     if (widget.images.isEmpty) {
-      return AspectRatio(
-        aspectRatio: kProductDetailGalleryAspectRatio,
+      return SizedBox(
+        width: frameWidth,
+        height: frameHeight,
         child: Container(
           color: TekaColors.surface,
           child: Semantics(
@@ -50,8 +73,9 @@ class _ImageGalleryState extends State<ImageGallery> {
       );
     }
 
-    return AspectRatio(
-      aspectRatio: kProductDetailGalleryAspectRatio,
+    return SizedBox(
+      width: frameWidth,
+      height: frameHeight,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -63,7 +87,7 @@ class _ImageGalleryState extends State<ImageGallery> {
             },
             itemBuilder: (context, index) {
               final image = widget.images[index];
-              final logicalWidth = MediaQuery.sizeOf(context).width;
+              final logicalWidth = frameWidth;
               final pixelRatio = MediaQuery.devicePixelRatioOf(context);
               final decodeWidth = (logicalWidth * pixelRatio).round();
 

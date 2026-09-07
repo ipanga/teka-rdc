@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
@@ -82,9 +83,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
           const SizedBox(width: 12),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: notifier.refresh,
-        child: _body(context, ref, state, notifier),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: RefreshIndicator(
+            onRefresh: notifier.refresh,
+            child: _body(context, ref, state, notifier),
+          ),
       ),
     );
   }

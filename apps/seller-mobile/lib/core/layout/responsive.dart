@@ -13,6 +13,8 @@
 /// calling a change done.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/widgets.dart';
 
 /// Material 3 window width classes, measured on the layout width in logical
@@ -166,16 +168,21 @@ class ReadableBottomBar extends StatelessWidget {
 /// inherits it instead of each call site repeating a number.
 const BoxConstraints kSheetConstraints = BoxConstraints(maxWidth: 640);
 
-/// Cap for a hero/gallery image so a square product photo does not become a
-/// 1024 pt wall on a large tablet. Returns the height to give the gallery.
-double heroImageHeight(double availableWidth) {
-  final widthClass = widthClassFor(availableWidth);
-  switch (widthClass) {
+/// Height for a hero/gallery image of [availableWidth].
+///
+/// A product gallery is 0.8 of its width; across a 1024 pt tablet that is an
+/// 819 pt wall of photo with the title pushed off screen. On a phone the
+/// natural height is kept exactly as before; on a tablet it is capped so the
+/// image stays a header and the buying information stays visible.
+/// [aspectRatio] is width / height (1.0 = square).
+double heroImageHeight(double availableWidth, {double aspectRatio = 1.0}) {
+  final natural = availableWidth / aspectRatio;
+  switch (widthClassFor(availableWidth)) {
     case LayoutWidthClass.compact:
-      return availableWidth; // square, as before
+      return natural; // unchanged from the phone layout
     case LayoutWidthClass.medium:
-      return 420;
+      return math.min(natural, 420);
     case LayoutWidthClass.expanded:
-      return 480;
+      return math.min(natural, 480);
   }
 }

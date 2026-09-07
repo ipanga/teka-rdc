@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/app_states.dart';
 import '../../../../core/widgets/commerce_header.dart';
@@ -23,33 +24,36 @@ class CategoriesScreen extends ConsumerWidget {
         automaticallyImplyLeading: false,
         searchLabel: 'Rechercher dans Teka...',
       ),
-      body: categories.when(
-        data: (cats) => cats.isEmpty
-            ? _CategoriesEmpty(onBrowse: () => context.go('/'))
-            : RefreshIndicator(
-                color: TekaColors.tekaRed,
-                onRefresh: () async {
-                  ref.invalidate(categoriesProvider);
-                  await ref
-                      .read(categoriesProvider.future)
-                      .catchError((_) => <CategoryModel>[]);
-                },
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  itemCount: cats.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) =>
-                      _CategoryOverviewCard(category: cats[index]),
-                ),
-              ),
-        loading: () => const Center(
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-        error: (_, __) => AppErrorState(
-          message: 'Impossible de charger les catégories.',
-          onRetry: () => ref.invalidate(categoriesProvider),
-        ),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: categories.when(
+            data: (cats) => cats.isEmpty
+                ? _CategoriesEmpty(onBrowse: () => context.go('/'))
+                : RefreshIndicator(
+                    color: TekaColors.tekaRed,
+                    onRefresh: () async {
+                      ref.invalidate(categoriesProvider);
+                      await ref
+                          .read(categoriesProvider.future)
+                          .catchError((_) => <CategoryModel>[]);
+                    },
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: cats.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) =>
+                          _CategoryOverviewCard(category: cats[index]),
+                    ),
+                  ),
+            loading: () => const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            error: (_, __) => AppErrorState(
+              message: 'Impossible de charger les catégories.',
+              onRetry: () => ref.invalidate(categoriesProvider),
+            ),
+          ),
       ),
     );
   }
