@@ -22,6 +22,7 @@ import 'providers/banner_provider.dart';
 import 'providers/flash_deal_provider.dart';
 import 'widgets/banner_carousel.dart';
 import 'widgets/flash_deals_section.dart';
+import '../../../core/theme/teka_spacing.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -170,39 +171,30 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               delegate: SliverChildListDelegate([
                 // City hero — premium, city-branded header (mirrors the web city
                 // landing hero). Renders nothing until a town is selected.
-                const SizedBox(height: 8),
+                const SizedBox(height: TekaSpacing.xs),
                 const CityHero(),
-                const SizedBox(height: 8),
+                const SizedBox(height: TekaSpacing.md),
 
-                // Banner carousel
-                const BannerCarousel(),
-                const SizedBox(height: 16),
-
-                // Categories strip
+                // Categories BEFORE the promotional banners (UX PR B).
+                //
+                // Both heroes were audited and both keep their place: the city
+                // hero answers "where am I shopping" with the town's own image
+                // and CTA, the banner carousel is admin merchandising. They are
+                // not duplicates — what was wrong was the order. Two
+                // full-width promotional blocks ran back to back (measured on
+                // a 448 pt phone: hero 197 pt, banner 180 pt), so the category
+                // strip — the app's primary navigation — did not start until
+                // 617 pt down, in the bottom third of the first viewport.
+                // Putting navigation before merchandising moves it to 429 pt,
+                // 188 pt earlier, and costs the first product row 15 pt.
                 _SectionHeader(
                   title: "Catégories",
                   onSeeAll: null,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: TekaSpacing.xs),
                 categories.when(
-                  data: (cats) => SizedBox(
-                    height: 118,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      // Vertical padding gives the tile shadows room (the list clips
-                      // to its bounds).
-                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
-                      itemCount: cats.length,
-                      separatorBuilder: (_, __) => const SizedBox(width: 10),
-                      itemBuilder: (context, index) => CategoryCircle(
-                        category: cats[index],
-                      ),
-                    ),
-                  ),
-                  loading: () => const SizedBox(
-                    height: 118,
-                    child: _CategoryStripSkeleton(),
-                  ),
+                  data: (cats) => _CategoryStrip(categories: cats),
+                  loading: () => const _CategoryStrip.loading(),
                   error: (_, __) => _InlineFeedState(
                     icon: Icons.grid_view_rounded,
                     title: "Catégories indisponibles",
@@ -212,7 +204,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: TekaSpacing.lg),
+
+                // Banner carousel — merchandising, after the navigation.
+                const BannerCarousel(),
+
+                const SizedBox(height: TekaSpacing.xl),
 
                 // Promotions (horizontal scroll) — only shown when promos exist.
                 promo.maybeWhen(
@@ -562,35 +559,73 @@ class _HomeNotificationAction extends StatelessWidget {
   }
 }
 
-class _CategoryStripSkeleton extends StatelessWidget {
-  const _CategoryStripSkeleton();
+/// The home category strip, loaded or loading.
+///
+/// The height used to be a magic `118` shared by both states, tuned to a
+/// two-line French label at the default text scale — so « Téléphones &
+/// Accessoires » fitted and the same strip clipped at 1.5x. It now asks
+/// [categoryCircleHeight] for the height the tiles actually need at the
+/// current text scale, and the skeleton uses the same number so the strip does
+/// not resize when the data lands.
+class _CategoryStrip extends StatelessWidget {
+  final List<CategoryModel> categories;
+  final bool isLoading;
+
+  const _CategoryStrip({required this.categories}) : isLoading = false;
+
+  const _CategoryStrip.loading()
+      : categories = const [],
+        isLoading = true;
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 6),
-      itemCount: 5,
-      separatorBuilder: (_, __) => const SizedBox(width: 10),
-      itemBuilder: (_, __) => Column(
+    return SizedBox(
+      height: categoryCircleHeight(context),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        // Vertical padding gives the tile shadows room (the list clips to its
+        // bounds).
+        padding: const EdgeInsets.fromLTRB(
+          TekaSpacing.md,
+          6,
+          TekaSpacing.md,
+          6,
+        ),
+        itemCount: isLoading ? 5 : categories.length,
+        separatorBuilder: (_, __) => const SizedBox(width: TekaSpacing.xs),
+        itemBuilder: (context, index) => isLoading
+            ? const _CategoryCircleSkeleton()
+            : CategoryCircle(category: categories[index]),
+      ),
+    );
+  }
+}
+
+class _CategoryCircleSkeleton extends StatelessWidget {
+  const _CategoryCircleSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: kCategoryCircleWidth,
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
+            width: kCategoryCircleDiameter,
+            height: kCategoryCircleDiameter,
+            decoration: const BoxDecoration(
               color: TekaColors.surface,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: TekaColors.border),
+              shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: TekaSpacing.xs),
           Container(
             width: 56,
             height: 10,
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: TekaColors.muted,
-              borderRadius: BorderRadius.circular(999),
+              borderRadius: TekaRadius.pillAll,
             ),
           ),
         ],
