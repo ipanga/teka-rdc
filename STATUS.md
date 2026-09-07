@@ -7,12 +7,13 @@
 (`29ccb6f`), PR 3 (D8) merged (`5af6b94`), PR 4 (D4) merged (`1d74149`), PR 5 (CI/supply chain)
 merged (`db1b5fb`), PR 6 (Buyer Mobile A) merged (`c470e63`), PR 7 (Buyer Mobile B) merged
 (`a877bbb`), `ci/dependabot-pnpm` merged (`adae24f`), PR 8 (Buyer Mobile C) merged (`c6ce951`),
-PR 9 (Buyer Mobile D1) merged (`613f0fa`).
-**PR 10 `buyer-mobile/address-phone-public-routing` (Buyer Mobile PR D2: one canonical recipient-phone
-rule normalised server-side on write, address form errors/retries, checkout re-reads the address before
-placing an order, guests stop calling private review/wishlist endpoints, order-snapshot regression test;
-+59 tests; emulator-verified) open, awaiting merge approval; D3 (localisation + dead routes + obsolete
-filter) follows as a separate PR — see the tracker's PR 10 record.** Tracker: `docs/pre-scale-readiness.md` (findings for Buyer Mobile functional readiness,
+PR 9 (Buyer Mobile D1) merged (`613f0fa`), PR 10 (Buyer Mobile D2) merged (`9450358`).
+**PR 11 `buyer-mobile/localization-status-route-cleanup` (Buyer Mobile PR D3: ONE French order/payment
+status mapping — no raw enum reaches a buyer, every status filterable incl. RETURNED on mobile and web,
+12 accent fixes, obsolete « Neuf / Occasion » chips and the COD-dead payment-pending route removed,
+orders/cart no longer blank on refresh; +46 tests; emulator-verified) open, awaiting merge approval.
+**With it the Buyer Mobile functional-readiness workstream closes** — see the closure table in the
+tracker's PR 11 record. Next phase (not started): tablet responsiveness for Buyer + Seller Mobile.** Tracker: `docs/pre-scale-readiness.md` (findings for Buyer Mobile functional readiness,
 Buyer Web SEO, tablet support, cross-platform security; 11 decisions needed; 16-PR sequence). No code
 changed. Recommended first PR: `security/critical-hotfixes` (JSON-LD escaping, payments IDOR, upload
 limits, app-review doc scrub, `next` bump). Still open from the previous release: manual Google Play
