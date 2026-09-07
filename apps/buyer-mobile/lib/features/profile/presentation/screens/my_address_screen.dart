@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/analytics/posthog_analytics.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
 import '../../../../core/widgets/app_snackbar.dart';
@@ -79,7 +80,10 @@ class _MyAddressScreenState extends ConsumerState<MyAddressScreen> {
     );
   }
 
-  Future<bool> _save(
+  /// Null on success; otherwise the message the sheet shows inline — the API's
+  /// French reason (« Commune inactive », « Numéro de téléphone invalide… ») or
+  /// a connectivity message. Used to be a generic snackbar behind the sheet.
+  Future<String?> _save(
     Map<String, dynamic> data, {
     AddressModel? existing,
   }) async {
@@ -92,7 +96,7 @@ class _MyAddressScreenState extends ConsumerState<MyAddressScreen> {
           ? await repo.createAddress(data)
           : await repo.updateAddress(existing.id, data);
 
-      if (!mounted) return true;
+      if (!mounted) return null;
       // Adopt the server's response directly so the screen is correct without a
       // refetch or a manual pull-to-refresh.
       setState(() => _address = saved);
@@ -100,16 +104,9 @@ class _MyAddressScreenState extends ConsumerState<MyAddressScreen> {
         context,
         message: existing == null ? 'Adresse enregistrée' : 'Adresse mise à jour',
       );
-      return true;
-    } catch (_) {
-      if (mounted) {
-        showAppSnackbar(
-          context,
-          message: "Impossible d'enregistrer l'adresse",
-          tone: AppSnackbarTone.error,
-        );
-      }
-      return false;
+      return null;
+    } catch (e) {
+      return friendlyErrorMessage(e);
     }
   }
 

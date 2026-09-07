@@ -57,7 +57,7 @@ Future<void> pumpSheet(
           initial: initial,
           onSave: (data) async {
             capture(data);
-            return true;
+            return null;
           },
         ),
       ),
@@ -80,13 +80,14 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
 }
 
 Future<void> pickCityAndCommune(WidgetTester tester) async {
-  await _tapVisible(tester, find.text('Selectionnez une ville'));
+  await _tapVisible(tester, find.text('Sélectionnez une ville'));
   await _tapVisible(tester, find.text('Lubumbashi (Haut-Katanga)').last);
-  await _tapVisible(tester, find.text('Selectionnez une commune'));
+  await _tapVisible(tester, find.text('Sélectionnez une commune'));
   await _tapVisible(tester, find.text('Kampemba').last);
 }
 
 void main() {
+  _prD2Tests();
   group('AddressFormSheet — create', () {
     testWidgets('sends reference and recipientPhone, never details/phone',
         (tester) async {
@@ -99,7 +100,7 @@ void main() {
         'En face de la pharmacie',
       );
       await tester.enterText(
-        find.widgetWithText(TextField, 'Telephone du destinataire'),
+        find.widgetWithText(TextField, 'Téléphone du destinataire'),
         '+243990000001',
       );
 
@@ -161,11 +162,11 @@ void main() {
     testWidgets('offers no commune until a city is chosen', (tester) async {
       await pumpSheet(tester, capture: (_) {});
       expect(find.text('Commune *'), findsNothing);
-      expect(find.text('Selectionnez une commune'), findsNothing);
-      await _tapVisible(tester, find.text('Selectionnez une ville'));
+      expect(find.text('Sélectionnez une commune'), findsNothing);
+      await _tapVisible(tester, find.text('Sélectionnez une ville'));
       await _tapVisible(tester, find.text('Lubumbashi (Haut-Katanga)').last);
       expect(find.text('Commune *'), findsOneWidget);
-      expect(find.text('Selectionnez une commune'), findsOneWidget);
+      expect(find.text('Sélectionnez une commune'), findsOneWidget);
     });
 
     testWidgets(
@@ -174,16 +175,16 @@ void main() {
       Map<String, dynamic>? sent;
       await pumpSheet(tester, capture: (d) => sent = d);
       await pickCityAndCommune(tester);
-      expect(find.text('Selectionnez une commune'), findsNothing);
+      expect(find.text('Sélectionnez une commune'), findsNothing);
       expect(saveButton(tester).onPressed, isNotNull);
 
       await _tapVisible(tester, find.text('Lubumbashi (Haut-Katanga)').first);
       await _tapVisible(tester, find.text('Kolwezi (Lualaba)').last);
-      expect(find.text('Selectionnez une commune'), findsOneWidget,
+      expect(find.text('Sélectionnez une commune'), findsOneWidget,
           reason: 'the previous commune belongs to another town');
       expect(saveButton(tester).onPressed, isNull);
 
-      await _tapVisible(tester, find.text('Selectionnez une commune'));
+      await _tapVisible(tester, find.text('Sélectionnez une commune'));
       await _tapVisible(tester, find.text('Kampemba').last);
       await _tapVisible(
           tester, find.widgetWithText(FilledButton, 'Enregistrer'));
@@ -207,8 +208,8 @@ void main() {
         isDefault: true,
       );
       await pumpSheet(tester, initial: retired, capture: (_) {});
-      expect(find.text('Selectionnez une ville'), findsNothing);
-      expect(find.text('Selectionnez une commune'), findsOneWidget);
+      expect(find.text('Sélectionnez une ville'), findsNothing);
+      expect(find.text('Sélectionnez une commune'), findsOneWidget);
       expect(saveButton(tester).onPressed, isNull);
     });
   });
@@ -236,8 +237,8 @@ void main() {
       expect(find.text('Ancien repère'), findsOneWidget);
       expect(find.text('Jean Kabila'), findsOneWidget);
       // Preselected from cityId/communeId, so the hints are gone.
-      expect(find.text('Selectionnez une ville'), findsNothing);
-      expect(find.text('Selectionnez une commune'), findsNothing);
+      expect(find.text('Sélectionnez une ville'), findsNothing);
+      expect(find.text('Sélectionnez une commune'), findsNothing);
     });
 
     testWidgets('keeps unchanged values on save', (tester) async {
@@ -269,5 +270,74 @@ void main() {
       expect(sent!.containsKey('reference'), isTrue);
       expect(sent!['reference'], isNull);
     });
+  });
+}
+
+// ─── PR D2 (2026-09-07): phone rule, load failures, inline save errors ─────
+
+class _FailingCityRepository extends _FakeCityRepository {
+  int attempts = 0;
+  @override
+  Future<List<CityModel>> getCities() async {
+    attempts++;
+    if (attempts == 1) throw Exception('offline');
+    return super.getCities();
+  }
+}
+
+void _prD2Tests() {
+  group('AddressFormSheet — recipient phone (one rule on every surface)', () {
+    testWidgets('a local number is sent canonical (+243…)', (tester) async {
+      Map<String, dynamic>? captured;
+      await pumpSheet(tester, capture: (d) => captured = d);
+      await pickCityAndCommune(tester);
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Téléphone du destinataire'), '099 000 00 01');
+      await _tapVisible(tester, find.text('Enregistrer'));
+      expect(captured?['recipientPhone'], '+243990000001');
+    });
+
+    testWidgets('an unreadable number is refused on the field, nothing is sent', (tester) async {
+      Map<String, dynamic>? captured;
+      await pumpSheet(tester, capture: (d) => captured = d);
+      await pickCityAndCommune(tester);
+      await tester.enterText(
+          find.widgetWithText(TextField, 'Téléphone du destinataire'), '12345');
+      await _tapVisible(tester, find.text('Enregistrer'));
+      expect(captured, isNull);
+      expect(find.textContaining('Numéro invalide'), findsOneWidget);
+    });
+  });
+
+  testWidgets('a failed city list shows a retry instead of an empty disabled form', (tester) async {
+    final repo = _FailingCityRepository();
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: AddressFormSheet(cityRepository: repo, onSave: (_) async => null),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('address-cities-failed')), findsOneWidget);
+    await _tapVisible(tester, find.text('Réessayer'));
+    expect(find.byKey(const ValueKey('address-cities-failed')), findsNothing);
+    expect(find.text('Sélectionnez une ville'), findsOneWidget);
+    expect(repo.attempts, 2);
+  });
+
+  testWidgets("the API's reason is shown inside the sheet and the sheet stays open", (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: AddressFormSheet(
+          cityRepository: _FakeCityRepository(),
+          onSave: (_) async => 'Commune inactive',
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await pickCityAndCommune(tester);
+    await _tapVisible(tester, find.text('Enregistrer'));
+    expect(find.byKey(const ValueKey('address-save-error')), findsOneWidget);
+    expect(find.text('Commune inactive'), findsOneWidget);
+    expect(find.byType(AddressFormSheet), findsOneWidget);
   });
 }
