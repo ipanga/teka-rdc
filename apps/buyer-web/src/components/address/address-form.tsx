@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { apiFetch } from '@/lib/api-client';
+import { normalizeDrcPhone } from '@teka/shared';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -137,6 +138,18 @@ export function AddressForm({ initial, onSaved, onCancel }: AddressFormProps) {
       return isEditing ? null : undefined;
     };
 
+    // One phone rule on every surface (PR D2, 2026-09-07): `081…`, `+243 81…`,
+    // spaces and dashes are sent as the canonical `+243XXXXXXXXX`; anything the
+    // rule cannot read is refused here with the same message the API would
+    // answer, so the buyer fixes the field instead of getting a generic error.
+    const rawPhone = form.recipientPhone.trim();
+    const normalizedPhone = rawPhone ? normalizeDrcPhone(rawPhone) : null;
+    if (rawPhone && !normalizedPhone) {
+      setError('Numéro de téléphone invalide. Format : 9 chiffres (ex. 990 000 001)');
+      setIsSaving(false);
+      return;
+    }
+
     const body = {
       province: form.province,
       town: form.town,
@@ -146,7 +159,7 @@ export function AddressForm({ initial, onSaved, onCancel }: AddressFormProps) {
       avenue: optional(form.avenue),
       reference: optional(form.reference),
       recipientName: optional(form.recipientName),
-      recipientPhone: optional(form.recipientPhone),
+      recipientPhone: normalizedPhone ?? optional(''),
     };
 
     try {

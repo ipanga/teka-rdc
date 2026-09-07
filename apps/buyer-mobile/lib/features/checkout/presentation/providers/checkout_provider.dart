@@ -316,8 +316,41 @@ class CheckoutNotifier extends StateNotifier<CheckoutState> {
     }
   }
 
+  /// The API snapshots the address ROW as it is at checkout. If that row was
+  /// edited elsewhere (the website, another device) since this screen loaded,
+  /// the buyer would confirm one address and the order would carry another.
+  /// So the row is re-read first; a difference refreshes what is shown, asks
+  /// the buyer to check it, and does NOT place the order (PR D2, 2026-09-07).
+  /// Any failure to re-read is treated as "unchanged" — the placement itself
+  /// is the retry-safe, idempotent step, and going offline here must not
+  /// block a buyer who already sees the right address.
+  Future<bool> _addressStillCurrent() async {
+    final selected = state.selectedAddress;
+    if (selected == null) return false;
+    List<AddressModel> fresh;
+    try {
+      fresh = await _repository.getAddresses();
+    } catch (_) {
+      return true;
+    }
+    final current = fresh.where((a) => a.id == selected.id).firstOrNull;
+    if (current != null && current.sameDeliveryContentAs(selected)) return true;
+    state = state.copyWith(
+      addresses: fresh,
+      selectedAddress: current ?? (fresh.isNotEmpty ? fresh.first : null),
+      clearAddress: current == null && fresh.isEmpty,
+      clearDeliveryFee: true,
+      error: current == null
+          ? "Votre adresse de livraison n'existe plus. Vérifiez-la avant de confirmer."
+          : 'Votre adresse de livraison a été modifiée. Vérifiez-la avant de confirmer.',
+    );
+    _fetchQuote();
+    return false;
+  }
+
   Future<bool> placeOrder() async {
     if (!state.canPlaceOrder) return false;
+    if (!await _addressStillCurrent()) return false;
 
     // Generate once, reuse on every retry (idempotent/resumable checkout).
     final idempotencyKey = _idempotencyKey ??= const Uuid().v4();

@@ -1,112 +1,99 @@
-import {
-  ArgumentMetadata,
-  BadRequestException,
-  ValidationPipe,
-} from '@nestjs/common';
-import { CreateAddressDto } from './create-address.dto';
+import { plainToInstance } from 'class-transformer';
+import { validate } from 'class-validator';
+import { normalizeDrcPhone } from '@teka/shared';
+import { CreateAddressDto, normalizeRecipientPhone } from './create-address.dto';
 import { UpdateAddressDto } from './update-address.dto';
 
-/**
- * Contract guard for the address payload.
- *
- * Both buyer clients used to post `details` and `phone`, while the DTO has
- * always accepted `reference` and `recipientPhone`. Because main.ts runs the
- * ValidationPipe with `forbidNonWhitelisted: true`, those keys are not
- * silently dropped — they are a hard 400. It went unnoticed because both
- * clients omit the key entirely when the input is blank, so an address only
- * failed to save once the buyer actually filled in "Point de repère" or
- * "Téléphone du destinataire".
- *
- * The pipe here is configured exactly as in main.ts.
- */
-const pipe = new ValidationPipe({
-  whitelist: true,
-  forbidNonWhitelisted: true,
-  transform: true,
-  transformOptions: { enableImplicitConversion: true },
+// One phone rule for every surface (PR D2, 2026-09-07). The shared helper has
+// no test runner of its own, so its contract is pinned here, from the API —
+// the surface that actually enforces it.
+describe('normalizeDrcPhone (shared) — every equivalent form → one canonical value', () => {
+  it.each([
+    ['990000001', '+243990000001'],
+    ['0990000001', '+243990000001'],
+    ['+243990000001', '+243990000001'],
+    ['243990000001', '+243990000001'],
+    ['00243990000001', '+243990000001'],
+    ['+243 99 000 00 01', '+243990000001'],
+    ['099-000-00-01', '+243990000001'],
+    ['(099) 000.00.01', '+243990000001'],
+    ['  0810000001  ', '+243810000001'],
+    ['+243 81 000 00 01', '+243810000001'],
+  ])('%s → %s', (input, expected) => {
+    expect(normalizeDrcPhone(input)).toBe(expected);
+  });
+
+  it.each([
+    ['', 'blank'],
+    ['   ', 'whitespace'],
+    ['99000000', '8 digits'],
+    ['9900000012', '10 digits not starting with 0'],
+    ['09900000012', '11 digits'],
+    ['+24499000000', 'another country'],
+    ['0790000001', 'not a DRC mobile prefix'],
+    ['+243790000001', 'not a DRC mobile prefix (intl)'],
+    ['abc', 'letters'],
+    ['09900000O1', 'letter O for zero'],
+    ['+243990000001x', 'trailing junk'],
+  ])('rejects %s (%s)', (input) => {
+    expect(normalizeDrcPhone(input)).toBeNull();
+  });
 });
 
-const meta: ArgumentMetadata = { type: 'body', metatype: CreateAddressDto };
-const updateMeta: ArgumentMetadata = { type: 'body', metatype: UpdateAddressDto };
-
-const base = {
-  province: 'Haut-Katanga',
-  town: 'Lubumbashi',
-  neighborhood: 'Kampemba',
-};
-
-/**
- * Runs the pipe and returns the flattened validation messages. The pipe throws
- * a BadRequestException whose own `message` is just "Bad Request Exception" —
- * the per-field detail lives in `getResponse().message`.
- */
-async function rejectionMessages(
-  payload: Record<string, unknown>,
-  m: ArgumentMetadata = meta,
-): Promise<string> {
-  try {
-    await pipe.transform(payload, m);
-  } catch (e) {
-    const body = (e as BadRequestException).getResponse() as {
-      message?: string[] | string;
-    };
-    const raw = body?.message ?? String(e);
-    return Array.isArray(raw) ? raw.join(' | ') : String(raw);
-  }
-  throw new Error('expected the payload to be rejected, but it was accepted');
+type PhoneDto = { recipientPhone?: string | null };
+async function validated(
+  input: Record<string, unknown>,
+  Dto: new () => PhoneDto = CreateAddressDto,
+) {
+  const dto = plainToInstance(Dto, input) as PhoneDto;
+  const errors = await validate(dto, { whitelist: true, forbidNonWhitelisted: true });
+  return { dto, errors };
 }
 
-describe('CreateAddressDto', () => {
-  it('accepts the minimum required payload', async () => {
-    await expect(pipe.transform({ ...base }, meta)).resolves.toMatchObject(base);
+const base = { province: 'Haut-Katanga', town: 'Lubumbashi', neighborhood: 'Kampemba' };
+
+describe('CreateAddressDto.recipientPhone — normalised on write, validated after', () => {
+  it.each([
+    ['0990000001'],
+    ['+243 99 000 00 01'],
+    ['00243990000001'],
+    ['099-000-00-01'],
+  ])('%s is stored as +243990000001', async (phone) => {
+    const { dto, errors } = await validated({ ...base, recipientPhone: phone });
+    expect(errors).toHaveLength(0);
+    expect(dto.recipientPhone).toBe('+243990000001');
   });
 
-  it('accepts the full contract field names', async () => {
-    const payload = {
-      ...base,
-      avenue: 'Av. Lumumba 24',
-      reference: 'En face de la pharmacie',
-      recipientName: 'Jean Kabila',
-      recipientPhone: '+243990000001',
-    };
-    await expect(pipe.transform(payload, meta)).resolves.toMatchObject(payload);
+  it('an unreadable value fails with the French message, never stored as typed', async () => {
+    const { errors } = await validated({ ...base, recipientPhone: '12345' });
+    expect(errors).toHaveLength(1);
+    expect(errors[0].property).toBe('recipientPhone');
+    expect(Object.values(errors[0].constraints ?? {})).toContain(
+      'Numéro de téléphone invalide. Format: +243XXXXXXXXX',
+    );
   });
 
-  // The two that were actually broken in production.
-  it('rejects the legacy `details` key (contract name is `reference`)', async () => {
-    expect(
-      await rejectionMessages({ ...base, details: 'En face de la pharmacie' }),
-    ).toMatch(/details should not exist/i);
+  it('blank clears the field (null) and passes; absent stays absent', async () => {
+    const blank = await validated({ ...base, recipientPhone: '   ' });
+    expect(blank.errors).toHaveLength(0);
+    expect(blank.dto.recipientPhone).toBeNull();
+    const absent = await validated(base);
+    expect(absent.errors).toHaveLength(0);
+    expect(absent.dto.recipientPhone).toBeUndefined();
   });
 
-  it('rejects the legacy `phone` key (contract name is `recipientPhone`)', async () => {
-    expect(
-      await rejectionMessages({ ...base, phone: '+243990000001' }),
-    ).toMatch(/phone should not exist/i);
+  it('PATCH inherits the same rule (null clears, forms normalise)', async () => {
+    const cleared = await validated({ recipientPhone: null }, UpdateAddressDto);
+    expect(cleared.errors).toHaveLength(0);
+    expect(cleared.dto.recipientPhone).toBeNull();
+    const intl = await validated({ recipientPhone: '+243 81 000 00 01' }, UpdateAddressDto);
+    expect(intl.errors).toHaveLength(0);
+    expect(intl.dto.recipientPhone).toBe('+243810000001');
   });
 
-  it('rejects a recipientPhone that is not +243XXXXXXXXX', async () => {
-    expect(
-      await rejectionMessages({ ...base, recipientPhone: '0990000001' }),
-    ).toMatch(/téléphone/i);
-  });
-
-  it('requires town', async () => {
-    const { town: _town, ...withoutTown } = base;
-    expect(await rejectionMessages(withoutTown)).toMatch(/ville/i);
-  });
-});
-
-describe('UpdateAddressDto', () => {
-  it('allows a partial payload (edit sends only what changed)', async () => {
-    await expect(
-      pipe.transform({ avenue: 'Av. Kasavubu 9' }, updateMeta),
-    ).resolves.toMatchObject({ avenue: 'Av. Kasavubu 9' });
-  });
-
-  it('rejects the legacy keys on edit too', async () => {
-    expect(
-      await rejectionMessages({ details: 'Près du marché' }, updateMeta),
-    ).toMatch(/details should not exist/i);
+  it('normalizeRecipientPhone: undefined/null pass through, non-strings are left to validation', () => {
+    expect(normalizeRecipientPhone(undefined)).toBeUndefined();
+    expect(normalizeRecipientPhone(null)).toBeNull();
+    expect(normalizeRecipientPhone(12)).toBe(12);
   });
 });

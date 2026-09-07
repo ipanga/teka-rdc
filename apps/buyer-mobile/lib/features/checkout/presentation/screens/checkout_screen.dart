@@ -182,9 +182,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         initial: existing,
         onSave: (data) async {
           final notifier = ref.read(checkoutProvider.notifier);
-          return existing == null
-              ? notifier.createAddress(data)
-              : notifier.updateAddress(existing.id, data);
+          final ok = existing == null
+              ? await notifier.createAddress(data)
+              : await notifier.updateAddress(existing.id, data);
+          // The provider keeps the API's reason in `error`; hand it to the
+          // sheet so it shows inside the form rather than behind it.
+          return ok ? null : ref.read(checkoutProvider).error;
         },
       ),
     );

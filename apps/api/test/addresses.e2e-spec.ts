@@ -114,6 +114,59 @@ describe('Addresses (e2e) — Ville ↔ Commune validation', () => {
     await request(app.getHttpServer()).patch('/api/v1/addresses/10000000-0000-0000-0000-0000000000a1').set(auth()).send({ communeId: RETIRED }).expect(400);
   });
 
+  // ─── Recipient phone: one canonical value (PR D2, 2026-09-07) ───────────
+  it.each([
+    ['0990000001'],
+    ['+243 99 000 00 01'],
+    ['00243990000001'],
+    ['099-000-00-01'],
+  ])('recipientPhone %s is persisted as +243990000001', async (phone) => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/addresses').set(auth())
+      .send({ ...body, cityId: LUB, communeId: KAMPEMBA, recipientPhone: phone })
+      .expect(201);
+    expect(res.body.data.recipientPhone).toBe('+243990000001');
+    expect(stored.row?.recipientPhone).toBe('+243990000001');
+  });
+
+  it('an unreadable recipientPhone → 400 with the French message only', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/addresses').set(auth())
+      .send({ ...body, cityId: LUB, communeId: KAMPEMBA, recipientPhone: '12 34' })
+      .expect(400);
+    expect(JSON.stringify(res.body)).toContain('Numéro de téléphone invalide');
+    expect(JSON.stringify(res.body)).not.toMatch(/matches|regular expression/i);
+    expect(stored.row).toBeNull();
+  });
+
+  // ─── Historical order snapshot survives a later address edit ──────────
+  it('editing the address afterwards does not rewrite the delivery address of an existing order', async () => {
+    const m = mockPrismaService as unknown as Record<string, any>;
+    // The address as it was when the order was placed (snapshot columns) …
+    const snapshot = {
+      deliveryLabel: null, deliveryProvince: 'Haut-Katanga', deliveryTown: 'Lubumbashi',
+      deliveryNeighborhood: 'Kampemba', deliveryAvenue: 'Av. Lumumba 12', deliveryReference: null,
+      deliveryRecipientName: 'Aline K.', deliveryRecipientPhone: '+243990000001',
+    };
+    // … and the SAME row after the buyer moved (relation now points at B).
+    const ORDER = '55555555-5555-4555-8555-555555555555';
+    m.order.findUnique.mockResolvedValue({
+      id: ORDER, buyerId: BUYER, status: 'DELIVERED', deletedAt: null, deliveryAddressId: 'addr-1',
+      ...snapshot,
+      deliveryAddress: {
+        id: 'addr-1', label: null, province: 'Lualaba', town: 'Kolwezi', neighborhood: 'Dilala',
+        avenue: 'Av. Mobutu 3', reference: null, recipientName: 'Aline Kabila', recipientPhone: '+243810000001',
+      },
+      items: [], statusLogs: [],
+    });
+    const res = await request(app.getHttpServer()).get(`/api/v1/orders/${ORDER}`).set(auth()).expect(200);
+    expect(res.body.data.deliveryAddress).toMatchObject({
+      town: 'Lubumbashi', neighborhood: 'Kampemba', avenue: 'Av. Lumumba 12',
+      recipientName: 'Aline K.', recipientPhone: '+243990000001',
+    });
+    for (const key of Object.keys(snapshot)) expect(res.body.data).not.toHaveProperty(key);
+  });
+
   it('GET /locations/neighborhoods lists active communes only', async () => {
     const m = mockPrismaService as unknown as Record<string, any>;
     m.city.findFirst.mockResolvedValue({ id: LUB }); // looked up by name here

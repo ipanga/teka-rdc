@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_error_messages.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/review_model.dart';
 import '../../data/reviews_repository.dart';
 
@@ -74,8 +75,18 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
   final ReviewsRepository _repository;
   final String _productId;
 
-  ReviewsNotifier(this._repository, this._productId)
-      : super(const ReviewsState()) {
+  /// Whether a buyer session is active. The list and the stats are public;
+  /// `can-review` and `mine` are the caller's OWN eligibility / review and
+  /// are rightly `@Roles('BUYER')` on the API — a guest used to fire both on
+  /// every product page for two guaranteed 401s (PR D2, 2026-09-07).
+  final bool Function() _isAuthenticated;
+
+  ReviewsNotifier(
+    this._repository,
+    this._productId, {
+    bool Function()? isAuthenticated,
+  })  : _isAuthenticated = isAuthenticated ?? (() => true),
+        super(const ReviewsState()) {
     _init();
   }
 
@@ -103,6 +114,7 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
     // Explicit type arguments: without them Dart infers T from the
     // Future.wait<Object?> context and getMyReview's nullable return no longer
     // fits.
+    final authed = _isAuthenticated();
     final results = await Future.wait<Object?>([
       attempt<PaginatedReviewsResponse>(
         () => _repository.getProductReviews(_productId),
@@ -112,8 +124,15 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
         () => _repository.getReviewStats(_productId),
         core: true,
       ),
-      attempt<CanReviewModel>(() => _repository.canReview(_productId)),
-      attempt<ReviewModel?>(() => _repository.getMyReview(_productId)),
+      // Private to the signed-in buyer — not asked for a guest.
+      if (authed)
+        attempt<CanReviewModel>(() => _repository.canReview(_productId))
+      else
+        Future<CanReviewModel?>.value(null),
+      if (authed)
+        attempt<ReviewModel?>(() => _repository.getMyReview(_productId))
+      else
+        Future<ReviewModel?>.value(null),
     ]);
 
     if (!mounted) return;
@@ -182,6 +201,7 @@ class ReviewsNotifier extends StateNotifier<ReviewsState> {
   }
 
   Future<void> checkCanReview() async {
+    if (!_isAuthenticated()) return;
     try {
       final result = await _repository.canReview(_productId);
       if (!mounted) return;
@@ -350,6 +370,19 @@ final reviewsProvider = StateNotifierProvider.family<ReviewsNotifier,
     ReviewsState, String>(
   (ref, productId) {
     final repository = ref.read(reviewsRepositoryProvider);
-    return ReviewsNotifier(repository, productId);
+    final notifier = ReviewsNotifier(
+      repository,
+      productId,
+      isAuthenticated: () =>
+          ref.read(authProvider).status == AuthStatus.authenticated,
+    );
+    // A guest who signs in on the product page gets their eligibility and
+    // their own review loaded without leaving the page.
+    ref.listen<AuthState>(authProvider, (prev, next) {
+      final wasAuthed = prev?.status == AuthStatus.authenticated;
+      final isAuthed = next.status == AuthStatus.authenticated;
+      if (isAuthed != wasAuthed && prev != null) notifier.refresh();
+    });
+    return notifier;
   },
 );

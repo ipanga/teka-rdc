@@ -141,6 +141,20 @@ class AddressModel {
     );
   }
 
+  /// True when every field the order snapshot copies is identical — what the
+  /// checkout re-check compares before placing an order.
+  bool sameDeliveryContentAs(AddressModel other) =>
+      label == other.label &&
+      recipientName == other.recipientName &&
+      recipientPhone == other.recipientPhone &&
+      province == other.province &&
+      town == other.town &&
+      neighborhood == other.neighborhood &&
+      avenue == other.avenue &&
+      reference == other.reference &&
+      cityId == other.cityId &&
+      communeId == other.communeId;
+
   String get displayAddress {
     final parts = <String>[];
     if (avenue != null && avenue!.isNotEmpty) parts.add(avenue!);
