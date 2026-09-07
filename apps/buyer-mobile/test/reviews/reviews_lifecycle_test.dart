@@ -62,12 +62,20 @@ class _Repo extends ReviewsRepository {
   Future<ReviewStatsModel> getReviewStats(String productId) async =>
       ReviewStatsModel(avgRating: 4, totalReviews: list.length, distribution: const {});
 
-  @override
-  Future<ReviewModel?> getMyReview(String productId) async => mine;
+  int mineCalls = 0;
+  int canReviewCalls = 0;
 
   @override
-  Future<CanReviewModel> canReview(String productId) async =>
-      CanReviewModel(canReview: eligible, orderId: eligible ? 'o1' : null);
+  Future<ReviewModel?> getMyReview(String productId) async {
+    mineCalls++;
+    return mine;
+  }
+
+  @override
+  Future<CanReviewModel> canReview(String productId) async {
+    canReviewCalls++;
+    return CanReviewModel(canReview: eligible, orderId: eligible ? 'o1' : null);
+  }
 
   Future<T> _mutate<T>(T Function() ok) async {
     final f = failNext;
@@ -110,6 +118,7 @@ Future<void> _settle() async {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  _guestBoundaryTests();
 
   group('ReviewsNotifier — a failed mutation never blows the list away', () {
     late _Repo repo;
@@ -119,7 +128,10 @@ void main() {
       repo = _Repo()
         ..list = [_review('r1', 'other'), _review('r2', 'me')]
         ..mine = _review('r2', 'me');
-      container = ProviderContainer(overrides: [reviewsRepositoryProvider.overrideWithValue(repo)]);
+      container = ProviderContainer(overrides: [
+        reviewsRepositoryProvider.overrideWithValue(repo),
+        authProvider.overrideWith((ref) => FakeAuthNotifier.signedIn('me')),
+      ]);
       addTearDown(container.dispose);
       container.listen(reviewsProvider('p1'), (_, __) {}, fireImmediately: true);
       await _settle();
@@ -279,5 +291,48 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('publié sous le nom'), findsNothing);
     });
+  });
+}
+
+// ─── PR D2 (2026-09-07): guests read public reviews only ───────────────────
+
+void _guestBoundaryTests() {
+  test('a guest loads the public list + stats and never asks for eligibility / own review', () async {
+    final repo = _Repo()..list = [_review('r1', 'other')];
+    final n = ReviewsNotifier(repo, 'p1', isAuthenticated: () => false);
+    await _settle();
+    expect(n.state.reviews.length, 1);
+    expect(n.state.stats?.totalReviews, 1);
+    expect(repo.canReviewCalls, 0);
+    expect(repo.mineCalls, 0);
+    expect(n.state.canReviewResult, isNull);
+    await n.checkCanReview();
+    expect(repo.canReviewCalls, 0);
+  });
+
+  test('a signed-in buyer gets both private answers', () async {
+    final repo = _Repo()..eligible = true;
+    final n = ReviewsNotifier(repo, 'p1', isAuthenticated: () => true);
+    await _settle();
+    expect(repo.canReviewCalls, 1);
+    expect(repo.mineCalls, 1);
+    expect(n.state.canReviewResult?.canReview, isTrue);
+  });
+
+  test('signing in on the product page reloads eligibility without leaving it', () async {
+    final repo = _Repo()..eligible = true;
+    final auth = FakeAuthNotifier()..signOut();
+    final container = ProviderContainer(overrides: [
+      reviewsRepositoryProvider.overrideWithValue(repo),
+      authProvider.overrideWith((ref) => auth),
+    ]);
+    addTearDown(container.dispose);
+    container.listen(reviewsProvider('p1'), (_, __) {}, fireImmediately: true);
+    await _settle();
+    expect(repo.canReviewCalls, 0);
+    auth.signIn('me');
+    await _settle();
+    expect(repo.canReviewCalls, 1);
+    expect(container.read(reviewsProvider('p1')).canReviewResult?.canReview, isTrue);
   });
 }
