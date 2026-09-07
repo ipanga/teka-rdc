@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
 import '../../data/profile_repository.dart';
+import '../../../../core/layout/responsive.dart';
 
 class PersonalInfoScreen extends ConsumerStatefulWidget {
   const PersonalInfoScreen({super.key});
@@ -149,7 +150,10 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
         leading: const AdaptiveLeading(fallbackLocation: '/profile'),
         title: const Text('Informations personnelles'),
       ),
-      body: _buildBody(),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: _buildBody(),
+      ),
       bottomNavigationBar: _loading || _error != null
           ? null
           : SafeArea(

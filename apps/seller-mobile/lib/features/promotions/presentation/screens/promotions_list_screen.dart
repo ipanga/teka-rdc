@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../providers/promotion_provider.dart';
 import '../widgets/promotion_card.dart';
+import '../../../../core/layout/responsive.dart';
 
 class PromotionsListScreen extends ConsumerWidget {
   const PromotionsListScreen({super.key});
@@ -21,16 +22,19 @@ class PromotionsListScreen extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text("Créer une promotion"),
       ),
-      body: RefreshIndicator(
-        onRefresh: () =>
-            ref.read(sellerPromotionsProvider.notifier).loadPromotions(),
-        child: state.isLoading && state.promotions.isEmpty
-            ? const Center(child: CircularProgressIndicator())
-            : state.error != null && state.promotions.isEmpty
-                ? _buildError(context, ref)
-                : state.promotions.isEmpty
-                    ? _buildEmpty(context)
-                    : _buildList(context, ref, state),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: RefreshIndicator(
+            onRefresh: () =>
+                ref.read(sellerPromotionsProvider.notifier).loadPromotions(),
+            child: state.isLoading && state.promotions.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : state.error != null && state.promotions.isEmpty
+                    ? _buildError(context, ref)
+                    : state.promotions.isEmpty
+                        ? _buildEmpty(context)
+                        : _buildList(context, ref, state),
+          ),
       ),
     );
   }

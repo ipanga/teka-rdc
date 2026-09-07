@@ -8,6 +8,7 @@ import '../widgets/earning_tile.dart';
 import '../widgets/payout_tile.dart';
 import '../../../../core/providers/seller_refresh_provider.dart';
 import '../widgets/wallet_card.dart';
+import '../../../../core/layout/responsive.dart';
 
 const _minPayoutCdf = 5000;
 const _pendingPayoutStatuses = ['REQUESTED', 'APPROVED', 'PROCESSING'];
@@ -85,34 +86,37 @@ class _EarningsScreenState extends ConsumerState<EarningsScreen>
       appBar: AppBar(
         title: const Text("Revenus"),
       ),
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          SliverToBoxAdapter(
-            child: _WalletSummary(state: state),
-          ),
-          SliverPersistentHeader(
-            pinned: true,
-            delegate: _TabBarHeader(
-              TabBar(
-                controller: _tabController,
-                labelColor: TekaColors.tekaRed,
-                unselectedLabelColor: TekaColors.mutedForeground,
-                indicatorColor: TekaColors.tekaRed,
-                tabs: const [
-                  Tab(text: "Gains"),
-                  Tab(text: "Virements"),
-                ],
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: NestedScrollView(
+            headerSliverBuilder: (context, innerBoxIsScrolled) => [
+              SliverToBoxAdapter(
+                child: _WalletSummary(state: state),
               ),
+              SliverPersistentHeader(
+                pinned: true,
+                delegate: _TabBarHeader(
+                  TabBar(
+                    controller: _tabController,
+                    labelColor: TekaColors.tekaRed,
+                    unselectedLabelColor: TekaColors.mutedForeground,
+                    indicatorColor: TekaColors.tekaRed,
+                    tabs: const [
+                      Tab(text: "Gains"),
+                      Tab(text: "Virements"),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+            body: TabBarView(
+              controller: _tabController,
+              children: [
+                _EarningsTab(state: state),
+                _PayoutsTab(state: state),
+              ],
             ),
           ),
-        ],
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            _EarningsTab(state: state),
-            _PayoutsTab(state: state),
-          ],
-        ),
       ),
     );
   }
@@ -165,7 +169,22 @@ class _WalletSummary extends StatelessWidget {
                   ],
                 );
               }
-              final width = (constraints.maxWidth - 12) / 2;
+              // Tablet phase (2026-09-07): the column count comes from a
+              // minimum readable card width, so a phone keeps its two cards per
+              // row and a wider surface fits all three side by side instead of
+              // stretching two of them across the screen.
+              final columns = gridColumnsFor(
+                constraints.maxWidth,
+                minCellWidth: 200,
+                spacing: 12,
+                minColumns: 2,
+                maxColumns: 3,
+              );
+              final width = gridCellWidth(
+                constraints.maxWidth,
+                columns: columns,
+                spacing: 12,
+              );
               return Wrap(
                 spacing: 12,
                 runSpacing: 12,

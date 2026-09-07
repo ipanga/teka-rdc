@@ -6,6 +6,7 @@ import '../../../../core/theme/teka_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/profile_repository.dart';
 import '../../../verification/presentation/verification_status.dart';
+import '../../../../core/layout/responsive.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -108,117 +109,120 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Scaffold(
       backgroundColor: TekaColors.pageBackground,
       appBar: const _AccountAppBar(),
-      body: RefreshIndicator(
-        color: TekaColors.tekaRed,
-        onRefresh: _load,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          children: [
-            _SellerHeader(
-              displayName: displayName,
-              businessName: businessName == null || businessName.isEmpty
-                  ? 'Boutique Teka RDC'
-                  : businessName,
-              email: user?.email,
-              avatarUrl: user?.avatar,
-              status: sellerProfile?.applicationStatus ?? 'PENDING',
-              initials: _initials(user),
-              onEdit: () => _open('/profile/personal', 'personal_info'),
-            ),
-            const SizedBox(height: 16),
-            _MenuSection(
-              title: 'Activité vendeur',
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: RefreshIndicator(
+            color: TekaColors.tekaRed,
+            onRefresh: _load,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               children: [
-                _AccountMenuTile(
-                  icon: Icons.receipt_long_outlined,
-                  title: 'Commandes',
-                  subtitle: 'Préparer, confirmer ou rejeter',
-                  onTap: () => _open('/orders', 'orders'),
+                _SellerHeader(
+                  displayName: displayName,
+                  businessName: businessName == null || businessName.isEmpty
+                      ? 'Boutique Teka RDC'
+                      : businessName,
+                  email: user?.email,
+                  avatarUrl: user?.avatar,
+                  status: sellerProfile?.applicationStatus ?? 'PENDING',
+                  initials: _initials(user),
+                  onEdit: () => _open('/profile/personal', 'personal_info'),
                 ),
-                _AccountMenuTile(
-                  icon: Icons.inventory_2_outlined,
-                  title: 'Produits',
-                  subtitle: 'Catalogue, stock et images',
-                  onTap: () => _open('/products', 'products'),
+                const SizedBox(height: 16),
+                _MenuSection(
+                  title: 'Activité vendeur',
+                  children: [
+                    _AccountMenuTile(
+                      icon: Icons.receipt_long_outlined,
+                      title: 'Commandes',
+                      subtitle: 'Préparer, confirmer ou rejeter',
+                      onTap: () => _open('/orders', 'orders'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.inventory_2_outlined,
+                      title: 'Produits',
+                      subtitle: 'Catalogue, stock et images',
+                      onTap: () => _open('/products', 'products'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.account_balance_wallet_outlined,
+                      title: 'Gains et paiements',
+                      subtitle: 'Solde, ventes et demandes de paiement',
+                      onTap: () => _open('/earnings', 'earnings'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.campaign_outlined,
+                      title: 'Promotions',
+                      subtitle: 'Réductions actives et programmées',
+                      onTap: () => _open('/promotions', 'promotions'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.star_border_rounded,
+                      title: 'Avis clients',
+                      subtitle: 'Notes reçues sur vos produits',
+                      onTap: () => _open('/reviews', 'reviews'),
+                    ),
+                  ],
                 ),
-                _AccountMenuTile(
-                  icon: Icons.account_balance_wallet_outlined,
-                  title: 'Gains et paiements',
-                  subtitle: 'Solde, ventes et demandes de paiement',
-                  onTap: () => _open('/earnings', 'earnings'),
+                _MenuSection(
+                  title: 'Paramètres',
+                  children: [
+                    _AccountMenuTile(
+                      icon: Icons.storefront_outlined,
+                      title: 'Profil de la boutique',
+                      subtitle: 'Nom, ville, téléphone et description',
+                      onTap: () => _open('/profile/shop', 'shop_profile'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.verified_outlined,
+                      title: 'Vérification de la boutique',
+                      subtitle: VerificationStatusUi.of(
+                              sellerProfile?.verificationStatus ?? 'NOT_SUBMITTED')
+                          .label,
+                      onTap: () => _open('/profile/verification', 'verification'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.badge_outlined,
+                      title: 'Informations personnelles',
+                      subtitle: 'Nom, email et photo',
+                      onTap: () => _open('/profile/personal', 'personal_info'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.notifications_none_rounded,
+                      title: 'Notifications',
+                      subtitle: 'Commandes, promotions et annonces',
+                      onTap: () =>
+                          _open('/profile/notifications', 'notification_settings'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.verified_user_outlined,
+                      title: 'Sécurité du compte',
+                      subtitle: 'Mot de passe et appareils connectés',
+                      onTap: () => _open('/profile/security', 'security'),
+                    ),
+                  ],
                 ),
-                _AccountMenuTile(
-                  icon: Icons.campaign_outlined,
-                  title: 'Promotions',
-                  subtitle: 'Réductions actives et programmées',
-                  onTap: () => _open('/promotions', 'promotions'),
+                _MenuSection(
+                  title: 'Communication',
+                  children: [
+                    _AccountMenuTile(
+                      icon: Icons.notifications_active_outlined,
+                      title: 'Centre de notifications',
+                      subtitle: 'Alertes de commandes et produits',
+                      onTap: () => _open('/notifications', 'notifications'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.help_outline,
+                      title: 'Aide et support',
+                      subtitle: 'Contacts et informations utiles',
+                      onTap: () => _open('/profile/help', 'help_support'),
+                    ),
+                  ],
                 ),
-                _AccountMenuTile(
-                  icon: Icons.star_border_rounded,
-                  title: 'Avis clients',
-                  subtitle: 'Notes reçues sur vos produits',
-                  onTap: () => _open('/reviews', 'reviews'),
-                ),
+                _LogoutButton(onPressed: _confirmLogout),
               ],
             ),
-            _MenuSection(
-              title: 'Paramètres',
-              children: [
-                _AccountMenuTile(
-                  icon: Icons.storefront_outlined,
-                  title: 'Profil de la boutique',
-                  subtitle: 'Nom, ville, téléphone et description',
-                  onTap: () => _open('/profile/shop', 'shop_profile'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.verified_outlined,
-                  title: 'Vérification de la boutique',
-                  subtitle: VerificationStatusUi.of(
-                          sellerProfile?.verificationStatus ?? 'NOT_SUBMITTED')
-                      .label,
-                  onTap: () => _open('/profile/verification', 'verification'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.badge_outlined,
-                  title: 'Informations personnelles',
-                  subtitle: 'Nom, email et photo',
-                  onTap: () => _open('/profile/personal', 'personal_info'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.notifications_none_rounded,
-                  title: 'Notifications',
-                  subtitle: 'Commandes, promotions et annonces',
-                  onTap: () =>
-                      _open('/profile/notifications', 'notification_settings'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.verified_user_outlined,
-                  title: 'Sécurité du compte',
-                  subtitle: 'Mot de passe et appareils connectés',
-                  onTap: () => _open('/profile/security', 'security'),
-                ),
-              ],
-            ),
-            _MenuSection(
-              title: 'Communication',
-              children: [
-                _AccountMenuTile(
-                  icon: Icons.notifications_active_outlined,
-                  title: 'Centre de notifications',
-                  subtitle: 'Alertes de commandes et produits',
-                  onTap: () => _open('/notifications', 'notifications'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.help_outline,
-                  title: 'Aide et support',
-                  subtitle: 'Contacts et informations utiles',
-                  onTap: () => _open('/profile/help', 'help_support'),
-                ),
-              ],
-            ),
-            _LogoutButton(onPressed: _confirmLogout),
-          ],
-        ),
+          ),
       ),
     );
   }

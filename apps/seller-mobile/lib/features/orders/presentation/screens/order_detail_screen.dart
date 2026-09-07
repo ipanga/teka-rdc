@@ -9,6 +9,7 @@ import '../../../../core/widgets/adaptive_leading.dart';
 import '../providers/orders_provider.dart';
 import '../widgets/order_action_buttons.dart';
 import '../widgets/order_status_badge.dart';
+import '../../../../core/layout/responsive.dart';
 
 class OrderDetailScreen extends ConsumerWidget {
   final String orderId;
@@ -26,29 +27,32 @@ class OrderDetailScreen extends ConsumerWidget {
         leading: const AdaptiveLeading(),
         title: const Text("Détail de la commande"),
       ),
-      body: orderAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline,
-                    size: 48, color: TekaColors.destructive),
-                const SizedBox(height: 12),
-                Text("Une erreur est survenue. Veuillez réessayer."),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () =>
-                      ref.invalidate(sellerOrderDetailProvider(orderId)),
-                  child: Text("Réessayer"),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: orderAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline,
+                        size: 48, color: TekaColors.destructive),
+                    const SizedBox(height: 12),
+                    Text("Une erreur est survenue. Veuillez réessayer."),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () =>
+                          ref.invalidate(sellerOrderDetailProvider(orderId)),
+                      child: Text("Réessayer"),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
+            data: (order) => _OrderDetailContent(order: order, orderId: orderId),
           ),
-        ),
-        data: (order) => _OrderDetailContent(order: order, orderId: orderId),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../widgets/product_image_manager.dart';
+import '../../../../core/layout/responsive.dart';
 
 /// Standalone image manager, reached from the product detail screen's "Ajouter"
 /// button. Thin wrapper around [ProductImageManager] — the same widget is
@@ -16,9 +17,12 @@ class ProductImagesScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text("Images"),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: ProductImageManager(productId: productId),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: ProductImageManager(productId: productId),
+          ),
       ),
     );
   }

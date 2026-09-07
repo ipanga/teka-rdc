@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../layout/responsive.dart';
 import '../theme/teka_colors.dart';
 
 /// Persistent bottom-navigation scaffold wrapping the five top-level seller
@@ -35,33 +36,43 @@ class SellerMainShell extends StatelessWidget {
         decoration: const BoxDecoration(
           border: Border(top: BorderSide(color: TekaColors.border)),
         ),
-        child: NavigationBar(
-          height: 80,
-          selectedIndex: navigationShell.currentIndex,
-          onDestinationSelected: _onTap,
-          labelPadding: EdgeInsets.zero,
-          destinations: const [
-            NavigationDestination(
-                icon: Icon(Icons.home_outlined),
-                selectedIcon: Icon(Icons.home),
-                label: 'Accueil'),
-            NavigationDestination(
-                icon: Icon(Icons.receipt_long_outlined),
-                selectedIcon: Icon(Icons.receipt_long),
-                label: 'Commandes'),
-            NavigationDestination(
-                icon: Icon(Icons.inventory_2_outlined),
-                selectedIcon: Icon(Icons.inventory_2),
-                label: 'Produits'),
-            NavigationDestination(
-                icon: Icon(Icons.account_balance_wallet_outlined),
-                selectedIcon: Icon(Icons.account_balance_wallet),
-                label: 'Revenus'),
-            NavigationDestination(
-                icon: Icon(Icons.person_outline),
-                selectedIcon: Icon(Icons.person),
-                label: 'Profil'),
-          ],
+        // Tablet phase (2026-09-07): the bar keeps its full-width surface and
+        // top border, but the five destinations are centred in a phone-width
+        // group instead of each owning a fifth of a 1280 pt screen. Evaluated
+        // independently of buyer-mobile: a NavigationRail was rejected for the
+        // same shell-restructuring cost, and because a seller triaging orders
+        // on a tablet still reaches for the bottom of the screen. Nothing
+        // changes on a phone.
+        child: ReadableBottomBar(
+          maxWidth: kMediumWidthBreakpoint,
+          child: NavigationBar(
+            height: 80,
+            selectedIndex: navigationShell.currentIndex,
+            onDestinationSelected: _onTap,
+            labelPadding: EdgeInsets.zero,
+            destinations: const [
+              NavigationDestination(
+                  icon: Icon(Icons.home_outlined),
+                  selectedIcon: Icon(Icons.home),
+                  label: 'Accueil'),
+              NavigationDestination(
+                  icon: Icon(Icons.receipt_long_outlined),
+                  selectedIcon: Icon(Icons.receipt_long),
+                  label: 'Commandes'),
+              NavigationDestination(
+                  icon: Icon(Icons.inventory_2_outlined),
+                  selectedIcon: Icon(Icons.inventory_2),
+                  label: 'Produits'),
+              NavigationDestination(
+                  icon: Icon(Icons.account_balance_wallet_outlined),
+                  selectedIcon: Icon(Icons.account_balance_wallet),
+                  label: 'Revenus'),
+              NavigationDestination(
+                  icon: Icon(Icons.person_outline),
+                  selectedIcon: Icon(Icons.person),
+                  label: 'Profil'),
+            ],
+          ),
         ),
       ),
     );
