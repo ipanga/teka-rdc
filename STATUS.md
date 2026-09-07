@@ -1,26 +1,24 @@
-# Status — 2026-09-07 (pre-scale readiness — tablet phase)
+# Status — 2026-09-07 (pre-scale readiness — Buyer Mobile UX/UI polish)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
-**Pre-scale readiness initiative — implementation in progress. D1 merged (#672). D2–D11 approved
-2026-09-06 (D2b = later design phase, D6 = docs only). PR 1 merged (`6201534`), PR 2 (D2a) merged
-(`29ccb6f`), PR 3 (D8) merged (`5af6b94`), PR 4 (D4) merged (`1d74149`), PR 5 (CI/supply chain)
-merged (`db1b5fb`), PR 6 (Buyer Mobile A) merged (`c470e63`), PR 7 (Buyer Mobile B) merged
-(`a877bbb`), `ci/dependabot-pnpm` merged (`adae24f`), PR 8 (Buyer Mobile C) merged (`c6ce951`),
-PR 9 (Buyer Mobile D1) merged (`613f0fa`), PR 10 (Buyer Mobile D2) merged (`9450358`), PR 11
-(Buyer Mobile D3) merged (`5ed2814`) — **Buyer Mobile functional readiness is closed** — PR 12
-(Tablet PR 1: shared responsive foundation + Buyer Mobile) merged (`2ef5b94`).
-**PR 13 `mobile/seller-tablet-responsiveness` (Tablet PR 2: Seller Mobile — all 28 screens centred in a
-readable column, sheets and dialogs constrained through the theme, the product-image grid and the Revenus
-wallet cards driven by the width they are given, the M3 NavigationBar kept and centred, order-detail and
-save bars centring their controls while their surfaces stay full width; the shared
-`core/layout/responsive.dart` is unchanged and a new test fails CI if the two copies ever diverge;
-+33 tests; verified on a 1280×800 tablet emulator in both orientations and at 1.5× text) open, awaiting
-merge approval.** With it the tablet phase closes for both apps; the broader Seller UX/UI redesign is the
-next phase and was deliberately not started. Tracker: `docs/pre-scale-readiness.md` (findings for Buyer
-Mobile functional readiness, Buyer Web SEO, tablet support, cross-platform security; 11 decisions needed;
-16-PR sequence). Still open from the previous release: manual Google Play Internal-testing upload of the
-Seller Mobile `0.1.9+11` AAB; Buyer Mobile store release.
+**Pre-scale readiness initiative — Buyer Mobile functional readiness CLOSED, tablet phase CLOSED for both
+apps, now in the Buyer Mobile UX/UI/design-polish phase.** PRs 1–13 merged (`6201534`, `29ccb6f`,
+`5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`, `c6ce951`, `613f0fa`, `9450358`, `5ed2814`,
+`2ef5b94`, `57b3ea7`) plus `ci/dependabot-pnpm` (`adae24f`). **Two validation gaps stay open and must not
+be reported as done: iPad/iOS runtime was never exercised in either tablet PR (no simulator input tooling),
+and the Seller Mobile phone runtime was not re-run in Tablet PR 2 (tests cover 320–412 only).**
+
+**UX PR A `buyer-mobile/ux-ui-design-polish` open, awaiting merge approval** — the shared visual
+foundation: `TekaSpacing`/`TekaRadius` scales, the semantic colours that remove every raw hex from `lib/`,
+`TekaNetworkImage` replacing seven divergent image call sites (two of which bypassed the cache entirely)
+with one shimmer, one French fallback and a decode width from the box, a dark banner fallback that took
+white-on-fallback contrast from a measured 2.82:1 to 16.32:1, and one empty-state language after search's
+zero-result stopped hand-rolling its own. +22 tests (463). The audit, the design direction and the
+four-PR decomposition (A foundation · B home/search/category/cards · C PDP/cart/checkout · D
+orders/ratings/profile/notifications) are recorded in the tracker. Tracker:
+`docs/pre-scale-readiness.md`. Still open from the previous release: manual Google Play Internal-testing
+upload of the Seller Mobile `0.1.9+11` AAB; Buyer Mobile store release.
 
 ## Most recently completed initiative
 
