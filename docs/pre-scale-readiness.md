@@ -1646,21 +1646,69 @@ exercised.**
 
 **No API, schema, env, dependency, analytics or Buyer Web change.** No PII added anywhere.
 
+### UX PR B — `buyer-mobile/ux-home-search-category` (Home, Search, Category, product cards, 2026-09-07)
+
+**UX PR A merged** as `7dadf23` (merge commit; head `e83f688` unchanged, 15/15 checks + CodeQL green, 25
+files, buyer-mobile + trackers only). Develop synced and clean.
+
+**Each PR A audit finding re-checked in the running app before touching it** — one of the five turned out
+to be already correct, and one needed a different fix than the audit suggested.
+
+| # | Finding | Runtime verdict | Action |
+|---|---|---|---|
+| 1 | Product-card footer void | **Confirmed.** Reservation was a padded guess (120 discovery / 144 catalog) leaving ~60 pt of void under a short title | Summed from the rows each variant renders |
+| 2 | Two stacked home heroes | **Confirmed but not a duplication problem.** The city hero answers "where am I shopping" with the town's image and CTA; the banner carousel is admin merchandising. Both keep their place — the **order** was wrong | Categories moved above the banners |
+| 3 | Category-strip label wrapping | **Confirmed, worse than recorded.** The strip height was a magic `118` tuned to a two-line label at 1.0x, so it clipped at 1.5x | Fixed two-line box scaled by the text scaler |
+| 4 | Wishlist-heart contrast | **Confirmed.** A translucent white disc read over dark photography only | Opaque white + hairline ring |
+| 5 | Search zero-result on a failed request | **Already correct** — `state.error != null` is checked before the empty branch, so a failure has always shown retry | None; recorded |
+
+**Measured on a 448 pt phone (before → after):** the category strip starts at **617 pt → 429 pt**, 188 pt
+earlier; the first product row moves 15 pt later (828 → 843) because the banner now sits below the
+categories. Catalog card footers are **21 pt tighter at every text scale**; discovery is 8 pt tighter at
+1.0x and slightly taller at 2.0x, because the old constant under-reserved there.
+
+**A bug the existing tests caught.** The first footer sum treated the rating row as catalog-only. It is
+gated on `totalReviews > 0`, not on the variant, so a discovery card with reviews overflowed —
+`product_card_layout_test.dart` failed with a 3.1 pt RenderFlex overflow. Both variants reserve it now, and
+the row heights are line boxes rather than raw font sizes.
+
+**Also fixed while in the file:** the favourite toast built its own `SnackBar`, so a favourite confirmation
+looked different from every other toast in the app. It goes through `showAppSnackbar` now (Rule 15).
+
+**Not changed, deliberately:** the search architecture, its analytics and its event semantics; the category
+slug routing and deep links; pricing behaviour and the `9.350 FC` convention; wishlist authorisation; the
+Cloudinary lifecycle. No animation was added — none of these screens needed one to be understood, and the
+one motion the app has (`ShimmerBox`) already respects reduced-motion.
+
+**Tests: buyer-mobile 471 (was 464), seller-mobile 219 unchanged.** New: a short and a long French category
+label producing the same tile height, the strip growing with the text scale instead of clipping, no
+overflow at 1.0/1.3/1.5x, the wishlist ring, the home feed order (navigation before merchandising), the
+footer allowance being derived rather than a magic constant with the rating row reserved by both variants,
+and the favourite toast going through the shared snackbar. `flutter analyze` unchanged (6 buyer, 20
+seller).
+
+**Runtime (Android emulator, dev flavor, local API).** Phone 448 pt: home before/after with the fold
+measured from the framebuffer, the product grid (tighter footers, rings visible over both a pale beach
+photo and a dark dune photo, the shared fallback on a product with no image), and home at 1.5x — the strip
+grows and every tile stays the same height. Tablet 800 pt portrait: all seven categories in one row.
+Tablet 1280 pt landscape: no overflow, bottom navigation still centred. Screenshots to the scratchpad,
+not committed. **iOS still not exercised** — no simulator input tooling. **Seller phone runtime still not
+re-run.**
+
+**No API, schema, env, dependency, analytics, security or Buyer Web change.**
+
 ## Next exact step
 
-PR 1–13 merged (`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`, `c6ce951`,
-`613f0fa`, `9450358`, `5ed2814`, `2ef5b94`, `57b3ea7`) plus `ci/dependabot-pnpm` (#688, `adae24f`).
-**Buyer Mobile functional readiness and the tablet phase are both closed**, with the two validation gaps
-recorded above.
+PR 1–13 plus UX PR A merged (latest: `7dadf23`). **UX PR B `buyer-mobile/ux-home-search-category` open —
+awaiting merge approval.** See its record above.
 
-**UX PR A `buyer-mobile/ux-ui-design-polish` open — awaiting merge approval.** See its record above.
+**Then UX PR C — PDP, cart and checkout.** Candidate scope from the PR A audit and the PR B runtime pass:
+the PDP gallery's loading state (the largest element on the page is blank while it loads), the
+« Aucun avis » row's ambiguous tap target, the sticky purchase bar's separation from the content, and
+migrating those screens' `fontSize`/radius literals onto the scales. Then UX PR D (orders, ratings,
+profile, notifications), then a separate Seller Mobile UX/UI phase.
 
-**Then UX PR B — Home, Search, Category and product cards.** Its scope is already written down by the
-audit: the product-card footer void (finding 7), the two stacked heroes and the category strip (8), the
-wishlist heart contrast (9), plus migrating those screens' `fontSize`/radius literals onto the scales PR A
-introduced. Then PR C (PDP, cart, checkout) and PR D (orders, ratings, profile, notifications). Seller
-Mobile UX/UI polish is a separate phase after all four.
-
-**Carried-forward risks:** iPad/iOS runtime is unexercised across the tablet and UX phases; the Seller
-phone runtime was not re-run in Tablet PR 2; no golden tests exist in either app, so a purely visual
+**Carried-forward validation gaps — do not report these as done:** iPad/iOS runtime has never been
+exercised in any PR of the tablet or UX phases (no simulator input tooling); the Seller Mobile phone
+runtime has not been re-run since Tablet PR 2. No golden tests exist in either app, so a purely visual
 regression can only be caught by eye.
