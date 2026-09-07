@@ -1750,17 +1750,89 @@ hold. **iOS still not exercised.**
 **No API, schema, env, dependency, analytics, security or Buyer Web change.** Pricing logic, the
 authoritative quote, the delivery-address snapshot, idempotency and COD-only behaviour are all untouched.
 
+### UX PR D — `buyer-mobile/ux-orders-profile-notifications` (orders, ratings, profile, notifications, 2026-09-08)
+
+**UX PR C merged** as `cf0f148` (merge commit; head `c7e2d49` unchanged, 15/15 checks + CodeQL green,
+10 files, buyer-mobile + trackers only). Develop synced and clean.
+
+**Re-audit in the running app, signed in as a seeded buyer with 7 orders across 6 statuses.**
+
+| Finding | Verdict | Action |
+|---|---|---|
+| Orders list/detail carry raw tokens | **Confirmed** (detail 22 `fontSize`, 8 radii) | Migrated only where the visual scope was touched |
+| Notification read/unread distinction | **Confirmed, but the opposite problem** — unread was a red wash on top of a dot AND a bold title, so a full feed read as a wall of alerts | Unread is a white surface; the dot and weight keep the signal |
+| Order status/timeline hierarchy | **Partly stale** — it is an event log built from real `statusLogs`, not a progress tracker, and inventing future states is forbidden. The defect was the dot: brand red beside a green « Livrée » chip | Dot takes the status colour |
+| Profile grouping | **Stale** — already three labelled groups, not a flat list | None |
+| French/status cleanup intact | **Confirmed intact** — all ten statuses filterable, no raw enum anywhere | None |
+
+**New findings from the runtime pass:**
+
+| Finding | Severity |
+|---|---|
+| **Every dialog and bottom sheet in the app was painted `#F6E4E3`**, a pink tint M3 derives from the red seed, while cards beside them were white — a logout confirmation read as a warning | High |
+| Orders opened on a **bare spinner over an empty screen**; so did notifications | Medium |
+| Order totals were **brand red**, competing with the status chip and matching neither the cart nor the PDP | Medium |
+| « Boîte de réception » and « Notifications » shared **one subtitle** for two different jobs | Medium |
+| Orders list cards, status chips and mapping, the event-log timeline, the address snapshot with recipient and phone, the review CTA on delivered orders | **Already good** |
+
+**A bug caught during the runtime pass.** The first `ListCardSkeleton` was a bare `ShimmerBox`, whose tone
+IS the scaffold background — the skeleton was invisible on a list with no cards behind it. It is now a
+white card with the shimmer inside, mirroring the real order card.
+
+**Tests: buyer-mobile 501 (was 484), seller-mobile 219 unchanged.** New: the dialog and sheet surfaces
+(theme and rendered); filter coverage of every `BuyerOrderStatus` with French labels and the unknown-value
+fallback; totals foreground in list and detail; the timeline dot taking the status colour; every status
+mapping to a colour; the shaped skeleton replacing the spinner, growing with the text scale, and used by
+both lists; the notification unread treatment, dot, read marking, deep-link routing and absence of
+polling; the profile subtitles and grouping. `flutter analyze` unchanged (6 buyer, 20 seller);
+`pnpm type-check` clean.
+
+**Runtime (Android emulator, dev flavor, local API, seeded buyer — no fixtures created).** Logout with the
+confirmation dialog, login as a different buyer (account isolation confirmed: the cart badge switched to
+that account's own count), profile, orders loading and loaded, order detail with the timeline and the
+address snapshot, notifications feed, orders at **1.5x**, and profile plus orders at **tablet 800 pt
+portrait and 1280 pt landscape**. The tablet product grid still renders four columns, so the responsive
+work from PR 12/13 is intact after four UX PRs. Screenshots to the scratchpad, not committed. **iOS still
+not exercised.**
+
+**No API, schema, env, dependency, analytics, security or Buyer Web change.**
+
+## Buyer Mobile UX/UI polish phase — COMPLETE (pending PR D approval)
+
+Four PRs: **A** `7dadf23` foundation · **B** `a57dcf5` discovery · **C** `cf0f148` purchase journey ·
+**D** open. Every Buyer Mobile screen has been walked in the running app and either changed or recorded as
+already good.
+
+**Validation gaps — these are NOT incomplete UX work, they are unexercised verification:**
+
+| Gap | State |
+|---|---|
+| iOS / iPad runtime | Never exercised in the tablet or UX phases. No simulator input tooling in any session. |
+| Seller Mobile phone runtime | Not re-run since Tablet PR 2. |
+| Golden / screenshot regression | No golden tests exist in either app, so a purely visual regression can only be caught by eye. |
+
+**Deferred, deliberately, and not UX debt:** the remaining raw `fontSize`/radius literals on screens no UX
+PR needed to touch; the home banner's scrim over a *light* image (PR A fixed the missing-image case, a
+pale image can still put white text on a light ground).
+
 ## Next exact step
 
-PR 1–13 plus UX PR A and B merged (latest: `a57dcf5`). **UX PR C `buyer-mobile/ux-pdp-cart-checkout`
-open — awaiting merge approval.** See its record above.
+PR 1–13 plus UX PR A, B and C merged (latest: `cf0f148`). **UX PR D
+`buyer-mobile/ux-orders-profile-notifications` open — awaiting merge approval.** With it the **Buyer
+Mobile UX/UI polish phase closes**; see the completion record above, including the three validation gaps
+that stay open.
 
-**Then UX PR D — orders, ratings, profile and notifications**, the last Buyer Mobile UX PR: the order list
-and detail hierarchy and status timeline, the review entry and verified-buyer badge presentation, profile
-grouping, the notification feed's read/unread distinction, and migrating those screens onto the scales.
-After it, a separate Seller Mobile UX/UI phase.
+**Then: Seller Mobile UX/UI/design polish**, a separate phase, not to be started without approval.
+Proposed scope, building on the shared responsive system and the tokens from UX PR A:
 
-**Carried-forward validation gaps — do not report these as done:** iPad/iOS runtime has never been
-exercised in any PR of the tablet or UX phases (no simulator input tooling); the Seller Mobile phone
-runtime has not been re-run since Tablet PR 2. No golden tests exist in either app, so a purely visual
-regression can only be caught by eye.
+1. **Foundation** — port `TekaSpacing`/`TekaRadius` and the semantic colours into seller-mobile's theme;
+   give its dialogs and sheets the same explicit white surface (its theme has the same red seed, so it has
+   the same pink-tint defect); adopt `TekaNetworkImage` for its product and document images.
+2. **Action Center + dashboard** — the surface a seller opens first; preserve action visibility.
+3. **Orders** — list, detail and the action bar.
+4. **Products** — list, the product form (the densest surface) and the image manager.
+5. **Earnings and payouts** — data-dense financial surfaces; no business-rule change.
+6. **Profile, commune and verification** — grouping and document-card presentation.
+
+**Carried-forward validation gaps:** iPad/iOS runtime, the Seller phone runtime re-check, and the absence
+of golden tests.

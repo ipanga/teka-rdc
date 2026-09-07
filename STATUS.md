@@ -1,31 +1,31 @@
-# Status — 2026-09-07 (pre-scale readiness — Buyer Mobile UX/UI polish)
+# Status — 2026-09-08 (pre-scale readiness — Buyer Mobile UX/UI polish closing)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
 **Pre-scale readiness initiative — Buyer Mobile functional readiness CLOSED, tablet phase CLOSED for both
-apps, Buyer Mobile UX/UI polish in progress (PR A and B merged, PR C open).** Merged to date: `6201534`,
-`29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`, `c6ce951`, `613f0fa`, `9450358`,
-`5ed2814`, `2ef5b94`, `57b3ea7`, `7dadf23` (UX A: tokens, one image treatment, one empty-state language),
-`a57dcf5` (UX B: home order, category strip, card footer, wishlist chip), plus `ci/dependabot-pnpm`
-(`adae24f`).
+apps, Buyer Mobile UX/UI polish CLOSING (PRs A, B and C merged; PR D open and, once merged, completes the
+phase).** Merged to date: `6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`,
+`c6ce951`, `613f0fa`, `9450358`, `5ed2814`, `2ef5b94`, `57b3ea7`, `7dadf23` (UX A: tokens, one image
+treatment, one empty-state language), `a57dcf5` (UX B: home order, category strip, card footer, wishlist
+chip), `cf0f148` (UX C: PDP gallery, cart labels, checkout copy and steps, success next-steps), plus
+`ci/dependabot-pnpm` (`adae24f`).
 
-**UX PR C `buyer-mobile/ux-pdp-cart-checkout` open, awaiting merge approval** — the purchase journey. The
-PDP gallery skeleton stops being a blank half-screen; the sticky purchase bar is lifted off the content;
-the reviews row's chevron rejoins its label (the "ambiguous tap target" finding was stale — it was always
-one tap target). The cart names its numbers (« … / unité » and « Sous-total ») and its bar says
-« Sous-total » instead of a « Total » that excluded a delivery fee the quote had not returned. Checkout
-fixes two unaccented strings, labels its three steps, restores the recipient and phone to the recap,
-replaces a credit-card glyph on a COD-only marketplace, and adopts the shared empty state. The success
-screen now states the workflow (seller prepares, Teka collects and delivers, buyer pays cash). +13 tests
-(484). A live timeout during QA proved idempotency: the order existed, confirming again returned the same
-order, count stayed at 1. All QA fixtures deleted and stock restored.
+**UX PR D `buyer-mobile/ux-orders-profile-notifications` open, awaiting merge approval** — orders,
+ratings, profile and notifications. Every dialog and bottom sheet in the app was painted `#F6E4E3`, a pink
+tint Material 3 derives from the red seed, so a logout confirmation read as a warning; both surfaces are
+explicitly white now. Colour marks state, not money: order totals move to foreground and the timeline dot
+takes the status colour instead of brand red. Orders and notifications open on a content-shaped skeleton
+rather than a spinner on a blank screen. Unread notifications are a white surface, not a red wash. The
+profile's inbox and preference tiles stop sharing one subtitle. Audited and left alone: the order card
+layout, the French status mapping and full filter coverage, the event-log timeline, the address snapshot,
+and the profile's three-group structure. +17 tests (501).
 
-**Two validation gaps stay open and must not be reported as done: iPad/iOS runtime has never been
-exercised in the tablet or UX phases (no simulator input tooling), and the Seller Mobile phone runtime has
-not been re-run since Tablet PR 2.** Next: UX PR D (orders, ratings, profile, notifications), then a
-separate Seller Mobile UX phase. Tracker: `docs/pre-scale-readiness.md`. Still open from the previous
-release: manual Google Play Internal-testing upload of the Seller Mobile `0.1.9+11` AAB; Buyer Mobile store
-release.
+**Three validation gaps stay open and are NOT incomplete UX work: iPad/iOS runtime has never been
+exercised in the tablet or UX phases (no simulator input tooling); the Seller Mobile phone runtime has not
+been re-run since Tablet PR 2; no golden tests exist in either app.** Next phase (do not start without
+approval): **Seller Mobile UX/UI/design polish** — its proposed six-part scope is written down in the
+tracker. Still open from the previous release: manual Google Play Internal-testing upload of the Seller
+Mobile `0.1.9+11` AAB; Buyer Mobile store release.
 
 ## Most recently completed initiative
 
