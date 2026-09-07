@@ -120,6 +120,8 @@ void main() {
     });
   });
 
+  _bottomBarHeightRegression();
+
   group('ReadableColumn', () {
     Future<double> widthOf(WidgetTester tester, double windowWidth) async {
       tester.view.physicalSize = Size(windowWidth, 900);
@@ -144,5 +146,57 @@ void main() {
     testWidgets('is capped on a tablet instead of stretching', (tester) async {
       expect(await widthOf(tester, 1024), lessThanOrEqualTo(720 - 48));
     });
+  });
+}
+
+/// Regression: the first version of [ReadableBottomBar] used a plain `Center`,
+/// which claims the biggest height it is offered. As a Scaffold's
+/// `bottomNavigationBar` that swallowed the whole screen and the page rendered
+/// blank behind a vertically centered tab bar (caught on a 1280x800 tablet).
+void _bottomBarHeightRegression() {
+  testWidgets('a bottom bar keeps its own height, not the screen height',
+      (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SizedBox.expand(
+            key: Key('body'),
+            child: ColoredBox(color: Color(0xFF00FF00)),
+          ),
+          bottomNavigationBar: ReadableBottomBar(
+            child: SizedBox(key: Key('bar'), height: 68, width: 10000),
+          ),
+        ),
+      ),
+    );
+    expect(tester.getSize(find.byKey(const Key('bar'))).height, 68);
+    // The bar is capped in width and centered, and the body still owns the
+    // rest of the screen.
+    expect(tester.getSize(find.byKey(const Key('bar'))).width,
+        lessThanOrEqualTo(720));
+    expect(tester.getSize(find.byKey(const Key('body'))).height, 800 - 68);
+  });
+
+  testWidgets('a readable column inside a scroll view sizes to its child',
+      (tester) async {
+    tester.view.physicalSize = const Size(1024, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: ReadableColumn(
+              child: SizedBox(key: Key('content'), height: 2000, width: 10000),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(tester.takeException(), isNull);
+    expect(tester.getSize(find.byKey(const Key('content'))).height, 2000);
   });
 }

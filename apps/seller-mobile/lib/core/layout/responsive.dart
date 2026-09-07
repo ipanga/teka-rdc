@@ -128,6 +128,10 @@ class ReadableColumn extends StatelessWidget {
             EdgeInsets.symmetric(horizontal: pagePadding(widthClass));
         return Align(
           alignment: Alignment.topCenter,
+          // heightFactor 1: size to the child. Without it an Align claims the
+          // biggest height it is offered, which is wrong inside a scroll view
+          // (unbounded) and steals the page inside a bottom bar.
+          heightFactor: 1,
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: limit),
             child: Padding(padding: resolvedPadding, child: child),
@@ -152,7 +156,12 @@ class ReadableBottomBar extends StatelessWidget {
       builder: (context, constraints) {
         final limit =
             maxWidth ?? readableMaxWidth(widthClassFor(constraints.maxWidth));
-        return Center(
+        return Align(
+          alignment: Alignment.center,
+          // Width is capped, height follows the child — a bottom bar must not
+          // grow to the whole screen (a plain Center does exactly that, and
+          // pushed the body out of the way when this was first tried).
+          heightFactor: 1,
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: limit),
             child: child,
