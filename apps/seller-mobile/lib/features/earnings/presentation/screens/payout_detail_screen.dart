@@ -9,6 +9,7 @@ import '../../../../core/widgets/adaptive_leading.dart';
 import '../../data/earnings_repository.dart';
 import '../../data/models/earning_model.dart';
 import '../payout_status.dart';
+import '../../../../core/layout/responsive.dart';
 
 /// One payout, loaded by id through the OWNER-scoped endpoint. The id comes
 /// from a push tap, a feed item or a link — never trusted: the API answers
@@ -35,13 +36,16 @@ class PayoutDetailScreen extends ConsumerWidget {
         leading: const AdaptiveLeading(),
         title: const Text('Détail du virement'),
       ),
-      body: async.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => _ErrorBody(
-          message: friendlyErrorMessage(e),
-          onRetry: () => ref.invalidate(payoutDetailProvider(payoutId)),
-        ),
-        data: (payout) => _PayoutBody(payout: payout),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: async.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => _ErrorBody(
+              message: friendlyErrorMessage(e),
+              onRetry: () => ref.invalidate(payoutDetailProvider(payoutId)),
+            ),
+            data: (payout) => _PayoutBody(payout: payout),
+          ),
       ),
     );
   }

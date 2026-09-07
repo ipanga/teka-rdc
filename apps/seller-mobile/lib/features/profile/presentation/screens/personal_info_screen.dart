@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
 import '../../data/profile_repository.dart';
+import '../../../../core/layout/responsive.dart';
 
 class PersonalInfoScreen extends ConsumerStatefulWidget {
   const PersonalInfoScreen({super.key});
@@ -149,12 +150,18 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
         leading: const AdaptiveLeading(fallbackLocation: '/profile'),
         title: const Text('Informations personnelles'),
       ),
-      body: _buildBody(),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: _buildBody(),
+      ),
       bottomNavigationBar: _loading || _error != null
           ? null
           : SafeArea(
               top: false,
-              child: Padding(
+              // Only the button is centred on a tablet; the bar itself stays
+              // full width.
+              child: ReadableBottomBar(
+                child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: ElevatedButton.icon(
                   onPressed: _saving ? null : _save,
@@ -170,6 +177,7 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
                       : const Icon(Icons.check_rounded),
                   label: Text(_saving ? 'Enregistrement...' : 'Enregistrer'),
                 ),
+              ),
               ),
             ),
     );

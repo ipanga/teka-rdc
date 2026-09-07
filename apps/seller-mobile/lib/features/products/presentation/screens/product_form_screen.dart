@@ -12,6 +12,7 @@ import '../providers/products_provider.dart';
 import '../widgets/category_selector.dart';
 import '../widgets/dynamic_attribute_field.dart';
 import '../widgets/product_image_manager.dart';
+import '../../../../core/layout/responsive.dart';
 
 class ProductFormScreen extends ConsumerStatefulWidget {
   final SellerProductModel? product;
@@ -230,334 +231,337 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       appBar: AppBar(
         title: Text(_isEditing ? "Modifier le produit" : "Nouveau produit"),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            // Published-product edit notice (parity with seller-web): pricing &
-            // stock apply instantly, content edits are sent back to review.
-            if (_isEditing &&
-                widget.product?.status == ProductStatus.active) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: TekaColors.tekaRed.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                      color: TekaColors.tekaRed.withValues(alpha: 0.25)),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.info_outline,
-                        size: 18, color: TekaColors.tekaRed),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        "Produit publié : le prix, le prix promotionnel et le "
-                        "stock sont mis à jour instantanément. Toute "
-                        "modification du contenu (titre, description, "
-                        "catégorie…) sera renvoyée en révision.",
-                        style: const TextStyle(fontSize: 12.5, height: 1.4),
-                      ),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // Published-product edit notice (parity with seller-web): pricing &
+                // stock apply instantly, content edits are sent back to review.
+                if (_isEditing &&
+                    widget.product?.status == ProductStatus.active) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: TekaColors.tekaRed.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                          color: TekaColors.tekaRed.withValues(alpha: 0.25)),
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            // Images — inline management on the edit path (parity with
-            // seller-web). On create the product has no id yet, so images are
-            // added after the first save via the detail screen.
-            if (_isEditing) ...[
-              Text(
-                "Images",
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                "Ajoutez au moins une image. La première sert de couverture.",
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  color: TekaColors.mutedForeground,
-                ),
-              ),
-              const SizedBox(height: 12),
-              ProductImageManager(productId: widget.product!.id),
-              const SizedBox(height: 24),
-            ],
-
-            // Category
-            CategorySelector(
-              selectedCategoryId: _selectedCategoryId,
-              onCategorySelected: (cat) {
-                setState(() {
-                  _categoryGeneration++;
-                  _selectedCategoryId = cat.id;
-                  _specValues.clear();
-                  _attributes = [];
-                  _brandId = null;
-                  _brands = [];
-                  _brandsError = null;
-                  _attributesError = null;
-                });
-                _loadAttributes(cat.id);
-                _loadBrands(cat.id);
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Brand (scoped to the chosen subcategory; hidden if none offered)
-            if (_isLoadingBrands) ...[
-              const LinearProgressIndicator(),
-              const SizedBox(height: 8),
-              const Text("Chargement des marques…"),
-              const SizedBox(height: 16),
-            ] else if (_brandsError != null) ...[
-              _InlineLoadError(
-                message: _brandsError!,
-                onRetry: () => _loadBrands(_selectedCategoryId!),
-              ),
-              const SizedBox(height: 16),
-            ] else if (_brands.isNotEmpty) ...[
-              DropdownButtonFormField<String>(
-                isExpanded: true,
-                initialValue: _brandId,
-                decoration: InputDecoration(labelText: "Marque"),
-                hint: Text("Sélectionner une marque"),
-                items: [
-                  DropdownMenuItem<String>(
-                    value: null,
-                    child: Text("Sans marque"),
-                  ),
-                  ..._brands.map(
-                    (b) => DropdownMenuItem(
-                      value: b.id,
-                      child: Text(b.name, overflow: TextOverflow.ellipsis),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.info_outline,
+                            size: 18, color: TekaColors.tekaRed),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            "Produit publié : le prix, le prix promotionnel et le "
+                            "stock sont mis à jour instantanément. Toute "
+                            "modification du contenu (titre, description, "
+                            "catégorie…) sera renvoyée en révision.",
+                            style: const TextStyle(fontSize: 12.5, height: 1.4),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
+                  const SizedBox(height: 16),
                 ],
-                onChanged: (v) => setState(() => _brandId = v),
-              ),
-              const SizedBox(height: 16),
-            ],
 
-            // Title (French — platform is monolingual since May 2026)
-            TextFormField(
-              controller: _titleFrController,
-              decoration: InputDecoration(
-                labelText: "Titre (français)",
-              ),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? "Titre requis" : null,
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 16),
+                // Images — inline management on the edit path (parity with
+                // seller-web). On create the product has no id yet, so images are
+                // added after the first save via the detail screen.
+                if (_isEditing) ...[
+                  Text(
+                    "Images",
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Ajoutez au moins une image. La première sert de couverture.",
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      color: TekaColors.mutedForeground,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ProductImageManager(productId: widget.product!.id),
+                  const SizedBox(height: 24),
+                ],
 
-            // Description (French)
-            TextFormField(
-              controller: _descriptionFrController,
-              decoration: InputDecoration(
-                labelText: "Description (français)",
-                alignLabelWithHint: true,
-              ),
-              maxLines: 4,
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 16),
+                // Category
+                CategorySelector(
+                  selectedCategoryId: _selectedCategoryId,
+                  onCategorySelected: (cat) {
+                    setState(() {
+                      _categoryGeneration++;
+                      _selectedCategoryId = cat.id;
+                      _specValues.clear();
+                      _attributes = [];
+                      _brandId = null;
+                      _brands = [];
+                      _brandsError = null;
+                      _attributesError = null;
+                    });
+                    _loadAttributes(cat.id);
+                    _loadBrands(cat.id);
+                  },
+                ),
+                const SizedBox(height: 16),
 
-            // Prices
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final stack = constraints.maxWidth < 420 ||
-                    MediaQuery.textScalerOf(context).scale(1) > 1.3;
-                final cdf = TextFormField(
-                  controller: _priceCDFController,
+                // Brand (scoped to the chosen subcategory; hidden if none offered)
+                if (_isLoadingBrands) ...[
+                  const LinearProgressIndicator(),
+                  const SizedBox(height: 8),
+                  const Text("Chargement des marques…"),
+                  const SizedBox(height: 16),
+                ] else if (_brandsError != null) ...[
+                  _InlineLoadError(
+                    message: _brandsError!,
+                    onRetry: () => _loadBrands(_selectedCategoryId!),
+                  ),
+                  const SizedBox(height: 16),
+                ] else if (_brands.isNotEmpty) ...[
+                  DropdownButtonFormField<String>(
+                    isExpanded: true,
+                    initialValue: _brandId,
+                    decoration: InputDecoration(labelText: "Marque"),
+                    hint: Text("Sélectionner une marque"),
+                    items: [
+                      DropdownMenuItem<String>(
+                        value: null,
+                        child: Text("Sans marque"),
+                      ),
+                      ..._brands.map(
+                        (b) => DropdownMenuItem(
+                          value: b.id,
+                          child: Text(b.name, overflow: TextOverflow.ellipsis),
+                        ),
+                      ),
+                    ],
+                    onChanged: (v) => setState(() => _brandId = v),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Title (French — platform is monolingual since May 2026)
+                TextFormField(
+                  controller: _titleFrController,
                   decoration: InputDecoration(
-                    labelText: "Prix FC",
+                    labelText: "Titre (français)",
+                  ),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? "Titre requis" : null,
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: 16),
+
+                // Description (French)
+                TextFormField(
+                  controller: _descriptionFrController,
+                  decoration: InputDecoration(
+                    labelText: "Description (français)",
+                    alignLabelWithHint: true,
+                  ),
+                  maxLines: 4,
+                  textInputAction: TextInputAction.next,
+                ),
+                const SizedBox(height: 16),
+
+                // Prices
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final stack = constraints.maxWidth < 420 ||
+                        MediaQuery.textScalerOf(context).scale(1) > 1.3;
+                    final cdf = TextFormField(
+                      controller: _priceCDFController,
+                      decoration: InputDecoration(
+                        labelText: "Prix FC",
+                        suffixText: 'FC',
+                      ),
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (_) => setState(() {}),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) {
+                          return "Prix FC requis";
+                        }
+                        final amount = int.tryParse(v);
+                        if (amount == null || amount <= 0) {
+                          return "Prix FC invalide";
+                        }
+                        return null;
+                      },
+                      textInputAction: TextInputAction.next,
+                    );
+                    final usd = TextFormField(
+                      controller: _priceUSDController,
+                      decoration: InputDecoration(
+                        labelText: "Prix USD",
+                        suffixText: 'USD',
+                      ),
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      validator: (v) {
+                        if (v == null || v.trim().isEmpty) return null;
+                        final amount =
+                            double.tryParse(v.trim().replaceAll(',', '.'));
+                        return amount == null || amount <= 0
+                            ? "Prix USD invalide"
+                            : null;
+                      },
+                      textInputAction: TextInputAction.next,
+                    );
+                    if (stack) {
+                      return Column(
+                        children: [cdf, const SizedBox(height: 16), usd],
+                      );
+                    }
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(child: cdf),
+                        const SizedBox(width: 12),
+                        Expanded(child: usd),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+
+                // Promotional price (optional)
+                TextFormField(
+                  controller: _discountPriceCDFController,
+                  decoration: InputDecoration(
+                    labelText: "Prix promotionnel FC (optionnel)",
                     suffixText: 'FC',
+                    helperText: _discountPreview(),
+                    helperStyle: const TextStyle(color: TekaColors.success),
                   ),
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   onChanged: (_) => setState(() {}),
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return "Prix FC requis";
-                    }
-                    final amount = int.tryParse(v);
-                    if (amount == null || amount <= 0) {
-                      return "Prix FC invalide";
+                    if (v == null || v.trim().isEmpty) return null;
+                    final d = int.tryParse(v.trim());
+                    if (d == null || d <= 0) return "Prix promotionnel invalide";
+                    final p = int.tryParse(_priceCDFController.text.trim());
+                    if (p != null && d >= p) {
+                      return "Doit être inférieur au prix normal";
                     }
                     return null;
                   },
                   textInputAction: TextInputAction.next,
-                );
-                final usd = TextFormField(
-                  controller: _priceUSDController,
+                ),
+                const SizedBox(height: 16),
+
+                // Quantity
+                TextFormField(
+                  controller: _quantityController,
                   decoration: InputDecoration(
-                    labelText: "Prix USD",
-                    suffixText: 'USD',
+                    labelText: "Quantité",
                   ),
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return null;
-                    final amount =
-                        double.tryParse(v.trim().replaceAll(',', '.'));
-                    return amount == null || amount <= 0
-                        ? "Prix USD invalide"
-                        : null;
+                    if (v == null || v.trim().isEmpty) {
+                      return "Quantité requise";
+                    }
+                    final qty = int.tryParse(v);
+                    if (qty == null || qty < 0) {
+                      return "Quantité invalide";
+                    }
+                    return null;
                   },
-                  textInputAction: TextInputAction.next,
-                );
-                if (stack) {
-                  return Column(
-                    children: [cdf, const SizedBox(height: 16), usd],
-                  );
-                }
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: cdf),
-                    const SizedBox(width: 12),
-                    Expanded(child: usd),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 16),
+                  textInputAction: TextInputAction.done,
+                ),
+                const SizedBox(height: 16),
 
-            // Promotional price (optional)
-            TextFormField(
-              controller: _discountPriceCDFController,
-              decoration: InputDecoration(
-                labelText: "Prix promotionnel FC (optionnel)",
-                suffixText: 'FC',
-                helperText: _discountPreview(),
-                helperStyle: const TextStyle(color: TekaColors.success),
-              ),
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              onChanged: (_) => setState(() {}),
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) return null;
-                final d = int.tryParse(v.trim());
-                if (d == null || d <= 0) return "Prix promotionnel invalide";
-                final p = int.tryParse(_priceCDFController.text.trim());
-                if (p != null && d >= p) {
-                  return "Doit être inférieur au prix normal";
-                }
-                return null;
-              },
-              textInputAction: TextInputAction.next,
-            ),
-            const SizedBox(height: 16),
+                // The Neuf / Occasion selector was removed 2026-07-28: Teka
+                // accepts new products only, so the choice was misleading.
+                // `condition` is still submitted as NEW so the API contract is
+                // unchanged — see docs/product-condition-deprecation.md.
 
-            // Quantity
-            TextFormField(
-              controller: _quantityController,
-              decoration: InputDecoration(
-                labelText: "Quantité",
-              ),
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              validator: (v) {
-                if (v == null || v.trim().isEmpty) {
-                  return "Quantité requise";
-                }
-                final qty = int.tryParse(v);
-                if (qty == null || qty < 0) {
-                  return "Quantité invalide";
-                }
-                return null;
-              },
-              textInputAction: TextInputAction.done,
-            ),
-            const SizedBox(height: 16),
-
-            // The Neuf / Occasion selector was removed 2026-07-28: Teka
-            // accepts new products only, so the choice was misleading.
-            // `condition` is still submitted as NEW so the API contract is
-            // unchanged — see docs/product-condition-deprecation.md.
-
-            // Dynamic Attributes
-            if (_isLoadingAttributes)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 8),
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_attributesError != null) ...[
-              _InlineLoadError(
-                message: _attributesError!,
-                onRetry: () => _loadAttributes(_selectedCategoryId!),
-              ),
-            ] else if (_attributes.isNotEmpty) ...[
-              Text(
-                "Caractéristiques du produit",
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      color: TekaColors.mutedForeground,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              ..._attributes.map((attr) {
-                final locale = Localizations.localeOf(context).languageCode;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: DynamicAttributeField(
-                    attribute: attr,
-                    value: _specValues[attr.id] ?? '',
-                    locale: locale,
-                    onChanged: (v) {
-                      setState(() {
-                        if (v.isEmpty) {
-                          _specValues.remove(attr.id);
-                        } else {
-                          _specValues[attr.id] = v;
-                        }
-                      });
-                    },
+                // Dynamic Attributes
+                if (_isLoadingAttributes)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_attributesError != null) ...[
+                  _InlineLoadError(
+                    message: _attributesError!,
+                    onRetry: () => _loadAttributes(_selectedCategoryId!),
                   ),
-                );
-              }),
-            ] else if (_selectedCategoryId != null && !_isLoadingAttributes)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(
-                  "Aucune caractéristique pour cette catégorie",
-                  style: TextStyle(
-                    color: TekaColors.mutedForeground,
-                    fontSize: 14,
+                ] else if (_attributes.isNotEmpty) ...[
+                  Text(
+                    "Caractéristiques du produit",
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          color: TekaColors.mutedForeground,
+                        ),
+                  ),
+                  const SizedBox(height: 8),
+                  ..._attributes.map((attr) {
+                    final locale = Localizations.localeOf(context).languageCode;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: DynamicAttributeField(
+                        attribute: attr,
+                        value: _specValues[attr.id] ?? '',
+                        locale: locale,
+                        onChanged: (v) {
+                          setState(() {
+                            if (v.isEmpty) {
+                              _specValues.remove(attr.id);
+                            } else {
+                              _specValues[attr.id] = v;
+                            }
+                          });
+                        },
+                      ),
+                    );
+                  }),
+                ] else if (_selectedCategoryId != null && !_isLoadingAttributes)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Text(
+                      "Aucune caractéristique pour cette catégorie",
+                      style: TextStyle(
+                        color: TekaColors.mutedForeground,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 24),
+
+                // Save button
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: _isSaving ? null : _handleSave,
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text("Enregistrer"),
                   ),
                 ),
-              ),
-
-            const SizedBox(height: 24),
-
-            // Save button
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                onPressed: _isSaving ? null : _handleSave,
-                child: _isSaving
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : Text("Enregistrer"),
-              ),
+                const SizedBox(height: 16),
+              ],
             ),
-            const SizedBox(height: 16),
-          ],
-        ),
+          ),
       ),
     );
   }

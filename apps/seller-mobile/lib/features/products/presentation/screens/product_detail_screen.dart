@@ -10,6 +10,7 @@ import '../../../../core/widgets/adaptive_leading.dart';
 import '../../data/products_repository.dart';
 import '../providers/products_provider.dart';
 import '../widgets/status_badge.dart';
+import '../../../../core/layout/responsive.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
   final String productId;
@@ -38,38 +39,41 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         leading: const AdaptiveLeading(fallbackLocation: '/products'),
         title: const Text("Détail du produit"),
       ),
-      body: productAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline,
-                    size: 48, color: TekaColors.destructive),
-                const SizedBox(height: 12),
-                Text("Une erreur est survenue. Veuillez réessayer."),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () =>
-                      ref.invalidate(productDetailProvider(widget.productId)),
-                  child: Text("Réessayer"),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: productAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline,
+                        size: 48, color: TekaColors.destructive),
+                    const SizedBox(height: 12),
+                    Text("Une erreur est survenue. Veuillez réessayer."),
+                    const SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () =>
+                          ref.invalidate(productDetailProvider(widget.productId)),
+                      child: Text("Réessayer"),
+                    ),
+                  ],
                 ),
-              ],
+              ),
+            ),
+            // Pull-to-refresh, matching the products list. An admin's approval or
+            // rejection arrives without any seller action, so the seller needs a
+            // way to re-check status without leaving the screen.
+            data: (product) => RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(productDetailProvider(widget.productId));
+                await ref.read(productDetailProvider(widget.productId).future);
+              },
+              child: _buildContent(context, product),
             ),
           ),
-        ),
-        // Pull-to-refresh, matching the products list. An admin's approval or
-        // rejection arrives without any seller action, so the seller needs a
-        // way to re-check status without leaving the screen.
-        data: (product) => RefreshIndicator(
-          onRefresh: () async {
-            ref.invalidate(productDetailProvider(widget.productId));
-            await ref.read(productDetailProvider(widget.productId).future);
-          },
-          child: _buildContent(context, product),
-        ),
       ),
     );
   }

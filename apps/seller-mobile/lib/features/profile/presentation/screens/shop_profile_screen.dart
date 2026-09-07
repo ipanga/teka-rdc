@@ -6,6 +6,7 @@ import '../../../../core/utils/commune_rules.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../data/profile_repository.dart';
+import '../../../../core/layout/responsive.dart';
 
 class ShopProfileScreen extends ConsumerStatefulWidget {
   const ShopProfileScreen({super.key});
@@ -226,12 +227,18 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
         leading: const AdaptiveLeading(fallbackLocation: '/profile'),
         title: const Text('Profil de la boutique'),
       ),
-      body: _buildBody(editable, status),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: _buildBody(editable, status),
+      ),
       bottomNavigationBar: _loading || _error != null
           ? null
           : SafeArea(
               top: false,
-              child: Padding(
+              // Only the button is centred on a tablet; the bar itself stays
+              // full width.
+              child: ReadableBottomBar(
+                child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: ElevatedButton.icon(
                   onPressed: !editable || _saving ? null : _save,
@@ -247,6 +254,7 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
                       : const Icon(Icons.check_rounded),
                   label: Text(_saving ? 'Enregistrement...' : 'Enregistrer'),
                 ),
+              ),
               ),
             ),
     );

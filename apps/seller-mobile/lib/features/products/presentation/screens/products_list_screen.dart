@@ -10,6 +10,7 @@ import '../../../../core/widgets/seller_list_state.dart';
 import '../../data/models/product_model.dart';
 import '../providers/products_provider.dart';
 import '../widgets/status_badge.dart';
+import '../../../../core/layout/responsive.dart';
 
 class ProductsListScreen extends ConsumerStatefulWidget {
   const ProductsListScreen(
@@ -87,39 +88,42 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
         foregroundColor: Colors.white,
         child: const Icon(Icons.add),
       ),
-      body: SafeArea(
-        top: false,
-        bottom: false,
-        child: Column(
-          children: [
-            const _ProductSearchField(),
-            SellerFilterBar<ProductStatus>(
-              selected: state.statusFilter,
-              onSelected: _selectStatus,
-              options: const [
-                SellerFilterOption(null, 'Tous'),
-                SellerFilterOption(ProductStatus.draft, 'Brouillons'),
-                SellerFilterOption(ProductStatus.pendingReview, 'En attente'),
-                SellerFilterOption(ProductStatus.active, 'Actifs'),
-                SellerFilterOption(ProductStatus.rejected, 'Rejetés'),
-                SellerFilterOption(ProductStatus.archived, 'Archivés'),
-                SellerFilterOption(ProductStatus.suspended, 'Suspendus'),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: SafeArea(
+            top: false,
+            bottom: false,
+            child: Column(
+              children: [
+                const _ProductSearchField(),
+                SellerFilterBar<ProductStatus>(
+                  selected: state.statusFilter,
+                  onSelected: _selectStatus,
+                  options: const [
+                    SellerFilterOption(null, 'Tous'),
+                    SellerFilterOption(ProductStatus.draft, 'Brouillons'),
+                    SellerFilterOption(ProductStatus.pendingReview, 'En attente'),
+                    SellerFilterOption(ProductStatus.active, 'Actifs'),
+                    SellerFilterOption(ProductStatus.rejected, 'Rejetés'),
+                    SellerFilterOption(ProductStatus.archived, 'Archivés'),
+                    SellerFilterOption(ProductStatus.suspended, 'Suspendus'),
+                  ],
+                ),
+                Expanded(
+                  child: state.isLoading
+                      ? const SellerListLoading(label: 'Chargement des produits')
+                      : RefreshIndicator(
+                          onRefresh: ref
+                              .read(sellerProductsProvider.notifier)
+                              .loadProducts,
+                          child: state.products.isEmpty
+                              ? SellerListState(child: _message(state))
+                              : _buildProductsList(context, state),
+                        ),
+                ),
               ],
             ),
-            Expanded(
-              child: state.isLoading
-                  ? const SellerListLoading(label: 'Chargement des produits')
-                  : RefreshIndicator(
-                      onRefresh: ref
-                          .read(sellerProductsProvider.notifier)
-                          .loadProducts,
-                      child: state.products.isEmpty
-                          ? SellerListState(child: _message(state))
-                          : _buildProductsList(context, state),
-                    ),
-            ),
-          ],
-        ),
+          ),
       ),
     );
   }

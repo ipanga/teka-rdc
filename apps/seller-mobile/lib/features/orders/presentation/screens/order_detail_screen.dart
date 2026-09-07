@@ -9,6 +9,7 @@ import '../../../../core/widgets/adaptive_leading.dart';
 import '../providers/orders_provider.dart';
 import '../widgets/order_action_buttons.dart';
 import '../widgets/order_status_badge.dart';
+import '../../../../core/layout/responsive.dart';
 
 class OrderDetailScreen extends ConsumerWidget {
   final String orderId;
@@ -80,7 +81,12 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
     return Column(
       children: [
         Expanded(
-          child: ListView(
+          // The detail is text and summary cards: centred in a readable column
+          // on a tablet. The action bar below keeps its full-width surface and
+          // centres only its buttons.
+          child: ReadableColumn(
+            padding: EdgeInsets.zero,
+            child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
               // Order header
@@ -327,6 +333,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
               const SizedBox(height: 80),
             ],
           ),
+          ),
         ),
 
         // Action buttons at the bottom
@@ -341,7 +348,8 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
             ),
             child: SafeArea(
               top: false,
-              child: _isPerformingAction
+              child: ReadableBottomBar(
+                child: _isPerformingAction
                   ? const Center(
                       child: Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
@@ -373,6 +381,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                             .markReadyForPickup(order.id),
                       ),
                     ),
+              ),
             ),
           ),
       ],

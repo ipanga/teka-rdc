@@ -9,6 +9,7 @@ import '../../../../core/widgets/adaptive_leading.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../data/verification_repository.dart';
 import '../verification_status.dart';
+import '../../../../core/layout/responsive.dart';
 
 /// « Vérification de la boutique » — the seller's own verification status,
 /// the documents Teka needs (from the API's `requiredTypes`, never a local
@@ -279,15 +280,18 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
         leading: const AdaptiveLeading(fallbackLocation: '/profile'),
         title: const Text('Vérification de la boutique'),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? _ErrorState(message: _error!, onRetry: _load)
-              : RefreshIndicator(
-                  color: TekaColors.tekaRed,
-                  onRefresh: _load,
-                  child: _buildContent(_status!),
-                ),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+                  ? _ErrorState(message: _error!, onRetry: _load)
+                  : RefreshIndicator(
+                      color: TekaColors.tekaRed,
+                      onRefresh: _load,
+                      child: _buildContent(_status!),
+                    ),
+      ),
     );
   }
 

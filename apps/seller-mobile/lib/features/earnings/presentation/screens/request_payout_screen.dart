@@ -5,6 +5,7 @@ import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../providers/earnings_provider.dart';
+import '../../../../core/layout/responsive.dart';
 
 /// Payout request form (Initiative #3 / C2). Operator + reception number,
 /// prefilled from the seller's saved destination (GET /v1/sellers/payout-method,
@@ -94,104 +95,107 @@ class _RequestPayoutScreenState extends ConsumerState<RequestPayoutScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text("Demande de virement")),
-      body: SingleChildScrollView(
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: EdgeInsets.fromLTRB(
-          24,
-          24,
-          24,
-          MediaQuery.viewInsetsOf(context).bottom + 32,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Solde actuel : ${formatFcNumber(balance)} FC',
-              style: const TextStyle(
-                fontSize: 14,
-                color: TekaColors.mutedForeground,
-              ),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: SingleChildScrollView(
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.fromLTRB(
+              24,
+              24,
+              24,
+              MediaQuery.viewInsetsOf(context).bottom + 32,
             ),
-            const SizedBox(height: 24),
-            if (_error != null) ...[
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: TekaColors.destructive.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _error!,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Solde actuel : ${formatFcNumber(balance)} FC',
                   style: const TextStyle(
-                    fontSize: 13,
-                    color: TekaColors.destructive,
+                    fontSize: 14,
+                    color: TekaColors.mutedForeground,
                   ),
                 ),
-              ),
-              const SizedBox(height: 16),
-            ],
-            const Text(
-              "Opérateur Mobile Money",
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              isExpanded: true,
-              initialValue: _method,
-              decoration: const InputDecoration(border: OutlineInputBorder()),
-              items: _payoutMethods.entries
-                  .map((e) => DropdownMenuItem(
-                        value: e.key,
-                        child: Text(e.value, overflow: TextOverflow.ellipsis),
-                      ))
-                  .toList(),
-              onChanged:
-                  _submitting ? null : (v) => setState(() => _method = v),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              "Numéro de réception",
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _phoneController,
-              keyboardType: TextInputType.phone,
-              enabled: !_submitting,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) {
-                if (!_submitting) _submit();
-              },
-              decoration: const InputDecoration(
-                hintText: "+243...",
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _submitting ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: TekaColors.tekaRed,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                const SizedBox(height: 24),
+                if (_error != null) ...[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: TekaColors.destructive.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: TekaColors.destructive,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+                const Text(
+                  "Opérateur Mobile Money",
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
-                child: _submitting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text("Envoyer la demande"),
-              ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  initialValue: _method,
+                  decoration: const InputDecoration(border: OutlineInputBorder()),
+                  items: _payoutMethods.entries
+                      .map((e) => DropdownMenuItem(
+                            value: e.key,
+                            child: Text(e.value, overflow: TextOverflow.ellipsis),
+                          ))
+                      .toList(),
+                  onChanged:
+                      _submitting ? null : (v) => setState(() => _method = v),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  "Numéro de réception",
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: _phoneController,
+                  keyboardType: TextInputType.phone,
+                  enabled: !_submitting,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) {
+                    if (!_submitting) _submit();
+                  },
+                  decoration: const InputDecoration(
+                    hintText: "+243...",
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _submitting ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: TekaColors.tekaRed,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: _submitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text("Envoyer la demande"),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
       ),
     );
   }

@@ -4,6 +4,7 @@ import '../../../../core/network/dio_error_messages.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../providers/auth_provider.dart';
+import '../../../../core/layout/responsive.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   // Legacy named params kept for router compatibility. Unused in the new email flow.
@@ -67,169 +68,172 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         foregroundColor: TekaColors.foreground,
         elevation: 0,
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-          padding: EdgeInsets.fromLTRB(
-            24,
-            0,
-            24,
-            MediaQuery.viewInsetsOf(context).bottom + 24,
-          ),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 16),
-                Text(
-                  'Créer votre compte',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Après inscription, vous renseignerez les informations de '
-                  'votre activité pour soumettre votre demande vendeur.',
-                  style: TextStyle(color: TekaColors.mutedForeground),
-                ),
-                const SizedBox(height: 24),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final stack = constraints.maxWidth < 360 ||
-                        MediaQuery.textScalerOf(context).scale(1) > 1.3;
-                    final firstName = TextFormField(
-                      controller: _firstNameController,
-                      decoration: const InputDecoration(labelText: 'Prénom'),
-                      textCapitalization: TextCapitalization.words,
-                      textInputAction: TextInputAction.next,
-                      validator: (v) {
-                        if (v == null || v.trim().length < 2) {
-                          return 'Prénom requis';
-                        }
-                        return null;
-                      },
-                    );
-                    final lastName = TextFormField(
-                      controller: _lastNameController,
-                      decoration: const InputDecoration(labelText: 'Nom'),
-                      textCapitalization: TextCapitalization.words,
-                      textInputAction: TextInputAction.next,
-                      validator: (v) {
-                        if (v == null || v.trim().length < 2) {
-                          return 'Nom requis';
-                        }
-                        return null;
-                      },
-                    );
-                    if (stack) {
-                      return Column(
-                        children: [
-                          firstName,
-                          const SizedBox(height: 16),
-                          lastName,
-                        ],
-                      );
-                    }
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(child: firstName),
-                        const SizedBox(width: 12),
-                        Expanded(child: lastName),
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  autofillHints: const [AutofillHints.email],
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    hintText: 'vous@exemple.com',
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
-                  validator: (v) {
-                    if (v == null || !v.contains('@')) return 'Email invalide';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  autofillHints: const [AutofillHints.newPassword],
-                  decoration: InputDecoration(
-                    labelText: 'Mot de passe',
-                    helperText:
-                        'Au moins 8 caractères, avec lettres et chiffres',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      tooltip: _obscurePassword
-                          ? 'Afficher le mot de passe'
-                          : 'Masquer le mot de passe',
-                      icon: Icon(_obscurePassword
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined),
-                      onPressed: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
-                    ),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.length < 8) {
-                      return 'Au moins 8 caractères';
-                    }
-                    if (!RegExp(r'[A-Za-z]').hasMatch(v) ||
-                        !RegExp(r'\d').hasMatch(v)) {
-                      return 'Doit contenir lettres et chiffres';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 24),
-                if (_errorMessage != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: TekaColors.destructive.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      _errorMessage!,
-                      style: TextStyle(color: TekaColors.destructive),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                ],
-                SizedBox(
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _register,
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Créer mon compte',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w600),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: SafeArea(
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: EdgeInsets.fromLTRB(
+                24,
+                0,
+                24,
+                MediaQuery.viewInsetsOf(context).bottom + 24,
+              ),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 16),
+                    Text(
+                      'Créer votre compte',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
                           ),
-                  ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Après inscription, vous renseignerez les informations de '
+                      'votre activité pour soumettre votre demande vendeur.',
+                      style: TextStyle(color: TekaColors.mutedForeground),
+                    ),
+                    const SizedBox(height: 24),
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final stack = constraints.maxWidth < 360 ||
+                            MediaQuery.textScalerOf(context).scale(1) > 1.3;
+                        final firstName = TextFormField(
+                          controller: _firstNameController,
+                          decoration: const InputDecoration(labelText: 'Prénom'),
+                          textCapitalization: TextCapitalization.words,
+                          textInputAction: TextInputAction.next,
+                          validator: (v) {
+                            if (v == null || v.trim().length < 2) {
+                              return 'Prénom requis';
+                            }
+                            return null;
+                          },
+                        );
+                        final lastName = TextFormField(
+                          controller: _lastNameController,
+                          decoration: const InputDecoration(labelText: 'Nom'),
+                          textCapitalization: TextCapitalization.words,
+                          textInputAction: TextInputAction.next,
+                          validator: (v) {
+                            if (v == null || v.trim().length < 2) {
+                              return 'Nom requis';
+                            }
+                            return null;
+                          },
+                        );
+                        if (stack) {
+                          return Column(
+                            children: [
+                              firstName,
+                              const SizedBox(height: 16),
+                              lastName,
+                            ],
+                          );
+                        }
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: firstName),
+                            const SizedBox(width: 12),
+                            Expanded(child: lastName),
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      autofillHints: const [AutofillHints.email],
+                      textInputAction: TextInputAction.next,
+                      decoration: const InputDecoration(
+                        labelText: 'Email',
+                        hintText: 'vous@exemple.com',
+                        prefixIcon: Icon(Icons.email_outlined),
+                      ),
+                      validator: (v) {
+                        if (v == null || !v.contains('@')) return 'Email invalide';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      autofillHints: const [AutofillHints.newPassword],
+                      decoration: InputDecoration(
+                        labelText: 'Mot de passe',
+                        helperText:
+                            'Au moins 8 caractères, avec lettres et chiffres',
+                        prefixIcon: const Icon(Icons.lock_outline),
+                        suffixIcon: IconButton(
+                          tooltip: _obscurePassword
+                              ? 'Afficher le mot de passe'
+                              : 'Masquer le mot de passe',
+                          icon: Icon(_obscurePassword
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined),
+                          onPressed: () =>
+                              setState(() => _obscurePassword = !_obscurePassword),
+                        ),
+                      ),
+                      validator: (v) {
+                        if (v == null || v.length < 8) {
+                          return 'Au moins 8 caractères';
+                        }
+                        if (!RegExp(r'[A-Za-z]').hasMatch(v) ||
+                            !RegExp(r'\d').hasMatch(v)) {
+                          return 'Doit contenir lettres et chiffres';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 24),
+                    if (_errorMessage != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: TekaColors.destructive.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _errorMessage!,
+                          style: TextStyle(color: TekaColors.destructive),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    SizedBox(
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _register,
+                        child: _isLoading
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Créer mon compte',
+                                style: TextStyle(
+                                    fontSize: 16, fontWeight: FontWeight.w600),
+                              ),
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                  ],
                 ),
-                const SizedBox(height: 32),
-              ],
+              ),
             ),
           ),
-        ),
       ),
     );
   }

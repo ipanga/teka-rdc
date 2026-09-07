@@ -8,18 +8,19 @@
 merged (`db1b5fb`), PR 6 (Buyer Mobile A) merged (`c470e63`), PR 7 (Buyer Mobile B) merged
 (`a877bbb`), `ci/dependabot-pnpm` merged (`adae24f`), PR 8 (Buyer Mobile C) merged (`c6ce951`),
 PR 9 (Buyer Mobile D1) merged (`613f0fa`), PR 10 (Buyer Mobile D2) merged (`9450358`), PR 11
-(Buyer Mobile D3) merged (`5ed2814`) — **Buyer Mobile functional readiness is closed.**
-**PR 12 `mobile/tablet-responsiveness` (Tablet PR 1: shared responsive foundation + Buyer Mobile —
-`core/layout/responsive.dart` mirrored byte-identically into both apps, six product grids now pick
-their column count from the width they are given, PDP gallery capped, text/form/list screens and
-bottom bars centred in a readable column, sheets and dialogs constrained through the theme, bottom
-navigation kept and centred rather than replaced by a rail; +30 tests; verified on a 1280×800 tablet
-emulator in both orientations and on a phone) open, awaiting merge approval.** Tablet PR 2 (Seller
-Mobile) is next and its exact scope is written down in the tracker. Tracker:
-`docs/pre-scale-readiness.md` (findings for Buyer Mobile functional readiness, Buyer Web SEO, tablet
-support, cross-platform security; 11 decisions needed; 16-PR sequence). Still open from the previous
-release: manual Google Play Internal-testing upload of the Seller Mobile `0.1.9+11` AAB; Buyer Mobile
-store release.
+(Buyer Mobile D3) merged (`5ed2814`) — **Buyer Mobile functional readiness is closed** — PR 12
+(Tablet PR 1: shared responsive foundation + Buyer Mobile) merged (`2ef5b94`).
+**PR 13 `mobile/seller-tablet-responsiveness` (Tablet PR 2: Seller Mobile — all 28 screens centred in a
+readable column, sheets and dialogs constrained through the theme, the product-image grid and the Revenus
+wallet cards driven by the width they are given, the M3 NavigationBar kept and centred, order-detail and
+save bars centring their controls while their surfaces stay full width; the shared
+`core/layout/responsive.dart` is unchanged and a new test fails CI if the two copies ever diverge;
++33 tests; verified on a 1280×800 tablet emulator in both orientations and at 1.5× text) open, awaiting
+merge approval.** With it the tablet phase closes for both apps; the broader Seller UX/UI redesign is the
+next phase and was deliberately not started. Tracker: `docs/pre-scale-readiness.md` (findings for Buyer
+Mobile functional readiness, Buyer Web SEO, tablet support, cross-platform security; 11 decisions needed;
+16-PR sequence). Still open from the previous release: manual Google Play Internal-testing upload of the
+Seller Mobile `0.1.9+11` AAB; Buyer Mobile store release.
 
 ## Most recently completed initiative
 

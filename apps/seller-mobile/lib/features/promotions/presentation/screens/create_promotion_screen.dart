@@ -7,6 +7,7 @@ import '../../../../core/theme/teka_colors.dart';
 import '../../../products/data/models/product_model.dart';
 import '../../../products/data/products_repository.dart';
 import '../providers/promotion_provider.dart';
+import '../../../../core/layout/responsive.dart';
 
 class CreatePromotionScreen extends ConsumerStatefulWidget {
   const CreatePromotionScreen({super.key});
@@ -73,296 +74,299 @@ class _CreatePromotionScreenState extends ConsumerState<CreatePromotionScreen> {
       appBar: AppBar(
         title: const Text("Créer une promotion"),
       ),
-      body: _isLoadingProducts
-          ? const Center(child: CircularProgressIndicator())
-          : Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  // Promotion type selector
-                  const Text(
-                    "Type de promotion",
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment<String>(
-                        value: 'PROMOTION',
-                        label: Text("Promotion"),
-                        icon: Icon(Icons.local_offer, size: 18),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: _isLoadingProducts
+              ? const Center(child: CircularProgressIndicator())
+              : Form(
+                  key: _formKey,
+                  child: ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: [
+                      // Promotion type selector
+                      const Text(
+                        "Type de promotion",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
                       ),
-                      ButtonSegment<String>(
-                        value: 'FLASH_DEAL',
-                        label: Text("Vente Flash"),
-                        icon: Icon(Icons.flash_on, size: 18),
+                      const SizedBox(height: 8),
+                      SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment<String>(
+                            value: 'PROMOTION',
+                            label: Text("Promotion"),
+                            icon: Icon(Icons.local_offer, size: 18),
+                          ),
+                          ButtonSegment<String>(
+                            value: 'FLASH_DEAL',
+                            label: Text("Vente Flash"),
+                            icon: Icon(Icons.flash_on, size: 18),
+                          ),
+                        ],
+                        selected: {_promotionType},
+                        onSelectionChanged: (selected) {
+                          setState(() => _promotionType = selected.first);
+                        },
                       ),
-                    ],
-                    selected: {_promotionType},
-                    onSelectionChanged: (selected) {
-                      setState(() => _promotionType = selected.first);
-                    },
-                  ),
-                  const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                  // Product selector
-                  const Text(
-                    "Selectionner un produit",
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: TekaColors.border),
-                      borderRadius: BorderRadius.circular(12),
-                      color: TekaColors.background,
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _selectedProductId,
-                        isExpanded: true,
-                        hint: const Text("Selectionner un produit"),
-                        icon: const Icon(Icons.keyboard_arrow_down),
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.zero,
+                      // Product selector
+                      const Text(
+                        "Selectionner un produit",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: TekaColors.border),
+                          borderRadius: BorderRadius.circular(12),
+                          color: TekaColors.background,
+                        ),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: _selectedProductId,
+                            isExpanded: true,
+                            hint: const Text("Selectionner un produit"),
+                            icon: const Icon(Icons.keyboard_arrow_down),
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return "Selectionner un produit";
+                              }
+                              return null;
+                            },
+                            items: _products.map((product) {
+                              return DropdownMenuItem<String>(
+                                value: product.id,
+                                child: Text(
+                                  product.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              );
+                            }).toList(),
+                            onChanged: (value) {
+                              setState(() => _selectedProductId = value);
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Title (French — platform is monolingual since May 2026)
+                      TextFormField(
+                        controller: _titleFrController,
+                        decoration: InputDecoration(
+                          labelText: 'Titre (francais) *',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return "Selectionner un produit";
+                          if (value == null || value.trim().isEmpty) {
+                            return "Titre (francais)";
                           }
                           return null;
                         },
-                        items: _products.map((product) {
-                          return DropdownMenuItem<String>(
-                            value: product.id,
-                            child: Text(
-                              product.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() => _selectedProductId = value);
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Description (French)
+                      TextFormField(
+                        controller: _descriptionFrController,
+                        decoration: InputDecoration(
+                          labelText: "Description (francais)",
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        maxLines: 3,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Discount type toggle
+                      const Text(
+                        "Type de reduction",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SegmentedButton<bool>(
+                        segments: const [
+                          ButtonSegment<bool>(
+                            value: true,
+                            label: Text("Pourcentage de reduction"),
+                            icon: Icon(Icons.percent, size: 18),
+                          ),
+                          ButtonSegment<bool>(
+                            value: false,
+                            label: Text("Montant fixe (FC)"),
+                            icon: Icon(Icons.payments_outlined, size: 18),
+                          ),
+                        ],
+                        selected: {_isPercentage},
+                        onSelectionChanged: (selected) {
+                          setState(() {
+                            _isPercentage = selected.first;
+                            _discountValueController.clear();
+                          });
                         },
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
+                      const SizedBox(height: 12),
 
-                  // Title (French — platform is monolingual since May 2026)
-                  TextFormField(
-                    controller: _titleFrController,
-                    decoration: InputDecoration(
-                      labelText: 'Titre (francais) *',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return "Titre (francais)";
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Description (French)
-                  TextFormField(
-                    controller: _descriptionFrController,
-                    decoration: InputDecoration(
-                      labelText: "Description (francais)",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Discount type toggle
-                  const Text(
-                    "Type de reduction",
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SegmentedButton<bool>(
-                    segments: const [
-                      ButtonSegment<bool>(
-                        value: true,
-                        label: Text("Pourcentage de reduction"),
-                        icon: Icon(Icons.percent, size: 18),
-                      ),
-                      ButtonSegment<bool>(
-                        value: false,
-                        label: Text("Montant fixe (FC)"),
-                        icon: Icon(Icons.payments_outlined, size: 18),
-                      ),
-                    ],
-                    selected: {_isPercentage},
-                    onSelectionChanged: (selected) {
-                      setState(() {
-                        _isPercentage = selected.first;
-                        _discountValueController.clear();
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Discount value
-                  TextFormField(
-                    controller: _discountValueController,
-                    decoration: InputDecoration(
-                      labelText: _isPercentage
-                          ? "Pourcentage de reduction"
-                          : "Montant fixe (FC)",
-                      suffixText: _isPercentage ? '%' : 'FC',
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return _isPercentage
-                            ? "Pourcentage de reduction"
-                            : "Montant fixe (FC)";
-                      }
-                      final num = int.tryParse(value);
-                      if (num == null || num <= 0) {
-                        return _isPercentage
-                            ? "Pourcentage de reduction"
-                            : "Montant fixe (FC)";
-                      }
-                      if (_isPercentage && num > 100) {
-                        return "Pourcentage de reduction";
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Start date
-                  const Text(
-                    "Date de debut",
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  InkWell(
-                    onTap: () => _pickDate(isStart: true),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: TekaColors.border),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.calendar_today_outlined,
-                              size: 18, color: TekaColors.mutedForeground),
-                          const SizedBox(width: 12),
-                          Text(
-                            _startDate != null
-                                ? dateFormat.format(_startDate!)
-                                : "Date de debut",
-                            style: TextStyle(
-                              color: _startDate != null
-                                  ? TekaColors.foreground
-                                  : TekaColors.mutedForeground,
-                              fontSize: 15,
-                            ),
+                      // Discount value
+                      TextFormField(
+                        controller: _discountValueController,
+                        decoration: InputDecoration(
+                          labelText: _isPercentage
+                              ? "Pourcentage de reduction"
+                              : "Montant fixe (FC)",
+                          suffixText: _isPercentage ? '%' : 'FC',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        ],
+                        ),
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return _isPercentage
+                                ? "Pourcentage de reduction"
+                                : "Montant fixe (FC)";
+                          }
+                          final num = int.tryParse(value);
+                          if (num == null || num <= 0) {
+                            return _isPercentage
+                                ? "Pourcentage de reduction"
+                                : "Montant fixe (FC)";
+                          }
+                          if (_isPercentage && num > 100) {
+                            return "Pourcentage de reduction";
+                          }
+                          return null;
+                        },
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+                      const SizedBox(height: 20),
 
-                  // End date
-                  const Text(
-                    "Date de fin",
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  InkWell(
-                    onTap: () => _pickDate(isStart: false),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
-                      decoration: BoxDecoration(
-                        border: Border.all(color: TekaColors.border),
+                      // Start date
+                      const Text(
+                        "Date de debut",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: () => _pickDate(isStart: true),
                         borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.calendar_today_outlined,
-                              size: 18, color: TekaColors.mutedForeground),
-                          const SizedBox(width: 12),
-                          Text(
-                            _endDate != null
-                                ? dateFormat.format(_endDate!)
-                                : "Date de fin",
-                            style: TextStyle(
-                              color: _endDate != null
-                                  ? TekaColors.foreground
-                                  : TekaColors.mutedForeground,
-                              fontSize: 15,
-                            ),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 14),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: TekaColors.border),
+                            borderRadius: BorderRadius.circular(12),
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Submit button
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton.icon(
-                      onPressed: _isSaving ? null : _submit,
-                      icon: _isSaving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
+                          child: Row(
+                            children: [
+                              const Icon(Icons.calendar_today_outlined,
+                                  size: 18, color: TekaColors.mutedForeground),
+                              const SizedBox(width: 12),
+                              Text(
+                                _startDate != null
+                                    ? dateFormat.format(_startDate!)
+                                    : "Date de debut",
+                                style: TextStyle(
+                                  color: _startDate != null
+                                      ? TekaColors.foreground
+                                      : TekaColors.mutedForeground,
+                                  fontSize: 15,
+                                ),
                               ),
-                            )
-                          : const Icon(Icons.send),
-                      label: const Text("Soumettre pour approbation"),
-                      style: FilledButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 16),
+
+                      // End date
+                      const Text(
+                        "Date de fin",
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: () => _pickDate(isStart: false),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 14),
+                          decoration: BoxDecoration(
+                            border: Border.all(color: TekaColors.border),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.calendar_today_outlined,
+                                  size: 18, color: TekaColors.mutedForeground),
+                              const SizedBox(width: 12),
+                              Text(
+                                _endDate != null
+                                    ? dateFormat.format(_endDate!)
+                                    : "Date de fin",
+                                style: TextStyle(
+                                  color: _endDate != null
+                                      ? TekaColors.foreground
+                                      : TekaColors.mutedForeground,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Submit button
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: _isSaving ? null : _submit,
+                          icon: _isSaving
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Icon(Icons.send),
+                          label: const Text("Soumettre pour approbation"),
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                   ),
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
+                ),
+      ),
     );
   }
 

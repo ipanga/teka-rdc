@@ -10,6 +10,7 @@ import '../../data/models/product_model.dart';
 import '../../data/products_repository.dart';
 import '../providers/products_provider.dart';
 import 'image_upload_tile.dart';
+import '../../../../core/layout/responsive.dart';
 
 /// Add / remove product images for a single product. The one implementation
 /// shared by the standalone `ProductImagesScreen` and the inline image section
@@ -103,11 +104,24 @@ class _ProductImageManagerState extends ConsumerState<ProductImageManager> {
           ],
         ),
         const SizedBox(height: 8),
-        GridView.builder(
+        // Tablet phase (2026-09-07): the tile count comes from the width this
+        // manager is given, with a minimum readable tile, instead of a fixed
+        // three. A phone keeps three tiles (the floor); a wider form gets more
+        // tiles of the SAME size rather than three enormous ones. This is a
+        // display decision only — the image_picker capture size below is
+        // untouched.
+        LayoutBuilder(
+          builder: (context, constraints) => GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: gridColumnsFor(
+              constraints.maxWidth,
+              minCellWidth: 110,
+              spacing: 8,
+              minColumns: 3,
+              maxColumns: 6,
+            ),
             crossAxisSpacing: 8,
             mainAxisSpacing: 8,
           ),
@@ -125,6 +139,7 @@ class _ProductImageManagerState extends ConsumerState<ProductImageManager> {
               onTap: () => _chooseSourceAndUpload(context, product.id),
             );
           },
+          ),
         ),
       ],
     );

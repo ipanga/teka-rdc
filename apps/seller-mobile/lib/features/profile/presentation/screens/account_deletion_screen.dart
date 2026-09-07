@@ -6,6 +6,7 @@ import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/profile_repository.dart';
+import '../../../../core/layout/responsive.dart';
 
 /// Deliberate multi-step account deletion for sellers (password re-auth).
 /// Explains what's deleted/retained, requires typing "SUPPRIMER" + the current
@@ -161,7 +162,10 @@ class _AccountDeletionScreenState extends ConsumerState<AccountDeletionScreen> {
         leading: const AdaptiveLeading(fallbackLocation: '/profile'),
         title: const Text('Supprimer mon compte'),
       ),
-      body: _buildBody(),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: _buildBody(),
+      ),
     );
   }
 

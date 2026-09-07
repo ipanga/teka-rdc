@@ -5,6 +5,7 @@ import '../../../../core/push/push_service.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
 import '../../data/profile_repository.dart';
+import '../../../../core/layout/responsive.dart';
 
 class NotificationSettingsScreen extends ConsumerStatefulWidget {
   const NotificationSettingsScreen({super.key});
@@ -104,7 +105,10 @@ class _NotificationSettingsScreenState
         leading: const AdaptiveLeading(fallbackLocation: '/profile'),
         title: const Text('Notifications'),
       ),
-      body: _buildBody(),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: _buildBody(),
+      ),
     );
   }
 
