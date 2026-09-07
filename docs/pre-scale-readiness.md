@@ -1474,25 +1474,101 @@ View follows the same path the tests pin.
 readable width is infinite in the compact class, every cap is wider than any phone, and the phone
 screenshots match the previous layout.
 
+### PR 13 — `mobile/seller-tablet-responsiveness` (Tablet PR 2: Seller Mobile, 2026-09-07)
+
+**PR #699 merged** as `2ef5b94` (merge commit; head `09d535a` unchanged, 15/15 checks + CodeQL green,
+40 files, mobile + docs only). Develop synced and clean at `2ef5b94`.
+
+**Re-audit against the merged tree** (every Workstream C finding re-checked; none taken on trust):
+
+| Screen / surface | Verdict |
+|---|---|
+| 28 screens, all `body:` full width | **needs width constraints** — every one of them |
+| `product_form_screen.dart` | **worst surface**, as recorded: a 1280 pt single-column form |
+| `product_image_manager.dart` `crossAxisCount: 3` | **broken on expanded width** — 3 tiles of ~340 pt |
+| `earnings_screen.dart` wallet cards | **width-dependent, phone correct** — 2 per row, so a tablet got 2 huge + 1 orphan |
+| `seller_main_shell.dart` `NavigationBar` | acceptable, needs constraining |
+| 3 sheets (`category_selector`, `product_image_manager`, `verification_screen`) | unconstrained; **no** `bottomSheetTheme`/`dialogTheme` in the theme |
+| 6 files using `showDialog` | unconstrained (same theme gap) |
+| 7 existing `LayoutBuilder` sites | **already adaptive** — lower-bound stacking heuristics; left alone, they now see the readable width |
+| `image_picker` `maxWidth` in 4 files | **requires no change** — capture sizes, not layout (explicitly out of scope) |
+| `home_screen.dart` catalogue counters | already derive columns from constraints; correct inside the readable column |
+
+**Shared foundation unchanged.** `core/layout/responsive.dart` needed no edit: `gridColumnsFor` already
+takes `minCellWidth`/`spacing`/`minColumns`/`maxColumns`, which covered both new Seller grids. The two
+copies remain byte-identical, and a new test reads both files from disk and fails CI if they ever differ —
+the duplicated-file convention is now enforced rather than remembered.
+
+**What changed:**
+
+| Area | Change |
+|---|---|
+| Every screen (28) | body centred in a readable column: auth (5), dashboard, orders list + detail, products list + detail + form + images, earnings + payout detail + payout request, profile, shop profile, personal info, security, notification settings, account deletion, help, verification, notifications, promotions list + create, reviews, seller application |
+| Theme | `bottomSheetTheme` + `dialogTheme` carry the shared 640 pt cap, so all 3 sheets and every dialog inherit it |
+| Product images | tile count from a 110 pt minimum tile (3 on a phone, more on a wider form) instead of a fixed 3 — display only, `image_picker` untouched |
+| Revenus | the three wallet cards fit side by side on a tablet instead of 2 + orphan |
+| Navigation | M3 `NavigationBar` KEPT, centred in a phone-width group |
+| Bottom bars | order-detail actions, personal-info and shop-profile save buttons centred, surfaces full width |
+
+**Lists: readable column, not a grid — deliberately.** Seller order and product cards are variable height
+(a title wraps to three lines, the meta row wraps, an order carries a different number of lines), so a
+fixed-extent `GridView` would clip or stretch them, and a masonry layout would break the lazy pagination
+both lists depend on. The Buyer column count was NOT reused: buyer cards are square-image tiles, seller
+cards are wide information rows.
+
+**Navigation decision, evaluated on its own terms.** A `NavigationRail` would mean restructuring the
+`StatefulNavigationShell` that gives each of the five destinations its own navigator and scroll position,
+and a seller working on a tablet still reaches for the bottom of the screen. Kept and centred; the
+rationale is recorded in `seller_main_shell.dart`, and a test pins the sizing.
+
+**A defect the runtime pass caught.** With only the controls centred, the navigation bar and the
+order-detail action bar painted their surface just as wide, so each read as a white block floating on the
+page background (measured: `#FFFFFF` in the centre, `#F8FAFC` at the edges). The surfaces are painted full
+width now and only the controls are centred. The order detail additionally moves its readable column onto
+the scrollable content so the action bar can span the screen.
+
+**Tests: seller-mobile 219 (was 186), buyer-mobile 441 unchanged.** New: the responsive-parity guard;
+readable column width at 320/360/390/412 and 768/834/1024/1280/1366 plus phone landscape; orders and
+products cards at phone and tablet widths, at 1.5x text and in landscape; the product form staying a
+single readable column with its price pair side by side, at 1.3x and 1.5x and in landscape; the image-grid
+tile count; the wallet-card columns; the sheet and dialog constraints; the navigation bar centred on a
+tablet, full width on a phone, keeping its own height and all five labels. `flutter analyze` unchanged at
+20 issues (seller) and 6 (buyer). `pnpm type-check` clean.
+
+**Runtime verification (Android tablet emulator, 1280x800 logical, dev flavor, local API on the dev DB).**
+Landscape: login, dashboard, orders list, order detail, products list, product form, Revenus, profile,
+shop verification, personal info. Portrait: verification, profile, product form. Text scale 1.5x on the
+product form (price fields correctly stack, no overflow) and on the products list in landscape. The
+dashboard Action Center keeps all three action rows and the catalogue counters. Revenus shows the three
+wallet cards side by side. Verification shows the status card, the required and optional document cards
+and the privacy note, with no Cloudinary id or document URL anywhere. **Phone: not re-run in this PR** —
+the phone emulator was stopped to free resources after it destabilised the tablet run; the phone case is
+covered by tests at 320/360/390/412 asserting the previous widths exactly, and by PR 12's phone pass on
+the shared wrappers. **iOS: not exercised** (no simulator input tooling); the width classes are computed
+from layout constraints, so an iPad in Split View follows the same path the tests pin.
+
+**Fixtures.** Sign-in used a dev seller whose password hash was temporarily replaced and then **restored
+byte-for-byte** from a backup (verified: the temporary password now returns 401). A disposable QA seller
+registered through the API was deleted afterwards. No production data touched.
+
+**Privacy:** no new logging, analytics or Sentry data; no network or API change.
+
+**Backward compatibility:** no API, schema, env or dependency change; no taxonomy, payout or verification
+business rule touched. Nothing changes on a phone.
+
 ## Next exact step
 
-PR 1–11 merged (`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`, `c6ce951`,
-`613f0fa`, `9450358`, `5ed2814`) plus `ci/dependabot-pnpm` (#688, `adae24f`). Buyer Mobile functional
-readiness is closed — see the closure table above.
+PR 1–12 merged (`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`, `c6ce951`,
+`613f0fa`, `9450358`, `5ed2814`, `2ef5b94`) plus `ci/dependabot-pnpm` (#688, `adae24f`). Buyer Mobile
+functional readiness is closed, and the tablet phase is complete for both apps once PR 13 lands.
 
-**PR 12 `mobile/tablet-responsiveness` (Tablet PR 1: shared responsive foundation + Buyer Mobile) open —
-awaiting merge approval.** See its record above.
+**PR 13 `mobile/seller-tablet-responsiveness` (Tablet PR 2: Seller Mobile) open — awaiting merge
+approval.** See its record above.
 
-**Then Tablet PR 2 — Seller Mobile.** The helper is already mirrored into
-`apps/seller-mobile/lib/core/layout/responsive.dart`, so that PR is: add `bottomSheetTheme` +
-`dialogTheme` to its `app_theme.dart`; wrap `product_form_screen.dart` (the worst surface),
-`orders_list_screen.dart`, `products_list_screen.dart` and `verification_screen.dart` in
-`ReadableColumn`; drive `product_image_manager.dart`'s image grid from `gridColumnsFor` instead of
-`crossAxisCount: 3`; constrain the three sheets (`category_selector.dart`,
-`product_image_manager.dart`, `verification_screen.dart`); keep the stock `NavigationBar`; add
-width-parameterised cases to the existing harnesses. **Do not touch** the `maxWidth:` arguments in
-`seller_application_screen.dart`, `verification_screen.dart`, `personal_info_screen.dart` and
-`product_image_manager.dart` — those are `image_picker` capture sizes, not layout.
+**After tablet:** the broader Seller Mobile UX/UI redesign (deliberately NOT started here: no colour
+system, typography, card or navigation-architecture changes were made), then Buyer Web SEO, then the
+remaining security follow-ups (D2b) and D9/D10.
 
-After tablet: the broader UI/UX polish, then Buyer Web SEO, then the remaining security follow-ups (D2b)
-and D9/D10.
+**Remaining tablet risks, carried forward:** iOS/iPad runtime is still unexercised in every PR of this
+phase; the seller phone pass was not re-run in PR 13 (tests cover it); no golden tests exist in either
+app, so a visual regression can only be caught by eye.
