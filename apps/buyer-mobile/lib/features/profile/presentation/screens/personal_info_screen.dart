@@ -172,7 +172,7 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
               child: ReadableBottomBar(
                 child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: ElevatedButton.icon(
+                child: FilledButton.icon(
                   onPressed: _saving ? null : _save,
                   icon: _saving
                       ? const SizedBox(

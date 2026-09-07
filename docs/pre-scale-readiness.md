@@ -1556,19 +1556,111 @@ registered through the API was deleted afterwards. No production data touched.
 **Backward compatibility:** no API, schema, env or dependency change; no taxonomy, payout or verification
 business rule touched. Nothing changes on a phone.
 
+## Phase — Buyer Mobile UX/UI/design polish (started 2026-09-07)
+
+**Tablet phase closed.** PR #700 merged as `57b3ea7` (merge commit; head `6e223c1` unchanged, 15/15 checks
++ CodeQL green, 39 files: 36 seller-mobile + 3 trackers). Both apps are tablet-responsive.
+**Two validation gaps stay open and are NOT claimed as done:**
+
+| Gap | State |
+|---|---|
+| iPad / iOS runtime | **never exercised** in Tablet PR 1 or PR 2 — no simulator input tooling. Code builds; interaction untested. |
+| Seller Mobile phone runtime | **not re-run** in Tablet PR 2 (the phone emulator was stopped to free resources). Covered only by tests at 320/360/390/412. |
+
+### Buyer Mobile visual/UX audit (2026-09-07, phone 448 pt logical, live app)
+
+Walked as a buyer: launch → town → home (three scroll depths) → PDP → search → zero-result. Findings by
+severity, with "already good" recorded so later PRs do not redesign what works.
+
+| # | Finding | Severity |
+|---|---|---|
+| 1 | **Seven network-image call sites, six different loading/failure looks**; two used raw `Image.network`, so home banners and flash deals bypassed the cache and decoded at full resolution | **Critical (perf + consistency)** |
+| 2 | A home banner whose image is missing put white title/subtitle on a near-white fallback — **measured 2.82:1**, below AA | **Critical (accessibility)** |
+| 3 | Search's zero-result hand-rolled its own layout, so the app had **two empty-state visual languages** | High |
+| 4 | **12 distinct `BorderRadius.circular` values** (8, 10, 12, 14, 16, 18, 20, 999, 4, 2, 6, 100) | High |
+| 5 | **200+ raw `fontSize:` literals across 20 values** (11/11.5, 12/12.5, 13, 14/15 …) while `AppTheme` carries a complete 15-step scale nothing references | High |
+| 6 | 11 raw hex colours in feature code, several duplicating existing tokens (`0xFFF59E0B` = warning, `0xFF2563EB` = info) | Medium |
+| 7 | Product-card footer reserves a fixed allowance, so a 2-line title leaves ~60 pt of visible void above the price | High → **UX PR B** |
+| 8 | Two full-width heroes stack back to back on home; category strip labels wrap and desynchronise row heights | Medium → **UX PR B** |
+| 9 | Wishlist heart is a white circle with a faint shadow — low contrast on pale product photos | Medium → **UX PR B** |
+| 10 | One stray `ElevatedButton` where the app's primary is `FilledButton` everywhere else (two different theme paddings and weights) | Medium |
+| 11 | Dead `paymentMpesa/Airtel/Orange` tokens (COD-only since 2026-05-26) | Low |
+| 12 | Search zero-result **copy** — names the term, explains what to do, offers popular searches | **Already good** |
+| 13 | PDP price hierarchy, COD/delivery card ("Livraison assurée par Teka"), `9.350 FC` convention | **Already good** |
+| 14 | `ShimmerBox` already honours `MediaQuery.disableAnimationsOf` | **Already good** |
+| 15 | `showAppSnackbar` deliberately bypasses the theme so both apps render identically | **Already good — do not "fix"** |
+| 16 | `AppEmptyState`/`AppErrorState` already adopted by 17 screens | **Already good** |
+
+### Design direction
+
+Teka's identity stays exactly as it is: the Modern Ruby `#C8102E` scale, the white app bar with red reserved
+for CTAs and accents, the copper/cobalt town accents. The problem was never the design — it was that the
+design system existed and nothing referenced it. So the direction is **adoption and consolidation, not
+restyling**: one scale per dimension, one widget per cross-cutting job, and guards that keep them.
+
+* **Typography** — no new sizes. The theme's 15-step scale is correct; screens migrate onto it as they are
+  touched, so a diff always stays reviewable.
+* **Spacing** — a 4-based ladder (`TekaSpacing` 4/8/12/16/20/24/32). No mechanical sweep.
+* **Radius** — four steps plus a pill (`TekaRadius` 6/8/12/16/999); `md` is 8, matching what the theme
+  already rounds buttons, inputs and cards at, so adopting the token restyles nothing.
+* **Colour/surface** — brand untouched; add the semantic tokens screens were missing so no file needs a raw
+  hex; delete dead tokens.
+* **Animation** — none added. `ShimmerBox` is the one motion in the app and it already respects
+  reduced-motion. Micro-interactions are deferred to the screen PRs, where they can be judged in context.
+
+### PR decomposition (chosen)
+
+| PR | Scope |
+|---|---|
+| **A (this one)** | Shared visual foundation: tokens, one remote-image treatment, one empty-state language, button consistency |
+| B | Home + Search + Category + product cards (feed composition, card footer, banners, category strip) |
+| C | PDP + Cart + Checkout |
+| D | Orders + Ratings + Profile + Notifications |
+
+### PR A — `buyer-mobile/ux-ui-design-polish`
+
+`TekaSpacing` + `TekaRadius`; the semantic colours (`ratingStar`, `warningStrong`, `warningText`,
+`shadowSoft`, `shadowMedium`); dead payment colours removed; **all 11 raw hex literals gone from `lib/`**.
+
+`TekaNetworkImage` replaces all seven image call sites bar the full-screen viewer (dark backdrop, a
+deliberate exception): one shimmer placeholder, one French-labelled fallback, one decode width taken from
+the box it is given. Banners and flash deals move onto the cached pipeline. The banner passes a dark
+fallback surface — **measured on the emulator: 2.82:1 → 16.32:1**.
+
+`AppEmptyState` gains a `footer` slot; search's zero-result rides the shared shell with its popular terms
+inside it. The stray `ElevatedButton` becomes a `FilledButton`.
+
+**Tests: buyer-mobile 463 (was 441), seller-mobile 219 unchanged.** New: the spacing/radius ladders, the
+theme's default radius agreeing with the token, the semantic colours, AA contrast of white on the brand red,
+the image widget's null/empty/blank/unbounded/semantics behaviour and its dark-fallback contrast, the empty
+state's footer slot — plus source guards that fail CI on a raw hex, an `Image.network`, a new
+`CachedNetworkImage` call site or a resurrected payment colour. `flutter analyze` unchanged (6 buyer, 20
+seller); `pnpm type-check` clean.
+
+**Runtime (Android phone emulator, 1344×2992, dev flavor, local API):** home before/after (the image-less
+banner now reads as a deliberate dark card instead of a washed-out block), search zero-result before/after
+(now the shared panel), PDP with a product that has no images (shared fallback instead of a void).
+Screenshots were captured to the scratchpad and not committed. **Tablet not re-run in this PR** — the
+changes are token- and widget-level and the tablet layout tests at 320–1366 still pass. **iOS not
+exercised.**
+
+**No API, schema, env, dependency, analytics or Buyer Web change.** No PII added anywhere.
+
 ## Next exact step
 
-PR 1–12 merged (`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`, `c6ce951`,
-`613f0fa`, `9450358`, `5ed2814`, `2ef5b94`) plus `ci/dependabot-pnpm` (#688, `adae24f`). Buyer Mobile
-functional readiness is closed, and the tablet phase is complete for both apps once PR 13 lands.
+PR 1–13 merged (`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`, `c6ce951`,
+`613f0fa`, `9450358`, `5ed2814`, `2ef5b94`, `57b3ea7`) plus `ci/dependabot-pnpm` (#688, `adae24f`).
+**Buyer Mobile functional readiness and the tablet phase are both closed**, with the two validation gaps
+recorded above.
 
-**PR 13 `mobile/seller-tablet-responsiveness` (Tablet PR 2: Seller Mobile) open — awaiting merge
-approval.** See its record above.
+**UX PR A `buyer-mobile/ux-ui-design-polish` open — awaiting merge approval.** See its record above.
 
-**After tablet:** the broader Seller Mobile UX/UI redesign (deliberately NOT started here: no colour
-system, typography, card or navigation-architecture changes were made), then Buyer Web SEO, then the
-remaining security follow-ups (D2b) and D9/D10.
+**Then UX PR B — Home, Search, Category and product cards.** Its scope is already written down by the
+audit: the product-card footer void (finding 7), the two stacked heroes and the category strip (8), the
+wishlist heart contrast (9), plus migrating those screens' `fontSize`/radius literals onto the scales PR A
+introduced. Then PR C (PDP, cart, checkout) and PR D (orders, ratings, profile, notifications). Seller
+Mobile UX/UI polish is a separate phase after all four.
 
-**Remaining tablet risks, carried forward:** iOS/iPad runtime is still unexercised in every PR of this
-phase; the seller phone pass was not re-run in PR 13 (tests cover it); no golden tests exist in either
-app, so a visual regression can only be caught by eye.
+**Carried-forward risks:** iPad/iOS runtime is unexercised across the tablet and UX phases; the Seller
+phone runtime was not re-run in Tablet PR 2; no golden tests exist in either app, so a purely visual
+regression can only be caught by eye.

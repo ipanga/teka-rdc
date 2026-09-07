@@ -5,6 +5,10 @@ import 'package:flutter/material.dart';
 /// (#C8102E — cleaner/brighter than the old #BF0000, AA-safe for white text,
 /// used as accent not flood), aligned 2026-06-21. Keep web and mobile in sync
 /// when adjusting.
+///
+/// Payments are Cash on Delivery only (2026-05-26), so the Mobile Money
+/// provider colours that lived here were removed in the UX polish phase —
+/// they had no call site left.
 class TekaColors {
   TekaColors._();
 
@@ -94,9 +98,21 @@ class TekaColors {
     }
   }
 
-  // === Mobile Money provider colors ====================================
-  // Used by checkout payment-provider tiles.
-  static const Color paymentMpesa = Color(0xFF4CAF50); // M-Pesa green
-  static const Color paymentAirtel = Color(0xFFE53935); // Airtel red
-  static const Color paymentOrange = Color(0xFFF57C00); // Orange Money orange
+  // === Amber / notice ==================================================
+  // `warning` is the fill; these two are the readable text weights on a pale
+  // amber surface (checkout's COD notice) and the review star. They existed as
+  // raw hex literals in four files before the UX polish phase.
+  static const Color warningStrong = Color(0xFFB45309);
+  static const Color warningText = Color(0xFF92400E);
+
+  /// Review and rating stars. Same amber as `warning` by design, but named for
+  /// what it is: a star is not a warning, and the two must be free to diverge.
+  static const Color ratingStar = Color(0xFFF59E0B);
+
+  // === Elevation ========================================================
+  // The app uses borders, not shadows, for hierarchy. These two are the only
+  // sanctioned shadows: a soft edge under a bar and a slightly deeper one
+  // under a floating header.
+  static const Color shadowSoft = Color(0x14000000);
+  static const Color shadowMedium = Color(0x1A000000);
 }

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../data/models/banner_model.dart';
 import '../providers/banner_provider.dart';
+import '../../../../core/widgets/teka_network_image.dart';
 
 class BannerCarousel extends ConsumerStatefulWidget {
   const BannerCarousel({super.key});
@@ -173,32 +174,15 @@ class _BannerSlide extends StatelessWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Image.network(
-            banner.imageUrl,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
-              color: TekaColors.muted,
-              child: const Center(
-                child: Icon(
-                  Icons.image_outlined,
-                  size: 48,
-                  color: TekaColors.mutedForeground,
-                ),
-              ),
-            ),
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-              return Container(
-                color: TekaColors.muted,
-                child: const Center(
-                  child: SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                ),
-              );
-            },
+          // A banner is the largest image on the home feed, so a raw
+          // Image.network here meant an uncached full-resolution decode and a
+          // dead grey block whenever an admin banner URL 404'd.
+          TekaNetworkImage(
+            url: banner.imageUrl,
+            fallbackIconSize: 40,
+            // The banner's title and subtitle are white on a scrim. Without a
+            // dark fallback a missing image left that text at 2.8:1 contrast.
+            fallbackBackground: TekaColors.foreground,
           ),
           // Gradient overlay for text readability
           Positioned(

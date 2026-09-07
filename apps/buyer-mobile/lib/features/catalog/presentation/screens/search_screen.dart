@@ -441,32 +441,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     if (state.products.isEmpty) {
       // Also save the (failed) term so it appears in recent — and offer popular
       // searches as a recovery path instead of a dead end.
+      // Same empty-state shell as the rest of the app; the popular terms ride
+      // in the footer slot so a zero-result search still offers a way out.
       return ListView(
         children: [
-          const SizedBox(height: 48),
-          const Icon(Icons.search_off,
-              size: 56, color: TekaColors.mutedForeground),
-          const SizedBox(height: 12),
-          Center(
-            child: Text(
-              "Aucun résultat pour \"$_query\"",
-              style: Theme.of(context).textTheme.titleSmall,
-              textAlign: TextAlign.center,
-            ),
+          AppEmptyState(
+            icon: Icons.search_off,
+            title: "Aucun résultat pour \"$_query\"",
+            message: "Essayez un autre mot-clé ou une recherche populaire :",
+            footer: _popularChips(),
           ),
-          const SizedBox(height: 6),
-          Center(
-            child: Text(
-              "Essayez un autre mot-clé ou une recherche populaire :",
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: TekaColors.mutedForeground),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          const SizedBox(height: 20),
-          _popularChips(),
         ],
       );
     }

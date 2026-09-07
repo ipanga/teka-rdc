@@ -11,7 +11,7 @@ class StarRating extends StatelessWidget {
     super.key,
     required this.rating,
     this.size = 18,
-    this.color = const Color(0xFFF59E0B),
+    this.color = TekaColors.ratingStar,
   });
 
   @override

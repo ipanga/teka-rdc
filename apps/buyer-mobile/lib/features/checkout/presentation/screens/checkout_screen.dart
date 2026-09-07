@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +11,7 @@ import '../../../address/presentation/widgets/address_form_sheet.dart';
 import '../../../city/data/city_repository.dart';
 import '../../data/models/checkout_model.dart';
 import '../providers/checkout_provider.dart';
+import '../../../../core/widgets/teka_network_image.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -773,34 +773,10 @@ class _ReviewStep extends StatelessWidget {
                         child: SizedBox(
                           width: 50,
                           height: 50,
-                          child: cartState.items[i].product.thumbnailUrl !=
-                                      null &&
-                                  cartState.items[i].product.thumbnailUrl!
-                                      .isNotEmpty
-                              ? CachedNetworkImage(
-                                  imageUrl: cartState
-                                      .items[i].product.thumbnailUrl!,
-                                  fit: BoxFit.cover,
-                                  placeholder: (_, __) => Container(
-                                    color: TekaColors.muted,
-                                  ),
-                                  errorWidget: (_, __, ___) => Container(
-                                    color: TekaColors.muted,
-                                    child: const Icon(
-                                      Icons.image_outlined,
-                                      size: 20,
-                                      color: TekaColors.mutedForeground,
-                                    ),
-                                  ),
-                                )
-                              : Container(
-                                  color: TekaColors.muted,
-                                  child: const Icon(
-                                    Icons.image_outlined,
-                                    size: 20,
-                                    color: TekaColors.mutedForeground,
-                                  ),
-                                ),
+                          child: TekaNetworkImage(
+                            url: cartState.items[i].product.thumbnailUrl,
+                            fallbackIconSize: 20,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -976,10 +952,10 @@ class _ReviewStep extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFB45309).withValues(alpha: 0.08),
+                    color: TekaColors.warningStrong.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: const Color(0xFFB45309).withValues(alpha: 0.30),
+                      color: TekaColors.warningStrong.withValues(alpha: 0.30),
                     ),
                   ),
                   child: Row(
@@ -988,14 +964,14 @@ class _ReviewStep extends StatelessWidget {
                       const Icon(
                         Icons.info_outline,
                         size: 18,
-                        color: Color(0xFFB45309),
+                        color: TekaColors.warningStrong,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           "L'adresse de livraison sélectionnée se trouve dans une ville différente de celle des produits. Cela peut entraîner des frais de transport supplémentaires. Veuillez vérifier votre adresse avant de confirmer la commande.",
                           style: const TextStyle(
-                            color: Color(0xFF92400E),
+                            color: TekaColors.warningText,
                             fontSize: 13,
                             height: 1.4,
                           ),

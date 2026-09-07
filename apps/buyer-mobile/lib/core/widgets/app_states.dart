@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/teka_colors.dart';
+import '../theme/teka_spacing.dart';
 
 /// Shared empty + error state widgets so every screen renders these the same
 /// way (consistent icon size, hierarchy, copy, and a retry/CTA affordance)
@@ -14,6 +15,12 @@ class AppEmptyState extends StatelessWidget {
   final String? actionLabel;
   final VoidCallback? onAction;
 
+  /// Extra recovery affordance below the action — popular search terms, a
+  /// list of suggestions. Added so a screen with more to offer than a single
+  /// button does not have to hand-roll its own empty state (which is how the
+  /// app ended up with two different empty-state looks).
+  final Widget? footer;
+
   const AppEmptyState({
     super.key,
     required this.icon,
@@ -21,6 +28,7 @@ class AppEmptyState extends StatelessWidget {
     this.message,
     this.actionLabel,
     this.onAction,
+    this.footer,
   });
 
   @override
@@ -71,8 +79,12 @@ class AppEmptyState extends StatelessWidget {
                   ),
                 ],
                 if (actionLabel != null && onAction != null) ...[
-                  const SizedBox(height: 20),
+                  const SizedBox(height: TekaSpacing.lg),
                   FilledButton(onPressed: onAction, child: Text(actionLabel!)),
+                ],
+                if (footer != null) ...[
+                  const SizedBox(height: TekaSpacing.md),
+                  footer!,
                 ],
               ],
             ),

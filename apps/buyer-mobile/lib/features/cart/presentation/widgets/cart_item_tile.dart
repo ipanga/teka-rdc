@@ -1,8 +1,8 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../data/models/cart_model.dart';
+import '../../../../core/widgets/teka_network_image.dart';
 
 class CartItemTile extends StatelessWidget {
   final CartItemModel item;
@@ -53,28 +53,7 @@ class CartItemTile extends StatelessWidget {
                   border: Border.all(color: TekaColors.border),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: imageUrl != null && imageUrl.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: imageUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => const Center(
-                          child: SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                        ),
-                        errorWidget: (context, url, error) => const Icon(
-                          Icons.image_not_supported_outlined,
-                          color: TekaColors.mutedForeground,
-                          size: 28,
-                        ),
-                      )
-                    : const Icon(
-                        Icons.image_outlined,
-                        color: TekaColors.mutedForeground,
-                        size: 28,
-                      ),
+                child: TekaNetworkImage(url: imageUrl, fallbackIconSize: 24),
               ),
             ),
           ),
