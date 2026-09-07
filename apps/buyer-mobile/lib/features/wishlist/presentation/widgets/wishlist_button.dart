@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/auth/auth_guard.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/wishlist_provider.dart';
 
@@ -58,15 +59,19 @@ class WishlistButton extends ConsumerWidget {
       try {
         await ref.read(wishlistProvider.notifier).toggleWishlist(productId);
         if (context.mounted) {
-          ScaffoldMessenger.of(context).clearSnackBars();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
+          // Rule 15: every snackbar goes through showAppSnackbar so both
+          // Flutter apps render it identically. This one used to build its
+          // own SnackBar, which is why a favourite confirmation looked
+          // different from every other toast in the app.
+          showAppSnackbar(
+            context,
+            message:
                 isWishlisted ? "Retiré des favoris" : "Ajouté aux favoris",
-              ),
-              backgroundColor: TekaColors.success,
-              duration: const Duration(seconds: 2),
-            ),
+            tone: AppSnackbarTone.success,
+            // No icon: the green tone already reads as success and a heart
+            // here duplicates the control the buyer just tapped.
+            duration: const Duration(seconds: 2),
+            replaceCurrent: true,
           );
         }
       } catch (e) {

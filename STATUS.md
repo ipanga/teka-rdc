@@ -3,22 +3,28 @@
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
 **Pre-scale readiness initiative — Buyer Mobile functional readiness CLOSED, tablet phase CLOSED for both
-apps, now in the Buyer Mobile UX/UI/design-polish phase.** PRs 1–13 merged (`6201534`, `29ccb6f`,
-`5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`, `c6ce951`, `613f0fa`, `9450358`, `5ed2814`,
-`2ef5b94`, `57b3ea7`) plus `ci/dependabot-pnpm` (`adae24f`). **Two validation gaps stay open and must not
-be reported as done: iPad/iOS runtime was never exercised in either tablet PR (no simulator input tooling),
-and the Seller Mobile phone runtime was not re-run in Tablet PR 2 (tests cover 320–412 only).**
+apps, now in the Buyer Mobile UX/UI/design-polish phase (PR A merged, PR B open).** Merged to date:
+`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`, `c6ce951`, `613f0fa`,
+`9450358`, `5ed2814`, `2ef5b94`, `57b3ea7`, `7dadf23` (UX PR A: design tokens, one remote-image treatment,
+one empty-state language), plus `ci/dependabot-pnpm` (`adae24f`).
 
-**UX PR A `buyer-mobile/ux-ui-design-polish` open, awaiting merge approval** — the shared visual
-foundation: `TekaSpacing`/`TekaRadius` scales, the semantic colours that remove every raw hex from `lib/`,
-`TekaNetworkImage` replacing seven divergent image call sites (two of which bypassed the cache entirely)
-with one shimmer, one French fallback and a decode width from the box, a dark banner fallback that took
-white-on-fallback contrast from a measured 2.82:1 to 16.32:1, and one empty-state language after search's
-zero-result stopped hand-rolling its own. +22 tests (463). The audit, the design direction and the
-four-PR decomposition (A foundation · B home/search/category/cards · C PDP/cart/checkout · D
-orders/ratings/profile/notifications) are recorded in the tracker. Tracker:
-`docs/pre-scale-readiness.md`. Still open from the previous release: manual Google Play Internal-testing
-upload of the Seller Mobile `0.1.9+11` AAB; Buyer Mobile store release.
+**UX PR B `buyer-mobile/ux-home-search-category` open, awaiting merge approval** — the discovery surfaces.
+Home puts navigation before merchandising (the category strip moved from 617 pt to 429 pt down a 448 pt
+phone; both heroes keep their place, only the order changed). The category strip's magic `118` height
+becomes a two-line label box driven by the text scaler, so French labels stop clipping at 1.5x and every
+tile is the same height. The card-footer reservation is summed from the rows each variant renders instead
+of guessed — 21 pt tighter for catalog — and the existing layout test caught a real bug in the first
+attempt (the rating row is gated on review count, not on the variant). The wishlist chip is opaque with a
+hairline ring so it reads over both pale and dark photography, and its toast now goes through
+`showAppSnackbar`. Search's zero-result-vs-error ordering was audited and found **already correct**.
++7 tests (471). Remaining UX PRs: C (PDP, cart, checkout) then D (orders, ratings, profile,
+notifications), then a separate Seller Mobile UX phase.
+
+**Two validation gaps stay open and must not be reported as done: iPad/iOS runtime has never been
+exercised in the tablet or UX phases (no simulator input tooling), and the Seller Mobile phone runtime has
+not been re-run since Tablet PR 2.** Tracker: `docs/pre-scale-readiness.md`. Still open from the previous
+release: manual Google Play Internal-testing upload of the Seller Mobile `0.1.9+11` AAB; Buyer Mobile store
+release.
 
 ## Most recently completed initiative
 

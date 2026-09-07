@@ -24,15 +24,58 @@ double _productCardTextScale(BuildContext context) {
   return scale.clamp(1.0, 2.0);
 }
 
+/// Footer height reserved under a product card's square image.
+///
+/// The grid needs one height per row, so the reservation has to cover the
+/// tallest card that variant can produce. It used to be a padded guess — 120
+/// for discovery, 144 for catalog — which left a visible void under a short
+/// title: measured on a 448 pt phone, a discovery card with a two-line title
+/// and no promotion showed ~60 pt of empty space between the title and the
+/// price (UX PR B).
+///
+/// It is now summed from the rows each variant can actually render, so the
+/// slack is the difference between a card and the worst card beside it rather
+/// than an arbitrary margin:
+///
+/// | row | discovery | catalog |
+/// |---|---|---|
+/// | brand / « Officiel » line | — | 11 pt line + 2 gap |
+/// | title (2 lines @ 13 / 1.35) | 35.1 | 35.1 |
+/// | price (16 pt, w800) | 22 | 22 |
+/// | struck-through original | 12 + 1 | 12 + 1 |
+///
+/// (The rating row is gated on review count, not on the variant, so both
+/// reserve it.)
+/// | rating row | 16 + 3 | 16 + 3 |
+/// | vertical padding (10 + 12) | 22 | 22 |
+///
+/// Everything except the padding scales with the text scaler, so a buyer at
+/// 1.5x gets a taller footer instead of a clipped one.
 double _productCardInfoExtent(
   BuildContext context,
   ProductCardVariant variant,
 ) {
   final scale = _productCardTextScale(context);
-  final base = variant == ProductCardVariant.discovery ? 120.0 : 144.0;
-  final largeTextAllowance =
-      variant == ProductCardVariant.discovery ? 72.0 : 96.0;
-  return base + ((scale - 1) * largeTextAllowance);
+  const padding = 22.0; // 10 top + 12 bottom, fixed
+  const title = 2 * 13.0 * 1.35;
+  const price = 22.0;
+  const struckThrough = 12.0 + 1.0;
+  // Line boxes, not font sizes: a 9 pt label occupies ~11 pt of line and a
+  // 13 pt star sits in a ~16 pt row. Measured against the layout test, which
+  // overflowed by 3.1 pt when these were taken as the raw font sizes.
+  const brandLine = 11.0 + 2.0;
+  const ratingRow = 16.0 + 3.0;
+
+  // The rating row is gated on `totalReviews > 0`, not on the variant, so
+  // BOTH variants must reserve it. Only the brand / « Officiel » line is
+  // catalog-only.
+  final rows = variant == ProductCardVariant.discovery
+      ? title + price + struckThrough + ratingRow
+      : brandLine + title + price + struckThrough + ratingRow;
+
+  // A hair of slack absorbs font-metric differences between platforms; without
+  // it a 1 pt rounding difference becomes a RenderFlex overflow.
+  return padding + (rows * scale) + 4;
 }
 
 /// Main-axis extent for a product grid cell. Unlike a fixed aspect ratio,
@@ -283,13 +326,26 @@ class ProductCard extends ConsumerWidget {
                         child: Container(
                           width: 44,
                           height: 44,
+                          // The chip has to read over both a white studio
+                          // shot and a dark photo. A translucent white disc
+                          // did the second job only — on a pale image it
+                          // vanished and the heart looked like it was
+                          // floating on the product. Opaque white carries the
+                          // dark case; the hairline ring carries the light
+                          // one; the shadow lifts it off busy photography.
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.92),
+                            color: Colors.white,
                             shape: BoxShape.circle,
+                            border: Border.all(
+                              color:
+                                  TekaColors.foreground.withValues(alpha: 0.14),
+                              width: 1,
+                            ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.10),
-                                blurRadius: 4,
+                                color: TekaColors.foreground
+                                    .withValues(alpha: 0.16),
+                                blurRadius: 6,
                                 offset: const Offset(0, 1),
                               ),
                             ],
