@@ -1389,18 +1389,110 @@ buyer-web was blocked in D2/D3 by the local cookie/OTP QA stack; the dev/staging
 prod-side reference check; Dependabot's npm security jobs still fail inside its own helper. None of these
 is a Buyer Mobile functional defect.
 
+### PR 12 — `mobile/tablet-responsiveness` (Tablet PR 1: shared foundation + Buyer Mobile, 2026-09-07)
+
+**PR #698 merged** as `5ed2814` (merge commit; 15/15 checks + CodeQL green, no schema/env/dependency
+file). Develop CI green at `5ed2814` (14 checks). Buyer Mobile functional readiness closed with it.
+
+**Re-audit (on `develop` `5ed2814`) — the Workstream C findings above all still held:**
+
+| Finding | Status | Evidence |
+|---|---|---|
+| No breakpoint helper in either app | confirmed | no `core/layout/`; the only shared idiom is `LayoutBuilder` with a lower bound |
+| `productCardGridExtent` divides the WINDOW width by 2 | confirmed | `product_card.dart` — wrong for any grid that is not a two-column phone |
+| Six grids hardcode `crossAxisCount: 2` | confirmed | home, category, search, promotions, wishlist + the loading skeleton |
+| PDP gallery is a bare `AspectRatio` 1.25 | confirmed | 819 pt of photo on a 1024 pt tablet; decodes at window width |
+| Sheets and dialogs unconstrained | confirmed | four `showModalBottomSheet` sites, six `showDialog` files, **no** `bottomSheetTheme` and **no** `dialogTheme` in `app_theme.dart` |
+| Bottom bars span the full width | confirmed | PDP, cart, checkout, personal info |
+| seller-mobile already uses `LayoutBuilder` in 7 places | confirmed | left untouched — Tablet PR 2 |
+
+**Scope decision.** Split as the user allowed: this PR is the **shared foundation + Buyer Mobile**;
+Seller Mobile is Tablet PR 2. seller-mobile receives only the byte-identical `core/layout/responsive.dart`
+(and the sheet/dialog theme is NOT added there yet), so PR 2 has the helper ready and PR 1 stays reviewable.
+
+**The foundation — `lib/core/layout/responsive.dart`, kept byte-identical in both apps** (the
+`core/connectivity` + `core/network` convention; `diff` before calling a change done). Everything works
+from the width a widget is actually given — never a device name, a platform check or a shortest-side
+heuristic — so it behaves the same on an Android tablet, an iPad, a phone in landscape and a split-screen
+window:
+
+| Piece | What it does |
+|---|---|
+| `LayoutWidthClass` + `widthClassFor` | Material 3 classes on the layout width: compact < 600, medium 600–839, expanded ≥ 840 |
+| `gridColumnsFor` / `gridCellWidth` | columns from a minimum readable card width (168 pt), clamped to 2–5 |
+| `readableMaxWidth` / `pagePadding` | text column capped at 640 (medium) / 720 (expanded), infinite on a phone; 16 → 24 pt padding |
+| `ReadableColumn` / `ReadableBottomBar` | centre content (or only a bar's controls) inside that cap |
+| `kSheetConstraints` | the 640 pt panel width applied through the theme |
+| `heroImageHeight` | caps a gallery at 420 (medium) / 480 (expanded); natural height on a phone |
+
+**Grids.** `ProductGrid` (box) and `ProductSliverGrid` (sliver) replace all six hand-rolled grids and take
+their column count from the width they are given; `productCardGridExtent` now takes the **cell** width, so
+the row height tracks the card rather than the window. The loading skeleton runs the same arithmetic, so
+the grid no longer changes shape when the data resolves. Measured: 2 columns at 360–412, 3 at 600, 4 at
+768 and 834, 5 at 1024 and 1366.
+
+**Layout.** The PDP gallery is capped and letterboxes (it was already `BoxFit.contain`) and decodes at the
+frame width. Text, form and list screens are centred in a readable column: catalog list, notifications,
+orders, order detail, reviews, cart lines, checkout steps, profile, personal info, security, address,
+notification settings, account deletion, content pages, town selection, checkout success and every auth
+screen. Bottom bars centre only their controls and keep their full-width surface. Sheets and dialogs
+inherit the 640 pt cap from `bottomSheetTheme`/`dialogTheme`, so no call site repeats a number and a sheet
+added later is correct by default.
+
+**Navigation: bottom bar kept, not replaced.** Tested at tablet widths first, as instructed. A
+`NavigationRail` would mean restructuring the `StatefulNavigationShell`, and it moves the cart out of
+thumb reach on a portrait-first tablet audience. The five destinations are centred in a phone-width group
+instead; the rationale is recorded in `main_shell.dart`.
+
+**A real bug the runtime pass caught.** The first `ReadableBottomBar` used a plain `Center`, which claims
+the biggest height it is offered. As a Scaffold's `bottomNavigationBar` that swallowed the whole screen:
+on the 1280×800 tablet the home feed rendered blank behind a vertically centred tab bar. Both wrappers now
+pass `heightFactor: 1` (it would also have thrown inside a scroll view, where the height is unbounded),
+and the regression is pinned by a test.
+
+**Tests: 441 buyer-mobile (was 411), 186 seller-mobile unchanged.** New: width classes and the column/cell
+arithmetic at 320–1366; the readable column on a phone and a tablet; the bottom-bar height regression;
+grid adaptation at 360/390/600/768/834/1024/1366; footer allowance constant across widths; skeleton and
+grid agreeing; the theme carrying the sheet/dialog constraints and a sheet still filling a phone.
+`flutter analyze` unchanged at the 6 known info-level SDK deprecations (buyer) and 20 issues (seller).
+
+**Runtime verification (Android emulators, dev flavor, local API on the dev DB).** A new
+`Teka_Medium_Tablet` AVD (1280×800 logical, API 34) in **both** orientations and the existing Pixel 8 Pro
+in both: town selection, home feed, home product grid, categories, a category grid, the filter sheet,
+PDP, login, OTP, profile, orders, cart, checkout step 1 and the address sheet. Landscape 1280 pt gives 5
+columns and portrait 800 pt gives 4; the phone still gives exactly 2 in portrait and the phone in
+landscape gives 5. The PDP gallery is a header rather than a wall, and the title, price and « Ajouter au
+panier » are all above the fold in both orientations. Sheets are centred panels. At `font_scale 1.5` the
+cards grow taller and nothing overflows. Sign-in used the mock WhatsApp OTP and an existing disposable dev
+buyer; the one cart line added during the walkthrough was deleted afterwards. **iOS: not exercised** (no
+simulator input tooling) — the width classes are computed from layout constraints, so an iPad in Split
+View follows the same path the tests pin.
+
+**Privacy:** no new logging, analytics or Sentry data; no network or API change of any kind.
+
+**Backward compatibility:** no API, schema, env or dependency change. Nothing changes on a phone — the
+readable width is infinite in the compact class, every cap is wider than any phone, and the phone
+screenshots match the previous layout.
+
 ## Next exact step
 
-PR 1–10 merged (`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`, `c6ce951`,
-`613f0fa`, `9450358`) plus `ci/dependabot-pnpm` (#688, `adae24f`). **PR 11
-`buyer-mobile/localization-status-route-cleanup` (Buyer Mobile PR D3: one status mapping, French copy,
-order filters, obsolete condition filter, dead routes, refresh blanking) open — awaiting merge approval**
-— see its record and the closure table above. **Buyer Mobile functional readiness closes with it.** Next
-phase, not started: the tablet-responsiveness pass for Buyer Mobile and Seller Mobile, then the broader
-UI/UX polish, then Buyer Web SEO, then the remaining security follow-ups (D2b) and D9/D10. Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
-branch `security/critical-hotfixes` from `develop`; files: `apps/buyer-web/src/components/seo/json-ld.tsx`
-(+ `json-ld.test.tsx`), `apps/api/src/payments/payments.{controller,service}.ts` (+ `test/payments.e2e-spec.ts`
-cross-user cases), `apps/api/src/products/products.controller.ts` + `products.service.ts`,
-`apps/api/src/users/users.controller.ts` + `users.service.ts` (limits + `document-validation.ts` reuse),
-`docs/app-review-login.md` + `apps/api/src/main.ts` boot warning, `apps/{buyer,seller,admin}-web/package.json`
-(`next` 15.5.21, `eslint-config-next`) + lockfile.
+PR 1–11 merged (`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`, `c6ce951`,
+`613f0fa`, `9450358`, `5ed2814`) plus `ci/dependabot-pnpm` (#688, `adae24f`). Buyer Mobile functional
+readiness is closed — see the closure table above.
+
+**PR 12 `mobile/tablet-responsiveness` (Tablet PR 1: shared responsive foundation + Buyer Mobile) open —
+awaiting merge approval.** See its record above.
+
+**Then Tablet PR 2 — Seller Mobile.** The helper is already mirrored into
+`apps/seller-mobile/lib/core/layout/responsive.dart`, so that PR is: add `bottomSheetTheme` +
+`dialogTheme` to its `app_theme.dart`; wrap `product_form_screen.dart` (the worst surface),
+`orders_list_screen.dart`, `products_list_screen.dart` and `verification_screen.dart` in
+`ReadableColumn`; drive `product_image_manager.dart`'s image grid from `gridColumnsFor` instead of
+`crossAxisCount: 3`; constrain the three sheets (`category_selector.dart`,
+`product_image_manager.dart`, `verification_screen.dart`); keep the stock `NavigationBar`; add
+width-parameterised cases to the existing harnesses. **Do not touch** the `maxWidth:` arguments in
+`seller_application_screen.dart`, `verification_screen.dart`, `personal_info_screen.dart` and
+`product_image_manager.dart` — those are `image_picker` capture sizes, not layout.
+
+After tablet: the broader UI/UX polish, then Buyer Web SEO, then the remaining security follow-ups (D2b)
+and D9/D10.

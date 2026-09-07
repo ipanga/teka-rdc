@@ -1,4 +1,4 @@
-# Status — 2026-09-06 (pre-scale audit)
+# Status — 2026-09-07 (pre-scale readiness — tablet phase)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
@@ -7,17 +7,19 @@
 (`29ccb6f`), PR 3 (D8) merged (`5af6b94`), PR 4 (D4) merged (`1d74149`), PR 5 (CI/supply chain)
 merged (`db1b5fb`), PR 6 (Buyer Mobile A) merged (`c470e63`), PR 7 (Buyer Mobile B) merged
 (`a877bbb`), `ci/dependabot-pnpm` merged (`adae24f`), PR 8 (Buyer Mobile C) merged (`c6ce951`),
-PR 9 (Buyer Mobile D1) merged (`613f0fa`), PR 10 (Buyer Mobile D2) merged (`9450358`).
-**PR 11 `buyer-mobile/localization-status-route-cleanup` (Buyer Mobile PR D3: ONE French order/payment
-status mapping — no raw enum reaches a buyer, every status filterable incl. RETURNED on mobile and web,
-12 accent fixes, obsolete « Neuf / Occasion » chips and the COD-dead payment-pending route removed,
-orders/cart no longer blank on refresh; +46 tests; emulator-verified) open, awaiting merge approval.
-**With it the Buyer Mobile functional-readiness workstream closes** — see the closure table in the
-tracker's PR 11 record. Next phase (not started): tablet responsiveness for Buyer + Seller Mobile.** Tracker: `docs/pre-scale-readiness.md` (findings for Buyer Mobile functional readiness,
-Buyer Web SEO, tablet support, cross-platform security; 11 decisions needed; 16-PR sequence). No code
-changed. Recommended first PR: `security/critical-hotfixes` (JSON-LD escaping, payments IDOR, upload
-limits, app-review doc scrub, `next` bump). Still open from the previous release: manual Google Play
-Internal-testing upload of the Seller Mobile `0.1.9+11` AAB; Buyer Mobile store release.
+PR 9 (Buyer Mobile D1) merged (`613f0fa`), PR 10 (Buyer Mobile D2) merged (`9450358`), PR 11
+(Buyer Mobile D3) merged (`5ed2814`) — **Buyer Mobile functional readiness is closed.**
+**PR 12 `mobile/tablet-responsiveness` (Tablet PR 1: shared responsive foundation + Buyer Mobile —
+`core/layout/responsive.dart` mirrored byte-identically into both apps, six product grids now pick
+their column count from the width they are given, PDP gallery capped, text/form/list screens and
+bottom bars centred in a readable column, sheets and dialogs constrained through the theme, bottom
+navigation kept and centred rather than replaced by a rail; +30 tests; verified on a 1280×800 tablet
+emulator in both orientations and on a phone) open, awaiting merge approval.** Tablet PR 2 (Seller
+Mobile) is next and its exact scope is written down in the tracker. Tracker:
+`docs/pre-scale-readiness.md` (findings for Buyer Mobile functional readiness, Buyer Web SEO, tablet
+support, cross-platform security; 11 decisions needed; 16-PR sequence). Still open from the previous
+release: manual Google Play Internal-testing upload of the Seller Mobile `0.1.9+11` AAB; Buyer Mobile
+store release.
 
 ## Most recently completed initiative
 
