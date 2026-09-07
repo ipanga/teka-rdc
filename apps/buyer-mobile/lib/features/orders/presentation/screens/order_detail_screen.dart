@@ -101,7 +101,7 @@ class OrderDetailScreen extends ConsumerWidget {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: const Text("Commande annulee"),
+                      content: const Text("Commande annulée"),
                       backgroundColor: TekaColors.success,
                     ),
                   );

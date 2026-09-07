@@ -39,7 +39,7 @@ class CheckoutSuccessScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "Votre commande a ete passee avec succes.",
+                  "Votre commande a été passée avec succès.",
                   style: const TextStyle(
                     color: TekaColors.mutedForeground,
                     fontSize: 14,

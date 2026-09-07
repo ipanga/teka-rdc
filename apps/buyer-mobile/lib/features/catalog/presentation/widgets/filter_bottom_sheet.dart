@@ -244,16 +244,16 @@ class _FilterBottomSheetState extends ConsumerState<FilterBottomSheet> {
 
                     // Sort options
                     Text(
-                      "Trier et filtrer",
+                      "Trier par",
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
                     ),
                     const SizedBox(height: 8),
-                    _buildSortOption('newest', "Plus recents"),
+                    _buildSortOption('newest', "Plus récents"),
                     _buildSortOption('price_asc', "Prix croissant"),
-                    _buildSortOption('price_desc', "Prix decroissant"),
-                    _buildSortOption('popularity', "Popularite"),
+                    _buildSortOption('price_desc', "Prix décroissant"),
+                    _buildSortOption('popularity', "Popularité"),
 
                     const SizedBox(height: 20),
 
