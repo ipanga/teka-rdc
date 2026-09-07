@@ -1194,14 +1194,108 @@ change.
 guest PDP still issues two tolerated 401s (D2); the dev/staging App-Link hosts have no `assetlinks.json`
 served (links open via the chooser / `am start` only — production is verified on `teka.cd`).
 
+### PR 10 — `buyer-mobile/address-phone-public-routing` (Buyer Mobile PR D2, 2026-09-07)
+
+**PR #694 merged** as `613f0fa` (merge commit; reviewed head `f1ce8d1` unchanged, 15/15 checks +
+both CodeQL analyses green, no schema/env/dependency file touched). Develop CI + CodeQL green at
+`613f0fa` (14 checks).
+
+**Re-audit (on `develop` `613f0fa`):**
+
+| Finding | Status | Evidence |
+|---|---|---|
+| A10 — recipient phone sent and stored raw | **confirmed, and worse than recorded**: buyer-web sends it raw too | `address_form_sheet.dart` and `address-form.tsx` both sent the typed text; the API only had a `@Matches(/^\+243\d{9}$/)` gate, so `099…` / `+243 99…` / `00243…` were rejected as invalid instead of being understood, and no normalisation existed anywhere server-side |
+| A10 — address errors bypass `friendlyErrorMessage` | **confirmed** | `my_address_screen._save` swallowed everything into « Impossible d'enregistrer l'adresse » shown *behind* the sheet; `AddressFormSheet.onSave` returned `bool`, so the API's reason could not reach the form |
+| A10 — city list failure leaves an empty disabled form | **confirmed** | `_loadCities`/`_loadCommunes` `catch` only stopped the spinner |
+| Commune/city validation | **already correct** | `AddressesService.resolveLocation` → `CitiesService.resolveCommune` / `assertActiveCity` (the seller-commune resolver): unknown → « Commune invalide », retired or in an inactive city → « Commune inactive », foreign city → « La commune ne correspond pas à la ville sélectionnée »; PATCH drops a carried-over commune on a city change; an untouched pair is never re-validated, so an address whose commune was retired later stays readable and editable. 10 unit + 7 e2e cases already pin this — **no change needed** |
+| Order delivery-address snapshot | **already correct** | `deliveryAddressSnapshot()` written in the checkout transaction, `resolveDeliveryAddress()` on every read (buyer, seller, admin), relation only as the pre-snapshot fallback. Missing: an end-to-end regression that an address edit after the order does not rewrite it — **added** |
+| Guest PDP fires doomed private calls | **confirmed** | `ReviewsNotifier._init` called `can-review` + `mine` for a guest, and every product grid called `/v1/wishlist/check`; the wishlist notifier also ran `loadWishlist` + `getCount` on construction for a guest |
+| Stale address after update | **already fixed** | the screen adopts the server's response (PR of 2026-09-01); re-verified on the emulator |
+| Address account isolation | **already correct, now tested** | `/v1/addresses` is scoped by `userId`; the screen fetches per session and holds no cross-account cache |
+
+**Phone — the one rule (source of truth).** The API stores `+243XXXXXXXXX` and nothing else.
+`normalizeDrcPhone` (`packages/shared`, mirrored in `apps/buyer-mobile/lib/core/utils/phone.dart`) now
+accepts `990000001`, `0990000001`, `243990000001`, `+243990000001`, `00243990000001` and any spacing /
+dashes / dots / parentheses, and requires the 9 national digits to start with 8 or 9 (DRC mobile), so a
+foreign or malformed number is refused rather than turned into a plausible `+243` value.
+`CreateAddressDto.recipientPhone` runs it as a `@Transform` **before** validation (blank → `null` clears
+the field; unreadable → left as typed so the existing French `@Matches` message fires), and
+`UpdateAddressDto` inherits it — the clients normalise for the buyer's benefit, the server decides.
+Both clients now refuse an unreadable number on the field itself with the same French message.
+
+**Checkout revalidation.** The API snapshots the address ROW at checkout, so an edit made elsewhere
+between opening checkout and confirming would have silently shipped a different address than the buyer
+saw. `placeOrder` now re-reads `/v1/addresses` first: identical (`sameDeliveryContentAs`, comparing every
+field the snapshot copies) → place; different → refresh what is shown, re-quote, and ask the buyer to
+check (« Votre adresse de livraison a été modifiée. Vérifiez-la avant de confirmer. »); deleted →
+« Votre adresse de livraison n'existe plus… »; the re-read failing (offline) is treated as unchanged, so
+a buyer who already sees the right address is never blocked. No reservation, no new state.
+
+**Guest / public boundary (verified against the running API, no token):** public 200 —
+`GET /v1/reviews/products/:id`, `…/stats`, `GET /v1/browse/products/:identifier`; private 401 —
+`…/can-review`, `…/mine`, `GET /v1/wishlist/check`. That boundary is right as it stands (own eligibility
+and own review are the caller's private data), so **no guard was relaxed**; the clients simply stop
+calling the private three as a guest, and the reviews provider reloads eligibility on sign-in so a guest
+who logs in on the product page sees the CTA without leaving it. Emulator: **0 × 401 in the API log**
+while a guest opened a PDP, home and categories (three per PDP before).
+
+**Other mobile fixes:** `AddressFormSheet.onSave` returns `String?` (null = saved, else the message to
+show inline, keyed `address-save-error`); city/commune load failures render a French line with
+« Réessayer »; « Sélectionnez une ville / commune » and « Téléphone du destinataire » accented (the
+sheet's own strings only — the rest of the accent sweep stays D3).
+
+**Tests:** API **827 unit** (+21: `create-address.dto.spec` — 10 canonical forms, 11 rejections, DTO
+transform on create and PATCH, blank clears, non-string passthrough) / **231 e2e** (+6: four canonical
+recipient-phone forms persisted as one value, an unreadable one → French 400 with nothing stored, and
+the snapshot regression — an order read after the address moved to another town/phone still answers the
+snapshot and never leaks the flat columns). Buyer Mobile **376** (+36): `phone_test` (10 canonical, 11
+rejected, equivalence), `address_form_sheet_test` (+4: local number sent canonical, unreadable refused
+with nothing sent, city-list failure → retry, API reason inline), `my_address_screen_test` (isolation
+A → B → A, load failure → retry), `checkout_address_revalidation_test` (edited / deleted / unchanged /
+re-read unreachable), `reviews_lifecycle_test` (+3 guest boundary), `wishlist_provider_test` (+2 guest
+boundary). Buyer Web **100** (+2 address-form phone cases). `flutter analyze` 6 baseline infos;
+`pnpm type-check` clean on all five workspaces.
+
+**Runtime verification (Android emulator, dev flavor, local API on the dev DB, disposable buyers,
+everything removed afterwards):** address screen loads A's address; edit → « 12345 » refused on the
+field (« Numéro invalide : 9 chiffres (ex. 990 000 001) ou +243… »), nothing sent; `0990000001` saved →
+stored **`+243990000851`** and shown immediately without a reload; checkout step 1 shows the normalised
+number; at the review step the address was changed from outside (as another device would) → confirm did
+**not** place the order, the summary refreshed to the new address and the French notice appeared;
+confirming again placed `TK-20260907-A7B3` whose snapshot is exactly what was on screen; the address was
+then edited again → the order detail still shows `Av. Modifiee Ailleurs 99` + `+243990000851` (invariant
+holds end to end, DB-verified); guest PDP → 0 × 401; `GET /v1/addresses` as buyer A returns A's single
+address and as buyer B returns `[]` (checked over HTTP with per-buyer tokens). **Not exercised on the
+emulator:** the second-buyer *screen* walk-through (the mock OTP kept expiring during the slow input;
+the same isolation is covered by `my_address_screen_test` and PR A's `account_isolation_test`) and the
+offline/retry path on the address screen (covered by the load-failure test).
+
+**Browser QA: not completed.** The buyer-web session would not establish in the QA stack — the API
+serves `Domain=.teka.cd` cookies unless `COOKIE_DOMAIN` is empty, and `node --env-file` overrides the
+shell value, so the browser dropped them; with a patched env copy the cookies became host-scoped but the
+mock-OTP login still did not settle before this PR was finished. The web change (shared normaliser in
+`address-form.tsx`) is therefore covered by its two component tests, `next build` and type-check only.
+
+**Privacy:** no phone or address value is logged, captured or put in a URL by the new code; the API's
+only new log line is the avatar warning from PR C. The DTO transform runs before validation, so an
+invalid number never reaches a log line either.
+
+**Backward compatibility:** already-stored `+243…` values are unchanged and still valid; the transform
+only widens what is accepted on write. No schema, env or dependency change. `@teka/shared` gained no new
+export (the existing `normalizeDrcPhone` widened), so nothing else needs updating.
+
+**Follow-ups:** D3 (accents incl. « Point de repere » in this sheet, raw enums, one status mapping,
+order filters, obsolete « Neuf / Occasion » filter, dead routes, refresh blanking); browser QA of the web
+address form; the QA-stack cookie-domain trick is worth folding into the local QA recipe.
+
 ## Next exact step
 
-PR 1–8 merged (`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`, `c6ce951`)
-plus `ci/dependabot-pnpm` (#688, `adae24f`). **PR 9 `buyer-mobile/notifications-deeplinks-localization-addresses`
-(Buyer Mobile PR D1: notifications + deep links) open — awaiting merge approval** — see its record above.
-Then D2 (addresses / phone normalisation + web parity, guest/public routing, order-snapshot regression test)
-and D3 (accents, raw enums, one status mapping, order filters, obsolete « Neuf / Occasion » filter, dead
-routes, refresh blanking), each as its own small PR from `develop`. Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
+PR 1–9 merged (`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`, `c6ce951`,
+`613f0fa`) plus `ci/dependabot-pnpm` (#688, `adae24f`). **PR 10 `buyer-mobile/address-phone-public-routing`
+(Buyer Mobile PR D2: address + recipient-phone normalisation, checkout revalidation, guest/public routing,
+snapshot regression) open — awaiting merge approval** — see its record above. Then D3 (accents, raw enums,
+one status mapping, order filters, obsolete « Neuf / Occasion » filter, dead routes, refresh blanking) as
+its own small PR from `develop`. Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
 branch `security/critical-hotfixes` from `develop`; files: `apps/buyer-web/src/components/seo/json-ld.tsx`
 (+ `json-ld.test.tsx`), `apps/api/src/payments/payments.{controller,service}.ts` (+ `test/payments.e2e-spec.ts`
 cross-user cases), `apps/api/src/products/products.controller.ts` + `products.service.ts`,
