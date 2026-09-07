@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,6 +13,7 @@ import '../providers/orders_provider.dart';
 import '../../domain/order_status.dart';
 import '../widgets/order_status_badge.dart';
 import '../widgets/order_timeline.dart';
+import '../../../../core/widgets/teka_network_image.dart';
 
 class OrderDetailScreen extends ConsumerWidget {
   final String orderId;
@@ -640,31 +640,10 @@ class _OrderItemRow extends StatelessWidget {
                   child: SizedBox(
                     width: 56,
                     height: 56,
-                    child: item.productImage != null &&
-                            item.productImage!.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: item.productImage!,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(
-                              color: TekaColors.muted,
-                            ),
-                            errorWidget: (_, __, ___) => Container(
-                              color: TekaColors.muted,
-                              child: const Icon(
-                                Icons.image_outlined,
-                                size: 20,
-                                color: TekaColors.mutedForeground,
-                              ),
-                            ),
-                          )
-                        : Container(
-                            color: TekaColors.muted,
-                            child: const Icon(
-                              Icons.image_outlined,
-                              size: 20,
-                              color: TekaColors.mutedForeground,
-                            ),
-                          ),
+                    child: TekaNetworkImage(
+                      url: item.productImage,
+                      fallbackIconSize: 20,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -791,7 +770,7 @@ class _PaymentStatusChip extends StatelessWidget {
         chipColor = TekaColors.destructive;
         break;
       case 'REFUNDED':
-        chipColor = const Color(0xFF2563EB);
+        chipColor = TekaColors.info;
         break;
       case 'PENDING':
       case 'PROCESSING':

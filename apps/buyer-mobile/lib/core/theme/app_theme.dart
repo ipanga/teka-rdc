@@ -137,7 +137,7 @@ class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 1,
         surfaceTintColor: Colors.transparent,
-        shadowColor: Color(0x14000000),
+        shadowColor: TekaColors.shadowSoft,
         centerTitle: false,
         toolbarHeight: 64,
         titleSpacing: 20,

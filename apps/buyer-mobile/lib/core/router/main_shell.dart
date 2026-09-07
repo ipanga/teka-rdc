@@ -94,7 +94,7 @@ class _BottomBarFrame extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Color(0x14000000),
+            color: TekaColors.shadowSoft,
             blurRadius: 18,
             offset: Offset(0, -6),
           ),

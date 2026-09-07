@@ -222,7 +222,7 @@ class _HomeCommerceHeaderDelegate extends SliverPersistentHeaderDelegate {
     return Material(
       color: TekaColors.surface,
       elevation: overlapsContent || progress > 0.98 ? 1 : 0,
-      shadowColor: const Color(0x1A000000),
+      shadowColor: TekaColors.shadowMedium,
       child: DecoratedBox(
         decoration: const BoxDecoration(
           border: Border(

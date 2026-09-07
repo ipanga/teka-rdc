@@ -4,6 +4,7 @@ import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/product_skeletons.dart';
 import '../../data/models/product_model.dart';
+import '../../../../core/widgets/teka_network_image.dart';
 
 class ImageGallery extends StatefulWidget {
   final List<ProductImageModel> images;
@@ -87,10 +88,6 @@ class _ImageGalleryState extends State<ImageGallery> {
             },
             itemBuilder: (context, index) {
               final image = widget.images[index];
-              final logicalWidth = frameWidth;
-              final pixelRatio = MediaQuery.devicePixelRatioOf(context);
-              final decodeWidth = (logicalWidth * pixelRatio).round();
-
               return Semantics(
                 button: true,
                 label:
@@ -100,35 +97,12 @@ class _ImageGalleryState extends State<ImageGallery> {
                   onTap: () => _showFullScreenImage(context, index),
                   child: ColoredBox(
                     color: TekaColors.surface,
-                    child: CachedNetworkImage(
-                      imageUrl: image.url,
+                    child: TekaNetworkImage(
+                      url: image.url,
                       fit: BoxFit.contain,
-                      memCacheWidth: decodeWidth,
-                      placeholder: (context, url) => const ShimmerBox(
-                        height: double.infinity,
-                        radius: 0,
-                      ),
-                      errorWidget: (context, url, error) => const Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.image_not_supported_outlined,
-                              size: 44,
-                              color: TekaColors.mutedForeground,
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Image indisponible',
-                              style: TextStyle(
-                                color: TekaColors.mutedForeground,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      fallbackIcon: Icons.image_not_supported_outlined,
+                      fallbackIconSize: 44,
+                      fallbackLabel: 'Image indisponible',
                     ),
                   ),
                 ),

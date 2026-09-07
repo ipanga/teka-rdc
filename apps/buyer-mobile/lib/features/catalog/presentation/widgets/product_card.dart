@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +7,7 @@ import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../wishlist/presentation/widgets/wishlist_button.dart';
 import '../../data/models/product_model.dart';
+import '../../../../core/widgets/teka_network_image.dart';
 
 /// Visual density only. Navigation, wishlist, image, price, discount, stock,
 /// and rating behavior remain shared by [ProductCard].
@@ -230,39 +230,10 @@ class ProductCard extends ConsumerWidget {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      if (imageUrl != null && imageUrl.isNotEmpty)
-                        CachedNetworkImage(
-                          imageUrl: imageUrl,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: TekaColors.surfaceMuted,
-                            child: const Center(
-                              child: SizedBox(
-                                width: 24,
-                                height: 24,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              ),
-                            ),
-                          ),
-                          errorWidget: (context, url, error) => Container(
-                            color: TekaColors.surfaceMuted,
-                            child: const Icon(
-                              Icons.image_not_supported_outlined,
-                              color: TekaColors.mutedForeground,
-                              size: 32,
-                            ),
-                          ),
-                        )
-                      else
-                        Container(
-                          color: TekaColors.surfaceMuted,
-                          child: const Icon(
-                            Icons.image_outlined,
-                            color: TekaColors.mutedForeground,
-                            size: 32,
-                          ),
-                        ),
+                      TekaNetworkImage(
+                        url: imageUrl,
+                        fallbackIconSize: 32,
+                      ),
                       // Discount stays top-left. Stock state sits bottom-left,
                       // away from the favorite target, so narrow cards never
                       // stack text under the heart.
@@ -456,7 +427,7 @@ class ProductCard extends ConsumerWidget {
                                   const Icon(
                                     Icons.star_rounded,
                                     size: 13,
-                                    color: Color(0xFFF59E0B),
+                                    color: TekaColors.ratingStar,
                                   ),
                                   const SizedBox(width: 2),
                                   Text(

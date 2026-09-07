@@ -836,7 +836,7 @@ class _PdpRatingSummary extends ConsumerWidget {
                   hasReviews ? Icons.star_rounded : Icons.star_border_rounded,
                   size: 19,
                   color: hasReviews
-                      ? const Color(0xFFF59E0B)
+                      ? TekaColors.ratingStar
                       : TekaColors.mutedForeground,
                 ),
                 const SizedBox(width: 5),
