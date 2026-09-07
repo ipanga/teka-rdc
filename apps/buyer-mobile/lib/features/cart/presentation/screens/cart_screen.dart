@@ -156,8 +156,12 @@ class _CartBottomBar extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // « Sous-total », not « Total »: the delivery fee comes
+                  // from the authoritative checkout quote and is not known
+                  // yet, so calling this the total told the buyer a number
+                  // that was about to change (UX PR C).
                   const Text(
-                    'Total',
+                    'Sous-total',
                     style: TextStyle(
                       color: TekaColors.mutedForeground,
                       fontSize: 12,
@@ -167,9 +171,16 @@ class _CartBottomBar extends StatelessWidget {
                   Text(
                     formatCDF(totalCDF),
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: TekaColors.tekaRed,
+                          color: TekaColors.foreground,
                           fontWeight: FontWeight.bold,
                         ),
+                  ),
+                  const Text(
+                    'Livraison calculée à la commande',
+                    style: TextStyle(
+                      color: TekaColors.mutedForeground,
+                      fontSize: 11,
+                    ),
                   ),
                 ],
               ),

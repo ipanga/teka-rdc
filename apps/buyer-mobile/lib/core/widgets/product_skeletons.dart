@@ -107,15 +107,7 @@ class ProductDetailSkeleton extends StatelessWidget {
             children: [
               // Same capped frame as the real gallery (tablet phase), so the
               // page does not jump when the product resolves.
-              LayoutBuilder(
-                builder: (context, constraints) => SizedBox(
-                  height: heroImageHeight(
-                    constraints.maxWidth,
-                    aspectRatio: kProductDetailGalleryAspectRatio,
-                  ),
-                  child: const ShimmerBox(height: double.infinity, radius: 0),
-                ),
-              ),
+              const ProductGallerySkeleton(),
               Container(
                 width: double.infinity,
                 color: TekaColors.surface,
@@ -188,6 +180,43 @@ class ProductCardSkeleton extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Loading state for the product-detail gallery.
+///
+/// It used to be a bare full-bleed [ShimmerBox]: the largest element on the
+/// page — roughly half a phone screen — read as a flat grey void with nothing
+/// to say an image was coming (UX PR C). The shimmer stays, and a neutral
+/// photo glyph sits on top so the block is recognisably a picture in
+/// progress. The frame is the same [heroImageHeight] the real gallery uses,
+/// so nothing jumps when the product resolves.
+class ProductGallerySkeleton extends StatelessWidget {
+  const ProductGallerySkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => SizedBox(
+        height: heroImageHeight(
+          constraints.maxWidth,
+          aspectRatio: kProductDetailGalleryAspectRatio,
+        ),
+        child: const Stack(
+          fit: StackFit.expand,
+          children: [
+            ShimmerBox(height: double.infinity, radius: 0),
+            Center(
+              child: Icon(
+                Icons.image_outlined,
+                size: 40,
+                color: TekaColors.borderStrong,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

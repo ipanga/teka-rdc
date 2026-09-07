@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/theme/teka_spacing.dart';
 import '../../../orders/domain/order_status.dart';
 import '../../data/models/checkout_model.dart';
 
@@ -55,7 +56,7 @@ class CheckoutSuccessScreen extends ConsumerWidget {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: TekaColors.muted,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: TekaRadius.mdAll,
                     ),
                     child: Column(
                       children: orders
@@ -92,7 +93,46 @@ class CheckoutSuccessScreen extends ConsumerWidget {
                     ),
                   ),
                 ],
-                const SizedBox(height: 32),
+                const SizedBox(height: TekaSpacing.md),
+                // What happens next. The screen said the order was confirmed
+                // and stopped there, which on a Cash-on-Delivery marketplace
+                // leaves the two questions that actually matter unanswered:
+                // when do I pay, and who brings it (UX PR C). The wording
+                // follows the real workflow — the seller prepares, Teka
+                // collects, Teka delivers and takes the cash.
+                DecoratedBox(
+                  decoration: const BoxDecoration(
+                    color: TekaColors.successSubtle,
+                    borderRadius: TekaRadius.mdAll,
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.all(TekaSpacing.sm),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.local_shipping_outlined,
+                          size: 18,
+                          color: TekaColors.success,
+                        ),
+                        SizedBox(width: TekaSpacing.xs),
+                        Expanded(
+                          child: Text(
+                            "Le vendeur prépare votre colis, puis Teka le "
+                            "collecte et vous le livre. Vous payez en espèces "
+                            "au livreur à la réception.",
+                            style: TextStyle(
+                              color: TekaColors.foreground,
+                              fontSize: 13,
+                              height: 1.4,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: TekaSpacing.xl),
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton(

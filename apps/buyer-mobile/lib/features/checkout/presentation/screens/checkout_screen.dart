@@ -5,6 +5,8 @@ import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/connectivity/connectivity_provider.dart';
 import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/app_states.dart';
+import '../../../../core/theme/teka_spacing.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../address/presentation/widgets/address_form_sheet.dart';
@@ -332,51 +334,101 @@ class _StepIndicator extends StatelessWidget {
       CheckoutStep.review,
     ];
 
+    final current = _stepIndex(currentStep);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(
+        TekaSpacing.md,
+        TekaSpacing.sm,
+        TekaSpacing.md,
+        TekaSpacing.xs,
+      ),
       decoration: const BoxDecoration(
         border: Border(
           bottom: BorderSide(color: TekaColors.border),
         ),
       ),
-      child: Row(
-        children: [
-          for (var i = 0; i < steps.length; i++) ...[
-            if (i > 0)
-              Expanded(
-                child: Container(
-                  height: 2,
-                  color: _stepIndex(currentStep) >= i
-                      ? TekaColors.tekaRed
-                      : TekaColors.border,
-                ),
-              ),
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _stepIndex(currentStep) >= i
-                    ? TekaColors.tekaRed
-                    : TekaColors.muted,
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                '${i + 1}',
-                style: TextStyle(
-                  color: _stepIndex(currentStep) >= i
-                      ? Colors.white
-                      : TekaColors.mutedForeground,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+      child: Semantics(
+        label: 'Étape ${current + 1} sur ${steps.length} : '
+            '${_stepLabels[current]}',
+        excludeSemantics: true,
+        child: Column(
+          children: [
+            Row(
+              children: [
+                for (var i = 0; i < steps.length; i++) ...[
+                  if (i > 0)
+                    Expanded(
+                      child: Container(
+                        height: 2,
+                        color: current >= i
+                            ? TekaColors.tekaRed
+                            : TekaColors.border,
+                      ),
+                    ),
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: current >= i
+                          ? TekaColors.tekaRed
+                          : TekaColors.muted,
+                    ),
+                    alignment: Alignment.center,
+                    child: current > i
+                        ? const Icon(Icons.check_rounded,
+                            size: 16, color: Colors.white)
+                        : Text(
+                            '${i + 1}',
+                            style: TextStyle(
+                              color: current >= i
+                                  ? Colors.white
+                                  : TekaColors.mutedForeground,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: TekaSpacing.xxs),
+            // Bare numbers told the buyer there were three steps but never
+            // what they were. The labels cost one line and answer "what am I
+            // about to be asked?" (UX PR C).
+            Row(
+              children: [
+                for (var i = 0; i < steps.length; i++)
+                  Expanded(
+                    child: Text(
+                      _stepLabels[i],
+                      textAlign: i == 0
+                          ? TextAlign.start
+                          : i == steps.length - 1
+                              ? TextAlign.end
+                              : TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight:
+                            current == i ? FontWeight.w700 : FontWeight.w500,
+                        color: current >= i
+                            ? TekaColors.foreground
+                            : TekaColors.mutedForeground,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ],
-        ],
+        ),
       ),
     );
   }
+
+  static const _stepLabels = ['Adresse', 'Paiement', 'Vérification'];
 
   int _stepIndex(CheckoutStep step) {
     switch (step) {
@@ -419,38 +471,14 @@ class _AddressStep extends StatelessWidget {
 
     final current = address;
     if (current == null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.location_off_outlined,
-                size: 64,
-                color: TekaColors.mutedForeground,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                "Aucune adresse enregistrée",
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: TekaColors.mutedForeground,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: onEditAddress,
-                icon: const Icon(Icons.add_location_alt_outlined),
-                label: const Text("Ajouter mon adresse"),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: TekaColors.tekaRed,
-                  side: const BorderSide(color: TekaColors.tekaRed),
-                ),
-              ),
-            ],
-          ),
-        ),
+      // The shared empty-state shell, like every other "nothing here" in the
+      // app — this screen was the last one still hand-rolling its own.
+      return AppEmptyState(
+        icon: Icons.location_off_outlined,
+        title: "Aucune adresse enregistrée",
+        message: "Ajoutez l'adresse où Teka doit livrer votre commande.",
+        actionLabel: "Ajouter mon adresse",
+        onAction: onEditAddress,
       );
     }
 
@@ -560,7 +588,7 @@ class _PaymentStep extends StatelessWidget {
         const SizedBox(height: 12),
         _PaymentOption(
           title: "Paiement à la livraison",
-          subtitle: 'Payez a la reception de votre commande',
+          subtitle: 'Payez en espèces à la réception, au livreur Teka',
           icon: Icons.payments_outlined,
           isSelected: selectedMethod == 'COD',
           onTap: () => onSelect('COD'),
@@ -672,7 +700,7 @@ class _ReviewStep extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         Text(
-          "Recapitulatif",
+          "Récapitulatif",
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: TekaColors.foreground,
@@ -704,6 +732,30 @@ class _ReviewStep extends StatelessWidget {
                     fontSize: 13,
                   ),
                 ),
+                // The recipient and their phone were shown on step 1 and then
+                // disappeared from the review — the one screen where a buyer
+                // checks who receives the parcel and on which number the
+                // driver will call (UX PR C).
+                if ((checkoutState.selectedAddress!.recipientName ?? '')
+                        .trim()
+                        .isNotEmpty ||
+                    (checkoutState.selectedAddress!.recipientPhone ?? '')
+                        .trim()
+                        .isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    [
+                      checkoutState.selectedAddress!.recipientName,
+                      checkoutState.selectedAddress!.recipientPhone,
+                    ]
+                        .where((v) => (v ?? '').trim().isNotEmpty)
+                        .join(' · '),
+                    style: const TextStyle(
+                      color: TekaColors.mutedForeground,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -712,15 +764,32 @@ class _ReviewStep extends StatelessWidget {
 
         // Payment method summary
         _SummarySection(
-          icon: Icons.payment_outlined,
+          // The cash glyph, not a credit card: Teka is Cash on Delivery only
+          // and the card icon promised a payment method that does not exist.
+          icon: Icons.payments_outlined,
           title: "Mode de paiement",
-          child: Text(
-            "Paiement à la livraison",
-            style: const TextStyle(
-              color: TekaColors.foreground,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                "Paiement à la livraison",
+                style: TextStyle(
+                  color: TekaColors.foreground,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(height: 2),
+              // Says who collects: Teka delivers and takes the cash, the
+              // seller never does.
+              Text(
+                "Le livreur Teka encaisse à la remise du colis.",
+                style: TextStyle(
+                  color: TekaColors.mutedForeground,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 12),

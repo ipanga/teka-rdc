@@ -3,26 +3,27 @@
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
 **Pre-scale readiness initiative — Buyer Mobile functional readiness CLOSED, tablet phase CLOSED for both
-apps, now in the Buyer Mobile UX/UI/design-polish phase (PR A merged, PR B open).** Merged to date:
-`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`, `c6ce951`, `613f0fa`,
-`9450358`, `5ed2814`, `2ef5b94`, `57b3ea7`, `7dadf23` (UX PR A: design tokens, one remote-image treatment,
-one empty-state language), plus `ci/dependabot-pnpm` (`adae24f`).
+apps, Buyer Mobile UX/UI polish in progress (PR A and B merged, PR C open).** Merged to date: `6201534`,
+`29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`, `c6ce951`, `613f0fa`, `9450358`,
+`5ed2814`, `2ef5b94`, `57b3ea7`, `7dadf23` (UX A: tokens, one image treatment, one empty-state language),
+`a57dcf5` (UX B: home order, category strip, card footer, wishlist chip), plus `ci/dependabot-pnpm`
+(`adae24f`).
 
-**UX PR B `buyer-mobile/ux-home-search-category` open, awaiting merge approval** — the discovery surfaces.
-Home puts navigation before merchandising (the category strip moved from 617 pt to 429 pt down a 448 pt
-phone; both heroes keep their place, only the order changed). The category strip's magic `118` height
-becomes a two-line label box driven by the text scaler, so French labels stop clipping at 1.5x and every
-tile is the same height. The card-footer reservation is summed from the rows each variant renders instead
-of guessed — 21 pt tighter for catalog — and the existing layout test caught a real bug in the first
-attempt (the rating row is gated on review count, not on the variant). The wishlist chip is opaque with a
-hairline ring so it reads over both pale and dark photography, and its toast now goes through
-`showAppSnackbar`. Search's zero-result-vs-error ordering was audited and found **already correct**.
-+7 tests (471). Remaining UX PRs: C (PDP, cart, checkout) then D (orders, ratings, profile,
-notifications), then a separate Seller Mobile UX phase.
+**UX PR C `buyer-mobile/ux-pdp-cart-checkout` open, awaiting merge approval** — the purchase journey. The
+PDP gallery skeleton stops being a blank half-screen; the sticky purchase bar is lifted off the content;
+the reviews row's chevron rejoins its label (the "ambiguous tap target" finding was stale — it was always
+one tap target). The cart names its numbers (« … / unité » and « Sous-total ») and its bar says
+« Sous-total » instead of a « Total » that excluded a delivery fee the quote had not returned. Checkout
+fixes two unaccented strings, labels its three steps, restores the recipient and phone to the recap,
+replaces a credit-card glyph on a COD-only marketplace, and adopts the shared empty state. The success
+screen now states the workflow (seller prepares, Teka collects and delivers, buyer pays cash). +13 tests
+(484). A live timeout during QA proved idempotency: the order existed, confirming again returned the same
+order, count stayed at 1. All QA fixtures deleted and stock restored.
 
 **Two validation gaps stay open and must not be reported as done: iPad/iOS runtime has never been
 exercised in the tablet or UX phases (no simulator input tooling), and the Seller Mobile phone runtime has
-not been re-run since Tablet PR 2.** Tracker: `docs/pre-scale-readiness.md`. Still open from the previous
+not been re-run since Tablet PR 2.** Next: UX PR D (orders, ratings, profile, notifications), then a
+separate Seller Mobile UX phase. Tracker: `docs/pre-scale-readiness.md`. Still open from the previous
 release: manual Google Play Internal-testing upload of the Seller Mobile `0.1.9+11` AAB; Buyer Mobile store
 release.
 
