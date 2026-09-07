@@ -235,7 +235,10 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
           ? null
           : SafeArea(
               top: false,
-              child: Padding(
+              // Only the button is centred on a tablet; the bar itself stays
+              // full width.
+              child: ReadableBottomBar(
+                child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: ElevatedButton.icon(
                   onPressed: !editable || _saving ? null : _save,
@@ -251,6 +254,7 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
                       : const Icon(Icons.check_rounded),
                   label: Text(_saving ? 'Enregistrement...' : 'Enregistrer'),
                 ),
+              ),
               ),
             ),
     );

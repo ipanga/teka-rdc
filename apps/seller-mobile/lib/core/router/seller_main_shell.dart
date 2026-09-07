@@ -33,7 +33,11 @@ class SellerMainShell extends StatelessWidget {
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: DecoratedBox(
+        // The surface is painted full width so the centred destinations read
+        // as one continuous bar on a tablet rather than a white block floating
+        // on the page background.
         decoration: const BoxDecoration(
+          color: TekaColors.background,
           border: Border(top: BorderSide(color: TekaColors.border)),
         ),
         // Tablet phase (2026-09-07): the bar keeps its full-width surface and

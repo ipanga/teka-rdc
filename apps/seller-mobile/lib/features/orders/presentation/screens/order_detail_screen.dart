@@ -27,32 +27,29 @@ class OrderDetailScreen extends ConsumerWidget {
         leading: const AdaptiveLeading(),
         title: const Text("Détail de la commande"),
       ),
-      body: ReadableColumn(
-        padding: EdgeInsets.zero,
-        child: orderAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.error_outline,
-                        size: 48, color: TekaColors.destructive),
-                    const SizedBox(height: 12),
-                    Text("Une erreur est survenue. Veuillez réessayer."),
-                    const SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () =>
-                          ref.invalidate(sellerOrderDetailProvider(orderId)),
-                      child: Text("Réessayer"),
-                    ),
-                  ],
+      body: orderAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.error_outline,
+                    size: 48, color: TekaColors.destructive),
+                const SizedBox(height: 12),
+                Text("Une erreur est survenue. Veuillez réessayer."),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () =>
+                      ref.invalidate(sellerOrderDetailProvider(orderId)),
+                  child: Text("Réessayer"),
                 ),
-              ),
+              ],
             ),
-            data: (order) => _OrderDetailContent(order: order, orderId: orderId),
           ),
+        ),
+        data: (order) => _OrderDetailContent(order: order, orderId: orderId),
       ),
     );
   }
@@ -84,7 +81,12 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
     return Column(
       children: [
         Expanded(
-          child: ListView(
+          // The detail is text and summary cards: centred in a readable column
+          // on a tablet. The action bar below keeps its full-width surface and
+          // centres only its buttons.
+          child: ReadableColumn(
+            padding: EdgeInsets.zero,
+            child: ListView(
             padding: const EdgeInsets.all(16),
             children: [
               // Order header
@@ -331,6 +333,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
               const SizedBox(height: 80),
             ],
           ),
+          ),
         ),
 
         // Action buttons at the bottom
@@ -345,7 +348,8 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
             ),
             child: SafeArea(
               top: false,
-              child: _isPerformingAction
+              child: ReadableBottomBar(
+                child: _isPerformingAction
                   ? const Center(
                       child: Padding(
                         padding: EdgeInsets.symmetric(vertical: 8),
@@ -377,6 +381,7 @@ class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
                             .markReadyForPickup(order.id),
                       ),
                     ),
+              ),
             ),
           ),
       ],

@@ -158,7 +158,10 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
           ? null
           : SafeArea(
               top: false,
-              child: Padding(
+              // Only the button is centred on a tablet; the bar itself stays
+              // full width.
+              child: ReadableBottomBar(
+                child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: ElevatedButton.icon(
                   onPressed: _saving ? null : _save,
@@ -174,6 +177,7 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
                       : const Icon(Icons.check_rounded),
                   label: Text(_saving ? 'Enregistrement...' : 'Enregistrer'),
                 ),
+              ),
               ),
             ),
     );
