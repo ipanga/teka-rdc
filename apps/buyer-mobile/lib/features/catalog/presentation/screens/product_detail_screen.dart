@@ -9,6 +9,7 @@ import '../../../../core/auth/auth_guard.dart';
 import '../../../../core/deep_link/web_links.dart';
 import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/theme/teka_spacing.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/app_states.dart';
@@ -509,6 +510,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                                 // Recently viewed (client-local), excl. current
                                 const SizedBox(height: 24),
                                 RecentlyViewedSection(excludeId: product.id),
+                                // Breathing room so the last section never
+                                // ends flush against the sticky purchase bar.
+                                const SizedBox(height: TekaSpacing.xs),
                               ],
                             ),
                           ),
@@ -522,16 +526,20 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               // Bottom bar with Add to Cart button
               Container(
                 key: const Key('pdp-purchase-bar'),
-                decoration: BoxDecoration(
+                // A hairline and a 5% shadow left the description looking as
+                // though it ran underneath the bar rather than behind it. The
+                // sanctioned medium shadow (10%) reads as a lifted surface
+                // without turning the bar into a heavy block (UX PR C).
+                decoration: const BoxDecoration(
                   color: TekaColors.background,
-                  border: const Border(
+                  border: Border(
                     top: BorderSide(color: TekaColors.border),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 8,
-                      offset: const Offset(0, -2),
+                      color: TekaColors.shadowMedium,
+                      blurRadius: 12,
+                      offset: Offset(0, -3),
                     ),
                   ],
                 ),
@@ -840,7 +848,12 @@ class _PdpRatingSummary extends ConsumerWidget {
                       : TekaColors.mutedForeground,
                 ),
                 const SizedBox(width: 5),
-                Expanded(
+                // Flexible, not Expanded: the row is already one tap target
+                // (InkWell + a 44 pt minimum + a button semantic), but
+                // stretching the label pushed the chevron ~100 pt away, so the
+                // affordance read as a label and an unrelated arrow. Sizing
+                // the text to its content pulls them back together (UX PR C).
+                Flexible(
                   child: Text(
                     hasReviews
                         ? '$rating · ${stats.totalReviews} avis'

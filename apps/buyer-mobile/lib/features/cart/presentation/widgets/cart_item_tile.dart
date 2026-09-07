@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/theme/teka_spacing.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../data/models/cart_model.dart';
 import '../../../../core/widgets/teka_network_image.dart';
@@ -98,13 +99,21 @@ class CartItemTile extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: TekaSpacing.xxs + 2),
+                      // Labelled, because the tile shows two prices: this one
+                      // per unit and the line total on the right. With a
+                      // quantity of 1 they are the same number, so without
+                      // labels a buyer at quantity 3 cannot tell which is
+                      // which (UX PR C). The colour moves off the brand red
+                      // too — red means promotion elsewhere in the app, and
+                      // the PDP has always shown the effective price in
+                      // foreground.
                       Text(
-                        unitPrice,
+                        "$unitPrice / unité",
                         style: const TextStyle(
-                          color: TekaColors.tekaRed,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
+                          color: TekaColors.foreground,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
                           letterSpacing: -0.2,
                         ),
                       ),
@@ -120,7 +129,7 @@ class CartItemTile extends StatelessWidget {
                     Container(
                       decoration: BoxDecoration(
                         border: Border.all(color: TekaColors.border),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: TekaRadius.mdAll,
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -158,13 +167,28 @@ class CartItemTile extends StatelessWidget {
 
                     const Spacer(),
 
-                    Text(
-                      subtotal,
-                      style: const TextStyle(
-                        color: TekaColors.foreground,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text(
+                          "Sous-total",
+                          style: TextStyle(
+                            color: TekaColors.mutedForeground,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          subtotal,
+                          style: const TextStyle(
+                            color: TekaColors.foreground,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                      ],
                     ),
 
                     const SizedBox(width: 4),
