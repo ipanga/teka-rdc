@@ -63,9 +63,10 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
       body: wishlistState.isLoading
           ? ProductGridSkeleton(
               count: 6,
-              mainAxisExtent: productCardGridExtent(
+              mainAxisExtentFor: (cellWidth) => productCardGridExtent(
                 context,
                 variant: ProductCardVariant.catalog,
+                cellWidth: cellWidth,
               ),
             )
           : wishlistState.error != null
@@ -86,18 +87,8 @@ class _WishlistScreenState extends ConsumerState<WishlistScreen> {
                       color: TekaColors.tekaRed,
                       onRefresh: () =>
                           ref.read(wishlistProvider.notifier).refresh(),
-                      child: GridView.builder(
+                      child: ProductGrid(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.all(16),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          mainAxisExtent: productCardGridExtent(
-                            context,
-                            variant: ProductCardVariant.catalog,
-                          ),
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                        ),
                         itemCount: visibleItems.length,
                         itemBuilder: (context, index) {
                           final product = visibleItems[index].product!;

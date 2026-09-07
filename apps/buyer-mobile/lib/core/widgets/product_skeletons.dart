@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../layout/responsive.dart';
 import '../theme/teka_colors.dart';
 
 const double kProductGridSpacing = 12;
@@ -189,31 +190,52 @@ class ProductCardSkeleton extends StatelessWidget {
 /// (drop-in where the real GridView renders). Mirrors the shared grid metrics.
 class ProductGridSkeleton extends StatelessWidget {
   final int count;
-  final EdgeInsetsGeometry padding;
-  final double? mainAxisExtent;
+  final EdgeInsets padding;
+
+  /// Row height for one cell width. Given by the screen so the skeleton and
+  /// the real grid that replaces it reserve the same space (the caller knows
+  /// the product-card variant; this core widget must not depend on it).
+  final double Function(double cellWidth)? mainAxisExtentFor;
 
   const ProductGridSkeleton({
     super.key,
     this.count = 6,
     this.padding = const EdgeInsets.symmetric(horizontal: 16),
-    this.mainAxisExtent,
+    this.mainAxisExtentFor,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: padding,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisExtent: mainAxisExtent,
-        childAspectRatio: mainAxisExtent == null ? 0.58 : 1,
-        crossAxisSpacing: kProductGridSpacing,
-        mainAxisSpacing: kProductGridSpacing,
-      ),
-      itemCount: count,
-      itemBuilder: (_, __) => const ProductCardSkeleton(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Same column arithmetic as the real grid (tablet phase): a loading
+        // state that shows two wide columns and then snaps to four is a jump.
+        final available = constraints.maxWidth - padding.horizontal;
+        final columns = gridColumnsFor(
+          available,
+          spacing: kProductGridSpacing,
+        );
+        final cellWidth = gridCellWidth(
+          available,
+          columns: columns,
+          spacing: kProductGridSpacing,
+        );
+        final extent = mainAxisExtentFor?.call(cellWidth);
+        return GridView.builder(
+          padding: padding,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisExtent: extent,
+            childAspectRatio: extent == null ? 0.58 : 1,
+            crossAxisSpacing: kProductGridSpacing,
+            mainAxisSpacing: kProductGridSpacing,
+          ),
+          itemCount: count,
+          itemBuilder: (_, __) => const ProductCardSkeleton(),
+        );
+      },
     );
   }
 }

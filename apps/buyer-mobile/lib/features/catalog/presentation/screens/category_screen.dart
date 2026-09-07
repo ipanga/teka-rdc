@@ -205,9 +205,10 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
           Expanded(
             child: ProductGridSkeleton(
               count: 6,
-              mainAxisExtent: productCardGridExtent(
+              mainAxisExtentFor: (cellWidth) => productCardGridExtent(
                 context,
                 variant: ProductCardVariant.catalog,
+                cellWidth: cellWidth,
               ),
             ),
           ),
@@ -277,23 +278,10 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
             ),
           ),
         // Product grid
-        SliverPadding(
-          padding: const EdgeInsets.all(16),
-          sliver: SliverGrid(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) => ProductCard(product: state.products[index]),
-              childCount: state.products.length,
-            ),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisExtent: productCardGridExtent(
-                context,
-                variant: ProductCardVariant.catalog,
-              ),
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-            ),
-          ),
+        ProductSliverGrid(
+          itemCount: state.products.length,
+          itemBuilder: (context, index) =>
+              ProductCard(product: state.products[index]),
         ),
         // Load more button
         if (state.hasMore)
