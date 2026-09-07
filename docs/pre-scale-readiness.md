@@ -1697,16 +1697,68 @@ re-run.**
 
 **No API, schema, env, dependency, analytics, security or Buyer Web change.**
 
+### UX PR C — `buyer-mobile/ux-pdp-cart-checkout` (PDP, cart, checkout, 2026-09-07)
+
+**UX PR B merged** as `a57dcf5` (merge commit; head `e8897e9` unchanged, 15/15 checks + CodeQL green,
+8 files, buyer-mobile + trackers only). Develop synced and clean.
+
+**Re-audit in the running app before touching anything. Two findings were stale.**
+
+| Finding | Verdict | Action |
+|---|---|---|
+| PDP gallery loading leaves the largest element blank | **Confirmed** — a bare full-bleed shimmer, half a phone screen of flat grey | Photo glyph on the same shimmer, same capped frame |
+| Reviews row has an ambiguous tap target | **Stale in substance** — it was already an `InkWell` with `Semantics(button)` and a 44 pt minimum. But `Expanded` stretched the label and pushed the chevron ~100 pt away | `Flexible` instead, so label and chevron read as one control |
+| Sticky purchase bar has only a hairline | **Confirmed** | Sanctioned medium shadow + bottom padding on the content |
+| Raw `fontSize`/radius on these screens | **Confirmed** (PDP 20, checkout 28, cart 7, success 5) | Migrated only where the visual scope was touched |
+| Zero-result vs error ordering (from PR B) | **Already correct**, re-confirmed | None |
+
+**New findings, from the runtime pass:**
+
+| Finding | Severity |
+|---|---|
+| Cart tile showed two prices with **no labels** — at quantity 1 they are the same number, so at quantity 3 a buyer cannot tell unit from line total | High |
+| Cart bottom bar said « Total » for a figure that **excluded the delivery fee** the quote had not returned yet | High |
+| Cart unit price used the brand red, which means *promotion* everywhere else | Medium |
+| « Recapitulatif » and « Payez a la reception… » shipped **unaccented** on the two most-read checkout screens | High (Rule 1) |
+| Checkout step indicator was three bare numbers — the buyer never learned what steps 2 and 3 were | Medium |
+| The recap **dropped the recipient and phone** after step 1 | Medium |
+| A **credit-card glyph** illustrated Cash on Delivery in a COD-only marketplace | Medium |
+| The checkout address empty state was the **last hand-rolled empty state** in the app | Medium |
+| Order success confirmed and stopped — no COD wording, no next steps | Medium |
+| Checkout error copy, totals block, COD-only presentation, `9.350 FC` format, stale-price guard ordering | **Already good** |
+
+**An unplanned but valuable live result.** Confirming the order timed out client-side and showed
+« Le serveur met plus de temps que prévu à répondre » **while keeping the whole recap on screen** — the
+error presentation the earlier PR built, working. The order had in fact been created. Tapping Confirm
+again returned the **same** order and the buyer's order count stayed at **1**: idempotency held under
+exactly the condition it exists for. Order `TK-20260907-190D`, its lines and its address were deleted
+afterwards and the product stock was restored (verified: 0 orders, 0 addresses).
+
+**Tests: buyer-mobile 484 (was 471), seller-mobile 219 unchanged.** New: the gallery skeleton showing an
+image affordance and reserving the real gallery's height at 360/390/800/1280; the accented checkout copy;
+no ghost payment method anywhere in checkout; the "Teka collects the cash" line; the labelled steps; the
+shared address empty state; the cart's labelled unit price and line total; the unit price no longer red;
+the subtotal wording; the success screen's next-steps and its use of `orderStatusLabel`; the purchase
+bar's sanctioned shadow. `flutter analyze` unchanged (6 buyer, 20 seller); `pnpm type-check` clean.
+
+**Runtime (Android phone emulator, dev flavor, local API, disposable QA buyer).** Search → PDP (loading
+and loaded) → favourite → cart → checkout steps 1, 2 and 3 → order placement → timeout → retry → success
+screen; cart and cart-empty at **1.5x**. Screenshots to the scratchpad, not committed. **Tablet not
+re-run in this PR** — no layout-width logic changed and PR B's tablet pass plus the layout tests still
+hold. **iOS still not exercised.**
+
+**No API, schema, env, dependency, analytics, security or Buyer Web change.** Pricing logic, the
+authoritative quote, the delivery-address snapshot, idempotency and COD-only behaviour are all untouched.
+
 ## Next exact step
 
-PR 1–13 plus UX PR A merged (latest: `7dadf23`). **UX PR B `buyer-mobile/ux-home-search-category` open —
-awaiting merge approval.** See its record above.
+PR 1–13 plus UX PR A and B merged (latest: `a57dcf5`). **UX PR C `buyer-mobile/ux-pdp-cart-checkout`
+open — awaiting merge approval.** See its record above.
 
-**Then UX PR C — PDP, cart and checkout.** Candidate scope from the PR A audit and the PR B runtime pass:
-the PDP gallery's loading state (the largest element on the page is blank while it loads), the
-« Aucun avis » row's ambiguous tap target, the sticky purchase bar's separation from the content, and
-migrating those screens' `fontSize`/radius literals onto the scales. Then UX PR D (orders, ratings,
-profile, notifications), then a separate Seller Mobile UX/UI phase.
+**Then UX PR D — orders, ratings, profile and notifications**, the last Buyer Mobile UX PR: the order list
+and detail hierarchy and status timeline, the review entry and verified-buyer badge presentation, profile
+grouping, the notification feed's read/unread distinction, and migrating those screens onto the scales.
+After it, a separate Seller Mobile UX/UI phase.
 
 **Carried-forward validation gaps — do not report these as done:** iPad/iOS runtime has never been
 exercised in any PR of the tablet or UX phases (no simulator input tooling); the Seller Mobile phone
