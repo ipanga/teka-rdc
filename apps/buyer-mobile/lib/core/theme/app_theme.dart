@@ -288,11 +288,20 @@ class AppTheme {
       // every existing call site inherits the panel width — no screen repeats
       // the number, and a phone is unaffected (the cap is wider than any
       // phone).
+      // Surfaces are explicit (UX PR D). Material 3 derives
+      // `surfaceContainerHigh` from the seed colour, and Teka's seed is red —
+      // so every dialog and bottom sheet in the app was painted #F6E4E3, a
+      // pink tint, while every card beside it was white. A logout
+      // confirmation reading as a warning is not a decision anyone made.
       bottomSheetTheme: const BottomSheetThemeData(
         constraints: kSheetConstraints,
+        backgroundColor: TekaColors.surface,
+        surfaceTintColor: Colors.transparent,
       ),
       dialogTheme: const DialogThemeData(
         constraints: kSheetConstraints,
+        backgroundColor: TekaColors.surface,
+        surfaceTintColor: Colors.transparent,
       ),
       chipTheme: ChipThemeData(
         backgroundColor: TekaColors.surfaceMuted,

@@ -420,7 +420,7 @@ class _OrderDetailBody extends StatelessWidget {
                     Text(
                       formatCDF(order.totalCDF),
                       style: const TextStyle(
-                        color: TekaColors.tekaRed,
+                        color: TekaColors.foreground,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),

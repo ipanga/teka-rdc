@@ -98,12 +98,15 @@ class OrderCard extends StatelessWidget {
                       fontSize: 13,
                     ),
                   ),
+                  // Colour marks STATE, not money (UX PR D). The status chip
+                  // carries the signal; a red amount competed with it on every
+                  // card and matched the cart and PDP nowhere.
                   Text(
                     formatCDF(order.totalCDF),
                     style: const TextStyle(
                       fontWeight: FontWeight.w800,
                       fontSize: 15,
-                      color: TekaColors.tekaRed,
+                      color: TekaColors.foreground,
                       letterSpacing: -0.2,
                     ),
                   ),

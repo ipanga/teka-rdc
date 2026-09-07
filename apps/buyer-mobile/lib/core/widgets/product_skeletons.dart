@@ -222,6 +222,69 @@ class ProductGallerySkeleton extends StatelessWidget {
   }
 }
 
+/// Loading state for a list of cards — orders, notifications, reviews.
+///
+/// Those lists opened on a bare centred spinner on an otherwise empty screen
+/// while every product surface in the app showed a content-shaped skeleton
+/// (UX PR D). On the 2G/3G connections this marketplace is built for, a
+/// spinner says "wait" and a skeleton says "here is what is coming".
+class ListCardSkeleton extends StatelessWidget {
+  final int count;
+  final EdgeInsets padding;
+
+  /// Height of one card. Orders and notifications differ enough that the
+  /// caller sets it rather than the widget guessing.
+  final double cardHeight;
+
+  const ListCardSkeleton({
+    super.key,
+    this.count = 4,
+    this.padding = const EdgeInsets.fromLTRB(16, 12, 16, 12),
+    this.cardHeight = 116,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Scale with the text scaler: a card whose height is fixed while its
+    // content grows is the bug the category strip had.
+    final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+    return ListView.separated(
+      padding: padding,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: count,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      // A white card with the shimmer inside, not a bare shimmer: the shimmer
+      // tone IS the scaffold background, so on a list with no cards behind it
+      // the skeleton was invisible (caught on the emulator).
+      itemBuilder: (_, __) => Container(
+        height: cardHeight * scale.clamp(1.0, 2.0),
+        decoration: BoxDecoration(
+          color: TekaColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: TekaColors.border),
+        ),
+        padding: const EdgeInsets.all(14),
+        child: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ShimmerBox(width: 190, height: 14, radius: 5),
+            SizedBox(height: 10),
+            ShimmerBox(width: 120, height: 11, radius: 5),
+            Spacer(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ShimmerBox(width: 80, height: 11, radius: 5),
+                ShimmerBox(width: 90, height: 14, radius: 5),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// A non-scrolling grid of [ProductCardSkeleton] for a loading product grid
 /// (drop-in where the real GridView renders). Mirrors the shared grid metrics.
 class ProductGridSkeleton extends StatelessWidget {
