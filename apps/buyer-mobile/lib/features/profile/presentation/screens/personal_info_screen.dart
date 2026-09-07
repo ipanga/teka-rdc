@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
 import '../../../../core/widgets/app_snackbar.dart';
@@ -160,12 +161,16 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
         leading: const AdaptiveLeading(),
         title: const Text('Informations personnelles'),
       ),
-      body: _buildBody(),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: _buildBody(),
+      ),
       bottomNavigationBar: _loading || _error != null
           ? null
           : SafeArea(
               top: false,
-              child: Padding(
+              child: ReadableBottomBar(
+                child: Padding(
                 padding: const EdgeInsets.all(16),
                 child: ElevatedButton.icon(
                   onPressed: _saving ? null : _save,
@@ -181,6 +186,7 @@ class _PersonalInfoScreenState extends ConsumerState<PersonalInfoScreen> {
                       : const Icon(Icons.check_rounded),
                   label: Text(_saving ? 'Enregistrement...' : 'Enregistrer'),
                 ),
+              ),
               ),
             ),
     );

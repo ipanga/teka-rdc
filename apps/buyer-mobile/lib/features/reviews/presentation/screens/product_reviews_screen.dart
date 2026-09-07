@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/app_snackbar.dart';
 import '../../../../core/widgets/app_states.dart';
@@ -47,7 +48,9 @@ class ProductReviewsScreen extends ConsumerWidget {
               label: const Text('Écrire un avis'),
             )
           : null,
-      body: reviewsState.isLoading
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: reviewsState.isLoading
           ? const Center(
               child: CircularProgressIndicator(strokeWidth: 2),
             )
@@ -174,6 +177,7 @@ class ProductReviewsScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
+      ),
     );
   }
 

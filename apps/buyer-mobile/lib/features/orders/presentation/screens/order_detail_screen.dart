@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
@@ -31,20 +32,23 @@ class OrderDetailScreen extends ConsumerWidget {
         leading: const AdaptiveLeading(),
         title: const Text("Détail de la commande"),
       ),
-      body: orderAsync.when(
-        data: (order) => _OrderDetailBody(
-          order: order,
-          locale: locale,
-          onCancel: () => _showCancelDialog(context, ref, order.id),
-          onReturn: () => _showReturnDialog(context, ref, order.id),
-        ),
-        loading: () => const Center(
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-        error: (error, _) => AppErrorState(
-          message: 'Impossible de charger cette commande.',
-          onRetry: () => ref.invalidate(orderDetailProvider(orderId)),
-        ),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: orderAsync.when(
+            data: (order) => _OrderDetailBody(
+              order: order,
+              locale: locale,
+              onCancel: () => _showCancelDialog(context, ref, order.id),
+              onReturn: () => _showReturnDialog(context, ref, order.id),
+            ),
+            loading: () => const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            error: (error, _) => AppErrorState(
+              message: 'Impossible de charger cette commande.',
+              onRetry: () => ref.invalidate(orderDetailProvider(orderId)),
+            ),
+          ),
       ),
     );
   }

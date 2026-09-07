@@ -1,6 +1,7 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/push/push_service.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
@@ -105,7 +106,10 @@ class _NotificationSettingsScreenState
         leading: const AdaptiveLeading(),
         title: const Text('Notifications'),
       ),
-      body: _buildBody(),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: _buildBody(),
+      ),
     );
   }
 

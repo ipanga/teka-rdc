@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/constants/stock.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../wishlist/presentation/widgets/wishlist_button.dart';
@@ -34,20 +35,150 @@ double _productCardInfoExtent(
   return base + ((scale - 1) * largeTextAllowance);
 }
 
-/// Main-axis extent for a two-column product grid. Unlike a fixed aspect
-/// ratio, this preserves a square image while reserving enough independent
-/// footer space for French text and accessibility scaling.
+/// Main-axis extent for a product grid cell. Unlike a fixed aspect ratio,
+/// this preserves a square image while reserving enough independent footer
+/// space for French text and accessibility scaling.
+///
+/// Takes the CELL width (tablet phase, 2026-09-07). It used to divide the
+/// window width by two, which was wrong the moment a grid had a different
+/// column count or sat inside a constrained column — on a tablet every card
+/// was sized for a two-column phone.
 double productCardGridExtent(
   BuildContext context, {
   required ProductCardVariant variant,
-  double horizontalPadding = 32,
-  double crossAxisSpacing = 12,
+  required double cellWidth,
 }) {
-  final cellWidth = (MediaQuery.sizeOf(context).width -
-          horizontalPadding -
-          crossAxisSpacing) /
-      2;
   return cellWidth + _productCardInfoExtent(context, variant);
+}
+
+/// Columns + cell width + row height for a product grid in [availableWidth].
+/// One call per grid so the six grids in the app cannot drift apart.
+ProductGridMetrics productGridMetrics(
+  BuildContext context, {
+  required double availableWidth,
+  required ProductCardVariant variant,
+  double spacing = 12,
+}) {
+  final columns = gridColumnsFor(availableWidth, spacing: spacing);
+  final cellWidth =
+      gridCellWidth(availableWidth, columns: columns, spacing: spacing);
+  return ProductGridMetrics(
+    columns: columns,
+    cellWidth: cellWidth,
+    spacing: spacing,
+    mainAxisExtent:
+        productCardGridExtent(context, variant: variant, cellWidth: cellWidth),
+  );
+}
+
+class ProductGridMetrics {
+  final int columns;
+  final double cellWidth;
+  final double spacing;
+  final double mainAxisExtent;
+
+  const ProductGridMetrics({
+    required this.columns,
+    required this.cellWidth,
+    required this.spacing,
+    required this.mainAxisExtent,
+  });
+
+  SliverGridDelegate get delegate => SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        mainAxisExtent: mainAxisExtent,
+        crossAxisSpacing: spacing,
+        mainAxisSpacing: spacing,
+      );
+}
+
+/// A product grid that picks its column count from the width it is actually
+/// given (tablet phase, 2026-09-07).
+///
+/// Every full-width product grid in the app goes through this widget or
+/// [ProductSliverGrid], so a phone keeps its two columns while a 600 pt window
+/// gets three and a 1024 pt one gets five — without any screen repeating the
+/// arithmetic. [padding] is subtracted before the columns are computed, so the
+/// cards are measured on the width they really occupy.
+class ProductGrid extends StatelessWidget {
+  final int itemCount;
+  final Widget? Function(BuildContext, int) itemBuilder;
+  final ProductCardVariant variant;
+  final EdgeInsets padding;
+  final bool shrinkWrap;
+  final ScrollPhysics? physics;
+
+  const ProductGrid({
+    super.key,
+    required this.itemCount,
+    required this.itemBuilder,
+    this.variant = ProductCardVariant.catalog,
+    this.padding = const EdgeInsets.all(16),
+    this.shrinkWrap = false,
+    this.physics,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final metrics = productGridMetrics(
+          context,
+          availableWidth: constraints.maxWidth - padding.horizontal,
+          variant: variant,
+        );
+        return GridView.builder(
+          padding: padding,
+          shrinkWrap: shrinkWrap,
+          physics: physics,
+          gridDelegate: metrics.delegate,
+          itemCount: itemCount,
+          itemBuilder: itemBuilder,
+        );
+      },
+    );
+  }
+}
+
+/// Sliver twin of [ProductGrid] for the screens whose grid lives inside a
+/// `CustomScrollView` (search, category). Uses the sliver's own cross-axis
+/// extent, so it is right inside a constrained column too.
+class ProductSliverGrid extends StatelessWidget {
+  final int itemCount;
+  final Widget? Function(BuildContext, int) itemBuilder;
+  final ProductCardVariant variant;
+  final EdgeInsets padding;
+
+  const ProductSliverGrid({
+    super.key,
+    required this.itemCount,
+    required this.itemBuilder,
+    this.variant = ProductCardVariant.catalog,
+    this.padding = const EdgeInsets.all(16),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverLayoutBuilder(
+      builder: (context, constraints) {
+        final metrics = productGridMetrics(
+          context,
+          availableWidth: constraints.crossAxisExtent - padding.horizontal,
+          variant: variant,
+        );
+        return SliverPadding(
+          padding: padding,
+          sliver: SliverGrid(
+            delegate: SliverChildBuilderDelegate(
+              itemBuilder,
+              childCount: itemCount,
+            ),
+            gridDelegate: metrics.delegate,
+          ),
+        );
+      },
+    );
+  }
 }
 
 /// Height for a horizontal product shelf with a known square image width.

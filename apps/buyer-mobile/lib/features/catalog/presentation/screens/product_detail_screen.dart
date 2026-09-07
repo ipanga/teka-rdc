@@ -7,6 +7,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/auth/auth_guard.dart';
 import '../../../../core/deep_link/web_links.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/widgets/app_snackbar.dart';
@@ -191,314 +192,325 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                         Container(
                           width: double.infinity,
                           color: TekaColors.surface,
-                          padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // The title owns the full summary width. Product
-                              // actions sit on the secondary rating row so a
-                              // long French name never wraps around controls.
-                              Text(
-                                title,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: TekaColors.foreground,
-                                    ),
-                              ),
-                              const SizedBox(height: 8),
+                          // Title, price, description and specs are text: on a
+                          // tablet they are centered in a readable column
+                          // instead of running the full width. Unchanged on a
+                          // phone (the cap is infinite there).
+                          child: ReadableColumn(
+                            padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // The title owns the full summary width. Product
+                                // actions sit on the secondary rating row so a
+                                // long French name never wraps around controls.
+                                Text(
+                                  title,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleLarge
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                        color: TekaColors.foreground,
+                                      ),
+                                ),
+                                const SizedBox(height: 8),
 
-                              // Price — effective price prominent; when on
-                              // promo, show the original struck through and
-                              // a −X% badge.
-                              Wrap(
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                spacing: 10,
-                                runSpacing: 6,
-                                children: [
-                                  Text(
-                                    price,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineSmall
-                                        ?.copyWith(
-                                          fontWeight: FontWeight.bold,
-                                          color: TekaColors.foreground,
-                                        ),
-                                  ),
-                                  if (hasDiscount) ...[
+                                // Price — effective price prominent; when on
+                                // promo, show the original struck through and
+                                // a −X% badge.
+                                Wrap(
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 10,
+                                  runSpacing: 6,
+                                  children: [
                                     Text(
-                                      formatCDF(product.priceCDF),
+                                      price,
                                       style: Theme.of(context)
                                           .textTheme
-                                          .titleMedium
+                                          .headlineSmall
                                           ?.copyWith(
-                                            color: TekaColors.mutedForeground,
-                                            decoration:
-                                                TextDecoration.lineThrough,
+                                            fontWeight: FontWeight.bold,
+                                            color: TekaColors.foreground,
                                           ),
                                     ),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: TekaColors.tekaRed,
-                                        borderRadius: BorderRadius.circular(4),
+                                    if (hasDiscount) ...[
+                                      Text(
+                                        formatCDF(product.priceCDF),
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium
+                                            ?.copyWith(
+                                              color: TekaColors.mutedForeground,
+                                              decoration:
+                                                  TextDecoration.lineThrough,
+                                            ),
                                       ),
-                                      child: Text(
-                                        "-${product.discountPct}%",
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: TekaColors.tekaRed,
+                                          borderRadius:
+                                              BorderRadius.circular(4),
+                                        ),
+                                        child: Text(
+                                          "-${product.discountPct}%",
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                                if (priceUSD != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Text(
+                                      priceUSD,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: TekaColors.mutedForeground,
+                                          ),
+                                    ),
+                                  ),
+                                const SizedBox(height: 12),
+
+                                // Availability. The Neuf / Occasion badge that
+                                // used to lead this row was removed 2026-07-28:
+                                // Teka sells new products only, so a "Neuf" pill
+                                // on every product carried no information. The
+                                // field is still stored and still emitted in
+                                // JSON-LD on the web — see
+                                // docs/product-condition-deprecation.md.
+                                _PdpStockStatus(product: product),
+                                const SizedBox(height: 8),
+
+                                // Uses the exact same reviewsProvider instance as
+                                // the detailed section below, so no client-side
+                                // recalculation or duplicate request is created.
+                                Row(
+                                  key: const Key('pdp-rating-actions'),
+                                  children: [
+                                    Expanded(
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: _PdpRatingSummary(
+                                          productId: product.id,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    _PdpActionSurface(
+                                      child: WishlistButton(
+                                        // Wishlist routes require the resolved
+                                        // UUID, never the route slug/shortCode.
+                                        productId: product.id,
+                                        size: 20,
+                                        inactiveColor: TekaColors.foreground,
+                                        padding: EdgeInsets.zero,
+                                        constraints:
+                                            const BoxConstraints.tightFor(
+                                          width: 44,
+                                          height: 44,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    _PdpActionSurface(
+                                      child: IconButton(
+                                        key: _shareButtonKey,
+                                        onPressed: () => _shareProduct(product),
+                                        tooltip: 'Partager ce produit',
+                                        padding: EdgeInsets.zero,
+                                        constraints:
+                                            const BoxConstraints.tightFor(
+                                          width: 44,
+                                          height: 44,
+                                        ),
+                                        icon: const Icon(
+                                          Icons.ios_share_outlined,
+                                          size: 20,
+                                          color: TekaColors.foreground,
                                         ),
                                       ),
                                     ),
                                   ],
-                                ],
-                              ),
-                              if (priceUSD != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 2),
-                                  child: Text(
-                                    priceUSD,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(
-                                          color: TekaColors.mutedForeground,
-                                        ),
-                                  ),
                                 ),
-                              const SizedBox(height: 12),
+                                const SizedBox(height: 14),
+                                const _PdpFulfilmentHighlights(),
 
-                              // Availability. The Neuf / Occasion badge that
-                              // used to lead this row was removed 2026-07-28:
-                              // Teka sells new products only, so a "Neuf" pill
-                              // on every product carried no information. The
-                              // field is still stored and still emitted in
-                              // JSON-LD on the web — see
-                              // docs/product-condition-deprecation.md.
-                              _PdpStockStatus(product: product),
-                              const SizedBox(height: 8),
-
-                              // Uses the exact same reviewsProvider instance as
-                              // the detailed section below, so no client-side
-                              // recalculation or duplicate request is created.
-                              Row(
-                                key: const Key('pdp-rating-actions'),
-                                children: [
-                                  Expanded(
-                                    child: Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: _PdpRatingSummary(
-                                        productId: product.id,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _PdpActionSurface(
-                                    child: WishlistButton(
-                                      // Wishlist routes require the resolved
-                                      // UUID, never the route slug/shortCode.
-                                      productId: product.id,
-                                      size: 20,
-                                      inactiveColor: TekaColors.foreground,
-                                      padding: EdgeInsets.zero,
-                                      constraints:
-                                          const BoxConstraints.tightFor(
-                                        width: 44,
-                                        height: 44,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _PdpActionSurface(
-                                    child: IconButton(
-                                      key: _shareButtonKey,
-                                      onPressed: () => _shareProduct(product),
-                                      tooltip: 'Partager ce produit',
-                                      padding: EdgeInsets.zero,
-                                      constraints:
-                                          const BoxConstraints.tightFor(
-                                        width: 44,
-                                        height: 44,
-                                      ),
-                                      icon: const Icon(
-                                        Icons.ios_share_outlined,
-                                        size: 20,
-                                        color: TekaColors.foreground,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                              const _PdpFulfilmentHighlights(),
-
-                              const SizedBox(height: 20),
-                              const Divider(color: TekaColors.border),
-                              const SizedBox(height: 12),
-
-                              // Description
-                              if (description.isNotEmpty) ...[
-                                Text(
-                                  "Détails du produit",
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleSmall
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  description,
-                                  style: const TextStyle(
-                                    color: TekaColors.foreground,
-                                    fontSize: 14,
-                                    height: 1.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 20),
                                 const Divider(color: TekaColors.border),
                                 const SizedBox(height: 12),
-                              ],
 
-                              // Specifications
-                              if (specs.isNotEmpty) ...[
-                                Text(
-                                  "Caractéristiques",
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleSmall
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                ),
-                                const SizedBox(height: 8),
-                                Table(
-                                  columnWidths: const {
-                                    0: FlexColumnWidth(2),
-                                    1: FlexColumnWidth(3),
-                                  },
-                                  border: TableBorder(
-                                    horizontalInside: BorderSide(
-                                      color: TekaColors.border,
-                                      width: 0.5,
+                                // Description
+                                if (description.isNotEmpty) ...[
+                                  Text(
+                                    "Détails du produit",
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    description,
+                                    style: const TextStyle(
+                                      color: TekaColors.foreground,
+                                      fontSize: 14,
+                                      height: 1.5,
                                     ),
                                   ),
-                                  children: specs
-                                      .map(
-                                        (spec) => TableRow(
-                                          children: [
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      vertical: 8),
-                                              child: Text(
-                                                spec.name,
-                                                style: const TextStyle(
-                                                  color: TekaColors
-                                                      .mutedForeground,
-                                                  fontSize: 13,
+                                  const SizedBox(height: 16),
+                                  const Divider(color: TekaColors.border),
+                                  const SizedBox(height: 12),
+                                ],
+
+                                // Specifications
+                                if (specs.isNotEmpty) ...[
+                                  Text(
+                                    "Caractéristiques",
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .titleSmall
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Table(
+                                    columnWidths: const {
+                                      0: FlexColumnWidth(2),
+                                      1: FlexColumnWidth(3),
+                                    },
+                                    border: TableBorder(
+                                      horizontalInside: BorderSide(
+                                        color: TekaColors.border,
+                                        width: 0.5,
+                                      ),
+                                    ),
+                                    children: specs
+                                        .map(
+                                          (spec) => TableRow(
+                                            children: [
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        vertical: 8),
+                                                child: Text(
+                                                  spec.name,
+                                                  style: const TextStyle(
+                                                    color: TekaColors
+                                                        .mutedForeground,
+                                                    fontSize: 13,
+                                                  ),
                                                 ),
+                                              ),
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        vertical: 8),
+                                                child: Text(
+                                                  spec.value,
+                                                  style: const TextStyle(
+                                                    color:
+                                                        TekaColors.foreground,
+                                                    fontSize: 13,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                        .toList(),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const Divider(color: TekaColors.border),
+                                  const SizedBox(height: 12),
+                                ],
+
+                                // Seller info
+                                if (product.seller.businessName != null &&
+                                    product
+                                        .seller.businessName!.isNotEmpty) ...[
+                                  Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Icon(
+                                        Icons.storefront_outlined,
+                                        size: 20,
+                                        color: TekaColors.mutedForeground,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Wrap(
+                                          crossAxisAlignment:
+                                              WrapCrossAlignment.center,
+                                          spacing: 4,
+                                          runSpacing: 4,
+                                          children: [
+                                            Text(
+                                              '${"Vendeur"}: ',
+                                              style: const TextStyle(
+                                                color:
+                                                    TekaColors.mutedForeground,
+                                                fontSize: 14,
                                               ),
                                             ),
-                                            Padding(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      vertical: 8),
-                                              child: Text(
-                                                spec.value,
-                                                style: const TextStyle(
-                                                  color: TekaColors.foreground,
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
+                                            Text(
+                                              product.seller.businessName!,
+                                              style: const TextStyle(
+                                                color: TekaColors.foreground,
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 14,
                                               ),
+                                            ),
+                                            // Officiel (platform seller) /
+                                            // Vérifié badge — from the API
+                                            // flags only; nothing for an
+                                            // ordinary seller.
+                                            PdpSellerBadge(
+                                              seller: product.seller,
                                             ),
                                           ],
                                         ),
-                                      )
-                                      .toList(),
-                                ),
-                                const SizedBox(height: 16),
-                                const Divider(color: TekaColors.border),
-                                const SizedBox(height: 12),
-                              ],
-
-                              // Seller info
-                              if (product.seller.businessName != null &&
-                                  product.seller.businessName!.isNotEmpty) ...[
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Icon(
-                                      Icons.storefront_outlined,
-                                      size: 20,
-                                      color: TekaColors.mutedForeground,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: Wrap(
-                                        crossAxisAlignment:
-                                            WrapCrossAlignment.center,
-                                        spacing: 4,
-                                        runSpacing: 4,
-                                        children: [
-                                          Text(
-                                            '${"Vendeur"}: ',
-                                            style: const TextStyle(
-                                              color: TekaColors.mutedForeground,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                          Text(
-                                            product.seller.businessName!,
-                                            style: const TextStyle(
-                                              color: TekaColors.foreground,
-                                              fontWeight: FontWeight.w600,
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                          // Officiel (platform seller) /
-                                          // Vérifié badge — from the API
-                                          // flags only; nothing for an
-                                          // ordinary seller.
-                                          PdpSellerBadge(
-                                            seller: product.seller,
-                                          ),
-                                        ],
                                       ),
-                                    ),
-                                  ],
-                                ),
-                                // Direct buyer↔seller messaging was retired
-                                // 2026-05-17; the support pointer that stood
-                                // here was removed 2026-07-26 (support lives in
-                                // Compte → Aide and /contact). The seller name
-                                // + city above are the entire seller card now.
-                                const SizedBox(height: 16),
-                                const Divider(color: TekaColors.border),
-                                const SizedBox(height: 12),
+                                    ],
+                                  ),
+                                  // Direct buyer↔seller messaging was retired
+                                  // 2026-05-17; the support pointer that stood
+                                  // here was removed 2026-07-26 (support lives in
+                                  // Compte → Aide and /contact). The seller name
+                                  // + city above are the entire seller card now.
+                                  const SizedBox(height: 16),
+                                  const Divider(color: TekaColors.border),
+                                  const SizedBox(height: 12),
+                                ],
+
+                                // Everything below is API-bound and therefore
+                                // takes the RESOLVED uuid, never the route
+                                // identifier (which may be a shortCode or slug).
+                                _ReviewsSection(productId: product.id),
+
+                                // Related products (same category + price)
+                                const SizedBox(height: 24),
+                                _RelatedSection(productId: product.id),
+
+                                // Recently viewed (client-local), excl. current
+                                const SizedBox(height: 24),
+                                RecentlyViewedSection(excludeId: product.id),
                               ],
-
-                              // Everything below is API-bound and therefore
-                              // takes the RESOLVED uuid, never the route
-                              // identifier (which may be a shortCode or slug).
-                              _ReviewsSection(productId: product.id),
-
-                              // Related products (same category + price)
-                              const SizedBox(height: 24),
-                              _RelatedSection(productId: product.id),
-
-                              // Recently viewed (client-local), excl. current
-                              const SizedBox(height: 24),
-                              RecentlyViewedSection(excludeId: product.id),
-                            ],
+                            ),
                           ),
                         ),
                       ],
@@ -526,10 +538,15 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 child: SafeArea(
                   top: false,
                   minimum: const EdgeInsets.fromLTRB(16, 10, 16, 12),
-                  child: Semantics(
-                    container: true,
-                    label: "Actions d'achat",
-                    child: _PdpCartBar(product: product),
+                  // The bar keeps its full-width background; only the controls
+                  // are centered, so « Ajouter au panier » is not a 1024 pt
+                  // button on a tablet.
+                  child: ReadableBottomBar(
+                    child: Semantics(
+                      container: true,
+                      label: "Actions d'achat",
+                      child: _PdpCartBar(product: product),
+                    ),
                   ),
                 ),
               ),

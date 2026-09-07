@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/connectivity/connectivity_provider.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
@@ -93,12 +94,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ),
             ),
 
-          // Content
+          // Content — the address form, the payment choice and the order
+          // summary are text and controls, so on a tablet they are centered in
+          // a readable column instead of spanning the whole width.
           Expanded(
-            child: _buildStepContent(
-              checkoutState,
-              cartState,
-              locale,
+            child: ReadableColumn(
+              padding: EdgeInsets.zero,
+              child: _buildStepContent(
+                checkoutState,
+                cartState,
+                locale,
+              ),
             ),
           ),
         ],
@@ -251,57 +257,61 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Inline French explanation when the review-step button is
-          // disabled because of offline state. Only shown on the
-          // review step + when actually offline — keeps the bottom bar
-          // unchanged on every other step.
-          if (checkoutState.step == CheckoutStep.review &&
-              checkoutState.canPlaceOrder &&
-              ref.watch(isOfflineProvider))
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.wifi_off_outlined,
-                    color: TekaColors.destructive,
-                    size: 14,
-                  ),
-                  const SizedBox(width: 6),
-                  const Flexible(
-                    child: Text(
-                      'Connexion requise pour passer commande',
-                      style: TextStyle(
-                        color: TekaColors.destructive,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+      // Only the controls are centered; the bar keeps its full-width
+      // background and border.
+      child: ReadableBottomBar(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Inline French explanation when the review-step button is
+            // disabled because of offline state. Only shown on the
+            // review step + when actually offline — keeps the bottom bar
+            // unchanged on every other step.
+            if (checkoutState.step == CheckoutStep.review &&
+                checkoutState.canPlaceOrder &&
+                ref.watch(isOfflineProvider))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.wifi_off_outlined,
+                      color: TekaColors.destructive,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 6),
+                    const Flexible(
+                      child: Text(
+                        'Connexion requise pour passer commande',
+                        style: TextStyle(
+                          color: TekaColors.destructive,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: onPressed,
-              style: FilledButton.styleFrom(
-                backgroundColor: TekaColors.tekaRed,
-                disabledBackgroundColor: TekaColors.muted,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                textStyle: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  ],
                 ),
               ),
-              child: Text(buttonText),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: onPressed,
+                style: FilledButton.styleFrom(
+                  backgroundColor: TekaColors.tekaRed,
+                  disabledBackgroundColor: TekaColors.muted,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                child: Text(buttonText),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

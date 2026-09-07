@@ -90,6 +90,11 @@ void main() {
     final chip = find.widgetWithText(FilterChip, 'Retournées');
     await tester.scrollUntilVisible(chip, 150,
         scrollable: find.byType(Scrollable).first);
+    // The chip row is centered in a readable column on a tablet-width test
+    // surface, so scrollUntilVisible can stop with the chip flush against the
+    // edge; ensureVisible brings its centre inside the viewport before the tap.
+    await tester.ensureVisible(chip);
+    await tester.pumpAndSettle();
     await tester.tap(chip, warnIfMissed: false);
     await tester.pumpAndSettle();
     expect(repo.lastStatus, 'RETURNED');

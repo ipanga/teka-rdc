@@ -319,33 +319,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           title: "Aucune nouveauté",
                           message: "Les nouveaux produits apparaîtront ici.",
                         )
-                      : Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisExtent: productCardGridExtent(
-                                context,
-                                variant: ProductCardVariant.discovery,
-                              ),
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                            ),
-                            itemCount: products.length,
-                            itemBuilder: (context, index) => ProductCard(
-                              product: products[index],
-                              variant: ProductCardVariant.discovery,
-                            ),
+                      : ProductGrid(
+                          padding:
+                              const EdgeInsets.symmetric(horizontal: 16),
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          variant: ProductCardVariant.discovery,
+                          itemCount: products.length,
+                          itemBuilder: (context, index) => ProductCard(
+                            product: products[index],
+                            variant: ProductCardVariant.discovery,
                           ),
                         ),
                   loading: () => ProductGridSkeleton(
                     count: 6,
-                    mainAxisExtent: productCardGridExtent(
+                    mainAxisExtentFor: (cellWidth) => productCardGridExtent(
                       context,
                       variant: ProductCardVariant.discovery,
+                      cellWidth: cellWidth,
                     ),
                   ),
                   error: (_, __) => _InlineFeedState(

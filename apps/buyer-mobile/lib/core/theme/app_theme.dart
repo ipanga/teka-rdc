@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../layout/responsive.dart';
 import 'teka_colors.dart';
 
 /// Mobile theme — mirrors the Tailwind v4 `@theme inline` block on the web
@@ -281,6 +282,17 @@ class AppTheme {
         color: TekaColors.border,
         thickness: 1,
         space: 1,
+      ),
+      // Tablet phase (2026-09-07): a modal sheet or dialog stretched across a
+      // 1024 pt tablet reads as a broken page. Constraining them here means
+      // every existing call site inherits the panel width — no screen repeats
+      // the number, and a phone is unaffected (the cap is wider than any
+      // phone).
+      bottomSheetTheme: const BottomSheetThemeData(
+        constraints: kSheetConstraints,
+      ),
+      dialogTheme: const DialogThemeData(
+        constraints: kSheetConstraints,
       ),
       chipTheme: ChipThemeData(
         backgroundColor: TekaColors.surfaceMuted,

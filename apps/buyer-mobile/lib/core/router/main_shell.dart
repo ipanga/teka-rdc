@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../layout/responsive.dart';
 import '../theme/teka_colors.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/cart/presentation/providers/cart_provider.dart';
@@ -103,7 +104,17 @@ class _BottomBarFrame extends StatelessWidget {
         top: false,
         child: Padding(
           padding: const EdgeInsets.only(top: 4),
-          child: child,
+          // Tablet phase (2026-09-07): the bar keeps its full-width surface,
+          // border and shadow, but the five destinations are centered in a
+          // phone-width group instead of each tab owning a fifth of a 1024 pt
+          // screen. A NavigationRail was considered and rejected: it would
+          // mean restructuring the StatefulNavigationShell for a marketplace
+          // whose tablet traffic is portrait-first, and it moves the cart out
+          // of thumb reach. Nothing changes on a phone.
+          child: ReadableBottomBar(
+            maxWidth: kMediumWidthBreakpoint,
+            child: child,
+          ),
         ),
       ),
     );
