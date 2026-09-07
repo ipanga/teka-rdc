@@ -12,13 +12,22 @@ import type { Order, OrderStatus, PaginatedOrders } from '@/lib/types';
 
 type FilterStatus = 'ALL' | OrderStatus;
 
+// Every status a buyer's order can reach, in workflow order — same set and
+// same wording as buyer-mobile (PR D3, 2026-09-07). `RETURNED` and the two
+// Teka-custody steps were missing, so those orders could not be filtered for
+// at all.
 const STATUS_TABS: { key: FilterStatus; label: string }[] = [
   { key: 'ALL', label: 'Toutes' },
   { key: 'PENDING', label: 'En attente' },
   { key: 'CONFIRMED', label: 'Confirmées' },
+  { key: 'PROCESSING', label: 'En préparation' },
+  { key: 'READY_FOR_TEKA_PICKUP', label: 'Prêtes pour collecte' },
+  { key: 'RECEIVED_AT_TEKA', label: 'Reçues par Teka' },
   { key: 'SHIPPED', label: 'Expédiées' },
+  { key: 'OUT_FOR_DELIVERY', label: 'En livraison' },
   { key: 'DELIVERED', label: 'Livrées' },
   { key: 'CANCELLED', label: 'Annulées' },
+  { key: 'RETURNED', label: 'Retournées' },
 ];
 
 function formatDate(dateStr: string): string {

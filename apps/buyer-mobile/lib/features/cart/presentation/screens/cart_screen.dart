@@ -29,7 +29,9 @@ class CartScreen extends ConsumerWidget {
           const SizedBox(width: 12),
         ],
       ),
-      body: cartState.isLoading
+      // Only the FIRST load takes the screen; a pull-to-refresh keeps the
+      // lines visible under its own spinner instead of blanking them (PR D3).
+      body: cartState.isLoading && cartState.items.isEmpty
           ? const Center(
               child: CircularProgressIndicator(strokeWidth: 2),
             )

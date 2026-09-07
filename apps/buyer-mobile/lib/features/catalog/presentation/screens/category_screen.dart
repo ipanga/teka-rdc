@@ -97,7 +97,6 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
 
   BrowseProductsParams get _params => BrowseProductsParams(
         categoryId: _resolvedId ?? widget.categoryId,
-        condition: _filters.condition,
         sortBy: _filters.sortBy,
         minPrice: _filters.minPrice,
         maxPrice: _filters.maxPrice,
@@ -200,40 +199,9 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     BuildContext context,
     BrowseProductsState state,
   ) {
-    // Condition chips row
-    final conditionBar = SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            _ConditionFilterChip(
-              label: "Tous",
-              isSelected: _filters.condition == null,
-              onTap: () =>
-                  _applyFilters(_filters.copyWith(clearCondition: true)),
-            ),
-            const SizedBox(width: 8),
-            _ConditionFilterChip(
-              label: "Neuf",
-              isSelected: _filters.condition == 'NEW',
-              onTap: () => _applyFilters(_filters.copyWith(condition: 'NEW')),
-            ),
-            const SizedBox(width: 8),
-            _ConditionFilterChip(
-              label: "Occasion",
-              isSelected: _filters.condition == 'USED',
-              onTap: () => _applyFilters(_filters.copyWith(condition: 'USED')),
-            ),
-          ],
-        ),
-      ),
-    );
-
     if (state.isLoading && state.products.isEmpty) {
       return Column(
         children: [
-          conditionBar,
           Expanded(
             child: ProductGridSkeleton(
               count: 6,
@@ -250,7 +218,6 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     if (state.error != null && state.products.isEmpty) {
       return Column(
         children: [
-          conditionBar,
           Expanded(
             child: AppErrorState(
               message: state.error!,
@@ -266,7 +233,6 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     if (state.products.isEmpty) {
       return Column(
         children: [
-          conditionBar,
           const Expanded(
             child: AppEmptyState(
               icon: Icons.inventory_2_outlined,
@@ -310,7 +276,6 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
               ),
             ),
           ),
-        SliverToBoxAdapter(child: conditionBar),
         // Product grid
         SliverPadding(
           padding: const EdgeInsets.all(16),
@@ -419,39 +384,3 @@ class _CategoryContextBar extends StatelessWidget {
   }
 }
 
-class _ConditionFilterChip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _ConditionFilterChip({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? TekaColors.tekaRed : TekaColors.muted,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? TekaColors.tekaRed : TekaColors.border,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : TekaColors.foreground,
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-          ),
-        ),
-      ),
-    );
-  }
-}

@@ -417,7 +417,7 @@ class _AddressFormSheetState extends State<AddressFormSheet> {
             TextField(
               controller: _referenceController,
               decoration: _decoration(
-                label: "Point de repere",
+                label: "Point de repère",
                 hint: "Ex: En face de la pharmacie",
                 icon: Icons.place_outlined,
               ),

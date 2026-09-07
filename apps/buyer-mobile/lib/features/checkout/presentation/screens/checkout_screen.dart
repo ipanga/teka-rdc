@@ -45,19 +45,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final checkoutState = ref.watch(checkoutProvider);
     final cartState = ref.watch(cartProvider);
 
-    // Navigate to success or payment-pending screen when checkout succeeds
+    // Navigate to the success screen when checkout succeeds
     ref.listen<CheckoutState>(checkoutProvider, (previous, next) {
       if (previous?.step != CheckoutStep.success &&
           next.step == CheckoutStep.success) {
-        if (next.paymentPending && next.orders.isNotEmpty) {
-          context.go('/checkout/payment-pending', extra: {
-            'orders': next.orders,
-          });
-        } else {
-          context.go('/checkout/success', extra: {
-            'orders': next.orders,
-          });
-        }
+        // COD-only: the API never reports a pending payment, so there is
+        // one destination (PR D3 removed the dead payment-pending branch).
+        context.go('/checkout/success', extra: {
+          'orders': next.orders,
+        });
       }
     });
 
@@ -426,7 +422,7 @@ class _AddressStep extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                "Aucune adresse enregistree",
+                "Aucune adresse enregistrée",
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: TekaColors.mutedForeground,
                     ),
@@ -553,7 +549,7 @@ class _PaymentStep extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         _PaymentOption(
-          title: "Paiement a la livraison",
+          title: "Paiement à la livraison",
           subtitle: 'Payez a la reception de votre commande',
           icon: Icons.payments_outlined,
           isSelected: selectedMethod == 'COD',
@@ -709,7 +705,7 @@ class _ReviewStep extends StatelessWidget {
           icon: Icons.payment_outlined,
           title: "Mode de paiement",
           child: Text(
-            "Paiement a la livraison",
+            "Paiement à la livraison",
             style: const TextStyle(
               color: TekaColors.foreground,
               fontSize: 13,

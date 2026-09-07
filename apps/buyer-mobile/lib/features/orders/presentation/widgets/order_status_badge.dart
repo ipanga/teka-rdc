@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../domain/order_status.dart';
 
 class OrderStatusBadge extends StatelessWidget {
   final String status;
@@ -8,7 +9,7 @@ class OrderStatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = _statusLabel(status);
+    final label = orderStatusLabel(status);
     final color = TekaColors.orderStatusColor(status);
 
     return Container(
@@ -28,30 +29,4 @@ class OrderStatusBadge extends StatelessWidget {
     );
   }
 
-  static String _statusLabel(String status) {
-    switch (status.toUpperCase()) {
-      case 'PENDING':
-        return "En attente";
-      case 'CONFIRMED':
-        return "Confirmée";
-      case 'PROCESSING':
-        return "En préparation";
-      case 'READY_FOR_TEKA_PICKUP':
-        return "Prête pour collecte";
-      case 'RECEIVED_AT_TEKA':
-        return "Reçue par Teka";
-      case 'SHIPPED':
-        return "Expédiée";
-      case 'OUT_FOR_DELIVERY':
-        return "En livraison";
-      case 'DELIVERED':
-        return "Livrée";
-      case 'CANCELLED':
-        return "Annulée";
-      case 'RETURNED':
-        return "Retournée";
-      default:
-        return status;
-    }
-  }
 }

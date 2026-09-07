@@ -82,26 +82,7 @@ class CartRepository {
     await _dio.delete('/v1/cart');
   }
 
-  Future<CartModel> mergeGuestCart(
-    List<Map<String, dynamic>> items,
-  ) async {
-    final response = await _dio.post(
-      '/v1/cart/merge',
-      data: {'items': items},
-    );
-    final responseData = response.data;
 
-    final Map<String, dynamic> cartJson;
-    if (responseData is Map && responseData['data'] != null) {
-      cartJson = responseData['data'] as Map<String, dynamic>;
-    } else if (responseData is Map) {
-      cartJson = Map<String, dynamic>.from(responseData);
-    } else {
-      throw Exception('Invalid cart response');
-    }
-
-    return CartModel.fromJson(cartJson);
-  }
 }
 
 final cartRepositoryProvider = Provider<CartRepository>((ref) {

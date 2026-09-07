@@ -11,7 +11,7 @@ import 'package:go_router/go_router.dart';
 ///     plain `AppBar` renders NO leading → the user is trapped (no back, no bar).
 ///
 /// That second case is exactly how "Mes commandes" trapped users when opened
-/// from checkout success / payment-pending (both use `go('/orders')`), and it
+/// from checkout success (it uses `go('/orders')`), and it
 /// can also happen on any screen opened from a push-notification deep link.
 ///
 /// [AdaptiveLeading] removes the dependency on the entry method: it pops when

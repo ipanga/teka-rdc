@@ -1288,14 +1288,116 @@ export (the existing `normalizeDrcPhone` widened), so nothing else needs updatin
 order filters, obsolete « Neuf / Occasion » filter, dead routes, refresh blanking); browser QA of the web
 address form; the QA-stack cookie-domain trick is worth folding into the local QA recipe.
 
+### PR 11 — `buyer-mobile/localization-status-route-cleanup` (Buyer Mobile PR D3, 2026-09-07)
+
+**PR #697 merged** as `9450358` (merge commit; reviewed head `d8e4fea` unchanged, 15/15 checks + CodeQL
+green, no schema/env/dependency file). Develop CI + CodeQL green at `9450358` (14 checks).
+
+**Re-audit (on `develop` `9450358`):**
+
+| Finding | Status | Evidence |
+|---|---|---|
+| Raw status enums | **confirmed, in three places** | `order_detail_screen` printed the payment enum itself for `REFUNDED` (`label = status`) and lumped every unknown value into « En attente »; `checkout_success_screen` printed `order.status` (a buyer saw `PENDING` after paying); `OrderStatusBadge`'s `default` returned the raw status |
+| Three separate status mappings | **confirmed** | badge labels, orders-screen filter chips and the payment chip each had their own subset — the Teka-custody steps existed in the badge but not the filters |
+| `RETURNED` missing from filters | **confirmed** | the chip list was `PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED` — a returned order could not be filtered for at all, on mobile **or** on buyer-web |
+| Missing accents | **confirmed, 12 in the end** | the 7 the scanner found (`Réinitialiser`, `Point de repère`, `Sélectionnez…`, `Aucune adresse enregistrée`, `Paiement à la livraison` ×2, `Commande confirmée !`) plus 5 found during the emulator pass (`Plus récents`, `Prix décroissant`, `Popularité`, « Votre commande a été passée avec succès. », « Commande annulée ») |
+| Duplicate terminology | **confirmed (small)** | the filter sheet's title and its first section header were both « Trier et filtrer » — the section is now « Trier par » |
+| Obsolete « Neuf / Occasion » | **confirmed** | the sheet dropped it 2026-07-28 but `category_screen` still rendered a Tous / Neuf / Occasion bar above every listing (seen live during the D1 QA) and pushed `condition` into the browse params |
+| `/checkout/payment-pending` | **confirmed dead** | `CheckoutService` answers `paymentPending: false` unconditionally (COD-only), so the branch and the polling screen could never run |
+| `/auth/reclamer-compte/confirmer` | **compatibility — keep** | the claim magic link is a website URL that the deep-link parser deliberately leaves to the browser; the in-app screen stays so a link opened inside the app resolves |
+| `mergeGuestCart` | **confirmed dead** | no caller since the cart became account-scoped |
+| Refresh blanking | **confirmed** | the orders screen replaced the list with a spinner on every refresh and with a full error state on any failure; the cart did the same on `fetchCart` |
+| Nameless-buyer residual | **already closed by PR C** | header falls back to « Compte Teka » + nudge, review sheet warns; verified on the emulator (a named buyer sees no nudge) |
+| Optional name capture at login | **no change (documented)** | buyer-web offers « Première connexion ? Indiquez votre nom (facultatif) »; on mobile the post-OTP nudge covers it and login stays minimal — expanding the OTP screen was not worth the risk |
+| Category slug/ID residuals | **already fixed in D1** | nothing left to change; old UUID links still resolve |
+| English UUID/order route errors | **already fixed in D1** | `UuidParam` on the buyer order routes |
+
+**Status mapping (one place).** `apps/buyer-mobile/lib/features/orders/domain/order_status.dart`:
+`BuyerOrderStatus` (the 10 API values, each with a singular and a plural French label),
+`orderStatusLabel`, `paymentStatusLabel` and `orderStatusFilters`. The badge, the filter chips, the
+payment chip and the success screen all read from it. The wire values are never translated — only what a
+buyer reads. Wording is what Teka already uses (buyer-web badge, seller-mobile, seller-web, admin-web);
+nothing was invented: `PENDING` En attente · `CONFIRMED` Confirmée · `PROCESSING` En préparation ·
+`READY_FOR_TEKA_PICKUP` Prête pour collecte · `RECEIVED_AT_TEKA` Reçue par Teka · `SHIPPED` Expédiée ·
+`OUT_FOR_DELIVERY` En livraison · `DELIVERED` Livrée · `CANCELLED` Annulée · `RETURNED` Retournée;
+payment: Payé / Échoué / **Remboursé** / En attente. An unknown value reads « Statut inconnu » on both
+clients — a status added to the API before an app update can no longer surface as `SOME_NEW_ENUM`.
+
+**Buyer Web parity:** the same complete filter set (`RETURNED` and the two Teka-custody steps were
+missing there too) and the badge's unknown-status fallback now says « Statut inconnu » instead of echoing
+the enum. Labels, the condition policy and public-route semantics are unchanged; no layout was touched,
+no `noindex`, nothing became client-only — SEO is unaffected.
+
+**Removed / kept:** `/checkout/payment-pending` route + screen + branch removed (bring both back with a
+payment provider); `mergeGuestCart` removed; `/auth/reclamer-compte/confirmer` kept and documented as a
+compatibility route. Every route the app links to still exists (asserted by a test).
+
+**Refresh:** the orders list and the cart keep what is on screen through a refresh; only a first load with
+nothing to show takes the whole area. A failed refresh with rows on screen shows an inline French error
+with « Réessayer » instead of replacing the list; the empty state stays pull-to-refreshable.
+
+**Tests:** buyer-mobile **376 → 411** (+35): `order_status_test` (20 — every status, the enum-coverage
+check, case tolerance, unknown fallback, payment labels incl. REFUNDED, filter order/wire/labels, badge
+widget), `orders_screen_test` (5 — French chips with no raw enum, « Retournées » asks the API for
+`RETURNED`, failed refresh keeps the list + inline retry, nothing-loaded error state, empty list still
+refreshable), `condition_filter_removed_test` (3), `french_copy_test` (3 — a source-wide accent guard,
+a raw-enum-in-presentation guard, and a check that the shared labels are the ones rendered),
+`protected_route_test` (+3 route classification). Buyer Web **100 → 111** (+11 status-badge cases).
+API unchanged: 827 unit / 231 e2e. `flutter analyze` 6 baseline infos (seller-mobile 20, untouched);
+`pnpm type-check` clean.
+
+**Runtime verification (Android emulator, dev flavor, local API on the dev DB, a disposable buyer with
+one order in each of the ten statuses, all removed afterwards):** the orders list shows Retournée,
+Annulée, Livrée, En livraison, Expédiée, Reçue par Teka — no raw enum anywhere; the returned order's
+payment chip reads **« Remboursé »** (was `REFUNDED`); the chip row now scrolls to « Retournées » and
+filtering by it returns exactly the returned order; the category screen has no Tous / Neuf / Occasion
+bar; the filter sheet reads « Trier par », « Plus récents », « Prix décroissant », « Popularité »,
+« Réinitialiser » with no État section; an offline pull-to-refresh on the orders list **keeps every row**
+and shows « Aucune connexion Internet… » with « Réessayer », which recovers on reconnect; a real checkout
+ends on « Commande confirmée ! » with the order line reading **« En attente »** instead of `PENDING`, and
+the D2 address/snapshot behaviour still holds (order `TK-20260907-C589` carries its own snapshot).
+**Browser QA: not performed** — the web change is the filter list and the badge fallback, both covered by
+the new component tests, `next build` and type-check; the QA-stack login blocker from D2 is unchanged.
+**iOS: not exercised** (no simulator input tooling); the Dart tests and analyzer cover the changed code.
+
+**Privacy:** no new logging, analytics or Sentry data; the copy fixes touch strings only.
+
+**Backward compatibility:** the API contract is untouched (no enum, no field, no route on the server);
+`?condition=` still exists for older installed builds, and the historical `Product.condition` column and
+data are untouched. Removing `/checkout/payment-pending` is safe because nothing links to it — it was
+reachable only from a branch the API can no longer trigger.
+
+**Tablet:** nothing new assumes a phone width (the removed bar and the added inline error row are
+full-width rows); no tablet work done, as instructed.
+
+### Buyer Mobile functional readiness — closure
+
+| Finding | Status | PR |
+|---|---|---|
+| A2 offline cold start / session survival | Fixed | #686 |
+| A3 offline city gate · A4 account isolation | Fixed | #686 |
+| A1 pricing / cart / checkout totals | Fixed | #687 |
+| A5 avatar multipart retry · A6+D11 avatar lifecycle · A8 review errors · ratings/profile | Fixed | #693 |
+| Notifications refresh · push routing · A9 iOS local notifications · deep links · A7 category slug | Fixed | #694 |
+| A10 address + recipient phone · checkout revalidation · guest/public routing · order snapshot | Fixed | #697 |
+| Raw status enums · French labels/accents · order filters · obsolete Occasion filter · dead routes · refresh blanking | **This PR** | #698 |
+
+**Still open (none blocking functional readiness):** iOS runtime interaction was never exercised in any
+PR (no simulator input tooling) — the code is built and unit-tested but not driven by hand; browser QA of
+buyer-web was blocked in D2/D3 by the local cookie/OTP QA stack; the dev/staging App-Link hosts have no
+`assetlinks.json` served; the four unreferenced Cloudinary avatar assets are still in place pending a
+prod-side reference check; Dependabot's npm security jobs still fail inside its own helper. None of these
+is a Buyer Mobile functional defect.
+
 ## Next exact step
 
-PR 1–9 merged (`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`, `c6ce951`,
-`613f0fa`) plus `ci/dependabot-pnpm` (#688, `adae24f`). **PR 10 `buyer-mobile/address-phone-public-routing`
-(Buyer Mobile PR D2: address + recipient-phone normalisation, checkout revalidation, guest/public routing,
-snapshot regression) open — awaiting merge approval** — see its record above. Then D3 (accents, raw enums,
-one status mapping, order filters, obsolete « Neuf / Occasion » filter, dead routes, refresh blanking) as
-its own small PR from `develop`. Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
+PR 1–10 merged (`6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`, `c6ce951`,
+`613f0fa`, `9450358`) plus `ci/dependabot-pnpm` (#688, `adae24f`). **PR 11
+`buyer-mobile/localization-status-route-cleanup` (Buyer Mobile PR D3: one status mapping, French copy,
+order filters, obsolete condition filter, dead routes, refresh blanking) open — awaiting merge approval**
+— see its record and the closure table above. **Buyer Mobile functional readiness closes with it.** Next
+phase, not started: the tablet-responsiveness pass for Buyer Mobile and Seller Mobile, then the broader
+UI/UX polish, then Buyer Web SEO, then the remaining security follow-ups (D2b) and D9/D10. Previously: Await decisions 1–11 (only 2, 1/8, 4, 5, 7, 9, 3, 11 block their PRs). Start PR 1 on approval:
 branch `security/critical-hotfixes` from `develop`; files: `apps/buyer-web/src/components/seo/json-ld.tsx`
 (+ `json-ld.test.tsx`), `apps/api/src/payments/payments.{controller,service}.ts` (+ `test/payments.e2e-spec.ts`
 cross-user cases), `apps/api/src/products/products.controller.ts` + `products.service.ts`,
