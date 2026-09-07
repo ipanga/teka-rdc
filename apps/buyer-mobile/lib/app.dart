@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/connectivity/connectivity_provider.dart';
+import 'core/lifecycle/resume_hooks.dart';
+import 'core/navigation/pending_route.dart';
 import 'core/connectivity/connectivity_status.dart';
 import 'core/analytics/posthog_analytics.dart';
 import 'core/connectivity/connectivity_lifecycle_observer.dart';
@@ -32,6 +34,12 @@ class TekaApp extends ConsumerWidget {
     // (same pattern as pushController); the cold-start link is handled after
     // the first frame so the router is mounted.
     ref.read(deepLinkControllerProvider);
+
+    // App resume → refresh the bell badge (one small GET) for a signed-in
+    // buyer; the feed itself reloads when its screen is open (PR D).
+    ref.read(resumeHooksProvider);
+    // Drops a route parked during the town restore once the town is back.
+    ref.read(pendingRouteConsumerProvider);
 
     // Activate the Sentry reporter — subscribes to the connectivity
     // stream + tags every Sentry event with the current state and

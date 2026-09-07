@@ -69,6 +69,13 @@ class PushService {
   /// inside `_initLocalNotifications` below).
   PushTapHandler? onTap;
 
+  /// Set by [PushController]. Invoked for every message received while the app
+  /// is in the foreground, AFTER the local notification was shown — the feed
+  /// and the unread badge refresh from it (PR D, 2026-09-06). Receives the
+  /// FCM `data` block (never the title/body: no payload text leaves this
+  /// layer).
+  PushTapHandler? onForegroundMessage;
+
   /// Called once from `main.dart` before `runApp`. Idempotent — safe to
   /// invoke multiple times (e.g. on hot restart).
   Future<void> init() async {
@@ -96,7 +103,19 @@ class PushService {
 
   Future<void> _initLocalNotifications() async {
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const settings = InitializationSettings(android: androidInit);
+    // iOS (A9, 2026-09-06): without Darwin settings the plugin never
+    // initialised on iOS, so a foreground message showed nothing and a tap
+    // had nothing to route. Permission is requested by FCM
+    // (`requestPermission`), not here, so the OS prompt appears once.
+    const darwinInit = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
+    const settings = InitializationSettings(
+      android: androidInit,
+      iOS: darwinInit,
+    );
     await _local.initialize(
       settings,
       onDidReceiveNotificationResponse: (response) {
@@ -185,34 +204,54 @@ class PushService {
 
   void _handleForegroundMessage(RemoteMessage message) {
     final notification = message.notification;
-    if (notification == null) return;
 
-    // Title/body may come from notification block (display payload) or
-    // data-only payload. Prefer notification block; fall back to data.
-    final title = notification.title ?? message.data['title'] as String?;
-    final body = notification.body ?? message.data['body'] as String?;
-    if (title == null && body == null) return;
+    // Title/body come from the notification block (what the API sends
+    // today) or, for a data-only message, from the data block. The old
+    // `if (notification == null) return;` made the data fallback dead code.
+    final title = notification?.title ?? _stringOrNull(message.data['title']);
+    final body = notification?.body ?? _stringOrNull(message.data['body']);
 
-    _local.show(
-      message.hashCode,
-      title,
-      body,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          _channelId,
-          _channelName,
-          channelDescription: _channelDescription,
-          importance: Importance.high,
-          priority: Priority.high,
+    if (title != null || body != null) {
+      _local.show(
+        message.hashCode,
+        title,
+        body,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            _channelId,
+            _channelName,
+            channelDescription: _channelDescription,
+            importance: Importance.high,
+            priority: Priority.high,
+          ),
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+          ),
         ),
-      ),
-      // JSON-encode the data payload so the foreground-tap callback
-      // can decode it back into a Map<String, dynamic> and route
-      // accordingly. (Earlier iteration used .toString() — works for
-      // logging but is a one-way trip; no parser round-trips Dart's
-      // Map.toString() output back to a Map.)
-      payload: message.data.isEmpty ? null : jsonEncode(message.data),
-    );
+        // JSON-encode the data payload so the foreground-tap callback
+        // can decode it back into a Map<String, dynamic> and route
+        // accordingly. (Earlier iteration used .toString() — works for
+        // logging but is a one-way trip; no parser round-trips Dart's
+        // Map.toString() output back to a Map.)
+        payload: message.data.isEmpty ? null : jsonEncode(message.data),
+      );
+    }
+
+    // The feed / badge refresh regardless of whether anything was displayed:
+    // a silent data message still means the server has something new.
+    try {
+      onForegroundMessage?.call(message.data);
+    } catch (e) {
+      _log('foreground hook failed: $e');
+    }
+  }
+
+  static String? _stringOrNull(Object? v) {
+    if (v == null) return null;
+    final s = v.toString();
+    return s.isEmpty ? null : s;
   }
 
   void _log(String msg) {

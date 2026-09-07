@@ -10,20 +10,12 @@ import '../../../../core/widgets/commerce_header.dart';
 import '../../../../core/widgets/product_skeletons.dart';
 import '../../../city/presentation/providers/city_provider.dart';
 import '../../../wishlist/presentation/providers/wishlist_provider.dart';
+import '../../data/catalog_repository.dart';
 import '../../data/models/category_model.dart';
+import '../../domain/category_identifier.dart';
 import '../providers/catalog_provider.dart';
 import '../widgets/filter_bottom_sheet.dart';
 import '../widgets/product_card.dart';
-
-/// Finds a category node anywhere in the 3-level tree by id (for drill-down).
-CategoryModel? _findCategoryNode(List<CategoryModel> cats, String id) {
-  for (final c in cats) {
-    if (c.id == id) return c;
-    final found = _findCategoryNode(c.subcategories, id);
-    if (found != null) return found;
-  }
-  return null;
-}
 
 class CategoryScreen extends ConsumerStatefulWidget {
   final String categoryId;
@@ -42,17 +34,69 @@ class CategoryScreen extends ConsumerStatefulWidget {
 class _CategoryScreenState extends ConsumerState<CategoryScreen> {
   FilterOptions _filters = const FilterOptions();
 
+  /// The category's internal id. Equal to the route parameter when that is
+  /// already an id (in-app navigation); resolved from the public slug when
+  /// the screen was reached from a web URL, a banner or a deep link (A7,
+  /// 2026-09-06) — the browse APIs only accept the id.
+  String? _resolvedId;
+  CategoryModel? _resolvedNode;
+  bool _resolving = false;
+  String? _resolveError;
+
   @override
   void initState() {
     super.initState();
+    if (isCategoryUuid(widget.categoryId)) {
+      _resolvedId = widget.categoryId;
+    } else {
+      _resolveSlug();
+    }
     // Buyer-owned UI event — one per category view (parity with buyer-web).
     const PosthogAnalytics().capture('category_viewed', properties: {
       'categoryId': widget.categoryId,
     });
   }
 
+  /// Slug → id: from the already-loaded tree when possible, else one GET
+  /// against the identifier endpoint (which accepts slug or id).
+  Future<void> _resolveSlug() async {
+    setState(() {
+      _resolving = true;
+      _resolveError = null;
+    });
+    final tree = ref.read(categoriesProvider).valueOrNull;
+    if (tree != null) {
+      final node = findCategoryNode(tree, widget.categoryId);
+      if (node != null) {
+        setState(() {
+          _resolvedId = node.id;
+          _resolvedNode = node;
+          _resolving = false;
+        });
+        return;
+      }
+    }
+    try {
+      final node = await ref
+          .read(catalogRepositoryProvider)
+          .getCategory(widget.categoryId);
+      if (!mounted) return;
+      setState(() {
+        _resolvedId = node.id;
+        _resolvedNode = node;
+        _resolving = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _resolving = false;
+        _resolveError = 'Cette catégorie est introuvable.';
+      });
+    }
+  }
+
   BrowseProductsParams get _params => BrowseProductsParams(
-        categoryId: widget.categoryId,
+        categoryId: _resolvedId ?? widget.categoryId,
         condition: _filters.condition,
         sortBy: _filters.sortBy,
         minPrice: _filters.minPrice,
@@ -86,7 +130,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     final result = await FilterBottomSheet.show(
       context,
       initialFilters: _filters,
-      categoryId: widget.categoryId,
+      categoryId: _resolvedId ?? widget.categoryId,
     );
     if (result != null) {
       _applyFilters(result);
@@ -95,6 +139,19 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // A slug still being resolved: no browse call yet (it would 400).
+    if (_resolvedId == null) {
+      return Scaffold(
+        appBar: const CommerceAppBar(searchLabel: 'Rechercher dans Teka...'),
+        body: _resolving
+            ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+            : AppErrorState(
+                message: _resolveError ?? 'Cette catégorie est introuvable.',
+                actionLabel: 'Voir les catégories',
+                onRetry: () => context.go('/categories'),
+              ),
+      );
+    }
     final state = ref.watch(browseProductsProvider(_params));
 
     // Hydrate wishlist heart state for the visible products (batch /check).
@@ -113,7 +170,13 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
       body: Column(
         children: [
           _CategoryContextBar(
-            title: widget.categoryName ?? 'Catégorie',
+            title: widget.categoryName ??
+                _resolvedNode?.name ??
+                findCategoryNode(
+                  ref.watch(categoriesProvider).valueOrNull ?? const [],
+                  widget.categoryId,
+                )?.name ??
+                'Catégorie',
             activeFilterCount: _filters.activeCount,
             onFilterPressed: _showFilters,
           ),
@@ -218,7 +281,8 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     // under a subcategory) as quick chips — Category → Subcategory → Product Type.
     final tree =
         ref.watch(categoriesProvider).valueOrNull ?? const <CategoryModel>[];
-    final node = _findCategoryNode(tree, widget.categoryId);
+    final node = findCategoryNode(tree, _resolvedId ?? widget.categoryId) ??
+        _resolvedNode;
     final children = node?.subcategories ?? const <CategoryModel>[];
 
     return CustomScrollView(
