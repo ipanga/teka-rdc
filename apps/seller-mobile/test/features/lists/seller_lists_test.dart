@@ -179,7 +179,7 @@ void main() {
         products: true,
         productsRepository: repo,
         productsState: const ProductsListState(search: 'introuvable'));
-    expect(find.text('Aucun produit trouvé'), findsOneWidget);
+    expect(find.text('Aucun produit pour « introuvable »'), findsOneWidget);
     expect(find.text('Votre catalogue commence ici'), findsNothing);
     await tester
         .tap(find.widgetWithText(OutlinedButton, 'Effacer la recherche'));

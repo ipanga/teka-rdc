@@ -4,13 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/theme/teka_spacing.dart';
+import '../../../../core/widgets/app_snackbar.dart';
+import '../../../home/presentation/widgets/dashboard_rows.dart';
 import '../../data/models/product_model.dart';
 import '../../data/products_repository.dart';
 import '../providers/products_provider.dart';
 import 'image_upload_tile.dart';
-import '../../../../core/layout/responsive.dart';
 
 /// Add / remove product images for a single product. The one implementation
 /// shared by the standalone `ProductImagesScreen` and the inline image section
@@ -18,7 +21,8 @@ import '../../../../core/layout/responsive.dart';
 /// (≤8 images, compress-to-WebP on upload, owner-scoped delete on the API).
 ///
 /// Reorder / cover selection are intentionally absent: the API exposes only
-/// add + delete (no reorder endpoint), matching seller-web's inline uploader.
+/// add + delete (no reorder endpoint). The first image by `displayOrder` is
+/// the cover, and the tile says so.
 ///
 /// Shrink-wrapped (no internal scroll) so it embeds inside a ListView/Column.
 class ProductImageManager extends ConsumerStatefulWidget {
@@ -41,114 +45,97 @@ class _ProductImageManagerState extends ConsumerState<ProductImageManager> {
     final productAsync = ref.watch(productDetailProvider(widget.productId));
 
     return productAsync.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(child: CircularProgressIndicator()),
-      ),
-      error: (e, _) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        child: Column(
-          children: [
-            Text(
-              friendlyErrorMessage(e),
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: TekaColors.mutedForeground),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: () =>
-                  ref.invalidate(productDetailProvider(widget.productId)),
-              icon: const Icon(Icons.refresh, size: 18),
-              label: Text("Réessayer"),
-            ),
-          ],
+      skipLoadingOnRefresh: true,
+      loading: () => Semantics(
+        label: 'Chargement des photos',
+        liveRegion: true,
+        child: const ExcludeSemantics(
+          child: Wrap(
+              spacing: TekaSpacing.xs,
+              runSpacing: TekaSpacing.xs,
+              children: [
+                SkeletonBlock(width: 96, height: 96),
+                SkeletonBlock(width: 96, height: 96),
+                SkeletonBlock(width: 96, height: 96),
+              ]),
         ),
+      ),
+      error: (e, _) => DashboardErrorRow(
+        title: 'Photos indisponibles',
+        onRetry: () => ref.invalidate(productDetailProvider(widget.productId)),
       ),
       data: (product) => _buildContent(context, product),
     );
   }
 
   Widget _buildContent(BuildContext context, SellerProductModel product) {
-    final images = product.images;
+    final theme = Theme.of(context).textTheme;
+    final images = List<ProductImageModel>.from(product.images)
+      ..sort((a, b) => a.displayOrder.compareTo(b.displayOrder));
     final canAdd = images.length < _maxImages;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text(
-              "${images.length}/$_maxImages images",
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-            ),
-            if (images.length >= _maxImages) ...[
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: TekaColors.warning.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  "Maximum atteint",
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: TekaColors.warning,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ],
+        Row(children: [
+          Expanded(
+            child: Text('${images.length} / $_maxImages photos',
+                style: theme.titleSmall),
+          ),
+          if (!canAdd)
+            Text('Maximum atteint',
+                style: theme.labelSmall
+                    ?.copyWith(color: TekaColors.warningForeground)),
+        ]),
+        const SizedBox(height: TekaSpacing.xxs),
+        Text(
+          images.isEmpty
+              ? 'Ajoutez au moins une photo nette sur fond clair. La première sert de couverture.'
+              : 'La première photo sert de couverture.',
+          style: theme.bodySmall?.copyWith(color: TekaColors.neutralForeground),
         ),
-        const SizedBox(height: 8),
-        // Tablet phase (2026-09-07): the tile count comes from the width this
-        // manager is given, with a minimum readable tile, instead of a fixed
-        // three. A phone keeps three tiles (the floor); a wider form gets more
-        // tiles of the SAME size rather than three enormous ones. This is a
-        // display decision only — the image_picker capture size below is
-        // untouched.
+        const SizedBox(height: TekaSpacing.xs),
+        // Tablet phase (2026-09-07): tile count from the width the manager is
+        // given, minimum three; the image_picker capture size is untouched.
         LayoutBuilder(
           builder: (context, constraints) => GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: gridColumnsFor(
-              constraints.maxWidth,
-              minCellWidth: 110,
-              spacing: 8,
-              minColumns: 3,
-              maxColumns: 6,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: gridColumnsFor(
+                constraints.maxWidth,
+                minCellWidth: 110,
+                spacing: TekaSpacing.xs,
+                minColumns: 3,
+                maxColumns: 6,
+              ),
+              crossAxisSpacing: TekaSpacing.xs,
+              mainAxisSpacing: TekaSpacing.xs,
             ),
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-          ),
-          itemCount: images.length + (canAdd ? 1 : 0),
-          itemBuilder: (context, index) {
-            if (index < images.length) {
-              final image = images[index];
+            itemCount: images.length + (canAdd ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index < images.length) {
+                final image = images[index];
+                return ImageUploadTile(
+                  image: image,
+                  isCover: index == 0,
+                  onDelete: () => _confirmDeleteImage(product.id, image),
+                );
+              }
               return ImageUploadTile(
-                image: image,
-                onDelete: () => _confirmDeleteImage(context, product.id, image),
+                isUploading: _isUploading,
+                onTap: () => _chooseSourceAndUpload(product.id),
               );
-            }
-            return ImageUploadTile(
-              isUploading: _isUploading,
-              onTap: () => _chooseSourceAndUpload(context, product.id),
-            );
-          },
+            },
           ),
         ),
       ],
     );
   }
 
-  /// Bottom sheet letting the seller take a new photo or pick from the gallery.
-  /// French labels; reuses the same upload pipeline for both sources.
-  Future<void> _chooseSourceAndUpload(
-      BuildContext context, String productId) async {
+  /// Source sheet (PR A white sheet theme): camera or gallery, one upload
+  /// pipeline for both.
+  Future<void> _chooseSourceAndUpload(String productId) async {
     if (_isUploading) return; // guard against duplicate taps
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
@@ -156,46 +143,51 @@ class _ProductImageManagerState extends ConsumerState<ProductImageManager> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (sheetContext) {
+        final theme = Theme.of(sheetContext).textTheme;
         return SafeArea(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: 8),
+              const SizedBox(height: TekaSpacing.xs),
               Container(
                 width: 40,
                 height: 4,
-                decoration: BoxDecoration(
-                  color: TekaColors.border,
-                  borderRadius: BorderRadius.circular(2),
+                decoration: const BoxDecoration(
+                    color: TekaColors.border, borderRadius: TekaRadius.pillAll),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    TekaSpacing.md, TekaSpacing.sm, TekaSpacing.md, 0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text('Ajouter une photo', style: theme.titleMedium),
                 ),
               ),
-              const SizedBox(height: 8),
               ListTile(
-                leading: const Icon(Icons.photo_camera_outlined,
-                    color: TekaColors.tekaRed),
-                title: Text("Prendre une photo"),
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: const Text('Prendre une photo'),
                 onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library_outlined,
-                    color: TekaColors.tekaRed),
-                title: Text("Choisir dans la galerie"),
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Choisir dans la galerie'),
                 onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: TekaSpacing.xs),
             ],
           ),
         );
       },
     );
     if (source == null || !mounted) return;
-    await _pickAndUploadImage(context, productId, source);
+    await _pickAndUploadImage(productId, source);
   }
 
-  Future<void> _pickAndUploadImage(
-      BuildContext context, String productId, ImageSource source) async {
+  Future<void> _pickAndUploadImage(String productId, ImageSource source) async {
     if (_isUploading) return; // guard against duplicate uploads
     try {
+      // Capture size is a deliberate constant (Rule: not changed for a
+      // bigger screen); the repository compresses to ≤ 500 KB WebP after.
       final xFile = await _picker.pickImage(
         source: source,
         maxWidth: 1200,
@@ -214,37 +206,25 @@ class _ProductImageManagerState extends ConsumerState<ProductImageManager> {
       ref.read(sellerProductsProvider.notifier).loadProducts();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Image ajoutée"),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        showAppSnackbar(context,
+            message: 'Photo ajoutée.', tone: AppSnackbarTone.success);
       }
     } on PlatformException catch (e) {
-      // Camera / photo-library permission denied at the OS level. image_picker
-      // surfaces these as PlatformException codes — map to a clear French hint.
+      // Camera / photo-library permission denied at the OS level.
       if (mounted) {
-        final denied = e.code == 'camera_access_denied' ||
-            e.code == 'photo_access_denied';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(denied
-                ? "Accès refusé. Autorisez l'appareil photo ou les photos "
-                    'dans les réglages de votre téléphone.'
-                : friendlyErrorMessage(e)),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        final denied =
+            e.code == 'camera_access_denied' || e.code == 'photo_access_denied';
+        showAppSnackbar(context,
+            message: denied
+                ? 'Accès refusé. Autorisez l’appareil photo ou les photos dans les réglages de votre téléphone.'
+                : friendlyErrorMessage(e),
+            tone: AppSnackbarTone.error);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(friendlyErrorMessage(e)),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        // The photo stays on the device: tapping « Ajouter » again retries.
+        showAppSnackbar(context,
+            message: friendlyErrorMessage(e), tone: AppSnackbarTone.error);
       }
     } finally {
       if (mounted) setState(() => _isUploading = false);
@@ -252,23 +232,28 @@ class _ProductImageManagerState extends ConsumerState<ProductImageManager> {
   }
 
   Future<void> _confirmDeleteImage(
-      BuildContext context, String productId, ProductImageModel image) async {
+      String productId, ProductImageModel image) async {
+    var popped = false;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text("Supprimer l'image"),
-        content: Text("Voulez-vous supprimer cette image ?"),
+        title: const Text('Supprimer cette photo ?'),
+        content: const Text(
+            'Elle sera retirée définitivement de la fiche et de nos serveurs.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text("Annuler"),
+            child: const Text('Annuler'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
+            onPressed: () {
+              if (popped) return;
+              popped = true;
+              Navigator.pop(ctx, true);
+            },
             style: ElevatedButton.styleFrom(
-              backgroundColor: TekaColors.destructive,
-            ),
-            child: Text("Supprimer"),
+                backgroundColor: TekaColors.destructive),
+            child: const Text('Supprimer'),
           ),
         ],
       ),
@@ -284,21 +269,13 @@ class _ProductImageManagerState extends ConsumerState<ProductImageManager> {
       ref.read(sellerProductsProvider.notifier).loadProducts();
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Image supprimée"),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        showAppSnackbar(context,
+            message: 'Photo supprimée.', tone: AppSnackbarTone.neutral);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(friendlyErrorMessage(e)),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        showAppSnackbar(context,
+            message: friendlyErrorMessage(e), tone: AppSnackbarTone.error);
       }
     }
   }

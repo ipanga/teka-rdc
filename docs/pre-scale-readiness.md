@@ -2152,23 +2152,142 @@ behind an onboarding moment is a product decision for a later PR (profile / sett
 or recipient phone (the API still sends them; seller-web still shows them). Reversible in one widget if
 sellers turn out to need a contact channel other than Teka.
 
+### Seller UX PR D — `seller-mobile/ux-products` (Products, form, image manager, 2026-09-08)
+
+**Seller UX PR C merged** as `5d55f03` (merge commit; head `aac1296` unchanged, 15/15 checks + CodeQL green,
+seller-mobile + trackers only). Develop synced and clean; `CI` + CodeQL green on `5d55f03`. **Buyer-PII
+decision confirmed** by the product owner: seller order detail keeps name + town only.
+
+**Products baseline (source + live app).** Traced: `GET/POST /v1/sellers/products`, `GET/PATCH /:id`,
+`DELETE /:id` (archive) and `/:id/hard` (purges Cloudinary), `/:id/{submit,withdraw,restore,duplicate}`,
+`POST /:id/images` (multipart, ≤ 8, no status rule) + `DELETE /:id/images/:imageId` (Cloudinary destroy),
+`GET /v1/browse/categories` (3-level tree), `GET /v1/browse/categories/:id/attributes` (leaf-only),
+`GET /v1/brands?categoryId=` (« Autre » included by the server). Rules kept exactly: leaf-only enforced
+by the API **when the category changes** (legacy products keep theirs), brand relevance server-side,
+promo `> 0 && < price`, `condition` always `NEW`, edit-after-publish (price / promo / stock live, content
+back to review).
+
+| Element | Verdict |
+|---|---|
+| List mechanics: 350 ms debounced search with reset version, route-synced status filter, race-safe pagination, `SellerListLoading` | **Already good** — kept. |
+| Card | **Visually weak** — raw sizes, no stock, no effective price, no action signal for a refused product. |
+| Status labels | **Redundant** — chip and filter bar each had their own copy; « En attente » meant review here and a new order elsewhere. |
+| Detail | **Weak** — bare spinner, generic error, price in brand red, obsolete « Neuf » line, no promo, images « Ajouter » for draft/rejected only while the edit form managed them for any status. |
+| Rejection | **Confusing** — reason in a red box with no « what to do », edit button like any other. |
+| Form | **Confusing** — one flat list, « Titre (français) », category error as a snackbar, brand in a dropdown (unusable at 40 brands), spinners for brands/characteristics, generic « Une erreur est survenue » on save, **description not validated although the API requires it**, and **off-screen fields never validated** (lazy ListView + `FormState.validate()`). |
+| Category selector | **Already good** — searchable, accent-insensitive, full path, leaf-only selection, tree for any depth. Kept; the form now warns on a legacy intermediate / inactive category. |
+| Dynamic characteristics | **Already good** — API-driven, generation guard on category change, SELECT/MULTISELECT/NUMERIC/BOOLEAN/TEXT. Kept. |
+| Image manager | **Already good** on the rules (≤ 8, compress ≤ 500 KB WebP, auth-retry once, owner-scoped delete, permission copy); **visually weak** (spinner per tile, no cover mark, generic delete dialog, raw snackbars). |
+| Upload hardening, `image_picker` 1200/80, compression | **Untouched.** |
+
+**What changed (seller-mobile only, 12 lib files).**
+
+- `presentation/product_status_ui.dart` (new): label / filter label / icon / tone / strip heading + step /
+  card action label per `ProductStatus`; `productFilterOrder` (« À corriger » first); `productEmptyCopy`;
+  `discountPercent` (derived, never stored). Only REJECTED asks the seller to act; tones: neutral draft and
+  archive, warning review, success online, destructive rejected and suspended; brand red on none.
+- `widgets/product_card.dart` (new): `ProductCard`, `PriceLine` (effective price first, original struck,
+  « −X % » success pill), `StockLabel` (« Stock : N » / « Rupture de stock » warning pill), `ProductThumbnail`
+  (static placeholder, `cacheWidth`). One semantics label per card.
+- `products_list_screen.dart`: shared vocabulary, per-bucket empty copy, search empty copy naming the query,
+  labelled FAB.
+- `product_detail_screen.dart` rewritten: `ProductDetailSkeleton`; `SellerListMessage` error; strip
+  « Brouillon / En cours de révision / En ligne / Correction requise / Archivé / Suspendu par Teka » with the
+  step sentence and, when refused, « Motif indiqué par Teka » (the API's seller-facing `rejectionReason`; no
+  admin-only note exists on this payload); price card (promo + stock + leaf + town); photos with a
+  « Couverture » tag and « Gérer » for draft / rejected / **online** (the edit form already managed online
+  photos, the detail now agrees); description; characteristics; lifecycle actions unchanged in behaviour
+  (submit / withdraw / restore / duplicate / archive) on theme buttons whose long labels wrap at 1.5×,
+  with specific dialogs (« Teka examinera la fiche… Pendant la révision, vous pourrez la retirer mais pas
+  la modifier », « Il disparaît de votre boutique… Vous pourrez le restaurer plus tard ») and double-pop
+  guards; API French reasons on failure; the « Neuf » line removed.
+- `product_form_screen.dart` rewritten: sections in the seller's order (Photos on edit → Informations →
+  Catégorie et marque → Caractéristiques → Prix → Stock); a create notice « Les photos s’ajoutent à
+  l’étape suivante »; inline « Choisissez un type de produit. » that scrolls the selector into view;
+  **legacy warning** (« « Chaussures » est une catégorie générale… » / « n’est plus proposée ») that never
+  guesses a child; `BrandSelector` sheet (searchable above 6 brands, « Sans marque » first, « Autre » from
+  the API); static loading lines; helpers (« 45.000 FC », « −10 % · Vous économisez 4.500 FC », « 0 =
+  rupture de stock ») on two lines; `autovalidateMode` after the first submit; `Enregistrer et ajouter des
+  photos` / `Enregistrer les modifications`; success copy says when content goes back to review; failure
+  keeps the form and shows the API's reason. **Two defects fixed:** description now validated (the API
+  answered « La description est requise » and the seller only learnt on save); the body is a `Column`, so
+  every field is built and validated (`FormState.validate()` only reaches built fields — the old lazy
+  ListView let an empty description through). `ProductEditScreen` cold route: `ProductFormSkeleton` +
+  shared error.
+- `product_image_manager.dart` + `image_upload_tile.dart`: sorted by `displayOrder`, « Couverture » on the
+  first tile (constrained at large text), static placeholders, source sheet on the white theme with a
+  title, « Envoi… » in the add tile, delete dialog « Supprimer cette photo ? … retirée définitivement de la
+  fiche et de nos serveurs », app snackbars. Picker size 1200/80 and compression untouched.
+
+**Not changed:** API, schema, env, dependencies (thumbnails stay `Image.network`), analytics (the app has
+no product events; none added), Buyer Mobile (`responsive.dart` identical).
+
+**Tests (seller 330, +42; analyze 5 infos, down from 16).** `product_status_ui_test` (only REJECTED
+actionable, French everywhere, tones, filter coverage, empty copy, derived discount), `product_card_test`
+(price / stock / status, promo strike + pill, rejected pill + rupture, semantics + navigation, 320/360/412
+at 1.5×), `product_detail_screen_test` (skeleton, rejected strip + reason + one CTA, promo/stock/cover/Gérer,
+actions per status, submit refused without photos, submit dialog + double tap + status move, API reason on
+failure, archive dialog + return to list, 320/412/834/1280), `product_form_test` (category required inline,
+leaf-only load + change clears brand and specs, brand sheet search + « Autre » + empty, legacy warning
+without foreign characteristics and unchanged categoryId on save, edit prefill == create payload
+(centimes, brand, promo, quantity, NEW, specs), promo below price + null clears, quantity required / zero,
+description required, busy guard + navigation to the new product, API failure keeps the form,
+320/360/600/1024/1280 at 1.0–1.5×). Image-manager, forms, lists, dashboard and tablet tests follow the new
+copy and the Column form.
+
+**Runtime (Pixel 8 Pro, development flavor, local API, disposable data — all reverted).** Marie: list
+(promo strike-through, stock, chips) · « À corriger » empty copy · create form (notice, sections) · save
+with nothing → inline category error scrolled into view · category sheet search « chem » → « Chemises ·
+Mode › Homme » · brands for the leaf (Nike, Lacoste, Autre, « Sans marque » first) → Lacoste ·
+characteristics loaded (Taille SELECT, Couleur, Matière) · « 45.000 FC » and « −10 % · Vous économisez
+4.500 FC » live · **save refused by the API « La description est requise »** (defect found, fixed, retested
+in the widget suite) · save → « Fiche enregistrée en brouillon » → detail skeleton → detail (promo, Stock 4,
+Chemises, « Ajouter des photos ») · image manager → **gallery** photo (Android photo picker) → « Envoi… »
+→ « Photo ajoutée » → tile with « Couverture » · **camera** (emulator scene) → second photo · delete second
+→ dialog → gone from the tile grid, **from the database and from Cloudinary (404 on the public id)** ·
+submit → dialog → « En cours de révision » · withdraw → « Produit retiré de la révision » · edit prefilled
+(photos inline, path, Lacoste, Taille M) · category → Pantalons: brand reset to « Sans marque »,
+characteristics refreshed · Taille L, stock 7 → « Modifications enregistrées » → detail Pantalons / Stock 7
+/ Taille L · legacy « Chaussures Nike Air Force 1 » (category « Mode › Chaussures », intermediate) → edit
+shows the warning, no brands, no foreign characteristics. Patrick: dashboard « Produits à corriger 1 » →
+« À corriger » → card « Refusé · À corriger » → detail « Correction requise » + « Motif indiqué par Teka :
+Prix anormalement bas… » + « Corriger et resoumettre ». Tablet 800 pt portrait: detail, edit form (price
+pair side by side, image manager inline), category sheet capped at 640; 1280 pt landscape: form, detail,
+list. Text 1.3× / 1.5×: list and detail wrap, cover tag now scales down. **Cleanup:** the QA product
+hard-deleted through the seller endpoint (`purgedAssets: 1`, Cloudinary 404), both password hashes restored
+byte-for-byte (temporary password 401s), no pre-existing product changed (checked field by field), QA photo
+removed from the emulator. Cloudinary was only ever *read* by the check script (dev and prod share one
+cloud). iOS: not built (no native change).
+
+**Environment incidents during this QA, recorded because they cost an hour:** a network drop killed the
+emulator and left the dev API's Prisma pool unable to reconnect (« Can't reach database server » →
+« Timed out fetching a new connection »); 18 idle server-side sessions from the killed process had to be
+terminated with `pg_terminate_backend` before a fresh API could serve; the API restart then invalidated
+the app session once. None of it is app behaviour; the app's own message in that state was the API's
+« La description est requise », which turned out to be the real defect.
+
+**Known limitation (taxonomy debt, not this PR):** a product remediated onto a new leaf can carry legacy
+characteristic rows whose attribute ids belong to the old category; the detail lists them (the API
+preserves them) but the edit form cannot prefill the new leaf's fields from them. Documented in
+`docs/seller-catalog-taxonomy.md`; a leaf-characteristics audit is the fix.
+
 ### Remaining Seller UX findings by PR (from the baseline audit + this PR's walk)
 
 | PR | Surface | Findings to act on |
 |---|---|---|
 | **B** dashboard + Action Center | `features/home` | **Done in PR B** — text theme, tokens, shaped skeleton, verification task, Suivi, one badge. Left: the first-launch notification-permission prompt still lands on the dashboard (system prompt; moving it needs an onboarding decision). |
 | **C** orders | `features/orders` | **Done in PR C** — one status vocabulary, cards, detail skeleton, strip, dialogs, conflict reload, timeline tones. Left: the order-number header wraps under a wide chip at 1.5× (cosmetic); item thumbnails remain `Image.network` (no cache dependency in the seller app). |
-| **D** products / form / images | `features/products` (23 sizes, 15 radii, 6 spinners, 3 `Image.network`) | Densest surface: form section rhythm on the 4-pt ladder, field help text on bodySmall, image tile placeholder + failure state, list skeleton, leaf-category/characteristics UI untouched in behaviour. `image_picker` settings untouched. |
+| **D** products / form / images | `features/products` | **Done in PR D** — vocabulary, cards, detail skeleton + strip, sectioned Column form with validation fixes, brand sheet, legacy warning, image manager polish. Left: thumbnails stay `Image.network`; legacy characteristic rows cannot prefill a new leaf's fields (taxonomy debt). |
 | **E** earnings + payouts | `features/earnings` (31 sizes, 9 radii, 3 spinners) | Money in foreground, status in colour; table-like rows on one baseline; payout status on the new process colours (badge already tokenized in A); empty and error states with CTA. No rule change. |
 | **F** profile / commune / verification / settings | `features/profile` (17/14/6), `features/verification` (17/5/1), `features/seller_application`, `features/auth` | Group headers on labelSmall, document cards on a white surface with the status badge, commune picker sheet on the white sheet theme, login/register spacing. Never show payout destination, KYC details or document URLs beyond what the screen already shows. |
 | cross-cutting | `features/promotions` (17/12/2), `features/reviews` (9/4/1), `features/notifications` | Folded into the PR whose navigation reaches them (promotions → B, reviews → F, notifications → B). |
 
 ## Next exact step
 
-PR 1–13, Buyer UX PR A–D, Seller UX PR A–B merged (latest: `5825cb3`). **Seller UX PR C
-`seller-mobile/ux-orders` open — awaiting merge approval.** Then Seller UX PR D (products, product form,
-image manager) — **not to be started until PR C is approved.** Seller Web / Admin Web redesign stays out of
-scope. Carried-forward validation gaps: iPad/iOS runtime (never exercised), no golden tests, and the Seller
-phone walk which PR D–F complete surface by surface (dashboard, orders, profile and verification walked in
-A–C). Open follow-ups: first-launch notification prompt placement; buyer-PII decision on the seller order
-detail (see PR C).
+PR 1–13, Buyer UX PR A–D, Seller UX PR A–C merged (latest: `5d55f03`). **Seller UX PR D
+`seller-mobile/ux-products` open — awaiting merge approval.** Then Seller UX PR E (earnings + payouts) —
+**not to be started until PR D is approved.** Seller Web / Admin Web redesign stays out of scope.
+Carried-forward validation gaps: iPad/iOS runtime (never exercised), no golden tests, the Seller phone walk
+now covers dashboard, orders, products and verification (earnings and profile remain for E–F). Open
+follow-ups: first-launch notification prompt placement; order-number header wrap at 1.5×; plain
+`Image.network` sites; legacy characteristic prefill (taxonomy audit).

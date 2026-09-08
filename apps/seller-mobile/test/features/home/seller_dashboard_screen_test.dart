@@ -144,7 +144,8 @@ void main() {
         container.read(sellerProductsProvider).products.single.id, 'rejected');
     await tester.tap(find.text('Sac de voyage — démonstration'));
     await tester.pumpAndSettle();
-    expect(find.text('Motif du rejet'), findsOneWidget);
+    expect(find.text('Motif indiqué par Teka'), findsOneWidget);
+    expect(find.text('Corriger et resoumettre'), findsOneWidget);
   });
 
   testWidgets('empty order recovery clears the query as well as the state',
