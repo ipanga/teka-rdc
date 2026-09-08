@@ -173,7 +173,7 @@ void main() {
     notifier.handlePush({'screen': 'product-reviews'});
     await tester.pump(const Duration(seconds: 1));
     expect(notifier.state,
-        (orders: 0, products: 0, earnings: 0, verification: 0));
+        (orders: 0, products: 0, earnings: 0, verification: 0, profile: 0));
     notifier.handlePush({'screen': 'order-details'});
     notifier.handlePush({'screen': 'product-details'});
     notifier.handlePush({'screen': 'order-details'});
@@ -187,10 +187,10 @@ void main() {
     notifier.didChangeAppLifecycleState(AppLifecycleState.resumed);
     await tester.pump(const Duration(milliseconds: 301));
     expect(notifier.state,
-        (orders: 1, products: 1, earnings: 1, verification: 1));
+        (orders: 1, products: 1, earnings: 1, verification: 1, profile: 0));
     await tester.pump(const Duration(minutes: 10));
     expect(notifier.state,
-        (orders: 1, products: 1, earnings: 1, verification: 1),
+        (orders: 1, products: 1, earnings: 1, verification: 1, profile: 0),
         reason: 'no polling');
   });
 }

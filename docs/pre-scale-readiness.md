@@ -2396,6 +2396,142 @@ the fix, out of this PR's scope.
 same order; the API decides every rule. The one behavioural change is that refresh, push / resume and the
 post-request reload now issue three requests instead of two (page 1 of each list).
 
+### Seller UX PR F — `seller-mobile/ux-profile-verification` (Profile, commune, verification, 2026-09-08)
+
+**Seller UX PR E merged** as `0ecbcea` (merge commit; reviewed head `2e68f29` unchanged, 15/15 checks +
+CodeQL green, seller-mobile + trackers only). Develop synced and clean; `CI` + CodeQL green on `0ecbcea`.
+**The `pendingCDF` / HELD / `deliveredAt` inconsistency recorded under PR E stays open** (see the
+follow-ups below and « Next exact step »).
+
+**Baseline (source + live app, walked before any change).** `GET /v1/auth/me` (user + `sellerProfile`
+with `city { id, name }` and `commune { id, name }`), `PATCH /v1/users/profile` (`UpdateProfileDto`:
+names ≥ 2 chars with French messages, `IsEmail` « Adresse email invalide »; an email change resets
+`emailVerified` and **changes the login identifier with no re-authentication** — recorded, not changed),
+`POST /v1/users/avatar`, `PATCH /v1/sellers/profile` (`UpdateSellerProfileDto`: `businessName` ≥ 2,
+`phone` `^\+243\d{9}$` « Numéro de téléphone invalide », `cityId` validated by DB lookup, `communeId`
+resolved server-side — must exist, be active and belong to the city; required when the city has an active
+commune library; `null` clears only when it has none), `GET /v1/cities` + `GET /v1/cities/:id/communes`
+(active rows only — no client-side list of towns), `GET /v1/sellers/verification` (`verificationStatus`
+NOT_SUBMITTED | PENDING_REVIEW | VERIFIED | REJECTED, `verificationNote` only when REJECTED, `requiredTypes`
+by `businessType`, `missingTypes`, `limits`, documents without any storage id or URL) and
+`POST /v1/sellers/verification/documents` (multipart; magic-byte + MIME + size re-checked server-side;
+replacement marks the previous live document SUPERSEDED with a retention `purgeAfter`; the required set
+complete → PENDING_REVIEW; a VERIFIED seller replacing material evidence → PENDING_REVIEW). Statuses map
+1:1 to the four backend states — nothing invented (no « incomplete » stage exists server-side; the
+NOT_SUBMITTED card says how many documents are missing from the API's `missingTypes`).
+
+| Element | Verdict |
+|---|---|
+| Commune cascade, `communeRequired` / `retainedCommuneId` mirror, only-changed-fields save, API reasons through `friendlyErrorMessage` | **Correct already** — kept. |
+| Verification flow: server-driven required set, magic-byte pre-check, one upload at a time, replace warning for VERIFIED, OTHER label prompt, progress, API status rendered after upload | **Correct already** — kept. |
+| Account header | **Presentation** — dark card, status chip colour-only in white text, no town · commune, brand red on all icon frames, raw sizes. |
+| Account menu | **Functional defect (found by the new tests)** — `ListTile`s in a `DecoratedBox`: ripple never painted. Also no signal on the one row that needs the seller. |
+| Header refresh after an edit | **Functional defect (found on the device)** — the reload hooked on `await context.push()` never fired; a saved name or commune stayed stale until pull-to-refresh. |
+| Personal information | **Usability** — no validation (the API answered), raw `ScaffoldMessenger` toasts, generic « Erreur lors de l'enregistrement », the dashboard greeting stale until relogin. |
+| Shop profile | **Usability** — flat list, no validation, banners on base colours, a saved town missing from the list silently showed the hint. |
+| Verification | **Presentation + usability** — base-colour badges, « Requis » in brand red, no « what to do » on REJECTED, spinner, generic error. |
+| Security / notifications / deletion | **Out of scope** except raw snackbars → `showAppSnackbar`. |
+| Seller application (registration) | **Out of scope** (auth flow). |
+| Notification-permission prompt | **Investigated** — see decision below. |
+
+**What changed (seller-mobile only, 11 lib files).**
+
+- `verification_status.dart`: tones on the Foreground tokens (neutral / warning / success / destructive);
+  `actionRequired` (REJECTED only — the Action Center's rule); `ApplicationStatusUi` (« Boutique
+  approuvée » / « Demande en révision » / « Demande rejetée »); `DocumentStatusUi` tones likewise.
+- `profile_screen.dart` rewritten: `SellerIdentityCard` (shop `titleLarge`, person, login email, town ·
+  commune, two `SellerStatusBadge`s), `ProfileSkeleton`, `SellerListMessage` error, `DashboardErrorRow` when
+  a refetch fails with content kept, menu sections on `labelLarge`, `Material` sections, neutral icon
+  frames (destructive frame + « Action requise » pill under the subtitle on the refused verification row —
+  the pill moved out of the trailing slot after the 320 px / 1.5× layout assertion), reload on the
+  `profile` / `verification` refresh revisions and on return from a pushed edit screen; analytics events
+  unchanged (`seller_account_tab_opened`, `seller_account_menu_item_tapped`, `seller_logout_tapped`).
+- `personal_info_screen.dart` rewritten: `FormSkeleton`, `Form` with `validateName` / `validateEmail`
+  (the API's words), sections « Identité » / « Connexion », the email helper says it is the login, only
+  changed fields sent, API values shown back, `AuthNotifier.updateUser` (new: merges non-null fields into
+  the session user), API reason in a live region with values kept, busy lock, `showAppSnackbar`.
+- `shop_profile_screen.dart`: sections, `validateShopName` / `validateShopPhone`, `_saveError` banner in
+  a live region (API reason verbatim, « Choisissez votre commune pour cette ville. »), stale-town notice
+  (« Votre ville enregistrée, Goma, n’est plus proposée… sinon elle reste inchangée » — the dropdown shows
+  the hint, other edits never send `cityId`), tokens on the banners, `FormSkeleton`, shared error.
+- `verification_screen.dart` (UI half): `VerificationSkeleton`, shared error + retry, status card with the
+  badge and, when REJECTED, the « Action requise » strip (« Motif de Teka RDC : … » / « non précisé »,
+  « Remplacez le document refusé ci-dessous… », one `ElevatedButton` « Remplacer le document refusé » →
+  `_correctionType` = the refused required type, else any refused, else the first missing), document
+  tiles with a « Requis » / « Facultatif » pill, the state as a compact badge, refused outline, one
+  semantics label per tile, progress and error rows in tokens; pickers, dialogs, validation and the upload
+  path untouched.
+- `seller_refresh_provider.dart`: the record gains `profile`; `profileChanged()`.
+  `profile_repository.dart`: `onChanged` hook called after `updateProfile` and `updateSellerProfile`;
+  `ProfileUser.copyWith(avatar)`.
+- `security_screen.dart`, `notification_settings_screen.dart`, `account_deletion_screen.dart`: raw
+  `ScaffoldMessenger` toasts → `showAppSnackbar` (one line each).
+- `auth_provider.dart`: `updateUser`.
+
+**Not changed:** API, schema, env, dependencies, analytics, Cloudinary lifecycle (`SUPERSEDED` +
+`purgeAfter` on replacement, verified live), the seller application screen, login / password reset /
+sessions, Buyer Mobile (`responsive.dart` byte-identical). Nothing about documents, identity numbers,
+phone numbers or payout destinations is logged or sent to Sentry / analytics.
+
+**Notification-permission decision.** On a cleared install the system prompt (« Allow Teka Vendeur Dev to
+send you notifications? ») lands on the dashboard right after the first login, while the dashboard
+loads. Kept: it is asked once by the OS (Android never re-prompts after two denials, iOS after one; the
+app calls `requestPermission` on login only), the value is evident for an app whose purpose is order
+alerts, and the notification-settings screen already explains a denial with a path to the phone
+settings. A pre-permission explainer would add a second dialog on the very first screen; recorded as a
+follow-up to revisit if PostHog shows denial rates worth it.
+
+**Tests (seller 461, +74; analyze 5 infos unchanged; buyer 501 unchanged).**
+`test/support/seller_profile_fixtures.dart` (in-memory `/v1/auth/me`, cities, communes, writes with a
+hold and switchable failures). `profile_screen_test` (hierarchy + badges, no phone in the header,
+skeleton, error + retry, refused row → « Action requise » → navigation, tones, refresh on the `profile`
+and `verification` revisions with content kept, return-from-edit refetch, logout dialog cancel / confirm →
+session cleared → login, account isolation across sessions, 320/360/390/412 at 1.0 and 1.5×,
+600/1024/1280, `updateUser`, repository hook), `personal_info_screen_test` (prefill, skeleton + error,
+validation before any call, changed fields only + session sync, unchanged form, email normalised + copy,
+API refusal keeps values, busy lock, widths, tablet), `shop_profile_screen_test` (prefill with commune,
+skeleton + error, name / phone validation, town change → communes reloaded → commune required → payload,
+town without communes, stale town kept, API refusal keeps values, commune retry, pending read-only, widths,
+tablet), `verification_screen_test` additions (tones, strip + button → refused type, « non précisé »,
+skeleton + error, semantics label, rejected company at 320–412 × 1.0–1.5, 600/834/1280); the two
+pre-existing debug `print`s in that file removed. Existing verification strings pinned unchanged.
+
+**Runtime (Pixel 8 Pro, development flavor, local API, Marie + Patrick dev rows — disposable, all
+reverted).** Cleared install → login → system notification prompt on the dashboard (allowed) → account
+card (« Boutique approuvée », « Non vérifié », Lubumbashi) → personal information: « M » → « Le prénom doit
+contenir au moins 2 caractères » → « Marie-Claire » → « Informations enregistrées » → header « Marie-Claire
+Kabila » and dashboard « Bonjour, Marie-Claire » at once → shop profile: legacy commune null shown as
+« Commune * » required → Kampemba → « Boutique mise à jour » → header « Lubumbashi · Kampemba » → last
+name edit → header follows on return (after the refresh-revision fix; before it the header stayed stale) →
+verification (NOT_SUBMITTED, « Il manque 1 document ») → « Prendre une photo » → emulator camera → « Envoi
+en cours… » then « Vérification du fichier… » while the API pushed to Cloudinary → « En attente de
+vérification · JPEG, 27 Ko » → admin refusal simulated in the dev DB (REJECTED + reason, document REJECTED)
+→ pull-to-refresh: header « Vérification refusée », tile « Action requise »; dashboard « Vérification à
+refaire » (count 4) → tap → strip with « Motif de Teka RDC : Photo illisible… » → 1.3× / 1.5× → « Remplacer
+le document refusé » → camera → PENDING_REVIEW, first document SUPERSEDED (`purgeAfter` +90 days), second
+PENDING, FCM « Documents reçus » delivered to the emulator → account at 1.5×, shop form at 1.5× → tablet
+800 pt portrait (account, verification, personal information) and 1280 pt landscape (account, verification,
+shop form) in a readable column → logout dialog → Patrick → his own account (no Marie data) → logout.
+**Cleanup:** Cleanup verified field by field: Marie's two QA documents deleted with both Cloudinary assets destroyed (2 destroyed, 0 missing), her first name, last name, commune and verification fields restored, both password hashes and `passwordSetAt` restored byte-for-byte (temporary password 401s), Patrick untouched apart from the restored hash; the QA scripts holding the temporary password deleted. Cloudinary: the two QA assets destroyed
+(`teka-rdc/seller-documents/<profile>/<doc>`), nothing else touched (dev and prod share one cloud).
+iOS: not built (no native change; interactive simulator tooling not exercised).
+
+**Recorded, not changed (follow-ups).**
+- API: changing the login email via `PATCH /v1/users/profile` needs no re-authentication and no
+  confirmation of the new address (`emailVerified` reset only). Security follow-up, not a PR F change.
+- Seller Web parity: `/dashboard/profile` has no notice for a saved town missing from the active list and
+  no « Action requise » signal on the account page; the verification vocabulary is identical (same
+  labels / hints). Follow-up, no contradiction introduced.
+- Notification-permission pre-prompt (above).
+- Still open from earlier PRs: first-launch prompt placement (this decision), order-number header wrap at
+  1.5×, plain `Image.network` thumbnails, legacy characteristic prefill (taxonomy audit), **API
+  `pendingCDF` excludes a HELD earning without `deliveredAt`**, no golden tests, iPad / iOS runtime never
+  exercised.
+
+**Risk:** low — presentation, validation mirrors and refetch scope; the API decides every rule; the
+upload path, pickers and dialogs are unchanged. The one behavioural addition is the `profile` refresh
+revision (one extra `GET /v1/auth/me` after a save, on the account screen only).
+
 ### Remaining Seller UX findings by PR (from the baseline audit + this PR's walk)
 
 | PR | Surface | Findings to act on |
@@ -2404,16 +2540,16 @@ post-request reload now issue three requests instead of two (page 1 of each list
 | **C** orders | `features/orders` | **Done in PR C** — one status vocabulary, cards, detail skeleton, strip, dialogs, conflict reload, timeline tones. Left: the order-number header wraps under a wide chip at 1.5× (cosmetic); item thumbnails remain `Image.network` (no cache dependency in the seller app). |
 | **D** products / form / images | `features/products` | **Done in PR D** — vocabulary, cards, detail skeleton + strip, sectioned Column form with validation fixes, brand sheet, legacy warning, image manager polish. Left: thumbnails stay `Image.network`; legacy characteristic rows cannot prefill a new leaf's fields (taxonomy debt). |
 | **E** earnings + payouts | `features/earnings` | **Done in PR E** — wallet hierarchy (available hero, reserved / pending badges, gross − commission = net), one payout/earning vocabulary on foreground tones, masked numbers in lists, request flow with amount statement + confirmation + stale-balance refetch, detail with a dated history from the API's timestamps, skeletons, contextual empty states. Left: the API's `pendingCDF` excludes a HELD earning whose order has no `deliveredAt` (API-side, recorded below). |
-| **F** profile / commune / verification / settings | `features/profile` (17/14/6), `features/verification` (17/5/1), `features/seller_application`, `features/auth` | Group headers on labelSmall, document cards on a white surface with the status badge, commune picker sheet on the white sheet theme, login/register spacing. Never show payout destination, KYC details or document URLs beyond what the screen already shows. |
+| **F** profile / commune / verification / settings | `features/profile`, `features/verification` | **Done in PR F** — identity card + labelled badges, actionable row, skeletons, validators in the API's words, stale-town notice, verification strip + one correction button, semantic tones, refresh revision. Left (out of scope, recorded): seller application (registration) screen spacing; login-email change without re-auth (API); notification pre-prompt. |
 | cross-cutting | `features/promotions` (17/12/2), `features/reviews` (9/4/1), `features/notifications` | Folded into the PR whose navigation reaches them (promotions → B, reviews → F, notifications → B). |
 
 ## Next exact step
 
-PR 1–13, Buyer UX PR A–D, Seller UX PR A–D merged (latest: `a6b0d7c`). **Seller UX PR E
-`seller-mobile/ux-earnings-payouts` open — awaiting merge approval.** Then Seller UX PR F (profile /
-commune / verification / settings) — **not to be started until PR E is approved.** Seller Web / Admin Web
-redesign stays out of scope. Carried-forward validation gaps: iPad/iOS runtime (never exercised), no golden
-tests, the Seller phone walk now covers dashboard, orders, products, verification and earnings (profile
-remains for F). Open follow-ups: first-launch notification prompt placement; order-number header wrap at
-1.5×; plain `Image.network` sites; legacy characteristic prefill (taxonomy audit); API `pendingCDF` vs a
-HELD earning without `deliveredAt`.
+PR 1–13, Buyer UX PR A–D, Seller UX PR A–E merged (latest: `0ecbcea`). **Seller UX PR F
+`seller-mobile/ux-profile-verification` open — awaiting merge approval; it is the last planned PR of the
+Seller Mobile UX/UI polish series (A–F).** No further initiative is started until told. Seller Web / Admin
+Web redesign stays out of scope. Carried-forward validation gaps: iPad/iOS runtime (never exercised), no
+golden tests. Open follow-ups: **API `pendingCDF` vs a HELD earning without `deliveredAt`**; login-email
+change without re-authentication (API); notification pre-permission explainer; seller-web stale-town notice
+and account action signal; order-number header wrap at 1.5×; plain `Image.network` sites; legacy
+characteristic prefill (taxonomy audit); seller application screen spacing.

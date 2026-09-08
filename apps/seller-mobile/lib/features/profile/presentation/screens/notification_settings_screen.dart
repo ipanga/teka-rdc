@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/push/push_service.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../data/profile_repository.dart';
 import '../../../../core/layout/responsive.dart';
 
@@ -87,12 +88,9 @@ class _NotificationSettingsScreenState
     } catch (_) {
       if (!mounted) return;
       setState(() => _prefs = previous);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Erreur lors de la mise à jour'),
-          backgroundColor: TekaColors.destructive,
-        ),
-      );
+      showAppSnackbar(context,
+          message: 'Impossible d’enregistrer vos préférences. Réessayez.',
+          tone: AppSnackbarTone.error);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
