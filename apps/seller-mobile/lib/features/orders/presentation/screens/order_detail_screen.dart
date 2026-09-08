@@ -2,15 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:seller_mobile/core/utils/price_formatter.dart';
+import '../../../../core/layout/responsive.dart';
+import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/theme/teka_spacing.dart';
+import '../../../../core/widgets/adaptive_leading.dart';
+import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/seller_list_state.dart';
+import '../../../home/presentation/widgets/dashboard_rows.dart';
 import '../../data/models/order_model.dart';
 import '../../data/orders_repository.dart';
-import '../../../../core/widgets/adaptive_leading.dart';
+import '../order_status_ui.dart';
 import '../providers/orders_provider.dart';
 import '../widgets/order_action_buttons.dart';
 import '../widgets/order_status_badge.dart';
-import '../../../../core/layout/responsive.dart';
 
+/// One order, as the seller needs it: number and status, the next step in
+/// the Teka-managed workflow, the items to prepare, the money, then the
+/// history. The seller's transition lives in the bottom bar; when the order
+/// is in Teka's hands the bar is replaced by a neutral waiting line, never by
+/// silence.
+///
+/// Reached from the list (push), the Action Center (list → push) and a
+/// notification tap (push from wherever the app was) — one screen,
+/// `AdaptiveLeading` keeps an exit either way.
 class OrderDetailScreen extends ConsumerWidget {
   final String orderId;
 
@@ -22,31 +37,22 @@ class OrderDetailScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        // Defensive: opened from the orders list (push) and from notification
-        // deep links (stack-replacing) — AdaptiveLeading keeps an exit.
         leading: const AdaptiveLeading(),
-        title: const Text("Détail de la commande"),
+        title: const Text('Détail de la commande'),
       ),
       body: orderAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.error_outline,
-                    size: 48, color: TekaColors.destructive),
-                const SizedBox(height: 12),
-                Text("Une erreur est survenue. Veuillez réessayer."),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () =>
-                      ref.invalidate(sellerOrderDetailProvider(orderId)),
-                  child: Text("Réessayer"),
-                ),
-              ],
-            ),
+        // Keep the last order on screen while a revision refetches it: the
+        // seller is often mid-read when a push arrives.
+        skipLoadingOnRefresh: true,
+        skipLoadingOnReload: true,
+        loading: () => const OrderDetailSkeleton(),
+        error: (e, _) => SellerListState(
+          child: SellerListMessage(
+            icon: Icons.cloud_off_outlined,
+            title: 'Impossible de charger la commande',
+            message: friendlyErrorMessage(e),
+            actionLabel: 'Réessayer',
+            onAction: () => ref.invalidate(sellerOrderDetailProvider(orderId)),
           ),
         ),
         data: (order) => _OrderDetailContent(order: order, orderId: orderId),
@@ -59,10 +65,7 @@ class _OrderDetailContent extends ConsumerStatefulWidget {
   final SellerOrderModel order;
   final String orderId;
 
-  const _OrderDetailContent({
-    required this.order,
-    required this.orderId,
-  });
+  const _OrderDetailContent({required this.order, required this.orderId});
 
   @override
   ConsumerState<_OrderDetailContent> createState() =>
@@ -70,776 +73,819 @@ class _OrderDetailContent extends ConsumerStatefulWidget {
 }
 
 class _OrderDetailContentState extends ConsumerState<_OrderDetailContent> {
-  bool _isPerformingAction = false;
+  bool _busy = false;
+
+  /// The order as the transition response returned it, shown until the
+  /// provider's refetch lands. Without it the bar kept the OLD button for
+  /// the whole round-trip of the detail request (5–7 s on the dev API), and
+  /// a second tap opened a stale dialog.
+  SellerOrderModel? _justChanged;
+
+  @override
+  void didUpdateWidget(covariant _OrderDetailContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.order != widget.order) _justChanged = null;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final locale = 'fr';
-    final dateFormat = DateFormat('dd/MM/yyyy HH:mm', locale);
-    final order = widget.order;
+    final order = _justChanged ?? widget.order;
+    final theme = Theme.of(context).textTheme;
+    final ui = OrderStatusUi.of(order.status);
+    final dateFormat = DateFormat('dd/MM/yyyy · HH:mm', 'fr');
 
     return Column(
       children: [
         Expanded(
-          // The detail is text and summary cards: centred in a readable column
-          // on a tablet. The action bar below keeps its full-width surface and
-          // centres only its buttons.
           child: ReadableColumn(
             padding: EdgeInsets.zero,
             child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // Order header
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      "Commande ${order.orderNumber}",
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
-                  ),
-                  OrderStatusBadge(status: order.status),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.calendar_today_outlined,
-                      size: 14, color: TekaColors.mutedForeground),
-                  const SizedBox(width: 4),
-                  Text(
-                    dateFormat.format(order.createdAt),
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: TekaColors.mutedForeground,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Buyer info
-              _buildSectionCard(
-                context,
-                title: "Acheteur",
-                icon: Icons.person_outline,
-                children: [
-                  if (order.buyer != null) ...[
-                    _buildInfoRow(
-                      "Acheteur",
-                      order.buyer!.fullName,
-                    ),
-                    const SizedBox(height: 4),
-                    _buildInfoRow(
-                      "Téléphone",
-                      order.buyer!.phone,
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Items
-              _buildSectionCard(
-                context,
-                title: "${order.items.length} article(s)",
-                icon: Icons.shopping_bag_outlined,
-                children: [
-                  ...order.items
-                      .map((item) => _buildOrderItem(context, item, locale)),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Price breakdown
-              _buildSectionCard(
-                context,
-                title: "Total",
-                icon: Icons.receipt_outlined,
-                children: [
-                  _buildPriceRow(
-                    "Sous-total",
-                    '${formatFcNumber(order.subtotalCDFDisplay)} FC',
-                  ),
-                  const SizedBox(height: 4),
-                  _buildPriceRow(
-                    "Frais de livraison",
-                    '${formatFcNumber(order.deliveryFeeCDFDisplay)} FC',
-                  ),
-                  const Divider(height: 16),
-                  _buildPriceRow(
-                    "Total",
-                    '${formatFcNumber(order.totalCDFDisplay)} FC',
-                    isBold: true,
-                    color: TekaColors.tekaRed,
-                  ),
-                  if (order.totalUSDDisplay != null) ...[
-                    const SizedBox(height: 2),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: Text(
-                        '\$${order.totalUSDDisplay!.toStringAsFixed(2)} USD',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: TekaColors.mutedForeground,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-
-              // Seller revenue breakdown ("à recevoir")
-              if (order.financials != null) ...[
-                const SizedBox(height: 12),
-                _buildSectionCard(
-                  context,
-                  title: order.financials!.isFinal
-                      ? "Votre rémunération"
-                      : "Votre rémunération (estimation)",
-                  icon: Icons.account_balance_wallet_outlined,
-                  children: [
-                    _buildPriceRow(
-                      "Revenu (produits)",
-                      formatCDF(order.financials!.grossCDF),
-                    ),
-                    const SizedBox(height: 4),
-                    _buildPriceRow(
-                      "Commission Teka (${order.financials!.commissionPercent}%)",
-                      '−${formatCDF(order.financials!.commissionCDF)}',
-                      color: TekaColors.destructive,
-                    ),
-                    const Divider(height: 16),
-                    _buildPriceRow(
-                      "Montant à recevoir",
-                      formatCDF(order.financials!.netCDF),
-                      isBold: true,
-                      color: TekaColors.tekaRed,
-                    ),
-                    if (!order.financials!.isFinal) ...[
-                      const SizedBox(height: 6),
-                      const Text(
-                        "À la livraison, ce montant entre dans la fenêtre "
-                        "de retour de 2 jours avant de devenir disponible.",
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: TekaColors.mutedForeground,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-              // Payment info
-              if (order.paymentMethod != null ||
-                  order.paymentStatus != null) ...[
-                const SizedBox(height: 12),
-                _buildSectionCard(
-                  context,
-                  title: "Mode de paiement",
-                  icon: Icons.payment_outlined,
-                  children: [
-                    if (order.paymentMethod != null)
-                      _buildInfoRow(
-                        "Mode de paiement",
-                        _formatPaymentMethod(order.paymentMethod!),
-                      ),
-                    if (order.paymentStatus != null) ...[
-                      const SizedBox(height: 4),
-                      _buildInfoRow(
-                        "Statut du paiement",
-                        _formatPaymentStatus(order.paymentStatus!),
-                      ),
-                    ],
-                  ],
-                ),
-              ],
-
-              const SizedBox(height: 12),
-
-              // Delivery address
-              if (order.deliveryAddress != null)
-                _buildSectionCard(
-                  context,
-                  title: "Adresse de livraison",
-                  icon: Icons.location_on_outlined,
-                  children: [
-                    Text(
-                      order.deliveryAddress!.formattedAddress,
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    if (order.deliveryAddress!.reference != null &&
-                        order.deliveryAddress!.reference!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        order.deliveryAddress!.reference!,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: TekaColors.mutedForeground,
-                        ),
-                      ),
-                    ],
-                    if (order.deliveryAddress!.recipientName != null) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        '${order.deliveryAddress!.recipientName}',
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    ],
-                    if (order.deliveryAddress!.recipientPhone != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        order.deliveryAddress!.recipientPhone!,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: TekaColors.mutedForeground,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-
-              // Buyer note
-              if (order.buyerNote != null && order.buyerNote!.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                _buildSectionCard(
-                  context,
-                  title: "Note de l'acheteur",
-                  icon: Icons.note_outlined,
-                  children: [
-                    Text(
-                      order.buyerNote!,
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  ],
-                ),
-              ],
-
-              // Status timeline
-              if (order.statusLogs.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                _buildSectionCard(
-                  context,
-                  title: "Historique",
-                  icon: Icons.timeline,
-                  children: [
-                    _buildStatusTimeline(context, order.statusLogs),
-                  ],
-                ),
-              ],
-
-              const SizedBox(height: 80),
-            ],
-          ),
-          ),
-        ),
-
-        // Action buttons at the bottom
-        if (_hasActions(order.status))
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: TekaColors.background,
-              border: const Border(
-                top: BorderSide(color: TekaColors.border),
-              ),
-            ),
-            child: SafeArea(
-              top: false,
-              child: ReadableBottomBar(
-                child: _isPerformingAction
-                  ? const Center(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        child: CircularProgressIndicator(),
-                      ),
-                    )
-                  : OrderActionButtons(
-                      status: order.status,
-                      onConfirm: () => _performAction(
-                        context,
-                        "Confirmer",
-                        () => ref
-                            .read(sellerOrdersRepositoryProvider)
-                            .confirmOrder(order.id),
-                      ),
-                      onReject: () => _showRejectDialog(context, order),
-                      onProcess: () => _performAction(
-                        context,
-                        "Préparer",
-                        () => ref
-                            .read(sellerOrdersRepositoryProvider)
-                            .processOrder(order.id),
-                      ),
-                      onReadyForPickup: () => _performAction(
-                        context,
-                        "Marquer prête pour collecte",
-                        () => ref
-                            .read(sellerOrdersRepositoryProvider)
-                            .markReadyForPickup(order.id),
-                      ),
-                    ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  bool _hasActions(OrderStatus status) {
-    return status == OrderStatus.pending ||
-        status == OrderStatus.confirmed ||
-        status == OrderStatus.processing;
-  }
-
-  Widget _buildSectionCard(
-    BuildContext context, {
-    required String title,
-    required IconData icon,
-    required List<Widget> children,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: TekaColors.background,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: TekaColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: TekaColors.mutedForeground),
-              const SizedBox(width: 6),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: TekaColors.mutedForeground,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ...children,
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 90,
-          child: Text(
-            label,
-            style: const TextStyle(
-              fontSize: 13,
-              color: TekaColors.mutedForeground,
-            ),
-          ),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPriceRow(String label, String value,
-      {bool isBold = false, Color? color}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-            child: Text(label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: isBold ? FontWeight.w600 : FontWeight.normal,
-                  color: isBold
-                      ? TekaColors.foreground
-                      : TekaColors.mutedForeground,
-                ))),
-        const SizedBox(width: 12),
-        Expanded(
-            child: Text(value,
-                textAlign: TextAlign.end,
-                style: TextStyle(
-                  fontSize: isBold ? 15 : 13,
-                  fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
-                  color: color ?? TekaColors.foreground,
-                ))),
-      ],
-    );
-  }
-
-  Widget _buildOrderItem(
-      BuildContext context, OrderItemModel item, String locale) {
-    final title = item.productTitle;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Product thumbnail
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: SizedBox(
-              width: 48,
-              height: 48,
-              child: item.productImage != null
-                  ? Image.network(
-                      item.productImage!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _placeholderImage(),
-                      loadingBuilder: (_, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return _placeholderImage();
-                      },
-                    )
-                  : _placeholderImage(),
-            ),
-          ),
-          const SizedBox(width: 10),
-          // Product details
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              padding: const EdgeInsets.all(TekaSpacing.md),
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Quantité: ${item.quantity} x ${formatFcNumber(item.unitPriceCDFDisplay)} FC',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: TekaColors.mutedForeground,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '${formatFcNumber(item.totalCDFDisplay)} FC',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: TekaColors.tekaRed,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _placeholderImage() {
-    return Container(
-      color: TekaColors.muted,
-      child: const Icon(
-        Icons.image_outlined,
-        color: TekaColors.mutedForeground,
-        size: 24,
-      ),
-    );
-  }
-
-  Widget _buildStatusTimeline(
-      BuildContext context, List<OrderStatusLogModel> logs) {
-    final dateFormat = DateFormat('dd/MM HH:mm', 'fr');
-
-    return Column(
-      children: List.generate(logs.length, (index) {
-        final log = logs[index];
-        final isLast = index == logs.length - 1;
-        final statusLabel = _getStatusLabel(log.toStatus);
-
-        return IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Timeline dot & line
-              SizedBox(
-                width: 24,
-                child: Column(
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isLast
-                            ? TekaColors.tekaRed
-                            : TekaColors.mutedForeground,
-                      ),
+                    Expanded(
+                      child: Text('Commande ${order.orderNumber}',
+                          style: theme.titleLarge),
                     ),
-                    if (!isLast)
-                      Expanded(
-                        child: Container(
-                          width: 2,
-                          color: TekaColors.border,
-                        ),
-                      ),
+                    const SizedBox(width: TekaSpacing.xs),
+                    OrderStatusBadge(status: order.status),
                   ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              // Status info
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(height: TekaSpacing.xxs),
+                Text(dateFormat.format(order.createdAt),
+                    style: theme.bodySmall
+                        ?.copyWith(color: TekaColors.mutedForeground)),
+                const SizedBox(height: TekaSpacing.md),
+                _NextStep(ui: ui),
+                const SizedBox(height: TekaSpacing.md),
+                _SectionCard(
+                  title:
+                      '${order.items.length} article${order.items.length == 1 ? '' : 's'} à préparer',
+                  icon: Icons.shopping_bag_outlined,
+                  children: [
+                    for (var i = 0; i < order.items.length; i++) ...[
+                      if (i > 0) const SizedBox(height: TekaSpacing.sm),
+                      _ItemRow(item: order.items[i]),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: TekaSpacing.sm),
+                _SectionCard(
+                  title: 'Acheteur',
+                  icon: Icons.person_outline,
+                  children: [
+                    if (order.buyer != null)
+                      Text(order.buyer!.fullName, style: theme.bodyMedium),
+                    if (order.deliveryAddress?.town case final town?)
+                      Text(
+                        'Livraison assurée par Teka · $town',
+                        style: theme.bodySmall
+                            ?.copyWith(color: TekaColors.neutralForeground),
+                      ),
+                    if (order.buyerNote case final note?
+                        when note.trim().isNotEmpty) ...[
+                      const SizedBox(height: TekaSpacing.xs),
+                      Text('Note de l’acheteur', style: theme.labelMedium),
+                      Text(note, style: theme.bodyMedium),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: TekaSpacing.sm),
+                _SectionCard(
+                  title: 'Montant de la commande',
+                  icon: Icons.receipt_outlined,
+                  children: [
+                    _MoneyRow('Sous-total',
+                        '${formatFcNumber(order.subtotalCDFDisplay)} FC'),
+                    _MoneyRow('Frais de livraison',
+                        '${formatFcNumber(order.deliveryFeeCDFDisplay)} FC'),
+                    const Divider(height: TekaSpacing.md),
+                    _MoneyRow('Total payé par l’acheteur',
+                        '${formatFcNumber(order.totalCDFDisplay)} FC',
+                        emphasis: true),
+                    if (order.totalUSDDisplay != null)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                            '\$${order.totalUSDDisplay!.toStringAsFixed(2)} USD',
+                            style: theme.bodySmall?.copyWith(
+                                color: TekaColors.mutedForeground)),
+                      ),
+                    const SizedBox(height: TekaSpacing.xxs),
+                    Text(
+                      _paymentLine(order),
+                      style: theme.bodySmall
+                          ?.copyWith(color: TekaColors.neutralForeground),
+                    ),
+                  ],
+                ),
+                // No « à recevoir » on a cancelled or returned order: there
+                // is no sale to estimate.
+                if (order.status != OrderStatus.cancelled &&
+                    order.status != OrderStatus.returned &&
+                    order.financials != null) ...[
+                  const SizedBox(height: TekaSpacing.sm),
+                  _SectionCard(
+                    title: order.financials!.isFinal
+                        ? 'Votre rémunération'
+                        : 'Votre rémunération (estimation)',
+                    icon: Icons.account_balance_wallet_outlined,
                     children: [
-                      Text(
-                        statusLabel,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight:
-                              isLast ? FontWeight.w600 : FontWeight.normal,
-                          color: isLast
-                              ? TekaColors.foreground
-                              : TekaColors.mutedForeground,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        dateFormat.format(log.createdAt),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: TekaColors.mutedForeground,
-                        ),
-                      ),
-                      if (log.note != null && log.note!.isNotEmpty) ...[
-                        const SizedBox(height: 2),
+                      _MoneyRow('Revenu (produits)',
+                          formatCDF(order.financials!.grossCDF)),
+                      _MoneyRow(
+                          'Commission Teka (${order.financials!.commissionPercent} %)',
+                          '− ${formatCDF(order.financials!.commissionCDF)}'),
+                      const Divider(height: TekaSpacing.md),
+                      _MoneyRow('Montant à recevoir',
+                          formatCDF(order.financials!.netCDF),
+                          emphasis: true),
+                      if (!order.financials!.isFinal) ...[
+                        const SizedBox(height: TekaSpacing.xxs),
                         Text(
-                          log.note!,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontStyle: FontStyle.italic,
-                            color: TekaColors.mutedForeground,
-                          ),
+                          'À la livraison, ce montant entre dans la fenêtre de retour de 2 jours avant de devenir disponible.',
+                          style: theme.bodySmall
+                              ?.copyWith(color: TekaColors.mutedForeground),
                         ),
                       ],
                     ],
                   ),
-                ),
-              ),
-            ],
+                ],
+                if (order.statusLogs.isNotEmpty) ...[
+                  const SizedBox(height: TekaSpacing.sm),
+                  _SectionCard(
+                    title: 'Historique',
+                    icon: Icons.timeline,
+                    children: [_Timeline(logs: order.statusLogs)],
+                  ),
+                ],
+                const SizedBox(height: TekaSpacing.xl),
+              ],
+            ),
           ),
-        );
-      }),
+        ),
+        _BottomBar(
+          order: order,
+          busy: _busy,
+          onConfirm: () => _transition(
+            title: 'Confirmer la commande',
+            body:
+                'L’acheteur sera informé et la commande passera en préparation. Vous ne pourrez plus la refuser ensuite.',
+            actionLabel: 'Confirmer la commande',
+            action: () => ref
+                .read(sellerOrdersRepositoryProvider)
+                .confirmOrder(order.id),
+          ),
+          onReject: () => _reject(order),
+          onProcess: () => _transition(
+            title: 'Commencer la préparation',
+            body:
+                'La commande passe « En préparation ». Marquez-la prête pour collecte une fois le colis emballé.',
+            actionLabel: 'Commencer la préparation',
+            action: () => ref
+                .read(sellerOrdersRepositoryProvider)
+                .processOrder(order.id),
+          ),
+          onReadyForPickup: () => _transition(
+            title: 'Marquer prête pour collecte',
+            body:
+                'Teka viendra collecter le colis et l’acheteur sera informé. Cette étape est définitive : la commande passe sous la responsabilité de Teka.',
+            actionLabel: 'Marquer prête pour collecte',
+            action: () => ref
+                .read(sellerOrdersRepositoryProvider)
+                .markReadyForPickup(order.id),
+          ),
+        ),
+      ],
     );
   }
 
-  String _formatPaymentMethod(String method) {
-    switch (method.toUpperCase()) {
-      case 'COD':
-      case 'CASH_ON_DELIVERY':
-        return "Paiement à la livraison";
-      case 'MOBILE_MONEY':
-      case 'MPESA':
-      case 'AIRTEL':
-      case 'ORANGE':
-        return "Mobile Money";
-      default:
-        return method;
+  static String _paymentLine(SellerOrderModel order) {
+    if (order.status == OrderStatus.cancelled ||
+        order.status == OrderStatus.returned) {
+      return 'Paiement à la livraison · aucun encaissement';
     }
+    final paid = switch (order.paymentStatus?.toUpperCase()) {
+      'COMPLETED' || 'PAID' => 'encaissé par Teka',
+      _ => 'encaissé par Teka à la livraison',
+    };
+    return 'Paiement à la livraison · $paid';
   }
 
-  String _formatPaymentStatus(String status) {
-    switch (status.toUpperCase()) {
-      case 'PENDING':
-        return "En attente";
-      case 'COMPLETED':
-      case 'PAID':
-        return "Payé";
-      case 'FAILED':
-        return "Échoué";
-      default:
-        return status;
-    }
-  }
-
-  String _getStatusLabel(String status) {
-    switch (status.toUpperCase()) {
-      case 'PENDING':
-        return "En attente";
-      case 'CONFIRMED':
-        return "Confirmée";
-      case 'PROCESSING':
-        return "En préparation";
-      case 'READY_FOR_TEKA_PICKUP':
-        return "Prête pour collecte";
-      case 'RECEIVED_AT_TEKA':
-        return "Reçue par Teka";
-      case 'SHIPPED':
-        return "Expédiée";
-      case 'OUT_FOR_DELIVERY':
-        return "En livraison";
-      case 'DELIVERED':
-        return "Livrée";
-      case 'CANCELLED':
-        return "Annulée";
-      case 'RETURNED':
-        return "Retournée";
-      default:
-        return status;
-    }
-  }
-
-  Future<void> _performAction(
-    BuildContext context,
-    String actionLabel,
-    Future<SellerOrderModel> Function() action,
-  ) async {
-    final confirmed = await showDialog<bool>(
+  /// One confirmation dialog for every transition, stating what will happen.
+  /// The dialog's own button is guarded against a double tap: a second pop
+  /// would close the detail screen itself.
+  Future<bool> _confirmDialog({
+    required String title,
+    required String body,
+    required String actionLabel,
+    bool destructive = false,
+    Widget? extra,
+  }) async {
+    var popped = false;
+    final result = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(actionLabel),
-        content: Text("Confirmer cette action ?"),
+        title: Text(title),
+        content: extra == null
+            ? Text(body)
+            : Column(mainAxisSize: MainAxisSize.min, children: [
+                Text(body),
+                const SizedBox(height: TekaSpacing.sm),
+                extra,
+              ]),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text("Annuler"),
+            child: const Text('Annuler'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: TekaColors.tekaRed,
-              foregroundColor: Colors.white,
-            ),
+            onPressed: () {
+              if (popped) return;
+              popped = true;
+              Navigator.pop(ctx, true);
+            },
+            style: destructive
+                ? ElevatedButton.styleFrom(
+                    backgroundColor: TekaColors.destructive)
+                : null,
             child: Text(actionLabel),
           ),
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+    return result == true;
+  }
 
-    setState(() => _isPerformingAction = true);
+  Future<void> _transition({
+    required String title,
+    required String body,
+    required String actionLabel,
+    required Future<SellerOrderModel> Function() action,
+  }) async {
+    if (_busy) return;
+    // Captured BEFORE the dialog: if a push refreshes the order while the
+    // seller reads the dialog, the refusal that follows is a stale one.
+    final before = (_justChanged ?? widget.order).status;
+    final ok = await _confirmDialog(
+        title: title, body: body, actionLabel: actionLabel);
+    if (!ok || !mounted) return;
+    await _run(action, before: before, success: 'Commande mise à jour.');
+  }
+
+  /// Runs a transition: the bar is busy meanwhile; on success the detail,
+  /// the list, the Action Center and the Commandes badge all refetch through
+  /// the orders revision the repository bumps. On failure the order is
+  /// refetched anyway: if its status changed under the seller's feet (the
+  /// API refuses the transition with a 400), the screen says so instead of
+  /// showing a stale button; otherwise the API's own French message is shown
+  /// and the seller can retry.
+  Future<void> _run(Future<SellerOrderModel> Function() action,
+      {required OrderStatus before, required String success}) async {
+    setState(() => _busy = true);
     try {
-      await action();
-      ref.invalidate(sellerOrderDetailProvider(widget.orderId));
+      final changed = await action();
+      // The repository bumped the orders revision (detail, Action Center,
+      // Commandes badge). The list is a StateNotifier that keeps the seller's
+      // page and scroll, so it is refreshed explicitly.
       ref.read(sellerOrdersProvider.notifier).refresh();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Action effectuée"),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
+      if (!mounted) return;
+      // Show the new status now; the refetch reconciles the rest.
+      setState(() => _justChanged = widget.order.withTransition(changed));
+      showAppSnackbar(context,
+          message: success, tone: AppSnackbarTone.success);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Une erreur est survenue. Veuillez réessayer."),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      if (!mounted) return;
+      final message = friendlyErrorMessage(e);
+      SellerOrderModel? fresh;
+      try {
+        fresh = await ref
+            .refresh(sellerOrderDetailProvider(widget.orderId).future);
+      } catch (_) {
+        // The failure message below already covers an unreachable API.
+      }
+      if (!mounted) return;
+      if (fresh != null && fresh.status != before) {
+        showAppSnackbar(context,
+            message:
+                'Le statut de cette commande a changé entre-temps : la fiche a été actualisée.',
+            tone: AppSnackbarTone.warning);
+      } else {
+        showAppSnackbar(context,
+            message: message, tone: AppSnackbarTone.error);
       }
     } finally {
-      if (mounted) setState(() => _isPerformingAction = false);
+      if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<void> _showRejectDialog(
-    BuildContext context,
-    SellerOrderModel order,
-  ) async {
-    final reasonController = TextEditingController();
+  Future<void> _reject(SellerOrderModel current) async {
+    if (_busy) return;
+    final order = _justChanged ?? current;
     final reason = await showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text("Rejeter"),
-        content: Column(
+      builder: (ctx) => const _RejectDialog(),
+    );
+    if (reason == null || reason.trim().isEmpty || !mounted) return;
+    await _run(
+      () => ref
+          .read(sellerOrdersRepositoryProvider)
+          .rejectOrder(order.id, reason.trim()),
+      before: order.status,
+      success: 'Commande refusée. L’acheteur a été informé.',
+    );
+  }
+}
+
+/// Refusal needs a reason (the API requires one and the buyer reads it); the
+/// button stays disabled until there is one, and a double tap cannot pop
+/// twice.
+class _RejectDialog extends StatefulWidget {
+  const _RejectDialog();
+
+  @override
+  State<_RejectDialog> createState() => _RejectDialogState();
+}
+
+class _RejectDialogState extends State<_RejectDialog> {
+  // Owned here: the dialog route outlives the awaiting caller by one
+  // dismiss animation, so a caller-owned controller was disposed while the
+  // field was still on screen.
+  final _controller = TextEditingController();
+  bool _popped = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasReason = _controller.text.trim().isNotEmpty;
+    return AlertDialog(
+      title: const Text('Refuser la commande'),
+      // Scrollable: with the keyboard up on a short phone at 1.5× the
+      // explanation and the field do not fit in one column.
+      content: SingleChildScrollView(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Raison du rejet"),
-            const SizedBox(height: 12),
+            const Text(
+                'La commande sera annulée définitivement, le stock restitué et l’acheteur informé du motif.'),
+            const SizedBox(height: TekaSpacing.sm),
             TextField(
-              controller: reasonController,
+              controller: _controller,
               maxLines: 3,
-              decoration: InputDecoration(
-                hintText: "Expliquez la raison...",
-                border: const OutlineInputBorder(),
+              autofocus: true,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                labelText: 'Motif du refus',
+                hintText: 'Ex. : article en rupture de stock',
+                border: OutlineInputBorder(),
               ),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text("Annuler"),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final text = reasonController.text.trim();
-              if (text.isNotEmpty) {
-                Navigator.pop(ctx, text);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: TekaColors.destructive,
-              foregroundColor: Colors.white,
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Annuler'),
+        ),
+        ElevatedButton(
+          onPressed: hasReason
+              ? () {
+                  if (_popped) return;
+                  _popped = true;
+                  Navigator.pop(context, _controller.text);
+                }
+              : null,
+          style:
+              ElevatedButton.styleFrom(backgroundColor: TekaColors.destructive),
+          child: const Text('Refuser la commande'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Bottom bar: the seller's buttons while a transition is theirs, a neutral
+/// waiting line while the order is in Teka's hands, nothing once terminal.
+class _BottomBar extends StatelessWidget {
+  const _BottomBar({
+    required this.order,
+    required this.busy,
+    required this.onConfirm,
+    required this.onReject,
+    required this.onProcess,
+    required this.onReadyForPickup,
+  });
+  final SellerOrderModel order;
+  final bool busy;
+  final VoidCallback onConfirm;
+  final VoidCallback onReject;
+  final VoidCallback onProcess;
+  final VoidCallback onReadyForPickup;
+
+  @override
+  Widget build(BuildContext context) {
+    final ui = OrderStatusUi.of(order.status);
+    final Widget? child;
+    if (ui.sellerActionRequired) {
+      child = OrderActionButtons(
+        status: order.status,
+        busy: busy,
+        onConfirm: onConfirm,
+        onReject: onReject,
+        onProcess: onProcess,
+        onReadyForPickup: onReadyForPickup,
+      );
+    } else if (order.status == OrderStatus.readyForTekaPickup) {
+      child = Row(children: [
+        const Icon(Icons.schedule_outlined,
+            color: TekaColors.neutralForeground),
+        const SizedBox(width: TekaSpacing.sm),
+        Expanded(
+          child: Text('En attente de collecte par Teka',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleSmall
+                  ?.copyWith(color: TekaColors.neutralForeground)),
+        ),
+      ]);
+    } else {
+      child = null;
+    }
+    if (child == null) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.all(TekaSpacing.md),
+      decoration: const BoxDecoration(
+        color: TekaColors.background,
+        border: Border(top: BorderSide(color: TekaColors.border)),
+      ),
+      child: SafeArea(top: false, child: ReadableBottomBar(child: child)),
+    );
+  }
+}
+
+/// « Prochaine étape » strip: the managed workflow in one sentence, coloured
+/// by the status tone. Attention while the seller must act, neutral or info
+/// while Teka works, success / destructive at the end.
+class _NextStep extends StatelessWidget {
+  const _NextStep({required this.ui});
+  final OrderStatusUi ui;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    final background = Color.alphaBlend(
+        ui.color.withValues(alpha: 0.08), TekaColors.background);
+    return Semantics(
+      container: true,
+      label: '${ui.sellerActionRequired ? 'Votre action' : 'Étape'} : ${ui.step}',
+      child: ExcludeSemantics(
+        child: Container(
+          padding: const EdgeInsets.all(TekaSpacing.sm),
+          decoration: BoxDecoration(
+              color: background, borderRadius: TekaRadius.mdAll),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(ui.sellerActionRequired ? Icons.flag_outlined : ui.icon,
+                size: 20, color: ui.color),
+            const SizedBox(width: TekaSpacing.xs),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(ui.stepHeading,
+                        style: theme.labelMedium?.copyWith(color: ui.color)),
+                    const SizedBox(height: 2),
+                    Text(ui.step, style: theme.bodyMedium),
+                  ]),
             ),
-            child: Text("Rejeter"),
-          ),
-        ],
+          ]),
+        ),
       ),
     );
+  }
+}
 
-    reasonController.dispose();
+class _SectionCard extends StatelessWidget {
+  const _SectionCard(
+      {required this.title, required this.icon, required this.children});
+  final String title;
+  final IconData icon;
+  final List<Widget> children;
 
-    if (reason == null || reason.isEmpty || !mounted) return;
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(TekaSpacing.sm),
+        decoration: BoxDecoration(
+          color: TekaColors.background,
+          borderRadius: TekaRadius.lgAll,
+          border: Border.all(color: TekaColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Semantics(
+              header: true,
+              child: Row(children: [
+                Icon(icon, size: 16, color: TekaColors.mutedForeground),
+                const SizedBox(width: TekaSpacing.xxs),
+                Expanded(
+                  child: Text(title,
+                      style: Theme.of(context)
+                          .textTheme
+                          .labelMedium
+                          ?.copyWith(color: TekaColors.mutedForeground)),
+                ),
+              ]),
+            ),
+            const SizedBox(height: TekaSpacing.xs),
+            ...children,
+          ],
+        ),
+      );
+}
 
-    setState(() => _isPerformingAction = true);
-    try {
-      await ref
-          .read(sellerOrdersRepositoryProvider)
-          .rejectOrder(order.id, reason);
-      ref.invalidate(sellerOrderDetailProvider(widget.orderId));
-      ref.read(sellerOrdersProvider.notifier).refresh();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Action effectuée"),
-            behavior: SnackBarBehavior.floating,
+/// Money rows: label muted, amount in foreground — colour marks state, never
+/// money. [emphasis] for the row the seller reads first.
+class _MoneyRow extends StatelessWidget {
+  const _MoneyRow(this.label, this.value, {this.emphasis = false});
+  final String label;
+  final String value;
+  final bool emphasis;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(
+          child: Text(label,
+              style: emphasis
+                  ? theme.titleSmall
+                  : theme.bodyMedium
+                      ?.copyWith(color: TekaColors.mutedForeground)),
+        ),
+        const SizedBox(width: TekaSpacing.sm),
+        Text(value,
+            textAlign: TextAlign.end,
+            style: emphasis
+                ? theme.titleMedium?.copyWith(fontWeight: FontWeight.w700)
+                : theme.bodyMedium?.copyWith(fontWeight: FontWeight.w500)),
+      ]),
+    );
+  }
+}
+
+class _ItemRow extends StatelessWidget {
+  const _ItemRow({required this.item});
+  final OrderItemModel item;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    final total = Text('${formatFcNumber(item.totalCDFDisplay)} FC',
+        style: theme.bodyMedium?.copyWith(fontWeight: FontWeight.w700));
+    final quantity = Text(
+        'Quantité : ${item.quantity} × ${formatFcNumber(item.unitPriceCDFDisplay)} FC',
+        style: theme.bodySmall?.copyWith(color: TekaColors.mutedForeground));
+    final thumbnail = ClipRRect(
+      borderRadius: TekaRadius.smAll,
+      child: SizedBox(
+        width: 56,
+        height: 56,
+        child: item.productImage == null
+            ? const _ImagePlaceholder()
+            : Image.network(
+                item.productImage!,
+                fit: BoxFit.cover,
+                cacheWidth: 168,
+                errorBuilder: (_, __, ___) => const _ImagePlaceholder(),
+                loadingBuilder: (_, child, progress) =>
+                    progress == null ? child : const _ImagePlaceholder(),
+              ),
+      ),
+    );
+    return LayoutBuilder(builder: (context, constraints) {
+      // A 320 px phone at 1.5× cannot hold thumbnail, title and a bold line
+      // total side by side: the total moves under the quantity, right-aligned.
+      final narrow = constraints.maxWidth < 300 ||
+          MediaQuery.textScalerOf(context).scale(1) > 1.3;
+      return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        thumbnail,
+        const SizedBox(width: TekaSpacing.sm),
+        Expanded(
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(item.productTitle,
+                    style:
+                        theme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 2),
+                quantity,
+                if (narrow) ...[
+                  const SizedBox(height: 2),
+                  Align(alignment: Alignment.centerRight, child: total),
+                ],
+              ]),
+        ),
+        if (!narrow) ...[const SizedBox(width: TekaSpacing.xs), total],
+      ]);
+    });
+  }
+}
+
+class _ImagePlaceholder extends StatelessWidget {
+  const _ImagePlaceholder();
+  @override
+  Widget build(BuildContext context) => const ColoredBox(
+        color: TekaColors.muted,
+        child: Icon(Icons.image_outlined,
+            color: TekaColors.mutedForeground, size: 24),
+      );
+}
+
+/// The order's real history: one entry per `statusLog`, oldest first, the
+/// dot in that status's own tone. Nothing is invented — no future milestone,
+/// no « expected » step.
+class _Timeline extends StatelessWidget {
+  const _Timeline({required this.logs});
+  final List<OrderStatusLogModel> logs;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    final dateFormat = DateFormat('dd/MM/yyyy · HH:mm', 'fr');
+    return Column(children: [
+      for (var i = 0; i < logs.length; i++)
+        Builder(builder: (context) {
+          final log = logs[i];
+          final isLast = i == logs.length - 1;
+          final ui = OrderStatusUi.of(log.toOrderStatus);
+          return IntrinsicHeight(
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              SizedBox(
+                width: 24,
+                child: Column(children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    margin: const EdgeInsets.only(top: 4),
+                    decoration:
+                        BoxDecoration(shape: BoxShape.circle, color: ui.color),
+                  ),
+                  if (!isLast)
+                    Expanded(
+                        child: Container(width: 2, color: TekaColors.border)),
+                ]),
+              ),
+              const SizedBox(width: TekaSpacing.xs),
+              Expanded(
+                child: Padding(
+                  padding:
+                      EdgeInsets.only(bottom: isLast ? 0 : TekaSpacing.sm),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(ui.label,
+                            style: isLast
+                                ? theme.titleSmall
+                                : theme.bodyMedium?.copyWith(
+                                    color: TekaColors.neutralForeground)),
+                        Text(dateFormat.format(log.createdAt),
+                            style: theme.bodySmall
+                                ?.copyWith(color: TekaColors.mutedForeground)),
+                        if (log.note case final note?
+                            when note.trim().isNotEmpty)
+                          Text(note,
+                              style: theme.bodySmall?.copyWith(
+                                  fontStyle: FontStyle.italic,
+                                  color: TekaColors.mutedForeground)),
+                      ]),
+                ),
+              ),
+            ]),
+          );
+        }),
+    ]);
+  }
+}
+
+/// First paint of the detail: header, next-step strip, two item rows, a money
+/// block and an action bar, all static blocks (no shimmer). Announced once
+/// to assistive tech.
+class OrderDetailSkeleton extends StatelessWidget {
+  const OrderDetailSkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget card(List<Widget> children) => Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(TekaSpacing.sm),
+          decoration: BoxDecoration(
+            color: TekaColors.background,
+            borderRadius: TekaRadius.lgAll,
+            border: Border.all(color: TekaColors.border),
           ),
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: children),
         );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Une erreur est survenue. Veuillez réessayer."),
-            behavior: SnackBarBehavior.floating,
+    return Semantics(
+      label: 'Chargement de la commande',
+      liveRegion: true,
+      child: ExcludeSemantics(
+        child: Column(children: [
+          Expanded(
+            child: ReadableColumn(
+              padding: EdgeInsets.zero,
+              child: ListView(
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(TekaSpacing.md),
+                children: [
+                  const Row(children: [
+                    Expanded(child: SkeletonBlock(width: 220, height: 20)),
+                    SizedBox(width: TekaSpacing.xs),
+                    SkeletonBlock(width: 96, height: 26, pill: true),
+                  ]),
+                  const SizedBox(height: TekaSpacing.xs),
+                  const SkeletonBlock(width: 120, height: 12),
+                  const SizedBox(height: TekaSpacing.md),
+                  const SkeletonBlock(width: double.infinity, height: 56),
+                  const SizedBox(height: TekaSpacing.md),
+                  card([
+                    const SkeletonBlock(width: 140, height: 12),
+                    const SizedBox(height: TekaSpacing.sm),
+                    for (var i = 0; i < 2; i++) ...[
+                      if (i > 0) const SizedBox(height: TekaSpacing.sm),
+                      const Row(children: [
+                        SkeletonBlock(width: 56, height: 56),
+                        SizedBox(width: TekaSpacing.sm),
+                        Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SkeletonBlock(width: 200, height: 14),
+                                SizedBox(height: TekaSpacing.xs),
+                                SkeletonBlock(width: 120, height: 12),
+                              ]),
+                        ),
+                      ]),
+                    ],
+                  ]),
+                  const SizedBox(height: TekaSpacing.sm),
+                  card([
+                    const SkeletonBlock(width: 160, height: 12),
+                    const SizedBox(height: TekaSpacing.sm),
+                    for (var i = 0; i < 3; i++) ...[
+                      if (i > 0) const SizedBox(height: TekaSpacing.xs),
+                      const Row(children: [
+                        Expanded(child: SkeletonBlock(width: 120, height: 14)),
+                        SkeletonBlock(width: 90, height: 14),
+                      ]),
+                    ],
+                  ]),
+                  const SizedBox(height: TekaSpacing.sm),
+                  card([
+                    const SkeletonBlock(width: 100, height: 12),
+                    const SizedBox(height: TekaSpacing.sm),
+                    for (var i = 0; i < 3; i++) ...[
+                      if (i > 0) const SizedBox(height: TekaSpacing.sm),
+                      const Row(children: [
+                        SkeletonBlock(width: 10, height: 10, pill: true),
+                        SizedBox(width: TekaSpacing.sm),
+                        SkeletonBlock(width: 140, height: 12),
+                      ]),
+                    ],
+                  ]),
+                ],
+              ),
+            ),
           ),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isPerformingAction = false);
-    }
+          Container(
+            padding: const EdgeInsets.all(TekaSpacing.md),
+            decoration: const BoxDecoration(
+              color: TekaColors.background,
+              border: Border(top: BorderSide(color: TekaColors.border)),
+            ),
+            child: const SafeArea(
+              top: false,
+              child: ReadableBottomBar(
+                  child: SkeletonBlock(width: double.infinity, height: 44)),
+            ),
+          ),
+        ]),
+      ),
+    );
   }
 }

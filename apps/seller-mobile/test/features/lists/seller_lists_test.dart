@@ -125,7 +125,8 @@ void main() {
         ordersRepository: repo,
         ordersState:
             const SellerOrdersState(selectedStatus: OrderStatus.pending));
-    expect(find.text('Aucune commande dans ce statut'), findsOneWidget);
+    // Empty copy names the selected bucket (PR C), not a generic « statut ».
+    expect(find.text('Aucune commande à confirmer'), findsOneWidget);
     await tester.tap(find.text('Voir toutes les commandes'));
     await tester.pumpAndSettle();
     expect(repo.calls, 1);
