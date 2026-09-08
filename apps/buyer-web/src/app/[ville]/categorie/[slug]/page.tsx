@@ -25,7 +25,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const name = category?.name || '';
   const cityName = city?.name || '';
-  const title = `${name} à ${cityName} — Acheter en ligne sur Teka RDC`;
+  // <title> = "{name} à {ville} — Acheter en ligne | Teka RDC": the root
+  // layout's `%s | Teka RDC` template appends the brand, so the page title
+  // must not repeat it (it used to render "… sur Teka RDC | Teka RDC").
+  const title = `${name} à ${cityName} — Acheter en ligne`;
   const description = `Découvrez les produits ${name} disponibles à ${cityName} sur Teka RDC. Livraison rapide et paiement à la livraison.`;
   const canonical = `/${ville}/categorie/${slug}`;
 

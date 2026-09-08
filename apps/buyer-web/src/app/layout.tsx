@@ -7,6 +7,8 @@ import { PostHogPageview } from '@/components/providers/posthog-pageview';
 import { PostHogProvider } from '@/components/providers/posthog-provider';
 import { CitySelectorModal } from '@/components/city/city-selector-modal';
 import { WishlistSync } from '@/components/wishlist/wishlist-sync';
+import { JsonLd } from '@/components/seo/json-ld';
+import { ORGANIZATION_JSON_LD, WEBSITE_JSON_LD } from '@/lib/site-identity';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-inter' });
@@ -68,6 +70,14 @@ export default async function RootLayout({
   return (
     <html lang="fr" className={inter.variable}>
       <body className="font-sans antialiased">
+        {/* Site identity on EVERY page (SEO-1): Organization (with a logo
+            that resolves) + WebSite (sitelinks search). Emitted once here so
+            no page can duplicate or contradict it — the homepage no longer
+            carries its own copy. Data blocks are not executed by the browser,
+            so they need no CSP nonce; every block goes through JsonLd's
+            escaping (D4/S2), never a raw JSON.stringify. */}
+        <JsonLd data={ORGANIZATION_JSON_LD} />
+        <JsonLd data={WEBSITE_JSON_LD} />
         <PostHogProvider>
           <AuthProvider>
             {children}

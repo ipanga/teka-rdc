@@ -4,6 +4,7 @@ import { ContentPageView } from '@/components/pages/content-page-view';
 import CityLandingPage from '@/components/pages/city-landing-page';
 import { serverFetch } from '@/lib/server-api';
 import { findCityBySlug } from '@/lib/server-cities';
+import { plainText, truncateForMeta } from '@/lib/seo-text';
 import { productHref } from '@/lib/urls';
 import {
   allStaticPageParams,
@@ -83,14 +84,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const page = await serverFetch<ApiContentPage>(`/v1/content/${canonical}`);
     if (page) {
       const title = pickStr(page.title);
-      const body = pickStr(page.content);
-      const description = body
-        .replace(/^#+\s+/gm, '')
-        .replace(/\*\*(.*?)\*\*/g, '$1')
-        .replace(/\[(.*?)\]\(.*?\)/g, '$1')
-        .replace(/\n+/g, ' ')
-        .trim()
-        .slice(0, 160);
+      const description = truncateForMeta(plainText(page.content), 160);
       const path = pathForCanonical(canonical);
       return {
         title,
