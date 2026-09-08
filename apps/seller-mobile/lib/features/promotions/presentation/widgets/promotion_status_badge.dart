@@ -59,7 +59,7 @@ class PromotionStatusBadge extends StatelessWidget {
         );
       case 'APPROVED':
         return _PromotionStatusConfig(
-          color: const Color(0xFF3B82F6),
+          color: TekaColors.processing,
           icon: Icons.check_circle_outline,
           label: "Approuvee",
         );
@@ -77,13 +77,13 @@ class PromotionStatusBadge extends StatelessWidget {
         );
       case 'EXPIRED':
         return _PromotionStatusConfig(
-          color: const Color(0xFF9CA3AF),
+          color: TekaColors.inactive,
           icon: Icons.timer_off_outlined,
           label: "Expiree",
         );
       case 'CANCELLED':
         return _PromotionStatusConfig(
-          color: const Color(0xFF9CA3AF),
+          color: TekaColors.inactive,
           icon: Icons.block,
           label: "Annulee",
         );

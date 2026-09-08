@@ -80,18 +80,38 @@ flutter_launcher_icons:
 
 # Native splash (prevents a blank screen during cold start — its only job here;
 # there is no in-app splash, per Google's guidance against redundant custom
-# splashes). iOS + Android < 12 show a compact, density-friendly "teka.cd" wordmark on white.
-# Android 12+ masks the existing white "T" glyph over the seller charcoal color.
-# There is no Flutter-side splash or artificial delay.
-# NOTE: android/app/src/main/res/values{,-night}-v33/styles.xml are hand-written
-# (icon_preferred on Android 13+); `flutter_native_splash:create` only regenerates
-# the -v31 sidecars, so update the -v33 files by hand when the splash changes.
+# splashes). There is no Flutter-side splash or artificial delay.
+#
+# Seller UX PR A (2026-09-08) — root cause of the "too large / blurry" logo:
+#  * Android 12+ masks `android_12.image` to a circle whose SAFE ZONE is the
+#    inner 66%. The launcher foreground's T spans 65% of the canvas height, so
+#    the circle clipped its crossbar and hook. `splash_icon_android12.png` is a
+#    splash-only render of the same glyph at 46% height, anti-aliased. The
+#    launcher icon assets are untouched.
+#  * Pre-12 Android + iOS: the old `image:` was an opaque 1200 px white square
+#    with a small wordmark inside; the generator sizes the CANVAS (300 dp), so
+#    the wordmark rendered ~80 dp. `splash_wordmark_200dp.png` is the dark
+#    wordmark trimmed and sized so the xxxhdpi/@3x source maps to ~220 dp.
+#    (`splash_wordmark.png` is the WHITE wordmark — invisible on white — which
+#    is why the config had been pointed at the square logo.)
+#
+# GENERATED (do not hand-edit; rerun `dart run flutter_native_splash:create`):
+#   android/app/src/main/res/drawable*/{splash,android12splash}.png,
+#   .../values{,-night}{,-v31}/styles.xml, ios LaunchImage.imageset, storyboard.
+# HAND-MAINTAINED: android/.../values{,-night}-v33/styles.xml (icon_preferred
+#   on Android 13+); the generator only regenerates the -v31 sidecars, so mirror
+#   any -v31 change into -v33 by hand.
+# POST-GENERATION (guarded by test/core/{system_ui,native_splash_assets}_test):
+#   the generator re-emits `android:windowFullscreen`,
+#   `android:windowDrawsSystemBarBackgrounds` and iOS `UIStatusBarHidden` as
+#   false. Delete them — an earlier fullscreen-splash attempt hid the status
+#   bar, and the guards assert the keys are ABSENT, not merely false.
 flutter_native_splash:
   color: "#FFFFFF"
-  image: assets/brand/splash_logo.png
+  image: assets/brand/splash_wordmark_200dp.png
   android_12:
     color: "#FFFFFF"
-    image: assets/brand/app_icon_foreground.png
+    image: assets/brand/splash_icon_android12.png
     icon_background_color: "#1A1A1A"
   android: true
   ios: true

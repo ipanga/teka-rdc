@@ -1797,10 +1797,10 @@ not exercised.**
 
 **No API, schema, env, dependency, analytics, security or Buyer Web change.**
 
-## Buyer Mobile UX/UI polish phase — COMPLETE (pending PR D approval)
+## Buyer Mobile UX/UI polish phase — COMPLETE (2026-09-08)
 
 Four PRs: **A** `7dadf23` foundation · **B** `a57dcf5` discovery · **C** `cf0f148` purchase journey ·
-**D** open. Every Buyer Mobile screen has been walked in the running app and either changed or recorded as
+**D** `9ff8b64` orders, profile, notifications (merge commit; head unchanged, 15/15 checks + CodeQL green). Every Buyer Mobile screen has been walked in the running app and either changed or recorded as
 already good.
 
 **Validation gaps — these are NOT incomplete UX work, they are unexercised verification:**
@@ -1808,31 +1808,136 @@ already good.
 | Gap | State |
 |---|---|
 | iOS / iPad runtime | Never exercised in the tablet or UX phases. No simulator input tooling in any session. |
-| Seller Mobile phone runtime | Not re-run since Tablet PR 2. |
+| Seller Mobile phone runtime | Partially re-run in Seller UX PR A (login, dashboard, profile, logout dialog at 1.0× and 1.5×); the full walk is spread over Seller UX PR B–F. |
 | Golden / screenshot regression | No golden tests exist in either app, so a purely visual regression can only be caught by eye. |
 
 **Deferred, deliberately, and not UX debt:** the remaining raw `fontSize`/radius literals on screens no UX
 PR needed to touch; the home banner's scrim over a *light* image (PR A fixed the missing-image case, a
 pale image can still put white text on a light ground).
 
+## Phase — Seller Mobile UX/UI/design polish (started 2026-09-08)
+
+Scope approved 2026-09-08 after `9ff8b64`. Six ordered PRs, each opened, green, reviewed and approved before
+the next starts: **A** foundation + splash · **B** dashboard + Action Center · **C** orders · **D** products,
+product form, image manager · **E** earnings + payouts · **F** profile, commune, verification, settings.
+Seller Web and Admin Web are out of scope. Nothing merges to `main`, no deploy, no store release, no
+migration, no `db:push`.
+
+### Seller Mobile baseline audit (2026-09-08, source + live app on the Pixel 8 Pro, signed in as `marie@shop.cd`)
+
+Measured before any change; every number is a `grep` over `lib/` or a pixel read of the running app.
+
+| # | Finding | Evidence | Fix in |
+|---|---|---|---|
+| 1 | **No text theme.** `app_theme.dart` never set a `textTheme`, so every screen chose its own size. | 151 raw `fontSize:` across **18 distinct values** (10 → 32) | A (theme) · B–F (call sites) |
+| 2 | **Nine radius values** in use (4, 6, 8, 10, 12, 14, 16, 20, 24) with no token. | 73 `BorderRadius.circular(` literals | A (tokens) · B–F |
+| 3 | Six raw hex colours outside the token file (promotion + payout status badges). | `Color(0x…` in two badge widgets | A ✔ (now 0) |
+| 4 | Two primary-button widgets, one themed: 44 `ElevatedButton` styled red by the theme, 24 `FilledButton` on Material's seed default. | `filledButtonTheme` absent | A ✔ |
+| 5 | **Every dialog and bottom sheet painted pink** (`#F6E4E3`): same red-seed `surfaceContainerHigh` defect as the buyer app. Logout confirmation read as a warning. | logout dialog centre pixel (246,228,227) | A ✔ (now (255,255,255)) |
+| 6 | **Splash — Android 12+ glyph cut**, pre-12/iOS wordmark tiny. Root cause measured below. | see « Splash root cause » | A ✔ |
+| 7 | Four network images use bare `Image.network` (no cache, spinner placeholder, no French fallback): order detail, product detail, product list, image-upload tile. | `grep Image.network` | C (order), D (products) |
+| 8 | Spinners as the only loading state on 27 call sites (auth 4, earnings 3, products 6, profile 6, orders 2 …) where a shaped skeleton exists only for lists (`SellerListLoading`). | `grep CircularProgressIndicator` | B–F per surface |
+| 9 | Colour used for money (earnings totals in red/green) rather than state — same « colour marks state, not money » rule as the buyer app. | earnings screens | E |
+| 10 | Dashboard and Action Center: already the strongest surface (walked at 1.0×, 1.5×, 800 pt and 1280 pt this PR — every count, subtitle and CTA readable, nothing truncated); remaining work is typography/radius adoption and the catalogue-count row alignment. | captures `sa02/sa05/sa06/sa09` | B |
+
+**Left alone on purpose:** `image_picker` maxWidth/compression, the multipart retry, leaf-category
+enforcement, characteristics, brand relevance, the order workflow, payouts/commission rules, verification
+and document upload, notification deep links, session security — none of these is a visual concern and
+none was touched.
+
+### Design direction
+
+Inherited from the Buyer phase unchanged (same brand, same rules): 4-pt spacing ladder, 8 pt default
+radius, white surfaces with a hairline border and soft shadow, colour marks state not money, skeletons
+shaped like the content, French empty states with a CTA, French errors with a retry. Seller keeps its
+charcoal identity on the splash (`#1A1A1A` icon background) — the wordmark is dark on white in the app.
+
+### Seller UX PR A — `seller-mobile/ux-ui-polish` (foundation + splash, 2026-09-08)
+
+**UX PR D merged** as `9ff8b64` (merge commit; head unchanged, 15/15 checks + CodeQL green, buyer-mobile +
+trackers only). Develop synced and clean.
+
+**Tokens and theme.**
+
+- `core/theme/teka_spacing.dart` (new): `TekaSpacing` 4/8/12/16/20/24/32 and `TekaRadius` 6/8/12/16/999 with
+  the `EdgeInsets`/`BorderRadius` helpers — a **per-app copy** of the buyer file by design; only
+  `core/layout/responsive.dart` is shared byte-for-byte (still identical, parity test still green).
+- `teka_colors.dart`: `successSubtle` / `warningSubtle` / `destructiveSubtle` / `infoSubtle` fills,
+  process colours `processing` (blue) / `inTransit` (violet) / `inactive` (grey), `shadowSoft` /
+  `shadowMedium`. The two badge widgets now read these; **zero raw hex remains outside the token file**
+  (pinned by a test).
+- `app_theme.dart`: an explicit text theme for the first time — headlineSmall 24/1.2 w700, titleLarge
+  20/1.25 w700, titleSmall 15/1.35 w600, bodyLarge 16/1.5, bodyMedium 14/1.45, bodySmall 12.5/1.4,
+  labelMedium 13/1.2 w600, labelSmall 11.5/1.2 w600. **`titleMedium` gains weight only (w600) and
+  `labelLarge` is not overridden** — see the bisect below. `FilledButton` is themed exactly like
+  `ElevatedButton` (red, 24/12 padding, w700, 40 % disabled alpha), so the 24 unthemed CTAs now match the
+  44 themed ones without touching a call site. `dialogTheme` and `bottomSheetTheme` get
+  `backgroundColor: TekaColors.background` + `surfaceTintColor: Colors.transparent` (they already carried
+  `kSheetConstraints` from Tablet PR 2).
+- `seller_list_state.dart` and `seller_status_badge.dart` move to `TekaRadius`. No screen file changed:
+  the 149 remaining `fontSize:` and 72 radius literals are the B–F call-site work, listed per PR below.
+
+**The bisect (why titleMedium is weight-only).** With the full scale applied, two 320 px / 2× guard tests
+failed (`seller_forms_accessibility_test: option failures…`, `seller_lists_test: products error is
+actionable at 320 px / 2×`). The first hypothesis (labelLarge 15) was tested and was wrong. A scripted
+bisect over the overrides showed a single culprit: resizing `titleMedium` (17/1.3) reflows an unstyled
+consumer above the product and order lists at 320 px so the retry CTA leaves the guard's viewport. Weight
+only passes. The theme comment records this; `foundation_test` pins `titleMedium` at Material's 16 and
+`labelLarge` at 14.
+
+**Splash root cause (measured, not inferred).**
+
+| Surface | Before | Why | After |
+|---|---|---|---|
+| Android 12+ | T glyph clipped (crossbar and hook cut) | `android_12.image` reused the launcher foreground, whose glyph spans **65 % of the canvas height** (bbox 179–845 / 1024). Android masks the image to a circle whose safe zone is the **inner 66 %**, so the OS mask cut it. | `assets/brand/splash_icon_android12.png`: 1024², glyph LANCZOS-resized to **46 %** of the height, on the charcoal `icon_background_color` `#1A1A1A`. T fully inside the circle on the API 34 emulator. |
+| Android < 12 and iOS | Wordmark ≈ 80 dp, lost on a white screen | `image:` was `splash_logo.png`, an **opaque 1200² white square** with a small wordmark inside. The generator treats the source as xxxhdpi (4 px/dp), so the *square* rendered at 300 dp and the mark at ~80 dp. The alternative `splash_wordmark.png` in the repo was byte-identical to `logo_teka_cd_white.png` — the **white** wordmark, invisible on white. | `assets/brand/splash_wordmark_200dp.png`: the dark `logo_teka_cd.png` trimmed to 880×236 → **220 dp** wide at every density; iOS 1x/2x/3x at 220/440/660. |
+
+`splash_logo.png` and `splash_wordmark.png` deleted. **Generator-managed vs hand-maintained**, now written in
+`pubspec.yaml` above the `flutter_native_splash:` block: generated = `drawable-*/{splash,android12splash}.png`,
+`values{,-night}{,-v31}/styles.xml`, iOS `LaunchImage@{1,2,3}x` + storyboard + `Info.plist`; hand-maintained =
+`values-v33` and `values-night-v33` (the generator does not emit them; mirrored from `-v31` plus
+`android:windowSplashScreenBehavior=icon_preferred`); post-generation = strip `android:windowFullscreen`,
+`android:windowDrawsSystemBarBackgrounds` and `UIStatusBarHidden`, which the generator re-emits as `false`
+and the repo guards assert are **absent** (the status bar stayed visible: same calibrated metric before and
+after). After the strip the six `styles.xml` and `Info.plist` are byte-identical to `develop`, so the diff
+is images + storyboard only. The buyer app shares the identical `splash_logo.png` defect — recorded, out of
+scope here. `flutter build ios --no-codesign --flavor development --debug` succeeds with the new assets;
+**no iOS runtime was exercised.**
+
+**Tests.** `test/design/foundation_test.dart` (new, 11): type scale read from the *localized* theme
+(monotonic; titleMedium 16/w600; labelLarge 14; bodyMedium 14/foreground), white dialog and sheet surfaces
+(theme values + rendered `Dialog` material colour), Filled == Elevated, 4-pt ladder, `TekaRadius.md == 8`,
+process colours distinct from brand red, no raw hex in `lib/`, splash files + pubspec wiring.
+`native_splash_assets_test` rewritten ratio-based (source ÷ 4 in 200–240 dp; iOS @Nx = source × N ÷ 4;
+android12 icon 1024²; the three retired images banned as `image:`). **Seller 230 (+11), analyze 20 (baseline
+infos), buyer 501 unchanged, `responsive.dart` identical, root type-check clean.**
+
+**Runtime (Pixel 8 Pro, development flavor, API on :5050, mock WhatsApp).** Login → dashboard → profile →
+logout dialog at 1.0× and 1.5× font scale; dashboard at 800 pt tablet portrait and 1280 pt landscape.
+Dialog centre pixel (255,255,255). Android 12 splash (API 34) with the T inside the circle; pre-12 path not
+available on the emulator set (no API < 31 image installed) — the drawable sizes were verified on disk
+instead (mdpi 220×59 … xxxhdpi 880×236). Disposable data: the seller's password hash was swapped for the
+session and **restored byte-for-byte** afterwards (verified: the temporary password now 401s); no rows
+created.
+
+**Not changed:** API, schema, env, dependencies (`Package.resolved` drift from the iOS build reverted),
+analytics, `image_picker`, any seller business rule, Buyer Mobile.
+
+### Remaining Seller UX findings by PR (from the baseline audit + this PR's walk)
+
+| PR | Surface | Findings to act on |
+|---|---|---|
+| **B** dashboard + Action Center | `features/home` | Adopt the text theme (drop local sizes), `TekaRadius` on the two cards, catalogue-count row baseline alignment, shaped skeleton for the first paint (spinner today), notification-permission timing on first launch (system prompt covers the dashboard — capture `sa06`). Preserve every action row and count. |
+| **C** orders | `features/orders` (24 sizes, 4 radii, 2 spinners, 1 `Image.network`) | Order-card typography, status chip on `SellerStatusBadge` everywhere, detail hero via a cached image with French fallback, action bar skeleton, timeline dot colour = status. No workflow change. |
+| **D** products / form / images | `features/products` (23 sizes, 15 radii, 6 spinners, 3 `Image.network`) | Densest surface: form section rhythm on the 4-pt ladder, field help text on bodySmall, image tile placeholder + failure state, list skeleton, leaf-category/characteristics UI untouched in behaviour. `image_picker` settings untouched. |
+| **E** earnings + payouts | `features/earnings` (31 sizes, 9 radii, 3 spinners) | Money in foreground, status in colour; table-like rows on one baseline; payout status on the new process colours (badge already tokenized in A); empty and error states with CTA. No rule change. |
+| **F** profile / commune / verification / settings | `features/profile` (17/14/6), `features/verification` (17/5/1), `features/seller_application`, `features/auth` | Group headers on labelSmall, document cards on a white surface with the status badge, commune picker sheet on the white sheet theme, login/register spacing. Never show payout destination, KYC details or document URLs beyond what the screen already shows. |
+| cross-cutting | `features/promotions` (17/12/2), `features/reviews` (9/4/1), `features/notifications` | Folded into the PR whose navigation reaches them (promotions → B, reviews → F, notifications → B). |
+
 ## Next exact step
 
-PR 1–13 plus UX PR A, B and C merged (latest: `cf0f148`). **UX PR D
-`buyer-mobile/ux-orders-profile-notifications` open — awaiting merge approval.** With it the **Buyer
-Mobile UX/UI polish phase closes**; see the completion record above, including the three validation gaps
-that stay open.
-
-**Then: Seller Mobile UX/UI/design polish**, a separate phase, not to be started without approval.
-Proposed scope, building on the shared responsive system and the tokens from UX PR A:
-
-1. **Foundation** — port `TekaSpacing`/`TekaRadius` and the semantic colours into seller-mobile's theme;
-   give its dialogs and sheets the same explicit white surface (its theme has the same red seed, so it has
-   the same pink-tint defect); adopt `TekaNetworkImage` for its product and document images.
-2. **Action Center + dashboard** — the surface a seller opens first; preserve action visibility.
-3. **Orders** — list, detail and the action bar.
-4. **Products** — list, the product form (the densest surface) and the image manager.
-5. **Earnings and payouts** — data-dense financial surfaces; no business-rule change.
-6. **Profile, commune and verification** — grouping and document-card presentation.
-
-**Carried-forward validation gaps:** iPad/iOS runtime, the Seller phone runtime re-check, and the absence
-of golden tests.
+PR 1–13 plus Buyer UX PR A–D merged (latest: `9ff8b64`; Buyer Mobile UX/UI polish phase CLOSED). **Seller
+UX PR A `seller-mobile/ux-ui-polish` open — awaiting merge approval.** Then Seller UX PR B (dashboard +
+Action Center) — **not to be started until PR A is approved.** Seller Web / Admin Web redesign stays out of
+scope. Carried-forward validation gaps: iPad/iOS runtime (build only, never exercised), no golden tests,
+and the Seller phone walk which PR B–F complete surface by surface.
