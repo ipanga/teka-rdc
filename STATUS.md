@@ -1,4 +1,4 @@
-# Status — 2026-09-08 (pre-scale readiness — Seller Mobile UX/UI polish, PR C open)
+# Status — 2026-09-08 (pre-scale readiness — Seller Mobile UX/UI polish, PR D open)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
@@ -8,22 +8,25 @@ UX/UI polish STARTED.** Merged to date: `6201534`, `29ccb6f`, `5af6b94`, `1d7414
 `a877bbb`, `c6ce951`, `613f0fa`, `9450358`, `5ed2814`, `2ef5b94`, `57b3ea7`, `7dadf23`, `a57dcf5`,
 `cf0f148`, `9ff8b64`, plus `ci/dependabot-pnpm` (`adae24f`).
 
-**Seller UX PR A merged as `8086594`, PR B merged as `5825cb3`.** **Seller UX PR C
-`seller-mobile/ux-orders` open, awaiting merge approval** — Orders. One status vocabulary now feeds the
-chip, the filter bar, the timeline, the empty states and a « next step » strip that spells out the
-Teka-managed workflow (« Votre action » while the seller acts, « Prise en charge par Teka » afterwards,
-« Commande clôturée » at the end); tone is status semantics, never brand red, and money reads in
-foreground. The detail opens on a content-shaped skeleton, shows the items first, the buyer as name + town
-only, the buyer total and the seller share in separate cards, the real status logs with tone dots, and a
-neutral « En attente de collecte par Teka » bar once the parcel is Teka's. Every transition has its own
-dialog (refusal needs a reason), busy buttons, an immediate fiche update from the response, and a failure
-path that refetches: a status changed behind the seller is announced as a change with the fiche reloaded.
-Verified on the phone including a real API-side conflict, the full confirm → prepare → ready walk, a
-refusal, 1.3×/1.5×, tablet portrait and landscape; every seed mutation reverted. Seller 288 (+41). No API,
-schema, env or dependency change. **PR D does not start until PR C is approved.**
+**Seller UX PR A `8086594`, PR B `5825cb3`, PR C `5d55f03` merged.** **Seller UX PR D
+`seller-mobile/ux-products` open, awaiting merge approval** — products list, detail, create/edit form and
+image manager. One product-status vocabulary now feeds the chip, the filter bar (« À corriger » first), the
+detail strip (« Correction requise » with Teka's reason and a single « Corriger et resoumettre ») and the
+empty states; cards show the price a buyer pays today with the original struck through, stock or
+« Rupture de stock », and an « À corriger » pill only when the seller must act. The form is sectioned in
+the seller's order, reports a missing category inline, warns on a legacy intermediate category without
+guessing a child, picks brands from a searchable sheet fed by the API, and previews « 45.000 FC » and the
+promo saving as the seller types. Two defects surfaced at runtime and were fixed: the description was not
+validated although the API requires it, and the lazy list meant off-screen fields were never validated at
+all. The image manager marks the cover, shows « Envoi… » in place and explains deletion; picker size and
+compression are untouched. Verified on the phone through create → gallery photo → camera photo → delete
+(gone from Cloudinary) → submit → withdraw → edit with a category change, a legacy product, a refused
+product as a second seller, tablet portrait/landscape and 1.3×/1.5×; every seed mutation reverted and the
+QA product hard-deleted with its asset purged. Seller 330 (+42), analyze 5 (was 16). No API, schema, env or
+dependency change. **PR E does not start until PR D is approved.**
 
 **Validation gaps that are NOT incomplete UX work: iPad/iOS runtime has never been exercised (PR A ran a
-`--no-codesign` iOS build only; PR B and PR C touched no native code); no golden tests exist in either app; the Seller phone runtime walk is being
+`--no-codesign` iOS build only; PR B, C and D touched no native code); no golden tests exist in either app; the Seller phone runtime walk is being
 completed surface by surface across PR B–F.** Seller Web / Admin Web redesign: out of scope until told
 otherwise. Still open from the previous release: manual Google Play Internal-testing upload of the Seller
 Mobile `0.1.9+11` AAB; Buyer Mobile store release.
