@@ -1,4 +1,4 @@
-# Status — 2026-09-08 (pre-scale readiness — Seller Mobile UX/UI polish, PR A open)
+# Status — 2026-09-08 (pre-scale readiness — Seller Mobile UX/UI polish, PR B open)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
@@ -8,22 +8,21 @@ UX/UI polish STARTED.** Merged to date: `6201534`, `29ccb6f`, `5af6b94`, `1d7414
 `a877bbb`, `c6ce951`, `613f0fa`, `9450358`, `5ed2814`, `2ef5b94`, `57b3ea7`, `7dadf23`, `a57dcf5`,
 `cf0f148`, `9ff8b64`, plus `ci/dependabot-pnpm` (`adae24f`).
 
-**Seller UX PR A `seller-mobile/ux-ui-polish` open, awaiting merge approval** — visual foundation + splash.
-The seller app had no text theme at all (151 raw sizes over 18 values), nine radius values, six raw hex
-colours, 24 `FilledButton`s on Material's seed default beside 44 themed `ElevatedButton`s, and the same
-pink-tinted dialogs/sheets as the buyer app. PR A adds the text theme, `TekaSpacing`/`TekaRadius`, semantic
-and process colours, themes `FilledButton`, and paints dialogs and sheets white — with `titleMedium`
-weight-only and `labelLarge` untouched after a bisect showed resizing them reflows the 320 px / 2× guards.
-Splash root cause measured: the Android 12 icon reused the launcher glyph (65 % of the canvas, outside the
-66 % safe zone, so the OS mask cut it) and the pre-12/iOS image was an opaque white square whose wordmark
-rendered at ~80 dp; replaced by a 46 %-height splash icon and a 220 dp dark wordmark, generator-managed vs
-hand-maintained files documented in `pubspec.yaml`. Seller 230 (+11), buyer 501, analyze baseline.
-The six-part scope (A foundation · B dashboard/Action Center · C orders · D products · E earnings · F
-profile/verification) and the per-PR remaining findings are in `docs/pre-scale-readiness.md`. **PR B does
-not start until PR A is approved.**
+**Seller UX PR A merged as `8086594`** (foundation + splash). **Seller UX PR B
+`seller-mobile/ux-dashboard-action-center` open, awaiting merge approval** — dashboard + Action Center.
+Actionability now comes from the API's own rules, written down in a pure, unit-tested model: orders
+`PENDING`/`CONFIRMED`/`PROCESSING` (the statuses the seller drives), products `REJECTED`, verification
+`REJECTED` or a rejected document; payouts are deliberately absent because no payout state needs the
+seller. Two priorities (immediate / soon), tone by state (amber attention, red-subtle rejection, neutral
+tracking) — brand red no longer means « urgent ». One header total, one positive empty line, a scoped
+retry per source, static content-shaped skeletons, a « Suivi » section for orders waiting on Teka, and a
+single badge on the Commandes tab from the same stats. Verified on the phone through the full loop
+(task → filtered list → mark ready → badge and dashboard refresh), at 1.3×/1.5×, on tablet portrait and
+landscape, and on a seller with nothing to do. Seller 247 (+17). No API, schema, env or dependency
+change. **PR C does not start until PR B is approved.**
 
 **Validation gaps that are NOT incomplete UX work: iPad/iOS runtime has never been exercised (PR A ran a
-`--no-codesign` iOS build only); no golden tests exist in either app; the Seller phone runtime walk is being
+`--no-codesign` iOS build only; PR B touched no native code); no golden tests exist in either app; the Seller phone runtime walk is being
 completed surface by surface across PR B–F.** Seller Web / Admin Web redesign: out of scope until told
 otherwise. Still open from the previous release: manual Google Play Internal-testing upload of the Seller
 Mobile `0.1.9+11` AAB; Buyer Mobile store release.

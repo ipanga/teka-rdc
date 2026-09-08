@@ -37,6 +37,24 @@ class DashboardFixtureApi {
   final requests = <RequestOptions>[];
   bool failStats = false;
   bool failMutations = false;
+  bool failVerification = false;
+
+  /// `GET /v1/sellers/verification` body — NOT_SUBMITTED by default (no task).
+  Map<String, dynamic> verification = verificationBody('NOT_SUBMITTED');
+
+  static Map<String, dynamic> verificationBody(String status,
+          {List<Map<String, dynamic>> documents = const []}) =>
+      {
+        'verificationStatus': status,
+        'businessType': 'COMPANY',
+        'requiredTypes': ['RCCM', 'IDENTIFICATION_NATIONALE', 'IDENTITY_DOCUMENT'],
+        'missingTypes': <String>[],
+        'limits': {
+          'maxSizeBytes': 5 * 1024 * 1024,
+          'acceptedMimeTypes': ['application/pdf', 'image/jpeg', 'image/png']
+        },
+        'documents': documents,
+      };
   final orders = <Map<String, dynamic>>[
     for (var i = 0; i < 25; i++) _order('pending-$i', 'PENDING'),
     _order('confirmed', 'CONFIRMED'),
@@ -58,6 +76,8 @@ class DashboardFixtureApi {
       requests.add(options);
       try {
         if ((failStats && options.path.endsWith('/stats')) ||
+            (failVerification &&
+                options.path == '/v1/sellers/verification') ||
             (failMutations && options.method != 'GET')) {
           throw StateError('Fixture: réponse indisponible');
         }
@@ -71,6 +91,9 @@ class DashboardFixtureApi {
             type: DioExceptionType.connectionError));
       }
     }));
+
+  static Map<String, dynamic> orderRow(String id, String status) =>
+      _order(id, status);
 
   static Map<String, dynamic> _order(String id, String status) => {
         'id': id,
@@ -104,6 +127,9 @@ class DashboardFixtureApi {
       };
 
   Map<String, dynamic> _respond(RequestOptions request) {
+    if (request.path == '/v1/sellers/verification') {
+      return {'success': true, 'data': verification};
+    }
     final isOrder = request.path.contains('/orders');
     final rows = isOrder ? orders : products;
     final prefix = isOrder ? '/v1/sellers/orders' : '/v1/sellers/products';
