@@ -1,4 +1,4 @@
-# Status — 2026-09-08 (pre-scale readiness — Seller Mobile UX/UI series A–F COMPLETE; release-readiness docs PR open)
+# Status — 2026-09-08 (pre-scale readiness — Buyer Web SEO-1 implemented, PR open awaiting merge approval)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
@@ -51,8 +51,15 @@ phase: COMPLETE (A–D). Seller Mobile functional readiness: COMPLETE, with debt
 `deliveredAt`, notification-permission pre-prompt). Seller Mobile UX/UI A–F: COMPLETE. Android phone
 and tablet (portrait + landscape) runtime verification: PERFORMED for both apps. **iOS/iPad runtime:
 still a validation gap** (uploads and `--no-codesign` builds only, no simulator input tooling).
-**Buyer Web SEO: an ACTIVE pre-scale workstream — nothing shipped** (sitemap emits 0 products, no
-rankable server HTML). **Admin/Finance security decisions remain open** (S12 payout re-auth, S21
+**Buyer Web SEO: SEO-1 implemented on `buyer-web/seo-1` (PR open, awaiting merge approval — nothing
+merged yet):** sitemap walks the browse cursor (dev build: 683 URLs, 296 products, real `lastmod`,
+strict on source failure), category/town/PDP/homepage/footer content and links server-rendered
+through optional `initial*` props, site-wide Organization/WebSite JSON-LD with a real logo, product
+`og:type` + price tags, plain-text descriptions, trailing-slash 308, brand-free category titles;
+verified on the served HTML of the production build and in Chrome (desktop + 390 px). Decisions 5
+(empty town × category pages — 0 of 374 empty on dev) and 7 (Likasi — four strings listed) are
+recorded as findings, not implemented. SEO-2 items (header mega-menu links, BreadcrumbList on town
+pages, PostHog deferral, per-town counts) remain. **Admin/Finance security decisions remain open** (S12 payout re-auth, S21
 SUPPORT/FINANCE, S11 audit rows, D2b). **Mobile security hardening remains open** (MS1–MS7).
 **Dependabot follow-ups remain open** (`sharp`/`esbuild` security jobs failing on the pinned
 exceptions, stale PRs #549/#565/#595, no bundler ecosystem). **The Cloudflare origin firewall is a
