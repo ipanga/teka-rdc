@@ -115,6 +115,7 @@ export default function HomePage({
             the shared StoreHero (same component the city landing pages use). */}
         <BannerCarousel
           initialBanners={initialBanners}
+          srTitle={serverH1}
           fallback={
             <StoreHero
               title={serverH1 || "Bienvenue sur Teka"}

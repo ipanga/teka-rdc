@@ -192,7 +192,11 @@ describe('homepage — initial HTML (SEO-1)', () => {
       <HomePage serverH1="Teka RDC" initialCategories={tree} initialBanners={banners} initialCities={cities} />,
     );
     expect(out).toContain('Promo');
-    expect(out).not.toMatch(/<h1[^>]*>Teka RDC<\/h1>/);
+    // Banner titles are <h2>; the page keeps exactly one <h1> (visually hidden).
+    expect(out.match(/<h1[^>]*>/g)).toHaveLength(1);
+    expect(out).toMatch(/<h1 class="sr-only">Teka RDC<\/h1>/);
+    // No banner skeleton (the product rails below stay client-side by design).
+    expect(out).not.toContain('md:aspect-[16/6] bg-muted animate-pulse');
   });
 
   it('without server inputs it still renders the legacy skeleton shell', () => {

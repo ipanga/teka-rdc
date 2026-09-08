@@ -176,9 +176,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   );
 
   // -- Products (/{citySlug}/{slug}-{shortCode}). Only list products that have
-  //    a city slug, so every sitemap URL is canonical (no 308 hop). --
+  //    a city slug, so every sitemap URL is canonical (no 308 hop), AND a
+  //    shortCode: the route resolves a product by the URL tail, so a row
+  //    without one (a pre-2026-06-06 row the backfill never reached — seen on
+  //    the dev DB, whose slug even ends in a code-shaped suffix) would be
+  //    listed as a URL that 404s. Such rows are a data repair, not a URL. --
   const productPages: MetadataRoute.Sitemap = products
-    .filter((p) => p.citySlug)
+    .filter((p) => p.citySlug && p.shortCode)
     .map((p) => {
       const lastModified = parseDate(p.updatedAt);
       return {

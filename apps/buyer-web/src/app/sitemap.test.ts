@@ -104,6 +104,9 @@ describe('sitemap (city-first URLs)', () => {
         { id: 'p1', slug: 'iphone-15', shortCode: 'a1b2c3', citySlug: 'lubumbashi' },
         { id: 'p2', slug: 'galaxy', shortCode: 'd4e5f6', citySlug: 'kolwezi' },
         { id: 'p3', slug: 'orphan', shortCode: 'z9z9z9', citySlug: null }, // no city → excluded
+        // No shortCode → the route would parse the slug's code-shaped tail
+        // and 404; never listed (data repair, not a URL).
+        { id: 'p4', slug: 'robe-wax-849210', shortCode: null, citySlug: 'lubumbashi' },
       ],
     });
     const urls = (await sitemap()).map((e) => e.url);
@@ -111,6 +114,7 @@ describe('sitemap (city-first URLs)', () => {
     expect(urls).toContain('https://teka.cd/kolwezi/galaxy-d4e5f6');
     // product without a city is not listed (would be a non-canonical 308 hop)
     expect(urls.some((u) => u.includes('orphan'))).toBe(false);
+    expect(urls.some((u) => u.includes('robe-wax'))).toBe(false);
   });
 
   it('keeps home + static pages, lists /promotions and never the noindex /recherche', async () => {

@@ -19,9 +19,15 @@ interface BannerCarouselProps {
    * hero with its <h1>, instead of a grey skeleton crawlers cannot read.
    */
   initialBanners?: Banner[];
+  /**
+   * Page heading to keep when banners replace the hero (SEO-1). Banner titles
+   * are <h2>; without this the homepage had no <h1> at all whenever an admin
+   * banner existed. Rendered visually hidden — same text as the <title>.
+   */
+  srTitle?: string;
 }
 
-export function BannerCarousel({ fallback, initialBanners }: BannerCarouselProps) {
+export function BannerCarousel({ fallback, initialBanners, srTitle }: BannerCarouselProps) {
   const router = useRouter();
   const selectedCity = useCityStore((s) => s.selectedCity);
 
@@ -158,6 +164,8 @@ export function BannerCarousel({ fallback, initialBanners }: BannerCarouselProps
   }
 
   return (
+    <>
+      {srTitle && <h1 className="sr-only">{srTitle}</h1>}
     <section
       className="relative w-full overflow-hidden"
       onMouseEnter={() => setIsPaused(true)}
@@ -248,5 +256,6 @@ export function BannerCarousel({ fallback, initialBanners }: BannerCarouselProps
         </div>
       )}
     </section>
+    </>
   );
 }
