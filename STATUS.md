@@ -1,30 +1,31 @@
-# Status — 2026-09-08 (pre-scale readiness — Buyer Mobile UX/UI polish closing)
+# Status — 2026-09-08 (pre-scale readiness — Seller Mobile UX/UI polish, PR A open)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
 **Pre-scale readiness initiative — Buyer Mobile functional readiness CLOSED, tablet phase CLOSED for both
-apps, Buyer Mobile UX/UI polish CLOSING (PRs A, B and C merged; PR D open and, once merged, completes the
-phase).** Merged to date: `6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`, `a877bbb`,
-`c6ce951`, `613f0fa`, `9450358`, `5ed2814`, `2ef5b94`, `57b3ea7`, `7dadf23` (UX A: tokens, one image
-treatment, one empty-state language), `a57dcf5` (UX B: home order, category strip, card footer, wishlist
-chip), `cf0f148` (UX C: PDP gallery, cart labels, checkout copy and steps, success next-steps), plus
-`ci/dependabot-pnpm` (`adae24f`).
+apps, Buyer Mobile UX/UI polish CLOSED (A `7dadf23`, B `a57dcf5`, C `cf0f148`, D `9ff8b64`), Seller Mobile
+UX/UI polish STARTED.** Merged to date: `6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`,
+`a877bbb`, `c6ce951`, `613f0fa`, `9450358`, `5ed2814`, `2ef5b94`, `57b3ea7`, `7dadf23`, `a57dcf5`,
+`cf0f148`, `9ff8b64`, plus `ci/dependabot-pnpm` (`adae24f`).
 
-**UX PR D `buyer-mobile/ux-orders-profile-notifications` open, awaiting merge approval** — orders,
-ratings, profile and notifications. Every dialog and bottom sheet in the app was painted `#F6E4E3`, a pink
-tint Material 3 derives from the red seed, so a logout confirmation read as a warning; both surfaces are
-explicitly white now. Colour marks state, not money: order totals move to foreground and the timeline dot
-takes the status colour instead of brand red. Orders and notifications open on a content-shaped skeleton
-rather than a spinner on a blank screen. Unread notifications are a white surface, not a red wash. The
-profile's inbox and preference tiles stop sharing one subtitle. Audited and left alone: the order card
-layout, the French status mapping and full filter coverage, the event-log timeline, the address snapshot,
-and the profile's three-group structure. +17 tests (501).
+**Seller UX PR A `seller-mobile/ux-ui-polish` open, awaiting merge approval** — visual foundation + splash.
+The seller app had no text theme at all (151 raw sizes over 18 values), nine radius values, six raw hex
+colours, 24 `FilledButton`s on Material's seed default beside 44 themed `ElevatedButton`s, and the same
+pink-tinted dialogs/sheets as the buyer app. PR A adds the text theme, `TekaSpacing`/`TekaRadius`, semantic
+and process colours, themes `FilledButton`, and paints dialogs and sheets white — with `titleMedium`
+weight-only and `labelLarge` untouched after a bisect showed resizing them reflows the 320 px / 2× guards.
+Splash root cause measured: the Android 12 icon reused the launcher glyph (65 % of the canvas, outside the
+66 % safe zone, so the OS mask cut it) and the pre-12/iOS image was an opaque white square whose wordmark
+rendered at ~80 dp; replaced by a 46 %-height splash icon and a 220 dp dark wordmark, generator-managed vs
+hand-maintained files documented in `pubspec.yaml`. Seller 230 (+11), buyer 501, analyze baseline.
+The six-part scope (A foundation · B dashboard/Action Center · C orders · D products · E earnings · F
+profile/verification) and the per-PR remaining findings are in `docs/pre-scale-readiness.md`. **PR B does
+not start until PR A is approved.**
 
-**Three validation gaps stay open and are NOT incomplete UX work: iPad/iOS runtime has never been
-exercised in the tablet or UX phases (no simulator input tooling); the Seller Mobile phone runtime has not
-been re-run since Tablet PR 2; no golden tests exist in either app.** Next phase (do not start without
-approval): **Seller Mobile UX/UI/design polish** — its proposed six-part scope is written down in the
-tracker. Still open from the previous release: manual Google Play Internal-testing upload of the Seller
+**Validation gaps that are NOT incomplete UX work: iPad/iOS runtime has never been exercised (PR A ran a
+`--no-codesign` iOS build only); no golden tests exist in either app; the Seller phone runtime walk is being
+completed surface by surface across PR B–F.** Seller Web / Admin Web redesign: out of scope until told
+otherwise. Still open from the previous release: manual Google Play Internal-testing upload of the Seller
 Mobile `0.1.9+11` AAB; Buyer Mobile store release.
 
 ## Most recently completed initiative
