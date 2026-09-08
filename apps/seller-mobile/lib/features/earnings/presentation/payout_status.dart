@@ -23,13 +23,13 @@ class PayoutStatusUi {
         return const PayoutStatusUi._(
           'Approuvé — virement en préparation',
           "Votre demande est approuvée. L'argent n'a pas encore été envoyé ; vous serez informé dès que le virement sera effectué.",
-          Color(0xFF3B82F6),
+          TekaColors.processing,
         );
       case 'PROCESSING':
         return const PayoutStatusUi._(
           'Virement en cours',
           'Le virement vers votre compte est en cours.',
-          Color(0xFF8B5CF6),
+          TekaColors.inTransit,
         );
       case 'COMPLETED':
         return const PayoutStatusUi._(
@@ -76,7 +76,7 @@ class EarningStateUi {
         return const EarningStateUi._(
             'En attente (retour possible)', TekaColors.warning);
       case 'AVAILABLE':
-        return const EarningStateUi._('Disponible', Color(0xFF3B82F6));
+        return const EarningStateUi._('Disponible', TekaColors.processing);
       case 'RESERVED':
         return const EarningStateUi._(
             'Réservé (virement en cours)', TekaColors.tekaRed);

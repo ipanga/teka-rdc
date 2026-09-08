@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/teka_colors.dart';
+import '../theme/teka_spacing.dart';
 
 /// Presentation only: callers keep ownership of the domain status mapping.
 class SellerStatusBadge extends StatelessWidget {
@@ -26,7 +27,7 @@ class SellerStatusBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: Color.alphaBlend(
             color.withValues(alpha: 0.08), TekaColors.background),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: TekaRadius.mdAll,
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
