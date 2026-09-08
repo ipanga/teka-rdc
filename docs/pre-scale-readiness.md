@@ -2271,6 +2271,131 @@ characteristic rows whose attribute ids belong to the old category; the detail l
 preserves them) but the edit form cannot prefill the new leaf's fields from them. Documented in
 `docs/seller-catalog-taxonomy.md`; a leaf-characteristics audit is the fix.
 
+### Seller UX PR E — `seller-mobile/ux-earnings-payouts` (Earnings + payouts, 2026-09-08)
+
+**Seller UX PR D merged** as `a6b0d7c` (merge commit; reviewed head unchanged, 15/15 checks + CodeQL green,
+seller-mobile + trackers only). Develop synced and clean; `CI` + CodeQL green on `a6b0d7c`.
+
+**Earnings baseline (source + live app).** Traced: `GET /v1/sellers/wallet` (`balanceCDF` = `availableCDF`,
+`pendingCDF` = inside the 2-day window, `totalEarnedCDF` = **gross** of delivered sales,
+`totalCommissionCDF`, `pendingPayoutCDF` = legacy alias of available — field names frozen), `GET
+/v1/sellers/earnings` (rows with the API-derived `state` REVERSED → PAID / RESERVED → HELD → AVAILABLE, the
+commission rate snapshotted per row), `GET /v1/sellers/payouts` + `GET /v1/sellers/payouts/:id` (owner-scoped:
+another seller's id, a deleted id or garbage all answer the same French 404), `POST /v1/sellers/payouts`
+(under `SELECT … FOR UPDATE`; **pays the whole available balance — there is no amount field**;
+`MIN_PAYOUT_AMOUNT_CDF` = 5.000 FC → 400 with the current balance in the message; an open payout → 409
+« Vous avez déjà une demande de retrait en cours… »), `GET/PATCH /v1/sellers/payout-method` (saved
+destination). Statuses `REQUESTED → APPROVED → PROCESSING → COMPLETED`, `REJECTED` from any of the three
+open states; the row carries `requestedAt / approvedAt / processingAt / processedAt / rejectedAt` plus
+admin *ids* (`approvedById`…) that the app never reads. `docs/payouts.md` reconfirmed: **no payout state
+requires anything from the seller** — no Action Center task, none added.
+
+| Element | Verdict |
+|---|---|
+| Mechanics: tab structure, race-safe pagination, refresh on the `earnings` revision (push / resume), min-balance and open-payout pre-checks mirroring the API, saved destination prefill, owner-scoped detail, notification routes | **Already good** — kept. |
+| Wallet summary | **Misleading** — three equal cards in brand red / success / warning; « Revenus totaux » was the *gross* (a seller read it as money owed); the reserved amount of an open payout was nowhere; a failed wallet request rendered « 0 FC ». |
+| Payout CTA | **Weak** — always prominent, disabled without a way to the blocking payout. |
+| Request screen | **Risky** — no confirmation, operator dropdown, no statement of the amount, generic error on the API's 400 / 409 and no refetch of the stale balance. |
+| Status vocabulary | **Low contrast** — payout and earning chips on the base colours as text; « Réservé » in brand red. |
+| Lists | **Exposed** — the full Mobile Money number on every payout row; raw sizes; gains in green, commission in destructive red. |
+| Detail | **Thin** — spinner, amount + chip + « Demandé le / Payé le » only; no history. |
+| Loading / empty | **Generic** — three spinners, « Aucun revenu pour le moment ». |
+
+**What changed (seller-mobile only, 9 lib files).**
+
+- `presentation/payout_status.dart`: tones move to the *Foreground* tokens (REQUESTED warning, APPROVED /
+  PROCESSING info, COMPLETED success, REJECTED destructive; earnings HELD warning, AVAILABLE success,
+  RESERVED info, PAID / REVERSED neutral — brand red on none); icons per status; `PayoutStatusUi.isOpen`;
+  `maskPhone` (« +243 97• ••• 001 »); `payoutEvents` — dated facts from the row's timestamps only
+  (« Demandé le », « Approuvé le », « Virement lancé le », « Payé le » / « Refusé le » / « Échec le »
+  when the failure came after the transfer started), never a future step, never the admin.
+- `data/models/earning_model.dart`: additive `approvedAt / processingAt / rejectedAt` on `PayoutModel`
+  (older responses simply omit them).
+- `providers/earnings_provider.dart`: `walletError` (a failed wallet is an error, not « 0 FC »);
+  `EarningsState.openPayout`; `requestPayout` keeps the API's French reason and, on 400 / 409, refetches
+  wallet + earnings + payouts; **`refresh()` and the post-request reload now refetch wallet, earnings and
+  payouts together** (runtime defect: only the wallet and the visible tab were reloaded).
+- `widgets/wallet_card.dart` rewritten: `WalletSummaryCard` (hero « Solde disponible » in foreground
+  `headlineMedium`, « X FC en attente » warning badge + the 2-day sentence, « X FC · virement en cours »
+  info badge from the open payout's own amount, then « Ventes livrées (montant brut) / Commission Teka
+  prélevée / Vos gains nets (depuis le début) » on `WalletLine`s that drop the amount to its own line rather
+  than break it), `WalletSummarySkeleton`, `HeroAmount` (`FittedBox` — one line at any scale).
+- `widgets/earning_tile.dart`: net amount strong in the foreground colour, « Vente X − commission Y (rate) »
+  muted, state on `SellerStatusBadge`; one semantics label.
+- `widgets/payout_tile.dart`: amount, status chip, « opérateur · masked number », « Demandé le », the
+  reason (rejected) or reference (completed); tap → detail.
+- `earnings_screen.dart`: `minPayoutCdf` mirrors the API for the disabled-button copy only; scoped
+  « Solde indisponible » card with retry; `PayoutRequestAction` — live only when the API would accept,
+  otherwise the reason in words and « Voir le virement en cours »; `SellerListLoading` / contextual empty
+  copy (« Vos gains apparaîtront ici après la livraison… », « …dès que votre solde disponible atteint
+  5.000 FC » with « Demander un virement » or « Voir mes gains ») anchored at the top of the tab body (the
+  NestedScrollView centred it below the fold); « Actualiser » action; static load-more footer.
+- `request_payout_screen.dart` rewritten: « Montant du virement : X FC — la totalité de votre solde
+  disponible » (no amount input invented); blockers re-evaluated on every wallet refresh (wallet missing,
+  open payout with a link, below the minimum with both figures); radio `_OperatorPicker`; `TextFormField`
+  with `validatePayoutPhone` (`^\+243\d{9}$`, French reasons); confirmation dialog « Confirmer la demande
+  de virement » repeating amount + « opérateur · full number » + « …un virement vers un mauvais numéro ne
+  peut pas être annulé » (scrollable, double-pop guard); busy lock « Envoi en cours… »; success snackbar
+  with the amount then pop; failure keeps the values, shows the API reason in a live region.
+- `payout_detail_screen.dart` rewritten: `PayoutDetailSkeleton`; hero + chip + hint; « Destination » card
+  (operator, full number, reference selectable, reason or « Non précisée »); « Historique » card; shared
+  error with « Réessayer » + « Voir tous mes virements ».
+
+**Not changed:** API, schema, env, dependencies, analytics (no earnings events exist; none added), the
+`sellerRefreshProvider` semantics, notification routes, Buyer Mobile. Nothing about the payout destination
+is logged, sent to Sentry or to analytics; the number is masked in lists and shown only where the seller
+must verify it.
+
+**Tests (seller 387, +57; analyze 5 infos unchanged).** `earnings_screen_test` (hierarchy + « 9.350 FC »
+formatting, reserved vs available, wallet error → retry, skeleton without spinner, eligibility at 5.000 /
+4.999 / open payout → link, earning row tones, payout rows + masking + tap, empty earnings → orders, empty
+payouts below / above the threshold, list error scoped, « Actualiser » refetching all three, 320/360/412 at
+1.0–1.5×, 1024 readable), `request_payout_screen_test` (amount statement + prefill, French validation
+before any call, confirmation repeats full destination, cancel sends nothing, confirm saves the destination
+then sends once on a double tap, 400 stale balance → reason + values + refetch + disabled, 409 → link to
+the open payout, below-minimum on entry, in-flight lock, widths, tablet), `payout_detail_history_test`
+(REQUESTED lists only « Demandé le », COMPLETED four dated events in order + reference once, « Échec le »
+vs « Refusé le » + « Non précisée », skeleton, widths, `payoutEvents` never invents a step, admin ids
+ignored), `payout_ui_helpers_test` (`maskPhone`, `validatePayoutPhone`, vocabulary — only COMPLETED reads
+« Payé », open states, tones never brand red, `openPayout`, `walletError`). Fixture:
+`test/support/seller_earnings_fixtures.dart`. The existing `payout_detail_screen_test` strings are pinned
+unchanged (« Payé », « Payé le », « Refusé / échec », « de nouveau disponible », « Voir tous mes
+virements », « Réessayer », « M-Pesa (Vodacom) »).
+
+**Runtime (Pixel 8 Pro, development flavor, local API, Marie's dev rows — disposable, all reverted).**
+Another seller's genuine empty wallet (0 FC, « Aucun gain pour le moment » + « Voir mes commandes ») ·
+Marie: summary 63.000 FC available / 115.000 gross / − 11.500 / 103.500 net, HELD « En attente (retour
+possible) » and AVAILABLE rows with « Vente … − commission … (10 %) » · Virements: the completed payout
+(masked number, « Référence : MPESA-QA-… ») → detail: « Payé », full number, reference, history Demandé
+27/02 → Approuvé 04/09 16:50 → Virement lancé 16:51 → Payé 16:53 · request screen: « Montant du virement
+63.000 FC », submit empty → both French errors, « 0970000001 » → format error, valid number → the keyboard's
+done key opens the confirmation (amount + « M-Pesa (Vodacom) · +243970000001 ») · **a payout created through
+the API while the dialog was open** (seller-web simulation) → Confirmer → « Envoi en cours… » with the form
+locked → « Vous avez déjà une demande de retrait en cours. Veuillez attendre son traitement. » verbatim,
+values kept, 0 FC refetched, button disabled with its reason, « Voir le virement en cours » → detail
+« Demande reçue », « Demandé le » only · back: « 63.000 FC · virement en cours », blocked button + link,
+Virements with the REQUESTED row · Gains: **« Disponible » still shown for the reserved earning — defect,
+fixed** (earnings now reload with the wallet) · revert → « Actualiser »: **badge and blocked button
+persisted — same defect, same fix** · rebuilt: reserved row correct, refresh clears the reserved state ·
+**the in-app request**: M-Pesa + number → confirmation → « Demande envoyée. Teka examine votre demande de
+63.000 FC. » → summary reserved, Virements « Demande reçue » row · 1.3× / 1.5×: summary lines and earning
+headers wrap with the amount on its own line, badges wrap, request and detail readable · tablet 800 pt
+portrait (skeleton, then loaded) and 1280 pt landscape (summary, request, detail) in a readable column.
+**Cleanup:** both QA payouts deleted (`691ffc9b…` from the API, `a14d629c…` from the app), the reserved
+earning reset (`isPaid` false, `payoutId` null), `payoutMethod` / `payoutPhone` back to null, the password
+hash and `passwordSetAt` restored byte-for-byte (temporary password 401s), bearer token and cookie jar
+deleted, app logged out, emulator and API stopped. iOS: not built (no native change).
+
+**Recorded, not changed (API-side):** `getSellerWallet` counts `pendingCDF` from `deliveredAt`, so a HELD
+earning whose DELIVERED order carries no `deliveredAt` (Marie's `TK-20260412-6BEE`, an older row) is shown
+as « En attente (retour possible) » in the list but missing from the « en attente » badge. Data
+inconsistency of old rows + a defensive `state` derivation; a backfill or a `state`-based pending sum is
+the fix, out of this PR's scope.
+
+**Risk:** low — presentation and refetch scope only; the request flow keeps the same two calls in the
+same order; the API decides every rule. The one behavioural change is that refresh, push / resume and the
+post-request reload now issue three requests instead of two (page 1 of each list).
+
 ### Remaining Seller UX findings by PR (from the baseline audit + this PR's walk)
 
 | PR | Surface | Findings to act on |
@@ -2278,16 +2403,17 @@ preserves them) but the edit form cannot prefill the new leaf's fields from them
 | **B** dashboard + Action Center | `features/home` | **Done in PR B** — text theme, tokens, shaped skeleton, verification task, Suivi, one badge. Left: the first-launch notification-permission prompt still lands on the dashboard (system prompt; moving it needs an onboarding decision). |
 | **C** orders | `features/orders` | **Done in PR C** — one status vocabulary, cards, detail skeleton, strip, dialogs, conflict reload, timeline tones. Left: the order-number header wraps under a wide chip at 1.5× (cosmetic); item thumbnails remain `Image.network` (no cache dependency in the seller app). |
 | **D** products / form / images | `features/products` | **Done in PR D** — vocabulary, cards, detail skeleton + strip, sectioned Column form with validation fixes, brand sheet, legacy warning, image manager polish. Left: thumbnails stay `Image.network`; legacy characteristic rows cannot prefill a new leaf's fields (taxonomy debt). |
-| **E** earnings + payouts | `features/earnings` (31 sizes, 9 radii, 3 spinners) | Money in foreground, status in colour; table-like rows on one baseline; payout status on the new process colours (badge already tokenized in A); empty and error states with CTA. No rule change. |
+| **E** earnings + payouts | `features/earnings` | **Done in PR E** — wallet hierarchy (available hero, reserved / pending badges, gross − commission = net), one payout/earning vocabulary on foreground tones, masked numbers in lists, request flow with amount statement + confirmation + stale-balance refetch, detail with a dated history from the API's timestamps, skeletons, contextual empty states. Left: the API's `pendingCDF` excludes a HELD earning whose order has no `deliveredAt` (API-side, recorded below). |
 | **F** profile / commune / verification / settings | `features/profile` (17/14/6), `features/verification` (17/5/1), `features/seller_application`, `features/auth` | Group headers on labelSmall, document cards on a white surface with the status badge, commune picker sheet on the white sheet theme, login/register spacing. Never show payout destination, KYC details or document URLs beyond what the screen already shows. |
 | cross-cutting | `features/promotions` (17/12/2), `features/reviews` (9/4/1), `features/notifications` | Folded into the PR whose navigation reaches them (promotions → B, reviews → F, notifications → B). |
 
 ## Next exact step
 
-PR 1–13, Buyer UX PR A–D, Seller UX PR A–C merged (latest: `5d55f03`). **Seller UX PR D
-`seller-mobile/ux-products` open — awaiting merge approval.** Then Seller UX PR E (earnings + payouts) —
-**not to be started until PR D is approved.** Seller Web / Admin Web redesign stays out of scope.
-Carried-forward validation gaps: iPad/iOS runtime (never exercised), no golden tests, the Seller phone walk
-now covers dashboard, orders, products and verification (earnings and profile remain for E–F). Open
-follow-ups: first-launch notification prompt placement; order-number header wrap at 1.5×; plain
-`Image.network` sites; legacy characteristic prefill (taxonomy audit).
+PR 1–13, Buyer UX PR A–D, Seller UX PR A–D merged (latest: `a6b0d7c`). **Seller UX PR E
+`seller-mobile/ux-earnings-payouts` open — awaiting merge approval.** Then Seller UX PR F (profile /
+commune / verification / settings) — **not to be started until PR E is approved.** Seller Web / Admin Web
+redesign stays out of scope. Carried-forward validation gaps: iPad/iOS runtime (never exercised), no golden
+tests, the Seller phone walk now covers dashboard, orders, products, verification and earnings (profile
+remains for F). Open follow-ups: first-launch notification prompt placement; order-number header wrap at
+1.5×; plain `Image.network` sites; legacy characteristic prefill (taxonomy audit); API `pendingCDF` vs a
+HELD earning without `deliveredAt`.
