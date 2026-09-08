@@ -12,15 +12,22 @@ const AUTO_ADVANCE_MS = 5000;
 interface BannerCarouselProps {
   /** Fallback content to render when no banners are available (e.g. static hero) */
   fallback?: ReactNode;
+  /**
+   * Banners the server route already fetched (SEO-1). Undefined = unknown
+   * (fetch on mount, render the skeleton meanwhile); an array — even empty —
+   * means "known", so the first HTML holds either the banners or the fallback
+   * hero with its <h1>, instead of a grey skeleton crawlers cannot read.
+   */
+  initialBanners?: Banner[];
 }
 
-export function BannerCarousel({ fallback }: BannerCarouselProps) {
+export function BannerCarousel({ fallback, initialBanners }: BannerCarouselProps) {
   const router = useRouter();
   const selectedCity = useCityStore((s) => s.selectedCity);
 
-  const [banners, setBanners] = useState<Banner[]>([]);
+  const [banners, setBanners] = useState<Banner[]>(initialBanners ?? []);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(initialBanners === undefined);
   const [isPaused, setIsPaused] = useState(false);
   // Banners whose image failed to load (e.g. a stale/broken Cloudinary URL).
   // We drop them so a broken banner gracefully falls back to the hero instead
@@ -30,8 +37,9 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Fetch banners on mount
+  // Fetch banners on mount — unless the server already provided them.
   useEffect(() => {
+    if (initialBanners !== undefined) return;
     apiFetch<Banner[]>('/v1/browse/banners')
       .then((res) => {
         const data = Array.isArray(res.data) ? res.data : [];
@@ -39,7 +47,7 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [initialBanners]);
 
   // Scroll to the current index
   const scrollToIndex = useCallback((index: number) => {

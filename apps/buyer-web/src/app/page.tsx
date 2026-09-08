@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
 import HomePage from '@/components/pages/home-page';
+import { serverFetch } from '@/lib/server-api';
+import { getActiveCities } from '@/lib/server-cities';
+import type { Banner, BrowseCategory } from '@/lib/types';
 
 export async function generateMetadata(): Promise<Metadata> {
   const title = 'Teka RDC — Supermarché en ligne en RD Congo | Livraison Lubumbashi & Kolwezi';
@@ -24,6 +27,15 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Page() {
+  // SEO-1: the category grid, the banner decision and the footer towns are
+  // fetched here (ISR-cached, 60 s) so they are in the first HTML. A failed
+  // fetch hands `undefined` to the client, which then fetches as before.
+  const [categories, banners, cities] = await Promise.all([
+    serverFetch<BrowseCategory[]>('/v1/browse/categories'),
+    serverFetch<Banner[]>('/v1/browse/banners'),
+    getActiveCities(),
+  ]);
+
   // Hour-precision timestamp — hints FB/LinkedIn/etc. that they should refresh
   // their per-URL scrape cache. React 19 hoists this <meta> into <head>.
   const ogUpdated = new Date(
@@ -35,7 +47,12 @@ export default async function Page() {
       <meta property="og:updated_time" content={ogUpdated} />
       {/* Organization + WebSite JSON-LD moved to the root layout (SEO-1) —
           one site-wide identity, no per-page copy to drift. */}
-      <HomePage serverH1="Teka RDC — Supermarché en ligne en RD Congo" />
+      <HomePage
+        serverH1="Teka RDC — Supermarché en ligne en RD Congo"
+        initialCategories={categories ?? undefined}
+        initialBanners={banners ?? undefined}
+        initialCities={cities}
+      />
     </>
   );
 }

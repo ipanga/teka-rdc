@@ -3,7 +3,8 @@ import { notFound, permanentRedirect } from 'next/navigation';
 import { ContentPageView } from '@/components/pages/content-page-view';
 import CityLandingPage from '@/components/pages/city-landing-page';
 import { serverFetch } from '@/lib/server-api';
-import { findCityBySlug } from '@/lib/server-cities';
+import { findCityBySlug, getActiveCities } from '@/lib/server-cities';
+import type { BrowseCategory, PaginatedProducts } from '@/lib/types';
 import { plainText, truncateForMeta } from '@/lib/seo-text';
 import { productHref } from '@/lib/urls';
 import {
@@ -118,14 +119,27 @@ export default async function Page({ params }: Props) {
   // 1) City landing
   const city = await findCityBySlug(ville);
   if (city && city.slug) {
+    // SEO-1: the URL fixes the town, so the grids can be rendered server-side
+    // (ISR-cached 60 s) — exactly what the client used to fetch after paint.
+    const [categories, popular, newest, cities] = await Promise.all([
+      serverFetch<BrowseCategory[]>('/v1/browse/categories'),
+      serverFetch<PaginatedProducts>(`/v1/browse/products?sortBy=popularity&limit=10&cityId=${city.id}`),
+      serverFetch<PaginatedProducts>(`/v1/browse/products?sortBy=newest&limit=10&cityId=${city.id}`),
+      getActiveCities(),
+    ]);
     return (
       <CityLandingPage
+        key={city.id}
         cityId={city.id}
         citySlug={city.slug}
         cityName={city.name}
         province={city.province}
         accentColor={city.accentColor ?? null}
         heroImageUrl={city.heroImageUrl ?? null}
+        initialCategories={categories ?? undefined}
+        initialPopular={popular?.data}
+        initialNewest={newest?.data}
+        initialCities={cities}
       />
     );
   }

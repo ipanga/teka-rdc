@@ -5,6 +5,7 @@ import { notFound, permanentRedirect } from 'next/navigation';
 import ProductDetailPage from '@/components/pages/product-detail-page';
 import { JsonLd } from '@/components/seo/json-ld';
 import { serverFetch } from '@/lib/server-api';
+import { getActiveCities } from '@/lib/server-cities';
 import type { ProductDetail } from '@/lib/types';
 import {
   productHref,
@@ -131,9 +132,10 @@ export default async function Page({ params }: Props) {
   const { ville, product: productParam } = await params;
   const identifier = productIdentifierFromParam(productParam);
 
-  const product = await serverFetch<ProductData>(
-    `/v1/browse/products/${encodeURIComponent(identifier)}`,
-  );
+  const [product, cities] = await Promise.all([
+    serverFetch<ProductData>(`/v1/browse/products/${encodeURIComponent(identifier)}`),
+    getActiveCities(),
+  ]);
   if (!product) notFound();
 
   // Demo retirement (P3c): a retired demo product (its category now has enough
@@ -252,7 +254,12 @@ export default async function Page({ params }: Props) {
       />
       <JsonLd data={productJsonLd} />
       <JsonLd data={breadcrumbJsonLd} />
-      <ProductDetailPage identifier={identifier} initialProduct={product} />
+      <ProductDetailPage
+        key={product.id}
+        identifier={identifier}
+        initialProduct={product}
+        initialCities={cities}
+      />
     </>
   );
 }

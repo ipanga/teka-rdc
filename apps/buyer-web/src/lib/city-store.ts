@@ -27,6 +27,11 @@ interface CityState {
   setCity: (city: City) => void;
   clearCity: () => void;
   fetchCities: () => Promise<void>;
+  /**
+   * Seed the town list from data the server already rendered (SEO-1). No-op
+   * once a list is present, so it never overrides a fetched one.
+   */
+  hydrateCities: (cities: City[]) => void;
   openSelector: () => void;
   closeSelector: () => void;
   initFromStorage: () => void;
@@ -117,6 +122,11 @@ export const useCityStore = create<CityState>((set, get) => {
       }
       persistTownToProfile(null);
       set({ selectedCity: null });
+    },
+
+    hydrateCities: (cities) => {
+      if (get().cities.length > 0 || cities.length === 0) return;
+      set({ cities });
     },
 
     fetchCities: async () => {

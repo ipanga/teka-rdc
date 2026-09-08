@@ -20,6 +20,7 @@ import { track } from '@/lib/analytics';
 import { formatCDF, formatUSD, discountPercent } from '@/lib/format';
 import { Badge, Button, Card, Container, buttonVariants, cn } from '@/components/ui';
 import type { ProductDetail } from '@/lib/types';
+import type { City } from '@/lib/city-store';
 import { stockStatus, stockStatusLabel } from '@teka/shared';
 
 /**
@@ -31,6 +32,7 @@ import { stockStatus, stockStatusLabel } from '@teka/shared';
 export default function ProductDetailPage({
   identifier,
   initialProduct = null,
+  initialCities,
 }: {
   identifier?: string;
   /**
@@ -41,6 +43,8 @@ export default function ProductDetailPage({
    * wishlist, reviews, related) is unchanged.
    */
   initialProduct?: ProductDetail | null;
+  /** Active towns for the footer links (server-rendered, SEO-1). */
+  initialCities?: City[];
 } = {}) {
   // 'Messaging' translation namespace stays in messages/fr.json (with a
   // deprecation comment there); only the in-app references were removed
@@ -589,7 +593,7 @@ export default function ProductDetailPage({
         </div>
       )}
 
-      <Footer />
+      <Footer initialCities={initialCities} />
     </div>
   );
 }
