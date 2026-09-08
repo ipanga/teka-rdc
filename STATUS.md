@@ -1,4 +1,4 @@
-# Status — 2026-09-08 (pre-scale readiness — Seller Mobile UX/UI series A–F COMPLETE; read-only checkpoint)
+# Status — 2026-09-08 (pre-scale readiness — Seller Mobile UX/UI series A–F COMPLETE; release-readiness docs PR open)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
@@ -32,9 +32,34 @@ commune saved, a real camera upload → PENDING_REVIEW, an admin refusal (dev DB
 strip → resubmission from the strip → PENDING_REVIEW with the previous document SUPERSEDED, FCM
 « Documents reçus » received; 1.3× / 1.5×; tablet portrait / landscape; a second seller after logout with
 nothing of the first left. Cleanup verified field by field: Marie's two QA documents deleted with both Cloudinary assets destroyed (2 destroyed, 0 missing), her first name, last name, commune and verification fields restored, both password hashes and `passwordSetAt` restored byte-for-byte (temporary password 401s), Patrick untouched apart from the restored hash; the QA scripts holding the temporary password deleted. Seller 461 (+74), buyer 501 unchanged, analyze 5. No API,
-schema, env or dependency change. **No new implementation is in flight: a read-only checkpoint of the whole
-pre-scale-readiness initiative is recorded in `docs/pre-scale-readiness.md` → « Checkpoint (2026-09-08) »;
-the next PR waits for the owner's decision on its P0/P1 list.**
+schema, env or dependency change.
+
+**Read-only checkpoint merged** (`8c387c2`, PR #711) — the whole initiative is reconciled in
+`docs/pre-scale-readiness.md` → « Checkpoint (2026-09-08) » with the P0–P3 classification.
+**`docs/release-readiness` open, awaiting merge approval — documentation only, no application code:**
+the rollback procedure in `docs/deployment.md` rewritten against the deployment that actually exists
+(flat VPS directory, GHCR `:latest` + `:<sha>` tags, `docker rollout`, four rollback layers), the
+first-deploy section corrected (no `compose build`, no `prisma migrate deploy` — neither exists here),
+a MANUAL Cloudflare origin-firewall procedure, and a per-release checklist (AUTOMATED / MANUAL /
+POST-DEPLOY) plus a 36-check post-deploy smoke matrix. `auth_rate_limits` verified: additive,
+idempotent, on the auto-apply manifest, no rollback needed, old code compatible — **not applied
+anywhere**.
+
+**Where the initiative stands.** Buyer Mobile functional readiness: COMPLETE. Buyer Mobile UX/UI
+phase: COMPLETE (A–D). Seller Mobile functional readiness: COMPLETE, with debt explicitly retained
+(legacy characteristic prefill, plain `Image.network` thumbnails, API `pendingCDF` vs HELD without
+`deliveredAt`, notification-permission pre-prompt). Seller Mobile UX/UI A–F: COMPLETE. Android phone
+and tablet (portrait + landscape) runtime verification: PERFORMED for both apps. **iOS/iPad runtime:
+still a validation gap** (uploads and `--no-codesign` builds only, no simulator input tooling).
+**Buyer Web SEO: an ACTIVE pre-scale workstream — nothing shipped** (sitemap emits 0 products, no
+rankable server HTML). **Admin/Finance security decisions remain open** (S12 payout re-auth, S21
+SUPPORT/FINANCE, S11 audit rows, D2b). **Mobile security hardening remains open** (MS1–MS7).
+**Dependabot follow-ups remain open** (`sharp`/`esbuild` security jobs failing on the pinned
+exceptions, stale PRs #549/#565/#595, no bundler ecosystem). **The Cloudflare origin firewall is a
+MANUAL pre-release action — not applied.**
+
+**Production still runs `main` `78c6ef9` (2026-09-06):** every PR since #670 — the five security PRs,
+the CI gates, the Buyer Mobile functional fixes, tablet and both UX series — is on `develop` only.
 
 **Validation gaps that are NOT incomplete UX work: iPad/iOS runtime has never been exercised (PR A ran a
 `--no-codesign` iOS build only; PR B, C and D touched no native code); no golden tests exist in either app; the Seller phone runtime walk is being
