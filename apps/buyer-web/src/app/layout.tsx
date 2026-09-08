@@ -10,6 +10,8 @@ import { WishlistSync } from '@/components/wishlist/wishlist-sync';
 import { JsonLd } from '@/components/seo/json-ld';
 import { ORGANIZATION_JSON_LD, WEBSITE_JSON_LD } from '@/lib/site-identity';
 import './globals.css';
+import { getActiveCities } from '@/lib/server-cities';
+import { deliveryPhrase } from '@/lib/service-area';
 
 const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-inter' });
 
@@ -20,13 +22,20 @@ export const viewport: Viewport = {
   themeColor: '#BF0000',
 };
 
-export const metadata: Metadata = {
+/**
+ * Root metadata. Async so the description names the towns that are
+ * actually served (SEO-2 decision 2) — from the active-town API, cached 60 s
+ * like every server fetch, never a hard-coded list.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const towns = await getActiveCities();
+  return {
   metadataBase: new URL('https://teka.cd'),
   title: {
     default: 'Teka RDC — Supermarché en ligne en RD Congo',
     template: '%s | Teka RDC',
   },
-  description: 'Teka RDC, votre supermarché en ligne en République Démocratique du Congo. Achetez smartphones, vêtements, électronique et plus. Livraison à Lubumbashi, Kolwezi et Likasi.',
+  description: `Teka RDC, votre supermarché en ligne en République Démocratique du Congo. Achetez smartphones, vêtements, électronique et plus. ${deliveryPhrase(towns)}`,
   keywords: ['supermarché en ligne RDC', 'acheter en ligne RDC', 'livraison Lubumbashi', 'livraison Kolwezi', 'marketplace Congo', 'Teka RDC', 'teka.cd', 'e-commerce RDC', 'boutique en ligne Congo', 'acheter smartphone Lubumbashi'],
   authors: [{ name: 'Teka RDC', url: 'https://teka.cd' }],
   creator: 'Teka RDC',
@@ -60,7 +69,8 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'Teka RDC',
   },
-};
+  };
+}
 
 export default async function RootLayout({
   children,

@@ -2,16 +2,21 @@ import type { Metadata } from 'next';
 import HomePage from '@/components/pages/home-page';
 import { serverFetch } from '@/lib/server-api';
 import { getActiveCities } from '@/lib/server-cities';
+import { deliveryPhrase, deliveryTitle } from '@/lib/service-area';
 import type { Banner, BrowseCategory } from '@/lib/types';
 
 export async function generateMetadata(): Promise<Metadata> {
-  const title = 'Teka RDC — Supermarché en ligne en RD Congo | Livraison Lubumbashi & Kolwezi';
-  const description = 'Teka RDC, votre supermarché en ligne en RD Congo. Achetez smartphones, vêtements, électronique et plus. Livraison rapide à Lubumbashi, Kolwezi et Likasi. Paiement Mobile Money ou à la livraison.';
+  // Towns from the active-town API (SEO-2 decision 2), never hard-coded; and
+  // COD is the only payment method since 2026-05-26 (Rule 11) — the copy said
+  // « Mobile Money » for four months after it was retired.
+  const towns = await getActiveCities();
+  const title = `Teka RDC — Supermarché en ligne en RD Congo | ${deliveryTitle(towns)}`;
+  const description = `Teka RDC, votre supermarché en ligne en RD Congo. Achetez smartphones, vêtements, électronique et plus. ${deliveryPhrase(towns, 'Livraison rapide')} Paiement à la livraison.`;
 
   return {
     title,
     description,
-    keywords: ['supermarché en ligne RDC', 'acheter en ligne RDC', 'livraison Lubumbashi', 'livraison Kolwezi', 'marketplace Congo', 'Teka RDC', 'boutique en ligne RDC', 'acheter smartphone Lubumbashi', 'Mobile Money RDC', 'paiement à la livraison Congo'],
+    keywords: ['supermarché en ligne RDC', 'acheter en ligne RDC', 'livraison Lubumbashi', 'livraison Kolwezi', 'marketplace Congo', 'Teka RDC', 'boutique en ligne RDC', 'acheter smartphone Lubumbashi', 'paiement à la livraison Congo'],
     openGraph: {
       title,
       description,

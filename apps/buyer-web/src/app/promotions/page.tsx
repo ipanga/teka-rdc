@@ -1,10 +1,13 @@
 import type { Metadata } from 'next';
 import PromotionsPage from '@/components/pages/promotions-page';
+import { getActiveCities } from '@/lib/server-cities';
+import { deliveryPhrase } from '@/lib/service-area';
 
-export function generateMetadata(): Metadata {
+export async function generateMetadata(): Promise<Metadata> {
+  // Served towns from the active-town API (SEO-2 decision 2).
+  const towns = await getActiveCities();
   const title = 'Promotions — Teka RDC';
-  const description =
-    'Découvrez tous les produits en promotion sur Teka RDC : smartphones, électroménager, mode et plus à prix réduit. Livraison à Lubumbashi, Kolwezi et Likasi.';
+  const description = `Découvrez tous les produits en promotion sur Teka RDC : smartphones, électroménager, mode et plus à prix réduit. ${deliveryPhrase(towns)}`;
 
   return {
     title,
