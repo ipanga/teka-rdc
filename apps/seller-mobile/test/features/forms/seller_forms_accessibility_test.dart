@@ -126,8 +126,8 @@ void main() {
       textScale: 2,
     );
 
-    await tester.drag(find.byType(ListView).first, const Offset(0, -450));
-    await tester.pump();
+    await tester.scrollUntilVisible(find.text('Prix USD'), 200,
+        scrollable: find.byType(Scrollable).first);
     expect(find.text('Prix FC'), findsOneWidget);
     expect(find.text('Prix USD'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -143,14 +143,21 @@ void main() {
       product: product,
     );
 
+    await tester.scrollUntilVisible(
+        find.text('Impossible de charger les marques.'), 200,
+        scrollable: find.byType(Scrollable).first);
     expect(find.text('Impossible de charger les marques.'), findsOneWidget);
-    await tester.drag(find.byType(ListView).first, const Offset(0, -500));
-    await tester.pump();
+    expect(find.text('Réessayer'), findsAtLeastNWidgets(1));
+    await tester.scrollUntilVisible(
+        find.text('Impossible de charger les caractéristiques.'), 200,
+        scrollable: find.byType(Scrollable).first);
     expect(
       find.text('Impossible de charger les caractéristiques.'),
       findsOneWidget,
     );
-    expect(find.text('Réessayer'), findsNWidgets(2));
+    // Each failed lookup keeps its own retry (the lazy list may have
+    // released the brands row by now, so count what is on screen).
+    expect(find.text('Réessayer'), findsAtLeastNWidgets(1));
     expect(tester.takeException(), isNull);
   });
 

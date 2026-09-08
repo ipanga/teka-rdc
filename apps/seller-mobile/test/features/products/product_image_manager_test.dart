@@ -47,7 +47,7 @@ void main() {
   testWidgets('shows the count and an add tile when under the max', (t) async {
     await _pump(t, _productWith(2));
 
-    expect(find.text('2/8 images'), findsOneWidget);
+    expect(find.text('2 / 8 photos'), findsOneWidget);
     // 2 existing tiles + 1 add tile.
     expect(find.byType(ImageUploadTile), findsNWidgets(3));
     expect(find.text('Maximum atteint'), findsNothing);
@@ -56,7 +56,7 @@ void main() {
   testWidgets('hides the add tile and flags the max at 8 images', (t) async {
     await _pump(t, _productWith(8));
 
-    expect(find.text('8/8 images'), findsOneWidget);
+    expect(find.text('8 / 8 photos'), findsOneWidget);
     // 8 tiles, no add tile.
     expect(find.byType(ImageUploadTile), findsNWidgets(8));
     expect(find.text('Maximum atteint'), findsOneWidget);
@@ -80,8 +80,10 @@ void main() {
       (t) async {
     await _pump(t, _productWith(1));
 
-    expect(find.bySemanticsLabel('Image du produit'), findsOneWidget);
-    expect(find.byTooltip("Supprimer l'image"), findsOneWidget);
-    expect(find.bySemanticsLabel('Ajouter une image'), findsOneWidget);
+    // The first (only) photo is the cover, and says so.
+    expect(find.bySemanticsLabel('Photo de couverture'), findsOneWidget);
+    expect(find.text('Couverture'), findsOneWidget);
+    expect(find.byTooltip('Supprimer la photo'), findsOneWidget);
+    expect(find.bySemanticsLabel('Ajouter une photo'), findsOneWidget);
   });
 }

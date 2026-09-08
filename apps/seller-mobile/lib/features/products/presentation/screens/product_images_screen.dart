@@ -20,9 +20,9 @@ class ProductImagesScreen extends ConsumerWidget {
       body: ReadableColumn(
         padding: EdgeInsets.zero,
         child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: ProductImageManager(productId: productId),
-          ),
+          padding: const EdgeInsets.all(16),
+          child: ProductImageManager(productId: productId),
+        ),
       ),
     );
   }

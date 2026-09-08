@@ -91,7 +91,7 @@ void main() {
   testWidgets('price fields stay side by side inside the readable column',
       (tester) async {
     await _pumpForm(tester, 1024);
-    await tester.drag(find.byType(ListView).first, const Offset(0, -450));
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, -450));
     await tester.pump();
     expect(find.text('Prix FC'), findsOneWidget);
     expect(find.text('Prix USD'), findsOneWidget);
@@ -108,7 +108,7 @@ void main() {
     for (final scale in <double>[1.3, 1.5]) {
       await _pumpForm(tester, 1024, textScale: scale);
       expect(tester.takeException(), isNull);
-      await tester.drag(find.byType(ListView).first, const Offset(0, -500));
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -500));
       await tester.pump();
       expect(tester.takeException(), isNull);
     }
