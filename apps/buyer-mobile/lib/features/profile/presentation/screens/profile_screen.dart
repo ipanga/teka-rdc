@@ -185,7 +185,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     _AccountMenuTile(
                       icon: Icons.notifications_none_rounded,
                       title: 'Boîte de réception',
-                      subtitle: 'Commandes, promotions et annonces',
+                      subtitle: 'Vos notifications reçues',
                       onTap: () => _open('/notifications', 'notifications'),
                     ),
                   ],
@@ -208,7 +208,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     _AccountMenuTile(
                       icon: Icons.tune_rounded,
                       title: 'Notifications',
-                      subtitle: 'Commandes, promotions et annonces',
+                      subtitle: 'Choisir ce que vous recevez',
                       onTap: () =>
                           _open('/profile/notifications', 'notification_settings'),
                     ),

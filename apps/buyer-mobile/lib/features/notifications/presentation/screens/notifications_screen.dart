@@ -8,6 +8,7 @@ import '../../../../core/widgets/adaptive_leading.dart';
 import '../../../../core/widgets/app_bar_actions.dart';
 import '../../../../core/widgets/app_states.dart';
 import '../providers/notifications_provider.dart';
+import '../../../../core/widgets/product_skeletons.dart';
 
 /// Notification Center opened from the home AppBar bell. Lists the buyer's
 /// in-app notifications (admin broadcasts, product promos, …) with read/unread
@@ -100,7 +101,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
     NotificationsNotifier notifier,
   ) {
     if (state.isLoading && state.items.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      // Shaped skeleton rather than a spinner on a blank screen (UX PR D).
+      return const ListCardSkeleton(count: 5, cardHeight: 84);
     }
     // Nothing loaded and the load failed: a real error state with a retry
     // (it used to be rendered as the empty state's caption, with no way to
@@ -165,9 +167,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
         }
         final n = state.items[index - (hasInlineError ? 1 : 0)];
         return Material(
-          color: n.isRead
-              ? Colors.transparent
-              : TekaColors.tekaRed.withValues(alpha: 0.05),
+          // Unread rows are white against the muted page, not washed in red
+          // (UX PR D). Unread is already said twice — the dot and the bold
+          // title — and a feed of unread items in red tint reads as a wall of
+          // alerts rather than a list of updates. A read row recedes into the
+          // page instead.
+          color: n.isRead ? Colors.transparent : TekaColors.surface,
           child: InkWell(
             onTap: () {
               const PosthogAnalytics().capture('notification_opened',

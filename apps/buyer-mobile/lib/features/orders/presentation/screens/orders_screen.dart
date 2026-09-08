@@ -7,6 +7,7 @@ import '../../../../core/widgets/app_states.dart';
 import '../../domain/order_status.dart';
 import '../providers/orders_provider.dart';
 import '../widgets/order_card.dart';
+import '../../../../core/widgets/product_skeletons.dart';
 
 class OrdersScreen extends ConsumerStatefulWidget {
   const OrdersScreen({super.key});
@@ -84,9 +85,9 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
               // carry that news instead of blanking the list (PR D3).
               Expanded(
                 child: ordersState.isLoading && ordersState.orders.isEmpty
-                    ? const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
+                    // A shaped skeleton, not a bare spinner on a blank screen
+                    // — every product surface in the app already does this.
+                    ? const ListCardSkeleton(count: 4)
                     : ordersState.error != null && ordersState.orders.isEmpty
                         ? AppErrorState(
                             message: ordersState.error,
