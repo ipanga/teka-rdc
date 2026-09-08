@@ -451,6 +451,10 @@ export class BrowseService {
       totalReviews: true,
       unitsSold: true,
       createdAt: true,
+      // Last content change — the sitemap's `lastmod` (SEO-1, 2026-09-08). The
+      // list endpoint never exposed it, so buyer-web could only stamp
+      // generation time on every product URL.
+      updatedAt: true,
       // City slug/name lets clients build `/{ville}/{slug}-{shortCode}` URLs
       // on mixed-city listings (e.g. the global homepage).
       city: { select: { slug: true, name: true } },
@@ -645,6 +649,7 @@ export class BrowseService {
       avgRating: p.avgRating,
       totalReviews: p.totalReviews,
       unitsSold: p.unitsSold,
+      updatedAt: p.updatedAt,
       image: p.images[0] ?? null,
       seller: toPublicSeller(p.seller),
     }));

@@ -789,3 +789,38 @@ describe('BrowseService — public seller flags (PR 5)', () => {
     expect(toPublicSeller(null)).toEqual({ id: '', businessName: 'Vendeur', verified: false, official: false });
   });
 });
+
+describe('BrowseService.browseProducts — sitemap fields (SEO-1)', () => {
+  it('selects updatedAt and exposes it on each list item', async () => {
+    const row = {
+      id: 'p1',
+      slug: 'chemise',
+      shortCode: 'a1b2c3',
+      title: 'Chemise',
+      priceCDF: BigInt(100),
+      priceUSD: null,
+      discountPriceCDF: null,
+      discountPriceUSD: null,
+      condition: 'NEW',
+      quantity: 1,
+      categoryId: 'c',
+      cityId: 'city',
+      avgRating: 0,
+      totalReviews: 0,
+      unitsSold: 0,
+      createdAt: new Date('2026-09-01T00:00:00Z'),
+      updatedAt: new Date('2026-09-08T12:00:00Z'),
+      city: { slug: 'lubumbashi', name: 'Lubumbashi' },
+      images: [],
+      seller: { id: 's', sellerProfile: { businessName: 'Boutique', verificationStatus: 'NOT_SUBMITTED' } },
+      brand: null,
+    };
+    const findMany = jest.fn().mockResolvedValue([row]);
+    const count = jest.fn().mockResolvedValue(1);
+    const service = new BrowseService({ product: { findMany, count } } as never);
+    const res = await service.browseProducts({});
+    const { select } = (findMany.mock.calls as unknown as Array<[{ select: Record<string, unknown> }]>)[0][0];
+    expect(select.updatedAt).toBe(true);
+    expect(res.data[0]).toMatchObject({ id: 'p1', citySlug: 'lubumbashi', updatedAt: row.updatedAt });
+  });
+});
