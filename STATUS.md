@@ -1,4 +1,4 @@
-# Status — 2026-09-08 (pre-scale readiness — Seller Mobile UX/UI polish, PR F open — last of the series)
+# Status — 2026-09-08 (pre-scale readiness — Seller Mobile UX/UI series A–F COMPLETE; read-only checkpoint)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
@@ -8,9 +8,8 @@ UX/UI polish STARTED.** Merged to date: `6201534`, `29ccb6f`, `5af6b94`, `1d7414
 `a877bbb`, `c6ce951`, `613f0fa`, `9450358`, `5ed2814`, `2ef5b94`, `57b3ea7`, `7dadf23`, `a57dcf5`,
 `cf0f148`, `9ff8b64`, plus `ci/dependabot-pnpm` (`adae24f`).
 
-**Seller UX PR A `8086594`, PR B `5825cb3`, PR C `5d55f03`, PR D `a6b0d7c`, PR E `0ecbcea` merged.**
-**Seller UX PR F `seller-mobile/ux-profile-verification` open, awaiting merge approval** — the last planned
-PR of the Seller Mobile UX/UI polish series: account, personal information, shop profile (town · commune),
+**Seller UX PR A `8086594`, PR B `5825cb3`, PR C `5d55f03`, PR D `a6b0d7c`, PR E `0ecbcea`, PR F `f2b8d49`
+merged — the Seller Mobile UX/UI polish series A–F is COMPLETE (2026-09-08).** PR F covered account, personal information, shop profile (town · commune),
 verification and documents. The audit found the mechanics sound (the API's `/v1/auth/me` with city and
 commune names, the server-owned commune rule mirrored only for the form, the D3/D5 verification flow with
 `requiredTypes` / `missingTypes` from the API, the hardened upload pipeline) and the presentation dated: a
@@ -33,8 +32,9 @@ commune saved, a real camera upload → PENDING_REVIEW, an admin refusal (dev DB
 strip → resubmission from the strip → PENDING_REVIEW with the previous document SUPERSEDED, FCM
 « Documents reçus » received; 1.3× / 1.5×; tablet portrait / landscape; a second seller after logout with
 nothing of the first left. Cleanup verified field by field: Marie's two QA documents deleted with both Cloudinary assets destroyed (2 destroyed, 0 missing), her first name, last name, commune and verification fields restored, both password hashes and `passwordSetAt` restored byte-for-byte (temporary password 401s), Patrick untouched apart from the restored hash; the QA scripts holding the temporary password deleted. Seller 461 (+74), buyer 501 unchanged, analyze 5. No API,
-schema, env or dependency change. **The Seller Mobile UX/UI polish series A–F completes with this PR**;
-no further initiative is started until told.
+schema, env or dependency change. **No new implementation is in flight: a read-only checkpoint of the whole
+pre-scale-readiness initiative is recorded in `docs/pre-scale-readiness.md` → « Checkpoint (2026-09-08) »;
+the next PR waits for the owner's decision on its P0/P1 list.**
 
 **Validation gaps that are NOT incomplete UX work: iPad/iOS runtime has never been exercised (PR A ran a
 `--no-codesign` iOS build only; PR B, C and D touched no native code); no golden tests exist in either app; the Seller phone runtime walk is being

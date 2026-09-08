@@ -2543,13 +2543,288 @@ revision (one extra `GET /v1/auth/me` after a save, on the account screen only).
 | **F** profile / commune / verification / settings | `features/profile`, `features/verification` | **Done in PR F** — identity card + labelled badges, actionable row, skeletons, validators in the API's words, stale-town notice, verification strip + one correction button, semantic tones, refresh revision. Left (out of scope, recorded): seller application (registration) screen spacing; login-email change without re-auth (API); notification pre-prompt. |
 | cross-cutting | `features/promotions` (17/12/2), `features/reviews` (9/4/1), `features/notifications` | Folded into the PR whose navigation reaches them (promotions → B, reviews → F, notifications → B). |
 
+## Checkpoint (2026-09-08) — read-only status of the whole pre-scale-readiness initiative
+
+Recorded after Seller UX PR F merged (`f2b8d49`, CI + CodeQL green on `develop`). Nothing was
+implemented during this checkpoint. Every claim below was re-verified against the code on `f2b8d49`
+(three read-only audits: buyer-web SEO, API/web security controls, CI/media/mobile evidence), the
+merged-PR list and `origin/main`.
+
+### Headline: what production is running
+
+**`main` = `78c6ef9` (release PR #669, 2026-09-06 09:55 UTC). Every PR merged since — #670 to #710,
+104 commits, 106 files under `apps/api`, the three web apps, `nginx/` and `.github/` — is on `develop`
+only.** Production therefore still carries the Phase 0 findings that PRs 1–5 fixed: S1 cross-surface
+privilege escalation (D2a), S2 stored XSS through JSON-LD, S4 payments IDOR, S5 no auth throttling or
+login lock, S6 Cloudflare real IP, S7 `next` 15.5.18, S8 unbounded MIME-trusting uploads, S9 the old
+CSP with `unsafe-eval`, and CI without web/Flutter gates. The store builds likewise predate the Buyer
+Mobile functional fixes (buyer 0.1.7+9, Sep 4; seller 0.1.9+11, Sep 6 — the latter carries only the
+verification screen). **The first action of the next phase is a `develop → main` release of the
+security work, not more feature work.** What that release needs: one additive auto-applied migration
+(`2026-09-06_auth_rate_limits.sql`, model `AuthRateLimit` — the only schema delta since `main`), no env
+change (PR 2–4 records), nginx reload (real-IP + HSTS-only headers), the stale rollback procedure in
+`docs/deployment.md` rewritten first (see Infrastructure below), and the manual Cloudflare origin
+firewall.
+
+### A. Buyer Mobile functional readiness — COMPLETE (closure table above, PRs #686–#698)
+
+Authentication/OTP (BUYER-only, D1), offline cold start (A2/A3), session/account isolation (A4/MS5),
+cart + checkout + promotional pricing (A1, quote totals, price-change notice, idempotent placement),
+orders + order detail (one French status mapping, all filters, snapshot address), addresses + recipient
+phone (one canonical rule, server-validated town ↔ commune), ratings (create/edit/delete, one visibility
+predicate, « Achat vérifié »), profile + editing + avatar (D11 lifecycle, multipart retry, session user
+sync), notifications (refetch on open/push/resume, iOS local notifications initialised), deep links (App
+Links + `teka://`, category slugs, city-gate parking), discovery/search/wishlist/town selection (data-driven
+towns), logout/account switching (caches cleared), loading/error/empty states and accessibility (UX PR
+A–D), tablet (PR 12). **Incomplete: nothing functional.** Validation-only gaps: iOS runtime never driven;
+buyer-web browser QA of the address flow skipped (D2/D3 QA-stack cookies); dev/staging App-Link hosts
+without `assetlinks.json`. Recorded debt: nameless legacy buyers nudged, not forced; `search_performed`
+sends the free-text term (phones scrubbed, emails not — decision 10 kept).
+
+### B. Buyer Mobile UX/UI — COMPLETE
+
+PRs A `7dadf23` (#701), B `a57dcf5` (#702), C `cf0f148` (#703), D `9ff8b64` (#704). Major
+improvements: design tokens + one image treatment + one empty-state language; home/search/category cards;
+PDP/cart/checkout (unit vs subtotal, delivery quote wording, step names, COD glyph, success next-steps);
+orders/ratings/profile/notifications (white dialogs and sheets app-wide, status colour only on chips,
+list skeletons). Remaining cosmetic debt (deliberate): raw `fontSize`/radius literals on screens no PR
+touched; the banner scrim over a pale image. Validation gaps: iOS/iPad runtime never exercised (no
+simulator input tooling in any session); no golden tests; UX PR A and C did not re-run the tablet.
+
+### C. Seller Mobile functional readiness — COMPLETE for the surfaces owned by this initiative
+
+Dashboard + Action Center (PR B: actionability derived from API transitions; payouts deliberately absent),
+orders + lifecycle (PR C: specific dialogs, conflict reload, timeline from `statusLogs`), products +
+create/edit (PR D: description and lazy-form validation defects fixed), product images + Cloudinary
+lifecycle (owner-scoped delete destroys the asset; hard-delete purges), characteristics/category/brands
+(server-driven), earnings + payouts (PR E: refresh scope defect fixed), profile + commune + verification +
+documents (PR F: header refresh defect fixed; SUPERSEDED + 90-day purge verified live with the daily
+cron), notifications (push routes UUID-checked), auth/session isolation (verified Marie → Patrick), tablet
+(PR 13 + every Seller UX PR at 800 pt portrait and 1280 pt landscape). **Previously recorded technical
+debt — all still open, none functional-blocking:** legacy product characteristic prefill (taxonomy
+audit); plain `Image.network` thumbnails (no cache dependency by decision); **API `pendingCDF` excludes a
+HELD earning whose DELIVERED order has no `deliveredAt`** (old rows; a backfill or state-based sum);
+notification-permission pre-prompt (decision recorded in PR F: keep the single OS prompt); no golden
+tests; iOS runtime never exercised.
+
+### D. Seller Mobile UX/UI — series A–F COMPLETE
+
+| PR | # | Merge | State |
+|---|---|---|---|
+| A foundation + splash | #705 | `8086594` | merged |
+| B dashboard + Action Center | #706 | `5825cb3` | merged |
+| C orders | #707 | `5d55f03` | merged |
+| D products / form / images | #708 | `a6b0d7c` | merged |
+| E earnings + payouts | #709 | `0ecbcea` | merged |
+| F profile / commune / verification | #710 | `f2b8d49` | merged |
+
+Completed UX work: per-app tokens, text theme, semantic tones, white surfaces, one vocabulary per
+domain (orders, products, payouts/earnings, verification), skeletons, scoped errors, contextual empty
+states, phone 320–412 at 1.0–1.5× and tablet 600–1280 in tests. Functional debt found and fixed on the
+way: 9 device-found defects across B–F (all recorded in their PR records). Validation debt: iOS runtime;
+golden tests. Optional polish: seller application (registration) screen spacing; order-number header
+wrap at 1.5×; notification pre-prompt.
+
+### E. Tablet readiness matrix (evidence = Android emulators only)
+
+| | Phone | Tablet portrait | Tablet landscape | iOS / iPad runtime |
+|---|---|---|---|---|
+| Buyer Mobile | VERIFIED (PR 6–11, UX A–D walks on the Pixel 8 Pro) | VERIFIED (PR 12: 14 screens at 800 pt; UX B/D re-runs) | VERIFIED (PR 12 at 1280 pt; UX B/D) | **NOT VERIFIED** (TestFlight uploads only; no simulator/device input in any session) |
+| Seller Mobile | VERIFIED (Seller UX A–F full walks) | VERIFIED (PR 13: 3 screens; Seller UX A–F: dashboard, orders, products, earnings, account, verification, forms at 800 pt) | VERIFIED (PR 13: 10 screens; Seller UX A–F at 1280 pt) | **NOT VERIFIED** (same) |
+
+`flutter build ios --no-codesign` succeeds for both apps; both have shipped to TestFlight (buyer 0.1.7+9,
+seller 0.1.9+11) and reached their tester groups — that is upload verification, not runtime.
+
+### F. Buyer Web SEO — NOTHING FROM WORKSTREAM B HAS SHIPPED
+
+The plan's SEO PRs 9 and 10 were never opened (the record numbering diverged: PRs 9–13 became
+buyer-mobile/tablet work). Code on `f2b8d49` matches the 2026-09-06 audit item for item, re-verified:
+
+| Item | State |
+|---|---|
+| Sitemap | Emits home, `/categories`, `/recherche` (noindex — contradictory), 8 CMS pages, 2 active towns, 374 town × category; **0 products** (`limit=500` vs the API's `@Max(100)` → 400 swallowed; no pagination loop; `sitemap.test.ts` mock masks it); `lastmod` = generation time; uncached (3 `no-store` calls per hit); `/promotions` absent. |
+| Product URLs / canonical | Strong: `/{ville}/{slug}-{code}`, wrong town/slug → single 308, self-canonical absolute, `og:updated_time`. |
+| Category / town × category URLs | Strong URLs; **`<h1>Catégorie</h1>` fallback ships on all 374 pages**; title doubles the brand; cursor-only « Charger plus » (products 13+ uncrawlable, no `rel` links); empty categories indexable and in the sitemap (`productCount` declared, unused). |
+| Server-rendered content | **None that ranks**: every listing/PDP surface is `'use client'` with `useEffect` fetches; the PDP fetches the product server-side for metadata/JSON-LD and discards it; the homepage `<h1>` never renders server-side (banner skeleton). Town landing `<h1>` is the one exception. |
+| Internal linking | Header categories and footer town links are client-fetched → absent from HTML; PDP « Catégorie » link is the legacy global path (308 to the default town). Product cards link canonically. |
+| Metadata / OG | Titles/descriptions/canonicals present everywhere; PDP `og:type` `website`, no `product:price:*`; descriptions carry raw markdown; « Likasi » in 5 metadata strings for a town that 404s; `og-default.png` is 3.7 KB. |
+| JSON-LD | Product (truthful `aggregateRating`, inert `shippingDetails`, no `priceValidUntil`), BreadcrumbList on PDP + category, Organization + WebSite on `/` only, **`Organization.logo` 404** (`/icons/icon-512.png` does not exist); escaping XSS-safe (PR 1). No `ItemList`, `Review`, `LocalBusiness`. |
+| robots.txt | Private routes disallowed, social scrapers allowed, sitemap referenced; dead `Host:` line; no AI-crawler policy in the repo (Cloudflare-managed, undocumented — decision 6). |
+| Search / pagination / duplicates | `/recherche` noindex,follow (in the sitemap anyway); `skipTrailingSlashRedirect: true` site-wide → every page 200 at `/x` and `/x/` (canonical collapses it); no case normalisation (`/Lubumbashi` 404s). |
+| Active towns | Inactive towns 404 (only `getActiveCities()` resolves) — correct; Likasi copy is the leftover. |
+| Core Web Vitals | `next/font` swap; Clarity `afterInteractive`; **PostHog initialised in a root client provider with autocapture + session recording (not deferred)**; SW registration inline script; content-by-JS architecture is the dominant cost. |
+| Image SEO | `next/image` with `priority` on LCP images, alt from titles; no `f_auto,q_auto` on storefront URLs (JSON-LD `image` is the raw original); category tiles `alt=""`. |
+| French-language SEO | `lang="fr"`, French copy; « marketplace RDC » intent absent from titles (« supermarché en ligne »); town descriptions templated. |
+| Structured-data validity | Syntactically valid, escaped; semantically incomplete (above). |
+| Tests | sitemap (masked), urls, json-ld escaping, middleware; **no** metadata/canonical/JSON-LD-content/redirect-table tests. |
+
+**Remaining technical SEO work for eligibility and crawlability (no ranking promised):** SEO-1 (small,
+no decision needed except Likasi): paginate the sitemap product fetch at `limit=100` with a failing-fetch
+test, real `lastmod`, drop `/recherche`, add `/promotions`, cache the sitemap; category `<h1>` from the
+server route; homepage `<h1>` server-rendered; `Organization.logo` to an existing asset + site-wide
+Organization/WebSite in the layout; strip markdown in descriptions; `og:type` product + price tags; PDP
+category link via `categoryHref`; brand-doubled titles; « Autre » brand suppressed; Likasi strings from
+`getActiveCities()` (decision 7). SEO-2 (larger): server-render the first page of every grid and the PDP
+core (`initialProducts`/`initialProduct` props into the existing client components); server-rendered
+header categories + footer towns; empty town × category `noindex, follow` + sitemap exclusion from a
+per-city `productCount` (decision 5, needs the categories API to expose it); crawlable pagination
+(`?page=` with `rel` links or `noindex` beyond page 1); trailing-slash 308 scoped around `/ingest`;
+BreadcrumbList/LocalBusiness on town pages; ItemList on listings; PostHog via `next/script` deferred;
+metadata/JSON-LD/redirect tests.
+
+### G. Security readiness — Phase 0 findings reconciled against `f2b8d49`
+
+| Finding | Status | Evidence |
+|---|---|---|
+| WhatsApp OTP restricted to BUYER (S3/D1) | FIXED (on develop, **not in prod**) | #672 `745e2d4`; `buyer-otp.service.ts` `isOtpEligible`, verify refusal before any mutation |
+| Stored XSS / JSON-LD (S2) | FIXED (not in prod) | #674; `json-ld.tsx` `serializeJsonLd` + tests; only 2 `dangerouslySetInnerHTML` sites, both safe |
+| Payments IDOR (S4) | FIXED (not in prod) | #674; actor-scoped `order.findFirst`, 6 e2e cases |
+| Upload MIME/magic-byte validation (S8) | FIXED for product/avatar/KYC (not in prod); **PARTIALLY FIXED overall** | #674 `image-upload.ts`; **S13 `POST /v1/sellers/documents` (seller application) still unthrottled, row-less, no owner binding, no orphan sweep** |
+| Upload limits (S8) | FIXED (not in prod) | multer `limits` 5 MB/1 file + `@Throttle 20/min` + `@IdentityThrottle('upload')` |
+| Avatar/product media lifecycle (A6/D11) | FIXED (not in prod) | #693; strict `avatarPublicIdFromUrl`, destroy with `invalidate`; product delete destroys; hard-delete purges |
+| App-review bypass (S10) | FIXED (not in prod) | #674; placeholders, constant-time compare, production boot error; default `false` — **not a production refusal** (ACCEPTED RISK, env-controlled) |
+| Origin/surface binding (S1/D2a) | FIXED (not in prod) | #675; Origin → cookie namespace, role → namespace, 18 e2e; `X-Teka-Surface` telemetry only |
+| CORS | PARTIALLY FIXED / ACCEPTED RISK | credentials + storefront origin still allowed (mitigated by D2a); **no `methods` allow-list, no `maxAge`** |
+| Cookie isolation | FIXED (D2a) — admin/seller `SameSite=Strict`, per-surface names; `Domain=.teka.cd` remains (D2b NEEDS DECISION) | `auth.controller.ts:332-382` |
+| CSRF protection | FIXED by construction (not in prod) | no Origin match ⇒ no cookie read ⇒ 401; no separate CSRF token (ACCEPTED) |
+| Auth / OTP / login-lockout / password-reset / refresh throttling (S5/D8) | FIXED (not in prod) | #676 `AUTH_LIMITS` (otp 3/10 min, verify 10/15 min, login 10 → 15 min lock, reset 3/h, register 3/h, refresh 60/15 min), Postgres store, `Retry-After`, 18 e2e |
+| Cloudflare real-IP (S6) | FIXED in config (not in prod) | `nginx.prod.conf` 22 `set_real_ip_from` + `real_ip_header CF-Connecting-IP` |
+| Cloudflare direct-origin protection | OUTSTANDING (manual infra) | 80/443 published to the world; recommendation only (`docs/deployment.md`) |
+| CSP (S9) | FIXED (not in prod) | #677; seller/admin nonce + `strict-dynamic`, buyer `'self' 'unsafe-inline'` (SEO surface, documented); enforced, **no report endpoint** |
+| Clickjacking / security headers (S20) | FIXED (not in prod) | XFO DENY + `frame-ancestors 'none'`, Permissions-Policy, COOP/CORP, HSTS nginx-only, headers on static assets, `private, no-store`; 9 API e2e + 3 web suites |
+| Dependency auditing (S18) | FIXED (not in prod) | #678 blocking `pnpm audit --prod --audit-level=high`; 71 → 5 advisories; 3 documented exceptions (`sharp`, `effect`, `deepmerge-ts`) |
+| Dependabot | PARTIALLY FIXED | config present (npm, actions, pub ×2, docker; **bundler not covered**); npm version updates work since #688 (`packageManager` pinned — PR #692 produced); **the two weekly *security* jobs for `sharp` and `esbuild` fail** (they are the pinned exceptions; manual bumps needed); stale PRs #549/#565/#595 open |
+| GitHub Actions permissions/pinning (S17) | FIXED (not in prod) | all 10 workflows `permissions: contents: read`; every `uses:` SHA-pinned; **`deploy.yml` still curls `docker-rollout@v0.9` by tag and expands secrets into the remote shell string** (OUTSTANDING, PR 15) |
+| Secret hygiene | FIXED / verified | no credentials in tracked files or history; `.env*` ignored; artifacts are binaries only |
+| Admin authorization | FIXED (unchanged, verified) | class-level `@Roles('ADMIN')` on every admin controller; SUPPORT read paths explicit |
+| Seller authorization | FIXED (unchanged, verified) | owner-scoped payouts/earnings/products/documents |
+| Buyer authorization | FIXED (unchanged, verified) | ownership-scoped orders/addresses/reviews (no `@Roles('BUYER')`, empty results for others — ACCEPTED) |
+| SUPPORT/FINANCE login/authorization (S21) | NEEDS DECISION (3) | admin-web admits both; dashboard bounces non-ADMIN; FINANCE has no `@Roles` anywhere |
+| Payout destination security (S12) | NEEDS DECISION (9) / OUTSTANDING | `PATCH payout-method` = one update, no re-auth, notice, audit or cooling-off |
+| Admin API boundary (D2b) | NEEDS DECISION (2b) | requirements recorded in PR 2 |
+| Admin action audit (S11) | PARTIALLY FIXED | audit rows on payouts/commission/verification/users only; product/order/review/settings/broadcast actions and `hardDelete` actor still unaudited; suspend has no self-guard / session revoke |
+| DTO bounds + banner links (S14/S22) | OUTSTANDING | seller product list `limit` unbounded; banner `linkUrl` only `@IsString()` (admin-stored `javascript:` link possible) |
+| Web containers as root (S16) | OUTSTANDING | only the API Dockerfile has `USER node` |
+| Clarity / privacy (S19) | PARTIALLY FIXED | removed from seller-web; buyer masking is a dashboard setting — **not verifiable from the repo** (manual check required) |
+| PostHog / privacy | PARTIALLY FIXED | replay off on seller/admin, `maskAllInputs` buyer, phone scrub; emails not scrubbed; search terms sent (decision 10) |
+| Sentry / PII | PARTIALLY FIXED | phones-only scrub (E.164 form) on API/web/mobile; no email/JWT scrub; **no `sentry_scrub_test` in either app (MS6)** |
+| Deep-link validation | PARTIALLY FIXED | https hosts allow-listed, slugs/UUIDs checked; **MS3 `teka://` skips the host list; MS2 buyer push router interpolates any string** |
+| Cloudinary upload security | FIXED | private `authenticated` documents, expiry-enforced downloads, row-first orphan strategy, daily purge cron running |
+| Mobile hardening (MS1 `allowBackup`, MS4 `IOSOptions`, MS7 obfuscation) | OUTSTANDING | plan PR 8 never shipped; both manifests unset; secure storage without `IOSOptions`; no R8/obfuscation |
+
+### H. Deferred decisions — current status and release importance
+
+| Decision | Status | Important before large-scale deployment? |
+|---|---|---|
+| D2b dedicated admin API under `admin.teka.cd/api` | Deferred; requirements recorded (PR 2) | No — D2a closes the escalation; D2b is defence in depth (P2) |
+| Admin cookie `Domain` removal | Part of D2b | No (P2, with D2b) |
+| Shared `.teka.cd` cookie implications | Mitigated by Origin → namespace + role binding + `SameSite=Strict` | Documented; residual risk accepted until D2b |
+| Cloudflare direct-origin protection | Not done (manual firewall / Authenticated Origin Pulls) | **Yes (P1)** — every throttle and WAF layer is bypassable direct-to-origin |
+| SUPPORT / FINANCE access (decision 3) | Open; bounce loop, no privilege issue | No (P2) unless those roles are staffed |
+| Payout destination re-auth / cooling-off (decision 9) | Open | **Yes (P1)** — session theft = redirected payouts; small API change |
+| Search-term analytics privacy (decision 10) | Kept (phones scrubbed) | No (P3: add email scrub) |
+| Avatar deterministic cleanup (decision 11) | Done (D11, derive from URL); 4 legacy orphans await a prod reference check | No (P3) |
+| Empty town/category SEO (decision 5) | Open; needed by SEO-2 | Yes for organic acquisition (P1 with SEO-2) |
+| Likasi metadata (decision 7) | Open; 5 strings | Yes, trivial (P1 with SEO-1) |
+| Cloudflare AI-crawler policy (decision 6) | Open; managed rule outside the repo | No (P3: document it) |
+
+### I. CI/CD and supply chain
+
+12 required-check candidates run on every PR (`Lint & Type Check` — type-check only, `API Tests` unit +
+e2e, `Web Tests`, `Web Build` ×3, `Flutter Tests` ×2, `Flutter Analysis` ×2, `Dependency Audit`,
+`Release Config` with the migration-manifest gate + TestFlight-group test) + CodeQL default setup.
+**Branch protection is not enforced** (free plan on a private repo; `scripts/ruleset-main.json` committed,
+not applied; the pre-push hook is the only guard on `main`). All `uses:` SHA-pinned, all workflows
+read-only tokens; gaps: `docker-rollout` fetched by tag inside `deploy.yml`, secrets expanded into the
+remote shell string, no bundler ecosystem in Dependabot, no post-deploy smoke step, no automated rollback.
+Dependabot: version updates healthy (open PRs #689, #692, #695, #696 to review); the two weekly npm
+*security* jobs (`sharp`, `esbuild`) fail on the documented exceptions until they are bumped by hand;
+stale #549/#565/#595 to close.
+
+### J. Cloudinary / media
+
+Product images: upload WebP `q_auto`, thumbnail by URL transform (`f_auto,q_auto`), owner-scoped delete
+destroys (destroy runs before the row delete — a DB failure afterwards leaves a dangling row; low),
+hard-delete/reset purge in chunks. Avatars: replace-then-destroy with `invalidate`, strict public-id
+derivation. Verification documents: private, row-first, `uploadedAt IS NULL` orphan candidates, SUPERSEDED/
+REJECTED `purgeAfter` 90 days, **daily 04:00 cron running** (verified: `ScheduleModule` registered, three
+crons live). Orphans: read-only `report-avatar-orphans.ts` (4 legacy assets pending a prod check); no
+product-image orphan report (cascade covers it). Legacy: seller *application* documents (pre-verification
+KYC photo) have no row/sweep (S13). Delivery: seller-web transforms lack `f_auto,q_auto`; mobile relies on
+the API thumbnails; buyer-web JSON-LD `image` is the raw original. Dev and prod share one cloud — never a
+broad cleanup.
+
+### K. Release classification
+
+**P0 — must fix before large-scale deployment**
+1. Ship `develop → main` (release PR, merge commit): the five security PRs, CI gates, Buyer Mobile
+   functional fixes, tablet and UX work are all unreleased; production runs `78c6ef9` with S1/S2/S4/S5/
+   S6/S7/S8/S9 open. Prerequisites: rewrite the rollback procedure in `docs/deployment.md` (the documented
+   `git checkout` + `compose build` cannot work on the flat VPS directory; the real path is
+   `docker pull ghcr.io/…:<previous sha>` + `docker rollout`), confirm the additive `auth_rate_limits`
+   migration on the manifest, run the post-deploy smoke matrix by hand (no automated smoke exists), then
+   the Android store builds (buyer at least — its store build predates A1 cart totals).
+2. Cloudflare origin firewall / Authenticated Origin Pulls + SSL Full (strict) — manual infra, same day as
+   the release (rate limits and WAF are bypassable direct-to-origin until then).
+
+**P1 — should fix before large-scale deployment**
+3. SEO-1 + SEO-2 (Workstream B, zero products in the sitemap, no rankable HTML) — the organic-acquisition
+   objective is unmet; decisions 5 and 7 needed.
+4. Payout destination re-auth + notice + cooling-off (S12, decision 9).
+5. Seller application document upload: row-first + owner binding + throttle + sweep (S13) — unbounded
+   private-asset creation by any authenticated account.
+6. Banner `linkUrl`/`linkTarget` validation (S22) and DTO bounds (S14).
+7. Branch protection / required checks applied (repository setting; GitHub Pro or public repo).
+8. Mobile hardening PR 8: MS1 `allowBackup`, MS2 buyer router UUIDs, MS3 `teka://` host check, MS4
+   `IOSOptions`, MS6 scrub breadth + tests, MS7 R8/obfuscation — before the next store releases.
+9. Clarity masking confirmed « Strict » in the dashboard (or the tag disabled).
+10. Dependabot: bump `sharp` (Next-compatible) and `esbuild`, close #549/#565/#595, add `bundler`.
+
+**P2 — can safely follow after deployment**
+11. D2b admin API boundary + host-only admin cookie; SUPPORT/FINANCE model (decision 3).
+12. S11 audit rows for the remaining admin actions, suspend self-guard + session revoke.
+13. S16 web containers non-root + `no-new-privileges`; `deploy.yml` secrets via `envs:`; pin
+    `docker-rollout` by SHA; automated post-deploy smoke; CSP reporting endpoint; CORS `methods`.
+14. iOS/iPad runtime validation session (device or simulator input tooling) for both apps.
+15. API `pendingCDF` vs HELD/`deliveredAt` backfill or state-based sum.
+
+**P3 — optional polish / technical debt**
+16. Golden tests; legacy characteristic prefill (taxonomy audit); `Image.network` thumbnails; seller-web
+    `f_auto,q_auto`; notification pre-prompt; seller application screen spacing; order-number header wrap
+    at 1.5×; email scrub in analytics/Sentry; AI-crawler policy documentation; avatar legacy orphans;
+    `keywords` meta; `og-default.png`.
+
+### Release-readiness by dimension (develop `f2b8d49`)
+
+| Dimension | State |
+|---|---|
+| Code correctness | Verified by tests and device walks for every PR in the initiative |
+| Automated tests | API 766 unit / 214 e2e (PR 4 baseline, grown since), buyer-web 97+, seller-web 36, admin-web 60, buyer-mobile 501, seller-mobile 461; all green on `f2b8d49` |
+| Android runtime | Verified per PR on the Pixel 8 Pro + tablet emulators |
+| iOS runtime | **Not verified** (uploads only) |
+| Web runtime | Verified in PR 1–4 (isolated API + `next start` ×3); buyer-web address flow QA skipped; no SEO runtime re-check since the audit |
+| Security | Fixed on develop, **unreleased**; P1 items above |
+| SEO | Audit-state; Workstream B unshipped |
+| Infrastructure | Rollout + health checks fine; rollback doc wrong; origin unfirewalled; no automated smoke |
+| Production configuration | No env change needed since `main`; nginx reload; Clarity masking unverified |
+| Observability | Sentry on API/web/mobile (CSP now allows it); Prometheus/Grafana alerting not verified in this checkpoint |
+| Data / migration | One additive auto-applied migration pending (`auth_rate_limits`); manifest gate green |
+| Rollback | Old image tags exist in GHCR; procedure undocumented/wrong — fix before the release |
+
+**Is `develop` suitable for a `develop → main` release PR now?** Technically yes for the code (CI +
+CodeQL green, additive migration, no env change), and the security content makes it urgent — **after**
+the rollback procedure is rewritten and the release checklist (migration confirmation, nginx reload,
+smoke matrix, Cloudflare firewall) is in hand. Do not open it without the owner's approval.
+
 ## Next exact step
 
-PR 1–13, Buyer UX PR A–D, Seller UX PR A–E merged (latest: `0ecbcea`). **Seller UX PR F
-`seller-mobile/ux-profile-verification` open — awaiting merge approval; it is the last planned PR of the
-Seller Mobile UX/UI polish series (A–F).** No further initiative is started until told. Seller Web / Admin
-Web redesign stays out of scope. Carried-forward validation gaps: iPad/iOS runtime (never exercised), no
-golden tests. Open follow-ups: **API `pendingCDF` vs a HELD earning without `deliveredAt`**; login-email
-change without re-authentication (API); notification pre-permission explainer; seller-web stale-town notice
-and account action signal; order-number header wrap at 1.5×; plain `Image.network` sites; legacy
-characteristic prefill (taxonomy audit); seller application screen spacing.
+**Seller Mobile UX/UI series A–F complete (latest `f2b8d49`). No PR is open or in flight.** The
+read-only checkpoint above is the source for the next decision. Recommended order, each as its own PR
+into `develop` with a merge commit, none started without approval: (1) release-readiness docs — rewrite
+the rollback procedure, release checklist; (2) **`develop → main` release PR** (security + everything
+since `78c6ef9`) with the manual Cloudflare origin firewall the same day; (3) `buyer-web/seo-1`;
+(4) `security/admin-and-financial` (S12 payout re-auth, S13 application uploads, S14/S22 DTO bounds);
+(5) `mobile/security-hardening` (MS1–MS7); (6) `buyer-web/seo-2`; (7) Dependabot follow-ups
+(`sharp`/`esbuild`, stale PRs, bundler); (8) D2b / S11 / S16 / iOS runtime session. Still open and
+preserved: API `pendingCDF` vs HELD/`deliveredAt`; login-email change without re-auth; seller-web
+stale-town notice; notification pre-prompt; golden tests; legacy characteristic prefill; `Image.network`.
