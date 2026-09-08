@@ -1,5 +1,6 @@
 import { effectiveCentimes } from '@/lib/format';
 import { plainText, truncateForMeta } from '@/lib/seo-text';
+import { isRealBrand } from '@/lib/brand';
 import type { Metadata } from 'next';
 import { notFound, permanentRedirect } from 'next/navigation';
 import ProductDetailPage from '@/components/pages/product-detail-page';
@@ -179,7 +180,7 @@ export default async function Page({ params }: Props) {
     sku: product.shortCode ?? product.id,
     // Prefer the product's real brand (first-class Brand library); fall back to
     // the seller / platform as the brand-like entity when none is set.
-    brand: product.brand?.name
+    brand: isRealBrand(product.brand)
       ? { '@type': 'Brand', name: product.brand.name }
       : { '@type': 'Organization', name: sellerDisplayName || 'Teka RDC' },
     offers: {

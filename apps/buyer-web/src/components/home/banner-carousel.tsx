@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
+import { bannerHref } from '@/lib/banner-href';
 import type { Banner } from '@/lib/types';
 
 const AUTO_ADVANCE_MS = 5000;
@@ -28,7 +29,6 @@ interface BannerCarouselProps {
 }
 
 export function BannerCarousel({ fallback, initialBanners, srTitle }: BannerCarouselProps) {
-  const router = useRouter();
   const selectedCity = useCityStore((s) => s.selectedCity);
 
   const [banners, setBanners] = useState<Banner[]>(initialBanners ?? []);
@@ -108,41 +108,6 @@ export function BannerCarousel({ fallback, initialBanners, srTitle }: BannerCaro
     };
   }, [banners.length]);
 
-  // Handle banner click navigation
-  function handleBannerClick(banner: Banner) {
-    if (!banner.linkType || !banner.linkTarget) return;
-
-    const citySlug = selectedCity?.slug;
-    switch (banner.linkType) {
-      case 'product':
-        // /<id-or-slug>: the /[ville] dispatcher resolves UUID/shortCode/slug
-        // and 308s to the canonical /{ville}/{slug}-{shortCode}. Admin-stored
-        // UUIDs (legacy) and slugs both work.
-        router.push(`/${banner.linkTarget}`);
-        break;
-      case 'category':
-        // City-scoped category since 2026-06-06. Navigate straight to the
-        // selected city's scoped page when known (avoids the 308 to the
-        // default city); the route resolves UUID or slug.
-        router.push(
-          citySlug
-            ? `/${citySlug}/categorie/${banner.linkTarget}`
-            : `/categorie/${banner.linkTarget}`,
-        );
-        break;
-      case 'url':
-        if (banner.linkTarget) {
-          window.open(banner.linkTarget, '_blank', 'noopener,noreferrer');
-        }
-        break;
-      case 'promotion':
-        // No bare /products route exists — send shoppers to the category index
-        // (was /products, which 404'd).
-        router.push('/categories');
-        break;
-    }
-  }
-
   // Go to a specific dot
   function goToDot(index: number) {
     setCurrentIndex(index);
@@ -180,24 +145,27 @@ export function BannerCarousel({ fallback, initialBanners, srTitle }: BannerCaro
         {visibleBanners.map((banner) => {
           const title = banner.title;
           const subtitle = banner.subtitle ?? null;
-          const hasLink = banner.linkType && banner.linkTarget;
+          // A slide with a target is a real link (SEO-2): crawlable href,
+          // native keyboard/middle-click behaviour, no router.push.
+          const link = bannerHref(banner, selectedCity?.slug);
+          const hasLink = link !== null;
+          const slideClass =
+            'relative block w-full flex-shrink-0 snap-start aspect-[4/3] md:aspect-[16/6]';
+          const Slide = ({ children }: { children: ReactNode }) =>
+            !link ? (
+              <div className={slideClass}>{children}</div>
+            ) : link.external ? (
+              <a href={link.href} target="_blank" rel="noopener noreferrer" className={slideClass}>
+                {children}
+              </a>
+            ) : (
+              <Link href={link.href} className={slideClass}>
+                {children}
+              </Link>
+            );
 
           return (
-            <div
-              key={banner.id}
-              className={`relative w-full flex-shrink-0 snap-start aspect-[4/3] md:aspect-[16/6] ${
-                hasLink ? 'cursor-pointer' : ''
-              }`}
-              onClick={() => handleBannerClick(banner)}
-              role={hasLink ? 'link' : undefined}
-              tabIndex={hasLink ? 0 : undefined}
-              onKeyDown={(e) => {
-                if (hasLink && (e.key === 'Enter' || e.key === ' ')) {
-                  e.preventDefault();
-                  handleBannerClick(banner);
-                }
-              }}
-            >
+            <Slide key={banner.id}>
               {/* Banner image */}
               <Image
                 src={banner.imageUrl}
@@ -230,7 +198,7 @@ export function BannerCarousel({ fallback, initialBanners, srTitle }: BannerCaro
                   </span>
                 )}
               </div>
-            </div>
+            </Slide>
           );
         })}
       </div>

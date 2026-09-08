@@ -102,6 +102,16 @@ describe('product page document (SEO-1)', () => {
     expect(items[3].item).toBe('https://teka.cd/lubumbashi/categorie/smartphones');
   });
 
+  it('never publishes the « Autre » placeholder as a schema.org Brand (SEO-2)', async () => {
+    serverFetch.mockImplementation(async (path: string) => {
+      if (path === '/v1/cities') return cities;
+      return { ...product, brand: { id: 'b0', name: 'Autre' } };
+    });
+    const html = renderToStaticMarkup(await Page({ params }));
+    const [productLd] = jsonLdBlocks(html);
+    expect(productLd.brand).toEqual({ '@type': 'Organization', name: 'Maison Kabila' });
+  });
+
   it('emits exactly one og:type (product) plus price tags, and keeps the JSON-LD escaped', async () => {
     serverFetch.mockImplementation(async (path: string) => {
       if (path === '/v1/cities') return cities;
