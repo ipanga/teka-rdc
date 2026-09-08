@@ -108,18 +108,33 @@ Renewal cron (host-side, runs every 12h):
 
 ### 5. Build and Deploy
 
-Use `--env-file .env.production` so compose substitutes `${NEXT_PUBLIC_GOOGLE_CLIENT_ID}` into the Next.js build args. Without this, the Google button will silently disappear from all three frontends.
+**Normal operation: you do not run this.** Every deploy is performed by
+`.github/workflows/deploy.yml` on a merge to `main` — it builds the four images in CI (baking the
+`NEXT_PUBLIC_*` build-args from GitHub Secrets), pushes them to GHCR as `:latest` **and**
+`:<git-sha>`, applies the auto-listed migrations, and rolls the containers. See
+*Updates and Rollback*. The steps below are the **bootstrap of a brand-new host**, where no image has
+been pulled yet.
 
 ```bash
-# Build all images (reads prod env, bakes NEXT_PUBLIC_* into the Next.js bundles)
-docker compose --env-file .env.production -f docker-compose.prod.yml build
+# 1. Authenticate to GHCR and pull the images CI already built
+echo "$GHCR_TOKEN" | docker login ghcr.io -u <github-user> --password-stdin
+docker compose --env-file .env.production -f docker-compose.prod.yml pull
 
-# Run database migrations against the cloud Postgres in .env.production
-docker compose --env-file .env.production -f docker-compose.prod.yml run --rm api npx prisma migrate deploy
+# 2. Apply the manual migrations listed in auto-apply.list (§5a).
+#    NOTE: there is no `prisma migrate deploy` here — this project has no Prisma
+#    migration history (no `prisma/migrations/migration_lock.toml`); production
+#    schema changes are idempotent SQL files applied by this script and recorded
+#    in the `_manual_migrations` table.
+docker compose --env-file .env.production -f docker-compose.prod.yml \
+  run --rm --no-deps -T api sh prisma/migrations/apply-auto.sh
 
-# Start all services
+# 3. Start all services
 docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 ```
+
+> Building images **on the VPS** is not supported: `docker-compose.prod.yml` declares no `build:`
+> section and the host carries no source tree. If CI is unavailable, build and push from a developer
+> machine using the same Dockerfiles and tags.
 
 ### 5a. Database migrations (automated during deploy)
 
@@ -179,9 +194,12 @@ direction comes from the migrations being idempotent, not from a skip.
 > evidence is not evidence of application, and a false "applied" row would make a
 > future auto-apply run skip a migration that never ran.
 
-_(The `prisma migrate deploy` line below is the legacy Prisma-Migrate path, kept
-for reference; day-to-day schema changes use the manual-SQL + auto-apply flow
-above.)_
+_(There is no Prisma-Migrate path in production: `apps/api/prisma/migrations/`
+contains only `manual/*.sql`, `auto-apply.list` and the two shell scripts — no
+`migration_lock.toml`, no timestamped Prisma migration folders. Every schema
+change reaches production through the manual-SQL + auto-apply flow above or the
+« Apply prod migration » workflow. `prisma migrate dev` / `db push` remain
+development-only commands.)_
 
 ### 5b. Initial production seed (first deploy only)
 
@@ -442,49 +460,230 @@ Product images are stored on Cloudinary's CDN. Cloudinary provides its own backu
 
 ## Updates and Rollback
 
-### Standard Deploy Update
+> **Read this before an incident, not during one.** Everything below is written against the
+> deployment that actually exists: images built by GitHub Actions and pushed to GHCR, a **flat**
+> `/home/deploy/teka-rdc/` directory on the VPS (**not** a git checkout, no source tree, no
+> `build:` section in `docker-compose.prod.yml`), and a rolling swap performed by the
+> `docker rollout` CLI plugin. Commands that assume a checkout (`git pull`, `git checkout`) or a
+> local build (`docker compose build`) **cannot work on the VPS** and were removed on 2026-09-08.
 
-```bash
-# Pull latest code
-git pull origin main
+### What lives where
 
-# Rebuild all images
-docker compose -f docker-compose.prod.yml build
+| Thing | Source of truth | How it reaches production |
+|---|---|---|
+| Application code | container images | `.github/workflows/deploy.yml` builds and pushes `ghcr.io/ipanga/teka-rdc/{api,buyer-web,seller-web,admin-web}` with **two** tags: `:latest` and `:<full-git-sha>` |
+| `docker-compose.prod.yml` | this repository | scp'd to the VPS by the deploy job before the swap |
+| `nginx/nginx.prod.conf` | this repository | **operator-managed — NOT synced by the deploy.** Copy it by hand when it changes (see below) |
+| `.env.production` | the VPS only | operator-managed; never in git |
+| Runtime-only variables (`SENTRY_RELEASE`, `SENTRY_ENVIRONMENT`, `POSTHOG_API_KEY`, `APP_REVIEW_*`) | GitHub Secrets | exported by the deploy job into the shell that runs compose; interpolated by `docker-compose.prod.yml` |
+| Schema | `apps/api/prisma/migrations/manual/*.sql` | EXPAND phase of the deploy (§5a), or the *Apply prod migration* workflow |
 
-# Run any new database migrations
-docker compose -f docker-compose.prod.yml run --rm api npx prisma migrate deploy
+Because the compose file pins `image: …:latest`, **`:latest` is what a plain `compose up` uses**;
+the immutable `:<sha>` tags are what makes a rollback possible.
 
-# Restart services with zero-downtime rolling update
-docker compose -f docker-compose.prod.yml up -d
-```
+### Standard deploy (automatic)
+
+Merging to `main` runs `deploy.yml`, which:
+
+1. builds and pushes the four images (`:latest` + `:<sha>`);
+2. scps `docker-compose.prod.yml` to `/home/deploy/teka-rdc/`;
+3. `docker compose --env-file .env.production -f docker-compose.prod.yml pull`;
+4. **EXPAND**: `… run --rm --no-deps -T api sh prisma/migrations/apply-auto.sh` (§5a) — aborts the
+   deploy before any swap if a migration fails;
+5. rolls `api → buyer-web → seller-web → admin-web` with
+   `docker rollout -f docker-compose.prod.yml -t 180 --wait 10 <svc>` (new container beside the old,
+   waits for its healthcheck, then removes the old);
+6. reloads nginx **only if** `nginx -t` passes (never recreates it — that would drop live connections).
+
+No manual step is needed for an ordinary deploy. Manual steps that a *release* may need are listed in
+the release checklist at the end of this document.
 
 ### Rollback
 
+Four independent layers. Roll back only the one that is broken.
+
+#### 1. Application rollback (the normal case) — revert on `main`
+
+The cleanest rollback is a forward deploy of known-good code: revert the offending commit(s) on `main`
+(`git revert -m 1 <merge-sha>` locally, PR into `main`, merge) and let `deploy.yml` run. This keeps
+GHCR `:latest`, the VPS and git in agreement. Use it whenever you can wait ~8–10 minutes for CI +
+deploy.
+
+#### 2. Container/image rollback (fast, on the VPS) — pin the previous SHA
+
+When you cannot wait, put the previous image back. Every deploy left an immutable
+`:<git-sha>` tag in GHCR, so the target is the SHA of the **previous** successful deploy (GitHub →
+Actions → *Deploy to production* → the run before the bad one; the SHA is the run's head commit).
+
 ```bash
-# Check recent commits to find a stable version
-git log --oneline -10
+ssh <deploy-user>@<vps>
+cd /home/deploy/teka-rdc
 
-# Revert to a specific commit
-git checkout <previous-commit-hash>
+PREV=<previous-full-git-sha>          # 40-char SHA, not the short form
+SVC=api                               # api | buyer-web | seller-web | admin-web
 
-# Rebuild and deploy the previous version
-docker compose -f docker-compose.prod.yml build
-docker compose -f docker-compose.prod.yml up -d
+# GHCR requires auth even for our own images.
+echo "$GHCR_TOKEN" | docker login ghcr.io -u <github-user> --password-stdin
+
+docker pull "ghcr.io/ipanga/teka-rdc/$SVC:$PREV"
+
+# The compose file pins :latest, so pin the rollback explicitly in an override
+# file rather than editing the synced compose file (the next deploy overwrites it).
+cat > rollback.yml <<YAML
+services:
+  $SVC:
+    image: ghcr.io/ipanga/teka-rdc/$SVC:$PREV
+YAML
+
+# Runtime-only variables come from the deploy job's shell, not from
+# .env.production (which carries only an empty SENTRY_RELEASE placeholder).
+# Re-export them or compose interpolates them empty — Sentry loses the release
+# tag and server-side PostHog stops sending.
+export SENTRY_RELEASE="$PREV"
+export SENTRY_ENVIRONMENT=production
+export POSTHOG_API_KEY=<server-side PostHog key>
+
+docker compose --env-file .env.production \
+  -f docker-compose.prod.yml -f rollback.yml up -d --no-deps "$SVC"
+
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
 ```
 
-**Note**: Database migrations cannot be easily rolled back. If a migration caused issues, create a new migration to revert the schema changes.
+`up -d --no-deps <svc>` recreates that one container (a few seconds of 502 on that service behind
+nginx) and is the same command the deploy job uses on a host with no running container. It is
+deliberately preferred here over `docker rollout`, because the workflow's rollout invocation takes a
+single `-f` and would therefore ignore the override file.
 
-### Updating a Single Service
+*Zero-downtime variant*, if the seconds matter more than the caveat: retag locally so `:latest`
+resolves to the old image, then use the same command the deploy uses —
+`docker tag ghcr.io/ipanga/teka-rdc/$SVC:$PREV ghcr.io/ipanga/teka-rdc/$SVC:latest` followed by
+`docker rollout -f docker-compose.prod.yml -t 180 --wait 10 $SVC`. **Caveat:** the retag is local and
+temporary — the next `docker compose pull` (i.e. the next deploy) restores the real `:latest`. Treat
+it as a bridge until layer 1 lands.
+
+After any image rollback, **finish the loop**: revert on `main` so the next deploy does not
+re-introduce the bad image, and delete `rollback.yml` from the VPS once it does.
+
+#### 3. nginx / configuration rollback
+
+`nginx/nginx.prod.conf` and `.env.production` live on the VPS and are **not** restored by a code
+rollback. Keep a timestamped copy before every edit:
 
 ```bash
-# Rebuild and restart only the API
-docker compose -f docker-compose.prod.yml build api
-docker compose -f docker-compose.prod.yml up -d api
-
-# Rebuild and restart only buyer-web
-docker compose -f docker-compose.prod.yml build buyer-web
-docker compose -f docker-compose.prod.yml up -d buyer-web
+cd /home/deploy/teka-rdc
+cp nginx/nginx.prod.conf "nginx/nginx.prod.conf.$(date +%Y%m%d-%H%M%S).bak"   # before editing
+# …edit or scp the new file…
+docker compose --env-file .env.production -f docker-compose.prod.yml exec nginx nginx -t   # MUST pass
+docker compose --env-file .env.production -f docker-compose.prod.yml exec nginx nginx -s reload
 ```
+
+To roll back: copy the `.bak` file over `nginx/nginx.prod.conf`, run `nginx -t`, reload. Never
+`up -d nginx` for a config change — a reload keeps live connections, a recreate drops them. If
+`nginx -t` fails, nginx keeps running the old config: fix the file, do not restart the container.
+
+`docker-compose.prod.yml` is overwritten from the repository on every deploy, so its rollback is a
+git revert on `main` (layer 1) — editing it on the VPS only survives until the next deploy.
+
+#### 4. Database migration rollback
+
+**Usually not needed, and usually the wrong move.** Everything in
+`prisma/migrations/manual/auto-apply.list` is required to be *additive and idempotent* (the CI job
+`Release Config` enforces this via `check-manifest.sh`): a new table or a nullable column that the
+**previous** application version simply never reads. Rolling application code back to the previous
+image therefore works with the new schema untouched — that is the point of the expand/contract split.
+
+- Applied files are recorded in the `_manual_migrations` table (`filename`, `applied_at`). Query it to
+  see exactly what a deploy applied.
+- There is **no** `prisma migrate deploy` in production and no Prisma migration history table; do not
+  run one.
+- If a schema change genuinely must be undone, write a **new** idempotent SQL file under
+  `prisma/migrations/manual/`, do **not** add it to `auto-apply.list` (a revert is usually
+  destructive), and apply it through the *Apply prod migration* workflow (Actions → run → paste the
+  filename) once the file is on `main`. Then delete the original file's row from `_manual_migrations`
+  only if you intend it to run again.
+- Data loss cannot be undone by any of this. Restore from the database backup (§Backup Strategy)
+  before considering a destructive revert.
+
+### Updating a single service
+
+There is nothing to build on the VPS. To move one service to a specific build:
+
+```bash
+cd /home/deploy/teka-rdc
+docker compose --env-file .env.production -f docker-compose.prod.yml pull api      # newest :latest
+docker rollout -f docker-compose.prod.yml -t 180 --wait 10 api                     # zero-downtime swap
+```
+
+For a specific SHA, use the override-file form from rollback layer 2.
+
+## Cloudflare origin firewall — MANUAL PRODUCTION STEP
+
+> **Status: NOT APPLIED. Required before the large-scale release.** Documentation only — nothing in
+> this repository applies it.
+
+Today `docker-compose.prod.yml` publishes ports 80 and 443 on the VPS to the whole internet, so a
+client that knows the origin IP can skip Cloudflare entirely: no WAF, no edge DDoS protection, and
+nginx's per-IP `limit_req` zones see the attacker's own address instead of the shared edge address.
+The `set_real_ip_from` block (D8) already prevents a **direct** connection from *spoofing*
+`CF-Connecting-IP` (the header is trusted only from Cloudflare ranges), so this is a bypass problem,
+not a spoofing problem.
+
+**What must be allowed**
+
+- TCP 443 from Cloudflare's published IPv4 and IPv6 ranges (<https://www.cloudflare.com/ips/>) — the
+  same list mirrored in `nginx/nginx.prod.conf` (`set_real_ip_from`, checked 2026-09-06).
+- TCP 80 from the same ranges **only if** HTTP-01 certificate renewal runs through Cloudflare; if
+  Let's Encrypt validates directly against the origin, 80 must stay open to the world or renewal
+  fails (§SSL Certificate Renewal). Verify which one applies before closing 80.
+- TCP 22 (SSH) from the operator's addresses and from GitHub Actions. **This is the lock-out risk**:
+  `deploy.yml` connects over SSH from a GitHub-hosted runner whose IP is not fixed. Either leave 22
+  open to the world (current state, protected by key-only auth), restrict it to a VPN/bastion the
+  operator controls, or move deploys to a self-hosted runner. **Do not restrict 22 to a static list
+  without first confirming how the deploy job will still reach the box.**
+- Loopback and the Docker bridge networks (container-to-container traffic must not be filtered).
+
+**What should be blocked**
+
+- TCP 443 (and 80, subject to the caveat above) from every other source.
+
+**How to avoid locking yourself out**
+
+1. Open a second SSH session and keep it open for the whole procedure.
+2. Add the ALLOW rules **before** the DENY rule, in one scripted batch.
+3. Use the provider's out-of-band console (VPS web console) as the recovery path, and confirm it works
+   *before* applying anything.
+4. Prefer the hosting provider's cloud firewall over an on-host firewall: a cloud-firewall mistake is
+   reversible from the provider's dashboard without any working connection to the box.
+5. Schedule it outside peak hours and keep the rollback command in the clipboard.
+
+**Verification after applying**
+
+```bash
+# From anywhere: through Cloudflare must still work
+curl -sS -o /dev/null -w '%{http_code}\n' https://teka.cd
+curl -sS -o /dev/null -w '%{http_code}\n' https://api.teka.cd/api/v1/health/live
+
+# Direct to the origin must now fail (connection refused/timeout, not a 200)
+curl -sS -o /dev/null -w '%{http_code}\n' --resolve teka.cd:443:<ORIGIN_IP> https://teka.cd
+
+# The real client IP still reaches the app (not a Cloudflare address)
+docker compose --env-file .env.production -f docker-compose.prod.yml logs --tail=20 nginx
+```
+
+Also confirm in the Cloudflare dashboard that SSL/TLS is **Full (strict)** (the origin holds a valid
+Let's Encrypt certificate) and that the four hostnames are proxied (orange cloud), not DNS-only.
+
+**Rollback / recovery**
+
+- Cloud firewall: delete the DENY rule in the provider dashboard (takes effect in seconds).
+- On-host `ufw`: `sudo ufw disable` from the provider's console, then re-add rules correctly.
+- If the deploy job starts failing at the SSH step after this change, that is the lock-out symptom —
+  restore the previous SSH rule first, investigate afterwards.
+
+An alternative or complement is Cloudflare **Authenticated Origin Pulls** (origin requires a
+Cloudflare client certificate). It needs an nginx change (`ssl_client_certificate` +
+`ssl_verify_client on`) and is therefore a code change, not a pure infrastructure step — out of scope
+for this document until decided.
 
 ## SSL Certificate Renewal
 
@@ -588,21 +787,160 @@ docker stats --no-stream
 docker compose -f docker-compose.prod.yml restart api
 ```
 
-## Production Checklist
+## First-deploy provisioning checklist
 
-Before going live, verify:
+One-off, for a brand-new environment (not repeated per release):
 
-- [ ] `.env.production` has all required variables set with real credentials
-- [ ] `NODE_ENV` is `production` (set automatically in Dockerfiles)
-- [ ] SSL certificates are installed and HTTPS works
-- [ ] Database migrations are applied (`prisma migrate deploy`)
-- [ ] Seed data is loaded (locations, categories, initial admin user)
-- [ ] Health endpoints return `ok` status
-- [ ] CORS_ORIGINS matches production domains only
-- [ ] DNS A records point to server IP for teka.cd and www.teka.cd
-- [ ] Crontab entry for SSL renewal is configured
-- [ ] Log rotation is configured (handled by Docker json-file driver)
-- [ ] Backup strategy for database is in place
-- [ ] Gupshup WhatsApp template is approved and `GUPSHUP_OTP_TEMPLATE_ID` is set
-- [ ] Firebase service-account credentials are provisioned (push notifications)
-- [ ] Cloudinary upload presets and limits are configured
+- [ ] `.env.production` has every variable in `apps/api/src/config/env.validation.ts` set with real
+      credentials (the API refuses to boot otherwise)
+- [ ] `NODE_ENV` is `production` (set in the Dockerfiles)
+- [ ] SSL certificates installed, HTTPS works on all four hostnames
+- [ ] Schema present: the manual migrations in `prisma/migrations/manual/auto-apply.list` have been
+      applied once (§5a — the deploy applies them automatically; there is **no**
+      `prisma migrate deploy` in production)
+- [ ] Foundational seed loaded (locations, taxonomy, initial admin — §5b)
+- [ ] Health endpoints return `ok`
+- [ ] `CORS_ORIGINS` lists production origins only
+- [ ] DNS A records for `teka.cd`, `www`, `api`, `seller`, `admin` point at the origin, proxied through
+      Cloudflare (orange cloud), SSL/TLS mode *Full (strict)*
+- [ ] Crontab entry for SSL renewal configured
+- [ ] Log rotation configured (Docker `json-file` driver, 10 MB × 3)
+- [ ] Database backup strategy in place and a restore rehearsed
+- [ ] Gupshup WhatsApp template approved and `GUPSHUP_OTP_TEMPLATE_ID` set
+- [ ] Firebase service-account credentials provisioned (push)
+- [ ] Cloudinary presets and limits configured
+
+## Release checklist — every `develop → main` release
+
+Work through this in order. « Automated » items are gates that must already be green before the
+release PR is opened; « Manual » items are human actions around the merge; « Post-deploy » items are
+run against production immediately after the deploy job finishes.
+
+### AUTOMATED — must be green on the release head before merging
+
+- [ ] `Lint & Type Check` (workspace `tsc --noEmit`)
+- [ ] `API Tests` — Jest unit **and** e2e
+- [ ] `Web Tests` — buyer-web, seller-web, admin-web Vitest suites
+- [ ] `Web Build (buyer-web|seller-web|admin-web)` — real `next build` ×3
+- [ ] `Flutter Tests (buyer-mobile|seller-mobile)`
+- [ ] `Flutter Analysis (buyer-mobile|seller-mobile)` (`--no-fatal-infos`: warnings fail, infos pass)
+- [ ] `Dependency Audit` — `pnpm audit --prod --audit-level=high` (exceptions in
+      `package.json → pnpm.auditConfig.ignoreGhsas`)
+- [ ] `Release Config` — migration-manifest guard (`check-manifest.sh`: every auto-apply entry exists,
+      is unique, non-destructive, idempotent) **and** the TestFlight tester-group mapping test
+- [ ] CodeQL — `Analyze (javascript-typescript)` and `Analyze (actions)`
+- [ ] PRs to `main` additionally run `pr-validation.yml` (`docker-build-check` ×4)
+
+> Branch protection is **not enforced** on this repository (private repo on the free plan;
+> `scripts/ruleset-main.json` is committed but unapplied), so these are verified by reading the PR's
+> checks, not by GitHub blocking the merge. The pre-push hook is the only automatic guard on `main`.
+
+### MANUAL — before and around the merge
+
+- [ ] **Diff review**: `git log --oneline origin/main..origin/develop` and
+      `git diff --stat origin/main origin/develop` — know what is shipping
+- [ ] **Migrations**: list what the EXPAND phase will apply
+      (`git diff --name-only origin/main origin/develop -- apps/api/prisma/migrations/manual`), confirm
+      each new file is in `auto-apply.list`, additive and idempotent, and that the *previous*
+      application version tolerates the resulting schema (rollback layer 4)
+- [ ] **`nginx/nginx.prod.conf` changed?**
+      `git diff --stat origin/main origin/develop -- nginx/` — **the deploy does NOT sync this file.**
+      If it changed, plan the manual copy + `nginx -t` + reload (rollback layer 3) as part of the
+      release window; leaving the old file in place while new app images ship their own headers
+      produces *duplicate* CSP / X-Frame-Options headers and leaves per-IP rate limiting keyed on
+      Cloudflare edge addresses
+- [ ] **Env / secrets**: `git diff origin/main origin/develop -- apps/api/src/config/env.validation.ts`
+      — any new variable must exist in the VPS `.env.production` (or as a GitHub Secret for the
+      runtime-only ones) **before** the merge
+- [ ] **Cloudflare origin firewall** applied — see the MANUAL PRODUCTION STEP section above
+      *(status: not applied)*
+- [ ] **Rollback readiness**: note the current production SHA (previous *Deploy to production* run) and
+      confirm `ghcr.io/ipanga/teka-rdc/api:<that sha>` exists; keep the rollback section open
+- [ ] **Backup**: a fresh database backup exists and its age is known
+- [ ] **Store metadata** (only when a mobile release rides along): version/build numbers bumped, the
+      iOS `CFBundleVersion` is higher than the last TestFlight upload, tester groups mapped
+      (`fastlane/testflight_groups_test.rb` covers this), release notes written — see
+      `docs/mobile-release.md`. Mobile workflows are `workflow_dispatch` only and never run from a
+      `main` merge
+- [ ] **Merge** the release PR with a **merge commit** (never squash — squashes cause permanent SHA
+      divergence and phantom conflicts on the next back-merge), then confirm `main == develop`
+
+### POST-DEPLOY — immediately after the deploy job succeeds
+
+- [ ] Deploy run green; read its log for `applying auto-apply DB migrations` — the applied/skipped
+      counts must match what the manual step above predicted
+- [ ] Health: `/api/v1/health/live` 200, `/api/v1/health` 200 with `"database":"ok"`,
+      `/api/v1/health/ready` 200
+- [ ] `docker compose --env-file .env.production -f docker-compose.prod.yml ps` — all five services up,
+      health `healthy`, no restart loop (`docker compose … logs --tail=50 api`)
+- [ ] nginx routing: each hostname answers from the right service (smoke matrix below)
+- [ ] Sentry: the new release appears (`SENTRY_RELEASE` = deploy SHA) and no new issue spike in the
+      first 15 minutes
+- [ ] API error rate: `docker compose … logs --since 15m api | grep -c "ERROR"` — compare with the
+      pre-deploy baseline
+- [ ] Critical buyer flow and critical seller flow walked (smoke matrix below)
+- [ ] `PROGRESS.md` / `STATUS.md` release record written (merge SHA, deploy run id, migrations applied,
+      what was verified)
+
+## Post-deploy smoke matrix
+
+Minimum set. **Read-only wherever a read-only check is sufficient** — the only steps that write are the
+buyer order (one real COD order on a disposable buyer, cancelled afterwards) and, if included, the
+seller transition of that same order. Never test-write on a real seller's or buyer's data.
+
+### Infrastructure (run first — everything else depends on it)
+
+| # | Check | Command / action | Expected |
+|---|---|---|---|
+| I1 | API liveness | `curl -s https://api.teka.cd/api/v1/health/live` | 200 |
+| I2 | API + database | `curl -s https://api.teka.cd/api/v1/health` | 200, `"database":"ok"` |
+| I3 | API readiness | `curl -s -o /dev/null -w '%{http_code}' https://api.teka.cd/api/v1/health/ready` | 200 (503 = DB down) |
+| I4 | nginx routing | `curl -sI https://teka.cd https://seller.teka.cd https://admin.teka.cd` | 200/3xx from the right upstream |
+| I5 | Apex redirect | `curl -sI https://www.teka.cd` | 301 → `https://teka.cd` |
+| I6 | Auth boundary | `curl -s -o /dev/null -w '%{http_code}' https://api.teka.cd/api/v1/sellers/wallet` | 401 |
+| I7 | Public catalogue | `curl -s 'https://api.teka.cd/api/v1/browse/products?limit=1'` and `/api/v1/cities` | 200 with data |
+| I8 | Security headers | `curl -sI https://seller.teka.cd \| grep -i 'content-security-policy\|strict-transport\|x-frame'` | one CSP (nonce), one HSTS, `X-Frame-Options: DENY` — **two CSP headers means the VPS nginx config is stale** |
+| I9 | Containers | `docker compose --env-file .env.production -f docker-compose.prod.yml ps` | 5 services, healthy |
+| I10 | Media | open any product image URL (`res.cloudinary.com`) from a PDP | 200, image renders |
+| I11 | Sentry | Sentry → Releases | the deploy SHA present; no new unresolved spike |
+| I12 | PostHog | PostHog → Live events | events arriving from web (and `api` server-side) |
+| I13 | Clarity | Clarity dashboard (buyer only) | session recorded; masking mode still **Strict** |
+
+### Buyer (buyer-web + buyer-mobile where a build shipped)
+
+| # | Check | Expected |
+|---|---|---|
+| B1 | Homepage `https://teka.cd` | 200, hero + rails render, no console error |
+| B2 | Category navigation | `/{ville}/categorie/{slug}` lists products; breadcrumb correct |
+| B3 | Search `/recherche?q=…` | results for a known term; empty state for nonsense |
+| B4 | Product detail | title, price in FC, stock, seller block, gallery; `View source` shows the Product JSON-LD |
+| B5 | Buyer authentication (WhatsApp OTP) | request OTP on a **disposable** number → message received → verify → signed in. Verify the rate-limit copy appears on a deliberate 4th request |
+| B6 | Cart | add / change quantity / remove; totals use the promotional price |
+| B7 | Checkout | address step, delivery quote, COD-only payment step, recap shows recipient + phone |
+| B8 | Order creation | place one order on the disposable buyer → success screen; then cancel it from the buyer side (or admin) and note it in the release record |
+| B9 | Order history | the order appears with the right French status; detail shows the snapshot address |
+| B10 | Sitemap / robots | `https://teka.cd/sitemap.xml` 200 and well-formed; `robots.txt` 200 |
+
+### Seller (seller.teka.cd + seller-mobile where a build shipped)
+
+| # | Check | Expected |
+|---|---|---|
+| S1 | Login | email + password on a disposable/known QA seller → dashboard |
+| S2 | Dashboard | counts render, no error rows |
+| S3 | Action Center | tasks match reality; a task deep-links to its filtered list |
+| S4 | Products | list, filters, one product detail opens (no write needed) |
+| S5 | Order workflow | the B8 order appears; if you transition it, use the disposable order only and restore/annotate |
+| S6 | Earnings / payouts | balance and history render; **do not** request a payout in production |
+| S7 | Verification / profile | status reads correctly, town · commune shown; no write needed |
+| S8 | Boundary | signed-out access to `/dashboard` redirects to login; `X-Robots-Tag: noindex` present |
+
+### Admin (admin.teka.cd)
+
+| # | Check | Expected |
+|---|---|---|
+| A1 | Login | admin credentials → dashboard (SUPPORT/FINANCE currently bounce — known, tracked) |
+| A2 | Dashboard | KPIs and charts render |
+| A3 | Protected routes | signed-out `/dashboard/*` → login; a seller session cannot reach admin routes (403) |
+| A4 | Operational views | sellers list, orders list, products moderation queue, payouts list all load |
+| A5 | Document preview | a seller verification document preview loads (signed Cloudinary URL) |
+

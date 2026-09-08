@@ -2759,11 +2759,13 @@ broad cleanup.
 **P0 — must fix before large-scale deployment**
 1. Ship `develop → main` (release PR, merge commit): the five security PRs, CI gates, Buyer Mobile
    functional fixes, tablet and UX work are all unreleased; production runs `78c6ef9` with S1/S2/S4/S5/
-   S6/S7/S8/S9 open. Prerequisites: rewrite the rollback procedure in `docs/deployment.md` (the documented
-   `git checkout` + `compose build` cannot work on the flat VPS directory; the real path is
-   `docker pull ghcr.io/…:<previous sha>` + `docker rollout`), confirm the additive `auth_rate_limits`
-   migration on the manifest, run the post-deploy smoke matrix by hand (no automated smoke exists), then
-   the Android store builds (buyer at least — its store build predates A1 cart totals).
+   S6/S7/S8/S9 open. Prerequisites — **the documentation half is now done** (rollback procedure,
+   release checklist, smoke matrix, `auth_rate_limits` verified additive/idempotent/on the manifest:
+   see « Release-readiness documentation » below): what remains is the manual copy of
+   `nginx/nginx.prod.conf` to the VPS during the release window (the deploy does not sync it — without
+   it the D8 real-IP block and the D4 header ownership never take effect and browsers get duplicate
+   CSP headers), the hand-run smoke matrix (no automated smoke exists), and then the Android store
+   builds (buyer at least — its store build predates A1 cart totals).
 2. Cloudflare origin firewall / Authenticated Origin Pulls + SSL Full (strict) — manual infra, same day as
    the release (rate limits and WAF are bypassable direct-to-origin until then).
 
@@ -2816,15 +2818,94 @@ CodeQL green, additive migration, no env change), and the security content makes
 the rollback procedure is rewritten and the release checklist (migration confirmation, nginx reload,
 smoke matrix, Cloudflare firewall) is in hand. Do not open it without the owner's approval.
 
+### Release-readiness documentation (2026-09-08, docs only — no application code)
+
+Produced by the checkpoint's P0 prerequisite. `docs/deployment.md` only; no behaviour, schema, env or
+infrastructure was changed, and nothing was applied to production.
+
+**The rollback problem, exactly.** The documented procedure was
+`git log` → `git checkout <hash>` → `docker compose build` → `docker compose up -d`. Four reasons it
+cannot run on this production host, each verified against the code:
+1. `/home/deploy/teka-rdc/` is a **flat directory, not a git checkout** (stated in `deploy.yml`'s own
+   comment, which is why the compose file has to be scp'd) — `git log` / `git checkout` have no
+   repository to act on.
+2. `docker compose build` has nothing to build: `docker-compose.prod.yml` declares **no `build:`
+   section** — every service pins `image: ghcr.io/ipanga/teka-rdc/<svc>:latest` — and the host carries
+   no source tree.
+3. `docker compose up -d` (no service argument) recreates **all five containers at once**, including
+   nginx, dropping live connections — the deploy deliberately never does this (it uses
+   `docker rollout` per service and only ever *reloads* nginx).
+4. Even if 1–3 were solved, `:latest` still resolves to the **bad** image, so the procedure would
+   redeploy the very version being rolled back.
+
+**Corrected approach (now in `docs/deployment.md` → Updates and Rollback).** Four independent layers:
+*application* (revert on `main`, let CI redeploy — the normal case); *container/image* (every deploy
+also pushes an immutable `:<git-sha>` tag, so an emergency rollback pulls that SHA and pins it through
+a small `rollback.yml` compose override with
+`docker compose --env-file .env.production -f docker-compose.prod.yml -f rollback.yml up -d --no-deps <svc>`
+— the same `up -d --no-deps` form the deploy itself uses for a host with no running container; a
+zero-downtime variant retags `:latest` locally and reuses the workflow's single-`-f`
+`docker rollout` invocation, with the caveat that the next `compose pull` undoes the retag);
+*nginx/config* (`nginx.prod.conf` and `.env.production` are operator-managed on the VPS — take a
+timestamped `.bak` before editing, restore it, `nginx -t`, `nginx -s reload`, never `up -d nginx`);
+*database* (see below). The runtime-only variables that only the deploy job exports
+(`SENTRY_RELEASE`, `SENTRY_ENVIRONMENT`, `POSTHOG_API_KEY`, `APP_REVIEW_*`) must be re-exported by hand
+during a manual rollback or compose interpolates them empty.
+
+**`auth_rate_limits` migration — verified, nothing applied.**
+
+| Question | Answer |
+|---|---|
+| Filename | `apps/api/prisma/migrations/manual/2026-09-06_auth_rate_limits.sql` |
+| In the production auto-apply manifest? | **Yes** — line 31 (last entry) of `manual/auto-apply.list`; `sh prisma/migrations/check-manifest.sh` passes (« 10 entries, all present, unique, non-destructive, idempotent CREATEs ») |
+| Additive? | Yes — one new table `auth_rate_limits` (+ one index). No `ALTER`, no `DROP`, no data mutation; it is the only schema delta between `main` `78c6ef9` and `develop` (Prisma model `AuthRateLimit`) |
+| Idempotent? | Yes — `CREATE TABLE IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS`; `apply-auto.sh` additionally records it in `_manual_migrations` so it runs once |
+| Rollback required? | **No.** The previous release never references the table, so rolling application code back leaves it inert. `DROP TABLE "auth_rate_limits";` exists only as an optional cleanup, and would be a hand-applied *Apply prod migration* run, never an auto-apply entry |
+| Old-version compatibility | Yes — an unreferenced extra table. This is exactly the expand-phase contract the manifest requires |
+
+Deploy expectation for the release: **1 applied, 9 skipped** (the other nine were applied in earlier
+deploys — the last production deploy reported « 0 applied, 9 skipped »).
+
+**Unexpected finding — `nginx/nginx.prod.conf` is not synced by the deploy.** `deploy.yml` scps
+**only** `docker-compose.prod.yml`; the nginx config, `.env.production` and certbot data stay
+operator-managed (the workflow says so). That file changed substantially since `main` (+73 / −34: the
+Cloudflare `set_real_ip_from` block from D8 and the header-ownership rewrite from D4). If the release
+ships without a manual copy of that file: per-IP `limit_req` zones keep keying on Cloudflare edge
+addresses (the identity-keyed limits in the API are unaffected), and browsers receive **two** CSP and
+two `X-Frame-Options` headers — nginx's old permissive policy alongside each app's new one. Added to
+the release checklist as a manual pre-release step with its own verification (`I8` in the smoke
+matrix detects the stale-config case).
+
+**Cloudflare origin firewall** is documented as a MANUAL PRODUCTION STEP (allow list, the SSH
+lock-out risk — `deploy.yml` connects from a GitHub-hosted runner with no fixed IP —, the HTTP-01
+renewal caveat on port 80, how not to lock ourselves out, verification commands, rollback). Nothing
+was applied.
+
+**Release checklist and smoke matrix** now live in `docs/deployment.md` (the existing « Production
+Checklist » was split into a first-deploy provisioning list and a per-release checklist —
+AUTOMATED / MANUAL / POST-DEPLOY — rather than adding a new document). The smoke matrix covers
+infrastructure (13 read-only checks incl. the duplicate-CSP detector, the 401 boundary, Sentry,
+PostHog, Clarity), buyer (10), seller (8) and admin (5); the only writes it asks for are one COD order
+on a disposable buyer and, optionally, that same order's seller transition.
+
+**Also corrected while verifying commands** (same file, both stale rather than merely imprecise): the
+first-deploy section told the operator to `docker compose build` on the VPS and to run
+`npx prisma migrate deploy` — there is no `build:` section and no Prisma migration history
+(`apps/api/prisma/migrations/` has no `migration_lock.toml`); it now pulls the CI-built images and
+runs `apply-auto.sh`. The `NEXT_PUBLIC_GOOGLE_CLIENT_ID` build-arg note went with it (Google OAuth was
+removed in Apr 2026 and the variable exists nowhere in the code).
+
 ## Next exact step
 
-**Seller Mobile UX/UI series A–F complete (latest `f2b8d49`). No PR is open or in flight.** The
-read-only checkpoint above is the source for the next decision. Recommended order, each as its own PR
-into `develop` with a merge commit, none started without approval: (1) release-readiness docs — rewrite
-the rollback procedure, release checklist; (2) **`develop → main` release PR** (security + everything
-since `78c6ef9`) with the manual Cloudflare origin firewall the same day; (3) `buyer-web/seo-1`;
-(4) `security/admin-and-financial` (S12 payout re-auth, S13 application uploads, S14/S22 DTO bounds);
-(5) `mobile/security-hardening` (MS1–MS7); (6) `buyer-web/seo-2`; (7) Dependabot follow-ups
-(`sharp`/`esbuild`, stale PRs, bundler); (8) D2b / S11 / S16 / iOS runtime session. Still open and
-preserved: API `pendingCDF` vs HELD/`deliveredAt`; login-email change without re-auth; seller-web
-stale-town notice; notification pre-prompt; golden tests; legacy characteristic prefill; `Image.network`.
+**Seller Mobile UX/UI series A–F complete (`f2b8d49`); the checkpoint and the release-readiness
+documentation are merged/open as docs-only PRs.** Remaining order, each its own PR into `develop`
+with a merge commit, none started without approval: (1) **`develop → main` release PR** (security +
+everything since `78c6ef9`) — run the release checklist in `docs/deployment.md`, copy
+`nginx/nginx.prod.conf` to the VPS during the window, apply the Cloudflare origin firewall the same
+day; (2) `buyer-web/seo-1`; (3) `security/admin-and-financial` (S12 payout re-auth, S13 application
+uploads, S14/S22 DTO bounds); (4) `mobile/security-hardening` (MS1–MS7); (5) `buyer-web/seo-2`;
+(6) Dependabot follow-ups (`sharp`/`esbuild`, stale PRs, bundler); (7) D2b / S11 / S16 / iOS runtime
+session. Still open and preserved: API `pendingCDF` vs HELD/`deliveredAt`; login-email change without
+re-auth; seller-web stale-town notice; notification pre-prompt; golden tests; legacy characteristic
+prefill; `Image.network`; branch protection unenforced; CSP has no reporting endpoint; CORS sets no
+`methods` allow-list.
