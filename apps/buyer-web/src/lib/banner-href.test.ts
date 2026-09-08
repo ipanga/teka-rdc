@@ -8,6 +8,8 @@ describe('bannerHref (SEO-2 — banners are real links)', () => {
     expect(bannerHref({ linkType: 'category', linkTarget: 'telephones' }, null)).toEqual({ href: '/categorie/telephones', external: false });
     expect(bannerHref({ linkType: 'promotion', linkTarget: 'x' })).toEqual({ href: '/categories', external: false });
     expect(bannerHref({ linkType: 'url', linkTarget: 'https://example.com/p' })).toEqual({ href: 'https://example.com/p', external: true });
+    // A site-relative `url` target is an internal link (same tab, crawlable).
+    expect(bannerHref({ linkType: 'url', linkTarget: '/categories' })).toEqual({ href: '/categories', external: false });
   });
 
   it('is null without a target (plain, non-clickable slide)', () => {

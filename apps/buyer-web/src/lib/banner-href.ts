@@ -27,7 +27,11 @@ export function bannerHref(
       // No bare /products route exists — the category index is the landing.
       return { href: '/categories', external: false };
     case 'url':
-      return { href: banner.linkTarget, external: true };
+      // Admins also store site-relative targets (« /categories ») under `url`:
+      // those are internal links, same tab; only absolute URLs are external.
+      return banner.linkTarget.startsWith('/')
+        ? { href: banner.linkTarget, external: false }
+        : { href: banner.linkTarget, external: true };
     default:
       return null;
   }
