@@ -9,7 +9,8 @@
 
 ## Current phase
 
-**Phase 0 audit complete (PR #671). Implementation started 2026-09-06 with D1 (`security/otp-buyer-only`).**
+**Phase 0 audit complete (PR #671). Implementation started 2026-09-06 with D1 (`security/otp-buyer-only`).
+Buyer Web SEO-1 implemented 2026-09-08 (`buyer-web/seo-1`, open — see « SEO-1 » under PR records).**
 
 ## Baseline (verified first-hand, 2026-09-06)
 
@@ -383,6 +384,11 @@ suites buyer has (identical code).
 
 ## Decision log
 
+- **SEO-1 findings for decisions 5 and 7 (2026-09-08, no decision taken):** decision 5 — 0 of 374
+  town × category pages are empty on the dev DB (demo catalogue seeds one product per leaf per town;
+  the 2026-09-06 empties were sampled on production); per-town counts need an API change; policy
+  recommendation unchanged. Decision 7 — four hard-coded « Likasi » strings listed; recommended fix =
+  derive from `getActiveCities()`; nothing activated, nothing deleted. Full detail: « SEO-1 » record.
 - **D1 (2026-09-06, confirmed by the owner): WhatsApp OTP ⇒ BUYER authentication only; SELLER/ADMIN ⇒
   email + password only, enforced by the API from the stored role.** Implemented in
   `security/otp-buyer-only`: `BuyerOtpService.issueOtp` skips the OTP row + WhatsApp send for a phone owned
@@ -2637,6 +2643,9 @@ seller 0.1.9+11) and reached their tester groups — that is upload verification
 
 ### F. Buyer Web SEO — NOTHING FROM WORKSTREAM B HAS SHIPPED
 
+> Superseded 2026-09-08 by SEO-1 (`buyer-web/seo-1`, open): see the « SEO-1 » record below for what
+> changed and what remains. The table here is the pre-SEO-1 state.
+
 The plan's SEO PRs 9 and 10 were never opened (the record numbering diverged: PRs 9–13 became
 buyer-mobile/tablet work). Code on `f2b8d49` matches the 2026-09-06 audit item for item, re-verified:
 
@@ -2895,6 +2904,206 @@ first-deploy section told the operator to `docker compose build` on the VPS and 
 runs `apply-auto.sh`. The `NEXT_PUBLIC_GOOGLE_CLIENT_ID` build-arg note went with it (Google OAuth was
 removed in Apr 2026 and the variable exists nowhere in the code).
 
+### SEO-1 — `buyer-web/seo-1` (Buyer Web SEO, 2026-09-08 — open, awaiting merge approval)
+
+Buyer Web only, plus one additive API field. No change to Seller Web, Admin Web, either mobile app,
+business rules, auth, checkout, orders, payments or infrastructure. Every item below was re-audited
+on `e45d9fb` before it was touched, then verified on the **served HTML of the production build**
+(`next build` + `next start`, dev API on the dev DB: 307 active products, 187 categories, towns
+Lubumbashi + Kolwezi) with `curl` and in Chrome (desktop 1280 px and an emulated 390 px phone).
+
+**Finding-by-finding (Workstream B numbering):**
+
+| # | Re-audit | Root cause | Fix | Verified |
+|---|---|---|---|---|
+| H1 sitemap 0 products | confirmed | `limit=500` vs the API's `@Max(100)` → 400, swallowed to `null`; no pagination; test mock accepted any query | `fetchAllSitemapProducts()` walks the real cursor at `limit=100` (dedupe by id, a page whose cursor does not advance throws, hard cap `MAX_PRODUCT_PAGES=50` → 5 000 products, beyond which it throws naming `generateSitemaps()` as the split), **strict** source failures (`SitemapSourceError` → the route 500s and crawlers keep their last copy — never a silently thinner sitemap), generated at **request time** (`dynamic = 'force-dynamic'`) with the upstream calls cached 3 600 s | dev build: **683 URLs, 296 products, 4 API pages, 0 duplicates**, 42 sampled product URLs all 200; test mock now paginates like the API (limit > 100 → 400); with the API unreachable the route answers **500** (verified) |
+| H2 no product/category/town links in HTML | confirmed | every listing page fetched in `useEffect` | server routes fetch what the client fetched after paint and pass it as `initial*` props (below) | category page 12 product + sub-category + breadcrumb hrefs, town page 20 product + 7 category hrefs, footer 2 town hrefs on every page — all in `curl` output |
+| H3 PDP has no H1/price/seller in HTML | confirmed | product fetched for metadata then discarded | `initialProduct` into `ProductDetailPage` (state seeded, effect skips the fetch when it matches) | `<h1>`, `250.000 FC`, seller, description in the HTML; 1 product request per render |
+| H4 `<h1>Catégories</h1>` on 374 pages | confirmed | client fetch resolved the name | `initialCategory` (name, breadcrumb, children from `getCategoryDetail`) + first product page (same query the client used) | `<h1>Supermarché</h1>`, no skeleton |
+| H5 homepage has no `<h1>` | confirmed — **worse than recorded**: with an admin banner the page had no `<h1>` even after hydration (banner titles are `<h2>`) | the `<h1>` lived only in the no-banner fallback; the carousel started in `loading` | `initialBanners` from the server (an empty list renders the hero `<h1>` server-side) + `srTitle` → a visually hidden `<h1>` above the slides | exactly one `<h1>` in the HTML and in the hydrated DOM in both states |
+| H6 empty town × category pages | **not reproducible on dev** — see SEO-2 findings | — | no change (decision 5) | 0 of 374 empty on the dev DB |
+| H7 `Organization.logo` 404; JSON-LD on `/` only | confirmed | `/icons/icon-512.png` never existed | `lib/site-identity.ts`: `Organization` (`@id`, `logo` = `/logo.svg` — test asserts the file exists — `sameAs`, `areaServed` CD, `contactPoint`) + `WebSite` (`SearchAction` → `/recherche?q=`) rendered from the root layout on every page | `logo.svg` 200 `image/svg+xml`; both blocks on every page inspected |
+| M1 markdown in descriptions | confirmed | raw `description` in meta/OG/JSON-LD | `lib/seo-text.ts` `plainText()` + `truncateForMeta()` shared by PDP metadata, JSON-LD and the town CMS description | meta description and JSON-LD `description` plain |
+| M2 `og:type: website`, no price tags | confirmed | Next's metadata API rejects `og:type=product` (throws at render) | no `openGraph.type` in metadata; `<ProductOpenGraph/>` emits `og:type=product`, `product:price:amount` (effective price, 2 decimals), `product:price:currency=CDF`, `og:availability`, hoisted into `<head>` by React 19 | **one** `og:type` in the head, in `<head>` after hydration |
+| M3 `/x` and `/x/` both 200 | confirmed | `skipTrailingSlashRedirect: true` for the `/ingest` proxy | middleware 308s any trailing-slash path to the slash-less canonical, except `/ingest*` | `/lubumbashi/` → 308 `/lubumbashi`; `/x/categorie/y/` → 308 |
+| M4 cursor-only « Charger plus » | confirmed | design | **strategy decided, no `?page=` URLs** (below) | — |
+| M6 PDP « Catégorie » link = legacy global path | confirmed (breadcrumb was already city-scoped) | one call site | `categoryHref(product.city?.slug, product.category)` | 0 `/categorie/` legacy hrefs on the PDP |
+| M7 `lastmod` = generation time everywhere | confirmed | `new Date()` | `lastModified` only on products, only when `updatedAt` parses (API list items now carry `updatedAt` — additive `select`); omitted on home/static/town/category rather than faked | 296 `<lastmod>` = product `updatedAt`, none elsewhere |
+| M8 « Likasi » in metadata | confirmed (4 strings) | hard-coded copy | **documented, not changed** (decision 7) — the new Organization copy is town-free | — |
+| M9 titles double the brand | confirmed | page title repeated « sur Teka RDC » under the layout template | `{name} à {ville} — Acheter en ligne` | `<title>Supermarché à Lubumbashi — Acheter en ligne \| Teka RDC</title>` |
+| M10 `/recherche` in sitemap, `/promotions` absent | confirmed | list | fixed | `/recherche` absent, `/promotions` present |
+| L5 no `sameAs` | confirmed | — | added | — |
+| L10 sitemap uncached | confirmed | `no-store` fetches per hit | per-fetch `next.revalidate = 3600` inside a request-time route | second hit served from the data cache (7 ms), no API call |
+| L11 no metadata/JSON-LD/redirect tests | confirmed | — | route tests (below) | — |
+
+**Server-rendered content — the smallest change that puts indexable content in the first HTML.**
+No page was converted to a server component; the existing client components gained optional
+`initial*` props and skip their first fetch when a prop is present (absent prop = the previous
+client behaviour, so an API failure at render time degrades to what shipped before, never to a
+crash). Per surface: category route → `initialCategory` + `initialProducts`/`initialPagination`
+(same `categoryId/cityId/sortBy=newest/limit=12` query, asserted by test) + `initialCities`; town
+landing → categories + popular + newest grids for the town + towns; homepage → categories +
+banners + towns (product rails stay client-side: they depend on the buyer's selected town, which
+is client state; the `/{ville}` pages carry the server-rendered grids); PDP → `initialProduct` +
+towns; footer → `initialCities` and a `hydrateCities` store action (no-op once a list is present),
+so the header issues no second `/v1/cities` request. The routed components are keyed
+(`city:category`, `product.id`, `city.id`) so a client navigation to another category/product/town
+remounts with that page's server data; the category guard is a key ref set once, so React
+strict-mode double effects cannot discard the server page in development. Facets (attributes,
+brands) and the header mega-menu categories remain client-side — filter UI, not indexable content
+(the mega-menu is the one navigation surface still absent from the HTML; the footer towns, the
+homepage category grid and every page's breadcrumb cover discovery).
+
+**Pagination / cursor strategy (decided, M4).** Keep the cursor « Charger plus »; do **not** add
+`?page=N` URLs. Cursor membership is unstable (a new product shifts every later page), so numbered
+pages would be duplicate, unstable indexable URLs — the opposite of what a crawler needs. Product
+discovery is guaranteed by two stable paths instead: the complete sitemap (every canonical product
+URL, real `lastmod`) and the server-rendered first page of every town × category (12 links) plus
+the town pages (20). Products beyond the first page are reachable through the sitemap and through
+their own canonical URLs; nothing depends on a crawler executing « Charger plus ». Threshold for
+`generateSitemaps()` (one sitemap per 5 000 products) is documented in `sitemap.ts` and enforced by
+the cap.
+
+**Canonical strategy.** Slash-less canonical everywhere (`/lubumbashi`, `/lubumbashi/categorie/x`,
+`/lubumbashi/{slug}-{code}`); `/x/` 308s to `/x` in the middleware (the `/ingest` proxy is the only
+exemption); PDP canonical is the product's true town URL (wrong town/slug 308, asserted by test);
+legacy `/categorie/x` and `/categories/{uuid}` keep their single-hop 308 to the default town
+(re-verified). No case normalisation was added (`/Lubumbashi` still 404s — remaining, low).
+
+**Structured data.** Organization + WebSite once per page from the root layout (removed from the
+homepage); Product JSON-LD keeps the D4/S2 escaping (`</script>` in a title asserted to stay
+`\u003c/script\u003e`), `description` plain text, `image` = every image (array) or the single URL,
+`offers.price` = the effective (discounted) price — the same `effectiveCentimes()` the cart uses —
+`aggregateRating` still gated on `totalReviews > 0`; BreadcrumbList unchanged (city-scoped items).
+Not added (SEO-2): BreadcrumbList/LocalBusiness on town pages, `ItemList` on listings, `Review`.
+« Autre » placeholder brand (M11) still reaches `brand` — remaining.
+
+**Metadata / OG.** PDP: no `openGraph.type` (product tags hoisted, above), plain-text description
+≤ 160 chars with the category and seller tail, `keywords` left as-is (L12, remaining). Category:
+title fixed. Town CMS description: shared `plainText`. Likasi strings untouched (decision 7).
+
+**Sitemap membership (final):** `/`, `/categories`, `/promotions`; 8 CMS static pages; active towns
+(`/v1/cities`); every category × active town (empty ones **still listed** — decision 5); products
+with a canonical town URL **and** a `shortCode` (see unexpected findings). `/recherche` (noindex)
+out. `lastmod` only on products.
+
+**Tests.** buyer-web Vitest **155** (was 129): `sitemap.test.ts` rewritten (14: multi-page walk with
+cursors `p100/p200`, `limit ≤ 100`, cross-page dedupe, empty catalogue, 400 on the products call
+rejects, 500 on a later page rejects, cap → throws naming `generateSitemaps`, lastmod semantics per
+class, membership, uniqueness, shortCode-less exclusion), `seo-text` (4), `site-identity` (4, incl.
+« the logo file exists » and « no town name in identity copy »), `middleware` +4 (trailing slash),
+**`initial-html.test.tsx`** (13 — `renderToStaticMarkup` = the server pass: category/PDP/town/home/
+footer content and hrefs present with **zero** `apiFetch` calls, plus the no-prop fallback shells),
+**`[ville]/[product]/page.test.tsx`** (6 — metadata title/description/canonical/no og type; rendered
+document: Product + BreadcrumbList content, one `og:type=product` + price tags, escaping, body
+`<h1>`/links/towns, single product request; wrong-town and stale-slug 308; 404),
+**`[ville]/categorie/[slug]/page.test.tsx`** (3 — title without brand, canonical, first-page HTML
+with 12 product links + sub-category + breadcrumb + towns and the exact upstream query, 404s). API:
+`browse.service.spec.ts` +1 (`updatedAt` selected and mapped) → **828 unit, 231 e2e**; workspace
+`tsc` clean; buyer-web `next build` clean (2 pre-existing lint warnings in the error boundaries).
+
+**Runtime validation performed (production build, `next start`, dev API).** `curl` view-source of
+`/`, `/lubumbashi`, `/lubumbashi/categorie/supermarche`, a PDP, `/sitemap.xml`, the four redirect
+cases and the response headers (one CSP, `X-Frame-Options: DENY`, `Cache-Control` private on the
+PDP — unchanged). Chrome desktop 1280 px: homepage, town, category, PDP, sitemap — hydrated DOM
+re-checked for `<h1>` count, product/category/town hrefs, JSON-LD types, the product OG tags in
+`<head>`, zero skeletons on town/category/PDP, **no console errors or hydration warnings on any
+page**. Emulated 390 px phone (DevTools viewport emulation — the extension's window resize did not
+change the viewport on this machine): PDP, category, homepage — no horizontal overflow, one `<h1>`,
+content and links present.
+
+**Performance.** All new server fetches go through `serverFetch` (`next: { revalidate: 60 }`) and run
+in `Promise.all`; Next's request memoisation dedupes the PDP's `generateMetadata` + page fetch
+(asserted: one product request per render). Per page the server now issues what the client used to
+issue after paint — no net increase in API load, and the client's first fetches are skipped when the
+server data is present. The sitemap moved from 3 uncached calls per hit to a request-time route whose
+upstream fetches are cached 3 600 s (≈ 4 product-page calls + categories + cities per hour). No N+1 (the list endpoints are the same
+paginated calls). Not addressed: PostHog still initialises eagerly (M12), `og-default.png` (L1).
+
+**Security.** JSON-LD escaping preserved and re-asserted; CSP unchanged (no new inline scripts — the
+OG tags are static `<meta>`); no cookie/surface/auth change; the middleware redirect runs **before**
+the auth gating with a plain `new URL(request.url)` (no header-derived host); only public browse
+data is server-rendered (product, category, city, banner, categories — nothing user-scoped); no
+secrets in HTML; analytics untouched.
+
+**Backward compatibility.** API: one additive field (`updatedAt`) on `/v1/browse/products` list
+items. Every `initial*` prop is optional; components without them behave exactly as before. URLs:
+no route added or removed; trailing-slash URLs now 308 instead of 200 (canonical already pointed
+there). Sitemap consumers get a larger file with `lastmod` on products only.
+
+**SEO-2 findings — empty town × category pages (decision 5, no change made).** Quantified on the
+dev DB: **0 of 374** pages empty (187 categories × 2 towns, every leaf answered ≥ 1 product for
+each town), because the demo catalogue (`Product.isDemo`, P3c) seeds one product per leaf per town
+and `RETIRE_DEMO_CATALOG` defaults to `false`. The 2026-09-06 live sample (`farine`, `pates`,
+`cereales` → 0) was taken on production, whose demo coverage could not be checked from here.
+Structural facts for the decision: the categories API exposes only a **global** `productCount`, so a
+per-town gate needs an API change (`productCount` per `cityId` on `getCategoryDetail`, or a count
+in the sitemap walk); the sitemap keeps listing every town × category pair; empty listings render
+the empty state with the `<h1>` and sub-category links (`follow`-worthy). Recommended policy
+(unchanged): `noindex, follow` + sitemap exclusion when the **town-scoped** count is 0 — and, if
+the demo catalogue stays live in production, the policy only ever bites for a town activated
+without seeded demo products or an admin-created category. Awaiting the owner's decision.
+
+**SEO-2 findings — Likasi (decision 7, no change made).** Hard-coded public references: `app/page.tsx`
+(homepage `description`), `app/layout.tsx` (default `description`), `app/promotions/page.tsx`
+(description), `app/[ville]/[product]/page.tsx` (404 fallback description). Production activation
+semantics: `GET /v1/cities` returns active towns only — Lubumbashi + Kolwezi — and `/likasi` 404s
+(`findCityBySlug` resolves active towns only); the master `City` row is untouched. The new
+`site-identity.ts` copy is deliberately town-free (test-asserted). Recommended fix: derive the
+« Livraison à … » phrase in those four strings from `getActiveCities()` (already available in each
+route) so activating Likasi changes the copy without a deploy of text; not done pending the
+product decision.
+
+**CI failure on the first run, and the fix (`Web Build (buyer-web)`).** The first CI run of PR #713
+failed: `Error occurred prerendering page "/sitemap.xml" … SitemapSourceError: /v1/browse/categories —
+unreachable`. Root cause: with `next.revalidate` set on every fetch, Next classified `/sitemap.xml`
+as a build-time prerender (ISR), and the image is built in CI/Docker where no API exists — the new
+strict failure did exactly what it was designed to do, at the wrong time. The old code passed the same
+build only because it swallowed the error into an **empty** sitemap baked into the image. Fix:
+`export const dynamic = 'force-dynamic'` on the route (test-asserted) — generated per request, upstream
+calls still cached for an hour (explicit `next.revalidate` is honoured inside a dynamic route).
+Reproduced and verified locally with `API_INTERNAL_URL` pointed at a dead port: `next build` now
+succeeds (`ƒ /sitemap.xml`), and at request time the sitemap answers 500 while `/` and `/categories`
+still answer 200 with their client-fetch fallbacks (`/{ville}`, category and product pages 404 without
+the API — the routes cannot resolve the town/product, unchanged from before).
+
+**Deploy-time behaviour worth knowing (not a regression, documented for the release runbook).** `/`
+and the `/{ville}` pages are prerendered at build time (ISR 60 s) in an environment without the API,
+so the image ships them with the client-fetch shells (no categories/banners, and for `/` no server
+`<h1>`). On the first requests after a deploy Next serves that stale HTML (`x-nextjs-cache: STALE`)
+while regenerating in the background; the third request in the local run was already the full page
+(`HIT`, `<h1>` + 7 category links; town page `HIT` with the product grids). Before SEO-1 those pages
+shipped the same shells permanently, so nothing regressed; the post-deploy smoke matrix (B1/B2) hits
+both, which warms them. A build-time warm-up or `force-dynamic` for `/` is an SEO-2 option.
+
+**Unexpected findings.**
+- **10 dev products have no city** (`30000000-…`, the Phase 3 seed): no canonical town URL, so
+  product cards link to the flat `/{tail}` (which the `[ville]` dispatcher resolves) and the sitemap
+  excludes them (296 of 307). Dev data; production membership could not be checked from here.
+- **One dev product has no `shortCode`** (`84921017-…`, created 2026-04-12 — before the 2026-06-06
+  city-first backfill, which the dev DB never received) and its slug ends in a code-shaped suffix;
+  the route parsed that suffix as the resolver code and **the sitemap listed a URL that 404'd**.
+  Products without a `shortCode` are now excluded (a data repair, not a URL); `products.service`
+  always generates one on create and the prod backfill covered older rows.
+- The dev homepage banner points at a non-existent Cloudinary demo asset: the server HTML holds
+  the carousel (with the hidden `<h1>`), the client swaps to the hero on image error — the designed
+  fallback, no hydration mismatch.
+- PDP shows a lone « ~ » under the price when `priceUSD` is null (`product-detail-page.tsx:349`,
+  pre-existing, not SEO — left).
+- Homepage category tiles link to the town-less `/categorie/{slug}` (308 to the default town) in the
+  first HTML because the buyer's town is client state — by design; the town pages carry the
+  town-scoped links.
+
+**Remaining SEO defects (not in this PR):** header mega-menu categories client-only; banner
+carousel navigates with `router.push` (no `<a>`); `og-default.png` blank; `keywords` meta; « Autre »
+brand in JSON-LD; no BreadcrumbList/LocalBusiness on town pages, no `ItemList`; PostHog not deferred
+(M12); no case-normalisation redirects; CSP has no reporting endpoint; decisions 5 and 7.
+
+**Git.** Branch `buyer-web/seo-1` from `e45d9fb`, 5 commits (`21a4b29` sitemap + API field,
+`6b69e4c` identity/JSON-LD/OG/descriptions/PDP initial data, `2485178` trailing slash, `6fd2f24`
+server-rendered initial data + tests, `252f0d0` homepage `<h1>` with banners + shortCode guard),
+plus the docs commit and `sitemap: force-dynamic` (the CI fix, with its own docs update).
+
 ## Next exact step
 
 **Seller Mobile UX/UI series A–F complete (`f2b8d49`); the checkpoint and the release-readiness
@@ -2902,7 +3111,9 @@ documentation are merged/open as docs-only PRs.** Remaining order, each its own 
 with a merge commit, none started without approval: (1) **`develop → main` release PR** (security +
 everything since `78c6ef9`) — run the release checklist in `docs/deployment.md`, copy
 `nginx/nginx.prod.conf` to the VPS during the window, apply the Cloudflare origin firewall the same
-day; (2) `buyer-web/seo-1`; (3) `security/admin-and-financial` (S12 payout re-auth, S13 application
+day — **the owner chose to complete the Buyer Web SEO workstream first**; (2) `buyer-web/seo-1`
+— **implemented, PR open, awaiting merge approval** (decisions 5 and 7 recorded as findings, still
+open); (3) `security/admin-and-financial` (S12 payout re-auth, S13 application
 uploads, S14/S22 DTO bounds); (4) `mobile/security-hardening` (MS1–MS7); (5) `buyer-web/seo-2`;
 (6) Dependabot follow-ups (`sharp`/`esbuild`, stale PRs, bundler); (7) D2b / S11 / S16 / iOS runtime
 session. Still open and preserved: API `pendingCDF` vs HELD/`deliveredAt`; login-email change without

@@ -19,6 +19,7 @@ import { useCityStore } from '@/lib/city-store';
 import { track } from '@/lib/analytics';
 import { Button, Card, Container } from '@/components/ui';
 import type { BrowseCategory, BrowseProduct, CursorPagination } from '@/lib/types';
+import type { City } from '@/lib/city-store';
 
 interface CategoryPageProps {
   /**
@@ -35,18 +36,55 @@ interface CategoryPageProps {
    * route, which falls back to the store's selected city.
    */
   cityId?: string;
+  /**
+   * Server-rendered inputs (SEO-1). The route already resolves the category
+   * (name, breadcrumb, children) and now also fetches the first product page
+   * for the town, so the first HTML carries the real <h1>, the sub-category
+   * links and twelve product links instead of « Catégories » over skeletons.
+   * Facets (attributes, brands) stay client-side: they are filter UI, not
+   * indexable content.
+   */
+  initialCategory?: {
+    id: string;
+    name: string;
+    slug: string | null;
+    breadcrumb?: { id: string; slug: string | null; name: string }[];
+    subcategories?: { id: string; slug: string | null; name: string }[];
+  };
+  initialProducts?: BrowseProduct[];
+  initialPagination?: CursorPagination;
+  initialCities?: City[];
 }
 
-export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps = {}) {
+export default function CategoryPage({
+  categoryUuid,
+  cityId,
+  initialCategory,
+  initialProducts,
+  initialPagination,
+  initialCities,
+}: CategoryPageProps = {}) {
   const params = useParams<{ ville?: string; id?: string; slug?: string }>();
   const categoryId = categoryUuid ?? params.id ?? '';
   const ville = params.ville ?? '';
 
-  const [category, setCategory] = useState<BrowseCategory | null>(null);
-  const [path, setPath] = useState<BrowseCategory[]>([]);
-  const [products, setProducts] = useState<BrowseProduct[]>([]);
-  const [pagination, setPagination] = useState<CursorPagination | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [category, setCategory] = useState<BrowseCategory | null>(
+    initialCategory ? toBrowseCategory(initialCategory) : null,
+  );
+  const [path, setPath] = useState<BrowseCategory[]>(
+    initialCategory?.breadcrumb?.map(toBrowseCategory) ?? [],
+  );
+  const [products, setProducts] = useState<BrowseProduct[]>(initialProducts ?? []);
+  const [pagination, setPagination] = useState<CursorPagination | null>(initialPagination ?? null);
+  const [isLoading, setIsLoading] = useState(initialProducts === undefined);
+  // The server-rendered first page belongs to exactly one (category, town)
+  // pair. The effect below skips its fetch while that pair is current and
+  // forgets the pair as soon as either changes, so a later switch refetches as
+  // before. Held in a ref set once (not mutated on the skip path) so React's
+  // strict-mode double effect cannot discard the server page in development.
+  const serverPageKeyRef = useRef<string | null>(
+    initialProducts !== undefined ? `${categoryId}|${cityId ?? ''}` : null,
+  );
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
@@ -131,10 +169,14 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
   }
 
   useEffect(() => {
-    setIsLoading(true);
-    setProducts([]);
-    setCategory(null);
-    setPath([]);
+    const fromServer = serverPageKeyRef.current === `${categoryId}|${effectiveCityId ?? ''}`;
+    if (!fromServer) serverPageKeyRef.current = null;
+    if (!fromServer) {
+      setIsLoading(true);
+      setProducts([]);
+      setCategory(null);
+      setPath([]);
+    }
     setCondition('');
     setMinPrice('');
     setMaxPrice('');
@@ -144,13 +186,15 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
     setBrands([]);
     setSelectedBrandIds([]);
 
-    apiFetch<BrowseCategory[]>('/v1/browse/categories')
-      .then((res) => {
-        const found = findCategory(res.data, categoryId);
-        setCategory(found);
-        setPath(findCategoryPath(res.data, categoryId) ?? []);
-      })
-      .catch(() => {});
+    if (!fromServer) {
+      apiFetch<BrowseCategory[]>('/v1/browse/categories')
+        .then((res) => {
+          const found = findCategory(res.data, categoryId);
+          setCategory(found);
+          setPath(findCategoryPath(res.data, categoryId) ?? []);
+        })
+        .catch(() => {});
+    }
 
     // Filterable facets for this category: SELECT/MULTISELECT (with options)
     // plus BOOLEAN (rendered as a single yes-checkbox, no options needed).
@@ -173,6 +217,7 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
       .then((res) => setBrands(res.data))
       .catch(() => setBrands([]));
 
+    if (fromServer) return;
     const qs = new URLSearchParams();
     qs.set('categoryId', categoryId);
     qs.set('sortBy', 'newest');
@@ -456,9 +501,27 @@ export default function CategoryPage({ categoryUuid, cityId }: CategoryPageProps
         </Container>
       </main>
 
-      <Footer />
+      <Footer initialCities={initialCities} />
     </div>
   );
+}
+
+/** Minimal BrowseCategory from the server route's category shape. */
+function toBrowseCategory(c: {
+  id: string;
+  name: string;
+  slug: string | null;
+  subcategories?: { id: string; slug: string | null; name: string }[];
+}): BrowseCategory {
+  return {
+    id: c.id,
+    name: c.name,
+    slug: c.slug,
+    emoji: null,
+    parentId: null,
+    productCount: 0,
+    subcategories: (c.subcategories ?? []).map((s) => toBrowseCategory(s)),
+  };
 }
 
 function findCategory(

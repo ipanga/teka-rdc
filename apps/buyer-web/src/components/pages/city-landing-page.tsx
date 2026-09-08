@@ -12,6 +12,7 @@ import { useCityStore } from '@/lib/city-store';
 import { categoryHref } from '@/lib/urls';
 import { CategoryIcon } from '@/components/category/category-icon';
 import type { BrowseCategory, BrowseProduct } from '@/lib/types';
+import type { City } from '@/lib/city-store';
 
 interface CityLandingPageProps {
   cityId: string;
@@ -22,6 +23,15 @@ interface CityLandingPageProps {
   // carries its accent/hero — keeps the header town badge correct on /{ville}.
   accentColor?: string | null;
   heroImageUrl?: string | null;
+  /**
+   * Server-rendered inputs (SEO-1): category grid, the two product grids for
+   * this town and the footer towns. The URL fixes the town, so the server can
+   * render exactly what the client would fetch — no refetch on first paint.
+   */
+  initialCategories?: BrowseCategory[];
+  initialPopular?: BrowseProduct[];
+  initialNewest?: BrowseProduct[];
+  initialCities?: City[];
 }
 
 /**
@@ -36,15 +46,19 @@ export default function CityLandingPage({
   province,
   accentColor = null,
   heroImageUrl = null,
+  initialCategories,
+  initialPopular,
+  initialNewest,
+  initialCities,
 }: CityLandingPageProps) {
   const setCity = useCityStore((s) => s.setCity);
 
-  const [categories, setCategories] = useState<BrowseCategory[]>([]);
-  const [popular, setPopular] = useState<BrowseProduct[]>([]);
-  const [newest, setNewest] = useState<BrowseProduct[]>([]);
-  const [loadingCats, setLoadingCats] = useState(true);
-  const [loadingPopular, setLoadingPopular] = useState(true);
-  const [loadingNewest, setLoadingNewest] = useState(true);
+  const [categories, setCategories] = useState<BrowseCategory[]>(initialCategories ?? []);
+  const [popular, setPopular] = useState<BrowseProduct[]>(initialPopular ?? []);
+  const [newest, setNewest] = useState<BrowseProduct[]>(initialNewest ?? []);
+  const [loadingCats, setLoadingCats] = useState(initialCategories === undefined);
+  const [loadingPopular, setLoadingPopular] = useState(initialPopular === undefined);
+  const [loadingNewest, setLoadingNewest] = useState(initialNewest === undefined);
 
   // Landing on /{ville} sets the active city so the rest of the app (header,
   // category filters, cart) stays consistent with the URL.
@@ -62,28 +76,35 @@ export default function CityLandingPage({
   }, [cityId, cityName, citySlug, province, accentColor, heroImageUrl, setCity]);
 
   useEffect(() => {
-    setLoadingCats(true);
-    apiFetch<BrowseCategory[]>('/v1/browse/categories')
-      .then((res) => setCategories(res.data))
-      .catch(() => {})
-      .finally(() => setLoadingCats(false));
+    // Each source is fetched only when the server did not render it.
+    if (initialCategories === undefined) {
+      setLoadingCats(true);
+      apiFetch<BrowseCategory[]>('/v1/browse/categories')
+        .then((res) => setCategories(res.data))
+        .catch(() => {})
+        .finally(() => setLoadingCats(false));
+    }
 
-    setLoadingPopular(true);
-    apiFetch<{ data: BrowseProduct[] }>(
-      `/v1/browse/products?sortBy=popularity&limit=10&cityId=${cityId}`,
-    )
-      .then((res) => setPopular(res.data.data))
-      .catch(() => {})
-      .finally(() => setLoadingPopular(false));
+    if (initialPopular === undefined) {
+      setLoadingPopular(true);
+      apiFetch<{ data: BrowseProduct[] }>(
+        `/v1/browse/products?sortBy=popularity&limit=10&cityId=${cityId}`,
+      )
+        .then((res) => setPopular(res.data.data))
+        .catch(() => {})
+        .finally(() => setLoadingPopular(false));
+    }
 
-    setLoadingNewest(true);
-    apiFetch<{ data: BrowseProduct[] }>(
-      `/v1/browse/products?sortBy=newest&limit=10&cityId=${cityId}`,
-    )
-      .then((res) => setNewest(res.data.data))
-      .catch(() => {})
-      .finally(() => setLoadingNewest(false));
-  }, [cityId]);
+    if (initialNewest === undefined) {
+      setLoadingNewest(true);
+      apiFetch<{ data: BrowseProduct[] }>(
+        `/v1/browse/products?sortBy=newest&limit=10&cityId=${cityId}`,
+      )
+        .then((res) => setNewest(res.data.data))
+        .catch(() => {})
+        .finally(() => setLoadingNewest(false));
+    }
+  }, [cityId, initialCategories, initialPopular, initialNewest]);
 
   return (
     <div className="min-h-screen flex flex-col bg-surface-muted">
@@ -151,7 +172,7 @@ export default function CityLandingPage({
         </section>
       </main>
 
-      <Footer />
+      <Footer initialCities={initialCities} />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import {
   canonicalToUrlSlug,
   type CanonicalSlug,
 } from '@/lib/static-pages';
-import { useCityStore } from '@/lib/city-store';
+import { useCityStore, type City } from '@/lib/city-store';
 import { cityHref } from '@/lib/urls';
 
 // Social profiles — same handle ("tekardc") across every network.
@@ -50,17 +50,30 @@ const FOOTER_LINKS: Array<{ canonical: CanonicalSlug; label: string }> = [
   { canonical: 'contact',     label: 'Contact' },
 ];
 
-export function Footer() {
+interface FooterProps {
+  /**
+   * Active towns the server route already fetched (SEO-1). With it the
+   * « Achetez dans votre ville » links are in the first HTML — before, the
+   * list came from a client fetch, so crawlers saw a footer without a single
+   * town link despite the comment promising discovery. Also seeds the town
+   * store so the header needs no second request.
+   */
+  initialCities?: City[];
+}
+
+export function Footer({ initialCities }: FooterProps = {}) {
   const year = new Date().getFullYear();
 
   // Crawlable /{ville} internal links (moved here from the homepage in the Town
   // Architecture Refactor). Rendered site-wide so search engines discover every
   // town landing page; the sitemap covers them too.
-  const { cities, fetchCities } = useCityStore();
+  const { cities, fetchCities, hydrateCities } = useCityStore();
   useEffect(() => {
-    fetchCities();
-  }, [fetchCities]);
-  const townLinks = cities.filter((c) => c.isActive && c.slug);
+    if (initialCities && initialCities.length > 0) hydrateCities(initialCities);
+    else fetchCities();
+  }, [fetchCities, hydrateCities, initialCities]);
+  const source = cities.length > 0 ? cities : initialCities ?? [];
+  const townLinks = source.filter((c) => c.isActive && c.slug);
 
   return (
     <footer className="bg-[#111827] text-white mt-auto">
