@@ -1,4 +1,4 @@
-# Status — 2026-09-08 (pre-scale readiness — Buyer Web SEO-1 implemented, PR open awaiting merge approval)
+# Status — 2026-09-08 (pre-scale readiness — Buyer Web SEO-1 merged `6234f0c`; SEO-2 implemented, PR open awaiting merge approval)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
@@ -51,15 +51,18 @@ phase: COMPLETE (A–D). Seller Mobile functional readiness: COMPLETE, with debt
 `deliveredAt`, notification-permission pre-prompt). Seller Mobile UX/UI A–F: COMPLETE. Android phone
 and tablet (portrait + landscape) runtime verification: PERFORMED for both apps. **iOS/iPad runtime:
 still a validation gap** (uploads and `--no-codesign` builds only, no simulator input tooling).
-**Buyer Web SEO: SEO-1 implemented on `buyer-web/seo-1` (PR open, awaiting merge approval — nothing
-merged yet):** sitemap walks the browse cursor at request time (dev build: 683 URLs, 296 products, real
-`lastmod`, strict on source failure — 500, never an empty file), category/town/PDP/homepage/footer content and links server-rendered
-through optional `initial*` props, site-wide Organization/WebSite JSON-LD with a real logo, product
-`og:type` + price tags, plain-text descriptions, trailing-slash 308, brand-free category titles;
-verified on the served HTML of the production build and in Chrome (desktop + 390 px). Decisions 5
-(empty town × category pages — 0 of 374 empty on dev) and 7 (Likasi — four strings listed) are
-recorded as findings, not implemented. SEO-2 items (header mega-menu links, BreadcrumbList on town
-pages, PostHog deferral, per-town counts) remain. **Admin/Finance security decisions remain open** (S12 payout re-auth, S21
+**Buyer Web SEO: SEO-1 merged (`6234f0c`, PR #713); SEO-2 implemented on `buyer-web/seo-2` (PR open,
+awaiting merge approval — nothing merged yet).** SEO-2 implements the two approved decisions: an empty
+town × category page (zero eligible products IN THAT TOWN — `publicProductWhere`: ACTIVE, not deleted,
+in the town, not a retired demo; new optional `?cityId=` on the category endpoints, one grouped query
+per tree) is `noindex, follow`, self-canonical, reachable and out of the sitemap, and flips back by
+itself with inventory (verified live with a temporary fixture, cleaned up); and public service-area
+copy, header town links, metadata and structured data derive from the active-town API, so Likasi
+(inactive, kept in master data) is no longer advertised anywhere and appears on its own when
+activated. Also: banner slides are real links, `/categories` is server-rendered, upper-case paths 308
+to lower-case, the « Autre » placeholder never becomes a schema.org Brand, the homepage no longer
+says « Mobile Money ». Deferred with a written classification: header mega-menu SSR, `og-default.png`
+(design), PostHog deferral (analytics), town-page structured data (semantics not met), `keywords`. **Admin/Finance security decisions remain open** (S12 payout re-auth, S21
 SUPPORT/FINANCE, S11 audit rows, D2b). **Mobile security hardening remains open** (MS1–MS7).
 **Dependabot follow-ups remain open** (`sharp`/`esbuild` security jobs failing on the pinned
 exceptions, stale PRs #549/#565/#595, no bundler ecosystem). **The Cloudflare origin firewall is a

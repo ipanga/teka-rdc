@@ -7,8 +7,11 @@ vi.mock('@/lib/server-api', () => ({ serverFetch: (...a: unknown[]) => serverFet
 const apiFetch = vi.fn((..._a: unknown[]) => new Promise(() => {}));
 vi.mock('@/lib/api-client', () => ({ apiFetch: (...a: unknown[]) => apiFetch(...a) }));
 vi.mock('@/lib/analytics', () => ({ track: vi.fn(), trackSearch: vi.fn() }));
+// The client component reads `{ville}` from the route params (Next supplies
+// them during the server pass); the mock follows the params of each test.
+let routeVille = 'lubumbashi';
 vi.mock('next/navigation', () => ({
-  useParams: () => ({ ville: 'lubumbashi', slug: 'smartphones' }),
+  useParams: () => ({ ville: routeVille, slug: 'smartphones' }),
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
   usePathname: () => '/',
   useSearchParams: () => new URLSearchParams(),
@@ -39,9 +42,78 @@ beforeEach(() => {
   apiFetch.mockClear();
   serverFetch.mockImplementation(async (path: string) => {
     if (path === '/v1/cities') return cities;
-    if (path === '/v1/browse/categories/smartphones') return category;
+    // Town-scoped detail (SEO-2): the count depends on the town in the query.
+    if (path === '/v1/browse/categories/smartphones?cityId=c1') return category;
+    if (path === '/v1/browse/categories/smartphones?cityId=c2') return { ...category, productCount: 0 };
     if (path.startsWith('/v1/browse/products?')) return { data: products, pagination: { nextCursor: 'p11', hasMore: true, total: 40 } };
     return null;
+  });
+});
+
+describe('category route — empty town × category (SEO-2 decision 1)', () => {
+  const kolwezi = Promise.resolve({ ville: 'kolwezi', slug: 'smartphones' });
+
+  it('asks the API for the TOWN-scoped count, never the global one', async () => {
+    await generateMetadata({ params });
+    const calls = serverFetch.mock.calls.map(([p]) => String(p));
+    expect(calls).toContain('/v1/browse/categories/smartphones?cityId=c1');
+    expect(calls.some((p) => p === '/v1/browse/categories/smartphones')).toBe(false);
+  });
+
+  it('populated in the town → index, follow', async () => {
+    const meta = await generateMetadata({ params });
+    expect(meta.robots).toEqual({ index: true, follow: true });
+  });
+
+  it('products globally but none in this town → noindex, follow; still self-canonical; still renders', async () => {
+    const meta = await generateMetadata({ params: kolwezi });
+    expect(meta.robots).toEqual({ index: false, follow: true });
+    expect(meta.alternates?.canonical).toBe('/kolwezi/categorie/smartphones');
+    expect(meta.title).toBe('Smartphones à Kolwezi — Acheter en ligne');
+    // No redirect, no 404: the page renders with its heading, sub-category
+    // links and footer towns (followable), over the empty state.
+    serverFetch.mockImplementation(async (path: string) => {
+      if (path === '/v1/cities') return cities;
+      if (path.startsWith('/v1/browse/categories/smartphones?cityId=c2')) return { ...category, productCount: 0 };
+      if (path.startsWith('/v1/browse/products?')) return { data: [], pagination: { nextCursor: null, hasMore: false, total: 0 } };
+      return null;
+    });
+    routeVille = 'kolwezi';
+    let html = '';
+    try {
+      html = renderToStaticMarkup(await Page({ params: kolwezi }));
+    } finally {
+      routeVille = 'lubumbashi';
+    }
+    expect(html).toMatch(/<h1[^>]*>Smartphones<\/h1>/);
+    expect(html).toContain('href="/kolwezi/categorie/android"');
+    expect(html).toContain('href="/lubumbashi"');
+    expect(html).toContain('Aucun produit trouvé.');
+    expect(html).not.toMatch(/href="\/kolwezi\/tel-/);
+  });
+
+  it('exactly one eligible product in the town → indexable', async () => {
+    serverFetch.mockImplementation(async (path: string) => {
+      if (path === '/v1/cities') return cities;
+      if (path.startsWith('/v1/browse/categories/smartphones?cityId=c2')) return { ...category, productCount: 1 };
+      return null;
+    });
+    const meta = await generateMetadata({ params: kolwezi });
+    expect(meta.robots).toEqual({ index: true, follow: true });
+  });
+
+  it('flips with inventory: 0 → 2 becomes indexable, 2 → 0 becomes noindex (same route, no code change)', async () => {
+    let count = 0;
+    serverFetch.mockImplementation(async (path: string) => {
+      if (path === '/v1/cities') return cities;
+      if (path.startsWith('/v1/browse/categories/smartphones?cityId=c2')) return { ...category, productCount: count };
+      return null;
+    });
+    expect((await generateMetadata({ params: kolwezi })).robots).toEqual({ index: false, follow: true });
+    count = 2;
+    expect((await generateMetadata({ params: kolwezi })).robots).toEqual({ index: true, follow: true });
+    count = 0;
+    expect((await generateMetadata({ params: kolwezi })).robots).toEqual({ index: false, follow: true });
   });
 });
 

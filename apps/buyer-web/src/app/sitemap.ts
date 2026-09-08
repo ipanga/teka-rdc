@@ -75,6 +75,8 @@ async function fetchApi<T>(path: string): Promise<T> {
 }
 
 interface SitemapCategory {
+  // Town-scoped eligible product count when fetched with `?cityId=` (SEO-2).
+  productCount?: number;
   id: string;
   slug: string | null;
   subcategories?: SitemapCategory[];
@@ -152,13 +154,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // Fetch the building blocks in parallel; any failure rejects the sitemap.
-  const [categories, cities, products] = await Promise.all([
-    fetchApi<SitemapCategory[]>('/v1/browse/categories'),
+  const [cities, products] = await Promise.all([
     fetchApi<SitemapCity[]>('/v1/cities'),
     fetchAllSitemapProducts(),
   ]);
 
   const activeCities = (cities || []).filter((c) => c.isActive !== false && c.slug);
+
+  // One category tree per ACTIVE town, with the town-scoped eligible product
+  // count on every node (the API computes a whole tree with one grouped
+  // query, so this is bounded by the number of active towns — two today —
+  // and never a request per category).
+  const treesByCity = await Promise.all(
+    activeCities.map((city) =>
+      fetchApi<SitemapCategory[]>(`/v1/browse/categories?cityId=${encodeURIComponent(city.id)}`),
+    ),
+  );
 
   // -- City landing pages (/{ville}) --
   const cityPages: MetadataRoute.Sitemap = activeCities.map((city) => ({
@@ -170,15 +181,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // -- City-scoped categories (/{ville}/categorie/{slug}) — per D1 the canonical
   //    category page is city-scoped, so emit categories × active cities. --
   // Flatten ALL levels (category → subcategory → product type) so every node's
-  // city-scoped listing page is in the sitemap. Empty town × category pages are
-  // still listed — their policy is an open SEO-2 decision (pre-scale tracker,
-  // decision 5), not something the sitemap decides on its own.
+  // city-scoped listing page is in the sitemap — but ONLY the pairs with
+  // eligible inventory in that town (SEO-2 decision 1): an empty town ×
+  // category page is `noindex, follow` and must not be in the sitemap; it
+  // comes back here by itself once the town has stock again (the route and
+  // this file read the same town-scoped count).
   const flattenCats = (cats: SitemapCategory[]): SitemapCategory[] =>
     cats.flatMap((c) => [c, ...flattenCats(c.subcategories || [])]);
-  const flatCategories: SitemapCategory[] = flattenCats(categories || []);
-  const categoryPages: MetadataRoute.Sitemap = activeCities.flatMap((city) =>
-    flatCategories
-      .filter((cat) => cat.slug)
+  const categoryPages: MetadataRoute.Sitemap = activeCities.flatMap((city, i) =>
+    flattenCats(treesByCity[i] || [])
+      .filter((cat) => cat.slug && (cat.productCount ?? 0) > 0)
       .map((cat) => ({
         url: urlFor(categoryHref(city.slug, cat)),
         changeFrequency: 'weekly' as const,

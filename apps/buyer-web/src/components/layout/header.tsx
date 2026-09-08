@@ -11,7 +11,7 @@ import { SearchAutocomplete } from './search-autocomplete';
 import { Badge, buttonVariants } from '@/components/ui';
 import { cityAccentClasses } from '@/lib/city-accent';
 import { apiFetch } from '@/lib/api-client';
-import { categoryHref } from '@/lib/urls';
+import { categoryHref, cityHref } from '@/lib/urls';
 import type { BrowseCategory } from '@/lib/types';
 
 function PinIcon({ className }: { className?: string }) {
@@ -27,7 +27,7 @@ export function Header() {
   const user = useAuthStore((s) => s.user);
   const authLoading = useAuthStore((s) => s.isLoading);
   const logout = useAuthStore((s) => s.logout);
-  const { selectedCity, openSelector } = useCityStore();
+  const { selectedCity, openSelector, cities } = useCityStore();
   const wishlistCount = useWishlistStore((s) => s.count);
   const [unreadCount, setUnreadCount] = useState(0);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -453,8 +453,12 @@ export function Header() {
               { href: '/', label: 'Accueil' },
               { href: '/categories', label: 'Catégories' },
               { href: '/promotions', label: 'Promotions' },
-              { href: '/lubumbashi', label: 'Lubumbashi' },
-              { href: '/kolwezi', label: 'Kolwezi' },
+              // Town links from the active-town list (SEO-2 decision 2) —
+              // hydrated by the footer's server-rendered list — never a
+              // hard-coded town, so an activation shows up on its own.
+              ...cities
+                .filter((c) => c.isActive && c.slug)
+                .map((c) => ({ href: cityHref(c.slug as string), label: c.name })),
             ].map((item) => (
               <Link
                 key={item.href}

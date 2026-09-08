@@ -9,6 +9,7 @@
  */
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { fireEvent, render, screen } from '@testing-library/react';
 import type { Banner, BrowseCategory, BrowseProduct, ProductDetail } from '@/lib/types';
 import type { City } from '@/lib/city-store';
 
@@ -27,6 +28,8 @@ vi.mock('next/navigation', () => ({
 import CategoryPage from './category-page';
 import CityLandingPage from './city-landing-page';
 import HomePage from './home-page';
+import CategoriesPage from './categories-page';
+import { Header } from '@/components/layout/header';
 import ProductDetailPage from './product-detail-page';
 import { Footer } from '@/components/layout/footer';
 import { useCityStore } from '@/lib/city-store';
@@ -171,7 +174,7 @@ describe('town landing — initial HTML (SEO-1)', () => {
 });
 
 describe('homepage — initial HTML (SEO-1)', () => {
-  const banners: Banner[] = [{ id: 'b1', title: 'Promo', imageUrl: 'https://res.cloudinary.com/teka/b1.jpg', sortOrder: 0 }];
+  const banners: Banner[] = [{ id: 'b1', title: 'Promo', imageUrl: 'https://res.cloudinary.com/teka/b1.jpg', sortOrder: 0, linkType: 'category', linkTarget: 'telephones' }];
 
   it('with no banners the hero <h1> is in the first HTML instead of a skeleton', () => {
     const out = renderToStaticMarkup(
@@ -192,6 +195,8 @@ describe('homepage — initial HTML (SEO-1)', () => {
       <HomePage serverH1="Teka RDC" initialCategories={tree} initialBanners={banners} initialCities={cities} />,
     );
     expect(out).toContain('Promo');
+    // SEO-2: a banner with a target is a real <a href>, not a div with onClick.
+    expect(out).toContain('href="/categorie/telephones"');
     // Banner titles are <h2>; the page keeps exactly one <h1> (visually hidden).
     expect(out.match(/<h1[^>]*>/g)).toHaveLength(1);
     expect(out).toMatch(/<h1 class="sr-only">Teka RDC<\/h1>/);
@@ -229,5 +234,40 @@ describe('city store hydration (SEO-1)', () => {
     expect(useCityStore.getState().cities.map((c) => c.id)).toEqual(['c1', 'c2']);
     useCityStore.getState().hydrateCities([{ ...cities[0], id: 'other' }]);
     expect(useCityStore.getState().cities.map((c) => c.id)).toEqual(['c1', 'c2']);
+  });
+});
+
+describe('categories hub — initial HTML (SEO-2)', () => {
+  it('renders the whole tree with real hrefs and the served-town copy without fetching', () => {
+    const out = renderToStaticMarkup(<CategoriesPage initialCategories={tree} initialCities={cities} />);
+    expect(out).toMatch(/<h1[^>]*>Toutes les catégories<\/h1>/);
+    expect(out).toContain('href="/categorie/telephones-et-electronique"');
+    expect(out).toContain('Téléphones');
+    expect(out).toContain('disponible à Lubumbashi et Kolwezi.');
+    expect(out).not.toContain('animate-pulse');
+    expect(out).toContain('href="/kolwezi"');
+    expect(apiFetch).not.toHaveBeenCalled();
+  });
+
+  it('without server data keeps the legacy skeleton + client fetch', () => {
+    const out = renderToStaticMarkup(<CategoriesPage />);
+    expect(out).toContain('animate-pulse');
+    expect(out).toContain('près de chez vous');
+  });
+});
+
+describe('header town links (SEO-2 decision 2)', () => {
+  it('come from the active-town store — no hard-coded town, inactive towns absent', () => {
+    useCityStore.setState({
+      cities: [...cities, { id: 'c3', name: 'Likasi', slug: 'likasi', province: 'Haut-Katanga', isActive: false, sortOrder: 3 }],
+    });
+    // The town links live in the mobile drawer, so open it.
+    render(<Header />);
+    fireEvent.click(screen.getByLabelText('Menu'));
+    const hrefs = [...document.querySelectorAll('a[href]')].map((a) => a.getAttribute('href'));
+    expect(hrefs).toContain('/lubumbashi');
+    expect(hrefs).toContain('/kolwezi');
+    expect(hrefs).not.toContain('/likasi');
+    expect(document.body.textContent).not.toContain('Likasi');
   });
 });

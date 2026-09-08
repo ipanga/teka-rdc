@@ -14,10 +14,21 @@ const CITIES = [
   { id: 'c2', slug: 'kolwezi', isActive: true },
   { id: 'c3', slug: 'goma', isActive: false }, // inactive → excluded
 ];
-const CATEGORIES = [
-  { id: 'cat1', slug: 'telephones', subcategories: [{ id: 'sub1', slug: 'smartphones' }] },
-  { id: 'cat2', slug: null }, // no slug → excluded
-];
+// Category trees WITH the town-scoped eligible count (`?cityId=`), one per
+// active town (SEO-2): smartphones has stock in Lubumbashi only; `cat2` has no
+// slug; `vide` has products nowhere.
+const CATEGORIES_BY_CITY: Record<string, unknown[]> = {
+  c1: [
+    { id: 'cat1', slug: 'telephones', productCount: 3, subcategories: [{ id: 'sub1', slug: 'smartphones', productCount: 3 }] },
+    { id: 'cat2', slug: null, productCount: 9 }, // no slug → excluded
+    { id: 'cat3', slug: 'vide', productCount: 0 },
+  ],
+  c2: [
+    { id: 'cat1', slug: 'telephones', productCount: 1, subcategories: [{ id: 'sub1', slug: 'smartphones', productCount: 0 }] },
+    { id: 'cat2', slug: null, productCount: 0 },
+    { id: 'cat3', slug: 'vide', productCount: 0 },
+  ],
+};
 
 /** A catalogue larger than one API page, so the cursor walk is exercised. */
 function catalogue(count: number): SitemapProduct[] {
@@ -50,7 +61,13 @@ function mockApi(opts: {
       const json = (data: unknown, status = 200) =>
         ({ ok: status < 400, status, json: async () => ({ data }) }) as Response;
       if (u.pathname.endsWith('/v1/cities')) return json(CITIES);
-      if (u.pathname.endsWith('/v1/browse/categories')) return json(CATEGORIES);
+      if (u.pathname.endsWith('/v1/browse/categories')) {
+        const cityId = u.searchParams.get('cityId');
+        // Without a town the API would answer global counts — the sitemap must
+        // never ask for those (they cannot decide per-town indexability).
+        if (!cityId) return json(null, 500);
+        return json(CATEGORIES_BY_CITY[cityId] ?? []);
+      }
       if (u.pathname.endsWith('/v1/browse/products')) {
         if (opts.productsStatus) return json(null, opts.productsStatus);
         const limit = Number(u.searchParams.get('limit') ?? '20');
@@ -88,6 +105,37 @@ describe('sitemap (city-first URLs)', () => {
     expect(urls).not.toContain('https://teka.cd/goma'); // inactive
     // No legacy query-string city pages.
     expect(urls.some((u) => u.includes('?cityId='))).toBe(false);
+  });
+
+  it('lists a town × category pair only when that town has eligible inventory (SEO-2 decision 1)', async () => {
+    const { calls } = mockApi({});
+    const urls = (await sitemap()).map((e) => e.url);
+    // Lubumbashi: telephones (3) + smartphones (3); Kolwezi: telephones (1) only.
+    expect(urls).toContain('https://teka.cd/lubumbashi/categorie/smartphones');
+    expect(urls).not.toContain('https://teka.cd/kolwezi/categorie/smartphones');
+    expect(urls).toContain('https://teka.cd/kolwezi/categorie/telephones');
+    // Empty everywhere → listed nowhere; inactive town → no tree requested.
+    expect(urls.some((u) => u.endsWith('/categorie/vide'))).toBe(false);
+    const catCalls = calls.filter((c) => c.includes('/v1/browse/categories'));
+    expect(catCalls).toHaveLength(2); // one tree per ACTIVE town, never per category
+    expect(catCalls.every((c) => /cityId=c[12]$/.test(c))).toBe(true);
+  });
+
+  it('a pair comes back into the sitemap by itself once the town has stock again', async () => {
+    mockApi({});
+    CATEGORIES_BY_CITY.c2 = [
+      { id: 'cat1', slug: 'telephones', productCount: 2, subcategories: [{ id: 'sub1', slug: 'smartphones', productCount: 1 }] },
+    ];
+    try {
+      const urls = (await sitemap()).map((e) => e.url);
+      expect(urls).toContain('https://teka.cd/kolwezi/categorie/smartphones');
+    } finally {
+      CATEGORIES_BY_CITY.c2 = [
+        { id: 'cat1', slug: 'telephones', productCount: 1, subcategories: [{ id: 'sub1', slug: 'smartphones', productCount: 0 }] },
+        { id: 'cat2', slug: null, productCount: 0 },
+        { id: 'cat3', slug: 'vide', productCount: 0 },
+      ];
+    }
   });
 
   it('emits city-scoped category URLs (categories × active cities)', async () => {

@@ -21,11 +21,19 @@ export default function middleware(request: NextRequest) {
   // must not be redirected — but that switch is global, so every page also
   // answered 200 at both `/x` and `/x/`. Restore the 308 for everything except
   // the proxy path so a slashed variant can never be indexed as a duplicate.
-  if (pathname.length > 1 && pathname.endsWith('/') && !pathname.startsWith('/ingest')) {
+  // Case (SEO-2): every canonical path is lower-case (town slugs, category
+  // slugs, product slug-and-code, static pages), so `/Lubumbashi` is the
+  // same page as `/lubumbashi` and must not be a distinct 404/duplicate.
+  // Query strings are untouched (search terms keep their case).
+  const hasUpper = /[A-Z]/.test(pathname);
+  if (
+    !pathname.startsWith('/ingest') &&
+    (hasUpper || (pathname.length > 1 && pathname.endsWith('/')))
+  ) {
     // A plain URL, not NextURL: NextURL's pathname setter re-applies the
     // trailing slash it was constructed with, so the redirect kept it.
     const target = new URL(request.url);
-    target.pathname = pathname.replace(/\/+$/, '') || '/';
+    target.pathname = pathname.toLowerCase().replace(/\/+$/, '') || '/';
     return NextResponse.redirect(target, 308);
   }
 

@@ -10,7 +10,8 @@
 ## Current phase
 
 **Phase 0 audit complete (PR #671). Implementation started 2026-09-06 with D1 (`security/otp-buyer-only`).
-Buyer Web SEO-1 implemented 2026-09-08 (`buyer-web/seo-1`, open — see « SEO-1 » under PR records).**
+Buyer Web SEO-1 merged 2026-09-08 (`6234f0c`, PR #713); SEO-2 implemented (`buyer-web/seo-2`, open —
+see « SEO-2 » under PR records).**
 
 ## Baseline (verified first-hand, 2026-09-06)
 
@@ -384,6 +385,13 @@ suites buyer has (identical code).
 
 ## Decision log
 
+- **Decisions 5 and 7 (2026-09-08, approved by the owner, implemented in `buyer-web/seo-2`):**
+  decision 5 — a town × category page with zero eligible products in that town is `noindex, follow`,
+  self-canonical, reachable, out of the sitemap, no redirect and no fake 404, and becomes indexable
+  again by itself when the town has eligible inventory; eligibility = `publicProductWhere(cityId)`
+  (ACTIVE, not deleted, in the town, not a retired demo). Decision 7 — Likasi stays inactive and in
+  master data; public service-area copy, navigation, metadata and structured data derive from the
+  active-town API and never name an inactive town. Full record: « SEO-2 ».
 - **SEO-1 findings for decisions 5 and 7 (2026-09-08, no decision taken):** decision 5 — 0 of 374
   town × category pages are empty on the dev DB (demo catalogue seeds one product per leaf per town;
   the 2026-09-06 empties were sampled on production); per-town counts need an API change; policy
@@ -3104,6 +3112,142 @@ brand in JSON-LD; no BreadcrumbList/LocalBusiness on town pages, no `ItemList`; 
 server-rendered initial data + tests, `252f0d0` homepage `<h1>` with banners + shortCode guard),
 plus the docs commit and `sitemap: force-dynamic` (the CI fix, with its own docs update).
 
+### SEO-2 — `buyer-web/seo-2` (Buyer Web SEO, decisions 5 + 7 approved, 2026-09-08 — open, awaiting merge approval)
+
+SEO-1 merged as `6234f0c` (PR #713; develop CI 15/15 + CodeQL green). SEO-2 implements the two
+policies the owner approved, then classifies and partly fixes the SEO-1 leftovers. Buyer Web plus
+one backward-compatible API addition. Nothing merged, nothing deployed.
+
+**Decision 1 — empty town × category pages (implemented).**
+
+*Authoritative eligibility.* A product is publicly eligible for a town when
+`BrowseService.publicProductWhere(cityId)` matches it: `status = ACTIVE`, `deletedAt IS NULL`,
+`cityId = <town>`, and — when demo retirement (P3c) is on — not a demo product in a retired
+category. That is the exact filter the storefront listing (`browseProducts`) starts from, so the
+count and the listing cannot disagree. Seller state is not a separate term: suspend/reject flows
+move products out of `ACTIVE`, which the filter already honours; DRAFT / PENDING_REVIEW / REJECTED /
+INACTIVE / soft-deleted rows and products of another town never count. The count is TOWN-scoped
+(the global `productCount` stays what it was and is not used for indexability).
+
+*API (additive, backward compatible).* `GET /v1/browse/categories?cityId=` → every node's
+`productCount` becomes the eligible-in-town count, computed with **one** `groupBy(categoryId)` for
+the whole tree and rolled up like the global counts; `GET /v1/browse/categories/:identifier?cityId=`
+→ `productCount` = eligible products in the town across the subtree (self + children +
+grandchildren, the set the page lists). Without `cityId` both answer byte-for-byte as before (no
+existing consumer sends it — checked buyer/seller web + mobile). `cityId` is validated by shape
+(seeded ids are non-RFC4122), 400 otherwise. Indexes used: `products(status)`, `(cityId)`,
+`(categoryId)`, `(deletedAt)` — existing.
+
+*Buyer Web.* The category route fetches the detail with `?cityId=` (memoised across
+`generateMetadata` + page) and sets `robots` through `lib/indexability.ts`: count > 0 →
+`index, follow`; 0 → `noindex, follow`. The page stays reachable and self-canonical, renders its
+`<h1>`, breadcrumb, sub-category links, footer towns and the « Aucun produit trouvé. » empty state;
+no redirect, no fake 404. The sitemap fetches one tree per ACTIVE town (`?cityId=`, 2 calls today,
+bounded by active towns, never per category) and lists a pair only when its town count is
+positive. Both read the same count, so a pair leaves and returns together as inventory changes
+(route ISR 60 s; sitemap upstream cache 1 h).
+
+*Before / after.* Before: every town × category pair was indexable and in the sitemap regardless
+of inventory. After (dev DB, verified live): a category empty in both towns → `noindex, follow` in
+both, absent from the sitemap; a category with one product in Lubumbashi only → Lubumbashi
+`index, follow` + listed, Kolwezi `noindex, follow` + not listed; the populated pages unchanged.
+
+**Decision 2 — Likasi (implemented).**
+
+References found and classified: *public service-availability copy / SEO metadata* — root layout
+description, homepage title + description, promotions description, product 404 fallback
+description (the four from SEO-1), plus two more the Likasi grep could not see because they named
+only the active pair: the `/categories` hub description and its visible intro copy, and the header
+drawer's hard-coded `/lubumbashi` + `/kolwezi` links. *Master data* — `seed.ts` (`Likasi`,
+`isActive: false`, delivery-zone fees), the `cities.service` slug comment: kept. *Examples/tests* —
+SEO-1 tests using an inactive Likasi fixture: kept. *Shared constants* — `HAUT_KATANGA_TOWNS` in
+`@teka/shared` (address forms, not public copy; no buyer-web consumer): kept. *Structured data* —
+`site-identity.ts` already town-free. *CMS content* — the eight content pages checked on the dev
+API: no Likasi.
+
+Fix: `lib/service-area.ts` (`deliveryPhrase`, `deliveryTitle`, `joinTownNames`) builds the copy
+from `getActiveCities()` — `GET /v1/cities`, active only, the same source that resolves `/{ville}`
+— so the six strings now read « Livraison à Lubumbashi et Kolwezi » (title: « Livraison Lubumbashi
+& Kolwezi »), the header drawer's towns come from the hydrated town store, and an activation of
+Likasi shows up on its own (tested with a mocked active Likasi: « Lubumbashi, Kolwezi et Likasi »).
+With no active town known the phrase degrades to « en RD Congo », never to a stale town. Likasi
+was not activated and not deleted; `/likasi` still 404s; no Likasi in metadata, navigation,
+sitemap, structured data or service-area copy (verified in the served HTML and the browser). Also
+corrected while there: the homepage still advertised « Paiement Mobile Money » (retired
+2026-05-26, Rule 11) — now « Paiement à la livraison ».
+
+**Remaining SEO-1 findings — classification (A fix now · B valid, low value · C intentional ·
+D stale · E product decision).**
+
+| Finding | Class | Outcome |
+|---|---|---|
+| Banner carousel navigates with `router.push` from a div | A | fixed — slides are real `<a href>` (`lib/banner-href.ts`; site-relative `url` targets internal, absolute external in a new tab) |
+| `/categories` hub client-only while in the sitemap at priority 0.9 | A (found during the audit) | fixed — server-rendered tree + towns, same `initial*` pattern |
+| Case normalisation (`/Lubumbashi` 404) | A | fixed — middleware 308s any upper-case path to lower-case (query untouched, `/ingest` exempt) |
+| « Autre » placeholder emitted as schema.org Brand | A | fixed — `lib/brand.ts`, falls back to the seller Organization |
+| Header drawer hard-coded towns | A (decision 2) | fixed — from the active-town store |
+| Header mega-menu categories client-only | B | deferred — discovery covered by the homepage grid, the `/categories` hub, town pages and breadcrumbs; SSR-ing the header means threading data through every route |
+| `og-default.png` is a 1200×630 single-colour square | E | needs a designed asset (brand decision); documented |
+| `keywords` meta (5 files) | B | harmless, ignored by Google; left (removal has zero SEO value) |
+| Town-page BreadcrumbList / LocalBusiness | C | not added — a two-item breadcrumb carries nothing, and Teka is not a per-town LocalBusiness (no physical address per town): the semantic requirements are not met |
+| `ItemList` on listings | B | not added — product links are already in the HTML; ItemList adds no eligibility without a carousel use-case |
+| PostHog initialised eagerly (autocapture + replay) | E | analytics behaviour change — deferred, documented |
+| 404 page carries two robots metas (Next's automatic `noindex` + the layout's `index, follow` with `googleBot` preview directives) | B | left — the most restrictive directive wins; the layout block is what sets `max-image-preview: large` |
+| `/promotions` in the sitemap but client-rendered | B | left — time-boxed content, low index value; candidate for the same `initial*` pattern later |
+| Sitemap product walk cache (1 h) vs new products | C | by design (documented in SEO-1); a new product appears within the hour |
+| `/Recherche?q=A%20B` redirect re-serialises the space as `+` | C | equivalent query encoding; search reads it through `URLSearchParams` |
+
+**Tests.** buyer-web Vitest **181** (was 156): category route +5 (town-scoped request, populated,
+global-but-not-in-town → noindex + canonical + rendered empty state, one product, 0→2→0
+transitions), sitemap +2 (per-town exclusion/inclusion with bounded calls, return after restock),
+indexability 2, service-area 4, service-area metadata for the four routes 3 (active only, Likasi
+appears when active, degradation), banner-href 2, brand 1, middleware +2 (case), initial-HTML +3
+(banner href, hub, header towns), product route +1 (« Autre »). API: **839 unit** (browse spec +10:
+definition with retirement on/off, listing shares the base, global vs town counts, roll-up,
+zero-town, subtree count, global-but-not-in-town; DTO spec 2), **233 e2e** (+2: `?cityId=` grouped
+query + roll-up, invalid cityId 400). Workspace `tsc` clean; buyer-web `next build` clean.
+
+**Runtime validation (production build, `next start`, rebuilt dev API on the dev DB).** To exercise
+the empty case the dev DB has no empty pair (demo catalogue), so two temporary product-type
+categories were created under « Smartphones » with Prisma (`qa-seo2-vide`: no product;
+`qa-seo2-lshi`: one ACTIVE product in Lubumbashi only) and deleted afterwards (cleanup verified:
+0 categories, 0 products left, catalogue back to 307). Served HTML (`curl`): populated Lubumbashi
+and Kolwezi Smartphones → `index, follow`, self-canonical, product links; `qa-seo2-vide` in both
+towns → 200, `noindex, follow`, self-canonical, `<h1>`, sub-category + town links, empty state, no
+product link; `qa-seo2-lshi` → Lubumbashi `index, follow` + 1 product link, Kolwezi
+`noindex, follow`; sitemap → the Lubumbashi pair listed, the Kolwezi pair and the empty category
+absent, no `likasi`; `/Lubumbashi` and `/Kolwezi/Categorie/Smartphones` → 308 lower-case;
+`/likasi` → 404 (Next's automatic `noindex`); homepage / hub / promotions / product-404 descriptions
+name Lubumbashi et Kolwezi only, no « Mobile Money »; homepage banner slide is
+`<a href="/categories">`; one CSP header. **Transition, live:** the `qa-seo2-lshi` Lubumbashi page
+served `index, follow`; its only product was deleted (API count → 0); the first request after the
+60 s ISR window served `noindex, follow`. Chrome, desktop-width tab and DevTools-emulated 390 px
+phone: empty Lubumbashi page, populated and empty Kolwezi pages, populated Lubumbashi page,
+homepage, `/categories`, `/likasi` 404, `sitemap.xml` — hydrated DOM re-checked for robots,
+canonical, links, empty state, copy; no console errors or hydration warnings; no horizontal
+overflow.
+
+**Performance.** Category route: one extra query on the API side only when `cityId` is present (a
+subtree lookup + one indexed `count`), replacing nothing; the page fetch count is unchanged (detail
+memoised). Sitemap: the single global categories call became one call per active town (2), each a
+single grouped query server-side; upstream cache 1 h unchanged. `/categories` hub: one server
+fetch replacing the client fetch. No N+1 anywhere; mobile APIs untouched (default responses
+identical).
+
+**Security.** Public browse data only; `cityId` shape-validated; no seller/user/private inventory
+exposed (counts are of already-public products); JSON-LD escaping and CSP unchanged; auth
+boundaries, cookies, uploads untouched; the middleware change only lower-cases the path.
+
+**Backward compatibility.** API: optional query param, default responses unchanged. Buyer Web:
+banner targets resolve to the same URLs as before (relative `url` targets now open in the same
+tab instead of a new one); upper-case URLs now 308 instead of 404; `/categories` gets SSR props
+with the client fallback intact.
+
+**Remaining release blockers (unchanged by SEO-2):** the `develop → main` release itself
+(release checklist, manual `nginx.prod.conf` copy, Cloudflare origin firewall the same day, smoke
+matrix), then the Android store builds. SEO work is no longer a blocker for the release decision;
+the E items above (`og-default.png`, PostHog deferral) are product/analytics decisions.
+
 ## Next exact step
 
 **Seller Mobile UX/UI series A–F complete (`f2b8d49`); the checkpoint and the release-readiness
@@ -3112,9 +3256,9 @@ with a merge commit, none started without approval: (1) **`develop → main` rel
 everything since `78c6ef9`) — run the release checklist in `docs/deployment.md`, copy
 `nginx/nginx.prod.conf` to the VPS during the window, apply the Cloudflare origin firewall the same
 day — **the owner chose to complete the Buyer Web SEO workstream first**; (2) `buyer-web/seo-1`
-— **implemented, PR open, awaiting merge approval** (decisions 5 and 7 recorded as findings, still
-open); (3) `security/admin-and-financial` (S12 payout re-auth, S13 application
-uploads, S14/S22 DTO bounds); (4) `mobile/security-hardening` (MS1–MS7); (5) `buyer-web/seo-2`;
+— **merged `6234f0c`**; `buyer-web/seo-2` — **implemented, PR open, awaiting merge approval**
+(decisions 5 and 7 approved and implemented); (3) `security/admin-and-financial` (S12 payout re-auth, S13 application
+uploads, S14/S22 DTO bounds); (4) `mobile/security-hardening` (MS1–MS7);
 (6) Dependabot follow-ups (`sharp`/`esbuild`, stale PRs, bundler); (7) D2b / S11 / S16 / iOS runtime
 session. Still open and preserved: API `pendingCDF` vs HELD/`deliveredAt`; login-email change without
 re-auth; seller-web stale-town notice; notification pre-prompt; golden tests; legacy characteristic

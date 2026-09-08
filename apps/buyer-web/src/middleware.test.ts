@@ -86,7 +86,26 @@ describe('middleware', () => {
     });
   });
 
-  describe('trailing slash → canonical (SEO-1)', () => {
+  describe('upper-case paths → lower-case canonical (SEO-2)', () => {
+  it('308s /Lubumbashi and a mixed-case category path to their lower-case canonical', () => {
+    const r1 = middleware(req('/Lubumbashi'));
+    expect(r1.status).toBe(308);
+    expect(r1.headers.get('location')).toBe('https://teka.cd/lubumbashi');
+    const r2 = middleware(req('/Lubumbashi/Categorie/Smartphones/'));
+    expect(r2.status).toBe(308);
+    expect(r2.headers.get('location')).toBe('https://teka.cd/lubumbashi/categorie/smartphones');
+  });
+
+  it('leaves the query string alone (search terms keep their case) and never touches /ingest', () => {
+    const r = middleware(req('/Recherche?q=Samsung%20A15'));
+    expect(r.status).toBe(308);
+    expect(r.headers.get('location')).toBe('https://teka.cd/recherche?q=Samsung%20A15');
+    const ingest = middleware(req('/ingest/Static/x'));
+    expect(ingest.status).not.toBe(308);
+  });
+});
+
+describe('trailing slash → canonical (SEO-1)', () => {
     it('308s a slashed page URL to its slash-less canonical, keeping the query', () => {
       const res = middleware(req('/lubumbashi/categorie/telephones/?tri=prix'));
       expect(res.status).toBe(308);

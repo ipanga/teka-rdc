@@ -1,11 +1,13 @@
 import { effectiveCentimes } from '@/lib/format';
 import { plainText, truncateForMeta } from '@/lib/seo-text';
+import { isRealBrand } from '@/lib/brand';
 import type { Metadata } from 'next';
 import { notFound, permanentRedirect } from 'next/navigation';
 import ProductDetailPage from '@/components/pages/product-detail-page';
 import { JsonLd } from '@/components/seo/json-ld';
 import { serverFetch } from '@/lib/server-api';
 import { getActiveCities } from '@/lib/server-cities';
+import { deliveryPhrase } from '@/lib/service-area';
 import type { ProductDetail } from '@/lib/types';
 import {
   productHref,
@@ -60,8 +62,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   );
 
   if (!product) {
-    const fallbackDesc =
-      'Découvrez les produits sur Teka RDC — supermarché en ligne en RD Congo. Livraison à Lubumbashi, Kolwezi et Likasi.';
+    // Served towns from the active-town API (SEO-2 decision 2).
+    const fallbackDesc = `Découvrez les produits sur Teka RDC — supermarché en ligne en RD Congo. ${deliveryPhrase(await getActiveCities())}`;
     return {
       title: 'Teka RDC',
       description: fallbackDesc,
@@ -178,7 +180,7 @@ export default async function Page({ params }: Props) {
     sku: product.shortCode ?? product.id,
     // Prefer the product's real brand (first-class Brand library); fall back to
     // the seller / platform as the brand-like entity when none is set.
-    brand: product.brand?.name
+    brand: isRealBrand(product.brand)
       ? { '@type': 'Brand', name: product.brand.name }
       : { '@type': 'Organization', name: sellerDisplayName || 'Teka RDC' },
     offers: {

@@ -5,6 +5,7 @@ import { JsonLd } from '@/components/seo/json-ld';
 import { serverFetch } from '@/lib/server-api';
 import { findCityBySlug, getActiveCities } from '@/lib/server-cities';
 import type { PaginatedProducts } from '@/lib/types';
+import { listingRobots } from '@/lib/indexability';
 
 type Props = { params: Promise<{ ville: string; slug: string }> };
 
@@ -22,12 +23,24 @@ interface ApiCategoryDetail {
 /** First listing page, identical to the client's default query. */
 const FIRST_PAGE_LIMIT = 12;
 
+/**
+ * Category detail with the TOWN-SCOPED eligible product count (SEO-2
+ * decision 1): `productCount` is the number of publicly eligible products in
+ * this town across the category's subtree — the API's single eligibility
+ * definition (`BrowseService.publicProductWhere`), never a client-side card
+ * count and never the global figure. Memoised by Next across generateMetadata
+ * and the page for one request.
+ */
+async function fetchCategoryForTown(slug: string, cityId: string) {
+  return serverFetch<ApiCategoryDetail>(
+    `/v1/browse/categories/${encodeURIComponent(slug)}?cityId=${encodeURIComponent(cityId)}`,
+  );
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { ville, slug } = await params;
-  const [city, category] = await Promise.all([
-    findCityBySlug(ville),
-    serverFetch<ApiCategoryDetail>(`/v1/browse/categories/${slug}`),
-  ]);
+  const city = await findCityBySlug(ville);
+  const category = city ? await fetchCategoryForTown(slug, city.id) : null;
 
   const name = category?.name || '';
   const cityName = city?.name || '';
@@ -53,15 +66,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: { card: 'summary', title: `${name} à ${cityName} | Teka RDC`, description },
     alternates: { canonical },
+    // Empty town × category (SEO-2 decision 1): the page stays reachable and
+    // self-canonical, links are followed, but it is not indexed until this
+    // town has eligible inventory again — then this flips back on its own
+    // (ISR 60 s), no redirect and no fake 404 in either direction.
+    robots: listingRobots(category),
   };
 }
 
 export default async function Page({ params }: Props) {
   const { ville, slug } = await params;
-  const [city, category] = await Promise.all([
-    findCityBySlug(ville),
-    serverFetch<ApiCategoryDetail>(`/v1/browse/categories/${slug}`),
-  ]);
+  const city = await findCityBySlug(ville);
+  const category = city ? await fetchCategoryForTown(slug, city.id) : null;
   if (!city || !category) notFound();
 
   // SEO-1: the first product page for this town × category, server-rendered
