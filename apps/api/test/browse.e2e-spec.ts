@@ -51,6 +51,40 @@ describe('Browse (e2e)', () => {
         .get('/api/v1/browse/categories')
         .expect(200);
     });
+
+    // SEO-2: town-scoped eligible counts drive the indexability of the
+    // /{ville}/categorie/{slug} pages and their sitemap membership.
+    it('with ?cityId= counts eligible products in that town with one grouped query', async () => {
+      mockPrismaService.category.findMany.mockResolvedValue([
+        { id: '20000000-0000-0000-0000-000000000001', name: 'Electronique', slug: 'electronique', parentCategoryId: null, isActive: true, sortOrder: 0, _count: { products: 5 } },
+        { id: '20000000-0000-0000-0000-000000000002', name: 'Téléphones', slug: 'telephones', parentCategoryId: '20000000-0000-0000-0000-000000000001', isActive: true, sortOrder: 0, _count: { products: 5 } },
+      ]);
+      mockPrismaService.systemSetting.findUnique.mockResolvedValue(null);
+      mockPrismaService.product.groupBy.mockResolvedValue([
+        { categoryId: '20000000-0000-0000-0000-000000000002', _count: { _all: 1 } },
+      ]);
+
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/browse/categories?cityId=01000000-0000-0000-0000-000000000001')
+        .expect(200);
+
+      expect(mockPrismaService.product.groupBy).toHaveBeenCalledTimes(1);
+      expect(mockPrismaService.product.groupBy.mock.calls[0][0].where).toMatchObject({
+        status: 'ACTIVE',
+        deletedAt: null,
+        cityId: '01000000-0000-0000-0000-000000000001',
+      });
+      // Global 5 replaced by the town figure, rolled up to the parent.
+      expect(res.body.data[0].productCount).toBe(1);
+      expect(res.body.data[0].subcategories[0].productCount).toBe(1);
+    });
+
+    it('rejects a cityId that is not uuid-shaped (400, French)', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/browse/categories?cityId=lubumbashi')
+        .expect(400);
+      expect(res.body.success).toBe(false);
+    });
   });
 
   // ---------------------------------------------------------------------------

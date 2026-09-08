@@ -2,6 +2,7 @@ import { Controller, Get, Param, Query, ParseUUIDPipe } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { BrowseService } from './browse.service';
 import { BrowseProductsQueryDto } from './dto/browse-products-query.dto';
+import { BrowseCategoriesQueryDto } from './dto/browse-categories-query.dto';
 import { Public } from '../common/decorators/public.decorator';
 
 @Controller('v1/browse')
@@ -10,8 +11,8 @@ export class BrowseController {
 
   @Get('categories')
   @Public()
-  getCategories() {
-    return this.browseService.getCategories();
+  getCategories(@Query() query: BrowseCategoriesQueryDto) {
+    return this.browseService.getCategories(query.cityId);
   }
 
   /**
@@ -20,8 +21,11 @@ export class BrowseController {
    */
   @Get('categories/:identifier')
   @Public()
-  getCategoryDetail(@Param('identifier') identifier: string) {
-    return this.browseService.getCategoryDetail(identifier);
+  getCategoryDetail(
+    @Param('identifier') identifier: string,
+    @Query() query: BrowseCategoriesQueryDto,
+  ) {
+    return this.browseService.getCategoryDetail(identifier, query.cityId);
   }
 
   @Get('products')

@@ -101,6 +101,8 @@ export const mockPrismaService: Record<string, any> = {
     create: jest.fn(),
     update: jest.fn(),
     count: jest.fn(),
+    // Town-scoped category counts (SEO-2) + demo retirement scan.
+    groupBy: jest.fn().mockResolvedValue([]),
   },
   productImage: {
     findMany: jest.fn(),

@@ -824,3 +824,163 @@ describe('BrowseService.browseProducts — sitemap fields (SEO-1)', () => {
     expect(res.data[0]).toMatchObject({ id: 'p1', citySlug: 'lubumbashi', updatedAt: row.updatedAt });
   });
 });
+
+// ---------------------------------------------------------------------------
+// SEO-2 — town-scoped public eligibility (the indexability source of truth)
+// ---------------------------------------------------------------------------
+function makeTownService(opts: {
+  retire?: { enabled: boolean; threshold?: number; realCounts?: Record<string, number> };
+  categories?: Array<{ id: string; parentCategoryId: string | null; _count: { products: number } }>;
+  townGroups?: Array<{ categoryId: string; _count: { _all: number } }>;
+  subtree?: string[];
+  count?: number;
+}) {
+  const settingFindUnique = jest.fn(({ where: { key } }: { where: { key: string } }) => {
+    if (key === 'RETIRE_DEMO_CATALOG') return Promise.resolve({ value: opts.retire?.enabled ? 'true' : 'false' });
+    if (key === 'DEMO_RETIRE_THRESHOLD') return Promise.resolve({ value: String(opts.retire?.threshold ?? 3) });
+    return Promise.resolve(null);
+  });
+  const retiredGroups = Object.entries(opts.retire?.realCounts ?? {}).map(([categoryId, n]) => ({
+    categoryId,
+    _count: { _all: n },
+  }));
+  // groupBy serves two callers: the retirement scan (isDemo:false) and the
+  // town count (cityId). Tell them apart by the where clause.
+  const groupBy = jest.fn(({ where }: { where: Record<string, unknown> }) =>
+    Promise.resolve(where.isDemo === false ? retiredGroups : (opts.townGroups ?? [])),
+  );
+  const categoryFindMany = jest.fn(({ select }: { select?: Record<string, unknown> }) =>
+    Promise.resolve(
+      select?.id && Object.keys(select).length === 1
+        ? (opts.subtree ?? []).map((id) => ({ id }))
+        : (opts.categories ?? []).map((c) => ({ name: c.id, slug: c.id, isActive: true, deletedAt: null, sortOrder: 0, ...c })),
+    ),
+  );
+  const categoryFindFirst = jest.fn(() =>
+    Promise.resolve({
+      id: 'cat-smart', slug: 'smartphones', name: 'Smartphones', parentCategory: null,
+      subcategories: [], _count: { products: 40 },
+    }),
+  );
+  const count = jest.fn(() => Promise.resolve(opts.count ?? 0));
+  const prisma = {
+    product: { findMany: jest.fn(() => Promise.resolve([])), count, groupBy },
+    category: { findMany: categoryFindMany, findFirst: categoryFindFirst },
+    systemSetting: { findUnique: settingFindUnique },
+  };
+  const service = new BrowseService(prisma as never);
+  return { service, groupBy, count, categoryFindMany, productFindMany: prisma.product.findMany };
+}
+
+describe('BrowseService.publicProductWhere — the one eligibility definition (SEO-2)', () => {
+  it('= ACTIVE, not soft-deleted, in the town; nothing else when retirement is off', async () => {
+    const { service } = makeTownService({ retire: { enabled: false } });
+    expect(await service.publicProductWhere('city-1')).toEqual({
+      status: 'ACTIVE',
+      deletedAt: null,
+      cityId: 'city-1',
+    });
+    expect(await service.publicProductWhere()).toEqual({ status: 'ACTIVE', deletedAt: null });
+  });
+
+  it('also hides retired demo products when retirement is on', async () => {
+    const { service } = makeTownService({
+      retire: { enabled: true, threshold: 3, realCounts: { cat1: 5, cat2: 1 } },
+    });
+    expect(await service.publicProductWhere('city-1')).toEqual({
+      status: 'ACTIVE',
+      deletedAt: null,
+      cityId: 'city-1',
+      OR: [{ isDemo: false }, { categoryId: { notIn: ['cat1'] } }],
+    });
+  });
+
+  it('is the base of the storefront listing (browseProducts cannot disagree with the counts)', async () => {
+    const { service, productFindMany } = makeTownService({ retire: { enabled: false } });
+    await service.browseProducts({ cityId: 'city-1' } as never);
+    const where = (productFindMany.mock.calls[0][0] as { where: Record<string, unknown> }).where;
+    expect(where).toMatchObject({ status: 'ACTIVE', deletedAt: null, cityId: 'city-1' });
+  });
+});
+
+describe('BrowseService.getCategories — town-scoped counts (SEO-2)', () => {
+  const tree = [
+    { id: 'top', parentCategoryId: null, _count: { products: 0 } },
+    { id: 'sub', parentCategoryId: 'top', _count: { products: 0 } },
+    { id: 'leafA', parentCategoryId: 'sub', _count: { products: 7 } }, // 7 globally
+    { id: 'leafB', parentCategoryId: 'sub', _count: { products: 2 } }, // 2 globally
+  ];
+
+  it('without cityId keeps the global counts and issues no grouped query (unchanged contract)', async () => {
+    const { service, groupBy } = makeTownService({ categories: tree });
+    const roots = (await service.getCategories()) as Array<{ id: string; productCount: number; subcategories: Array<{ productCount: number; subcategories: Array<{ id: string; productCount: number }> }> }>;
+    expect(groupBy).not.toHaveBeenCalled();
+    expect(roots[0].productCount).toBe(9);
+    expect(roots[0].subcategories[0].subcategories.map((l) => [l.id, l.productCount])).toEqual([['leafA', 7], ['leafB', 2]]);
+  });
+
+  it('with cityId counts eligible products in that town with ONE grouped query and rolls them up', async () => {
+    const { service, groupBy } = makeTownService({
+      categories: tree,
+      townGroups: [{ categoryId: 'leafA', _count: { _all: 1 } }], // leafB: products globally, none in town
+    });
+    const roots = (await service.getCategories('city-1')) as Array<{ productCount: number; subcategories: Array<{ productCount: number; subcategories: Array<{ id: string; productCount: number }> }> }>;
+    expect(groupBy).toHaveBeenCalledTimes(1);
+    expect(groupBy.mock.calls[0][0]).toMatchObject({
+      by: ['categoryId'],
+      where: { status: 'ACTIVE', deletedAt: null, cityId: 'city-1' },
+    });
+    expect(roots[0].subcategories[0].subcategories.map((l) => [l.id, l.productCount])).toEqual([['leafA', 1], ['leafB', 0]]);
+    expect(roots[0].subcategories[0].productCount).toBe(1);
+    expect(roots[0].productCount).toBe(1);
+  });
+
+  it('a town with no eligible product at all yields 0 on every node', async () => {
+    const { service } = makeTownService({ categories: tree, townGroups: [] });
+    const roots = (await service.getCategories('city-2')) as Array<{ productCount: number }>;
+    expect(roots[0].productCount).toBe(0);
+  });
+});
+
+describe('BrowseService.getCategoryDetail — town-scoped subtree count (SEO-2)', () => {
+  it('without cityId returns the global own-product count and never counts (unchanged contract)', async () => {
+    const { service, count } = makeTownService({});
+    const detail = await service.getCategoryDetail('smartphones');
+    expect(detail.productCount).toBe(40);
+    expect(count).not.toHaveBeenCalled();
+  });
+
+  it('with cityId counts eligible products in the town across self + children + grandchildren', async () => {
+    const { service, count, categoryFindMany } = makeTownService({
+      subtree: ['cat-smart', 'cat-android', 'cat-android-5g'],
+      count: 1,
+    });
+    const detail = await service.getCategoryDetail('smartphones', 'city-1');
+    expect(detail.productCount).toBe(1);
+    expect(categoryFindMany.mock.calls[0][0]).toMatchObject({
+      where: {
+        OR: [
+          { id: 'cat-smart' },
+          { parentCategoryId: 'cat-smart' },
+          { parentCategory: { parentCategoryId: 'cat-smart' } },
+        ],
+        isActive: true,
+        deletedAt: null,
+      },
+    });
+    expect(count.mock.calls[0][0]).toEqual({
+      where: {
+        status: 'ACTIVE',
+        deletedAt: null,
+        cityId: 'city-1',
+        categoryId: { in: ['cat-smart', 'cat-android', 'cat-android-5g'] },
+      },
+    });
+  });
+
+  it('products that exist globally but not in the town → 0 (the page is not indexable there)', async () => {
+    const { service } = makeTownService({ subtree: ['cat-smart'], count: 0 });
+    const detail = await service.getCategoryDetail('smartphones', 'city-2');
+    expect(detail.productCount).toBe(0);
+  });
+});

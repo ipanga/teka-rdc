@@ -255,7 +255,39 @@ export class BrowseService {
   /**
    * Returns active categories as a tree with ACTIVE product counts.
    */
-  async getCategories() {
+  /**
+   * THE definition of a publicly eligible product — what the storefront lists,
+   * what a town × category page counts, what the sitemap indexes. One place, so
+   * the browse listing, the per-town counts and the indexability decision can
+   * never disagree: `status = ACTIVE`, not soft-deleted, in the town when one
+   * is given, and not a demo product in a category the demo retirement (P3c)
+   * has retired. Seller state is not part of it today: a seller's products
+   * are hidden by moving them out of ACTIVE (suspend/reject flows), which this
+   * filter already honours.
+   */
+  async publicProductWhere(cityId?: string): Promise<Prisma.ProductWhereInput> {
+    const where: Prisma.ProductWhereInput = {
+      status: ProductStatus.ACTIVE,
+      deletedAt: null,
+    };
+    if (cityId) where.cityId = cityId;
+    const retired = await this.getRetiredCategoryIds();
+    if (retired.size > 0) {
+      where.OR = [
+        { isDemo: false },
+        { categoryId: { notIn: Array.from(retired) } },
+      ];
+    }
+    return where;
+  }
+
+  /**
+   * Category tree with `productCount` per node (own products + descendants).
+   * Without `cityId` the count is global (unchanged behaviour). With `cityId`
+   * (SEO-2) it is the number of publicly eligible products IN THAT TOWN — one
+   * grouped query for the whole tree, never a count per category.
+   */
+  async getCategories(cityId?: string) {
     const categories = await this.prisma.category.findMany({
       where: { isActive: true, deletedAt: null },
       orderBy: { sortOrder: 'asc' },
@@ -269,6 +301,18 @@ export class BrowseService {
         },
       },
     });
+
+    // Town scope: replace the global per-node counts by the eligible-in-town
+    // ones (rolled up below exactly like the global ones).
+    let townCounts: Map<string, number> | null = null;
+    if (cityId) {
+      const grouped = await this.prisma.product.groupBy({
+        by: ['categoryId'],
+        where: await this.publicProductWhere(cityId),
+        _count: { _all: true },
+      });
+      townCounts = new Map(grouped.map((g) => [g.categoryId, g._count._all]));
+    }
 
     // Build tree from flat list
     const map = new Map<
@@ -286,7 +330,9 @@ export class BrowseService {
     for (const cat of categories) {
       const node = {
         ...cat,
-        productCount: cat._count.products,
+        productCount: townCounts
+          ? (townCounts.get(cat.id) ?? 0)
+          : cat._count.products,
         subcategories: [] as typeof categories,
       };
       delete (node as Record<string, unknown>)['_count'];
@@ -328,15 +374,12 @@ export class BrowseService {
   async browseProducts(query: BrowseProductsQueryDto) {
     const limit = query.limit ?? 20;
 
-    // Build where clause
+    // Build where clause — starts from THE public-eligibility filter (status,
+    // soft-delete, town, demo retirement) so the listing and the town × category
+    // counts can never disagree; the filters below narrow it.
     const where: Record<string, unknown> = {
-      status: ProductStatus.ACTIVE,
-      deletedAt: null,
+      ...(await this.publicProductWhere(query.cityId)),
     };
-
-    if (query.cityId) {
-      where.cityId = query.cityId;
-    }
 
     // The expanded category-id set (self + sub + sub-sub), shared by the Prisma
     // path and the raw FTS search path so both filter identically.
@@ -421,16 +464,9 @@ export class BrowseService {
       where.id = { in: attributeProductIds };
     }
 
-    // Demo retirement (P3c): hide demo products in categories that have enough
-    // real ones. Dormant unless the master switch is on — `retired` is then
-    // empty and this is a no-op. Applied to both query branches below.
+    // Demo retirement (P3c) is part of publicProductWhere above (`where.OR`);
+    // the raw FTS branch below re-derives the same set for its SQL.
     const retired = await this.getRetiredCategoryIds();
-    if (retired.size > 0) {
-      where.OR = [
-        { isDemo: false },
-        { categoryId: { notIn: Array.from(retired) } },
-      ];
-    }
 
     // Product fields returned to clients — shared by the default Prisma path
     // and the full-text search path (which hydrates by id with the same shape).
@@ -1216,7 +1252,15 @@ export class BrowseService {
    * detail page (/categorie/<slug>). Mirrors the UUID-or-slug pattern of
    * getProductDetail above.
    */
-  async getCategoryDetail(identifier: string) {
+  /**
+   * One category by id OR slug with breadcrumb and live children. Without
+   * `cityId`, `productCount` is the global count of the category's OWN
+   * products (unchanged). With `cityId` (SEO-2) it is the number of publicly
+   * eligible products in that town across the category's subtree (self,
+   * children, grandchildren — the same set the listing shows for the page),
+   * which is what decides whether the town × category page is indexable.
+   */
+  async getCategoryDetail(identifier: string, cityId?: string) {
     const isUuid =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
         identifier,
@@ -1282,7 +1326,28 @@ export class BrowseService {
     });
 
     const { _count, ...rest } = category;
-    return { ...rest, productCount: _count.products, breadcrumb };
+    let productCount = _count.products;
+    if (cityId) {
+      const subtree = await this.prisma.category.findMany({
+        where: {
+          OR: [
+            { id: category.id },
+            { parentCategoryId: category.id },
+            { parentCategory: { parentCategoryId: category.id } },
+          ],
+          isActive: true,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      productCount = await this.prisma.product.count({
+        where: {
+          ...(await this.publicProductWhere(cityId)),
+          categoryId: { in: subtree.map((c) => c.id) },
+        },
+      });
+    }
+    return { ...rest, productCount, breadcrumb };
   }
 
   /**
