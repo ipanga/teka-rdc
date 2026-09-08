@@ -16,6 +16,19 @@ const protectedRoutes = [
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Canonical URLs have no trailing slash (SEO-1). next.config sets
+  // `skipTrailingSlashRedirect: true` because the PostHog `/ingest/*` proxy
+  // must not be redirected — but that switch is global, so every page also
+  // answered 200 at both `/x` and `/x/`. Restore the 308 for everything except
+  // the proxy path so a slashed variant can never be indexed as a duplicate.
+  if (pathname.length > 1 && pathname.endsWith('/') && !pathname.startsWith('/ingest')) {
+    // A plain URL, not NextURL: NextURL's pathname setter re-applies the
+    // trailing slash it was constructed with, so the redirect kept it.
+    const target = new URL(request.url);
+    target.pathname = pathname.replace(/\/+$/, '') || '/';
+    return NextResponse.redirect(target, 308);
+  }
+
   // Treat the user as authenticated if they hold either an access token
   // (15 min TTL) OR a refresh token (7 day TTL). The access token expires
   // every 15 minutes, so gating on it alone kicked logged-in users to

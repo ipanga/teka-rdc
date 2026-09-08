@@ -85,4 +85,26 @@ describe('middleware', () => {
       expect(location(middleware(req('/lubumbashi/iphone-15-a1b2c3')))).toBeNull();
     });
   });
+
+  describe('trailing slash → canonical (SEO-1)', () => {
+    it('308s a slashed page URL to its slash-less canonical, keeping the query', () => {
+      const res = middleware(req('/lubumbashi/categorie/telephones/?tri=prix'));
+      expect(res.status).toBe(308);
+      expect(res.headers.get('location')).toBe('https://teka.cd/lubumbashi/categorie/telephones?tri=prix');
+    });
+
+    it('collapses repeated trailing slashes and never redirects the root', () => {
+      expect(middleware(req('/kolwezi//')).headers.get('location')).toBe('https://teka.cd/kolwezi');
+      expect(middleware(req('/')).status).toBe(200);
+    });
+
+    it('leaves the PostHog proxy alone (the reason skipTrailingSlashRedirect exists)', () => {
+      const res = middleware(req('/ingest/'));
+      expect(res.status).not.toBe(308);
+    });
+
+    it('a slash-less product page is not touched', () => {
+      expect(middleware(req('/lubumbashi/iphone-15-a1b2c3')).status).toBe(200);
+    });
+  });
 });
