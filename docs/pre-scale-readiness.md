@@ -2038,12 +2038,126 @@ temporary password 401s). iOS: not built in this PR (no change to native code or
 has no verification task yet (parity follow-up once the seller-web phase opens); `docs/analytics.md` now
 lists the seller-mobile UI events instead of calling it infra-only.
 
+### Seller UX PR C — `seller-mobile/ux-orders` (Orders, 2026-09-08)
+
+**Seller UX PR B merged** as `5825cb3` (merge commit; head `a8849b3` unchanged, 15/15 checks + CodeQL green,
+seller-mobile + trackers only). Develop synced and clean; `CI` + CodeQL green on `5825cb3`.
+
+**Orders baseline (source + live app).** Traced: `GET /v1/sellers/orders` (`{ data, pagination }`, filter
+= one `status` validated against the enum), `GET /v1/sellers/orders/:id` (items, buyer, snapshot address,
+`statusLogs`, `financials`), the stats endpoint, and the four seller transitions in `SellerOrdersService` —
+each validates its precondition and answers **400** with a French « Transition de statut invalide… » when
+the status moved (there is no 409). `ORDER_STATUS_TRANSITIONS`: the seller drives `PENDING → CONFIRMED →
+PROCESSING → READY_FOR_TEKA_PICKUP` (+ `PENDING → CANCELLED` by refusal, reason required, stock restored,
+COD transaction failed); everything after is admin/Teka.
+
+| Element | Verdict |
+|---|---|
+| Filters: all ten statuses, route-synced (`?status=`), Action Center hands the filter to the module, unknown query → all | **Already good** — kept; labels moved to the shared vocabulary, seller steps first, legacy SHIPPED last. |
+| List: request-token race safety, pull-to-refresh, load-more footer, per-filter empty state, error + retry, `SellerListLoading` skeleton | **Already good** — kept; empty copy now names the bucket (« Aucune commande à confirmer »). |
+| Card: number, chip, buyer name, date, count, total | **Visually weak** — raw sizes, no action signal beyond the status word. |
+| Detail first paint | **Functionally weak** — bare `CircularProgressIndicator` (PR B finding). |
+| Detail error | **Stale** — generic text + unthemed button. |
+| Status labels | **Redundant / drifting** — three copies (chip, timeline, filter bar). |
+| Timeline | **Already good** (real `statusLogs`, oldest first) but the last dot was brand red. |
+| Money | **Misleading** — item totals, order total and « Montant à recevoir » in brand red; commission in destructive red. |
+| Buyer section | **Over-exposed** — phone, street, reference and recipient phone shown to a seller who never delivers. |
+| Action bar | **Correct** for the three seller statuses; **silent** for READY (bar simply absent); labels « Confirmer / Préparer / Rejeter »; hard-coded red. |
+| Dialogs | **Weak** — « Confirmer cette action ? » for everything; refusal button enabled with an empty reason; a double tap on the dialog button could pop the detail itself. |
+| Failure handling | **Misleading** — generic « Une erreur est survenue » for a 400 stale transition, no refetch, raw `ScaffoldMessenger`. |
+| Refresh | **Already good** for list/Action Center/badge (revision); the open detail did **not** follow the revision (a push while reading changed nothing). |
+| Deep links | **Already good** — list push, Action Center → filtered list → push, notification `order-details` → push; `AdaptiveLeading` keeps an exit. |
+
+**What changed (seller-mobile only).**
+
+- `features/orders/presentation/order_status_ui.dart` (new): `OrderStatusUi.of(status)` → label, icon,
+  tone, filter label, « step » sentence, card action label, `stepHeading`; `orderFilterOrder`;
+  `orderEmptyCopy`. **Tone = status semantics**: warning while the seller acts (PENDING / CONFIRMED /
+  PROCESSING), neutral while Teka collects (READY, RETURNED), info in transit, success DELIVERED,
+  destructive CANCELLED — brand red on no status (test-pinned; chip contrast ≥ 4.5:1 still pinned).
+- `order_status_badge.dart`, `orders_list_screen.dart`: read the vocabulary; per-bucket empty copy.
+- `order_card.dart`: theme typography + tokens; amber « À confirmer / À préparer / À finaliser » pill
+  next to the chip while the seller must act; one semantics label (number, status, action, buyer, count,
+  total). **No list-card buttons, deliberately**: every transition is taken from the detail where the
+  items are visible.
+- `order_action_buttons.dart`: `Confirmer la commande` / `Refuser`, `Commencer la préparation`, `Marquer
+  prête pour collecte`; theme colours; `busy` disables all and shows progress in the primary button.
+- `order_detail_screen.dart` rewritten: `OrderDetailSkeleton` (static blocks: header, strip, two items,
+  money, timeline, bar); shared `SellerListMessage` error; strip « Votre action / Prise en charge par Teka
+  / Commande clôturée » + the step sentence; items first (« N articles à préparer »); buyer = **name +
+  « Livraison assurée par Teka · {town} »** only; « Total payé par l’acheteur » vs « Montant à recevoir »
+  in separate cards, all money in foreground, commission with a minus sign; payment line « Paiement à la
+  livraison · encaissé par Teka à la livraison / encaissé par Teka / aucun encaissement »; no estimate card
+  on cancelled / returned; timeline dots in each log's own tone, `dd/MM/yyyy · HH:mm`, notes italic;
+  bottom bar = buttons, or « En attente de collecte par Teka » for READY, or nothing.
+- Dialogs: confirm (« …passera en préparation. Vous ne pourrez plus la refuser ensuite »), prepare, ready
+  (« Cette étape est définitive : la commande passe sous la responsabilité de Teka »), refusal (« annulée
+  définitivement, le stock restitué et l’acheteur informé du motif », reason field, button disabled until
+  typed, controller owned by the dialog). Every dialog button is guarded against a second pop.
+- Transition run: `busy` → response seeds the fiche immediately (`SellerOrderModel.withTransition`,
+  financials kept) → list refreshed explicitly (it keeps page + scroll) → revision refetch reconciles →
+  success snackbar. Failure → `friendlyErrorMessage` (the API's French text) **and** a refetch; if the
+  status differs from the one the dialog was opened on, « Le statut de cette commande a changé
+  entre-temps : la fiche a été actualisée » (warning) instead of the error. `sellerOrderDetailProvider`
+  now watches the orders revision (push / resume / mutation) and keeps the previous order on screen while
+  refetching.
+
+**Not changed:** API, schema, env, dependencies (item thumbnails stay `Image.network` with a placeholder
++ `cacheWidth`; no `cached_network_image` added to the seller app), analytics (the API owns
+`order_confirmed` … events; the app adds none), the state machine, pricing, commission.
+
+**Tests (seller 288, +41; analyze 16 infos, down from 20; buyer untouched, `responsive.dart` identical).**
+`order_status_ui_test` (exactly the three seller statuses are actionable and have a primary label, card
+labels, no raw enum / English, tones, filter coverage and order, READY step wording, empty copy);
+`order_detail_screen_test` (skeleton not spinner, load error + retry, CTA per status + « Votre action »,
+READY neutral, five non-seller statuses with the right heading, buyer privacy, FC formatting and
+foreground money, timeline = logs only, confirm with revision bump and double-tap guard, refusal
+validation, failure keeps state + API message + retry, stale → reload + message, status change while a
+dialog is open, push refetch, immediate CTA update while the refetch hangs, cancelled order without
+estimate, 320/360/390/412 × 1.0/1.5, 600/834/1024/1280 readable centred bar). Existing dashboard,
+lists and forms tests follow the new labels and the per-bucket empty copy.
+
+**Runtime (Pixel 8 Pro, development flavor, local API, Marie's seed orders — every mutation reverted).**
+Action Center « Commandes à confirmer » → list on « À confirmer » with the amber pill → detail skeleton →
+detail. **Real conflict:** the same order confirmed through the API with curl while the app showed it
+pending → « Confirmer la commande » → dialog → warning « Le statut de cette commande a changé
+entre-temps », fiche reloaded to « Confirmée » with « Commencer la préparation ». Then prepare → ready:
+dialogs, busy button, fiche updated at once, « Prise en charge par Teka · En attente de collecte par
+Teka », timeline En attente → Confirmée → En préparation → Prête pour collecte with tones; the list on
+« En préparation » lost the card; the dashboard moved 1/1/1 → the right buckets and the badge followed.
+Refusal on the restored pending order: button disabled until a reason, then « Annulée », « Commande
+refusée. L’acheteur a été informé », timeline note « Rejetée par le vendeur : … », « À confirmer »
+list empty with its own copy. Text scale 1.3× / 1.5× on the detail: wraps, line total drops under the
+quantity on narrow layouts (fix found by the 320 px test), no clipping. Tablet 800 pt portrait and
+1280 pt landscape: list cards capped, detail and bar centred in the readable column. **Two defects found
+on the device and fixed before this PR was opened:** a dialog opened on a stale fiche (status refreshed
+underneath) reported the raw API message instead of « a changé » — the pre-dialog status is now the
+reference; the fiche lagged the slow dev refetch by 5–7 s after a success — the response now seeds it.
+A third: a cancelled order read « Prise en charge par Teka » with an estimate card — now « Commande
+clôturée », « aucun encaissement », no estimate. Restored byte-for-byte: three order statuses, the six
+status-log rows created, the product stock the refusal had restored, `paymentStatus`, cancellation
+fields, the COD transaction (`FAILED/order_cancelled` → `PENDING`), and the password hash (verified).
+iOS: not built (no native change).
+
+**Local tooling note (not the repo):** an Android Studio update shipped a Java 25 JBR, which Gradle's
+Kotlin DSL compiler cannot parse (`IllegalArgumentException: 25.0.3`), so `flutter build apk` failed
+before any Dart compiled. Fixed on this machine with `flutter config --jdk-dir` → JDK 21; nothing in the
+repository changed and CI is unaffected (it installs its own JDK).
+
+**First-launch notification permission (follow-up, not buried):** Android's system prompt still appears
+over the dashboard on first launch and, after a reinstall, again. It did not obstruct this QA. Moving it
+behind an onboarding moment is a product decision for a later PR (profile / settings, PR F, or its own).
+
+**Buyer PII decision to confirm:** the seller detail no longer shows the buyer's phone, street, reference
+or recipient phone (the API still sends them; seller-web still shows them). Reversible in one widget if
+sellers turn out to need a contact channel other than Teka.
+
 ### Remaining Seller UX findings by PR (from the baseline audit + this PR's walk)
 
 | PR | Surface | Findings to act on |
 |---|---|---|
 | **B** dashboard + Action Center | `features/home` | **Done in PR B** — text theme, tokens, shaped skeleton, verification task, Suivi, one badge. Left: the first-launch notification-permission prompt still lands on the dashboard (system prompt; moving it needs an onboarding decision). |
-| **C** orders | `features/orders` (24 sizes, 4 radii, 2 spinners, 1 `Image.network`) | Order-card typography, status chip on `SellerStatusBadge` everywhere, detail hero via a cached image with French fallback, action bar skeleton, timeline dot colour = status. No workflow change. |
+| **C** orders | `features/orders` | **Done in PR C** — one status vocabulary, cards, detail skeleton, strip, dialogs, conflict reload, timeline tones. Left: the order-number header wraps under a wide chip at 1.5× (cosmetic); item thumbnails remain `Image.network` (no cache dependency in the seller app). |
 | **D** products / form / images | `features/products` (23 sizes, 15 radii, 6 spinners, 3 `Image.network`) | Densest surface: form section rhythm on the 4-pt ladder, field help text on bodySmall, image tile placeholder + failure state, list skeleton, leaf-category/characteristics UI untouched in behaviour. `image_picker` settings untouched. |
 | **E** earnings + payouts | `features/earnings` (31 sizes, 9 radii, 3 spinners) | Money in foreground, status in colour; table-like rows on one baseline; payout status on the new process colours (badge already tokenized in A); empty and error states with CTA. No rule change. |
 | **F** profile / commune / verification / settings | `features/profile` (17/14/6), `features/verification` (17/5/1), `features/seller_application`, `features/auth` | Group headers on labelSmall, document cards on a white surface with the status badge, commune picker sheet on the white sheet theme, login/register spacing. Never show payout destination, KYC details or document URLs beyond what the screen already shows. |
@@ -2051,9 +2165,10 @@ lists the seller-mobile UI events instead of calling it infra-only.
 
 ## Next exact step
 
-PR 1–13, Buyer UX PR A–D and Seller UX PR A merged (latest: `8086594`). **Seller UX PR B
-`seller-mobile/ux-dashboard-action-center` open — awaiting merge approval.** Then Seller UX PR C (orders)
-— **not to be started until PR B is approved.** Seller Web / Admin Web redesign stays out of scope.
-Carried-forward validation gaps: iPad/iOS runtime (never exercised), no golden tests, and the Seller phone
-walk which PR C–F complete surface by surface (dashboard, orders list/detail action bar, profile and
-verification walked in A and B).
+PR 1–13, Buyer UX PR A–D, Seller UX PR A–B merged (latest: `5825cb3`). **Seller UX PR C
+`seller-mobile/ux-orders` open — awaiting merge approval.** Then Seller UX PR D (products, product form,
+image manager) — **not to be started until PR C is approved.** Seller Web / Admin Web redesign stays out of
+scope. Carried-forward validation gaps: iPad/iOS runtime (never exercised), no golden tests, and the Seller
+phone walk which PR D–F complete surface by surface (dashboard, orders, profile and verification walked in
+A–C). Open follow-ups: first-launch notification prompt placement; buyer-PII decision on the seller order
+detail (see PR C).
