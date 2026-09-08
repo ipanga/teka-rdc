@@ -9,7 +9,7 @@
 
 ## Current phase
 
-**Phase 0 audit complete (PR #671). Implementation started 2026-09-06 with D1 (`security/otp-buyer-only`).**
+**Phase 0 audit complete (PR #671). D1 merged (`745e2d4`, PR #672). D2–D11 decision report written; awaiting approval before the next implementation PR.**
 
 ## Baseline (verified first-hand, 2026-09-06)
 
@@ -399,6 +399,175 @@ suites buyer has (identical code).
   refusal byte-identical to a wrong code, `X-Teka-Surface` seller/admin/buyer ignored, app-review bypass
   refused, BUYER tokens minted with the stored role). The old e2e "signs into seller account (decision #3)"
   was inverted on purpose.
+
+## Decision report D2–D11 (2026-09-06, after D1 merged as `745e2d4`; no code changed; repo state unchanged since Phase 0 except D1)
+
+Fields per decision: current → problem → **recommendation** → why → alternatives → trade-offs → affected →
+schema/env/config → compatibility → priority.
+
+**D2 — Admin authentication boundary.** Current: all three surfaces' cookies are `Domain=.teka.cd`
+(`auth.controller.ts:282-321`); the API picks the cookie namespace from the client header
+`X-Teka-Surface` (`surface.util.ts:25-32`, default `buyer`); admin-web calls `api.teka.cd` cross-origin
+(the admin nginx block proxies only `/` and `/_next/static/`; CORS allows `admin.teka.cd` and `teka.cd`
+with credentials). Problem: JS on any `*.teka.cd` origin can select the admin session by header (S1).
+**Recommendation (two steps): (a) now — bind the surface into the access/refresh JWT at issue time and
+reject any request whose cookie namespace or `X-Teka-Surface` disagrees with the token's claim; add a
+global `OriginGuard` that 403s cookie-authenticated non-GET requests whose `Origin` is not the canonical
+origin of that surface (mobile bearer requests have no cookie and are unaffected); make `X-Teka-Surface`
+mandatory for cookie auth (no default). (b) next — serve the API under `admin.teka.cd/api/*` via nginx
+(the dev config already does this at `nginx/nginx.conf:53-63`), set the admin app's API base to the
+same origin, and scope admin cookies to `Domain=admin.teka.cd` so the storefront never receives them.**
+Why: (a) is a pure API change with tests that closes the chain today; (b) removes the shared-domain
+assumption structurally. Alternatives: separate admin identity provider / IP allow-list / MFA — out of
+scope now (no MFA in this initiative); `SameSite=Strict` on admin cookies alone does not help (same-site).
+Trade-offs: (a) breaks any client omitting the header on cookie auth — the three web api-clients always
+send it; (b) requires nginx prod + `NEXT_PUBLIC_API_URL` for admin + CORS list trimmed to drop
+`admin.teka.cd` (same-origin then) and a rollout during which both paths work. Affected: API auth
+(`surface.util`, `jwt.strategy`, `auth.controller`, new guard), later nginx prod + admin-web env.
+Schema: none; env/config: (b) only. Compatibility: existing tokens lack the claim → treat a missing
+claim as `buyer` for 15 min (access TTL) then require it; refresh reissues with the claim.
+**Priority: Critical (a); High (b).**
+
+**D3 — SUPPORT / FINANCE.** Current: API grants SUPPORT only `GET` on admin users/seller applications
+(`admin-users.controller.ts:16`) and the verification read (`admin-seller-verification.controller.ts:19`);
+nothing grants FINANCE; admin-web login admits SUPPORT/FINANCE (`login/page.tsx:12`) but the dashboard
+layout logs out any non-ADMIN (`layout.tsx:29,34`) → bounce loop. No SUPPORT/FINANCE account exists in
+the seeding docs. Problem: dead roles with an inconsistent gate. **Recommendation: least-privilege,
+explicit capabilities, in two moves — now: remove FINANCE from the login allow-list (no API grant, no
+workflow) and keep SUPPORT out of admin-web until a read-only UI exists (align the layout gate with a
+single `ADMIN_WEB_ROLES = ['ADMIN']` constant); later, if support staff are hired: a `SUPPORT` mode in
+admin-web limited to users/sellers read + verification status read, with every action button hidden and
+the API grants unchanged.** Why: no existing workflow needs the roles; granting broader access without a
+consumer is pure attack surface. Alternatives: implement SUPPORT UI now (cost without a user); grant
+FINANCE payouts read (nobody uses it). Trade-offs: none operational today. Affected: admin-web login page
+only (now). Schema: none (enum values stay). Compatibility: none. **Priority: Low (now); Medium when a
+support role is staffed.**
+
+**D4 — Microsoft Clarity.** Current: mounted on buyer-web and seller-web (`layout.tsx` both), no in-code
+masking (masking is a Clarity project setting, `docs/clarity.md:61-64`), currently CSP-blocked on both
+(S9) so no data flows; PostHog session replay runs on both with `maskAllInputs: true`. seller-web shows
+seller identity, payout destination (`payoutMethod`/`payoutPhone`), verification status and document
+upload screens, and login. **Recommendation: remove Clarity from seller-web entirely; keep it on
+buyer-web only if the Clarity project's masking setting is verified as « Strict/Mask » before the CSP is
+opened (masking is project-side, not in the snippet), with `data-clarity-mask` on checkout/address/phone
+regions and the CSP entries added; otherwise remove it everywhere and rely on PostHog replay.** Why: seller-web is an authenticated financial/KYC surface —
+a third-party recorder whose masking lives outside the repo cannot be reviewed or tested; buyer-web is
+public and Clarity's heatmaps are its only distinct value. Alternatives: remove everywhere (simplest,
+loses heatmaps); keep both with masking (unreviewable control on the sensitive surface). Trade-offs:
+losing seller-dashboard heatmaps (PostHog replay covers it). Affected: seller-web layout + component,
+buyer-web component, nginx CSP, `docs/clarity.md`. Schema/env: `NEXT_PUBLIC_CLARITY_PROJECT_ID_SELLER_WEB`
+becomes unused. Compatibility: none. **Priority: Medium (ships with the CSP PR).**
+
+**D5 — Empty town×category pages.** Current: 374 town×category URLs generated for every active city ×
+category (`sitemap.ts:92-101`), all indexable, most with 0 products; the categories API exposes
+`productCount` as a global `_count.products` (`browse.service.ts:289`), not per town; the category page
+never gates on it. **Recommendation: keep the pages reachable for users (navigation must not break), but
+(1) add a per-town product count to the categories/category endpoints (count of ACTIVE, non-deleted
+products in that city, roll-up over subcategories), (2) emit `robots: { index: false, follow: true }` and
+omit from the sitemap when that count is 0, (3) indexability returns automatically as soon as inventory
+exists (no manual list), (4) canonical stays self, no redirect.** Why: `noindex, follow` removes
+thin/doorway pages from the index while keeping link equity flowing and re-admits pages the moment they
+have content; excluding from the sitemap stops advertising empties. Alternatives: `noindex` at a threshold
+> 0 (e.g. < 3 products) — premature for a 16-product catalog; 404 empties (breaks UX); leave as is
+(thin-page dilution). Trade-offs: a page flips index state with inventory, which is desired. Affected:
+API browse categories (count per city), buyer-web `[ville]/categorie/[slug]/page.tsx`, `sitemap.ts`,
+tests. Schema: none (query only). Compatibility: API response gains a field. **Priority: High (with the
+SEO-1 PR).**
+
+**D6 — Cloudflare-managed AI crawler block.** Current: Cloudflare prepends a managed block disallowing
+GPTBot, ClaudeBot, Google-Extended, CCBot, Bytespider, meta-externalagent, Amazonbot, Applebot-Extended and
+sets `Content-Signal: search=yes, ai-train=no`; Googlebot/Bingbot are unaffected. Nothing in the repo
+owns it. **Recommendation: keep the block for now (it protects seller content from training use and
+costs nothing for search), but document it in `docs/url-and-seo-strategy.md` as an explicit decision
+and revisit when AI answer engines drive measurable DRC traffic; no code change.** Why: search crawling
+is untouched; the only lost channel is AI-assistant citation, which is speculative for this market
+today. Alternative: allow `OAI-SearchBot`/`PerplexityBot`-class search crawlers while keeping
+training bots blocked (Cloudflare lets you refine per bot). Trade-offs: possible missed AI-search
+referrals. Affected: Cloudflare dashboard + docs. Schema/env: none. **Priority: Low.**
+
+**D7 — Likasi.** Current: the city row exists (`isActive=false` in production; `/v1/cities` serves
+Lubumbashi + Kolwezi), but « Likasi » is hard-coded in buyer-web metadata in 4 files (`layout.tsx`,
+`page.tsx`, `promotions/page.tsx`, `[ville]/[product]/page.tsx`) — advertising delivery to a town not
+served. **Recommendation: hide from buyer-facing copy until activation — build those strings from
+`getActiveCities()` (already used by the sitemap) so the moment Likasi is activated in the admin the copy
+follows; keep the master data untouched.** Why: truthful metadata, zero manual step at launch.
+Alternative: static edit removing the word (needs another edit at launch). Trade-offs: metadata becomes
+data-dependent (cached 60 s like the rest). Affected: buyer-web 4 files + a small helper. Schema: none.
+Compatibility: none. **Priority: Medium (SEO-1 PR).**
+
+**D8 — Authentication rate limits.** Current: nginx `auth_limit 5 r/s burst 5` and `api_limit 30 r/s`
+keyed on `$binary_remote_addr` = **Cloudflare edge IP** (no `real_ip`); API throttler 100/min/IP; OTP
+issuance 3 / 600 s per phone (non-atomic), OTP attempts 5 per code, resend 30 s; **no** limit on
+`otp/verify`, `login/email`, `register/email`, `password-reset/request`, `refresh`. Problem: per-IP
+limits are meaningless behind Cloudflare and dangerous for DRC carrier NAT (thousands of buyers share a
+few public IPs); per-identifier limits are missing where brute force actually happens.
+**Recommendation: (1) fix `real_ip` first (D-infra); (2) rely primarily on per-identifier limits in the
+API and keep per-IP limits generous: OTP verify 5 attempts per code (existing) + 10 verify calls / 15 min
+per phone (lock the phone, not the IP); OTP request 3 / 10 min per phone (existing, made atomic) + 30 s
+cooldown on request too; email login 10 failures / 15 min per email → 15-min lock + Sentry event, and 30
+attempts / 15 min per IP; register 5 / h per IP; password-reset 3 / h per email and 20 / h per IP;
+refresh 60 / 15 min per session (jti); CSV reports 10 / 10 min per admin; uploads 30 / 10 min per user.
+nginx: keep `auth_limit` but raise to 20 r/s burst 40 once keyed on the real client IP; add Cloudflare
+rate-limiting rules on `/api/v1/auth/*` at the edge as backstop (per real IP + per JA3).** Why:
+identifier-keyed limits stop credential stuffing and OTP brute force without locking out a whole
+carrier; IP limits become a DoS backstop only. Alternatives: proof-of-work/CAPTCHA (bad on 2G), stricter
+per-IP (locks legitimate users), no lockout (status quo). Trade-offs: a targeted victim can be locked
+out of email login for 15 min (acceptable, and the lock is per email — buyers use OTP). Affected: API
+throttler config + per-route `@Throttle`, new `LoginAttempt`-style counter (can reuse the existing
+`OtpRateLimit` table with a `kind` column → additive migration, or an in-memory LRU accepting reset on
+deploy), nginx prod, Cloudflare. Schema: optional additive table/column. Compatibility: none for
+clients; error copy stays French 429. **Priority: High (Critical for `otp/verify` + login lockout).**
+
+**D9 — Payout destination changes.** Current: `PATCH /v1/sellers/payout-method` updates
+`payoutMethod`/`payoutPhone` with session auth only (`payouts.service.ts:361-374`); each payout
+**snapshots** the destination at request time (`Payout.payoutMethod/payoutPhone`, service `:116-118`;
+the request body may override the saved destination); pending statuses are REQUESTED / APPROVED /
+PROCESSING. Problem: an ATO'd session can redirect the next payout silently. **Recommendation: require
+the current password on the destination change; notify the seller (email + push) on every change;
+impose a 24 h cooling-off during which `requestPayout` is refused (409, French copy) and the body
+override `dto.payoutPhone/payoutMethod` is removed (destination always from the profile); pending payouts
+keep their snapshot — REQUESTED ones are auto-cancelled by the change (the seller re-requests after the
+cooling-off), APPROVED/PROCESSING are left untouched for finance to complete or reject manually, with an
+audit row and an admin notification flagging « destination changed while a payout is pending ».** Why:
+the snapshot already makes redirection of an in-flight payout impossible; the risk is the *next* payout,
+which the cooling-off + re-auth covers; cancelling only REQUESTED avoids interfering with money already
+being sent. Alternatives: OTP-to-phone re-auth (sellers have no OTP channel — D1), no cooling-off with
+admin approval only (approval does not see the change). Trade-offs: a legitimate seller waits 24 h after
+changing their number. Affected: API payouts controller/service/DTO, audit action, notifications,
+seller-web + seller-mobile payout-method screens (password field, copy). Schema: `SellerProfile.
+payoutMethodChangedAt` (nullable, additive migration). Compatibility: mobile clients built before the
+change would get a 400 on the missing password → release seller-mobile first or accept the password
+field as optional for one release with a warning. **Priority: High.**
+
+**D10 — Search terms and PostHog.** Current: buyer-web sends **no** search term to PostHog (it records
+first-party `SearchQuery{term, termNormalized, source, intent}` via the browse API); buyer-mobile sends
+`search_performed`/`zero_results` with `query` through `scrubAnalyticsText` (phone-only regex) and a
+`result_count`. **Recommendation: drop the raw `query` property from the mobile events (keep
+`result_count`, `query_length`, `has_results`), and rely on the first-party search analytics for terms
+— the same normalised term is already stored server-side for both surfaces.** Why: the first-party
+table is the product-analytics source of truth (admin « Search analytics » panel) and never leaves the
+platform; redaction of arbitrary PII (addresses, names) typed into search is not reliably solvable with
+regexes. Alternatives: widen the scrubber (still leaks names/addresses); send only terms matching a
+known-vocabulary allow-list (complex, low value). Trade-offs: PostHog loses per-term funnels on mobile
+(available in the admin panel instead). Affected: buyer-mobile `search_screen.dart` + analytics test.
+Schema/env: none. Compatibility: none. **Priority: Low (bundle into the mobile security PR).**
+
+**D11 — Avatar cleanup.** Current: `UsersService.uploadAvatar` uploads to `teka-rdc/avatars` and stores
+only `upload.url`; `CloudinaryService.uploadImage` already returns `cloudinaryId` (`public_id`), which
+is discarded; nothing destroys the previous asset. **Recommendation: no migration — make the avatar
+public id deterministic per user (`teka-rdc/avatars/{userId}`) with `overwrite: true` + `invalidate:
+true` on upload, so a replacement overwrites in place and no orphan can exist; for users who already have
+a legacy random-id avatar, destroy the old asset once by deriving its public id from the stored URL
+(`/upload/v\d+/(.+)\.\w+$`, the same derivation used safely in the release QA teardown) right after the
+new deterministic upload succeeds; on avatar removal, destroy by the deterministic id and null the
+column.** Why: deterministic ids remove the bookkeeping entirely and survive any failure ordering
+(upload first, then DB write; an overwrite failure leaves the previous image intact); URL derivation
+handles the legacy tail without a column. Alternatives: `User.avatarPublicId` column (additive migration
++ backfill for zero gain); a daily sweep of `teka-rdc/avatars` against users (extra job). Trade-offs:
+CDN caches need `invalidate` (already set) and the URL's version segment changes on overwrite, so the
+stored URL must be updated (it is). Affected: `users.service.ts`, `cloudinary.service.ts` (new option
+parameters), unit tests; buyer clients unchanged. Schema/env: none. Compatibility: none.
+**Priority: Medium (with buyer-mobile functional-1).**
 
 ## Proposed PR sequence (small PRs into `develop`, merge commits)
 
