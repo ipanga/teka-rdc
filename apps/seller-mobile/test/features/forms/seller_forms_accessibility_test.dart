@@ -99,8 +99,8 @@ void main() {
       textScale: 2,
     );
 
-    expect(find.text('Confirmer'), findsOneWidget);
-    expect(find.text('Rejeter'), findsOneWidget);
+    expect(find.text('Confirmer la commande'), findsOneWidget);
+    expect(find.text('Refuser'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

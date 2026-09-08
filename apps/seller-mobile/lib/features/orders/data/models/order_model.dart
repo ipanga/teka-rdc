@@ -303,6 +303,31 @@ class SellerOrderModel {
     return centimes ~/ 100;
   }
 
+  /// This order with the status (and, when the response carries them, the
+  /// status logs) of a transition response. Everything else is kept from the
+  /// detail, because transition endpoints do not return `financials`.
+  SellerOrderModel withTransition(SellerOrderModel changed) => SellerOrderModel(
+        id: id,
+        orderNumber: orderNumber,
+        status: changed.status,
+        paymentMethod: paymentMethod,
+        paymentStatus: changed.paymentStatus ?? paymentStatus,
+        totalCDF: totalCDF,
+        totalUSD: totalUSD,
+        subtotalCDF: subtotalCDF,
+        deliveryFeeCDF: deliveryFeeCDF,
+        createdAt: createdAt,
+        buyer: buyer,
+        itemCount: itemCount,
+        items: items,
+        deliveryAddress: deliveryAddress,
+        statusLogs: changed.statusLogs.length >= statusLogs.length
+            ? changed.statusLogs
+            : statusLogs,
+        buyerNote: buyerNote,
+        financials: financials,
+      );
+
   factory SellerOrderModel.fromJson(Map<String, dynamic> json) {
     final itemsRaw = json['items'] as List<dynamic>?;
     final items = itemsRaw

@@ -89,11 +89,12 @@ void main() {
     expect(api.requests.where((r) => r.path == '/v1/sellers/orders').length, 1);
     await tester.tap(find.text('Commande TK-20260903-pending-0'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Confirmer'));
+    await tester.tap(find.text('Confirmer la commande'));
     await tester.pumpAndSettle();
     await tester.tap(find.descendant(
         of: find.byType(AlertDialog),
-        matching: find.widgetWithText(ElevatedButton, 'Confirmer')));
+        matching:
+            find.widgetWithText(ElevatedButton, 'Confirmer la commande')));
     await tester.pumpAndSettle();
     router.pop();
     await tester.pumpAndSettle();
@@ -344,11 +345,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Commande TK-20260903-pending-0'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Confirmer'));
+    await tester.tap(find.text('Confirmer la commande'));
     await tester.pumpAndSettle();
     await tester.tap(find.descendant(
         of: find.byType(AlertDialog),
-        matching: find.widgetWithText(ElevatedButton, 'Confirmer')));
+        matching:
+            find.widgetWithText(ElevatedButton, 'Confirmer la commande')));
     await tester.pumpAndSettle();
     router.pop();
     await tester.pumpAndSettle();
