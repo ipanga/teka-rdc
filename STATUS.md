@@ -1,4 +1,4 @@
-# Status — 2026-09-08 (pre-scale readiness — Seller Mobile UX/UI polish, PR E open)
+# Status — 2026-09-08 (pre-scale readiness — Seller Mobile UX/UI polish, PR F open — last of the series)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
@@ -8,33 +8,37 @@ UX/UI polish STARTED.** Merged to date: `6201534`, `29ccb6f`, `5af6b94`, `1d7414
 `a877bbb`, `c6ce951`, `613f0fa`, `9450358`, `5ed2814`, `2ef5b94`, `57b3ea7`, `7dadf23`, `a57dcf5`,
 `cf0f148`, `9ff8b64`, plus `ci/dependabot-pnpm` (`adae24f`).
 
-**Seller UX PR A `8086594`, PR B `5825cb3`, PR C `5d55f03`, PR D `a6b0d7c` merged.** **Seller UX PR E
-`seller-mobile/ux-earnings-payouts` open, awaiting merge approval** — earnings, available balance, payout
-request, payout history and detail. The audit found the financial mechanics sound (the API's wallet fields
-shown as-is, the min-balance and open-payout guards mirroring the server's rules, the owner-scoped detail,
-the saved destination) and the presentation misleading: three equal cards in brand red / green / amber with
-« Revenus totaux » naming the *gross* of delivered sales, a wallet failure rendered as « 0 FC », brand red
-on « Réservé », the full Mobile Money number on every list row, a payout request with no confirmation, and a
-detail with no history. Now: one summary card (available balance as the hero, « en attente » and
-« virement en cours » badges from the API's own figures, « Ventes livrées (montant brut) − Commission
-Teka prélevée = Vos gains nets »), a scoped « Solde indisponible » error with retry, one payout / earning
-vocabulary on the foreground tones (only COMPLETED reads « Payé »), masked numbers in lists and the full
-number where the seller must check it (detail, confirmation), a request screen that states « Montant du
-virement : X FC » (the API pays the whole balance; no amount field invented), a radio operator picker, a
-confirmation dialog repeating amount + destination, values kept and the balance refetched on the API's 400 /
-409, a detail with a dated « Historique » built only from the payout's timestamps, static skeletons and
-contextual empty states. Two defects came out of the device walk and are fixed with tests: after a request
-(or a refresh) only the wallet and the visible tab were refetched, so « Disponible » rows sat under a
-« virement en cours » balance and a settled payout kept the button blocked. Verified on the phone through
-the real request flow twice (a payout created from the API while the dialog was open → 409 shown verbatim,
-balance refetched, link to the open payout; then the in-app request → « Demande reçue » → reserved earning),
-the completed payout's history, 1.3×/1.5×, tablet portrait/landscape; every payout created was deleted and
-the earnings, destination and password hash restored byte-for-byte. Seller 387 (+57), analyze 5. No API,
-schema, env or dependency change. **PR F does not start until PR E is approved.**
+**Seller UX PR A `8086594`, PR B `5825cb3`, PR C `5d55f03`, PR D `a6b0d7c`, PR E `0ecbcea` merged.**
+**Seller UX PR F `seller-mobile/ux-profile-verification` open, awaiting merge approval** — the last planned
+PR of the Seller Mobile UX/UI polish series: account, personal information, shop profile (town · commune),
+verification and documents. The audit found the mechanics sound (the API's `/v1/auth/me` with city and
+commune names, the server-owned commune rule mirrored only for the form, the D3/D5 verification flow with
+`requiredTypes` / `missingTypes` from the API, the hardened upload pipeline) and the presentation dated: a
+dark header whose status chip was colour-only, brand red on every menu icon, base-colour badges, a
+« Requis » in brand red, raw snackbars, spinners, generic errors, and a rejected verification with no
+« what to do ». Now: a white identity card (shop, person, login email, town · commune) with the account
+and verification statuses as labelled badges on semantic tones; the one row that needs the seller carries
+an « Action requise » pill; the verification screen opens a refused dossier on an « Action requise » strip
+with Teka's seller-facing reason and one « Remplacer le document refusé » button that goes straight to the
+refused document; the shop form has sections, validators in the API's own words, and names a saved town
+that is no longer offered instead of silently replacing it; personal information validates like the API,
+sends only changed fields, and the session user follows the API's answer so the dashboard greeting changes
+at once. Two defects surfaced on the device and are fixed with tests: the account header did not refetch
+after an edit (the pushed route's future never fired on the device — a `profile` refresh revision bumped
+by the repository now drives it), and a menu tile's trailing pill consumed the whole tile at 320 px / 1.5×.
+Also found by the new tests: the menu's `ListTile`s sat in a `DecoratedBox`, so their tap ripple never
+painted (Material now). Notification-permission prompt: investigated, kept as the single system prompt at
+first login (decision recorded). Verified on the phone as Marie: name edit → header + greeting follow,
+commune saved, a real camera upload → PENDING_REVIEW, an admin refusal (dev DB) → Action Center row →
+strip → resubmission from the strip → PENDING_REVIEW with the previous document SUPERSEDED, FCM
+« Documents reçus » received; 1.3× / 1.5×; tablet portrait / landscape; a second seller after logout with
+nothing of the first left. Cleanup verified field by field: Marie's two QA documents deleted with both Cloudinary assets destroyed (2 destroyed, 0 missing), her first name, last name, commune and verification fields restored, both password hashes and `passwordSetAt` restored byte-for-byte (temporary password 401s), Patrick untouched apart from the restored hash; the QA scripts holding the temporary password deleted. Seller 461 (+74), buyer 501 unchanged, analyze 5. No API,
+schema, env or dependency change. **The Seller Mobile UX/UI polish series A–F completes with this PR**;
+no further initiative is started until told.
 
 **Validation gaps that are NOT incomplete UX work: iPad/iOS runtime has never been exercised (PR A ran a
 `--no-codesign` iOS build only; PR B, C and D touched no native code); no golden tests exist in either app; the Seller phone runtime walk is being
-completed surface by surface across PR B–F (dashboard, orders, products, verification and earnings done; profile remains).** Seller Web / Admin Web redesign: out of scope until told
+complete for dashboard, orders, products, earnings, profile and verification (PR B–F).** Seller Web / Admin Web redesign: out of scope until told
 otherwise. Still open from the previous release: manual Google Play Internal-testing upload of the Seller
 Mobile `0.1.9+11` AAB; Buyer Mobile store release.
 
