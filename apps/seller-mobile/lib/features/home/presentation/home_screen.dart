@@ -1,31 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/analytics/posthog_analytics.dart';
+import '../../../core/layout/responsive.dart';
 import '../../../core/theme/teka_colors.dart';
-import '../../../core/widgets/seller_list_state.dart';
+import '../../../core/theme/teka_spacing.dart';
 import '../../auth/presentation/providers/auth_provider.dart';
 import '../../orders/data/models/order_model.dart';
 import '../../orders/presentation/providers/orders_provider.dart';
 import '../../products/data/models/product_model.dart';
 import '../../products/presentation/providers/products_provider.dart';
 import '../../notifications/presentation/providers/notifications_provider.dart';
+import '../domain/action_center.dart';
 import 'providers/seller_dashboard_provider.dart';
-import '../../../core/layout/responsive.dart';
+import 'widgets/dashboard_rows.dart';
 
+/// Seller home. Answers, in this order: what must I do (Action Center),
+/// what is in Teka's hands (Suivi), how is the catalogue doing, where else
+/// can I go. Counts always come from the seller-scoped stats endpoints and
+/// refresh through `sellerRefreshProvider` (mutation, push, resume) — the
+/// screen never polls.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   Future<void> _refresh(WidgetRef ref) async {
     final id = ref.read(authenticatedSellerIdProvider);
     if (id == null) return;
-    // Await both server responses. Errors are rendered next to the affected
-    // section; a failed refresh must never imply that the queue is empty.
+    // Await every source. Errors are rendered next to the affected row; a
+    // failed refresh must never imply that the queue is empty.
     final orders = ref.refresh(sellerOrderStatsRequestProvider(id).future);
     final products = ref.refresh(sellerProductStatsRequestProvider(id).future);
+    final verification =
+        ref.refresh(sellerVerificationRequestProvider(id).future);
     try {
-      await Future.wait([orders, products]);
+      await Future.wait([orders, products, verification]);
     } catch (_) {
-      // AsyncValue carries the error and the section's retry action.
+      // AsyncValue carries the error and the row's retry action.
     }
   }
 
@@ -45,14 +55,52 @@ class HomeScreen extends ConsumerWidget {
         : '/products?status=${productStatusToApi(status)}');
   }
 
+  /// Every task row navigates through here so the list filter the row
+  /// promises is applied by the module that owns it (never re-parsed from
+  /// the route by dashboard code).
+  void _openAction(BuildContext context, WidgetRef ref, ActionItem item) {
+    const PosthogAnalytics().capture(
+      'seller_action_center_tapped',
+      properties: {'task': item.kind.name, 'origin': 'dashboard'},
+    );
+    switch (item.kind) {
+      case ActionKind.ordersToConfirm:
+        _openOrders(context, ref, OrderStatus.pending);
+      case ActionKind.ordersToPrepare:
+        _openOrders(context, ref, OrderStatus.confirmed);
+      case ActionKind.ordersToFinish:
+        _openOrders(context, ref, OrderStatus.processing);
+      case ActionKind.productsRejected:
+        _openProducts(context, ref, ProductStatus.rejected);
+      case ActionKind.verificationRejected:
+        context.push(item.route);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userName = ref.watch(
         authProvider.select((s) => s.user?['firstName'] as String? ?? ''));
     final orders = ref.watch(sellerOrderStatsProvider);
     final products = ref.watch(dashboardStatsProvider);
+    final verification = ref.watch(sellerVerificationProvider);
     final unread = ref.watch(notificationsProvider.select((s) => s.unread));
     final id = ref.watch(authenticatedSellerIdProvider);
+    final theme = Theme.of(context).textTheme;
+
+    // A source that is (re)loading contributes nothing: a pull-to-refresh
+    // must never keep showing the count it is about to replace.
+    T? settled<T>(AsyncValue<T> source) =>
+        source.isLoading ? null : source.valueOrNull;
+    final items = buildActionItems(
+      orders: settled(orders),
+      products: settled(products),
+      verification: settled(verification),
+    );
+    final sources = [orders, products, verification];
+    final anyLoading = sources.any((s) => s.isLoading);
+    final allLoaded = sources.every((s) => s.hasValue && !s.isLoading);
+    final readyForPickup = settled(orders)?.readyForPickup ?? 0;
 
     return Scaffold(
       appBar: AppBar(
@@ -84,312 +132,208 @@ class HomeScreen extends ConsumerWidget {
       body: ReadableColumn(
         padding: EdgeInsets.zero,
         child: SafeArea(
-            top: false,
-            bottom: false,
-            child: RefreshIndicator(
-              onRefresh: () => _refresh(ref),
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                children: [
-                  Text(userName.isEmpty ? 'Bienvenue' : 'Bonjour, $userName',
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineSmall
-                          ?.copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 6),
-                  const Text('Votre activité, une étape à la fois.',
-                      style: TextStyle(color: TekaColors.neutralForeground)),
-                  const SizedBox(height: 24),
-                  _Section(
-                    title: 'Actions requises',
-                    children: [
-                      orders.when(
-                        skipLoadingOnRefresh: false,
-                        skipLoadingOnReload: false,
-                        loading: () => const _Loading(
-                            label: 'Chargement des actions commandes'),
-                        error: (_, __) => _Retry(
-                          title: 'Commandes indisponibles',
-                          onRetry: () {
-                            if (id != null) {
-                              ref.invalidate(sellerOrderStatsRequestProvider(id));
-                            }
-                          },
-                        ),
-                        data: (stats) => Column(children: [
-                          if (stats.requiredActions == 0)
-                            const _ClearMessage(
-                                label: 'Aucune commande à traiter.'),
-                          if (stats.pending > 0)
-                            _DashboardLink(
-                              title: 'Commandes à confirmer',
-                              subtitle:
-                                  'Acceptez ou refusez les nouvelles commandes.',
-                              count: stats.pending,
-                              icon: Icons.receipt_long_outlined,
-                              onTap: () =>
-                                  _openOrders(context, ref, OrderStatus.pending),
-                            ),
-                          if (stats.confirmed > 0)
-                            _DashboardLink(
-                              title: 'Commandes à préparer',
-                              subtitle: 'Commencez la préparation des articles.',
-                              count: stats.confirmed,
-                              icon: Icons.inventory_2_outlined,
-                              onTap: () =>
-                                  _openOrders(context, ref, OrderStatus.confirmed),
-                            ),
-                          if (stats.processing > 0)
-                            _DashboardLink(
-                              title: 'Préparations à terminer',
-                              subtitle:
-                                  'Signalez les colis prêts pour la collecte Teka.',
-                              count: stats.processing,
-                              icon: Icons.local_shipping_outlined,
-                              onTap: () =>
-                                  _openOrders(context, ref, OrderStatus.processing),
-                            ),
-                        ]),
+          top: false,
+          bottom: false,
+          child: RefreshIndicator(
+            onRefresh: () => _refresh(ref),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(TekaSpacing.md,
+                  TekaSpacing.sm, TekaSpacing.md, TekaSpacing.xl),
+              children: [
+                Text(userName.isEmpty ? 'Bienvenue' : 'Bonjour, $userName',
+                    style: theme.headlineSmall),
+                const SizedBox(height: TekaSpacing.xxs),
+                Text('Votre activité, une étape à la fois.',
+                    style: theme.bodyMedium
+                        ?.copyWith(color: TekaColors.neutralForeground)),
+                const SizedBox(height: TekaSpacing.xl),
+                DashboardSection(
+                  title: 'Actions requises',
+                  // The total appears once every source has answered, so the
+                  // number never grows under the seller's eyes.
+                  trailing: allLoaded && items.isNotEmpty
+                      ? Semantics(
+                          label:
+                              '${totalPending(items)} actions en attente',
+                          child: ExcludeSemantics(
+                            child: CountPill(
+                                count: totalPending(items),
+                                colors: PillColors.neutral),
+                          ),
+                        )
+                      : null,
+                  children: [
+                    for (final item in items)
+                      DashboardRow(
+                        title: item.title,
+                        subtitle: item.subtitle,
+                        icon: item.icon,
+                        count: item.count,
+                        colors: PillColors.of(item.tone),
+                        iconColor: PillColors.of(item.tone).foreground,
+                        onTap: () => _openAction(context, ref, item),
                       ),
-                      const Divider(height: 1),
-                      products.when(
-                        skipLoadingOnRefresh: false,
-                        skipLoadingOnReload: false,
-                        loading: () => const _Loading(
-                            label: 'Chargement des actions produits'),
-                        error: (_, __) => _Retry(
-                          title: 'Produits indisponibles',
-                          onRetry: () {
-                            if (id != null) {
-                              ref.invalidate(sellerProductStatsRequestProvider(id));
-                            }
-                          },
-                        ),
-                        data: (stats) => stats.rejected == 0
-                            ? const _ClearMessage(
-                                label: 'Aucun produit à corriger.')
-                            : _DashboardLink(
-                                title: 'Produits à corriger',
-                                subtitle:
-                                    'Consultez le motif du rejet avant de modifier la fiche.',
-                                count: stats.rejected,
-                                icon: Icons.edit_note_outlined,
-                                onTap: () => _openProducts(
-                                    context, ref, ProductStatus.rejected),
-                              ),
+                    if (orders.hasError)
+                      DashboardErrorRow(
+                        title: 'Commandes indisponibles',
+                        onRetry: () {
+                          if (id != null) {
+                            ref.invalidate(sellerOrderStatsRequestProvider(id));
+                          }
+                        },
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  FilledButton.icon(
-                    onPressed: () => context.push('/products/new'),
-                    icon: const Icon(Icons.add),
-                    label: const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Text('Nouveau produit')),
-                  ),
-                  const SizedBox(height: 20),
-                  _Section(title: 'Catalogue', children: [
-                    products.when(
-                      skipLoadingOnRefresh: false,
-                      skipLoadingOnReload: false,
-                      loading: () =>
-                          const _Loading(label: 'Chargement du catalogue'),
-                      error: (_, __) => const Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Text(
-                            'Les compteurs du catalogue sont momentanément indisponibles.'),
+                    if (products.hasError)
+                      DashboardErrorRow(
+                        title: 'Produits indisponibles',
+                        onRetry: () {
+                          if (id != null) {
+                            ref.invalidate(
+                                sellerProductStatsRequestProvider(id));
+                          }
+                        },
                       ),
-                      data: (stats) => Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: LayoutBuilder(builder: (context, constraints) {
-                          final columns =
-                              MediaQuery.textScalerOf(context).scale(14) > 18
-                                  ? 2
-                                  : 4;
-                          final width =
-                              (constraints.maxWidth - 16 * (columns - 1)) / columns;
-                          return Wrap(spacing: 16, runSpacing: 16, children: [
-                            for (final item in [
-                              (stats.total, 'Total'),
-                              (stats.active, 'Actifs'),
-                              (stats.pendingReview, 'En validation'),
-                              (stats.draft, 'Brouillons'),
-                            ])
-                              SizedBox(
-                                  width: width,
-                                  child: _CatalogCount(
-                                      value: item.$1, label: item.$2)),
-                          ]);
-                        }),
+                    if (verification.hasError)
+                      DashboardErrorRow(
+                        title: 'Vérification indisponible',
+                        onRetry: () {
+                          if (id != null) {
+                            ref.invalidate(
+                                sellerVerificationRequestProvider(id));
+                          }
+                        },
                       ),
+                    if (anyLoading)
+                      DashboardRowsSkeleton(
+                          label: 'Chargement des actions',
+                          rows: items.isEmpty ? 2 : 1),
+                    if (allLoaded && items.isEmpty)
+                      const DashboardClearRow(
+                          label: 'Aucune action requise pour le moment.'),
+                  ],
+                ),
+                const SizedBox(height: TekaSpacing.lg),
+                FilledButton.icon(
+                  onPressed: () => context.push('/products/new'),
+                  icon: const Icon(Icons.add),
+                  label: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: TekaSpacing.sm),
+                      child: Text('Nouveau produit')),
+                ),
+                if (readyForPickup > 0) ...[
+                  const SizedBox(height: TekaSpacing.lg),
+                  DashboardSection(title: 'Suivi', children: [
+                    DashboardRow(
+                      title: 'Prêtes pour la collecte Teka',
+                      subtitle:
+                          'Teka passe récupérer ces colis ; rien à faire de votre côté.',
+                      icon: Icons.local_shipping_outlined,
+                      count: readyForPickup,
+                      onTap: () => _openOrders(
+                          context, ref, OrderStatus.readyForTekaPickup),
                     ),
-                    _DashboardLink(
-                        title: 'Tous les produits',
-                        icon: Icons.inventory_2_outlined,
-                        onTap: () => _openProducts(context, ref, null)),
-                  ]),
-                  const SizedBox(height: 20),
-                  _Section(title: 'Votre boutique', children: [
-                    _DashboardLink(
-                        title: 'Toutes les commandes',
-                        icon: Icons.receipt_long_outlined,
-                        onTap: () => _openOrders(context, ref, null)),
-                    _DashboardLink(
-                        title: 'Revenus',
-                        subtitle: 'Consultez votre solde et vos versements.',
-                        icon: Icons.account_balance_wallet_outlined,
-                        onTap: () => context.go('/earnings')),
-                    _DashboardLink(
-                        title: 'Avis clients',
-                        icon: Icons.star_outline_rounded,
-                        onTap: () => context.push('/reviews')),
-                    _DashboardLink(
-                        title: 'Promotions',
-                        icon: Icons.campaign_outlined,
-                        onTap: () => context.push('/promotions')),
                   ]),
                 ],
-              ),
+                const SizedBox(height: TekaSpacing.lg),
+                DashboardSection(title: 'Catalogue', children: [
+                  products.when(
+                    skipLoadingOnRefresh: false,
+                    skipLoadingOnReload: false,
+                    loading: () => const _CatalogueSkeleton(),
+                    error: (_, __) => Padding(
+                      padding: const EdgeInsets.all(TekaSpacing.md),
+                      child: Text(
+                          'Les compteurs du catalogue sont momentanément indisponibles.',
+                          style: theme.bodyMedium?.copyWith(
+                              color: TekaColors.neutralForeground)),
+                    ),
+                    data: (stats) => Padding(
+                      padding: const EdgeInsets.all(TekaSpacing.md),
+                      child: LayoutBuilder(builder: (context, constraints) {
+                        final columns =
+                            MediaQuery.textScalerOf(context).scale(14) > 18
+                                ? 2
+                                : 4;
+                        final width = (constraints.maxWidth -
+                                TekaSpacing.md * (columns - 1)) /
+                            columns;
+                        return Wrap(
+                            spacing: TekaSpacing.md,
+                            runSpacing: TekaSpacing.md,
+                            children: [
+                              for (final item in [
+                                (stats.total, 'Total'),
+                                (stats.active, 'Actifs'),
+                                (stats.pendingReview, 'En validation'),
+                                (stats.draft, 'Brouillons'),
+                              ])
+                                SizedBox(
+                                    width: width,
+                                    child: _CatalogCount(
+                                        value: item.$1, label: item.$2)),
+                            ]);
+                      }),
+                    ),
+                  ),
+                  DashboardRow(
+                      title: 'Tous les produits',
+                      icon: Icons.inventory_2_outlined,
+                      onTap: () => _openProducts(context, ref, null)),
+                ]),
+                const SizedBox(height: TekaSpacing.lg),
+                DashboardSection(title: 'Votre boutique', children: [
+                  DashboardRow(
+                      title: 'Toutes les commandes',
+                      icon: Icons.receipt_long_outlined,
+                      onTap: () => _openOrders(context, ref, null)),
+                  DashboardRow(
+                      title: 'Revenus',
+                      subtitle: 'Consultez votre solde et vos versements.',
+                      icon: Icons.account_balance_wallet_outlined,
+                      onTap: () => context.go('/earnings')),
+                  DashboardRow(
+                      title: 'Avis clients',
+                      icon: Icons.star_outline_rounded,
+                      onTap: () => context.push('/reviews')),
+                  DashboardRow(
+                      title: 'Promotions',
+                      icon: Icons.campaign_outlined,
+                      onTap: () => context.push('/promotions')),
+                ]),
+              ],
             ),
           ),
+        ),
       ),
     );
   }
 }
 
-class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.children});
-  final String title;
-  final List<Widget> children;
-  @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Semantics(
-              container: true,
-              header: true,
-              child: Text(title,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w700))),
-          const SizedBox(height: 12),
-          DecoratedBox(
-            decoration: BoxDecoration(
-                color: Colors.white,
-                border: Border.all(color: TekaColors.border),
-                borderRadius: BorderRadius.circular(12)),
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: children),
-          ),
-        ],
-      );
-}
-
-class _DashboardLink extends StatelessWidget {
-  const _DashboardLink(
-      {required this.title,
-      required this.icon,
-      required this.onTap,
-      this.subtitle,
-      this.count});
-  final String title;
-  final String? subtitle;
-  final IconData icon;
-  final int? count;
-  final VoidCallback onTap;
+class _CatalogueSkeleton extends StatelessWidget {
+  const _CatalogueSkeleton();
   @override
   Widget build(BuildContext context) => Semantics(
-        container: true,
-        button: true,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+        label: 'Chargement du catalogue',
+        liveRegion: true,
+        child: ExcludeSemantics(
           child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              if (count != null)
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minWidth: 28, maxWidth: 72),
-                  child: Text('$count',
-                      style: Theme.of(context)
-                          .textTheme
-                          .headlineSmall
-                          ?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: TekaColors.tekaRed)),
-                )
-              else
-                Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Icon(icon,
-                        size: 22, color: TekaColors.neutralForeground)),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                    Text(title,
-                        style: const TextStyle(fontWeight: FontWeight.w600)),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 4),
-                      Text(subtitle!,
-                          style: const TextStyle(
-                              color: TekaColors.neutralForeground)),
-                    ],
-                  ])),
-              const SizedBox(width: 8),
-              const Icon(Icons.chevron_right,
-                  color: TekaColors.neutralForeground),
-            ]),
+            padding: const EdgeInsets.all(TekaSpacing.md),
+            child: Wrap(
+                spacing: TekaSpacing.md,
+                runSpacing: TekaSpacing.md,
+                children: [
+                  for (var i = 0; i < 4; i++)
+                    const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SkeletonBlock(width: 28, height: 22),
+                          SizedBox(height: TekaSpacing.xxs),
+                          SkeletonBlock(width: 56, height: 12),
+                        ]),
+                ]),
           ),
         ),
-      );
-}
-
-class _ClearMessage extends StatelessWidget {
-  const _ClearMessage({required this.label});
-  final String label;
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Icon(Icons.check_circle_outline,
-              size: 22, color: TekaColors.successForeground),
-          const SizedBox(width: 12),
-          Expanded(child: Text(label)),
-        ]),
-      );
-}
-
-class _Loading extends StatelessWidget {
-  const _Loading({required this.label});
-  final String label;
-  @override
-  Widget build(BuildContext context) => Semantics(
-        label: label,
-        liveRegion: true,
-        child: const Padding(
-            padding: EdgeInsets.all(16),
-            child: LinearProgressIndicator(minHeight: 3)),
-      );
-}
-
-class _Retry extends StatelessWidget {
-  const _Retry({required this.title, required this.onRetry});
-  final String title;
-  final VoidCallback onRetry;
-  @override
-  Widget build(BuildContext context) => SellerListMessage(
-        icon: Icons.cloud_off_outlined,
-        title: title,
-        message:
-            'Impossible d’actualiser les compteurs. Réessayez pour connaître les actions à traiter.',
-        actionLabel: 'Réessayer',
-        onAction: onRetry,
       );
 }
 
@@ -398,14 +342,19 @@ class _CatalogCount extends StatelessWidget {
   final int value;
   final String label;
   @override
-  Widget build(BuildContext context) =>
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('$value',
-            style: Theme.of(context)
-                .textTheme
-                .titleLarge
-                ?.copyWith(fontWeight: FontWeight.w700)),
-        Text(label,
-            style: const TextStyle(color: TekaColors.neutralForeground)),
-      ]);
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
+    return Semantics(
+      label: '$value $label',
+      child: ExcludeSemantics(
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('$value', style: theme.titleLarge),
+          Text(label,
+              style: theme.bodySmall
+                  ?.copyWith(color: TekaColors.neutralForeground)),
+        ]),
+      ),
+    );
+  }
 }

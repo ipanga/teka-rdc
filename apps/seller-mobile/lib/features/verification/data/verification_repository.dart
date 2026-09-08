@@ -3,6 +3,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
 import '../../../core/network/multipart_upload.dart';
+import '../../../core/providers/seller_refresh_provider.dart';
 
 /// One of the seller's own verification documents as the API exposes it to
 /// the seller (`GET /v1/sellers/verification`). Deliberately carries NO
@@ -134,7 +135,12 @@ class VerificationStatusModel {
 
 class VerificationRepository {
   final Dio _dio;
-  VerificationRepository(this._dio);
+
+  /// Fired after a successful upload so the dashboard's Action Center
+  /// refetches (same pattern as `ProductsRepository`).
+  final void Function()? _onChanged;
+  VerificationRepository(this._dio, {void Function()? onChanged})
+      : _onChanged = onChanged;
 
   Future<VerificationStatusModel> getStatus() async {
     final response = await _dio.get('/v1/sellers/verification');
@@ -176,10 +182,17 @@ class VerificationRepository {
       onSendProgress: onProgress,
     );
     final data = response.data['data'] ?? response.data;
-    return VerificationStatusModel.fromJson(data as Map<String, dynamic>);
+    final updated =
+        VerificationStatusModel.fromJson(data as Map<String, dynamic>);
+    _onChanged?.call();
+    return updated;
   }
 }
 
 final verificationRepositoryProvider = Provider<VerificationRepository>((ref) {
-  return VerificationRepository(ref.read(dioProvider));
+  var alive = true;
+  ref.onDispose(() => alive = false);
+  return VerificationRepository(ref.read(dioProvider), onChanged: () {
+    if (alive) ref.read(sellerRefreshProvider.notifier).verificationChanged();
+  });
 });
