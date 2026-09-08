@@ -1,9 +1,9 @@
 # Teka RDC — Development Progress
 
-## Current Phase: Pre-scale readiness — Buyer Web SEO-1 merged (`6234f0c`, PR #713); SEO-2 implemented on `buyer-web/seo-2` (PR open, awaiting merge approval); Seller Mobile UX/UI polish series A–F COMPLETE (`f2b8d49`); release-readiness docs merged (`e45d9fb`).
+## Current Phase: Pre-scale readiness — Buyer Web SEO COMPLETE (SEO-1 `6234f0c` PR #713, SEO-2 `03035e3` PR #714, 2026-09-09; no SEO-3 planned); Seller Mobile UX/UI polish series A–F COMPLETE (`f2b8d49`); release-readiness docs merged (`e45d9fb`); awaiting the owner's decision checkpoint before the next initiative.
 ## Last completed: Seller Commune + business-document verification + Verified badge RELEASED (release PR #665, main `26b11dc`, deploy 33993077736, both migrations auto-applied once, production verified read-only).
 ## Status: production healthy after the verification release (api uptime monotonic, all sites 200, 401 boundary intact); seller-mobile and buyer-mobile store releases outstanding.
-## Last Updated: 2026-09-08
+## Last Updated: 2026-09-09
 
 ## Post-phase chronology — condensed index (moved out of CLAUDE.md §8 on 2026-06-03)
 

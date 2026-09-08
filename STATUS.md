@@ -1,4 +1,4 @@
-# Status — 2026-09-08 (pre-scale readiness — Buyer Web SEO-1 merged `6234f0c`; SEO-2 implemented, PR open awaiting merge approval)
+# Status — 2026-09-09 (pre-scale readiness — Buyer Web SEO-1 `6234f0c` + SEO-2 `03035e3` merged, Workstream B COMPLETE; decision checkpoint pending)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
@@ -51,8 +51,8 @@ phase: COMPLETE (A–D). Seller Mobile functional readiness: COMPLETE, with debt
 `deliveredAt`, notification-permission pre-prompt). Seller Mobile UX/UI A–F: COMPLETE. Android phone
 and tablet (portrait + landscape) runtime verification: PERFORMED for both apps. **iOS/iPad runtime:
 still a validation gap** (uploads and `--no-codesign` builds only, no simulator input tooling).
-**Buyer Web SEO: SEO-1 merged (`6234f0c`, PR #713); SEO-2 implemented on `buyer-web/seo-2` (PR open,
-awaiting merge approval — nothing merged yet).** SEO-2 implements the two approved decisions: an empty
+**Buyer Web SEO: COMPLETE — SEO-1 merged (`6234f0c`, PR #713), SEO-2 merged (`03035e3`, PR #714,
+2026-09-09); no longer a release blocker; no SEO-3 planned or started.** SEO-2 implemented the two approved decisions: an empty
 town × category page (zero eligible products IN THAT TOWN — `publicProductWhere`: ACTIVE, not deleted,
 in the town, not a retired demo; new optional `?cityId=` on the category endpoints, one grouped query
 per tree) is `noindex, follow`, self-canonical, reachable and out of the sitemap, and flips back by
