@@ -3,13 +3,17 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/theme/teka_spacing.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/seller_list_state.dart';
+import '../../../../core/widgets/seller_status_badge.dart';
+import '../../../home/presentation/widgets/dashboard_rows.dart';
 import '../../data/verification_repository.dart';
 import '../verification_status.dart';
-import '../../../../core/layout/responsive.dart';
 
 /// « Vérification de la boutique » — the seller's own verification status,
 /// the documents Teka needs (from the API's `requiredTypes`, never a local
@@ -17,6 +21,12 @@ import '../../../../core/layout/responsive.dart';
 /// transition; this screen only renders the status it returns after each
 /// upload, so a VERIFIED seller who replaces material evidence sees the
 /// server's PENDING_REVIEW immediately (D5), never a stale « Vérifié ».
+///
+/// Seller UX PR F: tones are the status semantics (neutral / warning /
+/// success / destructive foreground tokens), a refused verification opens on
+/// an « Action requise » strip carrying Teka's seller-facing reason and one
+/// button that goes straight to the refused document, loading is a static
+/// skeleton, the error is the API's message with a retry.
 class VerificationScreen extends ConsumerStatefulWidget {
   const VerificationScreen({super.key, this.pickOverride});
 
@@ -84,6 +94,8 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
   Future<void> _runUpload(VerificationStatusModel status, String type) async {
     // A VERIFIED seller replacing required evidence goes back to review (D5).
     final existing = status.documentOf(type);
+    // The rejected-document button of the strip: nothing more to confirm,
+    // the strip already said why.
     if (status.verificationStatus == 'VERIFIED' &&
         existing != null &&
         status.requiredTypes.contains(type)) {
@@ -273,56 +285,84 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
   // UI
   // ---------------------------------------------------------------------------
 
+  /// The document a refused seller must redo first: the refused one, else
+  /// the first missing required type.
+  String? _correctionType(VerificationStatusModel s) {
+    for (final type in s.requiredTypes) {
+      if (s.documentOf(type)?.status == 'REJECTED') return type;
+    }
+    for (final d in s.documents) {
+      if (d.status == 'REJECTED') return d.type;
+    }
+    return s.missingTypes.isNotEmpty ? s.missingTypes.first : null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final Widget body;
+    if (_loading) {
+      body = const VerificationSkeleton();
+    } else if (_error != null && _status == null) {
+      body = SellerListState(
+        child: SellerListMessage(
+          icon: Icons.cloud_off,
+          title: 'Vérification indisponible',
+          message: _error!,
+          actionLabel: 'Réessayer',
+          onAction: _load,
+        ),
+      );
+    } else {
+      body = RefreshIndicator(
+        color: TekaColors.tekaRed,
+        onRefresh: _load,
+        child: _buildContent(_status!),
+      );
+    }
     return Scaffold(
       appBar: AppBar(
         leading: const AdaptiveLeading(fallbackLocation: '/profile'),
         title: const Text('Vérification de la boutique'),
       ),
-      body: ReadableColumn(
-        padding: EdgeInsets.zero,
-        child: _loading
-              ? const Center(child: CircularProgressIndicator())
-              : _error != null
-                  ? _ErrorState(message: _error!, onRetry: _load)
-                  : RefreshIndicator(
-                      color: TekaColors.tekaRed,
-                      onRefresh: _load,
-                      child: _buildContent(_status!),
-                    ),
-      ),
+      body: ReadableColumn(padding: EdgeInsets.zero, child: body),
     );
   }
 
   Widget _buildContent(VerificationStatusModel s) {
+    final theme = Theme.of(context).textTheme;
     final ui = VerificationStatusUi.of(s.verificationStatus);
     // Only « Autre document » is offered beyond the API's required set: an
     // individual seller is never nudged towards company papers (D3).
     final optionalTypes =
         s.requiredTypes.contains('OTHER') ? const <String>[] : const ['OTHER'];
     final isCompany = s.businessType == 'company';
+    final correction = ui.actionRequired ? _correctionType(s) : null;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+      padding: const EdgeInsets.fromLTRB(
+          TekaSpacing.md, TekaSpacing.sm, TekaSpacing.md, TekaSpacing.xxl),
       children: [
-        _StatusCard(ui: ui, status: s),
-        const SizedBox(height: 20),
-        Text(
-          isCompany
-              ? 'Documents requis pour une entreprise'
-              : 'Document requis',
-          style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w800,
-              color: TekaColors.foreground),
+        if (_error != null) ...[
+          DashboardErrorRow(title: 'Statut non actualisé', onRetry: _load),
+          const SizedBox(height: TekaSpacing.xs),
+        ],
+        _StatusCard(
+          ui: ui,
+          status: s,
+          onCorrect: correction == null || _uploadingType != null
+              ? null
+              : () => _startUpload(correction),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: TekaSpacing.lg),
+        Text(
+          isCompany ? 'Documents requis pour une entreprise' : 'Document requis',
+          style: theme.titleMedium,
+        ),
+        const SizedBox(height: TekaSpacing.xxs),
         Text(
           'Formats acceptés : PDF, JPEG, PNG — ${s.limits.maxSizeMb} Mo maximum par document.',
-          style: const TextStyle(
-              fontSize: 12.5, color: TekaColors.mutedForeground, height: 1.35),
+          style: theme.bodySmall?.copyWith(color: TekaColors.mutedForeground),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: TekaSpacing.sm),
         for (final type in s.requiredTypes) ...[
           _DocumentTile(
             type: type,
@@ -334,18 +374,12 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
             disabled: _uploadingType != null,
             onUpload: () => _startUpload(type),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: TekaSpacing.sm),
         ],
         if (optionalTypes.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          const Text(
-            'Documents facultatifs',
-            style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                color: TekaColors.foreground),
-          ),
-          const SizedBox(height: 10),
+          const SizedBox(height: TekaSpacing.xs),
+          Text('Documents facultatifs', style: theme.titleMedium),
+          const SizedBox(height: TekaSpacing.sm),
           for (final type in optionalTypes) ...[
             _DocumentTile(
               type: type,
@@ -357,15 +391,21 @@ class _VerificationScreenState extends ConsumerState<VerificationScreen> {
               disabled: _uploadingType != null,
               onUpload: () => _startUpload(type),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: TekaSpacing.sm),
           ],
         ],
-        const SizedBox(height: 12),
-        const Text(
-          'Vos documents sont stockés de façon privée et ne sont consultés que par l’équipe Teka RDC pour cette vérification. Ils ne sont jamais publiés.',
-          style: TextStyle(
-              fontSize: 12.5, color: TekaColors.mutedForeground, height: 1.4),
-        ),
+        const SizedBox(height: TekaSpacing.xs),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Icon(Icons.lock_outline,
+              size: 16, color: TekaColors.mutedForeground),
+          const SizedBox(width: TekaSpacing.xs),
+          Expanded(
+            child: Text(
+              'Vos documents sont stockés de façon privée et ne sont consultés que par l’équipe Teka RDC pour cette vérification. Ils ne sont jamais publiés.',
+              style: theme.bodySmall?.copyWith(color: TekaColors.mutedForeground),
+            ),
+          ),
+        ]),
       ],
     );
   }
@@ -382,85 +422,95 @@ class PickedDocument {
 class _StatusCard extends StatelessWidget {
   final VerificationStatusUi ui;
   final VerificationStatusModel status;
-  const _StatusCard({required this.ui, required this.status});
+
+  /// Present only when the seller must redo a document (REJECTED).
+  final VoidCallback? onCorrect;
+  const _StatusCard(
+      {required this.ui, required this.status, required this.onCorrect});
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
     final note = status.verificationStatus == 'REJECTED'
-        ? status.verificationNote
-        : null;
+        ? (status.verificationNote ?? '').trim()
+        : '';
     final missing = status.missingTypes.length;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(TekaSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: ui.color.withValues(alpha: 0.35)),
+        color: TekaColors.background,
+        borderRadius: TekaRadius.lgAll,
+        border: Border.all(color: TekaColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: ui.color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(ui.icon, color: ui.color, semanticLabel: ui.label),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Statut',
-                        style: TextStyle(
-                            fontSize: 12, color: TekaColors.mutedForeground)),
-                    Text(
-                      ui.label,
-                      style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: ui.color),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          Text('Statut de la vérification',
+              style: theme.labelLarge?.copyWith(color: TekaColors.mutedForeground)),
+          const SizedBox(height: TekaSpacing.xs),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: SellerStatusBadge(label: ui.label, icon: ui.icon, color: ui.color),
           ),
-          const SizedBox(height: 12),
-          Text(ui.hint,
-              style: const TextStyle(
-                  fontSize: 13.5, color: TekaColors.foreground, height: 1.4)),
-          if (note != null && note.trim().isNotEmpty) ...[
-            const SizedBox(height: 12),
+          const SizedBox(height: TekaSpacing.sm),
+          Text(ui.hint, style: theme.bodyMedium),
+          if (ui.actionRequired) ...[
+            const SizedBox(height: TekaSpacing.sm),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(TekaSpacing.sm),
               decoration: BoxDecoration(
-                color: TekaColors.destructive.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(10),
+                color: TekaColors.destructiveSubtle,
+                borderRadius: TekaRadius.mdAll,
               ),
-              child: Text(
-                'Motif de Teka RDC : $note',
-                style: const TextStyle(
-                    fontSize: 13, color: TekaColors.destructive, height: 1.4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(children: [
+                    const Icon(Icons.priority_high_rounded,
+                        size: 18, color: TekaColors.destructiveForeground),
+                    const SizedBox(width: TekaSpacing.xs),
+                    Expanded(
+                      child: Text('Action requise',
+                          style: theme.titleSmall
+                              ?.copyWith(color: TekaColors.destructiveForeground)),
+                    ),
+                  ]),
+                  const SizedBox(height: TekaSpacing.xxs),
+                  Text(
+                    note.isEmpty
+                        ? 'Motif de Teka RDC : non précisé.'
+                        : 'Motif de Teka RDC : $note',
+                    style: theme.bodyMedium
+                        ?.copyWith(color: TekaColors.destructiveForeground),
+                  ),
+                  const SizedBox(height: TekaSpacing.xxs),
+                  Text(
+                    'Remplacez le document refusé ci-dessous ; Teka examinera de nouveau votre dossier.',
+                    style: theme.bodySmall
+                        ?.copyWith(color: TekaColors.destructiveForeground),
+                  ),
+                  if (onCorrect != null) ...[
+                    const SizedBox(height: TekaSpacing.sm),
+                    ElevatedButton.icon(
+                      onPressed: onCorrect,
+                      style: ElevatedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(44)),
+                      icon: const Icon(Icons.upload_file_outlined, size: 18),
+                      label: const Text('Remplacer le document refusé'),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
           if (status.verificationStatus == 'NOT_SUBMITTED' && missing > 0) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: TekaSpacing.sm),
             Text(
               missing == 1
                   ? 'Il manque 1 document pour lancer la vérification.'
                   : 'Il manque $missing documents pour lancer la vérification.',
-              style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: TekaColors.foreground),
+              style: theme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
           ],
         ],
@@ -492,188 +542,211 @@ class _DocumentTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
     final typeUi = DocumentTypeUi.of(type);
     final doc = document;
     final docUi = doc == null ? null : DocumentStatusUi.of(doc.status);
-    final buttonLabel = doc == null ? 'Ajouter' : 'Remplacer';
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: TekaColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
+    final rejected = doc?.status == 'REJECTED';
+    final title = doc?.type == 'OTHER' && doc?.label != null
+        ? doc!.label!
+        : typeUi.label;
+    final buttonLabel = error != null
+        ? 'Réessayer'
+        : doc == null
+            ? 'Ajouter'
+            : 'Remplacer';
+    final buttonIcon = Icon(
+        error != null ? Icons.refresh_rounded : Icons.upload_file_outlined,
+        size: 18);
+    final stateLine = doc == null
+        ? 'Pas encore fourni'
+        : '${docUi!.label} · ${documentFileLabel(doc.mimeType)}, ${formatFileSize(doc.sizeBytes)}';
+    return Semantics(
+      container: true,
+      label:
+          '$title, ${required ? 'requis' : 'facultatif'}, $stateLine${rejected && (doc?.rejectionReason ?? '').isNotEmpty ? ', motif ${doc!.rejectionReason}' : ''}',
+      child: Container(
+        padding: const EdgeInsets.all(TekaSpacing.sm),
+        decoration: BoxDecoration(
+          color: TekaColors.background,
+          borderRadius: TekaRadius.lgAll,
+          border: Border.all(
+              color: rejected ? TekaColors.destructive : TekaColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ExcludeSemantics(
+              child: Wrap(
+                spacing: TekaSpacing.xs,
+                runSpacing: TekaSpacing.xxs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(title, style: theme.titleSmall),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: TekaSpacing.xs, vertical: 2),
+                    decoration: BoxDecoration(
+                        color: required
+                            ? TekaColors.warningSubtle
+                            : TekaColors.muted,
+                        borderRadius: TekaRadius.pillAll),
+                    child: Text(required ? 'Requis' : 'Facultatif',
+                        style: theme.labelSmall?.copyWith(
+                            color: required
+                                ? TekaColors.warningForeground
+                                : TekaColors.neutralForeground,
+                            fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 2),
+            ExcludeSemantics(
+              child: Text(typeUi.hint,
+                  style: theme.bodySmall
+                      ?.copyWith(color: TekaColors.mutedForeground)),
+            ),
+            const SizedBox(height: TekaSpacing.xs),
+            ExcludeSemantics(
+              child: doc == null
+                  ? Row(children: [
+                      const Icon(Icons.radio_button_unchecked,
+                          size: 16, color: TekaColors.mutedForeground),
+                      const SizedBox(width: TekaSpacing.xs),
+                      Flexible(
+                        child: Text('Pas encore fourni',
+                            style: theme.bodySmall
+                                ?.copyWith(color: TekaColors.mutedForeground)),
+                      ),
+                    ])
+                  : Align(
+                      alignment: Alignment.centerLeft,
+                      child: SellerStatusBadge(
+                          label: stateLine,
+                          icon: docUi!.icon,
+                          color: docUi.color,
+                          compact: true),
+                    ),
+            ),
+            if (rejected && (doc?.rejectionReason ?? '').isNotEmpty) ...[
+              const SizedBox(height: TekaSpacing.xs),
+              ExcludeSemantics(
+                child: Text('Motif : ${doc!.rejectionReason}',
+                    style: theme.bodySmall
+                        ?.copyWith(color: TekaColors.destructiveForeground)),
+              ),
+            ],
+            if (uploading) ...[
+              const SizedBox(height: TekaSpacing.sm),
+              ClipRRect(
+                borderRadius: TekaRadius.smAll,
+                child: LinearProgressIndicator(
+                    value: progress > 0 && progress < 1 ? progress : null,
+                    minHeight: 6),
+              ),
+              const SizedBox(height: TekaSpacing.xxs),
+              Text(
+                progress >= 1
+                    ? 'Vérification du fichier…'
+                    : 'Envoi en cours… ${(progress * 100).round()} %',
+                style: theme.bodySmall
+                    ?.copyWith(color: TekaColors.mutedForeground),
+              ),
+            ],
+            if (error != null) ...[
+              const SizedBox(height: TekaSpacing.xs),
+              Semantics(
+                liveRegion: true,
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            doc?.type == 'OTHER' && doc?.label != null
-                                ? doc!.label!
-                                : typeUi.label,
-                            style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: TekaColors.foreground),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          required ? 'Requis' : 'Facultatif',
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w700,
-                            color: required
-                                ? TekaColors.tekaRed
-                                : TekaColors.mutedForeground,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(typeUi.hint,
-                        style: const TextStyle(
-                            fontSize: 12.5,
-                            color: TekaColors.mutedForeground,
-                            height: 1.35)),
+                    const Icon(Icons.error_outline,
+                        size: 18, color: TekaColors.destructiveForeground),
+                    const SizedBox(width: TekaSpacing.xs),
+                    Expanded(
+                        child: Text(error!,
+                            style: theme.bodySmall?.copyWith(
+                                color: TekaColors.destructiveForeground))),
                   ],
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 10),
-          if (doc == null)
-            const Row(
-              children: [
-                Icon(Icons.radio_button_unchecked,
-                    size: 18, color: TekaColors.mutedForeground),
-                SizedBox(width: 6),
-                Text('Pas encore fourni',
-                    style: TextStyle(
-                        fontSize: 13, color: TekaColors.mutedForeground)),
-              ],
-            )
-          else ...[
-            Row(
-              children: [
-                Icon(docUi!.icon,
-                    size: 18, color: docUi.color, semanticLabel: docUi.label),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    '${docUi.label} · ${documentFileLabel(doc.mimeType)}, ${formatFileSize(doc.sizeBytes)}',
-                    style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: docUi.color),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            if (doc.status == 'REJECTED' &&
-                (doc.rejectionReason ?? '').isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Text('Motif : ${doc.rejectionReason}',
-                  style: const TextStyle(
-                      fontSize: 12.5,
-                      color: TekaColors.destructive,
-                      height: 1.35)),
-            ],
-          ],
-          if (uploading) ...[
-            const SizedBox(height: 10),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                  value: progress > 0 && progress < 1 ? progress : null,
-                  minHeight: 6),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              progress >= 1
-                  ? 'Vérification du fichier…'
-                  : 'Envoi en cours… ${(progress * 100).round()} %',
-              style: const TextStyle(
-                  fontSize: 12, color: TekaColors.mutedForeground),
+            const SizedBox(height: TekaSpacing.sm),
+            Align(
+              alignment: Alignment.centerRight,
+              child: doc == null || rejected
+                  ? FilledButton.icon(
+                      onPressed: disabled ? null : onUpload,
+                      icon: buttonIcon,
+                      label: Text(buttonLabel),
+                    )
+                  : OutlinedButton.icon(
+                      onPressed: disabled ? null : onUpload,
+                      icon: buttonIcon,
+                      label: Text(buttonLabel),
+                    ),
             ),
           ],
-          if (error != null) ...[
-            const SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.error_outline,
-                    size: 18, color: TekaColors.destructive),
-                const SizedBox(width: 6),
-                Expanded(
-                    child: Text(error!,
-                        style: const TextStyle(
-                            fontSize: 12.5,
-                            color: TekaColors.destructive,
-                            height: 1.35))),
-              ],
-            ),
-          ],
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: doc == null || doc.status == 'REJECTED'
-                ? FilledButton.icon(
-                    onPressed: disabled ? null : onUpload,
-                    icon: Icon(
-                        error != null
-                            ? Icons.refresh_rounded
-                            : Icons.upload_file_outlined,
-                        size: 18),
-                    label: Text(error != null ? 'Réessayer' : buttonLabel),
-                  )
-                : OutlinedButton.icon(
-                    onPressed: disabled ? null : onUpload,
-                    icon: Icon(
-                        error != null
-                            ? Icons.refresh_rounded
-                            : Icons.upload_file_outlined,
-                        size: 18),
-                    label: Text(error != null ? 'Réessayer' : buttonLabel),
-                  ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _ErrorState extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-  const _ErrorState({required this.message, required this.onRetry});
+/// Static placeholder shaped like the screen (no spinner).
+class VerificationSkeleton extends StatelessWidget {
+  const VerificationSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+    Widget card(List<Widget> children) => Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(TekaSpacing.md),
+          decoration: BoxDecoration(
+            color: TekaColors.background,
+            borderRadius: TekaRadius.lgAll,
+            border: Border.all(color: TekaColors.border),
+          ),
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start, children: children),
+        );
+    return Semantics(
+      label: 'Chargement de la vérification',
+      liveRegion: true,
+      child: ExcludeSemantics(
+        child: ListView(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(
+              TekaSpacing.md, TekaSpacing.sm, TekaSpacing.md, TekaSpacing.xxl),
           children: [
-            const Icon(Icons.error_outline,
-                color: TekaColors.tekaRed, size: 42),
-            const SizedBox(height: 12),
-            Text(message,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: TekaColors.mutedForeground)),
-            const SizedBox(height: 16),
-            FilledButton(onPressed: onRetry, child: const Text('Réessayer')),
+            card(const [
+              SkeletonBlock(width: 150, height: 14),
+              SizedBox(height: TekaSpacing.xs),
+              SkeletonBlock(width: 140, height: 28, pill: true),
+              SizedBox(height: TekaSpacing.sm),
+              SkeletonBlock(width: double.infinity, height: 14),
+              SizedBox(height: TekaSpacing.xxs),
+              SkeletonBlock(width: 220, height: 14),
+            ]),
+            const SizedBox(height: TekaSpacing.lg),
+            const SkeletonBlock(width: 160, height: 18),
+            const SizedBox(height: TekaSpacing.sm),
+            card(const [
+              SkeletonBlock(width: 120, height: 16),
+              SizedBox(height: TekaSpacing.xs),
+              SkeletonBlock(width: 240, height: 12),
+              SizedBox(height: TekaSpacing.sm),
+              SkeletonBlock(width: 110, height: 24, pill: true),
+            ]),
+            const SizedBox(height: TekaSpacing.sm),
+            card(const [
+              SkeletonBlock(width: 120, height: 16),
+              SizedBox(height: TekaSpacing.xs),
+              SkeletonBlock(width: 240, height: 12),
+              SizedBox(height: TekaSpacing.sm),
+              SkeletonBlock(width: 110, height: 24, pill: true),
+            ]),
           ],
         ),
       ),

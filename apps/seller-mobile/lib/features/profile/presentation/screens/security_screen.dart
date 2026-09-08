@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../data/profile_repository.dart';
 import '../../../../core/layout/responsive.dart';
 
@@ -118,11 +119,10 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
   }
 
   void _toast(String message, {bool error = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: error ? TekaColors.destructive : null,
-      ),
+    showAppSnackbar(
+      context,
+      message: message,
+      tone: error ? AppSnackbarTone.error : AppSnackbarTone.neutral,
     );
   }
 

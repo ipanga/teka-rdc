@@ -6,13 +6,22 @@ import '../../../core/theme/teka_colors.dart';
 /// the verification screen and tests. Natural French, no enum names, and the
 /// « Vérifié » wording never implies a government certification or any
 /// guarantee (D5). Mirrors seller-web `lib/verification.ts`.
+///
+/// Tones (Seller UX PR F): the PR A *Foreground* tokens — neutral while
+/// nothing was submitted, warning while Teka reviews, success once verified,
+/// destructive when refused. Only REJECTED asks the seller to act
+/// (`actionRequired`), which is also the Action Center's rule.
 class VerificationStatusUi {
-  const VerificationStatusUi._(this.label, this.hint, this.color, this.icon);
+  const VerificationStatusUi._(this.label, this.hint, this.color, this.icon,
+      {this.actionRequired = false});
 
   final String label;
   final String hint;
   final Color color;
   final IconData icon;
+
+  /// The seller must do something (re-submit): REJECTED only.
+  final bool actionRequired;
 
   static VerificationStatusUi of(String status) {
     switch (status.toUpperCase()) {
@@ -20,28 +29,29 @@ class VerificationStatusUi {
         return const VerificationStatusUi._(
           'En attente de vérification',
           "Teka RDC examine les documents que vous avez fournis. Vous serez informé du résultat ; aucune action n'est requise.",
-          TekaColors.warning,
+          TekaColors.warningForeground,
           Icons.hourglass_top_rounded,
         );
       case 'VERIFIED':
         return const VerificationStatusUi._(
           'Vérifié',
           'Teka RDC a examiné vos documents justificatifs. Le badge « Vérifié » apparaît sur vos fiches produits ; il signifie uniquement que Teka a examiné ces documents.',
-          TekaColors.success,
+          TekaColors.successForeground,
           Icons.verified_rounded,
         );
       case 'REJECTED':
         return const VerificationStatusUi._(
           'Vérification refusée',
           "Vos documents n'ont pas pu être validés. Votre boutique reste active : soumettez de nouveaux documents pour une nouvelle vérification.",
-          TekaColors.destructive,
+          TekaColors.destructiveForeground,
           Icons.error_outline_rounded,
+          actionRequired: true,
         );
       default:
         return const VerificationStatusUi._(
           'Non vérifié',
           'Fournissez vos documents justificatifs pour que Teka RDC les examine et affiche le badge « Vérifié » sur vos fiches produits.',
-          TekaColors.mutedForeground,
+          TekaColors.neutralForeground,
           Icons.shield_outlined,
         );
     }
@@ -97,17 +107,17 @@ class DocumentStatusUi {
   static DocumentStatusUi of(String status) {
     switch (status.toUpperCase()) {
       case 'ACCEPTED':
-        return const DocumentStatusUi._(
-            'Accepté', TekaColors.success, Icons.check_circle_rounded);
+        return const DocumentStatusUi._('Accepté',
+            TekaColors.successForeground, Icons.check_circle_rounded);
       case 'REJECTED':
         return const DocumentStatusUi._(
-            'Refusé', TekaColors.destructive, Icons.cancel_rounded);
+            'Refusé', TekaColors.destructiveForeground, Icons.cancel_rounded);
       case 'PENDING':
         return const DocumentStatusUi._('En cours de vérification',
-            TekaColors.warning, Icons.schedule_rounded);
+            TekaColors.warningForeground, Icons.schedule_rounded);
       default:
         return const DocumentStatusUi._(
-            'Remplacé', TekaColors.mutedForeground, Icons.history_rounded);
+            'Remplacé', TekaColors.neutralForeground, Icons.history_rounded);
     }
   }
 }
@@ -148,6 +158,29 @@ String? validateDocumentBytes(
     return 'Format non supporté. Formats acceptés : PDF, JPEG, PNG.';
   }
   return null;
+}
+
+/// Seller-application (account) status as the seller reads it — separate
+/// from the verification badge. Tone = status semantics.
+class ApplicationStatusUi {
+  const ApplicationStatusUi._(this.label, this.color, this.icon);
+  final String label;
+  final Color color;
+  final IconData icon;
+
+  static ApplicationStatusUi of(String status) {
+    switch (status.toUpperCase()) {
+      case 'APPROVED':
+        return const ApplicationStatusUi._('Boutique approuvée',
+            TekaColors.successForeground, Icons.storefront_rounded);
+      case 'REJECTED':
+        return const ApplicationStatusUi._('Demande rejetée',
+            TekaColors.destructiveForeground, Icons.cancel_outlined);
+      default:
+        return const ApplicationStatusUi._('Demande en révision',
+            TekaColors.warningForeground, Icons.hourglass_empty);
+    }
+  }
 }
 
 String documentFileLabel(String mimeType) {

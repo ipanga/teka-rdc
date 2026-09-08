@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
+import '../../../../core/widgets/app_snackbar.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/profile_repository.dart';
 import '../../../../core/layout/responsive.dart';
@@ -64,11 +65,10 @@ class _AccountDeletionScreenState extends ConsumerState<AccountDeletionScreen> {
 
   void _toast(String message, {bool error = false}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: error ? TekaColors.destructive : null,
-      ),
+    showAppSnackbar(
+      context,
+      message: message,
+      tone: error ? AppSnackbarTone.error : AppSnackbarTone.neutral,
     );
   }
 

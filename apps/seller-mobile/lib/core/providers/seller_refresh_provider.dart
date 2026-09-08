@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Repository mutations refresh immediately; push/resume bursts are coalesced.
 final sellerRefreshProvider =
     StateNotifierProvider<SellerRefreshNotifier,
-        ({int orders, int products, int earnings, int verification})>(
+        ({int orders, int products, int earnings, int verification, int profile})>(
         (ref) {
   final notifier = SellerRefreshNotifier();
   WidgetsBinding.instance.addObserver(notifier);
@@ -15,10 +15,10 @@ final sellerRefreshProvider =
 });
 
 class SellerRefreshNotifier
-    extends StateNotifier<({int orders, int products, int earnings, int verification})>
+    extends StateNotifier<({int orders, int products, int earnings, int verification, int profile})>
     with WidgetsBindingObserver {
   SellerRefreshNotifier()
-      : super((orders: 0, products: 0, earnings: 0, verification: 0));
+      : super((orders: 0, products: 0, earnings: 0, verification: 0, profile: 0));
   Timer? _timer;
   bool _ordersPending = false;
   bool _productsPending = false;
@@ -31,12 +31,26 @@ class SellerRefreshNotifier
         products: state.products,
         earnings: state.earnings,
         verification: state.verification,
+        profile: state.profile,
       );
   void productsChanged() => state = (
         orders: state.orders,
         products: state.products + 1,
         earnings: state.earnings,
         verification: state.verification,
+        profile: state.profile,
+      );
+
+  /// The seller saved their person or shop (repository) — the account header
+  /// (name, email, photo, town · commune) must follow without a restart.
+  /// Runtime defect (Seller UX PR F): the reload hooked on the pushed route's
+  /// future never fired on the device, so the header stayed stale.
+  void profileChanged() => state = (
+        orders: state.orders,
+        products: state.products,
+        earnings: state.earnings,
+        verification: state.verification,
+        profile: state.profile + 1,
       );
 
   /// A document was uploaded (repository) — the Action Center's
@@ -46,6 +60,7 @@ class SellerRefreshNotifier
         products: state.products,
         earnings: state.earnings,
         verification: state.verification + 1,
+        profile: state.profile,
       );
 
   void handlePush(Map<String, dynamic> data) {
@@ -81,6 +96,7 @@ class SellerRefreshNotifier
         products: state.products + (_productsPending ? 1 : 0),
         earnings: state.earnings + (_earningsPending ? 1 : 0),
         verification: state.verification + (_verificationPending ? 1 : 0),
+        profile: state.profile,
       );
       _ordersPending =
           _productsPending = _earningsPending = _verificationPending = false;
