@@ -2,9 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:seller_mobile/core/utils/price_formatter.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/theme/teka_spacing.dart';
+import '../../../../core/widgets/seller_status_badge.dart';
 import '../../data/models/earning_model.dart';
 import '../payout_status.dart';
 
+/// One delivered order's earning: what the seller keeps (net, strong), how
+/// it was computed (gross − commission at the snapshotted rate, muted) and
+/// where the money is (state chip). Money is always in the foreground
+/// colour — the state alone carries the tone.
 class EarningTile extends StatelessWidget {
   final SellerEarningModel earning;
 
@@ -12,145 +18,82 @@ class EarningTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context).textTheme;
     final dateFormat = DateFormat('dd/MM/yyyy', 'fr');
+    final state = EarningStateUi.of(earning.effectiveState);
+    final title = earning.orderNumber != null
+        ? 'Commande ${earning.orderNumber!}'
+        : 'Commande';
+    final net = '${formatFcNumber(earning.netAmountCDFDisplay)} FC';
+    final gross = '${formatFcNumber(earning.grossAmountCDFDisplay)} FC';
+    final commission = '${formatFcNumber(earning.commissionCDFDisplay)} FC';
+    final rate = earning.commissionRatePercentLabel;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: TekaColors.background,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: TekaColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            crossAxisAlignment: WrapCrossAlignment.center,
+    return Semantics(
+      label:
+          '$title, ${dateFormat.format(earning.createdAtDate)}, gain net $net, ${state.label}',
+      child: ExcludeSemantics(
+        child: Container(
+          margin: const EdgeInsets.only(bottom: TekaSpacing.xs),
+          padding: const EdgeInsets.all(TekaSpacing.sm),
+          decoration: BoxDecoration(
+            color: TekaColors.background,
+            borderRadius: TekaRadius.lgAll,
+            border: Border.all(color: TekaColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                earning.orderNumber != null
-                    ? "Commande ${earning.orderNumber!}"
-                    : earning.orderId,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: EarningStateUi.of(earning.effectiveState)
-                      .color
-                      .withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  EarningStateUi.of(earning.effectiveState).label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: EarningStateUi.of(earning.effectiveState).color,
+              Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: TekaSpacing.sm,
+                runSpacing: TekaSpacing.xxs,
+                children: [
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: theme.titleSmall),
+                      const SizedBox(height: 2),
+                      Text(dateFormat.format(earning.createdAtDate),
+                          style: theme.bodySmall
+                              ?.copyWith(color: TekaColors.mutedForeground)),
+                    ],
                   ),
-                ),
+                  Text(net,
+                      softWrap: false,
+                      style: theme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: TekaColors.foreground)),
+                ],
+              ),
+              const SizedBox(height: TekaSpacing.xs),
+              Text(
+                'Vente $gross − commission $commission ($rate)',
+                style:
+                    theme.bodySmall?.copyWith(color: TekaColors.mutedForeground),
+              ),
+              const SizedBox(height: TekaSpacing.xs),
+              SellerStatusBadge(
+                label: state.label,
+                icon: _icon(earning.effectiveState),
+                color: state.color,
+                compact: true,
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 12,
-            runSpacing: 4,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Icon(Icons.calendar_today_outlined,
-                  size: 12, color: TekaColors.mutedForeground),
-              const SizedBox(width: 4),
-              Text(
-                dateFormat.format(earning.createdAtDate),
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: TekaColors.mutedForeground,
-                ),
-              ),
-              Text(
-                'Commission : ${earning.commissionRatePercentLabel}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: TekaColors.mutedForeground,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 20,
-            runSpacing: 10,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Total",
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: TekaColors.mutedForeground,
-                    ),
-                  ),
-                  Text(
-                    '${formatFcNumber(earning.grossAmountCDFDisplay)} FC',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Text(
-                    "Commission prélevée",
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: TekaColors.mutedForeground,
-                    ),
-                  ),
-                  Text(
-                    '-${formatFcNumber(earning.commissionCDFDisplay)} FC',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: TekaColors.destructive,
-                    ),
-                  ),
-                ],
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  const Text(
-                    "Gains",
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: TekaColors.mutedForeground,
-                    ),
-                  ),
-                  Text(
-                    '${formatFcNumber(earning.netAmountCDFDisplay)} FC',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: TekaColors.success,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }
+
+  static IconData _icon(String state) => switch (state) {
+        'HELD' => Icons.schedule,
+        'AVAILABLE' => Icons.account_balance_wallet_outlined,
+        'RESERVED' => Icons.sync,
+        'PAID' => Icons.check_circle_outline,
+        'REVERSED' => Icons.undo,
+        _ => Icons.help_outline,
+      };
 }
