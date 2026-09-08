@@ -24,6 +24,17 @@ export const MAX_PRODUCT_PAGES = 50;
 export const SITEMAP_REVALIDATE_SECONDS = 3600;
 
 /**
+ * Generated at REQUEST time, never at build time. The `next.revalidate` on
+ * every fetch would otherwise turn this route into a build-time prerender —
+ * and the image is built in CI, where no API exists, so the strict source
+ * failure below would abort every build (it did: PR #713's first run). The
+ * upstream calls stay cached for SITEMAP_REVALIDATE_SECONDS (explicit
+ * `next.revalidate` is honoured inside a dynamic route), so a hit after the
+ * first costs no API round-trip until the hour is up.
+ */
+export const dynamic = 'force-dynamic';
+
+/**
  * Build an absolute Teka URL from a relative path. Site is monolingual
  * (FR-only) since 2026-04-25; URLs have no locale prefix. City-first since
  * 2026-06-06 — paths come from the shared builders in lib/urls.ts so the

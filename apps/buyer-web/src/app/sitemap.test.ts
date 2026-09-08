@@ -4,6 +4,7 @@ import sitemap, {
   PRODUCT_PAGE_LIMIT,
   MAX_PRODUCT_PAGES,
   SitemapSourceError,
+  dynamic,
   type SitemapProduct,
 } from './sitemap';
 
@@ -237,5 +238,14 @@ describe('sitemap — lastmod semantics', () => {
     mockApi({ products: catalogue(150) });
     const urls = (await sitemap()).map((e) => e.url);
     expect(new Set(urls).size).toBe(urls.length);
+  });
+});
+
+describe('sitemap — render mode', () => {
+  it('is generated at request time, never prerendered at build time (CI builds have no API)', () => {
+    // With `next.revalidate` on every fetch, Next would otherwise prerender the
+    // route during `next build` — and the strict source failure would abort
+    // the build wherever the API is unreachable (every CI/Docker build).
+    expect(dynamic).toBe('force-dynamic');
   });
 });

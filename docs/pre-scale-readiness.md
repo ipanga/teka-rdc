@@ -2916,7 +2916,7 @@ Lubumbashi + Kolwezi) with `curl` and in Chrome (desktop 1280 px and an emulated
 
 | # | Re-audit | Root cause | Fix | Verified |
 |---|---|---|---|---|
-| H1 sitemap 0 products | confirmed | `limit=500` vs the API's `@Max(100)` → 400, swallowed to `null`; no pagination; test mock accepted any query | `fetchAllSitemapProducts()` walks the real cursor at `limit=100` (dedupe by id, a page whose cursor does not advance throws, hard cap `MAX_PRODUCT_PAGES=50` → 5 000 products, beyond which it throws naming `generateSitemaps()` as the split), **strict** source failures (`SitemapSourceError` → the route 500s and crawlers keep their last copy — never a silently thinner sitemap), ISR 3 600 s | dev build: **683 URLs, 296 products, 4 API pages, 0 duplicates**, 42 sampled product URLs all 200; test mock now paginates like the API (limit > 100 → 400) |
+| H1 sitemap 0 products | confirmed | `limit=500` vs the API's `@Max(100)` → 400, swallowed to `null`; no pagination; test mock accepted any query | `fetchAllSitemapProducts()` walks the real cursor at `limit=100` (dedupe by id, a page whose cursor does not advance throws, hard cap `MAX_PRODUCT_PAGES=50` → 5 000 products, beyond which it throws naming `generateSitemaps()` as the split), **strict** source failures (`SitemapSourceError` → the route 500s and crawlers keep their last copy — never a silently thinner sitemap), generated at **request time** (`dynamic = 'force-dynamic'`) with the upstream calls cached 3 600 s | dev build: **683 URLs, 296 products, 4 API pages, 0 duplicates**, 42 sampled product URLs all 200; test mock now paginates like the API (limit > 100 → 400); with the API unreachable the route answers **500** (verified) |
 | H2 no product/category/town links in HTML | confirmed | every listing page fetched in `useEffect` | server routes fetch what the client fetched after paint and pass it as `initial*` props (below) | category page 12 product + sub-category + breadcrumb hrefs, town page 20 product + 7 category hrefs, footer 2 town hrefs on every page — all in `curl` output |
 | H3 PDP has no H1/price/seller in HTML | confirmed | product fetched for metadata then discarded | `initialProduct` into `ProductDetailPage` (state seeded, effect skips the fetch when it matches) | `<h1>`, `250.000 FC`, seller, description in the HTML; 1 product request per render |
 | H4 `<h1>Catégories</h1>` on 374 pages | confirmed | client fetch resolved the name | `initialCategory` (name, breadcrumb, children from `getCategoryDetail`) + first product page (same query the client used) | `<h1>Supermarché</h1>`, no skeleton |
@@ -2933,7 +2933,7 @@ Lubumbashi + Kolwezi) with `curl` and in Chrome (desktop 1280 px and an emulated
 | M9 titles double the brand | confirmed | page title repeated « sur Teka RDC » under the layout template | `{name} à {ville} — Acheter en ligne` | `<title>Supermarché à Lubumbashi — Acheter en ligne \| Teka RDC</title>` |
 | M10 `/recherche` in sitemap, `/promotions` absent | confirmed | list | fixed | `/recherche` absent, `/promotions` present |
 | L5 no `sameAs` | confirmed | — | added | — |
-| L10 sitemap uncached | confirmed | `no-store` fetches per hit | `revalidate = 3600` (build/ISR) | route listed as static, revalidate 1 h |
+| L10 sitemap uncached | confirmed | `no-store` fetches per hit | per-fetch `next.revalidate = 3600` inside a request-time route | second hit served from the data cache (7 ms), no API call |
 | L11 no metadata/JSON-LD/redirect tests | confirmed | — | route tests (below) | — |
 
 **Server-rendered content — the smallest change that puts indexable content in the first HTML.**
@@ -3016,8 +3016,8 @@ content and links present.
 in `Promise.all`; Next's request memoisation dedupes the PDP's `generateMetadata` + page fetch
 (asserted: one product request per render). Per page the server now issues what the client used to
 issue after paint — no net increase in API load, and the client's first fetches are skipped when the
-server data is present. The sitemap moved from 3 uncached calls per hit to `revalidate = 3600`
-(≈ 4 product-page calls + categories + cities per hour). No N+1 (the list endpoints are the same
+server data is present. The sitemap moved from 3 uncached calls per hit to a request-time route whose
+upstream fetches are cached 3 600 s (≈ 4 product-page calls + categories + cities per hour). No N+1 (the list endpoints are the same
 paginated calls). Not addressed: PostHog still initialises eagerly (M12), `og-default.png` (L1).
 
 **Security.** JSON-LD escaping preserved and re-asserted; CSP unchanged (no new inline scripts — the
@@ -3054,6 +3054,28 @@ semantics: `GET /v1/cities` returns active towns only — Lubumbashi + Kolwezi �
 route) so activating Likasi changes the copy without a deploy of text; not done pending the
 product decision.
 
+**CI failure on the first run, and the fix (`Web Build (buyer-web)`).** The first CI run of PR #713
+failed: `Error occurred prerendering page "/sitemap.xml" … SitemapSourceError: /v1/browse/categories —
+unreachable`. Root cause: with `next.revalidate` set on every fetch, Next classified `/sitemap.xml`
+as a build-time prerender (ISR), and the image is built in CI/Docker where no API exists — the new
+strict failure did exactly what it was designed to do, at the wrong time. The old code passed the same
+build only because it swallowed the error into an **empty** sitemap baked into the image. Fix:
+`export const dynamic = 'force-dynamic'` on the route (test-asserted) — generated per request, upstream
+calls still cached for an hour (explicit `next.revalidate` is honoured inside a dynamic route).
+Reproduced and verified locally with `API_INTERNAL_URL` pointed at a dead port: `next build` now
+succeeds (`ƒ /sitemap.xml`), and at request time the sitemap answers 500 while `/` and `/categories`
+still answer 200 with their client-fetch fallbacks (`/{ville}`, category and product pages 404 without
+the API — the routes cannot resolve the town/product, unchanged from before).
+
+**Deploy-time behaviour worth knowing (not a regression, documented for the release runbook).** `/`
+and the `/{ville}` pages are prerendered at build time (ISR 60 s) in an environment without the API,
+so the image ships them with the client-fetch shells (no categories/banners, and for `/` no server
+`<h1>`). On the first requests after a deploy Next serves that stale HTML (`x-nextjs-cache: STALE`)
+while regenerating in the background; the third request in the local run was already the full page
+(`HIT`, `<h1>` + 7 category links; town page `HIT` with the product grids). Before SEO-1 those pages
+shipped the same shells permanently, so nothing regressed; the post-deploy smoke matrix (B1/B2) hits
+both, which warms them. A build-time warm-up or `force-dynamic` for `/` is an SEO-2 option.
+
 **Unexpected findings.**
 - **10 dev products have no city** (`30000000-…`, the Phase 3 seed): no canonical town URL, so
   product cards link to the flat `/{tail}` (which the `[ville]` dispatcher resolves) and the sitemap
@@ -3080,7 +3102,7 @@ brand in JSON-LD; no BreadcrumbList/LocalBusiness on town pages, no `ItemList`; 
 **Git.** Branch `buyer-web/seo-1` from `e45d9fb`, 5 commits (`21a4b29` sitemap + API field,
 `6b69e4c` identity/JSON-LD/OG/descriptions/PDP initial data, `2485178` trailing slash, `6fd2f24`
 server-rendered initial data + tests, `252f0d0` homepage `<h1>` with banners + shortCode guard),
-plus the docs commit.
+plus the docs commit and `sitemap: force-dynamic` (the CI fix, with its own docs update).
 
 ## Next exact step
 

@@ -52,8 +52,8 @@ phase: COMPLETE (A–D). Seller Mobile functional readiness: COMPLETE, with debt
 and tablet (portrait + landscape) runtime verification: PERFORMED for both apps. **iOS/iPad runtime:
 still a validation gap** (uploads and `--no-codesign` builds only, no simulator input tooling).
 **Buyer Web SEO: SEO-1 implemented on `buyer-web/seo-1` (PR open, awaiting merge approval — nothing
-merged yet):** sitemap walks the browse cursor (dev build: 683 URLs, 296 products, real `lastmod`,
-strict on source failure), category/town/PDP/homepage/footer content and links server-rendered
+merged yet):** sitemap walks the browse cursor at request time (dev build: 683 URLs, 296 products, real
+`lastmod`, strict on source failure — 500, never an empty file), category/town/PDP/homepage/footer content and links server-rendered
 through optional `initial*` props, site-wide Organization/WebSite JSON-LD with a real logo, product
 `og:type` + price tags, plain-text descriptions, trailing-slash 308, brand-free category titles;
 verified on the served HTML of the production build and in Chrome (desktop + 390 px). Decisions 5
