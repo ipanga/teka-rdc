@@ -49,7 +49,10 @@ Never emit the same event name from two layers.
   `category_viewed`, `search_performed` (query scrubbed via `scrubAnalyticsText`),
   `add_to_cart`, `remove_from_cart`, `checkout_started`, and the wishlist events
   (`wishlist_added`/`wishlist_removed`/`wishlist_viewed`/
-  `wishlist_item_moved_to_cart`). **seller-mobile** is infra-only.
+  `wishlist_item_moved_to_cart`). **seller-mobile** owns a few UI events beside
+  identity: `seller_account_tab_opened`, `seller_account_menu_item_tapped` {item},
+  `seller_logout_tapped`, and `seller_action_center_tapped` {task, origin} (2026-09-08) —
+  categories and ids only, never a count of money or any PII.
 
 `api_error` and `notification_sent` are **intentionally not** captured —
 `api_error` stays Sentry's job; `notification_sent` is too high-volume.

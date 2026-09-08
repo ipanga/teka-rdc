@@ -1923,11 +1923,126 @@ created.
 **Not changed:** API, schema, env, dependencies (`Package.resolved` drift from the iOS build reverted),
 analytics, `image_picker`, any seller business rule, Buyer Mobile.
 
+### Seller UX PR B — `seller-mobile/ux-dashboard-action-center` (dashboard + Action Center, 2026-09-08)
+
+**Seller UX PR A merged** as `8086594` (merge commit; head `b87a2b8` unchanged, 15/15 checks + CodeQL green,
+seller-mobile + trackers only). Develop synced and clean; the `CI` workflow and both CodeQL analyses on
+`8086594` are green. Two `npm_and_yarn … Update` runs on the same SHA are **Dependabot security-update jobs**
+(esbuild, sharp) that GitHub launches itself and that fail inside the updater — not CI gates, not caused by
+this merge; the Dependency Audit job is green.
+
+**Dashboard baseline (source + live app, signed in as Marie: 1 order to confirm, 1 to prepare, 1 to finish,
+0 rejected products).** Every element classified before changing anything:
+
+| Element | Source of truth | Verdict |
+|---|---|---|
+| « Actions requises » with the three order rows + « Produits à corriger » | `GET /v1/sellers/orders/stats` (`byStatus`), `GET /v1/sellers/products/stats` — seller-scoped by `userId` | **Actionable, already good** — kept as rows; exact counts, filtered deep links through `openActionFilter` + `?status=` (the Orders/Products modules own the filter). |
+| Two separate « Aucune commande à traiter » / « Aucun produit à corriger » lines | — | **Redundant** — replaced by one positive line. |
+| Every count in brand red | — | **Misleading** — red meant nothing (every task, urgent or not). |
+| `LinearProgressIndicator` per section on first paint | — | **Loading gap** — spinner-only, no shape. |
+| Catalogue counts (total / actifs / en validation / brouillons) | products stats | **Metric-only, already good** — kept below the actions. |
+| « Votre boutique » shortcuts | — | **Navigation, already good.** |
+| Unread badge on the bell | `notificationsProvider.unread` | **Informational, already good** — untouched; never a task count. |
+| Refresh: mutation → `sellerRefreshProvider` revision, push (`order-details` / `product-details` / `earnings`) coalesced 300 ms, app resume, pull-to-refresh awaiting every request; no polling | `core/providers/seller_refresh_provider.dart` | **Already good** — extended with a `verification` revision, nothing else changed. |
+| Verification state | not on the dashboard | **Missing actionable state** — a rejected verification was only visible as a tile subtitle in Profil. |
+| Orders `READY_FOR_TEKA_PICKUP` | stats `byStatus` | **Absent** — the seller could not see what was waiting for Teka. |
+| Payouts | `docs/payouts.md` | **Correctly absent** — see below. |
+
+**Actionable states, from the API's own rules (not from labels):**
+
+| Domain | Seller action | Not a seller action |
+|---|---|---|
+| Orders (`SellerOrdersService`: the seller drives `PENDING → CONFIRMED → PROCESSING → READY_FOR_TEKA_PICKUP`) | `PENDING` confirm/refuse · `CONFIRMED` prepare · `PROCESSING` mark ready | `READY_FOR_TEKA_PICKUP` and everything after (Teka ops) — tracked in « Suivi » |
+| Products | `REJECTED` (edit + resubmit) | `SUSPENDED` (admin takedown, only an admin lifts it), `DRAFT`, `PENDING_REVIEW`, `ACTIVE`, `ARCHIVED` |
+| Verification (`GET /v1/sellers/verification`) | status `REJECTED`, or a live document `REJECTED` | `NOT_SUBMITTED` (optional trust badge, the shop is active), `PENDING_REVIEW`, `VERIFIED` |
+| Payouts | **none** — « No payout state requires anything from the seller » (`docs/payouts.md`); a rejected payout releases the earnings and is a notification, and the destination is entered on the request form itself | everything |
+
+Overdue detection (« preparation overdue ») was considered and not built: the stats endpoint carries
+counts, not ages, and adding an aggregation for it is a product decision, not a UX fix.
+
+**Priority model (deterministic, `features/home/domain/action_center.dart`, unit-tested):** P1 *immediate*
+— a buyer is waiting on the seller now: orders to confirm, orders to prepare. P2 *soon* — nobody is blocked
+this minute: preparations to finish, products to correct, verification to redo. Inside a priority the
+order is fixed by the enum. P3 (financial) exists in the model the user proposed but has **no member** by
+API semantics, so it is not in the code. **Tone marks state, not priority:** order rows are « attention »
+(amber pill), rejections are « rejected » (red-subtle pill / red icon), tracking rows are neutral. Brand red
+appears only on the primary button.
+
+**What changed (seller-mobile only, 12 files):**
+
+- `features/home/domain/action_center.dart` (new): `ActionItem` / `buildActionItems` / `totalPending` /
+  `verificationNeedsAction`.
+- `features/home/presentation/widgets/dashboard_rows.dart` (new): `DashboardSection`, `DashboardCard`,
+  `DashboardRow` (one button per row whose semantics read « 25, Commandes à confirmer, Acceptez… »),
+  `CountPill` (caps at « 999+ »), `DashboardClearRow`, `DashboardErrorRow` (scoped retry), static
+  `DashboardRowsSkeleton` / `SkeletonBlock` (no shimmer — reduced-motion safe and cheap).
+- `home_screen.dart`: header total once every source has answered; rows sorted by the model; a reloading
+  source contributes nothing (no stale count under a refresh); « Suivi » section for ready-for-pickup;
+  catalogue skeleton; all typography from the theme, all spacing/radius from the tokens; one analytics
+  event `seller_action_center_tapped` `{task, origin:'dashboard'}` (categories only).
+- `seller_dashboard_provider.dart`: `sellerVerificationRequestProvider` (per seller, on the
+  `verification` revision) + `sellerVerificationProvider`.
+- `seller_refresh_provider.dart`: `verification` revision; `verificationChanged()`; push
+  `screen: 'verification'` schedules it; resume schedules all four.
+- `verification_repository.dart`: `onChanged` fired after a successful upload (same pattern as products).
+- `order_stats.dart`: `readyForPickup` parsed from `byStatus`.
+- `seller_main_shell.dart` → `ConsumerWidget`: **one badge, on « Commandes » only**, = confirm + prepare +
+  finish from the same stats provider; hidden while loading or on error; `tooltip` « Commandes, N à
+  traiter » for assistive tech, the visual badge excluded from semantics. Products and verification stay
+  in the Action Center: a badge per tab would make the bar a second dashboard.
+
+**Loading / empty / error:** first paint is two content-shaped rows under a live-region label; a source
+that fails keeps its neighbours and shows one row with its own « Réessayer » (retrying one source does not
+refetch the others — pinned); the « Aucune action requise pour le moment » line appears only when all three
+sources have answered with nothing to do; the whole-page error shell is unchanged.
+
+**Refresh:** unchanged strategy (mutation / push / resume / pull, coalesced, no polling), plus the
+verification revision. Pull-to-refresh awaits all three requests.
+
+**Notifications:** untouched. The feed is the feed; the Action Center only shows states the API says need
+the seller. The bell keeps its unread count.
+
+**Performance:** three parallel GETs on the dashboard (was two); each is one indexed query per seller
+(`groupBy` on orders / products, one `findMany` on the seller's documents). No aggregation endpoint was
+needed; no API change.
+
+**Security:** every source is resolved from the JWT `userId` server-side; the verification response never
+carries a document URL or storage id (`SellerDocumentView`), and the row shows a fixed French sentence,
+never the admin note. No admin data, no cross-seller counts, no payout destination anywhere on the screen.
+
+**Tests (seller 247, +17; analyze 20 baseline infos; buyer 501 untouched, `responsive.dart` identical):**
+`action_center_test` (only the three seller-driven statuses become tasks, zero counts produce no row,
+routes, products REJECTED only, verification REJECTED / rejected document / quiet states, priority and
+in-priority order, missing source ≠ nothing to do, tone by state); screen tests for the skeleton first
+paint, the verification task and its navigation, scoped verification failure + solo retry, the Commandes
+badge through confirm (stays: still to prepare) and ready-for-pickup (drops, Suivi appears), tracking row
+deep link, 360/412 at 1.3×, 1024/1280 readable centred column; refresh-provider test extended to the
+`verification` revision. Existing tests updated to the single empty line and the third request (a
+fixture-Dio response settles on a timer, so the refresh tests elapse time instead of awaiting).
+
+**Runtime (Pixel 8 Pro, development flavor, local API, disposable data).** Marie (temporarily
+`verificationStatus=REJECTED`): dashboard total 4, three amber order rows, red verification row, badge 3 →
+tap « Préparations à terminer » → Orders on « En préparation » with one card → detail → « Marquer prête
+pour collecte » → confirm → list empty for that filter, **badge 2 while still on Orders** → Accueil: total 3,
+row gone, « Suivi · 1 prête pour la collecte Teka », badge 2 → tap « Vérification à refaire » → Vérification
+de la boutique with the refused status and the reason. Text scale 1.3× and 1.5×: every row wraps, no
+truncation, pills intact. Tablet 800 pt portrait and 1280 pt landscape: centred readable column, bar
+centred. Patrick (rejected product temporarily hidden): « Aucune action requise pour le moment », no
+Commandes badge, catalogue and shortcuts below. First launch shows Android's notification-permission
+prompt over the dashboard (system, one-time; the progressive render behind it was visible). Restored
+byte-for-byte afterwards: both password hashes, Marie's verification fields, Patrick's product status, the
+QA order back to `PROCESSING` with the status-log row it created removed (verified in the DB; the
+temporary password 401s). iOS: not built in this PR (no change to native code or assets).
+
+**Left for later, on purpose:** order detail still opens on a bare spinner (PR C); seller-web's dashboard
+has no verification task yet (parity follow-up once the seller-web phase opens); `docs/analytics.md` now
+lists the seller-mobile UI events instead of calling it infra-only.
+
 ### Remaining Seller UX findings by PR (from the baseline audit + this PR's walk)
 
 | PR | Surface | Findings to act on |
 |---|---|---|
-| **B** dashboard + Action Center | `features/home` | Adopt the text theme (drop local sizes), `TekaRadius` on the two cards, catalogue-count row baseline alignment, shaped skeleton for the first paint (spinner today), notification-permission timing on first launch (system prompt covers the dashboard — capture `sa06`). Preserve every action row and count. |
+| **B** dashboard + Action Center | `features/home` | **Done in PR B** — text theme, tokens, shaped skeleton, verification task, Suivi, one badge. Left: the first-launch notification-permission prompt still lands on the dashboard (system prompt; moving it needs an onboarding decision). |
 | **C** orders | `features/orders` (24 sizes, 4 radii, 2 spinners, 1 `Image.network`) | Order-card typography, status chip on `SellerStatusBadge` everywhere, detail hero via a cached image with French fallback, action bar skeleton, timeline dot colour = status. No workflow change. |
 | **D** products / form / images | `features/products` (23 sizes, 15 radii, 6 spinners, 3 `Image.network`) | Densest surface: form section rhythm on the 4-pt ladder, field help text on bodySmall, image tile placeholder + failure state, list skeleton, leaf-category/characteristics UI untouched in behaviour. `image_picker` settings untouched. |
 | **E** earnings + payouts | `features/earnings` (31 sizes, 9 radii, 3 spinners) | Money in foreground, status in colour; table-like rows on one baseline; payout status on the new process colours (badge already tokenized in A); empty and error states with CTA. No rule change. |
@@ -1936,8 +2051,9 @@ analytics, `image_picker`, any seller business rule, Buyer Mobile.
 
 ## Next exact step
 
-PR 1–13 plus Buyer UX PR A–D merged (latest: `9ff8b64`; Buyer Mobile UX/UI polish phase CLOSED). **Seller
-UX PR A `seller-mobile/ux-ui-polish` open — awaiting merge approval.** Then Seller UX PR B (dashboard +
-Action Center) — **not to be started until PR A is approved.** Seller Web / Admin Web redesign stays out of
-scope. Carried-forward validation gaps: iPad/iOS runtime (build only, never exercised), no golden tests,
-and the Seller phone walk which PR B–F complete surface by surface.
+PR 1–13, Buyer UX PR A–D and Seller UX PR A merged (latest: `8086594`). **Seller UX PR B
+`seller-mobile/ux-dashboard-action-center` open — awaiting merge approval.** Then Seller UX PR C (orders)
+— **not to be started until PR B is approved.** Seller Web / Admin Web redesign stays out of scope.
+Carried-forward validation gaps: iPad/iOS runtime (never exercised), no golden tests, and the Seller phone
+walk which PR C–F complete surface by surface (dashboard, orders list/detail action bar, profile and
+verification walked in A and B).
