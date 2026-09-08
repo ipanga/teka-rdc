@@ -7,6 +7,10 @@ import '../../data/models/earning_model.dart';
 
 class EarningsState {
   final SellerWallet? wallet;
+
+  /// The wallet request failed and nothing is cached: the summary must say
+  /// so instead of rendering zeros as if the seller had no money.
+  final String? walletError;
   final List<SellerEarningModel> earnings;
   final List<PayoutModel> payouts;
   final bool isLoading;
@@ -21,6 +25,7 @@ class EarningsState {
 
   const EarningsState({
     this.wallet,
+    this.walletError,
     this.earnings = const [],
     this.payouts = const [],
     this.isLoading = false,
@@ -37,8 +42,22 @@ class EarningsState {
   bool get hasMoreEarnings => earningsPage * limit < earningsTotal;
   bool get hasMorePayouts => payoutsPage * limit < payoutsTotal;
 
+  /// The seller's open payout (REQUESTED / APPROVED / PROCESSING), if any —
+  /// its amount is what the API has reserved from the earnings.
+  PayoutModel? get openPayout {
+    for (final p in payouts) {
+      if (const {'REQUESTED', 'APPROVED', 'PROCESSING'}
+          .contains(p.status.toUpperCase())) {
+        return p;
+      }
+    }
+    return null;
+  }
+
   EarningsState copyWith({
     SellerWallet? wallet,
+    String? walletError,
+    bool clearWalletError = false,
     List<SellerEarningModel>? earnings,
     List<PayoutModel>? payouts,
     bool? isLoading,
@@ -54,6 +73,8 @@ class EarningsState {
   }) {
     return EarningsState(
       wallet: wallet ?? this.wallet,
+      walletError:
+          clearWalletError ? null : (walletError ?? this.walletError),
       earnings: earnings ?? this.earnings,
       payouts: payouts ?? this.payouts,
       isLoading: isLoading ?? this.isLoading,
@@ -81,10 +102,12 @@ class EarningsNotifier extends StateNotifier<EarningsState> {
     try {
       final wallet = await _repository.getWallet();
       if (mounted) {
-        state = state.copyWith(wallet: wallet);
+        state = state.copyWith(wallet: wallet, clearWalletError: true);
       }
     } catch (e) {
-      // Wallet load failure is non-critical, keep the rest of the state
+      // Keep whatever wallet is cached; the summary shows a scoped retry
+      // rather than zeros (a « 0 FC » balance is a statement, not a shrug).
+      if (mounted) state = state.copyWith(walletError: friendlyErrorMessage(e));
     }
   }
 
@@ -207,22 +230,31 @@ class EarningsNotifier extends StateNotifier<EarningsState> {
         payoutMethod: method,
         payoutPhone: phone,
       );
-      // Reload wallet and payouts after successful request
-      await Future.wait([
-        loadWallet(),
-        loadPayouts(),
-      ]);
+      // The request moved money: balance, earnings states and payouts.
+      await Future.wait([loadWallet(), loadEarnings(), loadPayouts()]);
       return null;
     } on DioException catch (e) {
+      // The API's French reason (minimum balance with the current amount,
+      // an open payout, an invalid destination) — then refetch the
+      // authoritative balance and payouts, because a 400 / 409 here means
+      // the screen's numbers are stale.
       final data = e.response?.data;
+      String message = 'Une erreur est survenue. Veuillez réessayer.';
       if (data is Map) {
         final err = data['error'];
         if (err is Map && err['message'] != null) {
-          return err['message'].toString();
+          message = err['message'].toString();
+        } else if (data['message'] != null) {
+          message = data['message'].toString();
         }
-        if (data['message'] != null) return data['message'].toString();
+      } else {
+        message = friendlyErrorMessage(e);
       }
-      return 'Une erreur est survenue. Veuillez réessayer.';
+      final status = e.response?.statusCode ?? 0;
+      if (status == 400 || status == 409) {
+        await Future.wait([loadWallet(), loadEarnings(), loadPayouts()]);
+      }
+      return message;
     } catch (_) {
       return 'Une erreur est survenue. Veuillez réessayer.';
     }
@@ -238,13 +270,12 @@ class EarningsNotifier extends StateNotifier<EarningsState> {
     }
   }
 
+  /// Wallet + both lists. A payout changes all three at once (the balance,
+  /// the earnings' states, the payouts), so refreshing only the visible tab
+  /// left « Disponible » rows under a « virement en cours » balance
+  /// (runtime QA, Seller UX PR E).
   Future<void> refresh() async {
-    await loadWallet();
-    if (state.selectedTab == 0) {
-      await loadEarnings();
-    } else {
-      await loadPayouts();
-    }
+    await Future.wait([loadWallet(), loadEarnings(), loadPayouts()]);
   }
 }
 

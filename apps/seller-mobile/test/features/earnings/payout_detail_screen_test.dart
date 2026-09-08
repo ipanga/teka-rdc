@@ -79,6 +79,8 @@ void main() {
     expect(find.text('MPESA-QA-20260904-001'), findsOneWidget);
     expect(find.text('Payé le'), findsOneWidget);
     expect(find.textContaining('M-Pesa (Vodacom)'), findsOneWidget);
+    await tester.dragUntilVisible(find.text('Voir tous mes virements'),
+        find.byType(ListView), const Offset(0, -200));
     expect(find.text('Voir tous mes virements'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });

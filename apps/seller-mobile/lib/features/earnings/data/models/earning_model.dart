@@ -162,6 +162,12 @@ class PayoutModel {
   final String? processedAt;
   final String createdAt;
 
+  /// Additive lifecycle timestamps (present on the API's payout rows; older
+  /// responses simply omit them) — the payout detail's event history.
+  final String? approvedAt;
+  final String? processingAt;
+  final String? rejectedAt;
+
   const PayoutModel({
     required this.id,
     required this.amountCDF,
@@ -173,6 +179,9 @@ class PayoutModel {
     required this.requestedAt,
     this.processedAt,
     required this.createdAt,
+    this.approvedAt,
+    this.processingAt,
+    this.rejectedAt,
   });
 
   int get amountCDFDisplay {
@@ -193,6 +202,13 @@ class PayoutModel {
     return DateTime.parse(createdAt);
   }
 
+  DateTime? get approvedAtDate =>
+      approvedAt == null ? null : DateTime.tryParse(approvedAt!);
+  DateTime? get processingAtDate =>
+      processingAt == null ? null : DateTime.tryParse(processingAt!);
+  DateTime? get rejectedAtDate =>
+      rejectedAt == null ? null : DateTime.tryParse(rejectedAt!);
+
   factory PayoutModel.fromJson(Map<String, dynamic> json) {
     return PayoutModel(
       id: json['id'] as String? ?? '',
@@ -208,6 +224,9 @@ class PayoutModel {
       processedAt: json['processedAt'] as String?,
       createdAt:
           json['createdAt'] as String? ?? DateTime.now().toIso8601String(),
+      approvedAt: json['approvedAt'] as String?,
+      processingAt: json['processingAt'] as String?,
+      rejectedAt: json['rejectedAt'] as String?,
     );
   }
 }
