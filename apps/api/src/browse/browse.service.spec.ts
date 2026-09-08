@@ -898,7 +898,7 @@ describe('BrowseService.publicProductWhere — the one eligibility definition (S
   it('is the base of the storefront listing (browseProducts cannot disagree with the counts)', async () => {
     const { service, productFindMany } = makeTownService({ retire: { enabled: false } });
     await service.browseProducts({ cityId: 'city-1' } as never);
-    const where = (productFindMany.mock.calls[0][0] as { where: Record<string, unknown> }).where;
+    const where = ((productFindMany as jest.Mock).mock.calls[0][0] as { where: Record<string, unknown> }).where;
     expect(where).toMatchObject({ status: 'ACTIVE', deletedAt: null, cityId: 'city-1' });
   });
 });
@@ -913,7 +913,7 @@ describe('BrowseService.getCategories — town-scoped counts (SEO-2)', () => {
 
   it('without cityId keeps the global counts and issues no grouped query (unchanged contract)', async () => {
     const { service, groupBy } = makeTownService({ categories: tree });
-    const roots = (await service.getCategories()) as Array<{ id: string; productCount: number; subcategories: Array<{ productCount: number; subcategories: Array<{ id: string; productCount: number }> }> }>;
+    const roots = (await service.getCategories()) as unknown as Array<{ id: string; productCount: number; subcategories: Array<{ productCount: number; subcategories: Array<{ id: string; productCount: number }> }> }>;
     expect(groupBy).not.toHaveBeenCalled();
     expect(roots[0].productCount).toBe(9);
     expect(roots[0].subcategories[0].subcategories.map((l) => [l.id, l.productCount])).toEqual([['leafA', 7], ['leafB', 2]]);
@@ -924,9 +924,9 @@ describe('BrowseService.getCategories — town-scoped counts (SEO-2)', () => {
       categories: tree,
       townGroups: [{ categoryId: 'leafA', _count: { _all: 1 } }], // leafB: products globally, none in town
     });
-    const roots = (await service.getCategories('city-1')) as Array<{ productCount: number; subcategories: Array<{ productCount: number; subcategories: Array<{ id: string; productCount: number }> }> }>;
+    const roots = (await service.getCategories('city-1')) as unknown as Array<{ productCount: number; subcategories: Array<{ productCount: number; subcategories: Array<{ id: string; productCount: number }> }> }>;
     expect(groupBy).toHaveBeenCalledTimes(1);
-    expect(groupBy.mock.calls[0][0]).toMatchObject({
+    expect((groupBy as jest.Mock).mock.calls[0][0]).toMatchObject({
       by: ['categoryId'],
       where: { status: 'ACTIVE', deletedAt: null, cityId: 'city-1' },
     });
@@ -937,7 +937,7 @@ describe('BrowseService.getCategories — town-scoped counts (SEO-2)', () => {
 
   it('a town with no eligible product at all yields 0 on every node', async () => {
     const { service } = makeTownService({ categories: tree, townGroups: [] });
-    const roots = (await service.getCategories('city-2')) as Array<{ productCount: number }>;
+    const roots = (await service.getCategories('city-2')) as unknown as Array<{ productCount: number }>;
     expect(roots[0].productCount).toBe(0);
   });
 });
@@ -957,7 +957,7 @@ describe('BrowseService.getCategoryDetail — town-scoped subtree count (SEO-2)'
     });
     const detail = await service.getCategoryDetail('smartphones', 'city-1');
     expect(detail.productCount).toBe(1);
-    expect(categoryFindMany.mock.calls[0][0]).toMatchObject({
+    expect((categoryFindMany as jest.Mock).mock.calls[0][0]).toMatchObject({
       where: {
         OR: [
           { id: 'cat-smart' },
@@ -968,7 +968,7 @@ describe('BrowseService.getCategoryDetail — town-scoped subtree count (SEO-2)'
         deletedAt: null,
       },
     });
-    expect(count.mock.calls[0][0]).toEqual({
+    expect((count as jest.Mock).mock.calls[0][0]).toEqual({
       where: {
         status: 'ACTIVE',
         deletedAt: null,
