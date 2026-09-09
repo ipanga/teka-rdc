@@ -1,4 +1,4 @@
-# Status — 2026-09-09 (production RELEASED and HARDENED at `main` `9a89249`; the P1 admin/financial security follow-ups are implemented on `security/admin-financial-followups`, PR open awaiting review)
+# Status — 2026-09-09 (production RELEASED and HARDENED at `main` `9a89249`; the P1 admin/financial security follow-ups are MERGED into `develop` as `f9a9b34` (PR #725); Sentry request-data minimisation implemented on `security/sentry-request-data-minimization`, PR open awaiting review)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
