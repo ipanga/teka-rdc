@@ -66,7 +66,12 @@ says « Mobile Money ». Deferred with a written classification: header mega-men
 SUPPORT/FINANCE, S11 audit rows, D2b). **Mobile security hardening remains open** (MS1–MS7).
 **Dependabot follow-ups remain open** (`sharp`/`esbuild` security jobs failing on the pinned
 exceptions, stale PRs #549/#565/#595, no bundler ecosystem). **The Cloudflare origin firewall is a
-MANUAL pre-release action — not applied.**
+MANUAL pre-release action — not applied.** **`security/multer-2.3.0` open, awaiting merge approval** —
+sibling of the `sharp` PR: four `multer` 2.2.0 advisories published 2026-09-08 (GHSA-wc9g-mqfw-jrwm,
+GHSA-qfvm-cv95-jqjf, GHSA-535w-7cp7-47q4 high; GHSA-qvfw-j98x-7q72 low; patched in 2.3.0) fail the
+blocking Dependency Audit; fixed by raising the root override to `multer@<2.3.0 → ^2.3.0` plus
+`fieldArrayIndexLimit: 0` on the four multipart endpoints and a French 400 for multer's new error codes.
+The gate is green only once BOTH security PRs are on `develop`.
 
 **Production still runs `main` `78c6ef9` (2026-09-06):** every PR since #670 — the five security PRs,
 the CI gates, the Buyer Mobile functional fixes, tablet and both UX series — is on `develop` only.

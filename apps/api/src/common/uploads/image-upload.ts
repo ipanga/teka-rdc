@@ -23,10 +23,30 @@ import {
  */
 export const IMAGE_UPLOAD_MAX_BYTES = 5 * 1024 * 1024;
 
+/**
+ * Field-name hardening shared by EVERY multipart endpoint (product images,
+ * avatars, KYC / verification documents).
+ *
+ * multer parses bracket notation in text-field names (`items[3]` builds an
+ * array of length 4). GHSA-535w-7cp7-47q4: a crafted index such as
+ * `items[4294967294]` materialises a maximum-length sparse array and a second
+ * field on the same base then converts it to an object by walking its whole
+ * length — one request pins the event loop for minutes. multer ≥ 2.3.0 ships
+ * the guard as the OPT-IN `limits.fieldArrayIndexLimit`; the advisory asks
+ * applications to set it to the smallest index they need. No Teka client
+ * sends bracketed field names at all (`image` / `document` + flat text
+ * fields), so the minimum is 0. Rejection surfaces as a French 400 through
+ * `HttpExceptionFilter`.
+ */
+export const multipartFieldNameLimits = {
+  fieldArrayIndexLimit: 0,
+} as const;
+
 export const imageUploadLimits = {
   fileSize: IMAGE_UPLOAD_MAX_BYTES,
   files: 1,
   fields: 4,
+  ...multipartFieldNameLimits,
 } as const;
 
 export type ImageKind = 'jpeg' | 'png' | 'webp' | 'gif';
