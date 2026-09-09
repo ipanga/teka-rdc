@@ -10,6 +10,15 @@ import { Request, Response } from 'express';
 import * as Sentry from '@sentry/node';
 import { TooManyRequestsException } from '../rate-limit/too-many-requests.exception';
 
+/** multer's own error class, matched structurally so the filter stays free of a multer import. */
+function isMulterError(exception: unknown): exception is Error & { code: string } {
+  return (
+    exception instanceof Error &&
+    exception.name === 'MulterError' &&
+    typeof (exception as { code?: unknown }).code === 'string'
+  );
+}
+
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(HttpExceptionFilter.name);
@@ -71,6 +80,20 @@ export class HttpExceptionFilter implements ExceptionFilter {
           user: { id: (request as any).user?.sub ?? 'anonymous' },
         });
       }
+    } else if (isMulterError(exception)) {
+      // multer ≥ 2.3.0 rejects crafted multipart field names with codes that
+      // @nestjs/platform-express does not translate (INVALID_FIELD_NAME — the
+      // former GHSA-wc9g-mqfw-jrwm process crash; LIMIT_FIELD_ARRAY_INDEX —
+      // GHSA-535w-7cp7-47q4; LIMIT_FIELD_NESTING), so they reach the filter as
+      // raw MulterErrors. They are client-driven: a French 400, no Sentry, no
+      // parser detail echoed back. LIMIT_FILE_SIZE keeps its 413 above.
+      status = HttpStatus.BAD_REQUEST;
+      message = 'Requête multipart invalide';
+      this.logger.warn('Rejected multipart request', {
+        method: request.method,
+        url: request.url,
+        code: exception.code,
+      });
     } else {
       this.logger.error('Unhandled exception', {
         method: request.method,

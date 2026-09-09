@@ -2698,7 +2698,7 @@ metadata/JSON-LD/redirect tests.
 | Stored XSS / JSON-LD (S2) | FIXED (not in prod) | #674; `json-ld.tsx` `serializeJsonLd` + tests; only 2 `dangerouslySetInnerHTML` sites, both safe |
 | Payments IDOR (S4) | FIXED (not in prod) | #674; actor-scoped `order.findFirst`, 6 e2e cases |
 | Upload MIME/magic-byte validation (S8) | FIXED for product/avatar/KYC (not in prod); **PARTIALLY FIXED overall** | #674 `image-upload.ts`; **S13 `POST /v1/sellers/documents` (seller application) still unthrottled, row-less, no owner binding, no orphan sweep** |
-| Upload limits (S8) | FIXED (not in prod) | multer `limits` 5 MB/1 file + `@Throttle 20/min` + `@IdentityThrottle('upload')` |
+| Upload limits (S8) | FIXED (not in prod) | multer `limits` 5 MB/1 file + `@Throttle 20/min` + `@IdentityThrottle('upload')`; `fieldArrayIndexLimit: 0` on all four multipart endpoints + `MulterError` → French 400 (multer 2.3.0 pin, 2026-09-09) |
 | Avatar/product media lifecycle (A6/D11) | FIXED (not in prod) | #693; strict `avatarPublicIdFromUrl`, destroy with `invalidate`; product delete destroys; hard-delete purges |
 | App-review bypass (S10) | FIXED (not in prod) | #674; placeholders, constant-time compare, production boot error; default `false` — **not a production refusal** (ACCEPTED RISK, env-controlled) |
 | Origin/surface binding (S1/D2a) | FIXED (not in prod) | #675; Origin → cookie namespace, role → namespace, 18 e2e; `X-Teka-Surface` telemetry only |
@@ -3251,7 +3251,7 @@ with the client fallback intact.
 matrix), then the Android store builds. SEO work is no longer a blocker for the release decision;
 the E items above (`og-default.png`, PostHog deferral) are product/analytics decisions.
 
-### sharp 0.35.4 — `security/sharp-0.35.4` (dependency security, 2026-09-09 — open, awaiting merge approval)
+### sharp 0.35.4 — `security/sharp-0.35.4` (dependency security, 2026-09-09 — **merged `2e0454d`, PR #718**)
 
 **Trigger.** GHSA-rgj7-g3m4-5g8c, published 2026-09-08 21:25 UTC (high): `sharp` < 0.35.4 inherits the
 libheif advisories GHSA-g89c-p67h-r497 and GHSA-2jg2-4ch7-h545; patched in 0.35.4. The blocking
@@ -3295,7 +3295,75 @@ robots. Seller and admin: `X-Robots-Tag` + meta `noindex, nofollow` on every res
 one (GHSA-wc9g-mqfw-jrwm, GHSA-qfvm-cv95-jqjf, GHSA-535w-7cp7-47q4; all high; patched in 2.3.0) had not
 reached the registry's audit feed when PR #715's job ran but do now — they fail the same blocking job and
 are reachable on the API's live upload path (`@nestjs/platform-express`). The existing
-`"multer@<2.2.0": "^2.2.0"` pin is the natural mechanism; a separate decision.
+`"multer@<2.2.0": "^2.2.0"` pin is the natural mechanism; a separate decision — taken the same day
+as the sibling PR `security/multer-2.3.0` (#719), recorded below.
+
+### multer 2.3.0 — `security/multer-2.3.0` (dependency security, 2026-09-09 — open, awaiting merge approval)
+
+**Trigger.** Four `multer` advisories published 2026-09-08 21:28–21:30 UTC, minutes after the `sharp` one
+(`security/sharp-0.35.4`): **GHSA-wc9g-mqfw-jrwm** (high 7.5 — two crafted text-field names crash the
+process with an uncaught `RangeError: Invalid array length`), **GHSA-qfvm-cv95-jqjf** (high 7.5 — file
+descriptor leak on aborted uploads, `diskStorage` only), **GHSA-535w-7cp7-47q4** (high 7.5 — an
+`items[4294967294]` field name materialises a maximum-length sparse array and the next field on the
+same base walks it, pinning the event loop) and **GHSA-qvfw-j98x-7q72** (low 3.7 — `fileSize` bypass
+with an async `fileFilter`). All `< 2.3.0`, patched in `2.3.0`. They reached the registry's audit feed
+after PR #715's job ran, so the blocking Dependency Audit fails on them from now on. None was added to
+`ignoreGhsas`.
+
+**Path.** `multer` 2.2.0 was the API's direct dependency (`apps/api`, `^2.2.0`) and
+`@nestjs/platform-express` 11.1.14's (which pins `2.0.2` — the PR 5 override `multer@<2.2.0 → ^2.2.0` is
+what already lifted it), five paths in all, none in the web apps. Four multipart endpoints, all
+`FileInterceptor` on memory storage with explicit `limits`: product images, avatars, application
+documents, verification documents. No `diskStorage`, no `fileFilter` — so GHSA-qfvm and GHSA-qvfw were
+never reachable; GHSA-wc9g and GHSA-535w were, unauthenticated, on every one of the four.
+
+**Remediation.** Root `pnpm.overrides` `multer@<2.3.0 → ^2.3.0` (the existing rule, raised). Lockfile
+delta: `multer` 2.2.0 → 2.3.0, nothing else. Two boundary adaptations the diff of 2.2.0 → 2.3.0 made
+necessary, both in the API boundary only: (1) **`limits.fieldArrayIndexLimit: 0`** on all four
+endpoints (`multipartFieldNameLimits` in `common/uploads/image-upload.ts`, spread into
+`imageUploadLimits` and the two document interceptors) — the GHSA-535w guard ships **opt-in** and the
+advisory asks applications to set it to the smallest index they need. Re-measured on the synchronised
+branch against the installed 2.3.0 with Teka's own limits: the `items[4294967294]` request still hangs
+past a 45 s timeout **without** the limit, and answers `LIMIT_FIELD_ARRAY_INDEX` 400 in 11.3 ms / 10.9 ms
+CPU / 54 MB RSS **with** it; the crash payload is `INVALID_FIELD_NAME` 400 in 10.4 ms either way (that
+one the version bump alone closes). No Teka client sends bracketed field names, so 0 is the minimum. (2) **`MulterError` →
+French 400** in `HttpExceptionFilter`: 2.3.0's new codes (`INVALID_FIELD_NAME` — the former crash;
+`LIMIT_FIELD_ARRAY_INDEX`; `STREAM_DESTROYED`) are unknown to `@nestjs/platform-express`'s
+message-matching `transformException`, which passed them through raw — the filter would have answered
+« Erreur interne du serveur » 500 and paged Sentry for a client-driven request. Now « Requête multipart
+invalide » 400, logged at warn, no Sentry, no parser detail echoed; `LIMIT_FILE_SIZE` keeps its French
+413. Two other 2.3.0 changes were checked and need nothing: files of exactly `fileSize` bytes now pass
+multer (busboy gets `fileSize + 1`) — Teka's own ≤ 5 MB checks still decide, one byte more is buffered
+at most; and `%0A` / `%0D` / `%22` are decoded in `originalname` — `sanitizeFilename` reduces the
+stored name to `[A-Za-z0-9._-]` (unit test added). Nest 11 / Express 5 / `@types/multer` 2.0.0 unchanged.
+
+**Evidence.** New e2e `test/multipart-boundary.e2e-spec.ts` (14 tests through the real multer/busboy
+chain on all four endpoints): the crash pair and the array-index pair are French 400s in milliseconds
+with the server answering afterwards; 5 MB + 1 → French 413 on all four; exactly 5 MB reaches
+`validateImageUpload` (400 from the bytes, not 413); SVG-as-PNG and PNG-as-JPEG refused from the bytes;
+empty file, JSON body, missing boundary, truncated body, second file, wrong file field, five text fields,
+200-byte field name → all 4xx, never 5xx, no stack/parser detail in the body; 401 on all four without a
+session; 403 for a buyer on product images and verification documents; a seller cannot name another
+seller's product (404, nothing uploaded). API unit 841 / e2e 247 (multipart 14 new), type-check ×5, vitest
+181 / 36 / 60, flutter seller 461 / buyer 501 (the multipart-retry and auth-interceptor suites included).
+**Runtime probe** on an isolated API (:5051, this build, dev DB, disposable buyer + approved seller +
+draft product): valid JPEG avatar → 201, served asset a WebP with the EXIF marker gone; valid PNG product
+image → 201 with a `teka-rdc/products/…` id; valid PDF verification document → 201, profile
+PENDING_REVIEW, row `application/pdf` 193 B with the sanitised original name; application JPEG → 201
+private id; 5 MB + 1 → 413 French on image and document; PNG-as-JPEG / SVG-as-PDF → French 400; truncated
+and boundary-less bodies → 400; both advisory payloads → « Requête multipart invalide » in < 400 ms,
+`/health/live` 200 after; no session 401, buyer on seller routes 403, two files 400; an expired token →
+401 with **no** asset, the fresh-token retry → 201 with exactly one new row (image count 1 → 1 → 2) — the
+HTTP-level shape of the mobile 401-refresh-retry. Cleanup verified: the five Cloudinary assets destroyed
+(then `api.resource` 404 for each), all rows deleted (2 audit, 1 document, 2 images, product, profile,
+2 users), 0 remaining, 0 rows carrying the QA tag. Resource behaviour unchanged by construction: the
+oversized body is still refused while streaming (busboy's limit), memory storage buffers at most
+`fileSize + 1` bytes per file, and the field-name guards fire per field before `append-field` allocates.
+
+**Pre-existing, not changed here (recorded):** Nest's own multer messages for the limits it does map are
+English 400s (« Too many files », « Multipart: Boundary not found », « Unexpected field ») and the
+401 / 403 bodies are Nest's defaults — the same on 2.2.0; a French pass over those is a separate,
+non-security item.
 
 ## Next exact step
 

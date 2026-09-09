@@ -126,6 +126,13 @@ describe('stripImageMetadata — EXIF / XMP / text chunks never reach storage', 
 });
 
 describe('sanitizeFilename', () => {
+  it('neutralises the CR / LF / quote that multer ≥ 2.3.0 now decodes from a WHATWG-escaped filename', () => {
+    // multer 2.3.0 turns %0A, %0D and %22 in `originalname` back into the
+    // raw characters; nothing outside [A-Za-z0-9._-] may reach the row.
+    expect(sanitizeFilename('rccm\r\n"x".pdf')).toBe('rccm_x_.pdf');
+    expect(sanitizeFilename('rccm%0A%22.pdf')).toBe('rccm_0A_22.pdf');
+  });
+
   it('strips paths, control chars, accents and caps the length', () => {
     expect(sanitizeFilename('../../etc/passwd')).toBe('passwd');
     expect(sanitizeFilename('C:\\Users\\Me\\RCCM Élan  (2026).pdf')).toBe('RCCM_Elan_2026_.pdf');
