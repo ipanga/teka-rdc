@@ -1,4 +1,4 @@
-# Status — 2026-09-09 (pre-scale readiness — release-readiness audit complete; its only code blocker, S12 payout destination, is FIXED and MERGED (`295e801`, PR #722); no code blocker remains; the `develop → main` release PR is NOT opened)
+# Status — 2026-09-09 (**RELEASED to production**: `main` `9a89249` / PR #723 deployed, run 34380668330; both migrations applied; **nginx copy + Cloudflare/Hetzner origin firewall still OUTSTANDING as manual steps**)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
@@ -68,8 +68,26 @@ SUPPORT/FINANCE, S11 audit rows, D2b). **Mobile security hardening remains open*
 PRs #549/#565/#595, no bundler ecosystem). **The Cloudflare origin firewall is a MANUAL pre-release
 action — not applied.**
 
+**PRODUCTION RELEASE DONE (2026-09-09).** PR #723 (`develop → main`) merged as **`9a89249`**; deploy run
+**34380668330** succeeded in ~6 min (17:04:28 → 17:10:45 UTC). EXPAND applied exactly the two expected
+migrations (`2026-09-06_auth_rate_limits.sql`, `2026-09-09_payout_method_changed_at.sql`) and skipped the
+nine already recorded in `_manual_migrations`, before the rolling swap. Post-deploy: API health/ready/live
+200 with `database: ok` and monotonic uptime, all five hostnames answering, catalogue and cities APIs
+serving, storefront rendering products, PDP JSON-LD intact, sitemap now emitting **20 product URLs**
+(previously 0), seller/admin `noindex`, auth boundary 401. The new app-owned headers are live
+(Permissions-Policy, COOP/CORP present, `X-Powered-By` gone).
+
+**TWO MANUAL STEPS REMAIN — production is not yet fully hardened:**
+1. **`nginx/nginx.prod.conf` not copied to the VPS.** Every web host therefore serves **two CSP headers**
+   (old nginx + new app). The browser enforces the intersection, which still allows `'self'` and
+   `https://api.teka.cd`, so the apps work; browser-side Sentry and Clarity stay blocked exactly as they
+   were before the release. nginx's own `limit_req` zones still key on Cloudflare edge IPs (pre-existing).
+   The API is unaffected: `trust proxy: 1` + Cloudflare's `X-Forwarded-For` already give it the real client IP.
+2. **Cloudflare/Hetzner origin firewall not applied.** Direct origin access to `178.104.179.42` on 80/443
+   was re-verified as OPEN after the release (teka.cd 200, seller 200, admin 200, api 404, :80 301).
+
 **`security/payout-destination-reauth` MERGED (`295e801`, PR #722) — S12, the release-readiness audit's
-only code blocker, is CLOSED.** A stolen seller session could redirect the whole balance: `POST
+only code blocker, is CLOSED and now LIVE in production.** A stolen seller session could redirect the whole balance: `POST
 /v1/sellers/payouts` let an inline destination win over the saved profile, and `PATCH
 /v1/sellers/payout-method` had no re-auth, audit, notice, cooling-off or throttle. Now: the SAVED
 destination is the only routing authority (an inline one is accepted only when identical — 409
