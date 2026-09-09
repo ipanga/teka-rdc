@@ -3322,9 +3322,11 @@ delta: `multer` 2.2.0 → 2.3.0, nothing else. Two boundary adaptations the diff
 necessary, both in the API boundary only: (1) **`limits.fieldArrayIndexLimit: 0`** on all four
 endpoints (`multipartFieldNameLimits` in `common/uploads/image-upload.ts`, spread into
 `imageUploadLimits` and the two document interceptors) — the GHSA-535w guard ships **opt-in** and the
-advisory asks applications to set it to the smallest index they need; a raw-multer probe showed the
-`items[4294967294]` request still pinning 2.3.0 for the full 60 s timeout without it and answering in
-11 ms with it; no Teka client sends bracketed field names, so 0 is the minimum. (2) **`MulterError` →
+advisory asks applications to set it to the smallest index they need. Re-measured on the synchronised
+branch against the installed 2.3.0 with Teka's own limits: the `items[4294967294]` request still hangs
+past a 45 s timeout **without** the limit, and answers `LIMIT_FIELD_ARRAY_INDEX` 400 in 11.3 ms / 10.9 ms
+CPU / 54 MB RSS **with** it; the crash payload is `INVALID_FIELD_NAME` 400 in 10.4 ms either way (that
+one the version bump alone closes). No Teka client sends bracketed field names, so 0 is the minimum. (2) **`MulterError` →
 French 400** in `HttpExceptionFilter`: 2.3.0's new codes (`INVALID_FIELD_NAME` — the former crash;
 `LIMIT_FIELD_ARRAY_INDEX`; `STREAM_DESTROYED`) are unknown to `@nestjs/platform-express`'s
 message-matching `transformException`, which passed them through raw — the filter would have answered
