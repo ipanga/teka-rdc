@@ -64,8 +64,13 @@ to lower-case, the « Autre » placeholder never becomes a schema.org Brand, the
 says « Mobile Money ». Deferred with a written classification: header mega-menu SSR, `og-default.png`
 (design), PostHog deferral (analytics), town-page structured data (semantics not met), `keywords`. **Admin/Finance security decisions remain open** (S12 payout re-auth, S21
 SUPPORT/FINANCE, S11 audit rows, D2b). **Mobile security hardening remains open** (MS1–MS7).
-**Dependabot follow-ups remain open** (`sharp`/`esbuild` security jobs failing on the pinned
-exceptions, stale PRs #549/#565/#595, no bundler ecosystem). **The Cloudflare origin firewall is a
+**Dependabot follow-ups remain open** (`esbuild` security job failing on the pinned exception, stale
+PRs #549/#565/#595, no bundler ecosystem). **`security/sharp-0.35.4` open, awaiting merge approval** —
+the 2026-09-08 advisory GHSA-rgj7-g3m4-5g8c (`sharp` < 0.35.4, libheif) broke the Dependency Audit gate
+on `develop`; fixed by a root `pnpm.overrides` pin to 0.35.4 (the older `sharp` ignore entry
+GHSA-f88m-g3jw-g9cj removed with it). Three `multer` 2.2.0 advisories published the same evening
+(GHSA-wc9g-mqfw-jrwm, GHSA-qfvm-cv95-jqjf, GHSA-535w-7cp7-47q4, all high, patched in 2.3.0) still fail
+the same gate — a separate decision, not mixed into the `sharp` PR. **The Cloudflare origin firewall is a
 MANUAL pre-release action — not applied.**
 
 **Production still runs `main` `78c6ef9` (2026-09-06):** every PR since #670 — the five security PRs,
