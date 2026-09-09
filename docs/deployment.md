@@ -473,7 +473,7 @@ Product images are stored on Cloudinary's CDN. Cloudinary provides its own backu
 |---|---|---|
 | Application code | container images | `.github/workflows/deploy.yml` builds and pushes `ghcr.io/ipanga/teka-rdc/{api,buyer-web,seller-web,admin-web}` with **two** tags: `:latest` and `:<full-git-sha>` |
 | `docker-compose.prod.yml` | this repository | scp'd to the VPS by the deploy job before the swap |
-| `nginx/nginx.prod.conf` | this repository | **operator-managed — NOT synced by the deploy.** Copy it by hand when it changes (see below) |
+| `nginx/nginx.prod.conf` | this repository | **operator-managed — NOT synced by the deploy.** Copy it by hand when it changes (see below). Last copied **2026-09-09** for the `9a89249` release (backup kept on the VPS as `nginx.prod.conf.before-20260909`, not tracked in git) |
 | `.env.production` | the VPS only | operator-managed; never in git |
 | Runtime-only variables (`SENTRY_RELEASE`, `SENTRY_ENVIRONMENT`, `POSTHOG_API_KEY`, `APP_REVIEW_*`) | GitHub Secrets | exported by the deploy job into the shell that runs compose; interpolated by `docker-compose.prod.yml` |
 | Schema | `apps/api/prisma/migrations/manual/*.sql` | EXPAND phase of the deploy (§5a), or the *Apply prod migration* workflow |
@@ -618,10 +618,21 @@ For a specific SHA, use the override-file form from rollback layer 2.
 
 ## Cloudflare origin firewall — MANUAL PRODUCTION STEP
 
-> **Status: NOT APPLIED. Required before the large-scale release.** Documentation only — nothing in
-> this repository applies it.
+> **Status: APPLIED 2026-09-09** (operator, Hetzner Console), after the `9a89249` release. Ports 80
+> and 443 no longer serve non-Cloudflare sources; port 22 was deliberately left open because the
+> deploy SSHes from GitHub-hosted runners whose source ranges change (see § SSH below). Still
+> documentation only — nothing in this repository applies or reverts it.
+>
+> **Independently re-verified from an external network on 2026-09-09** (read-only): a direct request
+> to the origin on 443 and on 80 completes the TCP handshake and is then reset, returning no HTTP
+> response, for all five hostnames; `https://teka.cd` through Cloudflare continued to answer `200`
+> with `server: cloudflare` at the same moment. The operator observed the same from a separate
+> machine (`curl: (35)/(56) Recv failure: Connection reset by peer`).
+>
+> Residual nuance, not a defect: the ports **reject** rather than **drop**, so a scanner still sees a
+> TCP handshake before the reset. Moving to a drop policy is optional hardening (P3).
 
-Today `docker-compose.prod.yml` publishes ports 80 and 443 on the VPS to the whole internet, so a
+Before this was applied, `docker-compose.prod.yml` published ports 80 and 443 on the VPS to the whole internet, so a
 client that knows the origin IP can skip Cloudflare entirely: no WAF, no edge DDoS protection, and
 nginx's per-IP `limit_req` zones see the attacker's own address instead of the shared edge address.
 The `set_real_ip_from` block (D8) already prevents a **direct** connection from *spoofing*
@@ -853,7 +864,7 @@ run against production immediately after the deploy job finishes.
       — any new variable must exist in the VPS `.env.production` (or as a GitHub Secret for the
       runtime-only ones) **before** the merge
 - [ ] **Cloudflare origin firewall** applied — see the MANUAL PRODUCTION STEP section above
-      *(status: not applied)*
+      *(status: **applied 2026-09-09**; re-check after any change to Cloudflare's published ranges)*
 - [ ] **Rollback readiness**: note the current production SHA (previous *Deploy to production* run) and
       confirm `ghcr.io/ipanga/teka-rdc/api:<that sha>` exists; keep the rollback section open
 - [ ] **Backup**: a fresh database backup exists and its age is known

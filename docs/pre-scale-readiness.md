@@ -3535,7 +3535,10 @@ orders, payouts, reviews or product/avatar assets, or alters order snapshots, to
   same transaction under the same row lock as the request, notifies the seller on feed + push + email,
   and is throttled 5/h per seller. Payout snapshots stay immutable; the distributed seller-mobile
   0.1.9 build keeps working, so no store release is forced.
-- **B. MANUAL RELEASE-WINDOW ACTIONS:** copy `nginx/nginx.prod.conf` → VPS (`.bak`, `nginx -t`, reload;
+- **B. MANUAL RELEASE-WINDOW ACTIONS — ALL DONE 2026-09-09** (release `9a89249`, deploy run
+  34380668330; nginx installed + reloaded and the Cloudflare/Hetzner origin firewall applied, both
+  independently re-verified — see « Production hardening close-out (2026-09-09) » below). As planned:
+  copy `nginx/nginx.prod.conf` → VPS (`.bak`, `nginx -t`, reload;
   rollback = restore `.bak` + reload); Cloudflare origin firewall the same day (allow 443 [+80 per the
   HTTP-01 caveat] from Cloudflare ranges only, keep 22 reachable for the deploy runner, out-of-band console
   open, verify direct-IP fails and `teka.cd` still 200s; confirm SSL Full (strict) + orange cloud); pre-merge:
@@ -3556,10 +3559,10 @@ orders, payouts, reviews or product/avatar assets, or alters order snapshots, to
   phone the seller before marking paid) until it lands.
 
 **Verdict at the time of the audit: READY AFTER SPECIFIC BLOCKERS** — one code blocker (S12), then the
-manual release-window actions. **Superseded 2026-09-09: S12 merged as `295e801` (PR #722), so no code
-blocker remains — `develop` is READY FOR A CONTROLLED RELEASE subject to the manual release-window
-actions (nginx copy + reload, Cloudflare/Hetzner origin firewall).** The original recommended sequence
-follows, for the record.
+manual release-window actions. **Superseded 2026-09-09 (twice): S12 merged as `295e801` (PR #722), the release shipped as `9a89249`,
+and BOTH manual release-window actions (nginx copy + reload, Cloudflare/Hetzner origin firewall) were
+applied and independently re-verified the same day. No production blocker remains — see « Production
+hardening close-out (2026-09-09) » below.** The original recommended sequence follows, for the record.
 Recommended sequence: (1) `security/admin-and-financial` PR — S12 (+ login-email re-auth, S13 throttle, S22,
 S14, the two S11 one-liners, Sentry request-data opt-out; small, all in the same threat model) → full CI →
 approval → merge; (2) re-run this audit's automated gates on the new `develop`; (3) `develop → main` release
@@ -3686,20 +3689,75 @@ re-auth; that is the login-email-change follow-up (RECOMMENDED, S12-adjacent) an
 hardening, deliberately out of scope here. Admin step-up re-auth for `complete`, S11 audit coverage,
 S13/S14/S22 and D2b remain as classified in the 2026-09-09 audit.
 
+### Production hardening close-out (2026-09-09 — release `9a89249` + both manual steps)
+
+**Release.** PR #723 (`develop → main`) merged as **`9a89249`**; deploy run **34380668330** succeeded
+17:04:28 → 17:10:45 UTC. EXPAND applied exactly `2026-09-06_auth_rate_limits.sql` then
+`2026-09-09_payout_method_changed_at.sql` and skipped the nine already in `_manual_migrations`, before
+the rolling swap; `set -eu` + `ON_ERROR_STOP=1` confirmed active.
+
+**Manual step 1 — production nginx (operator).** The released `nginx/nginx.prod.conf` was installed on
+the VPS (backup `nginx.prod.conf.before-20260909` kept on the box, **not** tracked in git),
+`nginx -t` passed, and nginx was reloaded gracefully with all containers staying healthy. The operator
+verified locally against `127.0.0.1` that teka.cd / seller / admin each answer 200 with one
+application-owned CSP, one nginx-owned HSTS, seller `noindex, nofollow`, admin
+`noindex, nofollow, noarchive`, buyer indexable, and that the API health/ready/live endpoints answer
+through nginx with `database: ok`.
+
+**Manual step 2 — Cloudflare/Hetzner origin firewall (operator).** Ports 80 and 443 restricted to the
+approved Cloudflare paths; port 22 deliberately left open for the GitHub-hosted deploy runners.
+
+**Independent re-verification from this session (read-only, external network, 2026-09-09).**
+- Through Cloudflare: `teka.cd`, `seller.teka.cd`, `admin.teka.cd` each return **exactly one**
+  `Content-Security-Policy` — the app-owned one — and **one** `Strict-Transport-Security`. **The
+  duplicate CSP recorded immediately after the deploy is gone.** `X-Robots-Tag` unchanged on
+  seller/admin; buyer carries none.
+- Direct to the origin `178.104.179.42`: on 443 and on 80 the TCP handshake completes and the peer then
+  **resets** (`errno 54`), returning no HTTP response, for all five hostnames — while
+  `https://teka.cd` through Cloudflare answered `200` with `server: cloudflare` at the same moment.
+  **The direct-origin bypass is closed.** Before the firewall the same probes returned 200/200/200/404
+  and a 301 on :80, so the change is demonstrable rather than assumed.
+- Certificate unchanged: Let's Encrypt, all five hostnames as SANs, 26 Aug → 24 Nov 2026 (75 days), and
+  the ACME path still answers 404 through Cloudflare, so HTTP-01 renewal is unaffected.
+
+**Two honest caveats.**
+1. **GitHub → VPS SSH was not verifiable from this session.** My network cannot read an SSH banner from
+   anywhere (the `github.com:22` control returned nothing either), so the port-22 probe proves nothing.
+   The operator intended to leave 22 open and the firewall rule reflects that; **the next deploy is the
+   proof**. If it ever fails at the SSH step, recover from the Hetzner Console — it is not an outage.
+2. **Ports reject rather than drop.** A scanner still completes a handshake before the reset. Optional
+   hardening (P3), not a defect.
+
+**Not verified in this session and not claimed:** Sentry (no token or CLI available), VPS SSH posture
+(`PasswordAuthentication`, `PermitRootLogin`, fail2ban), OS patch level, and the certbot renewal
+authenticator recorded on the VPS.
+
 ## Next exact step
 
-**S12 merged (`295e801`, PR #722) — the 2026-09-09 release-readiness audit's only code blocker is
-closed and `develop` carries no known code blocker.** Order, each its own PR into `develop` with a merge
-commit, none started without approval: (1) ~~`security/payout-destination-reauth`~~ — **done**;
-(2) **`develop → main` release PR** with the `docs/deployment.md` checklist — nginx copy +
-reload and the Cloudflare origin firewall in the same window, **two** EXPAND migrations now
-(`auth_rate_limits`, `payout_method_changed_at`), smoke matrix, release record; (3) mobile store builds
-(bump buyer `0.1.8+10`, seller `0.1.10+12` after confirming Play's `versionCode`) — the seller build now
-also carries the password field, though the API does **not** require a new build; (4) the RECOMMENDED
-follow-ups as one PR (login-email re-auth, S13 upload throttle + row-first, S22 banner links, S14 bounds,
-the two S11 one-liners, Sentry request-data opt-out); (5) `mobile/security-hardening` (MS1–MS7);
-(6) branch-protection required checks; (7) D2b / S11 full / S16 / iOS runtime session / Dependabot chores.
-Owner decisions pending: S21 role model; seller-visible buyer PII policy; PostHog replay masking on buyer
-account pages. Still open and preserved: API `pendingCDF` vs HELD/`deliveredAt` (re-count in prod at
-release); seller-web stale-town notice; golden tests; legacy characteristic prefill; `Image.network` on
-seller-mobile; CSP has no reporting endpoint; CORS sets no `methods` allow-list.
+**The pre-scale readiness initiative's PRODUCTION track is CLOSED (2026-09-09):** release `9a89249`
+deployed, both migrations applied, production nginx installed and the origin firewall applied, all
+independently re-verified. No production blocker remains. What follows is non-blocking, and each item
+is its own small PR into `develop` with a merge commit, none started without approval.
+
+**P1 — before a larger rollout.** (1) `security/admin-and-financial-followups`: login-email change
+without re-authentication (verified still open — `users.service.ts` writes `email` with no password
+check and no `P2002` handling), S13 upload throttle on `POST /v1/sellers/documents` (verified: zero
+throttle decorators), S22 banner `linkTarget` validation (verified: `@IsString()` only) and S14 DTO
+bounds (verified: `page`/`limit` unbounded), plus the two S11 one-liners (admin self-suspend guard —
+verified absent; refuse SUSPENDED on refresh). (2) `security/sentry-request-data`: opt out of the SDK's
+default cookie/header/body capture (verified: `instrument.ts` sets no `requestDataIntegration`).
+(3) `mobile/security-hardening` MS1–MS7 — all verified still open (no `allowBackup`, no `IOSOptions`,
+no scrub tests, no R8/minify) — before the next store builds. (4) Branch-protection required checks.
+
+**P2.** Buyer Web USD price (verified still broken: `priceUSD` typed `number` while the API serialises
+BigInt as a string, so `formatUSD` renders nothing and a stray « ~ » remains); seller-web stale-town
+notice (verified: mobile has it, web does not); D2b admin API boundary; S11 full audit coverage;
+Prometheus/Grafana alerting.
+
+**P3.** `pendingCDF` vs HELD without `deliveredAt` (verified unchanged; re-count in prod before acting);
+seller-mobile `Image.network` in 3 files; legacy characteristic prefill; golden tests; origin firewall
+drop-instead-of-reject; certbot renewal hook reloading instead of restarting nginx; `esbuild` and the
+stale Dependabot PRs.
+
+**Owner decisions still open:** SUPPORT/FINANCE role model (S21); seller-visible buyer PII parity;
+PostHog replay masking on buyer account pages; whether to cut new mobile store builds now.
