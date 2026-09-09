@@ -6,7 +6,8 @@
  * captured event before it leaves the browser, the same way sentry-scrub.ts
  * does for Sentry. Belt-and-suspenders on top of session-replay input masking.
  *
- * Mirrors apps/admin-web/sentry-scrub.ts:scrubPhones — keep the regex in sync
+ * Mirrors the phone rule in @teka/shared sentry-sanitize (re-exported by
+ * apps/admin-web/sentry-scrub.ts) — keep the regex in sync
  * if either changes. Not shared via @teka/shared: it's a ~10-line function and
  * the two SDKs have different payload types.
  */

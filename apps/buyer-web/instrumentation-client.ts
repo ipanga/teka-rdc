@@ -8,7 +8,10 @@
 // client bundle by Next.js). When unset, init is skipped — every captureException
 // downstream becomes a no-op. Same pattern as apps/api/src/instrument.ts.
 import * as Sentry from '@sentry/nextjs';
-import { scrubPhones } from './sentry-scrub';
+import {
+  sanitizeSentryEvent,
+  sanitizeSentryBreadcrumb,
+} from './sentry-scrub';
 
 if (process.env.NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB) {
   Sentry.init({
@@ -22,11 +25,14 @@ if (process.env.NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB) {
     // specific question to answer about frontend perf.
     tracesSampleRate: 0,
     sampleRate: 1.0,
+    // Never attach the client IP. SDK default; pinned so a future
+    // default change or a copy-paste cannot silently enable it.
+    sendDefaultPii: false,
     beforeSend(event) {
-      return scrubPhones(event);
+      return sanitizeSentryEvent(event);
     },
     beforeBreadcrumb(breadcrumb) {
-      return scrubPhones(breadcrumb);
+      return sanitizeSentryBreadcrumb(breadcrumb);
     },
   });
 }

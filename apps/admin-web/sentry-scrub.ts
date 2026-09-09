@@ -1,22 +1,18 @@
 /**
- * Shared Sentry payload scrubber. See apps/buyer-web/sentry-scrub.ts for the
- * full rationale — keep all three apps in sync if either changes.
+ * Sentry payload sanitisation for this app.
+ *
+ * Thin re-export of the canonical implementation in `@teka/shared`, which
+ * is shared with the API and the other two web apps so the rule set cannot
+ * drift between surfaces. The file is kept per-app because all three Sentry
+ * runtime configs import from it by relative path.
+ *
+ * What it does and why: see the docblock on
+ * `packages/shared/src/security/sentry-sanitize.ts`.
  */
-const PHONE_REGEX = /\+243\d{9}/g;
-
-export function scrubPhones<T>(value: T): T {
-  if (typeof value === 'string') {
-    return value.replace(PHONE_REGEX, '[phone]') as T;
-  }
-  if (Array.isArray(value)) {
-    return value.map(scrubPhones) as T;
-  }
-  if (value && typeof value === 'object') {
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      out[k] = scrubPhones(v);
-    }
-    return out as T;
-  }
-  return value;
-}
+export {
+  sanitizeSentryEvent,
+  sanitizeSentryBreadcrumb,
+  scrubString,
+  sanitizeUrl,
+  FILTERED,
+} from '@teka/shared';

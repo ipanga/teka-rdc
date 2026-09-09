@@ -1,30 +1,18 @@
 /**
- * Shared Sentry payload scrubber.
+ * Sentry payload sanitisation for this app.
  *
- * Imported by sentry.{client,server,edge}.config.ts. Buyer phone numbers
- * (+243XXXXXXXXX) are auth identifiers (Rule 13 in CLAUDE.md) — strip
- * them out of any event payload before sending to Sentry. Belt-and-suspenders
- * on top of Sentry's built-in scrubbers.
+ * Thin re-export of the canonical implementation in `@teka/shared`, which
+ * is shared with the API and the other two web apps so the rule set cannot
+ * drift between surfaces. The file is kept per-app because all three Sentry
+ * runtime configs import from it by relative path.
  *
- * Mirrors apps/api/src/instrument.ts:scrubPhones — keep in sync if either
- * changes. Don't try to share via @teka/shared; we'd be adding a workspace
- * dep just for a 10-line function, and the API uses different SDK types.
+ * What it does and why: see the docblock on
+ * `packages/shared/src/security/sentry-sanitize.ts`.
  */
-const PHONE_REGEX = /\+243\d{9}/g;
-
-export function scrubPhones<T>(value: T): T {
-  if (typeof value === 'string') {
-    return value.replace(PHONE_REGEX, '[phone]') as T;
-  }
-  if (Array.isArray(value)) {
-    return value.map(scrubPhones) as T;
-  }
-  if (value && typeof value === 'object') {
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      out[k] = scrubPhones(v);
-    }
-    return out as T;
-  }
-  return value;
-}
+export {
+  sanitizeSentryEvent,
+  sanitizeSentryBreadcrumb,
+  scrubString,
+  sanitizeUrl,
+  FILTERED,
+} from '@teka/shared';
