@@ -760,7 +760,8 @@ API (repository setting, not code). Secret hygiene: no credential-shaped string 
   @babel/core, @humanfs/node; five superseded rules removed). Result: **71 → 5 advisories (0 critical, 3
   high, 0 moderate, 2 low)**; the 3 remaining high are documented exceptions in
   `pnpm.auditConfig.ignoreGhsas` with follow-ups: `sharp` 0.34.5 → 0.35 (GHSA-f88m-g3jw-g9cj, libvips
-  CVEs; the Next.js image optimizer — needs a Next-compatible bump), `effect` 3.18 → 3.20
+  CVEs; the Next.js image optimizer — needs a Next-compatible bump; **closed 2026-09-09 by
+  `security/sharp-0.35.4`** — see « sharp 0.35.4 (2026-09-09) » below), `effect` 3.18 → 3.20
   (GHSA-38f7-945m-qr2g) and `deepmerge-ts` 7 → 8 (GHSA-ggr8-5vv4-36mx) — both only inside `@prisma/config`
   (CLI config loading at generate/migrate time, never the API process). `esbuild` 0.27 → 0.28 (low,
   dev-only via tsx/vite) left for Dependabot. **Next.js**: `15.5.25` is the latest 15.x and no GitHub
@@ -2709,8 +2710,8 @@ metadata/JSON-LD/redirect tests.
 | Cloudflare direct-origin protection | OUTSTANDING (manual infra) | 80/443 published to the world; recommendation only (`docs/deployment.md`) |
 | CSP (S9) | FIXED (not in prod) | #677; seller/admin nonce + `strict-dynamic`, buyer `'self' 'unsafe-inline'` (SEO surface, documented); enforced, **no report endpoint** |
 | Clickjacking / security headers (S20) | FIXED (not in prod) | XFO DENY + `frame-ancestors 'none'`, Permissions-Policy, COOP/CORP, HSTS nginx-only, headers on static assets, `private, no-store`; 9 API e2e + 3 web suites |
-| Dependency auditing (S18) | FIXED (not in prod) | #678 blocking `pnpm audit --prod --audit-level=high`; 71 → 5 advisories; 3 documented exceptions (`sharp`, `effect`, `deepmerge-ts`) |
-| Dependabot | PARTIALLY FIXED | config present (npm, actions, pub ×2, docker; **bundler not covered**); npm version updates work since #688 (`packageManager` pinned — PR #692 produced); **the two weekly *security* jobs for `sharp` and `esbuild` fail** (they are the pinned exceptions; manual bumps needed); stale PRs #549/#565/#595 open |
+| Dependency auditing (S18) | FIXED (not in prod) | #678 blocking `pnpm audit --prod --audit-level=high`; 71 → 5 advisories; 2 documented exceptions (`effect`, `deepmerge-ts`) — the `sharp` exception was closed 2026-09-09 by the 0.35.4 pin (`security/sharp-0.35.4`) |
+| Dependabot | PARTIALLY FIXED | config present (npm, actions, pub ×2, docker; **bundler not covered**); npm version updates work since #688 (`packageManager` pinned — PR #692 produced); **the weekly *security* job for `esbuild` fails** (the remaining pinned exception; manual bump needed — the `sharp` one was resolved by the 0.35.4 pin, 2026-09-09); stale PRs #549/#565/#595 open |
 | GitHub Actions permissions/pinning (S17) | FIXED (not in prod) | all 10 workflows `permissions: contents: read`; every `uses:` SHA-pinned; **`deploy.yml` still curls `docker-rollout@v0.9` by tag and expands secrets into the remote shell string** (OUTSTANDING, PR 15) |
 | Secret hygiene | FIXED / verified | no credentials in tracked files or history; `.env*` ignored; artifacts are binaries only |
 | Admin authorization | FIXED (unchanged, verified) | class-level `@Roles('ADMIN')` on every admin controller; SUPPORT read paths explicit |
@@ -2754,8 +2755,9 @@ e2e, `Web Tests`, `Web Build` ×3, `Flutter Tests` ×2, `Flutter Analysis` ×2, 
 not applied; the pre-push hook is the only guard on `main`). All `uses:` SHA-pinned, all workflows
 read-only tokens; gaps: `docker-rollout` fetched by tag inside `deploy.yml`, secrets expanded into the
 remote shell string, no bundler ecosystem in Dependabot, no post-deploy smoke step, no automated rollback.
-Dependabot: version updates healthy (open PRs #689, #692, #695, #696 to review); the two weekly npm
-*security* jobs (`sharp`, `esbuild`) fail on the documented exceptions until they are bumped by hand;
+Dependabot: version updates healthy (open PRs #689, #692, #695, #696 to review); the weekly npm
+*security* job for `esbuild` fails on the documented exception until it is bumped by hand (`sharp`
+resolved 2026-09-09 by the 0.35.4 pin);
 stale #549/#565/#595 to close.
 
 ### J. Cloudinary / media
@@ -2797,7 +2799,8 @@ broad cleanup.
 8. Mobile hardening PR 8: MS1 `allowBackup`, MS2 buyer router UUIDs, MS3 `teka://` host check, MS4
    `IOSOptions`, MS6 scrub breadth + tests, MS7 R8/obfuscation — before the next store releases.
 9. Clarity masking confirmed « Strict » in the dashboard (or the tag disabled).
-10. Dependabot: bump `sharp` (Next-compatible) and `esbuild`, close #549/#565/#595, add `bundler`.
+10. Dependabot: bump `esbuild`, close #549/#565/#595, add `bundler` (`sharp` → 0.35.4 done 2026-09-09,
+    `security/sharp-0.35.4`).
 
 **P2 — can safely follow after deployment**
 11. D2b admin API boundary + host-only admin cookie; SUPPORT/FINANCE model (decision 3).
@@ -3248,6 +3251,53 @@ with the client fallback intact.
 matrix), then the Android store builds. SEO work is no longer a blocker for the release decision;
 the E items above (`og-default.png`, PostHog deferral) are product/analytics decisions.
 
+### sharp 0.35.4 — `security/sharp-0.35.4` (dependency security, 2026-09-09 — **merged `2e0454d`, PR #718**)
+
+**Trigger.** GHSA-rgj7-g3m4-5g8c, published 2026-09-08 21:25 UTC (high): `sharp` < 0.35.4 inherits the
+libheif advisories GHSA-g89c-p67h-r497 and GHSA-2jg2-4ch7-h545; patched in 0.35.4. The blocking
+`pnpm audit --prod --audit-level=high` job went red on `develop` and on the docs PR #715 with no code
+change. Teka's product images are user-controlled, so the advisory is in scope and was **not** added to
+`ignoreGhsas`.
+
+**Path.** `sharp` 0.34.5 reached the tree only as `next@15.5.25`'s optional dependency — six paths,
+`next` and `@sentry/nextjs → next` in each of buyer-web, seller-web and admin-web. The API never resolves
+it and no application code imports it; the sole consumer is the Next.js image optimizer (`/_next/image`),
+which buyer-web drives from every `next/image` product surface (seller/admin have no `next/image` usage,
+only the optimizer route). Uploads never touch Node `sharp`: they are validated in the API
+(`common/uploads/image-upload.ts`) and transformed by Cloudinary.
+
+**Fix (root `package.json` + `pnpm-lock.yaml`).** `pnpm.overrides` gains `"sharp@<0.35.4": "^0.35.4"`
+in the same style as the PR 5 pins; Next's own optional range is `^0.34.3 || ^0.35.4`, so nothing is
+forced outside what Next supports and Next itself was not touched. The PR 5 exception
+`GHSA-f88m-g3jw-g9cj` (`sharp` < 0.35.0) is removed from `ignoreGhsas` — two exceptions remain
+(`effect`, `deepmerge-ts`). Lockfile delta: `sharp` 0.35.4, the `@img/sharp-*` 0.35.4 and
+`@img/sharp-libvips-*` 1.3.3 prebuilds (plus the two new wasm targets 0.35 ships), `semver@7.8.5` and
+`@emnapi/runtime@1.11.3` (sharp's own dependencies), and the `(@types/node@20.19.34)` re-key of the
+`next` / `@sentry/nextjs` snapshot ids because sharp 0.35 declares an optional `@types/node` peer — the
+`next` and `@sentry/nextjs` versions are unchanged. No other package moved.
+
+**Runtime requirement.** `sharp` 0.35.4 needs Node ≥ 20.9.0 (0.34 accepted ^18.17). CI's
+`setup-node@20` resolves 20.20.2, every Dockerfile's `node:20-alpine` is the `20.20.2-alpine` digest
+(musl prebuilds `@img/sharp-linuxmusl-x64` present), local development runs 22. Satisfied everywhere.
+
+**Verified.** Audit: `sharp` gone from the blocking job and from the informational full-tree run.
+`pnpm type-check` ×5; vitest buyer 181 / seller 36 / admin 60; API unit 839. Three production
+`next build`s, each started as its standalone server: the optimizer on all three transcodes a real
+Cloudinary JPEG (110 KB → 17 KB WebP at 384 px) and buyer-web's local PNG/WebP sources, AVIF-accept
+included, with `sharp` 0.35.4 / libvips 8.18.6 / libheif 1.23.2 loaded through Next's own resolution;
+unconfigured hosts still 400. Buyer Web SEO on the served HTML unchanged: home, `/lubumbashi`,
+`/categories`, `/lubumbashi/categorie/mode`, the PDP (Organization / WebSite / Product / BreadcrumbList
+JSON-LD, canonical to the short-code URL), search `noindex, follow`, `/categorie/…` 308, 683-URL sitemap,
+robots. Seller and admin: `X-Robots-Tag` + meta `noindex, nofollow` on every response, `robots.txt`
+`Disallow: /`, every dashboard route 307 to login. Linux: all four Docker images (`api`, `buyer-web`, `seller-web`, `admin-web`) built locally from the new lockfile on `node:20-alpine` (20.20.2, musl; arm64 host) — inside the running buyer-web image `sharp` 0.35.4 / libvips 8.18.6 loads the `linuxmusl` prebuild, WebP and AVIF round-trip, the container's optimizer returns WebP for the Cloudinary sample and the home page SSRs at 200; the x64 musl prebuild sits in the lockfile at the same version and is exercised by the release PR's Docker checks (`pr-validation.yml` runs only for PRs into `main`).
+
+**Found alongside, not mixed in.** Three `multer` 2.2.0 advisories published minutes after the `sharp`
+one (GHSA-wc9g-mqfw-jrwm, GHSA-qfvm-cv95-jqjf, GHSA-535w-7cp7-47q4; all high; patched in 2.3.0) had not
+reached the registry's audit feed when PR #715's job ran but do now — they fail the same blocking job and
+are reachable on the API's live upload path (`@nestjs/platform-express`). The existing
+`"multer@<2.2.0": "^2.2.0"` pin is the natural mechanism; a separate decision — taken the same day
+as the sibling PR `security/multer-2.3.0` (#719), recorded below.
+
 ### multer 2.3.0 — `security/multer-2.3.0` (dependency security, 2026-09-09 — open, awaiting merge approval)
 
 **Trigger.** Four `multer` advisories published 2026-09-08 21:28–21:30 UTC, minutes after the `sharp` one
@@ -3324,7 +3374,7 @@ day — **the owner chose to complete the Buyer Web SEO workstream first**; (2) 
 — **merged `6234f0c`**; `buyer-web/seo-2` — **implemented, PR open, awaiting merge approval**
 (decisions 5 and 7 approved and implemented); (3) `security/admin-and-financial` (S12 payout re-auth, S13 application
 uploads, S14/S22 DTO bounds); (4) `mobile/security-hardening` (MS1–MS7);
-(6) Dependabot follow-ups (`sharp`/`esbuild`, stale PRs, bundler); (7) D2b / S11 / S16 / iOS runtime
+(6) Dependabot follow-ups (`esbuild`, stale PRs, bundler — `sharp` done 2026-09-09); (7) D2b / S11 / S16 / iOS runtime
 session. Still open and preserved: API `pendingCDF` vs HELD/`deliveredAt`; login-email change without
 re-auth; seller-web stale-town notice; notification pre-prompt; golden tests; legacy characteristic
 prefill; `Image.network`; branch protection unenforced; CSP has no reporting endpoint; CORS sets no
