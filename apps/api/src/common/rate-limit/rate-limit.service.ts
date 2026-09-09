@@ -48,6 +48,12 @@ export const AUTH_LIMITS = {
   csvExport: { limit: 10, windowSeconds: 600 },
   /** Image uploads (product images, avatar) per user. */
   upload: { limit: 30, windowSeconds: 600 },
+  /**
+   * Seller payout-destination changes per user (S12). Every attempt counts,
+   * including a wrong password; the shared `login` bucket (by email) locks
+   * brute force independently. 5/h leaves room for a typo and a retry.
+   */
+  payoutMethodChange: { limit: 5, windowSeconds: 3600 },
 } as const satisfies Record<string, RateLimitPolicy>;
 
 export type RateLimitScope = keyof typeof AUTH_LIMITS;

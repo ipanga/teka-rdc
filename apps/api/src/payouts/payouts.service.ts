@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { formatFC } from '@teka/shared';
 import { PrismaService } from '../prisma/prisma.service';
@@ -14,6 +15,8 @@ import { Payout, PayoutStatus, Prisma } from '@prisma/client';
 import { SellerNotificationService } from '../notifications/seller-notification.service';
 import { EarningsService } from '../payments/earnings.service';
 import { AdminAuditService } from '../audit/admin-audit.service';
+import { RateLimitService } from '../common/rate-limit/rate-limit.service';
+import { verifyPassword } from '../auth/utils/password.util';
 
 /** Minimum payout amount: 5 000 FC = 500 000 centimes */
 export const MIN_PAYOUT_AMOUNT_CDF = BigInt(500000);
@@ -24,6 +27,41 @@ export const MIN_PAYOUT_AMOUNT_CDF = BigInt(500000);
  * clients). Mirrored by the partial unique index
  * `payouts_one_open_per_seller` in the 2026-09-04 migration.
  */
+/**
+ * S12 — after the seller changes the payout destination, payout requests are
+ * refused for this long. A stolen session that redirects the destination
+ * therefore cannot cash out before the seller sees the notice (feed + push +
+ * email) and reacts. Existing payouts keep their snapshot; only NEW requests
+ * wait.
+ */
+export const PAYOUT_METHOD_COOLING_OFF_MS = 24 * 60 * 60 * 1000;
+
+/** `+243970000001` → `+243•••••01` — enough to recognise, never to dial. */
+export function maskPayoutPhone(phone: string | null): string | null {
+  if (!phone) return null;
+  return phone.length > 6
+    ? `${phone.slice(0, 4)}•••••${phone.slice(-2)}`
+    : '•••';
+}
+
+/** When payout requests reopen after a destination change; null = now. */
+export function payoutsAvailableAt(
+  changedAt: Date | null | undefined,
+  now: Date = new Date(),
+): Date | null {
+  if (!changedAt) return null;
+  const at = new Date(changedAt.getTime() + PAYOUT_METHOD_COOLING_OFF_MS);
+  return at.getTime() > now.getTime() ? at : null;
+}
+
+export function formatDateTimeFr(d: Date): string {
+  return new Intl.DateTimeFormat('fr-FR', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+    timeZone: 'Africa/Lubumbashi',
+  }).format(d);
+}
+
 export const OPEN_PAYOUT_STATUSES: PayoutStatus[] = [
   PayoutStatus.REQUESTED,
   PayoutStatus.APPROVED,
@@ -62,6 +100,7 @@ export class PayoutsService {
     private sellerNotifications: SellerNotificationService,
     private earningsService: EarningsService,
     private audit: AdminAuditService,
+    private rateLimit: RateLimitService,
   ) {}
 
   /**
@@ -82,8 +121,9 @@ export class PayoutsService {
             id: string;
             payoutMethod: string | null;
             payoutPhone: string | null;
+            payoutMethodChangedAt: Date | null;
           }[]
-        >`SELECT "id", "payoutMethod", "payoutPhone" FROM "seller_profiles" WHERE "id" = ${sellerProfileId}::uuid FOR UPDATE`;
+        >`SELECT "id", "payoutMethod", "payoutPhone", "payoutMethodChangedAt" FROM "seller_profiles" WHERE "id" = ${sellerProfileId}::uuid FOR UPDATE`;
         const sellerProfile = locked[0];
         if (!sellerProfile) {
           throw new NotFoundException('Profil vendeur non trouvé');
@@ -113,12 +153,33 @@ export class PayoutsService {
           );
         }
 
-        // Destination: body wins, else the saved profile destination; snapshotted on the payout.
-        const payoutMethod = dto.payoutMethod ?? sellerProfile.payoutMethod;
-        const payoutPhone = dto.payoutPhone ?? sellerProfile.payoutPhone;
+        // S12 — the SAVED profile destination is the only source of truth and
+        // is snapshotted on the payout. A body destination is accepted solely
+        // for backward compatibility with clients that still send one, and
+        // only when it is exactly the saved one: a stolen session cannot route
+        // money elsewhere by typing a number into the request.
+        const payoutMethod = sellerProfile.payoutMethod;
+        const payoutPhone = sellerProfile.payoutPhone;
         if (!payoutMethod || !payoutPhone) {
           throw new BadRequestException(
-            'Veuillez configurer votre méthode de paiement (mobile money) avant de demander un retrait.',
+            'Veuillez enregistrer votre destination de retrait (mobile money) dans votre profil avant de demander un retrait.',
+          );
+        }
+        if (
+          (dto.payoutMethod !== undefined &&
+            dto.payoutMethod !== payoutMethod) ||
+          (dto.payoutPhone !== undefined && dto.payoutPhone !== payoutPhone)
+        ) {
+          throw new ConflictException(
+            'La destination indiquée ne correspond pas à celle enregistrée sur votre profil. Mettez d’abord à jour votre destination de retrait (mot de passe requis), puis réessayez.',
+          );
+        }
+        const availableAt = payoutsAvailableAt(
+          sellerProfile.payoutMethodChangedAt,
+        );
+        if (availableAt) {
+          throw new ConflictException(
+            `Votre destination de retrait a été modifiée récemment. Par sécurité, les retraits sont à nouveau possibles à partir du ${formatDateTimeFr(availableAt)}.`,
           );
         }
 
@@ -345,31 +406,176 @@ export class PayoutsService {
   async getPayoutMethod(sellerProfileId: string) {
     const profile = await this.prisma.sellerProfile.findUnique({
       where: { id: sellerProfileId },
-      select: { payoutMethod: true, payoutPhone: true },
+      select: {
+        payoutMethod: true,
+        payoutPhone: true,
+        payoutMethodChangedAt: true,
+      },
     });
     if (!profile) {
       throw new NotFoundException('Profil vendeur non trouvé');
     }
+    return this.payoutMethodView(profile);
+  }
+
+  /** Public shape of the saved destination + the S12 cooling-off state. */
+  private payoutMethodView(profile: {
+    payoutMethod: string | null;
+    payoutPhone: string | null;
+    payoutMethodChangedAt: Date | null;
+  }) {
     return {
       payoutMethod: profile.payoutMethod,
       payoutPhone: profile.payoutPhone,
+      changedAt: profile.payoutMethodChangedAt,
+      // null = payout requests are open now; a date = wait until then.
+      payoutsAvailableAt: payoutsAvailableAt(profile.payoutMethodChangedAt),
     };
   }
 
-  /** Set/update the seller's reusable payout destination (mobile money). */
+  /**
+   * Set/update the seller's reusable payout destination (mobile money).
+   *
+   * S12: a sensitive financial action — the seller re-authenticates with the
+   * CURRENT password (verified against the stored hash; a wrong password
+   * counts in the shared `login` lock bucket by email, exactly like a failed
+   * login), the change is made under the same row lock `requestPayout` takes
+   * (so a request racing the change sees either the old destination or the
+   * new one + its cooling-off, never a mix), stamps `payoutMethodChangedAt`,
+   * writes an audit row (phones masked) atomically, and notifies the seller
+   * on every channel after commit. An identical destination is a no-op: no
+   * timestamp, no audit, no notice.
+   */
   async updatePayoutMethod(
     sellerProfileId: string,
+    userId: string,
     dto: UpdatePayoutMethodDto,
   ) {
-    const updated = await this.prisma.sellerProfile.update({
+    // Unchanged destination → no-op without re-auth (backward compatibility:
+    // the distributed seller-mobile build re-saves the prefilled destination
+    // before every request). Re-checked under the row lock below.
+    const current = await this.prisma.sellerProfile.findUnique({
       where: { id: sellerProfileId },
-      data: { payoutMethod: dto.payoutMethod, payoutPhone: dto.payoutPhone },
-      select: { payoutMethod: true, payoutPhone: true },
+      select: {
+        payoutMethod: true,
+        payoutPhone: true,
+        payoutMethodChangedAt: true,
+      },
     });
-    this.logger.log(
-      `Payout method updated: seller=${sellerProfileId}, method=${dto.payoutMethod}`,
-    );
-    return updated;
+    if (!current) {
+      throw new NotFoundException('Profil vendeur non trouvé');
+    }
+    if (
+      current.payoutMethod === dto.payoutMethod &&
+      current.payoutPhone === dto.payoutPhone
+    ) {
+      return this.payoutMethodView(current);
+    }
+    if (!dto.password) {
+      throw new BadRequestException(
+        'Le mot de passe est requis pour modifier la destination de retrait.',
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId, deletedAt: null },
+      select: { id: true, email: true, passwordHash: true },
+    });
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+    // Brute force through this route shares the login lock (10 failures /
+    // 15 min → 15 min lock, keyed on the email — never the password).
+    const loginKey = user.email ?? user.id;
+    await this.rateLimit.assertNotBlocked('login', loginKey);
+    if (!user.passwordHash) {
+      throw new BadRequestException('Aucun mot de passe défini sur le compte.');
+    }
+    const ok = await verifyPassword(dto.password, user.passwordHash);
+    if (!ok) {
+      await this.rateLimit.enforce('login', loginKey);
+      // 403, not 401: every Teka client treats a 401 as an expired session
+      // (refresh + replay), which would silently double the attempt count and
+      // rotate the refresh token for nothing. The message is deliberately
+      // generic — it reveals nothing about the account.
+      throw new ForbiddenException('Mot de passe invalide.');
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<
+        {
+          id: string;
+          payoutMethod: string | null;
+          payoutPhone: string | null;
+          payoutMethodChangedAt: Date | null;
+        }[]
+      >`SELECT "id", "payoutMethod", "payoutPhone", "payoutMethodChangedAt" FROM "seller_profiles" WHERE "id" = ${sellerProfileId}::uuid FOR UPDATE`;
+      const before = locked[0];
+      if (!before) {
+        throw new NotFoundException('Profil vendeur non trouvé');
+      }
+      if (
+        before.payoutMethod === dto.payoutMethod &&
+        before.payoutPhone === dto.payoutPhone
+      ) {
+        return { changed: false as const, profile: before };
+      }
+      const now = new Date();
+      const profile = await tx.sellerProfile.update({
+        where: { id: sellerProfileId },
+        data: {
+          payoutMethod: dto.payoutMethod,
+          payoutPhone: dto.payoutPhone,
+          payoutMethodChangedAt: now,
+        },
+        select: {
+          payoutMethod: true,
+          payoutPhone: true,
+          payoutMethodChangedAt: true,
+        },
+      });
+      await this.audit.record(tx, {
+        actorId: userId,
+        action: 'PAYOUT_METHOD_CHANGED',
+        entityType: 'seller_profile',
+        entityId: sellerProfileId,
+        before: {
+          payoutMethod: before.payoutMethod,
+          payoutPhone: maskPayoutPhone(before.payoutPhone),
+        },
+        after: {
+          payoutMethod: profile.payoutMethod,
+          payoutPhone: maskPayoutPhone(profile.payoutPhone),
+          payoutMethodChangedAt: now.toISOString(),
+        },
+        reason: null,
+      });
+      return { changed: true as const, profile };
+    });
+
+    if (result.changed) {
+      const view = this.payoutMethodView(result.profile);
+      this.logger.log(
+        `Payout method changed: seller=${sellerProfileId}, method=${result.profile.payoutMethod}`,
+      );
+      this.sellerNotifications
+        .notifyPayoutMethodChanged(userId, {
+          payoutMethod: result.profile.payoutMethod ?? '',
+          maskedPhone: maskPayoutPhone(result.profile.payoutPhone) ?? '•••',
+          changedAt: result.profile.payoutMethodChangedAt ?? new Date(),
+          availableAt:
+            view.payoutsAvailableAt ??
+            new Date(Date.now() + PAYOUT_METHOD_COOLING_OFF_MS),
+        })
+        .catch((err) =>
+          this.logger.error(
+            'Échec notification changement de destination de retrait',
+            err,
+          ),
+        );
+      return view;
+    }
+    return this.payoutMethodView(result.profile);
   }
 
   /** Seller's own payouts (paginated). */

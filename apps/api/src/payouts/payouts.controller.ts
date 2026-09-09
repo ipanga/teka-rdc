@@ -21,6 +21,8 @@ import { UpdatePayoutMethodDto } from './dto/update-payout-method.dto';
 import { Roles } from '../common/decorators/roles.decorator';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
+import { Throttle } from '@nestjs/throttler';
+import { IdentityThrottle } from '../common/rate-limit/identity-throttle.decorator';
 
 /**
  * Resolve sellerProfileId from userId.
@@ -126,9 +128,16 @@ export class SellerPayoutsController {
   /**
    * Set/update the seller's reusable payout destination.
    * PATCH /api/v1/sellers/payout-method
+   *
+   * S12: requires the current password (body), stamps the cooling-off,
+   * audits and notifies. Sensitive-operation limits: 5 per hour per seller
+   * (every attempt counts) on top of the shared login lock by email and the
+   * per-IP backstop.
    */
   @Patch('payout-method')
   @Roles('SELLER')
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @IdentityThrottle('payoutMethodChange')
   async updatePayoutMethod(
     @CurrentUser('userId') userId: string,
     @Body() dto: UpdatePayoutMethodDto,
@@ -136,6 +145,7 @@ export class SellerPayoutsController {
     const sellerProfileId = await resolveSellerProfileId(this.prisma, userId);
     const data = await this.payoutsService.updatePayoutMethod(
       sellerProfileId,
+      userId,
       dto,
     );
     return { success: true, data };

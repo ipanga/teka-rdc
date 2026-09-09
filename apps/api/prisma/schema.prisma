@@ -397,6 +397,9 @@ model SellerProfile {
 
   payoutMethod String? // 'M_PESA' | 'AIRTEL_MONEY' | 'ORANGE_MONEY'
   payoutPhone  String? // +243XXXXXXXXX
+  // S12 (2026-09-09): stamped on every destination change; payout requests are
+  // refused for PAYOUT_METHOD_COOLING_OFF_MS after it (docs/payouts.md).
+  payoutMethodChangedAt DateTime?
   // Seller-specific commission override (D3). NULL = no override → the leaf
   // category / global settings apply. 0 is a legitimate 0 % rate.
   commissionRate Decimal? @db.Decimal(5, 4)

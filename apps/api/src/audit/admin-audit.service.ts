@@ -8,6 +8,9 @@ export type AdminAuditAction =
   | 'PAYOUT_PROCESSING'
   | 'PAYOUT_COMPLETED'
   | 'PAYOUT_REJECTED'
+  // S12: the seller changed their own payout destination (actorId = the
+  // seller's user id; phones are masked in before/after).
+  | 'PAYOUT_METHOD_CHANGED'
   | 'COMMISSION_SETTING_UPSERTED'
   | 'COMMISSION_SETTING_REMOVED'
   | 'SELLER_COMMISSION_OVERRIDE_SET'

@@ -1,4 +1,4 @@
-# Status — 2026-09-09 (pre-scale readiness — release-readiness AUDIT complete on `develop` `65aee0f`: READY AFTER SPECIFIC BLOCKERS; one code blocker S12; release PR NOT opened)
+# Status — 2026-09-09 (pre-scale readiness — release-readiness audit complete; its only code blocker, S12 payout destination, is FIXED and MERGED (`295e801`, PR #722); no code blocker remains; the `develop → main` release PR is NOT opened)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
@@ -68,15 +68,29 @@ SUPPORT/FINANCE, S11 audit rows, D2b). **Mobile security hardening remains open*
 PRs #549/#565/#595, no bundler ecosystem). **The Cloudflare origin firewall is a MANUAL pre-release
 action — not applied.**
 
+**`security/payout-destination-reauth` MERGED (`295e801`, PR #722) — S12, the release-readiness audit's
+only code blocker, is CLOSED.** A stolen seller session could redirect the whole balance: `POST
+/v1/sellers/payouts` let an inline destination win over the saved profile, and `PATCH
+/v1/sellers/payout-method` had no re-auth, audit, notice, cooling-off or throttle. Now: the SAVED
+destination is the only routing authority (an inline one is accepted only when identical — 409
+otherwise); a real change needs the current password (400 missing / **403** wrong, counted in the login
+lock), runs under the same row lock as the request, stamps a **24 h cooling-off** (payout requests 409
+with the reopen date), writes a masked `PAYOUT_METHOD_CHANGED` audit row in the same transaction, and
+notifies the seller on feed + push + email; throttled 5/h per seller. Payout snapshots stay immutable.
+One additive migration (`2026-09-09_payout_method_changed_at.sql`). **The distributed seller-mobile
+0.1.9 build keeps working** — re-saving the unchanged destination is a password-free no-op, so no forced
+store release. Full record: `docs/pre-scale-readiness.md` → « S12 ».
+
 **Release-readiness audit (2026-09-09, read-only) — `develop` `65aee0f` (#715 merged `65aee0f`; CI 12/12 +
-CodeQL + Dependency Audit green): verdict READY AFTER SPECIFIC BLOCKERS.** One code blocker: **S12 payout
-destination** (inline destination on `POST /v1/sellers/payouts` wins over the profile; `PATCH payout-method`
-has no re-auth/notice/audit/cooling-off) → PR `security/admin-and-financial` first. Manual release-window
+CodeQL + Dependency Audit green): verdict at the time READY AFTER SPECIFIC BLOCKERS.** Its one code
+blocker — **S12 payout destination** (inline destination on `POST /v1/sellers/payouts` won over the
+profile; `PATCH payout-method` had no re-auth/notice/audit/cooling-off) — **is now fixed and merged
+(`295e801`, PR #722), so no code blocker remains.** Manual release-window
 actions: `nginx/nginx.prod.conf` copy + `nginx -t` + reload (deploy does not sync it), Cloudflare origin
 firewall the same day. One additive migration pending (`auth_rate_limits`). No new env vars. No distributed
 mobile build carries the buyer functional fixes or seller UX fixes; iOS/iPad runtime never exercised. Full
-record: `docs/pre-scale-readiness.md` → « Release-readiness audit (2026-09-09) ». **The `develop → main`
-release PR is NOT opened — awaiting the owner's decision on the S12 PR and the release sequence.**
+record: `docs/pre-scale-readiness.md` → « Release-readiness audit (2026-09-09) ». **S12 has since been fixed and merged (`295e801`, PR #722) — no code blocker remains. The
+`develop → main` release PR is NOT opened — awaiting the owner's approval.**
 
 **Dependency security, 2026-09-08/09 — two advisory batches, two sibling PRs.**
 **`security/sharp-0.35.4` MERGED (`2e0454d`, PR #718):** GHSA-rgj7-g3m4-5g8c (`sharp` < 0.35.4, libheif)
