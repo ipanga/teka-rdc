@@ -36,13 +36,13 @@ class NotificationRouter {
 
     switch (screen) {
       case 'order-details':
-        final id = _stringOrNull(data['orderId']);
+        final id = _uuidOrNull(data['orderId']);
         return id == null ? null : '/orders/$id';
       case 'product-details':
-        final id = _stringOrNull(data['productId']);
+        final id = _uuidOrNull(data['productId']);
         return id == null ? null : '/products/$id';
       case 'product-reviews':
-        final id = _stringOrNull(data['productId']);
+        final id = _uuidOrNull(data['productId']);
         return id == null ? null : '/products/$id/reviews';
       case 'notifications':
         // Generic admin broadcast → open the Notification Center.
@@ -53,10 +53,33 @@ class NotificationRouter {
   }
 
   // FCM serialises all `data` values as strings. Defensive coerce —
-  // strip empties and accept numeric IDs (future-proofing).
+  // strip empties. Used for `url`/`link`, which DeepLinkParser validates.
   static String? _stringOrNull(Object? v) {
     if (v == null) return null;
     final s = v.toString();
     return s.isEmpty ? null : s;
+  }
+
+  static final _uuid = RegExp(
+    r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+    caseSensitive: false,
+  );
+
+  /// MS2 — every entity id in a push payload must be a UUID before it is
+  /// interpolated into a route.
+  ///
+  /// This previously accepted any string, so a payload could push an arbitrary
+  /// path segment into `GoRouter` — `../`, a query string, or a route the
+  /// notification was never meant to reach. Anyone able to deliver a push to
+  /// the device could steer in-app navigation. seller-mobile already validated
+  /// this way; this is the port.
+  ///
+  /// Server authorization remains the real boundary: the order screen still
+  /// fetches through the API, which answers 403/404 for someone else's order.
+  /// This is defence in depth on the client.
+  static String? _uuidOrNull(Object? v) {
+    if (v == null) return null;
+    final s = v.toString();
+    return _uuid.hasMatch(s) ? s.toLowerCase() : null;
   }
 }
