@@ -23,6 +23,12 @@ class EarningsState {
   final int payoutsTotal;
   final int limit;
 
+  /// The saved payout destination + its cooling-off (S12), null until the
+  /// first `loadPayoutMethod` succeeds. Screens read the destination and
+  /// `payoutsAvailableAt` from here; the password used to change it is
+  /// never part of this state.
+  final SellerPayoutMethod? payoutMethod;
+
   const EarningsState({
     this.wallet,
     this.walletError,
@@ -37,6 +43,7 @@ class EarningsState {
     this.payoutsPage = 1,
     this.payoutsTotal = 0,
     this.limit = 20,
+    this.payoutMethod,
   });
 
   bool get hasMoreEarnings => earningsPage * limit < earningsTotal;
@@ -70,6 +77,7 @@ class EarningsState {
     int? payoutsTotal,
     int? limit,
     bool clearError = false,
+    SellerPayoutMethod? payoutMethod,
   }) {
     return EarningsState(
       wallet: wallet ?? this.wallet,
@@ -86,6 +94,7 @@ class EarningsState {
       payoutsPage: payoutsPage ?? this.payoutsPage,
       payoutsTotal: payoutsTotal ?? this.payoutsTotal,
       limit: limit ?? this.limit,
+      payoutMethod: payoutMethod ?? this.payoutMethod,
     );
   }
 }
@@ -209,54 +218,69 @@ class EarningsNotifier extends StateNotifier<EarningsState> {
     }
   }
 
-  /// The saved reusable payout destination (B1), for prefilling the form.
-  Future<SellerPayoutMethod?> getSavedPayoutMethod() async {
+  /// The saved payout destination + cooling-off (B1 / S12). Cached in the
+  /// state for the request screen; null when the request failed (the screen
+  /// then treats the destination as unknown and opens the editor).
+  Future<SellerPayoutMethod?> loadPayoutMethod() async {
     try {
-      return await _repository.getPayoutMethod();
+      final saved = await _repository.getPayoutMethod();
+      if (mounted) state = state.copyWith(payoutMethod: saved);
+      return saved;
     } catch (_) {
       return null;
     }
   }
 
-  /// Saves the destination (so it prefills next time) then requests the payout.
-  /// Returns null on success, or the API error message on failure.
-  Future<String?> requestPayout(String method, String phone) async {
+  /// Saves a new destination (S12: the seller's current [password] is
+  /// required for a real change; an unchanged destination is a no-op).
+  /// Returns null on success — the cached destination and its
+  /// `payoutsAvailableAt` are replaced by the API's answer — or the French
+  /// reason: 400 password missing, 403 « Mot de passe invalide. », 429 after
+  /// five attempts an hour. The password goes straight to the repository and
+  /// is neither stored nor logged.
+  Future<String?> savePayoutMethod({
+    required String method,
+    required String phone,
+    required String password,
+  }) async {
     try {
-      await _repository.updatePayoutMethod(
+      final saved = await _repository.updatePayoutMethod(
         payoutMethod: method,
         payoutPhone: phone,
+        password: password,
       );
-      await _repository.requestPayout(
-        payoutMethod: method,
-        payoutPhone: phone,
-      );
+      if (mounted) state = state.copyWith(payoutMethod: saved);
+      return null;
+    } catch (e) {
+      return friendlyErrorMessage(e);
+    }
+  }
+
+  /// Requests the payout of the whole available balance to the SAVED
+  /// destination (empty body — S12). Returns null on success, or the API's
+  /// French reason (minimum balance, an open payout, the cooling-off after a
+  /// destination change, no destination saved).
+  Future<String?> requestPayout() async {
+    try {
+      await _repository.requestPayout();
       // The request moved money: balance, earnings states and payouts.
       await Future.wait([loadWallet(), loadEarnings(), loadPayouts()]);
       return null;
     } on DioException catch (e) {
-      // The API's French reason (minimum balance with the current amount,
-      // an open payout, an invalid destination) — then refetch the
-      // authoritative balance and payouts, because a 400 / 409 here means
-      // the screen's numbers are stale.
-      final data = e.response?.data;
-      String message = 'Une erreur est survenue. Veuillez réessayer.';
-      if (data is Map) {
-        final err = data['error'];
-        if (err is Map && err['message'] != null) {
-          message = err['message'].toString();
-        } else if (data['message'] != null) {
-          message = data['message'].toString();
-        }
-      } else {
-        message = friendlyErrorMessage(e);
-      }
+      // `friendlyErrorMessage` → `extractDioErrorMessage`: the API's French
+      // 4xx message verbatim, canonical copy for network / 5xx. A 400 / 409
+      // means the screen's numbers are stale (balance, open payout, cooling-
+      // off), so refetch the authoritative state — including the
+      // destination, whose `payoutsAvailableAt` drives the blocker.
+      final message = friendlyErrorMessage(e);
       final status = e.response?.statusCode ?? 0;
       if (status == 400 || status == 409) {
-        await Future.wait([loadWallet(), loadEarnings(), loadPayouts()]);
+        await Future.wait(
+            [loadWallet(), loadEarnings(), loadPayouts(), loadPayoutMethod()]);
       }
       return message;
-    } catch (_) {
-      return 'Une erreur est survenue. Veuillez réessayer.';
+    } catch (e) {
+      return friendlyErrorMessage(e);
     }
   }
 

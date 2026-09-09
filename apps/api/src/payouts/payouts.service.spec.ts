@@ -1,10 +1,24 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
 import { PayoutStatus, Prisma } from '@prisma/client';
-import { OPEN_PAYOUT_STATUSES, PayoutsService } from './payouts.service';
+import * as bcrypt from 'bcrypt';
+import {
+  OPEN_PAYOUT_STATUSES,
+  PAYOUT_METHOD_COOLING_OFF_MS,
+  PayoutsService,
+  maskPayoutPhone,
+  payoutsAvailableAt,
+} from './payouts.service';
+
+const noRateLimit = () => ({
+  assertNotBlocked: jest.fn().mockResolvedValue(undefined),
+  enforce: jest.fn().mockResolvedValue(undefined),
+  clear: jest.fn().mockResolvedValue(undefined),
+});
 
 // Hand-rolled Prisma mock per delegate (project convention). `$transaction`
 // runs its callback against the same object, so every guarded transition and
@@ -49,6 +63,7 @@ function makeService(
     notifyPayoutApproved: jest.fn().mockResolvedValue(undefined),
     notifyPayoutPaid: jest.fn().mockResolvedValue(undefined),
     notifyPayoutRejected: jest.fn().mockResolvedValue(undefined),
+    notifyPayoutMethodChanged: jest.fn().mockResolvedValue(undefined),
   };
   const earningsService = {
     getEligibleEarnings: jest.fn().mockResolvedValue([]),
@@ -65,6 +80,7 @@ function makeService(
     sellerNotifications as never,
     earningsService as never,
     audit as never,
+    noRateLimit() as never,
   );
   return { service, prisma, sellerNotifications, earningsService, audit };
 }
@@ -221,6 +237,7 @@ describe('PayoutsService.requestPayout — one transaction, row lock, guarded re
     profile?: {
       payoutMethod: string | null;
       payoutPhone: string | null;
+      payoutMethodChangedAt?: Date | null;
     } | null;
     open?: unknown;
     eligible?: { id: string; netAmountCDF: bigint }[];
@@ -240,6 +257,7 @@ describe('PayoutsService.requestPayout — one transaction, row lock, guarded re
             : [
                 {
                   id: 'seller1',
+                  payoutMethodChangedAt: null,
                   ...(opts.profile ?? {
                     payoutMethod: 'M_PESA',
                     payoutPhone: '+243970000001',
@@ -275,6 +293,7 @@ describe('PayoutsService.requestPayout — one transaction, row lock, guarded re
       {} as never,
       earningsService as never,
       {} as never,
+      noRateLimit() as never,
     );
     return { service, prisma, earningsService };
   }
@@ -361,20 +380,81 @@ describe('PayoutsService.requestPayout — one transaction, row lock, guarded re
     );
   });
 
-  it('body destination wins over the saved one and is snapshotted', async () => {
+  // ---- S12: the SAVED destination is the only routing authority ----
+  it('S12: a body destination that differs from the saved one → 409, nothing created, nothing reserved', async () => {
+    const { service, prisma } = makeRequest({});
+    await expect(
+      service.requestPayout('seller1', {
+        payoutMethod: 'AIRTEL_MONEY',
+        payoutPhone: '+243990000002',
+      }),
+    ).rejects.toThrow(ConflictException);
+    await expect(
+      service.requestPayout('seller1', { payoutPhone: '+243990000002' }),
+    ).rejects.toThrow(/ne correspond pas à celle enregistrée/);
+    expect(prisma.payout.create).not.toHaveBeenCalled();
+    expect(prisma.sellerEarning.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('S12: a body destination equal to the saved one is tolerated (old clients) and the SAVED one is snapshotted', async () => {
     const { service, prisma } = makeRequest({});
     await service.requestPayout('seller1', {
-      payoutMethod: 'AIRTEL_MONEY',
-      payoutPhone: '+243990000002',
+      payoutMethod: 'M_PESA',
+      payoutPhone: '+243970000001',
     });
     expect(prisma.payout.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
-          payoutMethod: 'AIRTEL_MONEY',
-          payoutPhone: '+243990000002',
+          payoutMethod: 'M_PESA',
+          payoutPhone: '+243970000001',
         }),
       }),
     );
+  });
+
+  it('S12: no body destination → the saved one is snapshotted', async () => {
+    const { service, prisma } = makeRequest({});
+    await service.requestPayout('seller1', {});
+    expect(prisma.payout.create.mock.calls[0][0].data).toMatchObject({
+      payoutMethod: 'M_PESA',
+      payoutPhone: '+243970000001',
+    });
+  });
+
+  it('S12: a destination changed 1 h ago → 409 naming the reopen time, nothing created', async () => {
+    const changedAt = new Date(Date.now() - 60 * 60 * 1000);
+    const { service, prisma } = makeRequest({
+      profile: {
+        payoutMethod: 'M_PESA',
+        payoutPhone: '+243970000001',
+        payoutMethodChangedAt: changedAt,
+      },
+    });
+    await expect(service.requestPayout('seller1', {})).rejects.toThrow(
+      /modifiée récemment.*à partir du/,
+    );
+    expect(prisma.payout.create).not.toHaveBeenCalled();
+    expect(prisma.sellerEarning.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('S12: a destination changed 25 h ago is settled — the request goes through', async () => {
+    const { service, prisma } = makeRequest({
+      profile: {
+        payoutMethod: 'M_PESA',
+        payoutPhone: '+243970000001',
+        payoutMethodChangedAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
+      },
+    });
+    await service.requestPayout('seller1', {});
+    expect(prisma.payout.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('S12: the cooling-off is read under the SAME row lock as the balance (one SELECT … FOR UPDATE, includes payoutMethodChangedAt)', async () => {
+    const { service, prisma } = makeRequest({});
+    await service.requestPayout('seller1', {});
+    const sql = (prisma.$queryRaw.mock.calls[0][0] as TemplateStringsArray).join('?');
+    expect(sql).toMatch(/"payoutMethodChangedAt"/);
+    expect(sql).toMatch(/FOR UPDATE/);
   });
 
   it('unknown seller → 404', async () => {
@@ -385,34 +465,152 @@ describe('PayoutsService.requestPayout — one transaction, row lock, guarded re
   });
 });
 
-describe('PayoutsService — reusable payout destination', () => {
-  it('updatePayoutMethod saves the method + phone on the profile', async () => {
+describe('PayoutsService — reusable payout destination (S12: re-auth, cooling-off, audit, notice)', () => {
+  const HASH = bcrypt.hashSync('Secret123!', 4);
+  const SAVED = { payoutMethod: 'M_PESA', payoutPhone: '+243970000001', payoutMethodChangedAt: null as Date | null };
+
+  function makeUpdate(opts: {
+    saved?: typeof SAVED | null;
+    lockedSaved?: typeof SAVED; // what the row looks like under the lock (race)
+    user?: { id: string; email: string | null; passwordHash: string | null } | null;
+  } = {}) {
+    const saved = opts.saved === undefined ? SAVED : opts.saved;
     const prisma = {
       sellerProfile: {
-        update: jest
-          .fn()
-          .mockResolvedValue({
-            payoutMethod: 'M_PESA',
-            payoutPhone: '+243970000001',
+        findUnique: jest.fn().mockResolvedValue(saved),
+        update: jest.fn().mockImplementation((args: { data: Record<string, unknown> }) =>
+          Promise.resolve({
+            payoutMethod: args.data.payoutMethod,
+            payoutPhone: args.data.payoutPhone,
+            payoutMethodChangedAt: args.data.payoutMethodChangedAt,
           }),
+        ),
       },
+      user: {
+        findUnique: jest.fn().mockResolvedValue(
+          opts.user === undefined
+            ? { id: 'u1', email: 'marie@example.cd', passwordHash: HASH }
+            : opts.user,
+        ),
+      },
+      adminAuditLog: { create: jest.fn().mockResolvedValue({}) },
+      $queryRaw: jest.fn().mockResolvedValue(
+        saved === null ? [] : [{ id: 'seller1', ...(opts.lockedSaved ?? saved) }],
+      ),
+      $transaction: jest.fn(),
     };
-    const service = new PayoutsService(
-      prisma as never,
-      {} as never,
-      {} as never,
-      {} as never,
-    );
-    const res = await service.updatePayoutMethod('seller1', {
-      payoutMethod: 'M_PESA',
-      payoutPhone: '+243970000001',
+    prisma.$transaction.mockImplementation((cb: (tx: typeof prisma) => unknown) => cb(prisma));
+    const sellerNotifications = { notifyPayoutMethodChanged: jest.fn().mockResolvedValue(undefined) };
+    const audit = {
+      record: jest.fn().mockImplementation((tx: typeof prisma, entry: unknown) => tx.adminAuditLog.create({ data: entry })),
+    };
+    const rateLimit = noRateLimit();
+    const service = new PayoutsService(prisma as never, sellerNotifications as never, {} as never, audit as never, rateLimit as never);
+    return { service, prisma, sellerNotifications, audit, rateLimit };
+  }
+
+  it('an unchanged destination is a no-op: no password needed, nothing written, no audit, no notice', async () => {
+    const { service, prisma, audit, sellerNotifications, rateLimit } = makeUpdate();
+    const res = await service.updatePayoutMethod('seller1', 'u1', { payoutMethod: 'M_PESA', payoutPhone: '+243970000001' });
+    expect(res).toEqual({ payoutMethod: 'M_PESA', payoutPhone: '+243970000001', changedAt: null, payoutsAvailableAt: null });
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(prisma.sellerProfile.update).not.toHaveBeenCalled();
+    expect(audit.record).not.toHaveBeenCalled();
+    expect(sellerNotifications.notifyPayoutMethodChanged).not.toHaveBeenCalled();
+    expect(rateLimit.enforce).not.toHaveBeenCalled();
+  });
+
+  it('a real change without a password → 400 (French), password never verified, nothing written', async () => {
+    const { service, prisma } = makeUpdate();
+    await expect(
+      service.updatePayoutMethod('seller1', 'u1', { payoutMethod: 'AIRTEL_MONEY', payoutPhone: '+243990000002' }),
+    ).rejects.toThrow(/mot de passe est requis/);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(prisma.sellerProfile.update).not.toHaveBeenCalled();
+  });
+
+  it('a wrong password → generic 403 (never 401: clients would refresh + replay), counts in the login lock bucket by email, nothing written', async () => {
+    const { service, prisma, rateLimit, audit } = makeUpdate();
+    await expect(
+      service.updatePayoutMethod('seller1', 'u1', { payoutMethod: 'AIRTEL_MONEY', payoutPhone: '+243990000002', password: 'nope' }),
+    ).rejects.toThrow(ForbiddenException);
+    expect(rateLimit.assertNotBlocked).toHaveBeenCalledWith('login', 'marie@example.cd');
+    expect(rateLimit.enforce).toHaveBeenCalledWith('login', 'marie@example.cd');
+    expect(prisma.sellerProfile.update).not.toHaveBeenCalled();
+    expect(audit.record).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('the correct password changes the destination under the row lock, stamps the cooling-off, audits with MASKED phones and notifies the seller — the password appears nowhere', async () => {
+    const { service, prisma, audit, sellerNotifications, rateLimit } = makeUpdate();
+    const before = Date.now();
+    const res = await service.updatePayoutMethod('seller1', 'u1', {
+      payoutMethod: 'AIRTEL_MONEY',
+      payoutPhone: '+243990000002',
+      password: 'Secret123!',
     });
-    expect(prisma.sellerProfile.update).toHaveBeenCalledWith({
-      where: { id: 'seller1' },
-      data: { payoutMethod: 'M_PESA', payoutPhone: '+243970000001' },
-      select: { payoutMethod: true, payoutPhone: true },
+    // row lock, same shape as requestPayout
+    const sql = (prisma.$queryRaw.mock.calls[0][0] as TemplateStringsArray).join('?');
+    expect(sql).toMatch(/FOR UPDATE/);
+    // write
+    const data = prisma.sellerProfile.update.mock.calls[0][0].data;
+    expect(data).toMatchObject({ payoutMethod: 'AIRTEL_MONEY', payoutPhone: '+243990000002' });
+    expect(data.payoutMethodChangedAt.getTime()).toBeGreaterThanOrEqual(before);
+    // response
+    expect(res.payoutMethod).toBe('AIRTEL_MONEY');
+    expect(res.payoutsAvailableAt!.getTime() - res.changedAt!.getTime()).toBe(PAYOUT_METHOD_COOLING_OFF_MS);
+    expect(JSON.stringify(res)).not.toMatch(/Secret123/);
+    // audit: actor = the seller, masked phones only
+    const entry = audit.record.mock.calls[0][1];
+    expect(entry).toMatchObject({ actorId: 'u1', action: 'PAYOUT_METHOD_CHANGED', entityType: 'seller_profile', entityId: 'seller1' });
+    expect(entry.before.payoutPhone).toBe('+243•••••01');
+    expect(entry.after.payoutPhone).toBe('+243•••••02');
+    expect(JSON.stringify(entry)).not.toMatch(/970000001|990000002|Secret123/);
+    // notice (after commit): masked phone, both dates
+    expect(sellerNotifications.notifyPayoutMethodChanged).toHaveBeenCalledWith('u1', expect.objectContaining({ payoutMethod: 'AIRTEL_MONEY', maskedPhone: '+243•••••02' }));
+    expect(JSON.stringify(sellerNotifications.notifyPayoutMethodChanged.mock.calls[0])).not.toMatch(/Secret123|990000002/);
+    expect(rateLimit.enforce).not.toHaveBeenCalled();
+  });
+
+  it('race: the pre-read differs but the row is already identical under the lock → no-op (no update, no audit)', async () => {
+    const { service, prisma, audit, sellerNotifications } = makeUpdate({
+      saved: SAVED,
+      lockedSaved: { payoutMethod: 'AIRTEL_MONEY', payoutPhone: '+243990000002', payoutMethodChangedAt: new Date() },
     });
-    expect(res.payoutMethod).toBe('M_PESA');
+    const res = await service.updatePayoutMethod('seller1', 'u1', {
+      payoutMethod: 'AIRTEL_MONEY',
+      payoutPhone: '+243990000002',
+      password: 'Secret123!',
+    });
+    expect(res.payoutMethod).toBe('AIRTEL_MONEY');
+    expect(prisma.sellerProfile.update).not.toHaveBeenCalled();
+    expect(audit.record).not.toHaveBeenCalled();
+    expect(sellerNotifications.notifyPayoutMethodChanged).not.toHaveBeenCalled();
+  });
+
+  it('unknown profile → 404; an account without a password → 400', async () => {
+    await expect(
+      makeUpdate({ saved: null }).service.updatePayoutMethod('ghost', 'u1', { payoutMethod: 'M_PESA', payoutPhone: '+243970000001', password: 'x' }),
+    ).rejects.toThrow(NotFoundException);
+    await expect(
+      makeUpdate({ user: { id: 'u1', email: 'e@x.cd', passwordHash: null } }).service.updatePayoutMethod('seller1', 'u1', { payoutMethod: 'AIRTEL_MONEY', payoutPhone: '+243990000002', password: 'x' }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('getPayoutMethod exposes the cooling-off state (payoutsAvailableAt) without any secret', async () => {
+    const changedAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const { service } = makeUpdate({ saved: { ...SAVED, payoutMethodChangedAt: changedAt } });
+    const res = await service.getPayoutMethod('seller1');
+    expect(res.payoutsAvailableAt!.getTime()).toBe(changedAt.getTime() + PAYOUT_METHOD_COOLING_OFF_MS);
+    expect(Object.keys(res).sort()).toEqual(['changedAt', 'payoutMethod', 'payoutPhone', 'payoutsAvailableAt']);
+  });
+
+  it('helpers: masking keeps only the country code + last two digits; availability is null once settled', () => {
+    expect(maskPayoutPhone('+243970000001')).toBe('+243•••••01');
+    expect(maskPayoutPhone(null)).toBeNull();
+    expect(payoutsAvailableAt(null)).toBeNull();
+    expect(payoutsAvailableAt(new Date(Date.now() - PAYOUT_METHOD_COOLING_OFF_MS - 1))).toBeNull();
+    expect(payoutsAvailableAt(new Date())).not.toBeNull();
   });
 });
 
@@ -453,7 +651,7 @@ describe('PayoutsService.getPayoutById — operator decision context', () => {
         { id: 'a1', action: 'PAYOUT_APPROVED', actorId: 'admin1', before: {}, after: {}, reason: null, createdAt: new Date() },
       ]),
     };
-    const service = new PayoutsService(prisma as never, {} as never, earningsService as never, audit as never);
+    const service = new PayoutsService(prisma as never, {} as never, earningsService as never, audit as never, noRateLimit() as never);
     const res = await service.getPayoutById('p1');
     expect(res.balances).toEqual({
       availableCDF: '0',
@@ -475,7 +673,7 @@ describe('PayoutsService.getPayoutById — operator decision context', () => {
 describe('PayoutsService — seller-facing payout detail (deep-link target) and rejection variants', () => {
   it('getSellerPayoutById is owner-scoped: the seller id is in the WHERE, and any miss is one 404', async () => {
     const prisma = { payout: { findFirst: jest.fn().mockResolvedValue(null) } };
-    const service = new PayoutsService(prisma as never, {} as never, {} as never, {} as never);
+    const service = new PayoutsService(prisma as never, {} as never, {} as never, {} as never, noRateLimit() as never);
     await expect(service.getSellerPayoutById('sp1', 'pay-of-someone-else')).rejects.toThrow(
       /introuvable ou ne vous appartient pas/,
     );

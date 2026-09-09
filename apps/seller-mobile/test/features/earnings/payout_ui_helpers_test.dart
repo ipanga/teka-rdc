@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:seller_mobile/core/theme/teka_colors.dart';
 import 'package:seller_mobile/features/earnings/data/models/earning_model.dart';
 import 'package:seller_mobile/features/earnings/presentation/payout_status.dart';
@@ -8,6 +9,13 @@ import 'package:seller_mobile/features/earnings/presentation/screens/request_pay
 import '../../support/seller_earnings_fixtures.dart';
 
 void main() {
+  setUpAll(() => initializeDateFormatting('fr'));
+
+  test('payoutAvailabilityLabel: French long date + time, local clock (S12)', () {
+    final at = DateTime(2026, 9, 10, 14, 5);
+    expect(payoutAvailabilityLabel(at), '10 septembre 2026 à 14:05');
+  });
+
   group('maskPhone', () {
     test('keeps the operator prefix and the last three digits', () {
       expect(maskPhone('+243970000001'), '+243 97• ••• 001');

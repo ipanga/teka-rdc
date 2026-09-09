@@ -1,4 +1,4 @@
-# Status — 2026-09-09 (pre-scale readiness — Buyer Web SEO-1 `6234f0c` + SEO-2 `03035e3` merged, Workstream B COMPLETE; decision checkpoint pending)
+# Status — 2026-09-09 (pre-scale readiness — the release-readiness audit's only code blocker, S12 payout destination, is FIXED on `security/payout-destination-reauth`; PR open awaiting merge approval; release PR NOT opened)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
@@ -67,6 +67,19 @@ SUPPORT/FINANCE, S11 audit rows, D2b). **Mobile security hardening remains open*
 **Dependabot follow-ups remain open** (`esbuild` security job failing on the pinned exception, stale
 PRs #549/#565/#595, no bundler ecosystem). **The Cloudflare origin firewall is a MANUAL pre-release
 action — not applied.**
+
+**`security/payout-destination-reauth` open, awaiting merge approval (S12 — the release-readiness
+audit's only code blocker).** A stolen seller session could redirect the whole balance: `POST
+/v1/sellers/payouts` let an inline destination win over the saved profile, and `PATCH
+/v1/sellers/payout-method` had no re-auth, audit, notice, cooling-off or throttle. Now: the SAVED
+destination is the only routing authority (an inline one is accepted only when identical — 409
+otherwise); a real change needs the current password (400 missing / **403** wrong, counted in the login
+lock), runs under the same row lock as the request, stamps a **24 h cooling-off** (payout requests 409
+with the reopen date), writes a masked `PAYOUT_METHOD_CHANGED` audit row in the same transaction, and
+notifies the seller on feed + push + email; throttled 5/h per seller. Payout snapshots stay immutable.
+One additive migration (`2026-09-09_payout_method_changed_at.sql`). **The distributed seller-mobile
+0.1.9 build keeps working** — re-saving the unchanged destination is a password-free no-op, so no forced
+store release. Full record: `docs/pre-scale-readiness.md` → « S12 ».
 
 **Dependency security, 2026-09-08/09 — two advisory batches, two sibling PRs.**
 **`security/sharp-0.35.4` MERGED (`2e0454d`, PR #718):** GHSA-rgj7-g3m4-5g8c (`sharp` < 0.35.4, libheif)

@@ -149,6 +149,7 @@ describe('RateLimitService (D8)', () => {
         refresh: { limit: 60, windowSeconds: 900 },
         csvExport: { limit: 10, windowSeconds: 600 },
         upload: { limit: 30, windowSeconds: 600 },
+        payoutMethodChange: { limit: 5, windowSeconds: 3600 },
       });
     });
   });

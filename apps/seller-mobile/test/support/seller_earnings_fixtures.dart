@@ -105,19 +105,36 @@ class FixtureEarningsRepository extends EarningsRepository {
   Future<void>? hold;
 
   bool failWallet = false;
+
+  /// S12: fail the NEXT GET /payout-method only (the retry then succeeds).
+  bool failPayoutMethodOnce = false;
   bool failEarnings = false;
   bool failPayouts = false;
 
   /// Answer for the next POST /v1/sellers/payouts; null = success.
   DioException? nextRequestError;
 
+  /// Answer for the next PATCH /v1/sellers/payout-method; null = success.
+  DioException? nextSaveError;
+
+  /// Clock for the S12 cooling-off stamped on a destination change.
+  DateTime Function() now = DateTime.now;
+
   /// What the fixture does once a request is accepted (default: reserve
   /// the whole balance in a REQUESTED payout, like the API).
   int walletCalls = 0;
   int earningsCalls = 0;
   int payoutsCalls = 0;
-  final requested = <Map<String, String>>[];
-  final savedDestinations = <Map<String, String>>[];
+  int payoutMethodCalls = 0;
+
+  /// One entry per POST /v1/sellers/payouts — the body as sent (S12: always
+  /// empty, the API routes to the saved destination).
+  final requested = <Map<String, dynamic>>[];
+
+  /// One entry per PATCH /v1/sellers/payout-method: method, phone and
+  /// whether a password was PRESENT. The value itself is never recorded —
+  /// a fixture that kept it would be the leak the tests exist to forbid.
+  final savedDestinations = <Map<String, Object>>[];
 
   @override
   Future<SellerWallet> getWallet() async {
@@ -159,20 +176,55 @@ class FixtureEarningsRepository extends EarningsRepository {
   }
 
   @override
-  Future<SellerPayoutMethod> getPayoutMethod() async => saved;
+  Future<SellerPayoutMethod> getPayoutMethod() async {
+    payoutMethodCalls++;
+    if (hold != null) await hold;
+    if (failPayoutMethodOnce) {
+      failPayoutMethodOnce = false;
+      throw networkError('/v1/sellers/payout-method');
+    }
+    return saved;
+  }
 
+  /// Mirrors the API (S12): same destination → no-op; a change needs a
+  /// password (400 without one) and stamps the 24 h cooling-off.
   @override
-  Future<SellerPayoutMethod> updatePayoutMethod(
-      {required String payoutMethod, required String payoutPhone}) async {
-    savedDestinations.add({'method': payoutMethod, 'phone': payoutPhone});
-    saved = SellerPayoutMethod(payoutMethod: payoutMethod, payoutPhone: payoutPhone);
+  Future<SellerPayoutMethod> updatePayoutMethod({
+    required String payoutMethod,
+    required String payoutPhone,
+    String? password,
+  }) async {
+    savedDestinations.add({
+      'method': payoutMethod,
+      'phone': payoutPhone,
+      'withPassword': password != null && password.isNotEmpty,
+    });
+    if (hold != null) await hold;
+    final err = nextSaveError;
+    if (err != null) {
+      nextSaveError = null;
+      throw err;
+    }
+    final unchanged = saved.payoutMethod == payoutMethod &&
+        saved.payoutPhone == payoutPhone;
+    if (unchanged) return saved;
+    if (password == null || password.isEmpty) {
+      throw apiError('/v1/sellers/payout-method', 400,
+          'Le mot de passe est requis pour modifier la destination de retrait.');
+    }
+    final at = now();
+    saved = SellerPayoutMethod(
+      payoutMethod: payoutMethod,
+      payoutPhone: payoutPhone,
+      changedAt: at,
+      payoutsAvailableAt: at.add(const Duration(hours: 24)),
+    );
     return saved;
   }
 
   @override
-  Future<PayoutModel> requestPayout(
-      {required String payoutMethod, required String payoutPhone}) async {
-    requested.add({'method': payoutMethod, 'phone': payoutPhone});
+  Future<PayoutModel> requestPayout() async {
+    requested.add(const <String, dynamic>{});
     if (hold != null) await hold;
     final err = nextRequestError;
     if (err != null) {
@@ -183,8 +235,8 @@ class FixtureEarningsRepository extends EarningsRepository {
     final row = payout(
         id: 'payout-new',
         amountFc: amount,
-        method: payoutMethod,
-        phone: payoutPhone);
+        method: saved.payoutMethod ?? '',
+        phone: saved.payoutPhone ?? '');
     payouts = [row, ...payouts];
     earnings = [
       for (final e in earnings)
