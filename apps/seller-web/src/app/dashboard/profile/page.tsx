@@ -62,6 +62,9 @@ export default function SellerProfilePage() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  // Login-email change is password-guarded (API 400 without, 403 when wrong).
+  const [emailPassword, setEmailPassword] = useState('');
+  const emailDirty = email.trim() !== (user?.email ?? '');
 
   // Business form state
   const [businessName, setBusinessName] = useState('');
@@ -295,7 +298,19 @@ export default function SellerProfilePage() {
       const body: Record<string, unknown> = {};
       if (firstName !== (user?.firstName ?? '')) body.firstName = firstName.trim();
       if (lastName !== (user?.lastName ?? '')) body.lastName = lastName.trim();
-      if (email !== (user?.email ?? '')) body.email = email.trim();
+      // Changing the login email is a sensitive action: the API requires the
+      // current password (400 without it, 403 when wrong) and notifies the
+      // previous address.
+      const emailChanged = email !== (user?.email ?? '');
+      if (emailChanged) {
+        if (!emailPassword) {
+          showFeedback('error', "Votre mot de passe est requis pour modifier l'adresse de connexion");
+          setSavingPersonal(false);
+          return;
+        }
+        body.email = email.trim();
+        body.password = emailPassword;
+      }
       if (Object.keys(body).length === 0) {
         setSavingPersonal(false);
         return;
@@ -304,12 +319,20 @@ export default function SellerProfilePage() {
         method: 'PATCH',
         body: JSON.stringify(body),
       });
-      showFeedback('success', "Profil mis à jour");
+      showFeedback(
+        'success',
+        emailChanged
+          ? "Profil mis à jour. Un e-mail de confirmation a été envoyé à votre ancienne adresse."
+          : 'Profil mis à jour',
+      );
+      setEmailPassword('');
       loadMe();
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : "Erreur lors de l'enregistrement";
       showFeedback('error', msg);
     } finally {
+      // The password never outlives the attempt.
+      setEmailPassword('');
       setSavingPersonal(false);
     }
   };
@@ -482,8 +505,26 @@ export default function SellerProfilePage() {
               onChange={(e) => setEmail(e.target.value)}
               className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
             />
-            <p className="text-xs text-muted-foreground mt-1">{"Modifier votre email vous demandera de le re-vérifier."}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {"Modifier l'adresse de connexion demande votre mot de passe. Un e-mail de confirmation est envoyé à l'ancienne adresse."}
+            </p>
           </div>
+          {emailDirty && (
+            <div>
+              <label htmlFor="email-password" className="block text-sm font-medium text-foreground mb-1">
+                {"Votre mot de passe"}
+              </label>
+              <input
+                id="email-password"
+                type="password"
+                autoComplete="current-password"
+                value={emailPassword}
+                onChange={(e) => setEmailPassword(e.target.value)}
+                data-ph-no-capture="true"
+                className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+          )}
           <button
             type="submit"
             disabled={savingPersonal}

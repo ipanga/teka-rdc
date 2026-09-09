@@ -21,7 +21,19 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsEmail({}, { message: 'Adresse email invalide' })
+  @MaxLength(160, { message: "L'adresse email ne peut pas dépasser 160 caractères" })
   email?: string;
+
+  /**
+   * Required only when `email` actually differs from the current login
+   * address (see UsersService.updateProfile). Optional at the DTO level so a
+   * client re-sending the unchanged profile stays a password-free no-op.
+   * Verified against the stored hash; never logged, stored or returned.
+   */
+  @IsOptional()
+  @IsString({ message: 'Mot de passe invalide.' })
+  @MaxLength(72, { message: 'Mot de passe invalide.' })
+  password?: string;
 }
 
 // `avatar` is deliberately NOT accepted here (D11, 2026-09-06). The only

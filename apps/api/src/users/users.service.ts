@@ -1,14 +1,30 @@
 import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { validateImageUpload } from '../common/uploads/image-upload';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { AVATAR_FOLDER, avatarPublicIdFromUrl } from './avatar-asset';
+import { Prisma } from '@prisma/client';
+import { verifyPassword } from '../auth/utils/password.util';
+import { RateLimitService } from '../common/rate-limit/rate-limit.service';
+import { AdminAuditService } from '../audit/admin-audit.service';
+import { EmailService } from '../email/email.service';
+
+/** `marie@example.cd` → `m•••e@example.cd` — recognisable, not disclosable. */
+export function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!domain) return '•••';
+  const head = local.slice(0, 1);
+  const tail = local.length > 1 ? local.slice(-1) : '';
+  return `${head}•••${tail}@${domain}`;
+}
 
 @Injectable()
 export class UsersService {
@@ -17,6 +33,9 @@ export class UsersService {
   constructor(
     private prisma: PrismaService,
     private cloudinary: CloudinaryService,
+    private rateLimit: RateLimitService,
+    private audit: AdminAuditService,
+    private emailService: EmailService,
   ) {}
 
   async getProfile(userId: string) {
@@ -58,6 +77,28 @@ export class UsersService {
     return { preferredCityId: cityId };
   }
 
+  /**
+   * Update the caller's own profile.
+   *
+   * Changing `email` changes the LOGIN IDENTITY for sellers and admins, so it
+   * requires fresh proof of identity (2026-09-09). Before this it was a bare
+   * write: a hijacked session could point the account at an attacker's
+   * address, request a password reset there and own the account permanently —
+   * the escalation path into the payout destination that S12 now guards.
+   *
+   * Rules:
+   *  - name-only updates, and re-sending the SAME email, need no password;
+   *  - a real email change requires the current password, verified against
+   *    the stored hash (never logged, stored or returned). A wrong password
+   *    answers 403 — not 401, because every Teka client treats a 401 as an
+   *    expired session and would refresh and replay — and counts in the same
+   *    `login` lock bucket as the login form;
+   *  - the write, the `emailVerified` reset and the audit row commit together;
+   *  - the PREVIOUS address is notified after commit: it is the only address a
+   *    legitimate owner still controls after a takeover;
+   *  - a duplicate address answers a French 409 instead of the raw 500 the
+   *    unique constraint used to produce, and says no more than that.
+   */
   async updateProfile(userId: string, dto: UpdateProfileDto) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId, deletedAt: null },
@@ -67,17 +108,94 @@ export class UsersService {
       throw new NotFoundException('Utilisateur non trouvé');
     }
 
-    const updated = await this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        ...(dto.firstName !== undefined && { firstName: dto.firstName }),
-        ...(dto.lastName !== undefined && { lastName: dto.lastName }),
-        ...(dto.email !== undefined && {
-          email: dto.email,
-          emailVerified: false,
-        }),
-      },
-    });
+    const normalisedEmail = dto.email?.trim().toLowerCase();
+    const changingEmail =
+      normalisedEmail !== undefined && normalisedEmail !== user.email;
+
+    if (changingEmail) {
+      if (!dto.password) {
+        throw new BadRequestException(
+          "Le mot de passe est requis pour modifier l'adresse de connexion.",
+        );
+      }
+      if (!user.passwordHash) {
+        // Buyers authenticate by WhatsApp OTP and have no password: they have
+        // no login email to change either.
+        throw new BadRequestException(
+          'Aucun mot de passe défini sur le compte.',
+        );
+      }
+      const loginKey = user.email ?? user.id;
+      await this.rateLimit.assertNotBlocked('login', loginKey);
+      const ok = await verifyPassword(dto.password, user.passwordHash);
+      if (!ok) {
+        await this.rateLimit.enforce('login', loginKey);
+        throw new ForbiddenException('Mot de passe invalide.');
+      }
+    }
+
+    let updated;
+    try {
+      updated = await this.prisma.$transaction(async (tx) => {
+        const row = await tx.user.update({
+          where: { id: userId },
+          data: {
+            ...(dto.firstName !== undefined && { firstName: dto.firstName }),
+            ...(dto.lastName !== undefined && { lastName: dto.lastName }),
+            ...(changingEmail && {
+              email: normalisedEmail,
+              emailVerified: false,
+            }),
+          },
+        });
+        if (changingEmail) {
+          await this.audit.record(tx, {
+            actorId: userId,
+            action: 'LOGIN_EMAIL_CHANGED',
+            entityType: 'user',
+            entityId: userId,
+            before: { email: user.email ? maskEmail(user.email) : null },
+            after: { email: maskEmail(normalisedEmail!), emailVerified: false },
+            reason: null,
+          });
+        }
+        return row;
+      });
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === 'P2002'
+      ) {
+        // Says only that it cannot be used — never whether it belongs to
+        // someone else, which would be an account-existence oracle.
+        throw new ConflictException(
+          "Cette adresse email ne peut pas être utilisée.",
+        );
+      }
+      throw err;
+    }
+
+    if (changingEmail && user.email) {
+      const previous = user.email;
+      const changedLabel = new Intl.DateTimeFormat('fr-FR', {
+        dateStyle: 'long',
+        timeStyle: 'short',
+        timeZone: 'Africa/Lubumbashi',
+      }).format(new Date());
+      this.emailService
+        .sendLoginEmailChanged(
+          previous,
+          updated.firstName,
+          maskEmail(normalisedEmail!),
+          changedLabel,
+        )
+        .catch((e) =>
+          this.logger.warn(
+            `login-email-change notice failed for ${userId}: ${e?.message ?? e}`,
+          ),
+        );
+      this.logger.log(`Login email changed for user ${userId}`);
+    }
 
     const { passwordHash, deletedAt, ...profile } = updated;
     return profile;
