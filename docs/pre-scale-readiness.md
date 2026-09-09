@@ -3876,6 +3876,53 @@ tests cover it.
 type-check ×5; three production `next build`s. No migration, no environment or secret change, no
 workflow change, no mobile change.
 
+### Mobile security hardening — PR B and PR C (2026-09-09, open)
+
+Continues the MS1-MS7 work recorded with PR A. PR A's own entry lands with that branch; these two are
+recorded together to avoid a conflict at the same anchor.
+
+**PR B — routing/session isolation (`mobile/hardening-routing-session`, #728).** MS2: the buyer push
+router accepted any string as an entity id and interpolated it into a `GoRouter` path, so anyone able to
+deliver a push could steer in-app navigation; ported seller-mobile's `_uuidOrNull`. The existing test
+asserted `'abc'` routed — the behaviour being closed — so it was rewritten around real UUIDs with
+traversal and query-string rejection cases. MS3: `teka://` skipped the host allow-list entirely; the
+allow-list now applies to every scheme, so `teka://teka.cd/promotions` still works while
+`teka://evil.example/...` and bare `teka://promotions` do not. MS5: **most of it was already done by A4** —
+cart snapshot, cached profile, recently-viewed and recent searches are already evicted, and were not
+reimplemented. The town was the one thing left, with a real symptom: `hydrateFromProfile` bails on
+`if (state.hasCity) return`, so buyer B inherited buyer A's town **and B's own server-side
+`preferredCityId` was silently ignored**. Clearing is keyed on the account IDENTITY, not on "became
+unauthenticated", because an OTP verify goes straight from A to B. `clearLocalCity()` is separate from
+`clearCity()` so a session boundary never syncs a null preference to the outgoing account. The
+`SellerAccountException` branch, which returned before `clearPrivateState()`, is closed. On the seller
+side the four unkeyed notifiers gained a reset wired into the auth listener, and the Sentry user is
+cleared on logout and on a rejected stored session. `test/session/` did not previously exist in
+seller-mobile.
+
+**PR C — telemetry/privacy (`mobile/hardening-telemetry`).** MS6: the scrubber walked `message` and
+breadcrumbs only, with one `\+243\d{9}` regex, and had **no test in either app** despite its doc comment
+saying "keep all four in sync". `exceptions`, `contexts`, `tags` and `user` were never walked, and
+`retry_interceptor.dart` and `dio_error_messages.dart` write request paths into contexts and an
+`endpoint` tag. The walk is now whole-event, bounded on depth, node count and string length, and covers
+emails, JWTs, Bearer tokens, Cloudinary document URLs and inline `key=value` secrets, matching the shared
+JavaScript sanitiser. Ordering is load-bearing: JWT and Bearer must precede the inline rule or
+`Authorization: Bearer <token>` matches inline, consumes only the word Bearer, and leaves the token. The
+phone pattern ends in a greedy `\d+` rather than a right-anchored boundary — the boundary version looked
+safer and was worse, refusing to match an over-long run at all and leaving the whole number in the
+payload. `sendDefaultPii` is pinned in both apps. 13 tests each, mirrored per Rule 15.
+
+**Deliberately unchanged, with reasons.** `auth_interceptor.dart` clears tokens on a 401 without touching
+the disk; the next cold start hits `SessionRejected` and clears it, and reaching into feature state from
+the network layer would disturb connectivity handling that was built deliberately. The
+`cached_network_image` disk cache is still never cleared. `event.extra` is not scrubbed because both apps
+use named contexts and never call `setExtra`, and the field is deprecated in the SDK.
+
+**Verification.** buyer-mobile 514 tests (from 501), seller-mobile 485 (from 472), `flutter analyze`
+unchanged at 6 and 5 pre-existing infos. Runtime verification of the R8 builds is recorded with PR A.
+
+**Not claimed.** No iOS runtime was exercised. A `flutter build ios` was started but had to be abandoned:
+it reads the working tree, and branch switching during the run made its result meaningless.
+
 ## Next exact step
 
 **Production is released and hardened; the P1 admin/financial security follow-ups are MERGED**

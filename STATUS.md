@@ -1,4 +1,4 @@
-# Status — 2026-09-09 (production RELEASED and HARDENED at `main` `9a89249`; the P1 admin/financial security follow-ups are MERGED into `develop` as `f9a9b34` (PR #725); Sentry request-data minimisation implemented on `security/sentry-request-data-minimization`, PR open awaiting review)
+# Status — 2026-09-09 (production RELEASED and HARDENED at `main` `9a89249`; P1 admin/financial follow-ups MERGED `f9a9b34` #725; Sentry request-data minimisation MERGED `babd4bd` #726; mobile hardening MS1-MS7 implemented across three open PRs — #727 platform/config, #728 routing/session, and telemetry — none merged)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
