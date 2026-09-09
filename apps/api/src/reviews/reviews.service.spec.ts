@@ -252,3 +252,159 @@ describe('getProductReviews — reviewer shape is a contract', () => {
     expect((res.data as Record<string, unknown>[])[0].buyer).toBeNull();
   });
 });
+
+// ─── Authorisation + visibility (pre-scale audit, 2026-09-06) ────────────
+//
+// Server-side truth for who may create / delete a review, and the ONE
+// predicate that decides which reviews are listed, counted and averaged.
+
+import { VISIBLE_REVIEW_WHERE } from './review-visibility';
+
+function makeFullService(opts: {
+  deliveredOrderItem?: unknown;
+  existingReview?: unknown;
+  order?: unknown;
+}) {
+  const prisma = {
+    orderItem: {
+      findFirst: jest.fn().mockResolvedValue(opts.deliveredOrderItem ?? null),
+    },
+    order: { findFirst: jest.fn().mockResolvedValue(opts.order ?? null) },
+    review: {
+      findUnique: jest.fn().mockResolvedValue(opts.existingReview ?? null),
+      findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
+      create: jest.fn().mockResolvedValue({ id: 'rev-new', rating: 5, buyer: {} }),
+      update: jest.fn().mockResolvedValue({ id: 'rev1' }),
+      aggregate: jest.fn().mockResolvedValue({ _avg: { rating: 4 }, _count: 2 }),
+      groupBy: jest.fn().mockResolvedValue([{ rating: 4, _count: 2 }]),
+    },
+    product: {
+      update: jest.fn().mockResolvedValue({}),
+      findUnique: jest.fn().mockResolvedValue({ sellerId: 'seller1' }),
+    },
+    sellerProfile: {
+      findUnique: jest.fn().mockResolvedValue({ id: 'sp1' }),
+      update: jest.fn().mockResolvedValue({}),
+    },
+    $transaction: jest.fn(),
+  };
+  prisma.$transaction.mockImplementation(async (cb: (tx: unknown) => unknown) => cb(prisma));
+  const notifications = { notifyNewReview: jest.fn().mockResolvedValue(undefined) };
+  const service = new ReviewsService(prisma as never, notifications as never);
+  return { service, prisma, notifications };
+}
+
+const CREATE = { productId: 'prod1', orderId: 'order-A', rating: 5, title: 'Très bien', text: 'Ok' };
+
+describe('ReviewsService.createReview — eligibility cannot be bypassed', () => {
+  it('refuses a buyer with no DELIVERED order for the product (400, French)', async () => {
+    const { service, prisma } = makeFullService({});
+    await expect(service.createReview('buyerB', CREATE)).rejects.toMatchObject({
+      status: 400,
+      message: 'Vous devez avoir reçu ce produit avant de pouvoir laisser un avis',
+    });
+    expect(prisma.review.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses an orderId that is not the caller's own delivered order containing the product", async () => {
+    // Buyer B has a delivered order for the product, but echoes buyer A's
+    // orderId: the order lookup is scoped to buyerId + productId and finds nothing.
+    const { service, prisma } = makeFullService({ deliveredOrderItem: { orderId: 'order-B' } });
+    await expect(service.createReview('buyerB', CREATE)).rejects.toMatchObject({
+      status: 400,
+      message: 'Commande invalide ou ne contenant pas ce produit',
+    });
+    expect(prisma.order.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 'order-A', buyerId: 'buyerB', status: 'DELIVERED' }),
+      }),
+    );
+    expect(prisma.review.create).not.toHaveBeenCalled();
+  });
+
+  it('refuses a second review for the same product (400)', async () => {
+    const { service, prisma } = makeFullService({
+      deliveredOrderItem: { orderId: 'order-A' },
+      existingReview: { id: 'rev1', deletedAt: null },
+      order: { id: 'order-A' },
+    });
+    await expect(service.createReview('buyerA', CREATE)).rejects.toMatchObject({
+      status: 400,
+      message: 'Vous avez déjà laissé un avis pour ce produit',
+    });
+    expect(prisma.review.create).not.toHaveBeenCalled();
+  });
+
+  it('creates ACTIVE, recalculates the caches with the visibility predicate and notifies the seller', async () => {
+    const { service, prisma, notifications } = makeFullService({
+      deliveredOrderItem: { orderId: 'order-A' },
+      order: { id: 'order-A' },
+    });
+    await service.createReview('buyerA', CREATE);
+    expect(prisma.review.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ buyerId: 'buyerA', orderId: 'order-A', status: 'ACTIVE' }),
+      }),
+    );
+    expect(prisma.review.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { productId: 'prod1', ...VISIBLE_REVIEW_WHERE } }),
+    );
+    expect(prisma.product.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { avgRating: 4, totalReviews: 2 } }),
+    );
+    expect(notifications.notifyNewReview).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'rev-new', productId: 'prod1' }),
+    );
+  });
+});
+
+describe('ReviewsService.deleteReview — owner only', () => {
+  it("refuses to delete another buyer's review (403)", async () => {
+    const { service, prisma } = makeFullService({ existingReview: { ...OWNED } });
+    await expect(service.deleteReview('buyer2', 'rev1')).rejects.toMatchObject({ status: 403 });
+    expect(prisma.review.update).not.toHaveBeenCalled();
+  });
+
+  it('404s on a missing or already-deleted review', async () => {
+    const gone = makeFullService({ existingReview: { ...OWNED, deletedAt: new Date() } });
+    await expect(gone.service.deleteReview('buyer1', 'rev1')).rejects.toMatchObject({ status: 404 });
+    const missing = makeFullService({});
+    await expect(missing.service.deleteReview('buyer1', 'rev1')).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('soft-deletes and recalculates so the review leaves list, count and average together', async () => {
+    const { service, prisma } = makeFullService({ existingReview: { ...OWNED } });
+    await expect(service.deleteReview('buyer1', 'rev1')).resolves.toEqual({ deleted: true });
+    expect(prisma.review.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'rev1' }, data: { deletedAt: expect.any(Date) } }),
+    );
+    expect(prisma.review.aggregate).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { productId: 'prod1', ...VISIBLE_REVIEW_WHERE } }),
+    );
+    expect(prisma.sellerProfile.update).toHaveBeenCalled();
+  });
+});
+
+describe('Review visibility — one predicate for the list, the count and the average', () => {
+  it('is exactly "not deleted AND status ACTIVE"', () => {
+    expect(VISIBLE_REVIEW_WHERE).toEqual({ deletedAt: null, status: 'ACTIVE' });
+  });
+
+  it('getProductReviews lists and counts with the predicate (HIDDEN and deleted rows never appear)', async () => {
+    const { service, prisma } = makeFullService({});
+    await service.getProductReviews('prod1', { page: 1, limit: 10 } as never);
+    const expectedWhere = { productId: 'prod1', ...VISIBLE_REVIEW_WHERE };
+    expect(prisma.review.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expectedWhere }));
+    expect(prisma.review.count).toHaveBeenCalledWith({ where: expectedWhere });
+  });
+
+  it('getProductReviewStats averages and distributes with the same predicate', async () => {
+    const { service, prisma } = makeFullService({});
+    const stats = await service.getProductReviewStats('prod1');
+    const expectedWhere = { productId: 'prod1', ...VISIBLE_REVIEW_WHERE };
+    expect(prisma.review.aggregate).toHaveBeenCalledWith(expect.objectContaining({ where: expectedWhere }));
+    expect(prisma.review.groupBy).toHaveBeenCalledWith(expect.objectContaining({ where: expectedWhere }));
+    expect(stats).toEqual({ avgRating: 4, totalReviews: 2, distribution: { 1: 0, 2: 0, 3: 0, 4: 2, 5: 0 } });
+  });
+});

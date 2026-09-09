@@ -7,6 +7,10 @@ import '../../data/models/earning_model.dart';
 
 class EarningsState {
   final SellerWallet? wallet;
+
+  /// The wallet request failed and nothing is cached: the summary must say
+  /// so instead of rendering zeros as if the seller had no money.
+  final String? walletError;
   final List<SellerEarningModel> earnings;
   final List<PayoutModel> payouts;
   final bool isLoading;
@@ -19,8 +23,15 @@ class EarningsState {
   final int payoutsTotal;
   final int limit;
 
+  /// The saved payout destination + its cooling-off (S12), null until the
+  /// first `loadPayoutMethod` succeeds. Screens read the destination and
+  /// `payoutsAvailableAt` from here; the password used to change it is
+  /// never part of this state.
+  final SellerPayoutMethod? payoutMethod;
+
   const EarningsState({
     this.wallet,
+    this.walletError,
     this.earnings = const [],
     this.payouts = const [],
     this.isLoading = false,
@@ -32,13 +43,28 @@ class EarningsState {
     this.payoutsPage = 1,
     this.payoutsTotal = 0,
     this.limit = 20,
+    this.payoutMethod,
   });
 
   bool get hasMoreEarnings => earningsPage * limit < earningsTotal;
   bool get hasMorePayouts => payoutsPage * limit < payoutsTotal;
 
+  /// The seller's open payout (REQUESTED / APPROVED / PROCESSING), if any —
+  /// its amount is what the API has reserved from the earnings.
+  PayoutModel? get openPayout {
+    for (final p in payouts) {
+      if (const {'REQUESTED', 'APPROVED', 'PROCESSING'}
+          .contains(p.status.toUpperCase())) {
+        return p;
+      }
+    }
+    return null;
+  }
+
   EarningsState copyWith({
     SellerWallet? wallet,
+    String? walletError,
+    bool clearWalletError = false,
     List<SellerEarningModel>? earnings,
     List<PayoutModel>? payouts,
     bool? isLoading,
@@ -51,9 +77,12 @@ class EarningsState {
     int? payoutsTotal,
     int? limit,
     bool clearError = false,
+    SellerPayoutMethod? payoutMethod,
   }) {
     return EarningsState(
       wallet: wallet ?? this.wallet,
+      walletError:
+          clearWalletError ? null : (walletError ?? this.walletError),
       earnings: earnings ?? this.earnings,
       payouts: payouts ?? this.payouts,
       isLoading: isLoading ?? this.isLoading,
@@ -65,6 +94,7 @@ class EarningsState {
       payoutsPage: payoutsPage ?? this.payoutsPage,
       payoutsTotal: payoutsTotal ?? this.payoutsTotal,
       limit: limit ?? this.limit,
+      payoutMethod: payoutMethod ?? this.payoutMethod,
     );
   }
 }
@@ -81,10 +111,12 @@ class EarningsNotifier extends StateNotifier<EarningsState> {
     try {
       final wallet = await _repository.getWallet();
       if (mounted) {
-        state = state.copyWith(wallet: wallet);
+        state = state.copyWith(wallet: wallet, clearWalletError: true);
       }
     } catch (e) {
-      // Wallet load failure is non-critical, keep the rest of the state
+      // Keep whatever wallet is cached; the summary shows a scoped retry
+      // rather than zeros (a « 0 FC » balance is a statement, not a shrug).
+      if (mounted) state = state.copyWith(walletError: friendlyErrorMessage(e));
     }
   }
 
@@ -186,45 +218,69 @@ class EarningsNotifier extends StateNotifier<EarningsState> {
     }
   }
 
-  /// The saved reusable payout destination (B1), for prefilling the form.
-  Future<SellerPayoutMethod?> getSavedPayoutMethod() async {
+  /// The saved payout destination + cooling-off (B1 / S12). Cached in the
+  /// state for the request screen; null when the request failed (the screen
+  /// then treats the destination as unknown and opens the editor).
+  Future<SellerPayoutMethod?> loadPayoutMethod() async {
     try {
-      return await _repository.getPayoutMethod();
+      final saved = await _repository.getPayoutMethod();
+      if (mounted) state = state.copyWith(payoutMethod: saved);
+      return saved;
     } catch (_) {
       return null;
     }
   }
 
-  /// Saves the destination (so it prefills next time) then requests the payout.
-  /// Returns null on success, or the API error message on failure.
-  Future<String?> requestPayout(String method, String phone) async {
+  /// Saves a new destination (S12: the seller's current [password] is
+  /// required for a real change; an unchanged destination is a no-op).
+  /// Returns null on success — the cached destination and its
+  /// `payoutsAvailableAt` are replaced by the API's answer — or the French
+  /// reason: 400 password missing, 403 « Mot de passe invalide. », 429 after
+  /// five attempts an hour. The password goes straight to the repository and
+  /// is neither stored nor logged.
+  Future<String?> savePayoutMethod({
+    required String method,
+    required String phone,
+    required String password,
+  }) async {
     try {
-      await _repository.updatePayoutMethod(
+      final saved = await _repository.updatePayoutMethod(
         payoutMethod: method,
         payoutPhone: phone,
+        password: password,
       );
-      await _repository.requestPayout(
-        payoutMethod: method,
-        payoutPhone: phone,
-      );
-      // Reload wallet and payouts after successful request
-      await Future.wait([
-        loadWallet(),
-        loadPayouts(),
-      ]);
+      if (mounted) state = state.copyWith(payoutMethod: saved);
+      return null;
+    } catch (e) {
+      return friendlyErrorMessage(e);
+    }
+  }
+
+  /// Requests the payout of the whole available balance to the SAVED
+  /// destination (empty body — S12). Returns null on success, or the API's
+  /// French reason (minimum balance, an open payout, the cooling-off after a
+  /// destination change, no destination saved).
+  Future<String?> requestPayout() async {
+    try {
+      await _repository.requestPayout();
+      // The request moved money: balance, earnings states and payouts.
+      await Future.wait([loadWallet(), loadEarnings(), loadPayouts()]);
       return null;
     } on DioException catch (e) {
-      final data = e.response?.data;
-      if (data is Map) {
-        final err = data['error'];
-        if (err is Map && err['message'] != null) {
-          return err['message'].toString();
-        }
-        if (data['message'] != null) return data['message'].toString();
+      // `friendlyErrorMessage` → `extractDioErrorMessage`: the API's French
+      // 4xx message verbatim, canonical copy for network / 5xx. A 400 / 409
+      // means the screen's numbers are stale (balance, open payout, cooling-
+      // off), so refetch the authoritative state — including the
+      // destination, whose `payoutsAvailableAt` drives the blocker.
+      final message = friendlyErrorMessage(e);
+      final status = e.response?.statusCode ?? 0;
+      if (status == 400 || status == 409) {
+        await Future.wait(
+            [loadWallet(), loadEarnings(), loadPayouts(), loadPayoutMethod()]);
       }
-      return 'Une erreur est survenue. Veuillez réessayer.';
-    } catch (_) {
-      return 'Une erreur est survenue. Veuillez réessayer.';
+      return message;
+    } catch (e) {
+      return friendlyErrorMessage(e);
     }
   }
 
@@ -238,13 +294,12 @@ class EarningsNotifier extends StateNotifier<EarningsState> {
     }
   }
 
+  /// Wallet + both lists. A payout changes all three at once (the balance,
+  /// the earnings' states, the payouts), so refreshing only the visible tab
+  /// left « Disponible » rows under a « virement en cours » balance
+  /// (runtime QA, Seller UX PR E).
   Future<void> refresh() async {
-    await loadWallet();
-    if (state.selectedTab == 0) {
-      await loadEarnings();
-    } else {
-      await loadPayouts();
-    }
+    await Future.wait([loadWallet(), loadEarnings(), loadPayouts()]);
   }
 }
 

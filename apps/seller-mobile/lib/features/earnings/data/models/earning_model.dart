@@ -162,6 +162,12 @@ class PayoutModel {
   final String? processedAt;
   final String createdAt;
 
+  /// Additive lifecycle timestamps (present on the API's payout rows; older
+  /// responses simply omit them) — the payout detail's event history.
+  final String? approvedAt;
+  final String? processingAt;
+  final String? rejectedAt;
+
   const PayoutModel({
     required this.id,
     required this.amountCDF,
@@ -173,6 +179,9 @@ class PayoutModel {
     required this.requestedAt,
     this.processedAt,
     required this.createdAt,
+    this.approvedAt,
+    this.processingAt,
+    this.rejectedAt,
   });
 
   int get amountCDFDisplay {
@@ -193,6 +202,13 @@ class PayoutModel {
     return DateTime.parse(createdAt);
   }
 
+  DateTime? get approvedAtDate =>
+      approvedAt == null ? null : DateTime.tryParse(approvedAt!);
+  DateTime? get processingAtDate =>
+      processingAt == null ? null : DateTime.tryParse(processingAt!);
+  DateTime? get rejectedAtDate =>
+      rejectedAt == null ? null : DateTime.tryParse(rejectedAt!);
+
   factory PayoutModel.fromJson(Map<String, dynamic> json) {
     return PayoutModel(
       id: json['id'] as String? ?? '',
@@ -208,21 +224,50 @@ class PayoutModel {
       processedAt: json['processedAt'] as String?,
       createdAt:
           json['createdAt'] as String? ?? DateTime.now().toIso8601String(),
+      approvedAt: json['approvedAt'] as String?,
+      processingAt: json['processingAt'] as String?,
+      rejectedAt: json['rejectedAt'] as String?,
     );
   }
 }
 
-/// Seller's saved reusable payout destination (B1).
+/// Seller's saved reusable payout destination (B1) and its re-authentication
+/// state (S12): [changedAt] is the last destination change, and
+/// [payoutsAvailableAt] — non-null only inside the 24 h cooling-off that
+/// follows a change — is the moment payout requests are accepted again.
 class SellerPayoutMethod {
   final String? payoutMethod;
   final String? payoutPhone;
+  final DateTime? changedAt;
+  final DateTime? payoutsAvailableAt;
 
-  const SellerPayoutMethod({this.payoutMethod, this.payoutPhone});
+  const SellerPayoutMethod({
+    this.payoutMethod,
+    this.payoutPhone,
+    this.changedAt,
+    this.payoutsAvailableAt,
+  });
+
+  /// Both halves saved — the API can route a payout to it.
+  bool get hasDestination =>
+      (payoutMethod ?? '').isNotEmpty && (payoutPhone ?? '').isNotEmpty;
+
+  /// Inside the cooling-off: the API refuses payout requests until
+  /// [payoutsAvailableAt].
+  bool coolingOffAt(DateTime now) {
+    final at = payoutsAvailableAt;
+    return at != null && at.isAfter(now);
+  }
 
   factory SellerPayoutMethod.fromJson(Map<String, dynamic> json) {
     return SellerPayoutMethod(
       payoutMethod: json['payoutMethod'] as String?,
       payoutPhone: json['payoutPhone'] as String?,
+      changedAt: _parseDate(json['changedAt']),
+      payoutsAvailableAt: _parseDate(json['payoutsAvailableAt']),
     );
   }
+
+  static DateTime? _parseDate(Object? raw) =>
+      raw is String && raw.isNotEmpty ? DateTime.tryParse(raw) : null;
 }

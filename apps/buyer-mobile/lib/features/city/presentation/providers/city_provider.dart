@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import '../../../../core/cache/cache_keys.dart';
+import '../../../../core/cache/typed_cache.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/city_repository.dart';
@@ -42,6 +44,10 @@ class CityState {
 class CityNotifier extends StateNotifier<CityState> {
   final CityRepository _repository;
   final FlutterSecureStorage _storage;
+  final TypedCache? _cache;
+
+  /// Towns change a few times a year; a stale list beats an empty gate.
+  static const Duration _citiesCacheTtl = Duration(days: 30);
 
   static const _cityIdKey = 'teka_selected_city_id';
 
@@ -53,7 +59,8 @@ class CityNotifier extends StateNotifier<CityState> {
   // ignore: avoid_setters_without_getters
   set isAuthenticated(bool value) => _isAuthenticated = value;
 
-  CityNotifier(this._repository, this._storage) : super(const CityState()) {
+  CityNotifier(this._repository, this._storage, [this._cache])
+      : super(const CityState()) {
     _init();
   }
 
@@ -68,6 +75,7 @@ class CityNotifier extends StateNotifier<CityState> {
       // Filter to only active cities and sort by sortOrder
       final activeCities = cities.where((c) => c.isActive).toList()
         ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+      _persistCities(activeCities);
 
       // Resolve the stored town BEFORE publishing `isLoading: false`.
       //
@@ -104,11 +112,65 @@ class CityNotifier extends StateNotifier<CityState> {
         isLoading: false,
       );
     } catch (e) {
+      // A3 (2026-09-06): the network is down but the buyer already chose a
+      // town on this device. Restore it from the cached town list so the
+      // router's gate stays shut instead of blocking the app on a picker
+      // that cannot load. Nothing cached (first launch offline) → the
+      // picker with its retry, as before.
+      final restored = await _restoreOffline();
+      if (restored != null) {
+        state = state.copyWith(
+          cities: restored.cities,
+          selectedCity: restored.selected,
+          isLoading: false,
+        );
+        return;
+      }
       state = state.copyWith(
         isLoading: false,
         error: 'Impossible de charger les villes. Veuillez réessayer.',
       );
     }
+  }
+
+  void _persistCities(List<CityModel> cities) {
+    _cache?.write<List<CityModel>>(
+      CacheKeys.citiesList,
+      cities,
+      toJson: (list) => {
+        'items': list
+            .map((c) => {
+                  'id': c.id,
+                  'name': c.name,
+                  'slug': c.slug,
+                  'province': c.province,
+                  'isActive': c.isActive,
+                  'sortOrder': c.sortOrder,
+                  'accentColor': c.accentColor,
+                  'heroImageUrl': c.heroImageUrl,
+                })
+            .toList(),
+      },
+      ttl: _citiesCacheTtl,
+    );
+  }
+
+  Future<({List<CityModel> cities, CityModel? selected})?> _restoreOffline() async {
+    final entry = _cache?.read<List<CityModel>>(
+      CacheKeys.citiesList,
+      fromJson: (json) => (json['items'] as List)
+          .map((e) => CityModel.fromJson(Map<String, dynamic>.from(e as Map)))
+          .toList(),
+    );
+    final cities = entry?.value;
+    if (cities == null || cities.isEmpty) return null;
+    final storedId = await _storage.read(key: _cityIdKey);
+    CityModel? selected = state.selectedCity;
+    if (selected == null && storedId != null && storedId.isNotEmpty) {
+      final match = cities.where((c) => c.id == storedId).toList();
+      if (match.isNotEmpty) selected = match.first;
+    }
+    return (cities: cities, selected: selected);
   }
 
   Future<void> selectCity(CityModel city) async {
@@ -165,6 +227,7 @@ final cityProvider = StateNotifierProvider<CityNotifier, CityState>((ref) {
   final notifier = CityNotifier(
     ref.read(cityRepositoryProvider),
     ref.read(secureStorageProvider),
+    ref.read(typedCacheProvider),
   );
   // When the session resolves to authenticated, adopt the town saved on the
   // profile (preferredCityId from /v1/auth/me) if the buyer has no local

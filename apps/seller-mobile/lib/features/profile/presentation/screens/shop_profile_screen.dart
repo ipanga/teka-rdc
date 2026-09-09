@@ -1,11 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/theme/teka_spacing.dart';
 import '../../../../core/utils/commune_rules.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
 import '../../../../core/widgets/app_snackbar.dart';
+import '../../../../core/widgets/seller_list_state.dart';
 import '../../data/profile_repository.dart';
+import 'personal_info_screen.dart' show FormSkeleton;
+
+/// « Profil de la boutique » (Seller UX PR F): what buyers and Teka's riders
+/// see — shop name, delivery phone, town · commune, address detail,
+/// description. Town and commune stay the API's lists (`/v1/cities`,
+/// `/v1/cities/:id/communes`, active rows only); the commune rule is the
+/// server's (`communeRequired` only mirrors it for the form). A saved town
+/// that is no longer offered is named, never silently replaced.
+
+/// Null = valid. Same rule and words as the API (`UpdateSellerProfileDto`).
+String? validateShopName(String? raw) {
+  if ((raw ?? '').trim().length < 2) {
+    return 'Le nom de la boutique doit contenir au moins 2 caractères';
+  }
+  return null;
+}
+
+String? validateShopPhone(String? raw) {
+  final v = (raw ?? '').trim();
+  if (v.isEmpty) return 'Le téléphone de livraison est requis';
+  if (!RegExp(r'^\+243[0-9]{9}$').hasMatch(v)) {
+    return 'Numéro de téléphone invalide — format +243 suivi de 9 chiffres';
+  }
+  return null;
+}
 
 class ShopProfileScreen extends ConsumerStatefulWidget {
   const ShopProfileScreen({super.key});
@@ -15,6 +43,7 @@ class ShopProfileScreen extends ConsumerStatefulWidget {
 }
 
 class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _businessNameCtrl = TextEditingController();
   final _businessPhoneCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
@@ -32,6 +61,7 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
   bool _loading = true;
   bool _saving = false;
   String? _error;
+  String? _saveError;
 
   @override
   void initState() {
@@ -50,7 +80,7 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
 
   Future<void> _load() async {
     setState(() {
-      _loading = true;
+      _loading = _user == null;
       _error = null;
     });
     try {
@@ -76,9 +106,9 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
       // Load the commune library of the saved town so the picker can show
       // the current commune (or reveal that the town has none yet).
       await _loadCommunes(shop?.cityId, keepCurrent: true);
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
-      setState(() => _error = 'Impossible de charger votre boutique.');
+      setState(() => _error = friendlyErrorMessage(e));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -136,7 +166,9 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
 
   Future<void> _save() async {
     final shop = _user?.sellerProfile;
-    if (shop == null) return;
+    if (shop == null || _saving) return;
+    setState(() => _saveError = null);
+    if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final body = <String, String>{};
     if (_businessNameCtrl.text.trim() != shop.businessName) {
@@ -162,7 +194,7 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
     if ((cityChanged || communeChanged) &&
         needsCommune &&
         (_selectedCommuneId ?? '').isEmpty) {
-      _toast('Veuillez sélectionner votre commune', error: true);
+      setState(() => _saveError = 'Choisissez votre commune pour cette ville.');
       return;
     }
     if (_communesLoading) {
@@ -199,10 +231,13 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
           );
       await _load();
       if (!mounted) return;
-      _toast('Boutique mise à jour');
+      showAppSnackbar(context,
+          message: 'Boutique mise à jour', tone: AppSnackbarTone.success);
     } catch (e) {
       if (!mounted) return;
-      _toast(friendlyErrorMessage(e), error: true);
+      // The API's French reason (« Commune invalide », « Numéro de téléphone
+      // invalide »…) stays on screen; every value the seller typed is kept.
+      setState(() => _saveError = friendlyErrorMessage(e));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -226,15 +261,23 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
         leading: const AdaptiveLeading(fallbackLocation: '/profile'),
         title: const Text('Profil de la boutique'),
       ),
-      body: _buildBody(editable, status),
-      bottomNavigationBar: _loading || _error != null
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: _buildBody(editable, status),
+      ),
+      bottomNavigationBar: _loading || _user == null
           ? null
           : SafeArea(
               top: false,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
+              // Only the button is centred on a tablet; the bar itself stays
+              // full width.
+              child: ReadableBottomBar(
+                child: Padding(
+                padding: const EdgeInsets.all(TekaSpacing.md),
                 child: ElevatedButton.icon(
                   onPressed: !editable || _saving ? null : _save,
+                  style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(48)),
                   icon: _saving
                       ? const SizedBox(
                           width: 18,
@@ -245,61 +288,119 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
                           ),
                         )
                       : const Icon(Icons.check_rounded),
-                  label: Text(_saving ? 'Enregistrement...' : 'Enregistrer'),
+                  label: Text(_saving ? 'Enregistrement…' : 'Enregistrer'),
                 ),
+              ),
               ),
             ),
     );
   }
 
   Widget _buildBody(bool editable, String? status) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) {
-      return _ErrorState(message: _error!, onRetry: _load);
+    if (_loading) {
+      return const FormSkeleton(label: 'Chargement de votre boutique', fields: 5);
+    }
+    if (_error != null && _user == null) {
+      return SellerListState(
+        child: SellerListMessage(
+          icon: Icons.cloud_off,
+          title: 'Boutique indisponible',
+          message: _error!,
+          actionLabel: 'Réessayer',
+          onAction: _load,
+        ),
+      );
     }
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    final theme = Theme.of(context).textTheme;
+    final shop = _user?.sellerProfile;
+    final savedCityKnown =
+        _cities.any((city) => city.id == (_selectedCityId ?? ''));
+    // The saved town is no longer offered (inactive, or the list failed):
+    // say so and keep it — the API owns the value until the seller picks
+    // another active town.
+    final staleTown = (shop?.cityId ?? '').isNotEmpty &&
+        _selectedCityId == shop?.cityId &&
+        !savedCityKnown;
+
+    return Form(
+      key: _formKey,
+      autovalidateMode: AutovalidateMode.disabled,
+      child: ListView(
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.all(TekaSpacing.md),
       children: [
         if (status == 'PENDING')
           const _Banner(
             text:
                 "Votre demande d'inscription est en cours de révision. Vous pourrez modifier la boutique après approbation.",
-            color: TekaColors.warning,
+            color: TekaColors.warningForeground,
+            background: TekaColors.warningSubtle,
           ),
         if (status == 'REJECTED')
           const _Banner(
             text:
                 'Votre demande a été rejetée. Contactez le support Teka RDC pour en savoir plus.',
-            color: TekaColors.destructive,
+            color: TekaColors.destructiveForeground,
+            background: TekaColors.destructiveSubtle,
           ),
-        TextField(
+        if (_saveError != null)
+          Semantics(
+            liveRegion: true,
+            child: _Banner(
+              text: _saveError!,
+              color: TekaColors.destructiveForeground,
+              background: TekaColors.destructiveSubtle,
+              icon: Icons.error_outline,
+            ),
+          ),
+        Text('Identité de la boutique', style: theme.titleMedium),
+        const SizedBox(height: TekaSpacing.sm),
+        TextFormField(
           controller: _businessNameCtrl,
-          enabled: editable,
+          enabled: editable && !_saving,
           textInputAction: TextInputAction.next,
+          textCapitalization: TextCapitalization.words,
           decoration: const InputDecoration(
             labelText: 'Nom de la boutique',
             prefixIcon: Icon(Icons.storefront_outlined),
+            helperText: 'Affiché sur vos fiches produits.',
           ),
+          validator: validateShopName,
         ),
-        const SizedBox(height: 12),
-        TextField(
+        const SizedBox(height: TekaSpacing.sm),
+        TextFormField(
           controller: _businessPhoneCtrl,
-          enabled: editable,
+          enabled: editable && !_saving,
           keyboardType: TextInputType.phone,
           textInputAction: TextInputAction.next,
           decoration: const InputDecoration(
             labelText: 'Téléphone de livraison',
             prefixIcon: Icon(Icons.phone_outlined),
-            helperText: 'Utilisé pour la coordination avec les livreurs.',
-            helperMaxLines: 2,
+            helperText:
+                'Numéro appelé par les livreurs Teka pour la collecte, au format +243 suivi de 9 chiffres.',
+            helperMaxLines: 3,
+            errorMaxLines: 2,
           ),
+          validator: validateShopPhone,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: TekaSpacing.xl),
+        Text('Localisation', style: theme.titleMedium),
+        const SizedBox(height: TekaSpacing.xxs),
+        Text(
+          'Votre boutique apparaît aux acheteurs de cette ville ; la commune sert à la collecte.',
+          style: theme.bodySmall?.copyWith(color: TekaColors.mutedForeground),
+        ),
+        const SizedBox(height: TekaSpacing.sm),
+        if (staleTown)
+          _Banner(
+            text:
+                'Votre ville enregistrée, ${shop?.cityName ?? 'inconnue'}, n’est plus proposée. Choisissez une ville active pour la modifier ; sinon elle reste inchangée.',
+            color: TekaColors.warningForeground,
+            background: TekaColors.warningSubtle,
+          ),
         DropdownButtonFormField<String>(
-          initialValue: _cities.any((city) => city.id == _selectedCityId)
-              ? _selectedCityId
-              : null,
+          initialValue: savedCityKnown ? _selectedCityId : null,
           isExpanded: true,
           decoration: const InputDecoration(
             labelText: 'Ville',
@@ -317,34 +418,38 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
                 ),
               )
               .toList(),
-          onChanged: editable ? _onCityChanged : null,
+          onChanged: editable && !_saving ? _onCityChanged : null,
         ),
-        const SizedBox(height: 12),
-        _buildCommuneField(editable),
-        const SizedBox(height: 12),
-        TextField(
+        const SizedBox(height: TekaSpacing.sm),
+        _buildCommuneField(editable && !_saving),
+        const SizedBox(height: TekaSpacing.sm),
+        TextFormField(
           controller: _locationCtrl,
-          enabled: editable,
+          enabled: editable && !_saving,
           textInputAction: TextInputAction.next,
           decoration: const InputDecoration(
             labelText: 'Adresse / quartier',
             prefixIcon: Icon(Icons.place_outlined),
-            helperText: "Détail de l'adresse en complément de la ville.",
+            helperText: 'Repère pour la collecte : avenue, numéro, quartier.',
             helperMaxLines: 2,
           ),
         ),
-        const SizedBox(height: 12),
-        TextField(
+        const SizedBox(height: TekaSpacing.xl),
+        Text('Présentation', style: theme.titleMedium),
+        const SizedBox(height: TekaSpacing.sm),
+        TextFormField(
           controller: _descriptionCtrl,
-          enabled: editable,
+          enabled: editable && !_saving,
           maxLines: 4,
+          maxLength: 500,
           decoration: const InputDecoration(
             labelText: 'Description',
             alignLabelWithHint: true,
-            hintText: 'Décrivez votre boutique en quelques phrases...',
+            hintText: 'Décrivez votre boutique en quelques phrases…',
           ),
         ),
       ],
+      ),
     );
   }
 
@@ -406,12 +511,13 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
             child: Row(
               children: [
                 const Icon(Icons.error_outline,
-                    size: 18, color: TekaColors.destructive),
-                const SizedBox(width: 8),
+                    size: 18, color: TekaColors.destructiveForeground),
+                const SizedBox(width: TekaSpacing.xs),
                 Expanded(
                   child: Text(
                     _communesError!,
-                    style: const TextStyle(color: TekaColors.destructive),
+                    style: const TextStyle(
+                        color: TekaColors.destructiveForeground),
                   ),
                 ),
                 TextButton(
@@ -430,61 +536,37 @@ class _ShopProfileScreenState extends ConsumerState<ShopProfileScreen> {
 class _Banner extends StatelessWidget {
   final String text;
   final Color color;
+  final Color background;
+  final IconData icon;
 
-  const _Banner({required this.text, required this.color});
+  const _Banner({
+    required this.text,
+    required this.color,
+    required this.background,
+    this.icon = Icons.info_outline_rounded,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(bottom: TekaSpacing.md),
+      padding: const EdgeInsets.all(TekaSpacing.sm),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(12),
+        color: background,
+        borderRadius: TekaRadius.mdAll,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded, color: color),
-          const SizedBox(width: 10),
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: TekaSpacing.xs),
           Expanded(
             child: Text(
               text,
-              style: TextStyle(color: color, height: 1.35),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: color),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ErrorState extends StatelessWidget {
-  final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorState({required this.message, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline,
-                color: TekaColors.tekaRed, size: 42),
-            const SizedBox(height: 12),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: TekaColors.mutedForeground),
-            ),
-            const SizedBox(height: 16),
-            FilledButton(onPressed: onRetry, child: const Text('Réessayer')),
-          ],
-        ),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
@@ -199,7 +200,10 @@ class _AccountDeletionScreenState extends ConsumerState<AccountDeletionScreen> {
         leading: const AdaptiveLeading(),
         title: const Text('Supprimer mon compte'),
       ),
-      body: _buildBody(),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: _buildBody(),
+      ),
     );
   }
 

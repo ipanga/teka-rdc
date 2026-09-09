@@ -107,11 +107,35 @@ and `auditTrail` (the payout's `admin_audit_logs`, newest first).
 `M_PESA` | `AIRTEL_MONEY` | `ORANGE_MONEY`, phone `+243XXXXXXXXX`). Saved once,
 reused on every request.
 
-- `GET /v1/sellers/payout-method` — read (prefill the request form)
-- `PATCH /v1/sellers/payout-method` — set/update
-- `POST /v1/sellers/payouts` — `payoutMethod`/`payoutPhone` are **optional**;
-  they fall back to the saved destination, and the request is rejected if
-  neither the body nor the profile has one.
+- `GET /v1/sellers/payout-method` — read: `{ payoutMethod, payoutPhone, changedAt, payoutsAvailableAt }`
+  (`payoutsAvailableAt` non-null = payout requests are refused until then).
+- `PATCH /v1/sellers/payout-method` — set/update. **S12 (2026-09-09, `security/payout-destination-reauth`):**
+  a *real* change requires the seller's current `password` in the body (verified against the stored
+  hash; never logged, persisted or forwarded; 400 « Le mot de passe est requis… » when missing, 403
+  « Mot de passe invalide. » when wrong — 403 rather than 401 so no client treats it as an expired
+  session and refreshes/replays; a wrong password also counts in the `login` lock bucket by email).
+  The change happens under the same `SELECT … FOR UPDATE` row lock as the payout request, stamps
+  `SellerProfile.payoutMethodChangedAt`, writes an `admin_audit_logs` row `PAYOUT_METHOD_CHANGED`
+  (actor = the seller, phones masked `+243•••••01`) in the same transaction, and — after commit —
+  notifies the seller on **every** channel (feed row type `PAYOUT` / `payout_method`, push, and the
+  « Destination de retrait modifiée » email, always, not as a push fallback). Re-sending the
+  unchanged destination is a password-free no-op (nothing written, no notice) — that is what keeps
+  the distributed seller-mobile 0.1.9 build working, since it re-saves the prefilled destination
+  before every request. Sensitive-operation throttle: 5 attempts / hour / seller (`payoutMethodChange`)
+  on top of the per-IP cap.
+- **Cooling-off:** for `PAYOUT_METHOD_COOLING_OFF_MS` = **24 h** after `payoutMethodChangedAt`,
+  `POST /v1/sellers/payouts` answers 409 « Votre destination de retrait a été modifiée récemment. Par
+  sécurité, les retraits sont à nouveau possibles à partir du <date> ». Payouts already REQUESTED /
+  APPROVED / PROCESSING / COMPLETED / REJECTED keep the destination snapshotted on their row — a
+  profile change never rewrites history and admin processing is unaffected. `payoutMethodChangedAt`
+  is NULL for every destination saved before this release (no retroactive cooling-off).
+- `POST /v1/sellers/payouts` — the body may be `{}`: **the SAVED destination is the only routing
+  authority and is snapshotted on the payout.** An inline `payoutMethod`/`payoutPhone` is tolerated
+  for backward compatibility only when it is exactly the saved one; any mismatch is 409 « La
+  destination indiquée ne correspond pas à celle enregistrée sur votre profil… ». No saved destination
+  → 400 asking the seller to save one first. Threat model: a stolen seller session can no longer
+  redirect money by typing a number into the request, and a destination change made from a stolen
+  session cannot cash out within 24 h while the legitimate seller is being told on three channels.
 
 ## Notifications (Rule 14)
 

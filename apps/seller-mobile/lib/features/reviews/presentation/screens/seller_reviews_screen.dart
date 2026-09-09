@@ -5,6 +5,7 @@ import '../../data/models/review_model.dart';
 import '../providers/reviews_provider.dart';
 import '../widgets/review_tile.dart';
 import '../widgets/star_rating.dart';
+import '../../../../core/layout/responsive.dart';
 
 class SellerReviewsScreen extends ConsumerWidget {
   const SellerReviewsScreen({super.key});
@@ -17,13 +18,16 @@ class SellerReviewsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text("Avis clients"),
       ),
-      body: RefreshIndicator(
-        onRefresh: () => ref.read(sellerReviewsProvider.notifier).refresh(),
-        child: state.isLoadingProducts && state.products.isEmpty
-            ? const Center(child: CircularProgressIndicator())
-            : state.products.isEmpty
-                ? _buildEmptyProducts(context)
-                : _buildContent(context, ref, state),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: RefreshIndicator(
+            onRefresh: () => ref.read(sellerReviewsProvider.notifier).refresh(),
+            child: state.isLoadingProducts && state.products.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : state.products.isEmpty
+                    ? _buildEmptyProducts(context)
+                    : _buildContent(context, ref, state),
+          ),
       ),
     );
   }

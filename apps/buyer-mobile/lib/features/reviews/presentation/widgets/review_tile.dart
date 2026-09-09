@@ -62,13 +62,23 @@ class ReviewTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      buyerName,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        color: TekaColors.foreground,
-                      ),
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            buyerName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                              color: TekaColors.foreground,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const VerifiedPurchaseBadge(),
+                      ],
                     ),
                     Text(
                       dateStr,
@@ -146,5 +156,45 @@ class ReviewTile extends StatelessWidget {
     } catch (_) {
       return dateStr;
     }
+  }
+}
+
+/// « Achat vérifié » — every review on Teka comes from a buyer who ordered
+/// the product AND had it delivered: the API only accepts a review against
+/// the caller's own DELIVERED order (`ReviewsService.canReview`), so the
+/// badge is a statement of that server-side rule, shown on every review.
+/// Same wording as buyer-web.
+class VerifiedPurchaseBadge extends StatelessWidget {
+  const VerifiedPurchaseBadge({super.key});
+
+  static const String label = 'Achat vérifié';
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Achat vérifié : ce client a acheté et reçu ce produit',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: TekaColors.success.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.verified_rounded, size: 12, color: TekaColors.success),
+            SizedBox(width: 3),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                color: TekaColors.success,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

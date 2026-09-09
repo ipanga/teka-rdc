@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_error_messages.dart';
+import '../../../../core/providers/seller_refresh_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/models/order_model.dart';
 import '../../data/orders_repository.dart';
@@ -178,8 +179,13 @@ final sellerOrdersProvider =
 
 // -- Single order detail --
 
+/// Refetches on the orders revision (a transition here or elsewhere, an
+/// order push, an app resume) so an open detail never shows a status the
+/// server has already left. The screen keeps the previous order on screen
+/// while the refetch runs.
 final sellerOrderDetailProvider = FutureProvider.autoDispose
     .family<SellerOrderModel, String>((ref, id) async {
+  ref.watch(sellerRefreshProvider.select((revision) => revision.orders));
   final repository = ref.watch(sellerOrdersRepositoryProvider);
   return repository.getOrderById(id);
 });

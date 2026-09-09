@@ -4,6 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../../features/city/presentation/providers/city_provider.dart';
+import '../../features/notifications/presentation/providers/notifications_provider.dart';
+import '../navigation/pending_route.dart';
 import '../router/app_router.dart';
 import 'notification_router.dart';
 import 'push_api.dart';
@@ -69,6 +72,11 @@ class PushController {
     //      Deferred to post-first-frame so the GoRouter is wired
     //      before we try to navigate.
     PushService.instance.onTap = _handleTapData;
+    // A message received while the app is open: the Notification Center and
+    // the bell badge must not stay stale until the buyer pulls to refresh
+    // (PR D, 2026-09-06). Cheap — one feed GET + one count GET — and only
+    // for a signed-in buyer (guests have no feed).
+    PushService.instance.onForegroundMessage = _handleForegroundMessage;
     _onOpenedSub = FirebaseMessaging.onMessageOpenedApp.listen((msg) {
       _handleTapData(msg.data);
     });
@@ -81,14 +89,40 @@ class PushController {
   void _handleTapData(Map<String, dynamic> data) {
     final route = NotificationRouter.routeForData(data);
     if (route == null) {
-      _log('tap ignored — no route for $data');
+      _log('tap ignored — no route for payload keys ${data.keys.toList()}');
       return;
+    }
+    // First launch, no town yet: the router would replace the pushed route
+    // with /city-selection and the tap would be lost. Park it; the
+    // city-selection screen opens it once a town is chosen.
+    final city = _ref.read(cityProvider);
+    final action = resolveExternalRoute(
+      hasCity: city.hasCity,
+      isLoadingCity: city.isLoading,
+    );
+    if (action != ExternalRouteAction.navigate) {
+      _ref.read(pendingRouteProvider.notifier).state = route;
+      if (action == ExternalRouteAction.deferBehindCityGate) {
+        _log('tap deferred behind the city gate');
+        return;
+      }
     }
     try {
       _ref.read(appRouterProvider).push(route);
       _log('tap → push $route');
     } catch (e) {
       _log('tap navigation failed for $route: $e');
+    }
+  }
+
+  void _handleForegroundMessage(Map<String, dynamic> data) {
+    if (_ref.read(authProvider).status != AuthStatus.authenticated) return;
+    _ref.invalidate(notificationUnreadCountProvider);
+    // Only refresh a feed that is alive (someone opened the center this
+    // session); creating it here would fetch for nothing.
+    if (_ref.exists(notificationsProvider)) {
+      // ignore: discarded_futures
+      _ref.read(notificationsProvider.notifier).refresh();
     }
   }
 
@@ -158,6 +192,10 @@ class PushController {
     // production typically outlive any dispose call.
     if (identical(PushService.instance.onTap, _handleTapData)) {
       PushService.instance.onTap = null;
+    }
+    if (identical(
+        PushService.instance.onForegroundMessage, _handleForegroundMessage)) {
+      PushService.instance.onForegroundMessage = null;
     }
   }
 

@@ -78,7 +78,7 @@ class AuthInterceptor extends Interceptor {
           // The second IS a real auth failure: the refresh token has
           // expired / been revoked / been replayed. Clear tokens so the
           // app falls back to login.
-          if (!_isConnectivityError(refreshErr)) {
+          if (!isConnectivityError(refreshErr)) {
             await _tokenStorage.clearTokens();
           }
           // else: keep tokens. The original 401 still propagates below;
@@ -94,9 +94,12 @@ class AuthInterceptor extends Interceptor {
     handler.next(err);
   }
 
-  /// True if the refresh-call DioException is plausibly a transient
-  /// network failure rather than an auth-server rejection.
-  static bool _isConnectivityError(DioException err) {
+  /// True if a DioException is plausibly a transient network / upstream
+  /// failure rather than a server decision. Shared classification: the
+  /// refresh path below and the session check on cold start
+  /// (`AuthRepository.checkSession`) must agree on what "unreachable" means,
+  /// or a phone with no signal gets logged out (A2, 2026-09-06).
+  static bool isConnectivityError(DioException err) {
     switch (err.type) {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.receiveTimeout:

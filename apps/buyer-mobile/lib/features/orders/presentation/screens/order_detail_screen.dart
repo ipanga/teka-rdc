@@ -1,8 +1,8 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
@@ -10,8 +10,10 @@ import '../../../../core/widgets/app_states.dart';
 import '../../data/models/order_model.dart';
 import '../../data/orders_repository.dart';
 import '../providers/orders_provider.dart';
+import '../../domain/order_status.dart';
 import '../widgets/order_status_badge.dart';
 import '../widgets/order_timeline.dart';
+import '../../../../core/widgets/teka_network_image.dart';
 
 class OrderDetailScreen extends ConsumerWidget {
   final String orderId;
@@ -30,20 +32,23 @@ class OrderDetailScreen extends ConsumerWidget {
         leading: const AdaptiveLeading(),
         title: const Text("Détail de la commande"),
       ),
-      body: orderAsync.when(
-        data: (order) => _OrderDetailBody(
-          order: order,
-          locale: locale,
-          onCancel: () => _showCancelDialog(context, ref, order.id),
-          onReturn: () => _showReturnDialog(context, ref, order.id),
-        ),
-        loading: () => const Center(
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-        error: (error, _) => AppErrorState(
-          message: 'Impossible de charger cette commande.',
-          onRetry: () => ref.invalidate(orderDetailProvider(orderId)),
-        ),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: orderAsync.when(
+            data: (order) => _OrderDetailBody(
+              order: order,
+              locale: locale,
+              onCancel: () => _showCancelDialog(context, ref, order.id),
+              onReturn: () => _showReturnDialog(context, ref, order.id),
+            ),
+            loading: () => const Center(
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            error: (error, _) => AppErrorState(
+              message: 'Impossible de charger cette commande.',
+              onRetry: () => ref.invalidate(orderDetailProvider(orderId)),
+            ),
+          ),
       ),
     );
   }
@@ -82,7 +87,7 @@ class OrderDetailScreen extends ConsumerWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text("Reinitialiser"),
+            child: const Text("Annuler"),
           ),
           FilledButton(
             onPressed: () async {
@@ -100,7 +105,7 @@ class OrderDetailScreen extends ConsumerWidget {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: const Text("Commande annulee"),
+                      content: const Text("Commande annulée"),
                       backgroundColor: TekaColors.success,
                     ),
                   );
@@ -415,7 +420,7 @@ class _OrderDetailBody extends StatelessWidget {
                     Text(
                       formatCDF(order.totalCDF),
                       style: const TextStyle(
-                        color: TekaColors.tekaRed,
+                        color: TekaColors.foreground,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -635,31 +640,10 @@ class _OrderItemRow extends StatelessWidget {
                   child: SizedBox(
                     width: 56,
                     height: 56,
-                    child: item.productImage != null &&
-                            item.productImage!.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: item.productImage!,
-                            fit: BoxFit.cover,
-                            placeholder: (_, __) => Container(
-                              color: TekaColors.muted,
-                            ),
-                            errorWidget: (_, __, ___) => Container(
-                              color: TekaColors.muted,
-                              child: const Icon(
-                                Icons.image_outlined,
-                                size: 20,
-                                color: TekaColors.mutedForeground,
-                              ),
-                            ),
-                          )
-                        : Container(
-                            color: TekaColors.muted,
-                            child: const Icon(
-                              Icons.image_outlined,
-                              size: 20,
-                              color: TekaColors.mutedForeground,
-                            ),
-                          ),
+                    child: TekaNetworkImage(
+                      url: item.productImage,
+                      fallbackIconSize: 20,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -773,28 +757,27 @@ class _PaymentStatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = paymentStatus.toUpperCase();
+    // Label from the ONE mapping (PR D3): `REFUNDED` used to render as the
+    // raw English enum, and an unknown value silently read « En attente ».
+    final label = paymentStatusLabel(status);
     final Color chipColor;
-    final String label;
-
     switch (status) {
       case 'COMPLETED':
       case 'PAID':
         chipColor = TekaColors.success;
-        label = "Payé";
         break;
       case 'FAILED':
         chipColor = TekaColors.destructive;
-        label = "Échoué";
         break;
       case 'REFUNDED':
-        chipColor = const Color(0xFF2563EB);
-        label = status;
+        chipColor = TekaColors.info;
         break;
       case 'PENDING':
       case 'PROCESSING':
-      default:
         chipColor = TekaColors.warning;
-        label = "En attente";
+        break;
+      default:
+        chipColor = TekaColors.mutedForeground;
         break;
     }
 

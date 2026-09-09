@@ -6,6 +6,23 @@ import {
   Matches,
   IsUUID,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
+import { normalizeDrcPhone } from '@teka/shared';
+
+/**
+ * null / blank → null (clears on edit, "not provided" on create; `@IsOptional`
+ * then skips validation); a recognised DRC number → canonical; anything else
+ * → the trimmed input, so validation fails with the French message instead of
+ * silently storing garbage or silently dropping the value.
+ */
+export function normalizeRecipientPhone(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  if (typeof value !== 'string') return value as never;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return normalizeDrcPhone(trimmed) ?? trimmed;
+}
 
 export class CreateAddressDto {
   @IsOptional()
@@ -48,12 +65,22 @@ export class CreateAddressDto {
   @IsString()
   recipientName?: string;
 
+  /**
+   * Stored in ONE canonical form, `+243XXXXXXXXX` (PR D2, 2026-09-07).
+   *
+   * The transform runs before validation: `081…`, `+243 81…`, `00243-81…`,
+   * spaces and dashes all become the same value; blank clears the field
+   * (null); anything that is not a DRC mobile number is left as typed so the
+   * pattern check below rejects it with the French message. The clients
+   * normalise too (shared helper), but the server is the rule.
+   */
   @IsOptional()
+  @Transform(({ value }) => normalizeRecipientPhone(value))
   @IsString()
   @Matches(/^\+243\d{9}$/, {
     message: 'Numéro de téléphone invalide. Format: +243XXXXXXXXX',
   })
-  recipientPhone?: string;
+  recipientPhone?: string | null;
 
   @IsOptional()
   @IsBoolean()

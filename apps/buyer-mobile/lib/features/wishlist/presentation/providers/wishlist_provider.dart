@@ -54,9 +54,20 @@ class WishlistState {
 class WishlistNotifier extends StateNotifier<WishlistState> {
   final WishlistRepository _repository;
 
-  WishlistNotifier(this._repository) : super(const WishlistState()) {
-    loadWishlist();
-    loadCount();
+  /// Whether a buyer session is active. Every wishlist endpoint is
+  /// `@Roles('BUYER')`: for a guest the initial load, the badge count and the
+  /// per-page `/check` used to be fired anyway — three guaranteed 401s per
+  /// screen (PR D2, 2026-09-07). Defaults to "yes" so a notifier built
+  /// without a session source (tests) behaves as before.
+  final bool Function() isAuthenticated;
+
+  WishlistNotifier(this._repository, {bool Function()? isAuthenticated})
+      : isAuthenticated = isAuthenticated ?? (() => true),
+        super(const WishlistState()) {
+    if (this.isAuthenticated()) {
+      loadWishlist();
+      loadCount();
+    }
   }
 
   /// Refresh the authoritative active-filtered count (header badge).
@@ -188,6 +199,7 @@ class WishlistNotifier extends StateNotifier<WishlistState> {
   }
 
   Future<void> loadWishlistIds(List<String> productIds) async {
+    if (!isAuthenticated() || productIds.isEmpty) return;
     try {
       final ids = await _repository.checkWishlistIds(productIds);
       if (!mounted) return;
@@ -215,7 +227,11 @@ class WishlistNotifier extends StateNotifier<WishlistState> {
 
 final wishlistProvider =
     StateNotifierProvider<WishlistNotifier, WishlistState>((ref) {
-  final notifier = WishlistNotifier(ref.read(wishlistRepositoryProvider));
+  final notifier = WishlistNotifier(
+    ref.read(wishlistRepositoryProvider),
+    isAuthenticated: () =>
+        ref.read(authProvider).status == AuthStatus.authenticated,
+  );
   // The notifier is created lazily by whoever reads it first — often the
   // guest-accessible home screen reading `wishlistedIds` for product heart
   // icons. When that happens before login, the constructor's loadWishlist()

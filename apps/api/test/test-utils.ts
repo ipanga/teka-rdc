@@ -1,9 +1,26 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import cookieParser from 'cookie-parser';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { ResponseInterceptor } from '../src/common/interceptors/response.interceptor';
 import { HttpExceptionFilter } from '../src/common/filters/http-exception.filter';
+import { applyHttpSecurity } from '../src/common/security/http-security';
+import {
+  MemoryRateLimitStore,
+  RateLimitStore,
+} from '../src/common/rate-limit/rate-limit.store';
+import { ThrottlerStorage } from '@nestjs/throttler';
+
+/** Shared by every e2e app; cleared in resetMocks(). */
+export const memoryRateLimitStore = new MemoryRateLimitStore();
+
+/**
+ * Every app created by createTestApp(). resetMocks() clears each app's
+ * in-memory @nestjs/throttler counters so the per-IP backstops (D8) never
+ * bleed from one test into the next — supertest always connects from one IP.
+ */
+const createdApps: INestApplication[] = [];
 
 // BigInt JSON serialization polyfill (mirrors main.ts)
 (BigInt.prototype as any).toJSON = function () {
@@ -84,6 +101,8 @@ export const mockPrismaService: Record<string, any> = {
     create: jest.fn(),
     update: jest.fn(),
     count: jest.fn(),
+    // Town-scoped category counts (SEO-2) + demo retirement scan.
+    groupBy: jest.fn().mockResolvedValue([]),
   },
   productImage: {
     findMany: jest.fn(),
@@ -131,6 +150,7 @@ export const mockPrismaService: Record<string, any> = {
     count: jest.fn(),
   },
   orderItem: {
+    findFirst: jest.fn(),
     findMany: jest.fn(),
     create: jest.fn(),
     createMany: jest.fn(),
@@ -320,6 +340,10 @@ export const mockPrismaService: Record<string, any> = {
     delete: jest.fn(),
     deleteMany: jest.fn(),
   },
+  authRateLimit: {
+    findUnique: jest.fn().mockResolvedValue(null),
+    deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+  },
   otpRateLimit: {
     findFirst: jest.fn(),
     findUnique: jest.fn(),
@@ -365,12 +389,20 @@ export async function createTestApp(): Promise<INestApplication> {
   })
     .overrideProvider(PrismaService)
     .useValue(mockPrismaService)
+    // D8: identity throttling runs against a process-local store with the
+    // same atomic semantics as the Postgres one; reset per test via
+    // resetRateLimits().
+    .overrideProvider(RateLimitStore)
+    .useValue(memoryRateLimitStore)
     .compile();
 
   const app = moduleFixture.createNestApplication();
 
   // Mirror main.ts configuration exactly
   app.setGlobalPrefix('api');
+  // Mirrors main.ts so cookie-authenticated paths (web sessions) are testable.
+  applyHttpSecurity(app);
+  app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -383,7 +415,27 @@ export async function createTestApp(): Promise<INestApplication> {
   app.useGlobalFilters(new HttpExceptionFilter());
 
   await app.init();
+  // Listen once on an ephemeral port (PR 5, 2026-09-06). Without this,
+  // supertest starts AND stops the shared http.Server for every single
+  // request; the resulting listen/close churn on Node ≥ 19's keep-alive
+  // sockets was the one intermittent failure source left in this suite
+  // (a request occasionally answered from below the application layer, or
+  // ECONNRESET under parallel bursts). One live server per test file makes
+  // every request go to the same, fully-initialised Nest app.
+  await app.listen(0);
+  createdApps.push(app);
   return app;
+}
+
+export function resetThrottlerCounters() {
+  for (const app of createdApps) {
+    try {
+      const storage = app.get<{ storage: Map<string, unknown> }>(ThrottlerStorage, { strict: false });
+      storage?.storage?.clear();
+    } catch {
+      // app already closed
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -391,6 +443,8 @@ export async function createTestApp(): Promise<INestApplication> {
 // ---------------------------------------------------------------------------
 export function resetMocks() {
   jest.clearAllMocks();
+  memoryRateLimitStore.reset();
+  resetThrottlerCounters();
   // Restore default Prisma $queryRaw behavior (used by health check)
   mockPrismaService.$queryRaw.mockResolvedValue([{ '?column?': 1 }]);
   mockPrismaService.$transaction.mockImplementation((arg: unknown) =>

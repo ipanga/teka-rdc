@@ -33,4 +33,39 @@ void main() {
     final without = SellerEarningModel.fromJson({'id': 'e', 'commissionRate': '0.1', 'isPaid': true});
     expect(without.effectiveState, 'PAID');
   });
+
+  group('SellerPayoutMethod (S12)', () {
+    test('fromJson reads changedAt + payoutsAvailableAt as dates and tolerates nulls', () {
+      final inCoolingOff = SellerPayoutMethod.fromJson({
+        'payoutMethod': 'M_PESA',
+        'payoutPhone': '+243970000001',
+        'changedAt': '2026-09-09T10:00:00.000Z',
+        'payoutsAvailableAt': '2026-09-10T10:00:00.000Z',
+      });
+      expect(inCoolingOff.hasDestination, isTrue);
+      expect(inCoolingOff.changedAt, DateTime.utc(2026, 9, 9, 10));
+      expect(inCoolingOff.payoutsAvailableAt, DateTime.utc(2026, 9, 10, 10));
+      expect(inCoolingOff.coolingOffAt(DateTime.utc(2026, 9, 10, 9, 59)), isTrue);
+      expect(inCoolingOff.coolingOffAt(DateTime.utc(2026, 9, 10, 10)), isFalse);
+
+      final untouched = SellerPayoutMethod.fromJson({
+        'payoutMethod': null,
+        'payoutPhone': null,
+        'changedAt': null,
+        'payoutsAvailableAt': null,
+      });
+      expect(untouched.hasDestination, isFalse);
+      expect(untouched.changedAt, isNull);
+      expect(untouched.payoutsAvailableAt, isNull);
+      expect(untouched.coolingOffAt(DateTime.now()), isFalse);
+
+      // Older API responses simply omit the two S12 fields; garbage is null.
+      final legacy = SellerPayoutMethod.fromJson(
+          {'payoutMethod': 'AIRTEL_MONEY', 'payoutPhone': '+243990000001'});
+      expect(legacy.hasDestination, isTrue);
+      expect(legacy.payoutsAvailableAt, isNull);
+      expect(SellerPayoutMethod.fromJson({'payoutsAvailableAt': 'hier'})
+          .payoutsAvailableAt, isNull);
+    });
+  });
 }

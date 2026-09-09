@@ -38,6 +38,8 @@ import { ContactModule } from './contact/contact.module';
 import { PushModule } from './push/push.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
+import { RateLimitModule } from './common/rate-limit/rate-limit.module';
+import { IdentityThrottleGuard } from './common/rate-limit/identity-throttle.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
 
 @Module({
@@ -50,7 +52,16 @@ import { RolesGuard } from './auth/guards/roles.guard';
           : '../../.env.development',
       validationSchema: envValidationSchema,
     }),
-    ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+    // Per-IP backstop (in-memory, per process). D8 (2026-09-06): the real
+    // authentication limits are identity-keyed in RateLimitModule; this layer
+    // only caps raw request volume. Behind Cloudflare + carrier NAT one IP is
+    // many users, so per-route @Throttle overrides stay generous. French copy
+    // because clients surface `error.message` verbatim.
+    ThrottlerModule.forRoot({
+      throttlers: [{ ttl: 60000, limit: 100 }],
+      errorMessage: 'Trop de requêtes. Veuillez patienter avant de réessayer.',
+    }),
+    RateLimitModule,
     // In-process scheduler for the daily account-deletion purge (@Cron).
     ScheduleModule.forRoot(),
     PrismaModule,
@@ -91,6 +102,8 @@ import { RolesGuard } from './auth/guards/roles.guard';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Per-user limits (@IdentityThrottle) — after JwtAuthGuard so req.user is set.
+    { provide: APP_GUARD, useClass: IdentityThrottleGuard },
   ],
 })
 export class AppModule {}

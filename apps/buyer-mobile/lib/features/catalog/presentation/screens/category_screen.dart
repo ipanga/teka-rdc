@@ -10,20 +10,12 @@ import '../../../../core/widgets/commerce_header.dart';
 import '../../../../core/widgets/product_skeletons.dart';
 import '../../../city/presentation/providers/city_provider.dart';
 import '../../../wishlist/presentation/providers/wishlist_provider.dart';
+import '../../data/catalog_repository.dart';
 import '../../data/models/category_model.dart';
+import '../../domain/category_identifier.dart';
 import '../providers/catalog_provider.dart';
 import '../widgets/filter_bottom_sheet.dart';
 import '../widgets/product_card.dart';
-
-/// Finds a category node anywhere in the 3-level tree by id (for drill-down).
-CategoryModel? _findCategoryNode(List<CategoryModel> cats, String id) {
-  for (final c in cats) {
-    if (c.id == id) return c;
-    final found = _findCategoryNode(c.subcategories, id);
-    if (found != null) return found;
-  }
-  return null;
-}
 
 class CategoryScreen extends ConsumerStatefulWidget {
   final String categoryId;
@@ -42,18 +34,69 @@ class CategoryScreen extends ConsumerStatefulWidget {
 class _CategoryScreenState extends ConsumerState<CategoryScreen> {
   FilterOptions _filters = const FilterOptions();
 
+  /// The category's internal id. Equal to the route parameter when that is
+  /// already an id (in-app navigation); resolved from the public slug when
+  /// the screen was reached from a web URL, a banner or a deep link (A7,
+  /// 2026-09-06) — the browse APIs only accept the id.
+  String? _resolvedId;
+  CategoryModel? _resolvedNode;
+  bool _resolving = false;
+  String? _resolveError;
+
   @override
   void initState() {
     super.initState();
+    if (isCategoryUuid(widget.categoryId)) {
+      _resolvedId = widget.categoryId;
+    } else {
+      _resolveSlug();
+    }
     // Buyer-owned UI event — one per category view (parity with buyer-web).
     const PosthogAnalytics().capture('category_viewed', properties: {
       'categoryId': widget.categoryId,
     });
   }
 
+  /// Slug → id: from the already-loaded tree when possible, else one GET
+  /// against the identifier endpoint (which accepts slug or id).
+  Future<void> _resolveSlug() async {
+    setState(() {
+      _resolving = true;
+      _resolveError = null;
+    });
+    final tree = ref.read(categoriesProvider).valueOrNull;
+    if (tree != null) {
+      final node = findCategoryNode(tree, widget.categoryId);
+      if (node != null) {
+        setState(() {
+          _resolvedId = node.id;
+          _resolvedNode = node;
+          _resolving = false;
+        });
+        return;
+      }
+    }
+    try {
+      final node = await ref
+          .read(catalogRepositoryProvider)
+          .getCategory(widget.categoryId);
+      if (!mounted) return;
+      setState(() {
+        _resolvedId = node.id;
+        _resolvedNode = node;
+        _resolving = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _resolving = false;
+        _resolveError = 'Cette catégorie est introuvable.';
+      });
+    }
+  }
+
   BrowseProductsParams get _params => BrowseProductsParams(
-        categoryId: widget.categoryId,
-        condition: _filters.condition,
+        categoryId: _resolvedId ?? widget.categoryId,
         sortBy: _filters.sortBy,
         minPrice: _filters.minPrice,
         maxPrice: _filters.maxPrice,
@@ -86,7 +129,7 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     final result = await FilterBottomSheet.show(
       context,
       initialFilters: _filters,
-      categoryId: widget.categoryId,
+      categoryId: _resolvedId ?? widget.categoryId,
     );
     if (result != null) {
       _applyFilters(result);
@@ -95,6 +138,19 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // A slug still being resolved: no browse call yet (it would 400).
+    if (_resolvedId == null) {
+      return Scaffold(
+        appBar: const CommerceAppBar(searchLabel: 'Rechercher dans Teka...'),
+        body: _resolving
+            ? const Center(child: CircularProgressIndicator(strokeWidth: 2))
+            : AppErrorState(
+                message: _resolveError ?? 'Cette catégorie est introuvable.',
+                actionLabel: 'Voir les catégories',
+                onRetry: () => context.go('/categories'),
+              ),
+      );
+    }
     final state = ref.watch(browseProductsProvider(_params));
 
     // Hydrate wishlist heart state for the visible products (batch /check).
@@ -113,7 +169,13 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
       body: Column(
         children: [
           _CategoryContextBar(
-            title: widget.categoryName ?? 'Catégorie',
+            title: widget.categoryName ??
+                _resolvedNode?.name ??
+                findCategoryNode(
+                  ref.watch(categoriesProvider).valueOrNull ?? const [],
+                  widget.categoryId,
+                )?.name ??
+                'Catégorie',
             activeFilterCount: _filters.activeCount,
             onFilterPressed: _showFilters,
           ),
@@ -137,46 +199,16 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     BuildContext context,
     BrowseProductsState state,
   ) {
-    // Condition chips row
-    final conditionBar = SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        child: Row(
-          children: [
-            _ConditionFilterChip(
-              label: "Tous",
-              isSelected: _filters.condition == null,
-              onTap: () =>
-                  _applyFilters(_filters.copyWith(clearCondition: true)),
-            ),
-            const SizedBox(width: 8),
-            _ConditionFilterChip(
-              label: "Neuf",
-              isSelected: _filters.condition == 'NEW',
-              onTap: () => _applyFilters(_filters.copyWith(condition: 'NEW')),
-            ),
-            const SizedBox(width: 8),
-            _ConditionFilterChip(
-              label: "Occasion",
-              isSelected: _filters.condition == 'USED',
-              onTap: () => _applyFilters(_filters.copyWith(condition: 'USED')),
-            ),
-          ],
-        ),
-      ),
-    );
-
     if (state.isLoading && state.products.isEmpty) {
       return Column(
         children: [
-          conditionBar,
           Expanded(
             child: ProductGridSkeleton(
               count: 6,
-              mainAxisExtent: productCardGridExtent(
+              mainAxisExtentFor: (cellWidth) => productCardGridExtent(
                 context,
                 variant: ProductCardVariant.catalog,
+                cellWidth: cellWidth,
               ),
             ),
           ),
@@ -187,7 +219,6 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     if (state.error != null && state.products.isEmpty) {
       return Column(
         children: [
-          conditionBar,
           Expanded(
             child: AppErrorState(
               message: state.error!,
@@ -203,7 +234,6 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     if (state.products.isEmpty) {
       return Column(
         children: [
-          conditionBar,
           const Expanded(
             child: AppEmptyState(
               icon: Icons.inventory_2_outlined,
@@ -218,7 +248,8 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
     // under a subcategory) as quick chips — Category → Subcategory → Product Type.
     final tree =
         ref.watch(categoriesProvider).valueOrNull ?? const <CategoryModel>[];
-    final node = _findCategoryNode(tree, widget.categoryId);
+    final node = findCategoryNode(tree, _resolvedId ?? widget.categoryId) ??
+        _resolvedNode;
     final children = node?.subcategories ?? const <CategoryModel>[];
 
     return CustomScrollView(
@@ -246,25 +277,11 @@ class _CategoryScreenState extends ConsumerState<CategoryScreen> {
               ),
             ),
           ),
-        SliverToBoxAdapter(child: conditionBar),
         // Product grid
-        SliverPadding(
-          padding: const EdgeInsets.all(16),
-          sliver: SliverGrid(
-            delegate: SliverChildBuilderDelegate(
-              (context, index) => ProductCard(product: state.products[index]),
-              childCount: state.products.length,
-            ),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisExtent: productCardGridExtent(
-                context,
-                variant: ProductCardVariant.catalog,
-              ),
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-            ),
-          ),
+        ProductSliverGrid(
+          itemCount: state.products.length,
+          itemBuilder: (context, index) =>
+              ProductCard(product: state.products[index]),
         ),
         // Load more button
         if (state.hasMore)
@@ -355,39 +372,3 @@ class _CategoryContextBar extends StatelessWidget {
   }
 }
 
-class _ConditionFilterChip extends StatelessWidget {
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const _ConditionFilterChip({
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: isSelected ? TekaColors.tekaRed : TekaColors.muted,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? TekaColors.tekaRed : TekaColors.border,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: isSelected ? Colors.white : TekaColors.foreground,
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-          ),
-        ),
-      ),
-    );
-  }
-}

@@ -44,6 +44,18 @@ class RecentlyViewedStore {
   }
 }
 
+/// Wipe the history — called on logout / account switch (A4) so the next
+/// person on a shared phone does not inherit what this account looked at.
+extension RecentlyViewedReset on RecentlyViewedStore {
+  Future<void> clear() async {
+    try {
+      await _prefs.remove(_kRecentlyViewedKey);
+    } catch (_) {
+      // Best-effort.
+    }
+  }
+}
+
 final recentlyViewedStoreProvider = Provider<RecentlyViewedStore>((ref) {
   return RecentlyViewedStore(ref.watch(sharedPreferencesProvider));
 });

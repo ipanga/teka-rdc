@@ -10,18 +10,33 @@ import { categoryHref } from '@/lib/urls';
 import { CategoryIcon } from '@/components/category/category-icon';
 import { Container } from '@/components/ui';
 import type { BrowseCategory } from '@/lib/types';
+import type { City } from '@/lib/city-store';
+import { joinTownNames } from '@/lib/service-area';
 
-export default function CategoriesPage() {
+interface CategoriesPageProps {
+  /** Server-rendered tree (SEO-2); absent → the previous client fetch. */
+  initialCategories?: BrowseCategory[];
+  /** Active towns for the footer links and the served-town copy. */
+  initialCities?: City[];
+}
+
+export default function CategoriesPage({ initialCategories, initialCities }: CategoriesPageProps = {}) {
   const selectedCity = useCityStore((s) => s.selectedCity);
-  const [categories, setCategories] = useState<BrowseCategory[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const storeCities = useCityStore((s) => s.cities);
+  const [categories, setCategories] = useState<BrowseCategory[]>(initialCategories ?? []);
+  const [isLoading, setIsLoading] = useState(initialCategories === undefined);
 
   useEffect(() => {
+    if (initialCategories !== undefined) return;
     apiFetch<BrowseCategory[]>('/v1/browse/categories')
       .then((res) => setCategories(res.data))
       .catch(() => {})
       .finally(() => setIsLoading(false));
-  }, []);
+  }, [initialCategories]);
+
+  // Served-town copy from the active-town list (SEO-2 decision 2), never a
+  // hard-coded pair of towns.
+  const townNames = joinTownNames(storeCities.length > 0 ? storeCities : initialCities ?? []);
 
   return (
     <div className="min-h-screen flex flex-col bg-surface-muted">
@@ -39,7 +54,9 @@ export default function CategoriesPage() {
                   {"Toutes les catégories"}
                 </h1>
                 <p className="mt-2 max-w-2xl text-sm md:text-base text-muted-foreground">
-                  {"Trouvez rapidement une catégorie, une sous-catégorie ou un type de produit disponible à Lubumbashi et Kolwezi."}
+                  {townNames
+                    ? `Trouvez rapidement une catégorie, une sous-catégorie ou un type de produit disponible à ${townNames}.`
+                    : 'Trouvez rapidement une catégorie, une sous-catégorie ou un type de produit disponible près de chez vous.'}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2 text-xs font-semibold text-muted-foreground">
@@ -140,7 +157,7 @@ export default function CategoriesPage() {
         </Container>
       </main>
 
-      <Footer />
+      <Footer initialCities={initialCities} />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/teka_colors.dart';
+import '../theme/teka_spacing.dart';
 
 /// Shared empty/error content. Can also be used as a non-blocking list footer.
 class SellerListMessage extends StatelessWidget {
@@ -84,7 +85,7 @@ class SellerListLoading extends StatelessWidget {
             decoration: BoxDecoration(
               color: TekaColors.background,
               border: Border.all(color: TekaColors.border),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: TekaRadius.lgAll,
             ),
             child: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,7 +115,7 @@ class _Placeholder extends StatelessWidget {
         height: height,
         decoration: BoxDecoration(
           color: TekaColors.muted,
-          borderRadius: BorderRadius.circular(4),
+          borderRadius: TekaRadius.smAll,
         ),
       );
 }

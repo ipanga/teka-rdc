@@ -1,8 +1,6 @@
 import {
   BadRequestException,
   ForbiddenException,
-  HttpException,
-  HttpStatus,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -21,6 +19,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { AuthService, AuthTokens } from './auth.service';
 import { PostHogService } from '../analytics/posthog.service';
+import { RateLimitService } from '../common/rate-limit/rate-limit.service';
+import { TooManyRequestsException } from '../common/rate-limit/too-many-requests.exception';
 
 export interface RequestOtpResult {
   expiresInSeconds: number;
@@ -44,13 +44,38 @@ export class BuyerOtpService {
     private configService: ConfigService,
     private authService: AuthService,
     private analytics: PostHogService,
-  ) {}
+    private rateLimit: RateLimitService,
+  ) {
+    this.warnIfReviewLoginEnabledInProduction();
+  }
+
+  /**
+   * The app-review bypass is meant to live for one store-review window. It
+   * cannot be auto-expired without a redeploy, so make its presence loud on
+   * every production boot (and in Sentry, which captures error logs) until an
+   * operator turns it off again.
+   */
+  private warnIfReviewLoginEnabledInProduction(): void {
+    const enabledRaw = this.configService.get<string | boolean>(
+      'APP_REVIEW_LOGIN_ENABLED',
+    );
+    const enabled = enabledRaw === true || enabledRaw === 'true';
+    const isProd = this.configService.get<string>('NODE_ENV') === 'production';
+    if (enabled && isProd) {
+      this.logger.error(
+        '[app-review] APP_REVIEW_LOGIN_ENABLED is true in PRODUCTION — the fixed-OTP review login is live. Disable it as soon as the store review completes.',
+      );
+    }
+  }
 
   // ---------------------------------------------------------------------------
   // Public surface — controller-facing
   // ---------------------------------------------------------------------------
 
   async requestOtp(phone: string): Promise<RequestOtpResult> {
+    // D8: the 30 s cooldown applies to /request too — before this, a client
+    // could sidestep the resend cooldown by calling /request again.
+    await this.assertResendCooldown(phone);
     await this.assertRateLimit(phone);
     const { expiresInSeconds, cooldownSeconds } = await this.issueOtp(phone, {
       isResend: false,
@@ -74,17 +99,38 @@ export class BuyerOtpService {
     lastName?: string,
     device?: { userAgent?: string; ipAddress?: string },
   ): Promise<VerifyOtpResult> {
+    // D8: per-phone verification budget, counted before the review bypass so
+    // the fixed review code cannot be brute-forced against the allowlist
+    // either. (The per-code OTP_MAX_ATTEMPTS cap still applies inside.)
+    await this.assertVerifyBudget(phone);
     // App-store review login is a login-only, allowlisted bypass — it must NOT
     // consume/validate a real Otp row, so check it before verifyOtpInternal.
     const verified =
       this.isReviewLogin(phone, code) ||
-      (await this.verifyOtpInternal(phone, code));
+      (await this.verifyOtpInternal(phone, code, { budgetCounted: true }));
     if (!verified) {
+      throw new UnauthorizedException('Code OTP invalide ou expiré');
+    }
+
+    // D1 (2026-09-06): WhatsApp OTP authenticates BUYER accounts only. Phone
+    // uniqueness is global, so a phone that already belongs to a SELLER/ADMIN
+    // can never become a buyer session here — and must never yield that
+    // privileged account's tokens either. The refusal is the same 401 as an
+    // invalid code so the response never reveals that a privileged account
+    // exists for this phone. Issuance already refuses to send an OTP to such
+    // a phone (see issueOtp), so this branch only fires for a row that
+    // predates that rule or for the app-review bypass.
+    const existing = await this.findAccountByPhone(phone);
+    if (existing && !this.isOtpEligible(existing)) {
+      this.logger.warn(
+        `OTP verify refused for non-buyer account ${existing.id} (role=${existing.role})`,
+      );
       throw new UnauthorizedException('Code OTP invalide ou expiré');
     }
 
     const { user, isNew } = await this.findOrCreateUserByPhone(
       phone,
+      existing,
       firstName,
       lastName,
     );
@@ -158,7 +204,9 @@ export class BuyerOtpService {
     // Never match on empty config — avoids accidentally allowing '' == ''.
     if (!allowPhone || !allowCode) return false;
 
-    const match = phone === allowPhone && code === allowCode;
+    const match =
+      constantTimeEquals(phone, allowPhone) &&
+      constantTimeEquals(code, allowCode);
     if (match) {
       this.logger.warn(
         '[app-review] review login accepted for the allowlisted phone',
@@ -172,8 +220,18 @@ export class BuyerOtpService {
    * find-or-create-user side effect. Returns whether the supplied code
    * matched a non-expired Otp row for the phone. On match the row is
    * consumed (deleted).
+   *
+   * D8: every call counts against the per-phone verification budget unless
+   * the caller already did (`budgetCounted`, used by verifyOtp so one HTTP
+   * request never counts twice). Claim + account-deletion re-auth therefore
+   * share the same ceiling as login.
    */
-  async verifyOtpInternal(phone: string, code: string): Promise<boolean> {
+  async verifyOtpInternal(
+    phone: string,
+    code: string,
+    opts: { budgetCounted?: boolean } = {},
+  ): Promise<boolean> {
+    if (!opts.budgetCounted) await this.assertVerifyBudget(phone);
     const record = await this.prisma.otp.findFirst({
       where: { phone, expiresAt: { gt: new Date() } },
       orderBy: { createdAt: 'desc' },
@@ -203,6 +261,9 @@ export class BuyerOtpService {
 
     // One-shot: delete on success to prevent replay.
     await this.prisma.otp.deleteMany({ where: { id: record.id } });
+    // D8: a successful verification ends the attack window for this phone;
+    // the issuance budget (otpRequest) is deliberately left untouched.
+    await this.rateLimit.clear('otpVerify', phone);
     return true;
   }
 
@@ -214,6 +275,27 @@ export class BuyerOtpService {
     phone: string,
     opts: { isResend: boolean },
   ): Promise<RequestOtpResult> {
+    const expiryMinutesForResult = this.configService.get<number>(
+      'OTP_EXPIRY_MINUTES',
+      OTP_EXPIRY_MINUTES,
+    );
+    // D1: never send an OTP to a phone that cannot authenticate through this
+    // flow (SELLER / ADMIN). The rate-limit row was already recorded by the
+    // caller and the response is byte-identical to the buyer case, so an
+    // attacker without the handset cannot tell a privileged phone from an
+    // unknown one — the only side effect is that no WhatsApp message goes
+    // out, which also closes OTP-bombing of seller/admin phones.
+    const account = await this.findAccountByPhone(phone);
+    if (account && !this.isOtpEligible(account)) {
+      this.logger.warn(
+        `OTP issuance skipped for non-buyer account ${account.id} (role=${account.role}, resend=${opts.isResend})`,
+      );
+      return {
+        expiresInSeconds: expiryMinutesForResult * 60,
+        cooldownSeconds: this.computeResendCooldown(1),
+      };
+    }
+
     const code = this.generateCode();
     const hash = this.hashCode(code);
     const expiryMinutes = this.configService.get<number>(
@@ -245,38 +327,32 @@ export class BuyerOtpService {
     };
   }
 
+  /**
+   * D8 (2026-09-06): OTP issuance budget per phone — request + resend share
+   * one bucket (AUTH_LIMITS.otpRequest), incremented atomically in
+   * `auth_rate_limits`, so parallel requests can no longer overshoot the cap
+   * (the previous OtpRateLimit read-then-write did). The message never says
+   * how many are left or whether the phone is known.
+   */
   private async assertRateLimit(phone: string): Promise<void> {
-    const windowSeconds = OTP_RATE_LIMIT_WINDOW_SECONDS;
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + windowSeconds * 1000);
-
-    // Clean any expired window for this phone so the count starts fresh.
-    await this.prisma.otpRateLimit.deleteMany({
-      where: { phone, expiresAt: { lte: now } },
-    });
-
-    const existing = await this.prisma.otpRateLimit.findFirst({
-      where: { phone, expiresAt: { gt: now } },
-    });
-
-    if (!existing) {
-      await this.prisma.otpRateLimit.create({
-        data: { phone, count: 1, expiresAt },
-      });
-      return;
-    }
-
-    if (existing.count >= OTP_RATE_LIMIT_MAX) {
-      throw new HttpException(
+    const decision = await this.rateLimit.hit('otpRequest', phone);
+    if (!decision.allowed) {
+      throw new TooManyRequestsException(
         'Trop de demandes. Réessayez dans quelques minutes.',
-        HttpStatus.TOO_MANY_REQUESTS,
+        decision.retryAfterSeconds,
       );
     }
+  }
 
-    await this.prisma.otpRateLimit.update({
-      where: { id: existing.id },
-      data: { count: existing.count + 1 },
-    });
+  /** D8: per-phone verification budget (AUTH_LIMITS.otpVerify). */
+  private async assertVerifyBudget(phone: string): Promise<void> {
+    const decision = await this.rateLimit.hit('otpVerify', phone);
+    if (!decision.allowed) {
+      throw new TooManyRequestsException(
+        'Trop de tentatives. Réessayez dans quelques minutes.',
+        decision.retryAfterSeconds,
+      );
+    }
   }
 
   private async assertResendCooldown(phone: string): Promise<void> {
@@ -293,9 +369,9 @@ export class BuyerOtpService {
     );
     const cooldown = this.computeResendCooldown(1);
     if (elapsedSec < cooldown) {
-      throw new HttpException(
+      throw new TooManyRequestsException(
         `Veuillez patienter ${cooldown - elapsedSec}s avant de renvoyer.`,
-        HttpStatus.TOO_MANY_REQUESTS,
+        cooldown - elapsedSec,
       );
     }
   }
@@ -324,14 +400,28 @@ export class BuyerOtpService {
     return createHash('sha256').update(code).digest('hex');
   }
 
+  /** The live account owning `phone`, if any (`User.phone` is globally unique). */
+  private async findAccountByPhone(phone: string) {
+    return this.prisma.user.findFirst({
+      where: { phone, deletedAt: null },
+    });
+  }
+
+  /**
+   * D1 invariant: `WhatsApp OTP => BUYER only`. The role stored server-side
+   * is the sole authority — never the surface header, the client or the
+   * user agent.
+   */
+  private isOtpEligible(user: { role: string }): boolean {
+    return user.role === 'BUYER';
+  }
+
   private async findOrCreateUserByPhone(
     phone: string,
+    existing: Awaited<ReturnType<BuyerOtpService['findAccountByPhone']>>,
     firstName?: string,
     lastName?: string,
   ) {
-    const existing = await this.prisma.user.findFirst({
-      where: { phone, deletedAt: null },
-    });
     if (existing) {
       return { user: existing, isNew: false };
     }
@@ -348,4 +438,12 @@ export class BuyerOtpService {
     });
     return { user, isNew: true };
   }
+}
+
+/** Constant-time string equality (length is not secret here, only the value). */
+function constantTimeEquals(a: string, b: string): boolean {
+  const ab = Buffer.from(a, 'utf8');
+  const bb = Buffer.from(b, 'utf8');
+  if (ab.length !== bb.length) return false;
+  return timingSafeEqual(ab, bb);
 }

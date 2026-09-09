@@ -1,16 +1,19 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/connectivity/connectivity_provider.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/widgets/app_states.dart';
+import '../../../../core/theme/teka_spacing.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../cart/presentation/providers/cart_provider.dart';
 import '../../../address/presentation/widgets/address_form_sheet.dart';
 import '../../../city/data/city_repository.dart';
 import '../../data/models/checkout_model.dart';
 import '../providers/checkout_provider.dart';
+import '../../../../core/widgets/teka_network_image.dart';
 
 class CheckoutScreen extends ConsumerStatefulWidget {
   const CheckoutScreen({super.key});
@@ -45,19 +48,15 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
     final checkoutState = ref.watch(checkoutProvider);
     final cartState = ref.watch(cartProvider);
 
-    // Navigate to success or payment-pending screen when checkout succeeds
+    // Navigate to the success screen when checkout succeeds
     ref.listen<CheckoutState>(checkoutProvider, (previous, next) {
       if (previous?.step != CheckoutStep.success &&
           next.step == CheckoutStep.success) {
-        if (next.paymentPending && next.orders.isNotEmpty) {
-          context.go('/checkout/payment-pending', extra: {
-            'orders': next.orders,
-          });
-        } else {
-          context.go('/checkout/success', extra: {
-            'orders': next.orders,
-          });
-        }
+        // COD-only: the API never reports a pending payment, so there is
+        // one destination (PR D3 removed the dead payment-pending branch).
+        context.go('/checkout/success', extra: {
+          'orders': next.orders,
+        });
       }
     });
 
@@ -97,12 +96,17 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
               ),
             ),
 
-          // Content
+          // Content — the address form, the payment choice and the order
+          // summary are text and controls, so on a tablet they are centered in
+          // a readable column instead of spanning the whole width.
           Expanded(
-            child: _buildStepContent(
-              checkoutState,
-              cartState,
-              locale,
+            child: ReadableColumn(
+              padding: EdgeInsets.zero,
+              child: _buildStepContent(
+                checkoutState,
+                cartState,
+                locale,
+              ),
             ),
           ),
         ],
@@ -182,9 +186,12 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
         initial: existing,
         onSave: (data) async {
           final notifier = ref.read(checkoutProvider.notifier);
-          return existing == null
-              ? notifier.createAddress(data)
-              : notifier.updateAddress(existing.id, data);
+          final ok = existing == null
+              ? await notifier.createAddress(data)
+              : await notifier.updateAddress(existing.id, data);
+          // The provider keeps the API's reason in `error`; hand it to the
+          // sheet so it shows inside the form rather than behind it.
+          return ok ? null : ref.read(checkoutProvider).error;
         },
       ),
     );
@@ -252,57 +259,61 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen> {
           ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Inline French explanation when the review-step button is
-          // disabled because of offline state. Only shown on the
-          // review step + when actually offline — keeps the bottom bar
-          // unchanged on every other step.
-          if (checkoutState.step == CheckoutStep.review &&
-              checkoutState.canPlaceOrder &&
-              ref.watch(isOfflineProvider))
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.wifi_off_outlined,
-                    color: TekaColors.destructive,
-                    size: 14,
-                  ),
-                  const SizedBox(width: 6),
-                  const Flexible(
-                    child: Text(
-                      'Connexion requise pour passer commande',
-                      style: TextStyle(
-                        color: TekaColors.destructive,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+      // Only the controls are centered; the bar keeps its full-width
+      // background and border.
+      child: ReadableBottomBar(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Inline French explanation when the review-step button is
+            // disabled because of offline state. Only shown on the
+            // review step + when actually offline — keeps the bottom bar
+            // unchanged on every other step.
+            if (checkoutState.step == CheckoutStep.review &&
+                checkoutState.canPlaceOrder &&
+                ref.watch(isOfflineProvider))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.wifi_off_outlined,
+                      color: TekaColors.destructive,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 6),
+                    const Flexible(
+                      child: Text(
+                        'Connexion requise pour passer commande',
+                        style: TextStyle(
+                          color: TekaColors.destructive,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: onPressed,
-              style: FilledButton.styleFrom(
-                backgroundColor: TekaColors.tekaRed,
-                disabledBackgroundColor: TekaColors.muted,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                textStyle: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  ],
                 ),
               ),
-              child: Text(buttonText),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: onPressed,
+                style: FilledButton.styleFrom(
+                  backgroundColor: TekaColors.tekaRed,
+                  disabledBackgroundColor: TekaColors.muted,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                child: Text(buttonText),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -323,51 +334,101 @@ class _StepIndicator extends StatelessWidget {
       CheckoutStep.review,
     ];
 
+    final current = _stepIndex(currentStep);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.fromLTRB(
+        TekaSpacing.md,
+        TekaSpacing.sm,
+        TekaSpacing.md,
+        TekaSpacing.xs,
+      ),
       decoration: const BoxDecoration(
         border: Border(
           bottom: BorderSide(color: TekaColors.border),
         ),
       ),
-      child: Row(
-        children: [
-          for (var i = 0; i < steps.length; i++) ...[
-            if (i > 0)
-              Expanded(
-                child: Container(
-                  height: 2,
-                  color: _stepIndex(currentStep) >= i
-                      ? TekaColors.tekaRed
-                      : TekaColors.border,
-                ),
-              ),
-            Container(
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _stepIndex(currentStep) >= i
-                    ? TekaColors.tekaRed
-                    : TekaColors.muted,
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                '${i + 1}',
-                style: TextStyle(
-                  color: _stepIndex(currentStep) >= i
-                      ? Colors.white
-                      : TekaColors.mutedForeground,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+      child: Semantics(
+        label: 'Étape ${current + 1} sur ${steps.length} : '
+            '${_stepLabels[current]}',
+        excludeSemantics: true,
+        child: Column(
+          children: [
+            Row(
+              children: [
+                for (var i = 0; i < steps.length; i++) ...[
+                  if (i > 0)
+                    Expanded(
+                      child: Container(
+                        height: 2,
+                        color: current >= i
+                            ? TekaColors.tekaRed
+                            : TekaColors.border,
+                      ),
+                    ),
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: current >= i
+                          ? TekaColors.tekaRed
+                          : TekaColors.muted,
+                    ),
+                    alignment: Alignment.center,
+                    child: current > i
+                        ? const Icon(Icons.check_rounded,
+                            size: 16, color: Colors.white)
+                        : Text(
+                            '${i + 1}',
+                            style: TextStyle(
+                              color: current >= i
+                                  ? Colors.white
+                                  : TekaColors.mutedForeground,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: TekaSpacing.xxs),
+            // Bare numbers told the buyer there were three steps but never
+            // what they were. The labels cost one line and answer "what am I
+            // about to be asked?" (UX PR C).
+            Row(
+              children: [
+                for (var i = 0; i < steps.length; i++)
+                  Expanded(
+                    child: Text(
+                      _stepLabels[i],
+                      textAlign: i == 0
+                          ? TextAlign.start
+                          : i == steps.length - 1
+                              ? TextAlign.end
+                              : TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight:
+                            current == i ? FontWeight.w700 : FontWeight.w500,
+                        color: current >= i
+                            ? TekaColors.foreground
+                            : TekaColors.mutedForeground,
+                      ),
+                    ),
+                  ),
+              ],
             ),
           ],
-        ],
+        ),
       ),
     );
   }
+
+  static const _stepLabels = ['Adresse', 'Paiement', 'Vérification'];
 
   int _stepIndex(CheckoutStep step) {
     switch (step) {
@@ -410,38 +471,14 @@ class _AddressStep extends StatelessWidget {
 
     final current = address;
     if (current == null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.location_off_outlined,
-                size: 64,
-                color: TekaColors.mutedForeground,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                "Aucune adresse enregistree",
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: TekaColors.mutedForeground,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              OutlinedButton.icon(
-                onPressed: onEditAddress,
-                icon: const Icon(Icons.add_location_alt_outlined),
-                label: const Text("Ajouter mon adresse"),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: TekaColors.tekaRed,
-                  side: const BorderSide(color: TekaColors.tekaRed),
-                ),
-              ),
-            ],
-          ),
-        ),
+      // The shared empty-state shell, like every other "nothing here" in the
+      // app — this screen was the last one still hand-rolling its own.
+      return AppEmptyState(
+        icon: Icons.location_off_outlined,
+        title: "Aucune adresse enregistrée",
+        message: "Ajoutez l'adresse où Teka doit livrer votre commande.",
+        actionLabel: "Ajouter mon adresse",
+        onAction: onEditAddress,
       );
     }
 
@@ -550,8 +587,8 @@ class _PaymentStep extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         _PaymentOption(
-          title: "Paiement a la livraison",
-          subtitle: 'Payez a la reception de votre commande',
+          title: "Paiement à la livraison",
+          subtitle: 'Payez en espèces à la réception, au livreur Teka',
           icon: Icons.payments_outlined,
           isSelected: selectedMethod == 'COD',
           onTap: () => onSelect('COD'),
@@ -663,7 +700,7 @@ class _ReviewStep extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       children: [
         Text(
-          "Recapitulatif",
+          "Récapitulatif",
           style: Theme.of(context).textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.bold,
                 color: TekaColors.foreground,
@@ -695,6 +732,30 @@ class _ReviewStep extends StatelessWidget {
                     fontSize: 13,
                   ),
                 ),
+                // The recipient and their phone were shown on step 1 and then
+                // disappeared from the review — the one screen where a buyer
+                // checks who receives the parcel and on which number the
+                // driver will call (UX PR C).
+                if ((checkoutState.selectedAddress!.recipientName ?? '')
+                        .trim()
+                        .isNotEmpty ||
+                    (checkoutState.selectedAddress!.recipientPhone ?? '')
+                        .trim()
+                        .isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    [
+                      checkoutState.selectedAddress!.recipientName,
+                      checkoutState.selectedAddress!.recipientPhone,
+                    ]
+                        .where((v) => (v ?? '').trim().isNotEmpty)
+                        .join(' · '),
+                    style: const TextStyle(
+                      color: TekaColors.mutedForeground,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -703,15 +764,32 @@ class _ReviewStep extends StatelessWidget {
 
         // Payment method summary
         _SummarySection(
-          icon: Icons.payment_outlined,
+          // The cash glyph, not a credit card: Teka is Cash on Delivery only
+          // and the card icon promised a payment method that does not exist.
+          icon: Icons.payments_outlined,
           title: "Mode de paiement",
-          child: Text(
-            "Paiement a la livraison",
-            style: const TextStyle(
-              color: TekaColors.foreground,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                "Paiement à la livraison",
+                style: TextStyle(
+                  color: TekaColors.foreground,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(height: 2),
+              // Says who collects: Teka delivers and takes the cash, the
+              // seller never does.
+              Text(
+                "Le livreur Teka encaisse à la remise du colis.",
+                style: TextStyle(
+                  color: TekaColors.mutedForeground,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 12),
@@ -724,6 +802,33 @@ class _ReviewStep extends StatelessWidget {
           ),
           child: Column(
             children: [
+              if (checkoutState.pricesChanged) ...[
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: TekaColors.tekaRed.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: TekaColors.tekaRed.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: const Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.info_outline, size: 18, color: TekaColors.tekaRed),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Les prix de votre panier ont été mis à jour. Vérifiez le montant avant de confirmer.',
+                          style: TextStyle(fontSize: 13, color: TekaColors.foreground),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               for (var i = 0; i < cartState.items.length; i++) ...[
                 if (i > 0)
                   const Divider(height: 1, color: TekaColors.border),
@@ -737,34 +842,10 @@ class _ReviewStep extends StatelessWidget {
                         child: SizedBox(
                           width: 50,
                           height: 50,
-                          child: cartState.items[i].product.thumbnailUrl !=
-                                      null &&
-                                  cartState.items[i].product.thumbnailUrl!
-                                      .isNotEmpty
-                              ? CachedNetworkImage(
-                                  imageUrl: cartState
-                                      .items[i].product.thumbnailUrl!,
-                                  fit: BoxFit.cover,
-                                  placeholder: (_, __) => Container(
-                                    color: TekaColors.muted,
-                                  ),
-                                  errorWidget: (_, __, ___) => Container(
-                                    color: TekaColors.muted,
-                                    child: const Icon(
-                                      Icons.image_outlined,
-                                      size: 20,
-                                      color: TekaColors.mutedForeground,
-                                    ),
-                                  ),
-                                )
-                              : Container(
-                                  color: TekaColors.muted,
-                                  child: const Icon(
-                                    Icons.image_outlined,
-                                    size: 20,
-                                    color: TekaColors.mutedForeground,
-                                  ),
-                                ),
+                          child: TekaNetworkImage(
+                            url: cartState.items[i].product.thumbnailUrl,
+                            fallbackIconSize: 20,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -782,12 +863,30 @@ class _ReviewStep extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 4),
-                            Text(
-                              '${formatCDF(cartState.items[i].product.priceCDF)} x ${cartState.items[i].quantity}',
-                              style: const TextStyle(
-                                color: TekaColors.mutedForeground,
-                                fontSize: 12,
-                              ),
+                            // Unit price = what is charged (promo when one
+                            // applies); the regular price stays visible struck
+                            // through, as on the product page and the cart.
+                            Row(
+                              children: [
+                                Text(
+                                  '${formatCDF(cartState.items[i].product.effectiveCDF)} x ${cartState.items[i].quantity}',
+                                  style: const TextStyle(
+                                    color: TekaColors.mutedForeground,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                if (cartState.items[i].product.hasDiscount) ...[
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    formatCDF(cartState.items[i].product.priceCDF),
+                                    style: const TextStyle(
+                                      color: TekaColors.mutedForeground,
+                                      fontSize: 11,
+                                      decoration: TextDecoration.lineThrough,
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ],
                         ),
@@ -855,7 +954,9 @@ class _ReviewStep extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    formatCDF(cartState.totalCDF),
+                    // The quote's subtotal is the server's figure at current
+                    // prices; the cart total (same rule) fills in until it lands.
+                    formatCDF(checkoutState.quoteSubtotalCDF ?? cartState.totalCDF),
                     style: const TextStyle(
                       color: TekaColors.foreground,
                       fontSize: 14,
@@ -920,10 +1021,10 @@ class _ReviewStep extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFB45309).withValues(alpha: 0.08),
+                    color: TekaColors.warningStrong.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                      color: const Color(0xFFB45309).withValues(alpha: 0.30),
+                      color: TekaColors.warningStrong.withValues(alpha: 0.30),
                     ),
                   ),
                   child: Row(
@@ -932,14 +1033,14 @@ class _ReviewStep extends StatelessWidget {
                       const Icon(
                         Icons.info_outline,
                         size: 18,
-                        color: Color(0xFFB45309),
+                        color: TekaColors.warningStrong,
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           "L'adresse de livraison sélectionnée se trouve dans une ville différente de celle des produits. Cela peut entraîner des frais de transport supplémentaires. Veuillez vérifier votre adresse avant de confirmer la commande.",
                           style: const TextStyle(
-                            color: Color(0xFF92400E),
+                            color: TekaColors.warningText,
                             fontSize: 13,
                             height: 1.4,
                           ),
@@ -964,11 +1065,19 @@ class _ReviewStep extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    formatCDF(
-                      (BigInt.parse(cartState.totalCDF) +
-                              BigInt.parse(checkoutState.deliveryFeeCDF ?? '0'))
-                          .toString(),
-                    ),
+                    // Grand total = the quote's total (subtotal + delivery fee
+                    // as the server computes them). Before the quote lands
+                    // there is no fee yet, so show the cart total with '…'
+                    // rather than a figure that is about to change.
+                    checkoutState.quoteTotalCDF != null
+                        ? formatCDF(checkoutState.quoteTotalCDF!)
+                        : checkoutState.deliveryFeeCDF != null
+                            ? formatCDF(
+                                (BigInt.parse(cartState.totalCDF) +
+                                        BigInt.parse(checkoutState.deliveryFeeCDF!))
+                                    .toString(),
+                              )
+                            : '${formatCDF(cartState.totalCDF)} + …',
                     style: const TextStyle(
                       color: TekaColors.tekaRed,
                       fontSize: 16,

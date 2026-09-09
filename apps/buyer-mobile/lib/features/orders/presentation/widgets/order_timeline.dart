@@ -78,10 +78,16 @@ class _TimelineEntry extends StatelessWidget {
                   height: 12,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isFirst ? TekaColors.tekaRed : TekaColors.border,
+                    // The current step takes the STATUS colour, not the brand
+                    // red: a delivered order used to show a red dot beside a
+                    // green « Livrée » chip, so the two strongest signals in
+                    // the timeline disagreed (UX PR D).
+                    color: isFirst
+                        ? TekaColors.orderStatusColor(log.toStatus)
+                        : TekaColors.border,
                     border: Border.all(
                       color: isFirst
-                          ? TekaColors.tekaRed
+                          ? TekaColors.orderStatusColor(log.toStatus)
                           : TekaColors.mutedForeground,
                       width: 2,
                     ),

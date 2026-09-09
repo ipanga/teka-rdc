@@ -1,8 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/product_skeletons.dart';
 import '../../data/models/product_model.dart';
+import '../../../../core/widgets/teka_network_image.dart';
 
 class ImageGallery extends StatefulWidget {
   final List<ProductImageModel> images;
@@ -29,11 +31,33 @@ class _ImageGalleryState extends State<ImageGallery> {
     super.dispose();
   }
 
+  /// Sizes the gallery for the width it is given (tablet phase, 2026-09-07).
+  ///
+  /// It used to be a bare `AspectRatio`, so on a 1024 pt tablet the photo
+  /// became an 819 pt wall and the title, price and « Ajouter au panier » all
+  /// fell below the fold. On a phone this renders exactly the previous box;
+  /// above 600 pt the height is capped and the image (already
+  /// `BoxFit.contain`) letterboxes instead of being cropped. The decode width
+  /// follows the frame rather than the window, so a constrained gallery no
+  /// longer decodes a full-tablet-width bitmap.
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) =>
+          _buildGallery(context, constraints.maxWidth),
+    );
+  }
+
+  Widget _buildGallery(BuildContext context, double frameWidth) {
+    final frameHeight = heroImageHeight(
+      frameWidth,
+      aspectRatio: kProductDetailGalleryAspectRatio,
+    );
+
     if (widget.images.isEmpty) {
-      return AspectRatio(
-        aspectRatio: kProductDetailGalleryAspectRatio,
+      return SizedBox(
+        width: frameWidth,
+        height: frameHeight,
         child: Container(
           color: TekaColors.surface,
           child: Semantics(
@@ -50,8 +74,9 @@ class _ImageGalleryState extends State<ImageGallery> {
       );
     }
 
-    return AspectRatio(
-      aspectRatio: kProductDetailGalleryAspectRatio,
+    return SizedBox(
+      width: frameWidth,
+      height: frameHeight,
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -63,10 +88,6 @@ class _ImageGalleryState extends State<ImageGallery> {
             },
             itemBuilder: (context, index) {
               final image = widget.images[index];
-              final logicalWidth = MediaQuery.sizeOf(context).width;
-              final pixelRatio = MediaQuery.devicePixelRatioOf(context);
-              final decodeWidth = (logicalWidth * pixelRatio).round();
-
               return Semantics(
                 button: true,
                 label:
@@ -76,35 +97,12 @@ class _ImageGalleryState extends State<ImageGallery> {
                   onTap: () => _showFullScreenImage(context, index),
                   child: ColoredBox(
                     color: TekaColors.surface,
-                    child: CachedNetworkImage(
-                      imageUrl: image.url,
+                    child: TekaNetworkImage(
+                      url: image.url,
                       fit: BoxFit.contain,
-                      memCacheWidth: decodeWidth,
-                      placeholder: (context, url) => const ShimmerBox(
-                        height: double.infinity,
-                        radius: 0,
-                      ),
-                      errorWidget: (context, url, error) => const Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.image_not_supported_outlined,
-                              size: 44,
-                              color: TekaColors.mutedForeground,
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Image indisponible',
-                              style: TextStyle(
-                                color: TekaColors.mutedForeground,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      fallbackIcon: Icons.image_not_supported_outlined,
+                      fallbackIconSize: 44,
+                      fallbackLabel: 'Image indisponible',
                     ),
                   ),
                 ),

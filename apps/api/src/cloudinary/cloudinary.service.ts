@@ -238,9 +238,25 @@ export class CloudinaryService {
     }
   }
 
-  async deleteImage(cloudinaryId: string): Promise<void> {
+  /** Cloud name the delivery URLs this service produces belong to. */
+  get cloudName(): string | undefined {
+    return this.configService.get<string>('CLOUDINARY_CLOUD_NAME');
+  }
+
+  /**
+   * Destroy a public image asset. Never throws — an orphaned asset is a cost
+   * issue, not a correctness one, and the caller's DB write must stand.
+   * `invalidate` also purges the CDN copy so a replaced avatar stops being
+   * served under its old URL.
+   */
+  async deleteImage(
+    cloudinaryId: string,
+    opts: { invalidate?: boolean } = {},
+  ): Promise<void> {
     try {
-      await cloudinary.uploader.destroy(cloudinaryId);
+      await cloudinary.uploader.destroy(cloudinaryId, {
+        invalidate: opts.invalidate === true,
+      });
     } catch (error) {
       this.logger.error(
         `Cloudinary delete failed for ${cloudinaryId}: ${error}`,

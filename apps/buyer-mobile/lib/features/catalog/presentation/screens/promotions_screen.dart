@@ -23,9 +23,10 @@ class PromotionsScreen extends ConsumerWidget {
     if (state.isLoading && state.products.isEmpty) {
       body = ProductGridSkeleton(
         count: 6,
-        mainAxisExtent: productCardGridExtent(
+        mainAxisExtentFor: (cellWidth) => productCardGridExtent(
           context,
           variant: ProductCardVariant.catalog,
+          cellWidth: cellWidth,
         ),
       );
     } else if (state.products.isEmpty) {
@@ -45,17 +46,7 @@ class PromotionsScreen extends ConsumerWidget {
         ],
       );
     } else {
-      body = GridView.builder(
-        padding: const EdgeInsets.all(16),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisExtent: productCardGridExtent(
-            context,
-            variant: ProductCardVariant.catalog,
-          ),
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-        ),
+      body = ProductGrid(
         itemCount: state.products.length,
         itemBuilder: (context, index) =>
             ProductCard(product: state.products[index]),

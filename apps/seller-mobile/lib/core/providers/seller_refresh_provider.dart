@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// Repository mutations refresh immediately; push/resume bursts are coalesced.
 final sellerRefreshProvider =
     StateNotifierProvider<SellerRefreshNotifier,
-        ({int orders, int products, int earnings})>(
+        ({int orders, int products, int earnings, int verification, int profile})>(
         (ref) {
   final notifier = SellerRefreshNotifier();
   WidgetsBinding.instance.addObserver(notifier);
@@ -15,24 +15,52 @@ final sellerRefreshProvider =
 });
 
 class SellerRefreshNotifier
-    extends StateNotifier<({int orders, int products, int earnings})>
+    extends StateNotifier<({int orders, int products, int earnings, int verification, int profile})>
     with WidgetsBindingObserver {
-  SellerRefreshNotifier() : super((orders: 0, products: 0, earnings: 0));
+  SellerRefreshNotifier()
+      : super((orders: 0, products: 0, earnings: 0, verification: 0, profile: 0));
   Timer? _timer;
   bool _ordersPending = false;
   bool _productsPending = false;
   bool _earningsPending = false;
+  bool _verificationPending = false;
   bool _backgrounded = false;
 
   void ordersChanged() => state = (
         orders: state.orders + 1,
         products: state.products,
         earnings: state.earnings,
+        verification: state.verification,
+        profile: state.profile,
       );
   void productsChanged() => state = (
         orders: state.orders,
         products: state.products + 1,
         earnings: state.earnings,
+        verification: state.verification,
+        profile: state.profile,
+      );
+
+  /// The seller saved their person or shop (repository) — the account header
+  /// (name, email, photo, town · commune) must follow without a restart.
+  /// Runtime defect (Seller UX PR F): the reload hooked on the pushed route's
+  /// future never fired on the device, so the header stayed stale.
+  void profileChanged() => state = (
+        orders: state.orders,
+        products: state.products,
+        earnings: state.earnings,
+        verification: state.verification,
+        profile: state.profile + 1,
+      );
+
+  /// A document was uploaded (repository) — the Action Center's
+  /// « Vérification à refaire » row must clear without a restart.
+  void verificationChanged() => state = (
+        orders: state.orders,
+        products: state.products,
+        earnings: state.earnings,
+        verification: state.verification + 1,
+        profile: state.profile,
       );
 
   void handlePush(Map<String, dynamic> data) {
@@ -44,6 +72,9 @@ class SellerRefreshNotifier
       case 'earnings':
         // Payout approved / paid / rejected: wallet + payouts changed.
         _schedule(earnings: true);
+      case 'verification':
+        // verification-approved / rejected / revoked: the dashboard row.
+        _schedule(verification: true);
     }
   }
 
@@ -51,10 +82,12 @@ class SellerRefreshNotifier
     bool orders = false,
     bool products = false,
     bool earnings = false,
+    bool verification = false,
   }) {
     _ordersPending |= orders;
     _productsPending |= products;
     _earningsPending |= earnings;
+    _verificationPending |= verification;
     // A fixed coalescing window cannot be starved by a continuous stream.
     _timer ??= Timer(const Duration(milliseconds: 300), () {
       _timer = null;
@@ -62,8 +95,11 @@ class SellerRefreshNotifier
         orders: state.orders + (_ordersPending ? 1 : 0),
         products: state.products + (_productsPending ? 1 : 0),
         earnings: state.earnings + (_earningsPending ? 1 : 0),
+        verification: state.verification + (_verificationPending ? 1 : 0),
+        profile: state.profile,
       );
-      _ordersPending = _productsPending = _earningsPending = false;
+      _ordersPending =
+          _productsPending = _earningsPending = _verificationPending = false;
     });
   }
 
@@ -74,7 +110,8 @@ class SellerRefreshNotifier
       _backgrounded = true;
     } else if (state == AppLifecycleState.resumed && _backgrounded) {
       _backgrounded = false;
-      _schedule(orders: true, products: true, earnings: true);
+      _schedule(
+          orders: true, products: true, earnings: true, verification: true);
     }
   }
 

@@ -20,6 +20,7 @@ import { track } from '@/lib/analytics';
 import { formatCDF, formatUSD, discountPercent } from '@/lib/format';
 import { Badge, Button, Card, Container, buttonVariants, cn } from '@/components/ui';
 import type { ProductDetail } from '@/lib/types';
+import type { City } from '@/lib/city-store';
 import { stockStatus, stockStatusLabel } from '@teka/shared';
 
 /**
@@ -28,7 +29,23 @@ import { stockStatus, stockStatusLabel } from '@teka/shared';
  *   and passes it down. Falls back to parsing the route param client-side so
  *   the component also works if rendered without the prop.
  */
-export default function ProductDetailPage({ identifier }: { identifier?: string } = {}) {
+export default function ProductDetailPage({
+  identifier,
+  initialProduct = null,
+  initialCities,
+}: {
+  identifier?: string;
+  /**
+   * The product the server route already fetched for metadata/JSON-LD
+   * (SEO-1). When present the first HTML carries the title, price, gallery,
+   * description, seller and breadcrumb — crawlers no longer see a skeleton —
+   * and the client does not refetch what it was given. Interactivity (cart,
+   * wishlist, reviews, related) is unchanged.
+   */
+  initialProduct?: ProductDetail | null;
+  /** Active towns for the footer links (server-rendered, SEO-1). */
+  initialCities?: City[];
+} = {}) {
   // 'Messaging' translation namespace stays in messages/fr.json (with a
   // deprecation comment there); only the in-app references were removed
   // when direct buyer↔seller messaging was retired on 2026-05-17. Buyers
@@ -41,8 +58,8 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
     (params.product ? productIdentifierFromParam(params.product) : '');
   const user = useAuthStore((s) => s.user);
 
-  const [product, setProduct] = useState<ProductDetail | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [product, setProduct] = useState<ProductDetail | null>(initialProduct);
+  const [isLoading, setIsLoading] = useState(initialProduct === null);
   const [error, setError] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -60,35 +77,43 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
   }, [productId]);
 
   useEffect(() => {
+    // Same side effects whether the product came from the server or a fetch.
+    const onLoaded = (p: ProductDetail) => {
+      // Record in the client-local recently-viewed history (Phase D).
+      addRecentlyViewed(detailToBrowseProduct(p));
+      // Buyer-owned UI event — fires once per successful product load.
+      track('product_viewed', {
+        productId: p.id,
+        categoryId: p.categoryId,
+        // Effective (charged) price + discount enrichment on the existing
+        // event (no new event — keeps analytics noise-free).
+        price_cdf: Number(p.discountPriceCDF ?? p.priceCDF),
+        ...(discountPercent(p.priceCDF, p.discountPriceCDF) > 0
+          ? { discount_percent: discountPercent(p.priceCDF, p.discountPriceCDF) }
+          : {}),
+        sellerId: p.seller?.id,
+      });
+    };
+
+    // Server-provided product for this identifier: no refetch.
+    if (initialProduct && initialProductMatches(initialProduct, productId)) {
+      setProduct(initialProduct);
+      setError(false);
+      setIsLoading(false);
+      onLoaded(initialProduct);
+      return;
+    }
+
     setIsLoading(true);
     setError(false);
-
     apiFetch<ProductDetail>(`/v1/browse/products/${productId}`)
       .then((res) => {
         setProduct(res.data);
-        // Record in the client-local recently-viewed history (Phase D).
-        addRecentlyViewed(detailToBrowseProduct(res.data));
-        // Buyer-owned UI event — fires once per successful product load.
-        track('product_viewed', {
-          productId: res.data.id,
-          categoryId: res.data.categoryId,
-          // Effective (charged) price + discount enrichment on the existing
-          // event (no new event — keeps analytics noise-free).
-          price_cdf: Number(res.data.discountPriceCDF ?? res.data.priceCDF),
-          ...(discountPercent(res.data.priceCDF, res.data.discountPriceCDF) > 0
-            ? {
-                discount_percent: discountPercent(
-                  res.data.priceCDF,
-                  res.data.discountPriceCDF,
-                ),
-              }
-            : {}),
-          sellerId: res.data.seller?.id,
-        });
+        onLoaded(res.data);
       })
       .catch(() => setError(true))
       .finally(() => setIsLoading(false));
-  }, [productId]);
+  }, [productId, initialProduct]);
 
   if (isLoading) {
     return (
@@ -445,16 +470,14 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
                     the account menu and /contact. */}
               </Card>
 
-              {/* Category link */}
+              {/* Category link — the product's OWN town's listing (SEO-1):
+                  the legacy global /categorie/{slug} 308'd to the default
+                  town, which is wrong for a Kolwezi product and a wasted hop. */}
               {product.category && (
                 <div className="mt-3">
                   <p className="text-xs text-muted-foreground uppercase tracking-wide">{"Catégorie"}</p>
                   <Link
-                    href={
-                      product.category.slug
-                        ? `/categorie/${product.category.slug}`
-                        : `/categories/${product.category.id}`
-                    }
+                    href={categoryHref(product.city?.slug, product.category)}
                     className="text-sm font-medium text-primary hover:text-primary-hover hover:underline underline-offset-4 mt-0.5 inline-block"
                   >
                     {product.category.name ?? ''}
@@ -570,7 +593,7 @@ export default function ProductDetailPage({ identifier }: { identifier?: string 
         </div>
       )}
 
-      <Footer />
+      <Footer initialCities={initialCities} />
     </div>
   );
 }
@@ -621,4 +644,14 @@ function QuantityStepper({ value, min, max, onChange, compact }: QuantityStepper
       </button>
     </div>
   );
+}
+
+/**
+ * The server route resolves `[product]` to a shortCode / UUID / legacy slug
+ * and fetches that product; accept it as the initial state only when it is
+ * the one this identifier names (a client-side navigation between two PDPs
+ * reuses the component with a new identifier and must refetch).
+ */
+function initialProductMatches(p: ProductDetail, identifier: string): boolean {
+  return p.shortCode === identifier || p.id === identifier || p.slug === identifier;
 }

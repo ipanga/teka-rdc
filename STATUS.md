@@ -1,16 +1,137 @@
-# Status — 2026-09-06
+# Status — 2026-09-09 (pre-scale readiness — release-readiness audit complete; its only code blocker, S12 payout destination, is FIXED and MERGED (`295e801`, PR #722); no code blocker remains; the `develop → main` release PR is NOT opened)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
-**Seller Mobile 0.1.9+11 store release — in preparation, awaiting explicit approval to ship.**
-Carries the « Vérification de la boutique » screen, the commune profile fields, the notification
-deep link, the 2026-09-05 auth-interceptor session fix and the 2026-09-06 shared multipart retry
-(PR #667, `82bd7b5`). `pubspec.yaml` bumped from `0.1.8+10` (the distributed build; Play refuses a
-repeated `versionCode`) to `0.1.9+11`. Nothing has been uploaded to TestFlight or Google Play.
-Buyer Mobile stays at `0.1.7+9` — not part of this release. The Seller Commune + verification
-initiative itself was released to production on 2026-09-05 (below).
+**Pre-scale readiness initiative — Buyer Mobile functional readiness CLOSED, tablet phase CLOSED for both
+apps, Buyer Mobile UX/UI polish CLOSED (A `7dadf23`, B `a57dcf5`, C `cf0f148`, D `9ff8b64`), Seller Mobile
+UX/UI polish STARTED.** Merged to date: `6201534`, `29ccb6f`, `5af6b94`, `1d74149`, `db1b5fb`, `c470e63`,
+`a877bbb`, `c6ce951`, `613f0fa`, `9450358`, `5ed2814`, `2ef5b94`, `57b3ea7`, `7dadf23`, `a57dcf5`,
+`cf0f148`, `9ff8b64`, plus `ci/dependabot-pnpm` (`adae24f`).
+
+**Seller UX PR A `8086594`, PR B `5825cb3`, PR C `5d55f03`, PR D `a6b0d7c`, PR E `0ecbcea`, PR F `f2b8d49`
+merged — the Seller Mobile UX/UI polish series A–F is COMPLETE (2026-09-08).** PR F covered account, personal information, shop profile (town · commune),
+verification and documents. The audit found the mechanics sound (the API's `/v1/auth/me` with city and
+commune names, the server-owned commune rule mirrored only for the form, the D3/D5 verification flow with
+`requiredTypes` / `missingTypes` from the API, the hardened upload pipeline) and the presentation dated: a
+dark header whose status chip was colour-only, brand red on every menu icon, base-colour badges, a
+« Requis » in brand red, raw snackbars, spinners, generic errors, and a rejected verification with no
+« what to do ». Now: a white identity card (shop, person, login email, town · commune) with the account
+and verification statuses as labelled badges on semantic tones; the one row that needs the seller carries
+an « Action requise » pill; the verification screen opens a refused dossier on an « Action requise » strip
+with Teka's seller-facing reason and one « Remplacer le document refusé » button that goes straight to the
+refused document; the shop form has sections, validators in the API's own words, and names a saved town
+that is no longer offered instead of silently replacing it; personal information validates like the API,
+sends only changed fields, and the session user follows the API's answer so the dashboard greeting changes
+at once. Two defects surfaced on the device and are fixed with tests: the account header did not refetch
+after an edit (the pushed route's future never fired on the device — a `profile` refresh revision bumped
+by the repository now drives it), and a menu tile's trailing pill consumed the whole tile at 320 px / 1.5×.
+Also found by the new tests: the menu's `ListTile`s sat in a `DecoratedBox`, so their tap ripple never
+painted (Material now). Notification-permission prompt: investigated, kept as the single system prompt at
+first login (decision recorded). Verified on the phone as Marie: name edit → header + greeting follow,
+commune saved, a real camera upload → PENDING_REVIEW, an admin refusal (dev DB) → Action Center row →
+strip → resubmission from the strip → PENDING_REVIEW with the previous document SUPERSEDED, FCM
+« Documents reçus » received; 1.3× / 1.5×; tablet portrait / landscape; a second seller after logout with
+nothing of the first left. Cleanup verified field by field: Marie's two QA documents deleted with both Cloudinary assets destroyed (2 destroyed, 0 missing), her first name, last name, commune and verification fields restored, both password hashes and `passwordSetAt` restored byte-for-byte (temporary password 401s), Patrick untouched apart from the restored hash; the QA scripts holding the temporary password deleted. Seller 461 (+74), buyer 501 unchanged, analyze 5. No API,
+schema, env or dependency change.
+
+**Read-only checkpoint merged** (`8c387c2`, PR #711) — the whole initiative is reconciled in
+`docs/pre-scale-readiness.md` → « Checkpoint (2026-09-08) » with the P0–P3 classification.
+**`docs/release-readiness` open, awaiting merge approval — documentation only, no application code:**
+the rollback procedure in `docs/deployment.md` rewritten against the deployment that actually exists
+(flat VPS directory, GHCR `:latest` + `:<sha>` tags, `docker rollout`, four rollback layers), the
+first-deploy section corrected (no `compose build`, no `prisma migrate deploy` — neither exists here),
+a MANUAL Cloudflare origin-firewall procedure, and a per-release checklist (AUTOMATED / MANUAL /
+POST-DEPLOY) plus a 36-check post-deploy smoke matrix. `auth_rate_limits` verified: additive,
+idempotent, on the auto-apply manifest, no rollback needed, old code compatible — **not applied
+anywhere**.
+
+**Where the initiative stands.** Buyer Mobile functional readiness: COMPLETE. Buyer Mobile UX/UI
+phase: COMPLETE (A–D). Seller Mobile functional readiness: COMPLETE, with debt explicitly retained
+(legacy characteristic prefill, plain `Image.network` thumbnails, API `pendingCDF` vs HELD without
+`deliveredAt`, notification-permission pre-prompt). Seller Mobile UX/UI A–F: COMPLETE. Android phone
+and tablet (portrait + landscape) runtime verification: PERFORMED for both apps. **iOS/iPad runtime:
+still a validation gap** (uploads and `--no-codesign` builds only, no simulator input tooling).
+**Buyer Web SEO: COMPLETE — SEO-1 merged (`6234f0c`, PR #713), SEO-2 merged (`03035e3`, PR #714,
+2026-09-09); no longer a release blocker; no SEO-3 planned or started.** SEO-2 implemented the two approved decisions: an empty
+town × category page (zero eligible products IN THAT TOWN — `publicProductWhere`: ACTIVE, not deleted,
+in the town, not a retired demo; new optional `?cityId=` on the category endpoints, one grouped query
+per tree) is `noindex, follow`, self-canonical, reachable and out of the sitemap, and flips back by
+itself with inventory (verified live with a temporary fixture, cleaned up); and public service-area
+copy, header town links, metadata and structured data derive from the active-town API, so Likasi
+(inactive, kept in master data) is no longer advertised anywhere and appears on its own when
+activated. Also: banner slides are real links, `/categories` is server-rendered, upper-case paths 308
+to lower-case, the « Autre » placeholder never becomes a schema.org Brand, the homepage no longer
+says « Mobile Money ». Deferred with a written classification: header mega-menu SSR, `og-default.png`
+(design), PostHog deferral (analytics), town-page structured data (semantics not met), `keywords`. **Admin/Finance security decisions remain open** (S12 payout re-auth, S21
+SUPPORT/FINANCE, S11 audit rows, D2b). **Mobile security hardening remains open** (MS1–MS7).
+**Dependabot follow-ups remain open** (`esbuild` security job failing on the pinned exception, stale
+PRs #549/#565/#595, no bundler ecosystem). **The Cloudflare origin firewall is a MANUAL pre-release
+action — not applied.**
+
+**`security/payout-destination-reauth` MERGED (`295e801`, PR #722) — S12, the release-readiness audit's
+only code blocker, is CLOSED.** A stolen seller session could redirect the whole balance: `POST
+/v1/sellers/payouts` let an inline destination win over the saved profile, and `PATCH
+/v1/sellers/payout-method` had no re-auth, audit, notice, cooling-off or throttle. Now: the SAVED
+destination is the only routing authority (an inline one is accepted only when identical — 409
+otherwise); a real change needs the current password (400 missing / **403** wrong, counted in the login
+lock), runs under the same row lock as the request, stamps a **24 h cooling-off** (payout requests 409
+with the reopen date), writes a masked `PAYOUT_METHOD_CHANGED` audit row in the same transaction, and
+notifies the seller on feed + push + email; throttled 5/h per seller. Payout snapshots stay immutable.
+One additive migration (`2026-09-09_payout_method_changed_at.sql`). **The distributed seller-mobile
+0.1.9 build keeps working** — re-saving the unchanged destination is a password-free no-op, so no forced
+store release. Full record: `docs/pre-scale-readiness.md` → « S12 ».
+
+**Release-readiness audit (2026-09-09, read-only) — `develop` `65aee0f` (#715 merged `65aee0f`; CI 12/12 +
+CodeQL + Dependency Audit green): verdict at the time READY AFTER SPECIFIC BLOCKERS.** Its one code
+blocker — **S12 payout destination** (inline destination on `POST /v1/sellers/payouts` won over the
+profile; `PATCH payout-method` had no re-auth/notice/audit/cooling-off) — **is now fixed and merged
+(`295e801`, PR #722), so no code blocker remains.** Manual release-window
+actions: `nginx/nginx.prod.conf` copy + `nginx -t` + reload (deploy does not sync it), Cloudflare origin
+firewall the same day. One additive migration pending (`auth_rate_limits`). No new env vars. No distributed
+mobile build carries the buyer functional fixes or seller UX fixes; iOS/iPad runtime never exercised. Full
+record: `docs/pre-scale-readiness.md` → « Release-readiness audit (2026-09-09) ». **S12 has since been fixed and merged (`295e801`, PR #722) — no code blocker remains. The
+`develop → main` release PR is NOT opened — awaiting the owner's approval.**
+
+**Dependency security, 2026-09-08/09 — two advisory batches, two sibling PRs.**
+**`security/sharp-0.35.4` MERGED (`2e0454d`, PR #718):** GHSA-rgj7-g3m4-5g8c (`sharp` < 0.35.4, libheif)
+broke the blocking Dependency Audit; fixed by a root `pnpm.overrides` pin to 0.35.4, with the older
+`sharp` ignore entry GHSA-f88m-g3jw-g9cj removed alongside it (two exceptions left: `effect`,
+`deepmerge-ts`). **`security/multer-2.3.0` MERGED (`bd406cb`, PR #719); docs checkpoint #715 MERGED (`65aee0f`):** four `multer`
+2.2.0 advisories published the same evening (GHSA-wc9g-mqfw-jrwm, GHSA-qfvm-cv95-jqjf,
+GHSA-535w-7cp7-47q4 high; GHSA-qvfw-j98x-7q72 low; patched in 2.3.0) fail the same gate; fixed by raising
+the root override to `multer@<2.3.0 → ^2.3.0` plus `fieldArrayIndexLimit: 0` on the four multipart
+endpoints (the array-index guard is opt-in in 2.3.0) and a French 400 for multer's new error codes.
+**With both on `develop` the blocking Dependency Audit is green again** — only the two documented
+exceptions (`effect`, `deepmerge-ts`) and two low `joi` rows remain.
+
+**Production still runs `main` `78c6ef9` (2026-09-06):** every PR since #670 — the five security PRs,
+the CI gates, the Buyer Mobile functional fixes, tablet and both UX series — is on `develop` only.
+
+**Validation gaps that are NOT incomplete UX work: iPad/iOS runtime has never been exercised (PR A ran a
+`--no-codesign` iOS build only; PR B, C and D touched no native code); no golden tests exist in either app; the Seller phone runtime walk is being
+complete for dashboard, orders, products, earnings, profile and verification (PR B–F).** Seller Web / Admin Web redesign: out of scope until told
+otherwise. Still open from the previous release: manual Google Play Internal-testing upload of the Seller
+Mobile `0.1.9+11` AAB; Buyer Mobile store release.
 
 ## Most recently completed initiative
+
+**Seller Mobile `0.1.9+11` — verification screen · commune fields · notification deep link · shared
+multipart retry — RELEASED TO INTERNAL TESTING 2026-09-06.** Release PR **#669** (`develop → main`,
+merge commit **`78c6ef9`**, 09:55 UTC, 6 commits / 22 files, mobile + docs only), fast-forwarded so
+**`main == develop == 78c6ef9`**. The merge deploy (run `34025985620`) applied 0 migrations (9 skipped),
+swapped cleanly, API healthy; API/database/production data untouched. **iOS:** run `34026370681` —
+`com.tootiye.tekaseller` `0.1.9 (1788689147)` built with match signing, 13 dSYMs uploaded to Sentry
+(release `78c6ef9…`), gate `ios-testflight` approved, uploaded to App Store Connect app `6787212774`,
+processed, export compliance set, **distributed to and verified available for « Testers Teka RDC »**
+(internal only, no App Review). **Android:** run `34026373085` — signed production AAB
+`seller-mobile-production-release-aab` (65.7 MB, `versionCode` 11 / `versionName` 0.1.9, upload key
+verified locally, artefact retained until 2026-10-06) — **not uploaded to Play** (the workflow
+produces the artefact only). Validation: Android emulator with a production-flavor build of the same
+SHA installs, launches, reaches login and gets a real 401 from `api.teka.cd`; iOS runtime not
+exercised (no device/simulator input tooling). Multipart-retry fix (#667) verified earlier on the
+emulator for all four seller upload paths.
+
+## Previous completed initiative — Seller Commune · verification · Verified badge
 
 **Seller Commune (profile-edit parity) · business-document verification workflow · Verified badge —
 RELEASED TO PRODUCTION 2026-09-05 21:26 UTC.** Release PR **#665** (`develop → main`, merge commit

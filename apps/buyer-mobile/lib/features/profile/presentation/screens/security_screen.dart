@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
 import '../../../../core/widgets/app_states.dart';
@@ -88,10 +89,13 @@ class _SecurityScreenState extends ConsumerState<SecurityScreen> {
         leading: const AdaptiveLeading(),
         title: const Text('Gestion du compte'),
       ),
-      body: RefreshIndicator(
-        color: TekaColors.tekaRed,
-        onRefresh: _load,
-        child: _buildBody(),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: RefreshIndicator(
+            color: TekaColors.tekaRed,
+            onRefresh: _load,
+            child: _buildBody(),
+          ),
       ),
     );
   }

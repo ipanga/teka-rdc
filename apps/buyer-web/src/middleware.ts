@@ -16,6 +16,27 @@ const protectedRoutes = [
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Canonical URLs have no trailing slash (SEO-1). next.config sets
+  // `skipTrailingSlashRedirect: true` because the PostHog `/ingest/*` proxy
+  // must not be redirected — but that switch is global, so every page also
+  // answered 200 at both `/x` and `/x/`. Restore the 308 for everything except
+  // the proxy path so a slashed variant can never be indexed as a duplicate.
+  // Case (SEO-2): every canonical path is lower-case (town slugs, category
+  // slugs, product slug-and-code, static pages), so `/Lubumbashi` is the
+  // same page as `/lubumbashi` and must not be a distinct 404/duplicate.
+  // Query strings are untouched (search terms keep their case).
+  const hasUpper = /[A-Z]/.test(pathname);
+  if (
+    !pathname.startsWith('/ingest') &&
+    (hasUpper || (pathname.length > 1 && pathname.endsWith('/')))
+  ) {
+    // A plain URL, not NextURL: NextURL's pathname setter re-applies the
+    // trailing slash it was constructed with, so the redirect kept it.
+    const target = new URL(request.url);
+    target.pathname = pathname.toLowerCase().replace(/\/+$/, '') || '/';
+    return NextResponse.redirect(target, 308);
+  }
+
   // Treat the user as authenticated if they hold either an access token
   // (15 min TTL) OR a refresh token (7 day TTL). The access token expires
   // every 15 minutes, so gating on it alone kicked logged-in users to
@@ -57,7 +78,13 @@ export default function middleware(request: NextRequest) {
   // benign (its API calls 401 and it can now reach /connexion to recover),
   // whereas locking them *out* of login was the harmful failure mode.
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  if (isProtected) {
+    // D4: account pages (profile, orders, checkout, wishlist) are personal —
+    // never let a shared cache or the back/forward cache keep them.
+    response.headers.set('Cache-Control', 'private, no-store');
+  }
+  return response;
 }
 
 export const config = {

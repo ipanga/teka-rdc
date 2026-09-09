@@ -34,6 +34,17 @@ Future<void> _pump(WidgetTester tester, ReviewModel review,
 }
 
 void main() {
+  // « Achat vérifié » (2026-09-06): every review is written against the
+  // reviewer's own DELIVERED order (server rule), so every tile — legacy or
+  // new, own or someone else's — carries the badge.
+  testWidgets('every review tile shows the « Achat vérifié » badge', (tester) async {
+    await _pump(tester, _review(title: null, text: 'Ancien avis'));
+    expect(find.text(VerifiedPurchaseBadge.label), findsOneWidget);
+    expect(find.byIcon(Icons.verified_rounded), findsOneWidget);
+    await _pump(tester, _review(title: 'Nouveau', text: 'Récent'), onEdit: () {});
+    expect(find.text('Achat vérifié'), findsOneWidget);
+  });
+
   group('ReviewModel.fromJson', () {
     test('parses a title when present', () {
       final r = ReviewModel.fromJson({

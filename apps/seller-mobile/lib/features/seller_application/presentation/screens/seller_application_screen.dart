@@ -10,6 +10,7 @@ import '../../../../core/utils/commune_rules.dart';
 import '../../../../core/utils/phone.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/seller_application_repository.dart';
+import '../../../../core/layout/responsive.dart';
 
 /// Seller business application — the mobile mirror of seller-web's
 /// /devenir-vendeur. Shown to a logged-in SELLER without an APPROVED profile.
@@ -290,7 +291,10 @@ class _SellerApplicationScreenState
           ),
         ],
       ),
-      body: SafeArea(child: _buildBody(context)),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: SafeArea(child: _buildBody(context)),
+      ),
     );
   }
 

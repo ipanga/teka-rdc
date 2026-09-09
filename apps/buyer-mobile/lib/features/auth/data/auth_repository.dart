@@ -95,13 +95,36 @@ class AuthRepository {
 
   // Session ———————————————————————————————————————————————————————————————————
 
-  Future<Map<String, dynamic>?> getCurrentUser() async {
+  /// Resolve the stored session against `/v1/auth/me`.
+  ///
+  /// A2 (2026-09-06): the old `getCurrentUser()` returned `null` on ANY error,
+  /// and the caller cleared the tokens — so a cold start with no signal logged
+  /// the buyer out. Only the server may end a session: a 401/403 that survived
+  /// the interceptor's refresh attempt is [SessionRejected]; everything else
+  /// (no network, DNS, timeouts, 5xx, a throttled 429, a client-side parse
+  /// bug) is [SessionUnreachable] and leaves the credentials alone.
+  Future<SessionCheck> checkSession() async {
     try {
       final response = await _dio.get('/v1/auth/me');
-      return response.data['data'] ?? response.data;
+      final body = response.data;
+      final user = (body is Map ? (body['data'] ?? body) : null);
+      if (user is Map<String, dynamic>) return SessionOk(user);
+      if (user is Map) return SessionOk(Map<String, dynamic>.from(user));
+      return const SessionUnreachable();
+    } on DioException catch (e) {
+      final code = e.response?.statusCode;
+      if (code == 401 || code == 403) return const SessionRejected();
+      return const SessionUnreachable();
     } catch (_) {
-      return null;
+      return const SessionUnreachable();
     }
+  }
+
+  /// Kept for callers that only need the user map (null on anything but a
+  /// verified session). New code should use [checkSession].
+  Future<Map<String, dynamic>?> getCurrentUser() async {
+    final result = await checkSession();
+    return result is SessionOk ? result.user : null;
   }
 
   Future<void> logout() async {
@@ -112,6 +135,26 @@ class AuthRepository {
     }
     await _tokenStorage.clearTokens();
   }
+}
+
+/// Outcome of a session check — see [AuthRepository.checkSession].
+sealed class SessionCheck {
+  const SessionCheck();
+}
+
+class SessionOk extends SessionCheck {
+  final Map<String, dynamic> user;
+  const SessionOk(this.user);
+}
+
+/// The server answered and said no (401/403 after a refresh attempt).
+class SessionRejected extends SessionCheck {
+  const SessionRejected();
+}
+
+/// The server could not be asked (offline, DNS, timeout, 5xx, throttled…).
+class SessionUnreachable extends SessionCheck {
+  const SessionUnreachable();
 }
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {

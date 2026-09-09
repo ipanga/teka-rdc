@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
-import { Clarity } from '@/components/analytics/clarity';
+import { headers } from 'next/headers';
 import { AuthProvider } from '@/components/providers/auth-provider';
 import { PostHogPageview } from '@/components/providers/posthog-pageview';
 import { PostHogProvider } from '@/components/providers/posthog-provider';
@@ -27,6 +27,9 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // D4: the CSP nonce (set by middleware) only works when the page renders
+  // per request; reading the request headers here makes every route dynamic.
+  await headers();
   return (
     <html lang="fr">
       <body className="font-sans antialiased">
@@ -38,7 +41,6 @@ export default async function RootLayout({
             </Suspense>
           </AuthProvider>
         </PostHogProvider>
-        <Clarity />
       </body>
     </html>
   );

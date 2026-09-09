@@ -15,14 +15,34 @@ import { useCityStore } from '@/lib/city-store';
 import { CityPrompt } from '@/components/city/city-prompt';
 import { CategoryIcon } from '@/components/category/category-icon';
 import { categoryHref } from '@/lib/urls';
-import type { BrowseCategory, BrowseProduct } from '@/lib/types';
+import type { Banner, BrowseCategory, BrowseProduct } from '@/lib/types';
+import type { City } from '@/lib/city-store';
 
-export default function HomePage({ serverH1 }: { serverH1?: string }) {
-  const [categories, setCategories] = useState<BrowseCategory[]>([]);
+interface HomePageProps {
+  serverH1?: string;
+  /**
+   * Server-rendered inputs (SEO-1): the category grid, the banners (or the
+   * knowledge that there are none, so the hero <h1> renders server-side) and
+   * the active towns for the footer. Product rails stay client-side on the
+   * homepage because they depend on the buyer's selected town (client state);
+   * the per-town landing pages carry the server-rendered product grids.
+   */
+  initialCategories?: BrowseCategory[];
+  initialBanners?: Banner[];
+  initialCities?: City[];
+}
+
+export default function HomePage({
+  serverH1,
+  initialCategories,
+  initialBanners,
+  initialCities,
+}: HomePageProps) {
+  const [categories, setCategories] = useState<BrowseCategory[]>(initialCategories ?? []);
   const [popularProducts, setPopularProducts] = useState<BrowseProduct[]>([]);
   const [newestProducts, setNewestProducts] = useState<BrowseProduct[]>([]);
   const [promoProducts, setPromoProducts] = useState<BrowseProduct[]>([]);
-  const [loadingCategories, setLoadingCategories] = useState(true);
+  const [loadingCategories, setLoadingCategories] = useState(initialCategories === undefined);
   const [loadingPopular, setLoadingPopular] = useState(true);
   const [loadingNewest, setLoadingNewest] = useState(true);
   const [loadingPromo, setLoadingPromo] = useState(true);
@@ -52,12 +72,15 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
 
     const cityParam = selectedCity ? `&cityId=${selectedCity.id}` : '';
 
-    // Fetch categories
-    setLoadingCategories(true);
-    apiFetch<BrowseCategory[]>('/v1/browse/categories')
-      .then((res) => setCategories(res.data))
-      .catch(() => {})
-      .finally(() => setLoadingCategories(false));
+    // Fetch categories — unless the server already rendered them (the tree
+    // is town-independent, so it never needs a refetch on a town change).
+    if (initialCategories === undefined) {
+      setLoadingCategories(true);
+      apiFetch<BrowseCategory[]>('/v1/browse/categories')
+        .then((res) => setCategories(res.data))
+        .catch(() => {})
+        .finally(() => setLoadingCategories(false));
+    }
 
     // Fetch popular products (filtered by city)
     setLoadingPopular(true);
@@ -79,7 +102,7 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
       .then((res) => setPromoProducts(res.data.data))
       .catch(() => {})
       .finally(() => setLoadingPromo(false));
-  }, [selectedCity, cityInitialized]);
+  }, [selectedCity, cityInitialized, initialCategories]);
 
   return (
     <div className="min-h-screen flex flex-col bg-surface-muted">
@@ -91,6 +114,8 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
         {/* Banner Carousel — replaces the hero when admin banners exist; else
             the shared StoreHero (same component the city landing pages use). */}
         <BannerCarousel
+          initialBanners={initialBanners}
+          srTitle={serverH1}
           fallback={
             <StoreHero
               title={serverH1 || "Bienvenue sur Teka"}
@@ -193,7 +218,7 @@ export default function HomePage({ serverH1 }: { serverH1?: string }) {
         </section>
       </main>
 
-      <Footer />
+      <Footer initialCities={initialCities} />
     </div>
   );
 }

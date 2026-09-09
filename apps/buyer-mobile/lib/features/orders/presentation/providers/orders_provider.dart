@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/network/dio_error_messages.dart';
 import '../../data/models/order_model.dart';
 import '../../data/orders_repository.dart';
@@ -87,6 +88,11 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
     loadOrders(page: 1);
   }
 
+  /// Session ended (A4): drop the previous account's orders and filter.
+  void reset() {
+    state = const OrdersState();
+  }
+
   Future<void> refresh() async {
     await loadOrders(page: 1);
   }
@@ -95,7 +101,19 @@ class OrdersNotifier extends StateNotifier<OrdersState> {
 
 final ordersProvider =
     StateNotifierProvider<OrdersNotifier, OrdersState>((ref) {
-  return OrdersNotifier(ref.read(ordersRepositoryProvider));
+  final notifier = OrdersNotifier(ref.read(ordersRepositoryProvider));
+  // Account-scoped (A4): a notifier that outlives a logout must not show
+  // Buyer A's orders to Buyer B; reload on the next sign-in.
+  ref.listen<AuthState>(authProvider, (prev, next) {
+    final wasAuthed = prev?.status == AuthStatus.authenticated;
+    final isAuthed = next.status == AuthStatus.authenticated;
+    if (!isAuthed && wasAuthed) {
+      notifier.reset();
+    } else if (isAuthed && !wasAuthed && prev != null) {
+      notifier.loadOrders();
+    }
+  });
+  return notifier;
 });
 
 final orderDetailProvider =

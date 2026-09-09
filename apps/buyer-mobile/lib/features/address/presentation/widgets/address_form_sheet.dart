@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/utils/phone.dart';
 import '../../../checkout/data/models/checkout_model.dart';
 import '../../../city/data/city_repository.dart';
 import '../../../city/data/models/city_model.dart';
@@ -18,9 +19,15 @@ import '../../../city/data/models/commune_model.dart';
 /// Payload keys are the API contract — `reference` and `recipientPhone`, not
 /// `details`/`phone`. The API runs `forbidNonWhitelisted`, so a wrong key is a
 /// 400, not a silently ignored field.
+/// Saves the payload; returns null on success or the French message to show
+/// inside the sheet (the API's own reason — « Commune inactive », « Numéro de
+/// téléphone invalide… » — or a connectivity message). Before PR D2 the sheet
+/// only learnt "false" and the callers showed a generic snackbar behind it.
+typedef AddressSaveHandler = Future<String?> Function(Map<String, dynamic> data);
+
 class AddressFormSheet extends StatefulWidget {
   final CityRepository cityRepository;
-  final Future<bool> Function(Map<String, dynamic> data) onSave;
+  final AddressSaveHandler onSave;
 
   /// Existing address to edit. Null → creation.
   final AddressModel? initial;
@@ -44,6 +51,15 @@ class _AddressFormSheetState extends State<AddressFormSheet> {
   bool _isLoadingCities = true;
   bool _isLoadingCommunes = false;
   bool _isSaving = false;
+
+  /// City / commune list failed to load: shown with a retry instead of the
+  /// silent empty, disabled form of before (A10, 2026-09-07).
+  bool _citiesFailed = false;
+  bool _communesFailed = false;
+
+  /// Field-level phone error and the last save failure (both French).
+  String? _phoneError;
+  String? _saveError;
 
   CityModel? _selectedCity;
   CommuneModel? _selectedCommune;
@@ -76,6 +92,10 @@ class _AddressFormSheetState extends State<AddressFormSheet> {
   }
 
   Future<void> _loadCities() async {
+    setState(() {
+      _isLoadingCities = true;
+      _citiesFailed = false;
+    });
     try {
       final cities = await widget.cityRepository.getCities();
       if (!mounted) return;
@@ -105,13 +125,19 @@ class _AddressFormSheetState extends State<AddressFormSheet> {
         await _loadCommunes(preselected.id, preselect: initial);
       }
     } catch (_) {
-      if (mounted) setState(() => _isLoadingCities = false);
+      if (mounted) {
+        setState(() {
+          _isLoadingCities = false;
+          _citiesFailed = true;
+        });
+      }
     }
   }
 
   Future<void> _loadCommunes(String cityId, {AddressModel? preselect}) async {
     setState(() {
       _isLoadingCommunes = true;
+      _communesFailed = false;
       _communes = [];
       _selectedCommune = null;
     });
@@ -135,14 +161,34 @@ class _AddressFormSheetState extends State<AddressFormSheet> {
         _isLoadingCommunes = false;
       });
     } catch (_) {
-      if (mounted) setState(() => _isLoadingCommunes = false);
+      if (mounted) {
+        setState(() {
+          _isLoadingCommunes = false;
+          _communesFailed = true;
+        });
+      }
     }
   }
 
   Future<void> _save() async {
     if (_selectedCity == null || _selectedCommune == null) return;
 
-    setState(() => _isSaving = true);
+    // One phone rule on every surface (PR D2): `081…`, `+243 81…`, spaces
+    // and dashes become the canonical `+243XXXXXXXXX` (the API applies the
+    // same rule on write); an unreadable value is refused here, on the field.
+    final rawPhone = _recipientPhoneController.text.trim();
+    final normalizedPhone = rawPhone.isEmpty ? null : normalizeDrcPhone(rawPhone);
+    if (rawPhone.isNotEmpty && normalizedPhone == null) {
+      setState(() => _phoneError =
+          'Numéro invalide : 9 chiffres (ex. 990 000 001) ou +243…');
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+      _phoneError = null;
+      _saveError = null;
+    });
 
     // Optional fields are sent as null rather than omitted when cleared, so
     // wiping the landmark actually wipes it server-side instead of leaving the
@@ -163,7 +209,7 @@ class _AddressFormSheetState extends State<AddressFormSheet> {
     final avenue = trimmedOrNull(_avenueController);
     final reference = trimmedOrNull(_referenceController);
     final recipientName = trimmedOrNull(_recipientNameController);
-    final recipientPhone = trimmedOrNull(_recipientPhoneController);
+    final recipientPhone = normalizedPhone;
 
     // On create, omitting is equivalent and keeps the payload minimal. On edit
     // the key must be present to clear a previously-saved value.
@@ -176,10 +222,13 @@ class _AddressFormSheetState extends State<AddressFormSheet> {
       data['recipientPhone'] = recipientPhone;
     }
 
-    final success = await widget.onSave(data);
+    final failure = await widget.onSave(data);
     if (mounted) {
-      setState(() => _isSaving = false);
-      if (success) {
+      setState(() {
+        _isSaving = false;
+        _saveError = failure;
+      });
+      if (failure == null) {
         Navigator.of(context).pop();
       }
     }
@@ -274,12 +323,18 @@ class _AddressFormSheetState extends State<AddressFormSheet> {
             const SizedBox(height: 6),
             if (_isLoadingCities)
               _spinner
+            else if (_citiesFailed)
+              _LoadFailure(
+                key: const ValueKey('address-cities-failed'),
+                message: 'Impossible de charger les villes.',
+                onRetry: _loadCities,
+              )
             else
               _dropdownShell(
                 child: DropdownButton<String>(
                   value: _selectedCity?.id,
                   hint: const Text(
-                    "Selectionnez une ville",
+                    "Sélectionnez une ville",
                     style: TextStyle(
                       color: TekaColors.mutedForeground,
                       fontSize: 14,
@@ -310,12 +365,18 @@ class _AddressFormSheetState extends State<AddressFormSheet> {
               const SizedBox(height: 6),
               if (_isLoadingCommunes)
                 _spinner
+              else if (_communesFailed)
+                _LoadFailure(
+                  key: const ValueKey('address-communes-failed'),
+                  message: 'Impossible de charger les communes.',
+                  onRetry: () => _loadCommunes(_selectedCity!.id),
+                )
               else
                 _dropdownShell(
                   child: DropdownButton<String>(
                     value: _selectedCommune?.id,
                     hint: const Text(
-                      "Selectionnez une commune",
+                      "Sélectionnez une commune",
                       style: TextStyle(
                         color: TekaColors.mutedForeground,
                         fontSize: 14,
@@ -356,7 +417,7 @@ class _AddressFormSheetState extends State<AddressFormSheet> {
             TextField(
               controller: _referenceController,
               decoration: _decoration(
-                label: "Point de repere",
+                label: "Point de repère",
                 hint: "Ex: En face de la pharmacie",
                 icon: Icons.place_outlined,
               ),
@@ -379,13 +440,32 @@ class _AddressFormSheetState extends State<AddressFormSheet> {
             TextField(
               controller: _recipientPhoneController,
               keyboardType: TextInputType.phone,
+              onChanged: (_) {
+                if (_phoneError != null) setState(() => _phoneError = null);
+              },
               decoration: _decoration(
-                label: "Telephone du destinataire",
-                hint: "+243...",
+                label: "Téléphone du destinataire",
+                hint: "Ex. 099 000 00 01",
                 icon: Icons.phone_outlined,
+              ).copyWith(
+                errorText: _phoneError,
+                helperText: 'Numéro WhatsApp ou mobile de la personne qui reçoit.',
+                helperMaxLines: 2,
               ),
               style: const TextStyle(fontSize: 14),
             ),
+            if (_saveError != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                _saveError!,
+                key: const ValueKey('address-save-error'),
+                style: const TextStyle(
+                  color: TekaColors.destructive,
+                  fontSize: 13,
+                  height: 1.35,
+                ),
+              ),
+            ],
             const SizedBox(height: 20),
 
             Row(
@@ -430,6 +510,36 @@ class _AddressFormSheetState extends State<AddressFormSheet> {
             const SizedBox(height: 8),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// A reference list (cities, communes) failed to load — say so and offer a
+/// retry rather than an empty, disabled form.
+class _LoadFailure extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _LoadFailure({super.key, required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        border: Border.all(color: TekaColors.destructive.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, size: 18, color: TekaColors.destructive),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(message, style: const TextStyle(fontSize: 13)),
+          ),
+          TextButton(onPressed: onRetry, child: const Text('Réessayer')),
+        ],
       ),
     );
   }

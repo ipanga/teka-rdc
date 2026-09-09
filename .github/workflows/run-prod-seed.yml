@@ -25,6 +25,11 @@ on:
         type: string
         default: ''
 
+# Least privilege (PR 5): the workflow token can only read the repo; jobs that
+# need more declare it themselves.
+permissions:
+  contents: read
+
 concurrency:
   group: production-deploy
   cancel-in-progress: false
@@ -41,7 +46,7 @@ jobs:
           fi
 
       - name: SSH run seed
-        uses: appleboy/ssh-action@v1
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}

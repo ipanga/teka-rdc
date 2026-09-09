@@ -19,6 +19,24 @@ class CatalogRepository {
 
   CatalogRepository(this._dio);
 
+  /// GET /v1/browse/categories/:identifier — one category by id OR slug (the
+  /// API resolves both). Used when a category arrives from a web URL / deep
+  /// link as a slug and the tree is not loaded (A7, 2026-09-06).
+  Future<CategoryModel> getCategory(String identifier) async {
+    final response =
+        await _dio.get('/v1/browse/categories/${Uri.encodeComponent(identifier)}');
+    final responseData = response.data;
+    final Map<String, dynamic> json;
+    if (responseData is Map && responseData['data'] is Map) {
+      json = Map<String, dynamic>.from(responseData['data'] as Map);
+    } else if (responseData is Map) {
+      json = Map<String, dynamic>.from(responseData);
+    } else {
+      throw Exception('Invalid category response');
+    }
+    return CategoryModel.fromJson(json);
+  }
+
   Future<List<CategoryModel>> getCategories() async {
     final response = await _dio.get('/v1/browse/categories');
     final responseData = response.data;

@@ -153,6 +153,14 @@ counts as task counts. Add query-driven list entry points without replacing tab 
   Reuse the method while preserving Seller's charcoal identity. Do not generate/edit a logo with AI.
 - Cold-launch screenshots/video on iOS and Android remain for the separate native-assets lot.
 
+> **Resolved 2026-09-08 — Seller UX PR A (`seller-mobile/ux-ui-polish`).** The measured root cause differed
+> from the hypotheses above in two places: the Android 12+ defect was the *launcher* glyph reused as the
+> splash icon (65 % of the canvas, outside the 66 % circular safe zone, so the OS mask clipped it), and the
+> pre-12/iOS defect was an opaque 1200² white source whose wordmark rendered at ~80 dp — `splash_wordmark.png`
+> was the white wordmark, not a crisp source. Fixed with a 46 %-height splash-only icon on `#1A1A1A` and a
+> trimmed dark wordmark at 220 dp, `fullscreen: false`, `-v33` sidecars kept by hand and the status-bar
+> flags stripped post-generation. Full record: `docs/pre-scale-readiness.md` → « Seller UX PR A ».
+
 ### Visual direction and review boundaries
 
 Keep Modern Ruby for primary actions/selection; use neutral cards with clear borders, minimal

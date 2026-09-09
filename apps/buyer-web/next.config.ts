@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
+import { buyerSecurityHeaders } from './src/lib/security-headers';
 
 // URL → URL redirects for the static-page slug refactor. Kept in sync with
 // apps/buyer-web/src/lib/static-pages.ts (PAGE_DEFINITIONS). Inlined here
@@ -19,8 +20,18 @@ const PAGE_REDIRECTS: Array<{ canonical: string; fr: string }> = [
   { canonical: 'contact',     fr: 'contact' },
 ];
 
+// D4 (2026-09-06): browser security headers are emitted by the app itself —
+// see src/lib/security-headers.ts for the policy and the reasoning.
+const securityHeaders = buyerSecurityHeaders({
+  apiUrl: process.env.NEXT_PUBLIC_API_URL,
+  sentryDsn: process.env.NEXT_PUBLIC_SENTRY_DSN_BUYER_WEB,
+  clarityProjectId: process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID_BUYER_WEB,
+  dev: process.env.NODE_ENV !== 'production',
+});
+
 const nextConfig: NextConfig = {
   output: 'standalone',
+  poweredByHeader: false,
   // Required in pnpm workspaces: without this, Next.js traces deps from
   // apps/buyer-web/ only and workspace packages (@teka/shared) never land
   // in the standalone output — the container then 502s on first request.
@@ -63,6 +74,15 @@ const nextConfig: NextConfig = {
   // Additive only — does not touch routing, redirects, or SEO.
   async headers() {
     return [
+      // Every response — HTML, /_next/static chunks, public/ files. nginx no
+      // longer duplicates these, so nothing is lost on the static locations.
+      { source: '/:path*', headers: securityHeaders },
+      // Public fingerprint-less assets: a day at the edge/browser (nginx used
+      // to add this with `expires 1d`; moved here so the header set is one).
+      {
+        source: '/:path*.(png|jpg|jpeg|gif|ico|svg|webp|woff|woff2|ttf)',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=86400' }],
+      },
       {
         source: '/.well-known/assetlinks.json',
         headers: [

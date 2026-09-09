@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../../../core/widgets/app_states.dart';
@@ -29,7 +30,9 @@ class CartScreen extends ConsumerWidget {
           const SizedBox(width: 12),
         ],
       ),
-      body: cartState.isLoading
+      // Only the FIRST load takes the screen; a pull-to-refresh keeps the
+      // lines visible under its own spinner instead of blanking them (PR D3).
+      body: cartState.isLoading && cartState.items.isEmpty
           ? const Center(
               child: CircularProgressIndicator(strokeWidth: 2),
             )
@@ -43,27 +46,32 @@ class CartScreen extends ConsumerWidget {
               : RefreshIndicator(
                   color: TekaColors.tekaRed,
                   onRefresh: () => ref.read(cartProvider.notifier).fetchCart(),
-                  child: ListView.builder(
-                    physics: const AlwaysScrollableScrollPhysics(),
-                    itemCount: cartState.items.length,
-                    itemBuilder: (context, index) {
-                      final item = cartState.items[index];
-                      return CartItemTile(
-                        item: item,
-                        onOpenProduct: () =>
-                            context.push('/products/${item.productId}'),
-                        onQuantityChanged: (newQuantity) {
-                          ref
-                              .read(cartProvider.notifier)
-                              .updateQuantity(item.productId, newQuantity);
-                        },
-                        onRemove: () {
-                          ref
-                              .read(cartProvider.notifier)
-                              .removeItem(item.productId);
-                        },
-                      );
-                    },
+                  // Cart lines are content, not a grid: centered in a readable
+                  // column on a tablet rather than one row per 1024 pt.
+                  child: ReadableColumn(
+                    padding: EdgeInsets.zero,
+                    child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: cartState.items.length,
+                      itemBuilder: (context, index) {
+                        final item = cartState.items[index];
+                        return CartItemTile(
+                          item: item,
+                          onOpenProduct: () =>
+                              context.push('/products/${item.productId}'),
+                          onQuantityChanged: (newQuantity) {
+                            ref
+                                .read(cartProvider.notifier)
+                                .updateQuantity(item.productId, newQuantity);
+                          },
+                          onRemove: () {
+                            ref
+                                .read(cartProvider.notifier)
+                                .removeItem(item.productId);
+                          },
+                        );
+                      },
+                    ),
                   ),
                 ),
       bottomNavigationBar: cartState.items.isNotEmpty
@@ -139,50 +147,63 @@ class _CartBottomBar extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          // Total info
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Total',
-                  style: TextStyle(
-                    color: TekaColors.mutedForeground,
-                    fontSize: 12,
+      child: ReadableBottomBar(
+        child: Row(
+          children: [
+            // Total info
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // « Sous-total », not « Total »: the delivery fee comes
+                  // from the authoritative checkout quote and is not known
+                  // yet, so calling this the total told the buyer a number
+                  // that was about to change (UX PR C).
+                  const Text(
+                    'Sous-total',
+                    style: TextStyle(
+                      color: TekaColors.mutedForeground,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  formatCDF(totalCDF),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        color: TekaColors.tekaRed,
-                        fontWeight: FontWeight.bold,
-                      ),
-                ),
-              ],
+                  const SizedBox(height: 2),
+                  Text(
+                    formatCDF(totalCDF),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: TekaColors.foreground,
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const Text(
+                    'Livraison calculée à la commande',
+                    style: TextStyle(
+                      color: TekaColors.mutedForeground,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
 
-          // Checkout button
-          FilledButton(
-            onPressed: onCheckout,
-            style: FilledButton.styleFrom(
-              backgroundColor: TekaColors.tekaRed,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 14,
+            // Checkout button
+            FilledButton(
+              onPressed: onCheckout,
+              style: FilledButton.styleFrom(
+                backgroundColor: TekaColors.tekaRed,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
+                textStyle: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
-              textStyle: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-              ),
+              child: const Text('Passer la commande'),
             ),
-            child: const Text('Passer la commande'),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

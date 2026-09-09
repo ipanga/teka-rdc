@@ -1,17 +1,56 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/adaptive_leading.dart';
 import '../../../../core/widgets/app_bar_actions.dart';
+import '../../../../core/widgets/app_states.dart';
 import '../providers/notifications_provider.dart';
+import '../../../../core/widgets/product_skeletons.dart';
 
 /// Notification Center opened from the home AppBar bell. Lists the buyer's
 /// in-app notifications (admin broadcasts, product promos, …) with read/unread
 /// state; tapping marks read + deep-links a product notification to the PDP.
-class NotificationsScreen extends ConsumerWidget {
+class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
+
+  @override
+  ConsumerState<NotificationsScreen> createState() =>
+      _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Refresh on entry (PR D, 2026-09-06): the notifier loads once when it is
+    // created and the feed used to stay as it was for the rest of the
+    // session, however many pushes arrived in between.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(notificationsProvider.notifier).refreshOnOpen();
+      ref.invalidate(notificationUnreadCountProvider);
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// App brought back to the front while this screen is showing: reload
+  /// (one GET) — the badge is handled app-wide by the resume hook.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      ref.read(notificationsProvider.notifier).refreshOnOpen();
+    }
+  }
 
   String _timeAgo(DateTime d) {
     final min = DateTime.now().difference(d).inMinutes;
@@ -23,7 +62,7 @@ class NotificationsScreen extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final state = ref.watch(notificationsProvider);
     final notifier = ref.read(notificationsProvider.notifier);
 
@@ -45,9 +84,12 @@ class NotificationsScreen extends ConsumerWidget {
           const SizedBox(width: 12),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: notifier.refresh,
-        child: _body(context, ref, state, notifier),
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: RefreshIndicator(
+            onRefresh: notifier.refresh,
+            child: _body(context, ref, state, notifier),
+          ),
       ),
     );
   }
@@ -59,7 +101,20 @@ class NotificationsScreen extends ConsumerWidget {
     NotificationsNotifier notifier,
   ) {
     if (state.isLoading && state.items.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      // Shaped skeleton rather than a spinner on a blank screen (UX PR D).
+      return const ListCardSkeleton(count: 5, cardHeight: 84);
+    }
+    // Nothing loaded and the load failed: a real error state with a retry
+    // (it used to be rendered as the empty state's caption, with no way to
+    // try again).
+    if (state.items.isEmpty && state.error != null) {
+      return ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          const SizedBox(height: 40),
+          AppErrorState(message: state.error, onRetry: notifier.refresh),
+        ],
+      );
     }
     if (state.items.isEmpty) {
       return ListView(
@@ -73,9 +128,9 @@ class NotificationsScreen extends ConsumerWidget {
                 const Icon(Icons.notifications_none_rounded,
                     size: 72, color: TekaColors.mutedForeground),
                 const SizedBox(height: 16),
-                Text(
-                  state.error ?? 'Aucune notification',
-                  style: const TextStyle(
+                const Text(
+                  'Aucune notification',
+                  style: TextStyle(
                     color: TekaColors.mutedForeground,
                     fontWeight: FontWeight.w600,
                   ),
@@ -96,17 +151,28 @@ class NotificationsScreen extends ConsumerWidget {
       );
     }
 
+    // A failed refresh with items on screen: keep the list, say so on top.
+    final hasInlineError = state.error != null;
     return ListView.separated(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: state.items.length,
+      itemCount: state.items.length + (hasInlineError ? 1 : 0),
       separatorBuilder: (_, __) =>
           const Divider(height: 1, color: TekaColors.border),
       itemBuilder: (context, index) {
-        final n = state.items[index];
+        if (hasInlineError && index == 0) {
+          return _InlineRefreshError(
+            message: state.error!,
+            onRetry: notifier.refresh,
+          );
+        }
+        final n = state.items[index - (hasInlineError ? 1 : 0)];
         return Material(
-          color: n.isRead
-              ? Colors.transparent
-              : TekaColors.tekaRed.withValues(alpha: 0.05),
+          // Unread rows are white against the muted page, not washed in red
+          // (UX PR D). Unread is already said twice — the dot and the bold
+          // title — and a feed of unread items in red tint reads as a wall of
+          // alerts rather than a list of updates. A read row recedes into the
+          // page instead.
+          color: n.isRead ? Colors.transparent : TekaColors.surface,
           child: InkWell(
             onTap: () {
               const PosthogAnalytics().capture('notification_opened',
@@ -167,6 +233,40 @@ class NotificationsScreen extends ConsumerWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _InlineRefreshError extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _InlineRefreshError({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('notifications-inline-error'),
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: TekaColors.destructive.withValues(alpha: 0.06),
+        border: Border.all(color: TekaColors.destructive.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, size: 18, color: TekaColors.destructive),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(fontSize: 13, color: TekaColors.foreground),
+            ),
+          ),
+          TextButton(onPressed: onRetry, child: const Text('Réessayer')),
+        ],
+      ),
     );
   }
 }

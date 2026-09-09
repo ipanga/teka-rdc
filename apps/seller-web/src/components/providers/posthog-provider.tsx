@@ -31,7 +31,10 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
       capture_pageleave: true,
       persistence: 'localStorage+cookie',
       autocapture: true,
-      // Mask every <input> in replays — phone, address, password (Rule 10/15).
+      // D4 (2026-09-06): no session replay on the seller portal — identity,
+      // payout and verification data must never reach a recording, whatever
+      // the project-side setting says. Events/pageviews are unaffected.
+      disable_session_recording: true,
       session_recording: { maskAllInputs: true },
       before_send: (event) => scrubPosthogEvent(event),
     });

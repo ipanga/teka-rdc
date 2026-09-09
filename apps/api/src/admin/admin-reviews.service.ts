@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AdminReviewQueryDto } from './dto/admin-review-query.dto';
 import { ReviewStatus } from '@prisma/client';
+import { VISIBLE_REVIEW_WHERE } from '../reviews/review-visibility';
 
 @Injectable()
 export class AdminReviewsService {
@@ -179,8 +180,11 @@ export class AdminReviewsService {
    * Recalculate average rating and total review count for a product and its seller.
    */
   private async recalculateRatings(tx: any, productId: string) {
+    // Same predicate as the buyer-facing list/stats (review-visibility.ts):
+    // a hidden review leaves the count and the average at the same time as
+    // it leaves the list.
     const stats = await tx.review.aggregate({
-      where: { productId, deletedAt: null, status: 'ACTIVE' },
+      where: { productId, ...VISIBLE_REVIEW_WHERE },
       _avg: { rating: true },
       _count: true,
     });
@@ -202,8 +206,7 @@ export class AdminReviewsService {
       const sellerStats = await tx.review.aggregate({
         where: {
           product: { sellerId: product.sellerId },
-          deletedAt: null,
-          status: 'ACTIVE',
+          ...VISIBLE_REVIEW_WHERE,
         },
         _avg: { rating: true },
         _count: true,

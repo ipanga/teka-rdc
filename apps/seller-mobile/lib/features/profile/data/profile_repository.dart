@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/api_client.dart';
+import '../../../core/providers/seller_refresh_provider.dart';
 import '../../../core/network/multipart_upload.dart';
 import '../../../core/utils/image_compress.dart';
 
@@ -26,6 +27,17 @@ class ProfileUser {
     required this.role,
     this.sellerProfile,
   });
+
+  ProfileUser copyWith({String? avatar}) => ProfileUser(
+        id: id,
+        firstName: firstName,
+        lastName: lastName,
+        email: email,
+        phone: phone,
+        avatar: avatar ?? this.avatar,
+        role: role,
+        sellerProfile: sellerProfile,
+      );
 
   factory ProfileUser.fromJson(Map<String, dynamic> json) {
     final sp = json['sellerProfile'];
@@ -136,7 +148,12 @@ class CommuneOption {
 
 class ProfileRepository {
   final Dio _dio;
-  ProfileRepository(this._dio);
+
+  /// Called after a successful write (person, shop, photo) so the account
+  /// screen refetches — see `SellerRefreshNotifier.profileChanged`.
+  final void Function()? _onChanged;
+  ProfileRepository(this._dio, {void Function()? onChanged})
+      : _onChanged = onChanged;
 
   Future<ProfileUser> getMe() async {
     final response = await _dio.get('/v1/auth/me');
@@ -156,6 +173,7 @@ class ProfileRepository {
     if (lastName != null) body['lastName'] = lastName;
     if (email != null) body['email'] = email;
     final response = await _dio.patch('/v1/users/profile', data: body);
+    _onChanged?.call();
     final raw = response.data['data'] as Map<String, dynamic>;
     return ProfileUser.fromJson(raw);
   }
@@ -187,6 +205,7 @@ class ProfileRepository {
     }
     if (description != null) body['description'] = description;
     await _dio.patch('/v1/sellers/profile', data: body);
+    _onChanged?.call();
   }
 
   /// GET /v1/cities/:cityId/communes — active communes of a town, for the
@@ -399,5 +418,9 @@ class NotificationPrefs {
 }
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
-  return ProfileRepository(ref.read(dioProvider));
+  var alive = true;
+  ref.onDispose(() => alive = false);
+  return ProfileRepository(ref.read(dioProvider), onChanged: () {
+    if (alive) ref.read(sellerRefreshProvider.notifier).profileChanged();
+  });
 });

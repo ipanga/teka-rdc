@@ -89,11 +89,12 @@ void main() {
     expect(api.requests.where((r) => r.path == '/v1/sellers/orders').length, 1);
     await tester.tap(find.text('Commande TK-20260903-pending-0'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Confirmer'));
+    await tester.tap(find.text('Confirmer la commande'));
     await tester.pumpAndSettle();
     await tester.tap(find.descendant(
         of: find.byType(AlertDialog),
-        matching: find.widgetWithText(ElevatedButton, 'Confirmer')));
+        matching:
+            find.widgetWithText(ElevatedButton, 'Confirmer la commande')));
     await tester.pumpAndSettle();
     router.pop();
     await tester.pumpAndSettle();
@@ -143,7 +144,8 @@ void main() {
         container.read(sellerProductsProvider).products.single.id, 'rejected');
     await tester.tap(find.text('Sac de voyage — démonstration'));
     await tester.pumpAndSettle();
-    expect(find.text('Motif du rejet'), findsOneWidget);
+    expect(find.text('Motif indiqué par Teka'), findsOneWidget);
+    expect(find.text('Corriger et resoumettre'), findsOneWidget);
   });
 
   testWidgets('empty order recovery clears the query as well as the state',
@@ -165,13 +167,17 @@ void main() {
     final api = DashboardFixtureApi()..failStats = true;
     await _pump(tester, api: api);
     expect(find.text('Commandes indisponibles'), findsOneWidget);
-    expect(find.text('Aucune commande à traiter.'), findsNothing);
+    expect(find.text('Produits indisponibles'), findsOneWidget);
+    expect(find.text('Aucune action requise pour le moment.'), findsNothing);
     expect(find.text('0'), findsNothing);
     api.failStats = false;
     await tester.tap(find.text('Réessayer').first);
     await tester.pumpAndSettle();
     expect(find.text('25'), findsOneWidget);
-    expect(find.text('Aucun produit à corriger.'), findsNothing);
+    // Products still failed: their row keeps its scoped retry, and the
+    // « nothing to do » line stays away until every source has answered.
+    expect(find.text('Produits indisponibles'), findsOneWidget);
+    expect(find.text('Aucune action requise pour le moment.'), findsNothing);
   });
 
   testWidgets('empty queue is compact and preserves catalogue creation',
@@ -180,18 +186,25 @@ void main() {
     api.orders.clear();
     api.products.clear();
     await _pump(tester, api: api);
-    expect(find.text('Aucune commande à traiter.'), findsOneWidget);
-    expect(find.text('Aucun produit à corriger.'), findsOneWidget);
+    // One positive line for the whole queue — not one « nothing » per source.
+    expect(find.text('Aucune action requise pour le moment.'), findsOneWidget);
+    expect(find.text('Aucune commande à traiter.'), findsNothing);
+    expect(find.text('Aucun produit à corriger.'), findsNothing);
     expect(find.text('Nouveau produit').hitTestable(), findsOneWidget);
+    expect(find.text('Suivi'), findsNothing);
+    // No orders to act on: the Commandes tab carries no badge.
+    expect(find.byType(Badge), findsOneWidget,
+        reason: 'only the notifications badge remains');
   });
 
   testWidgets(
-      'pull refresh awaits both independent requests without showing stale counts',
+      'pull refresh awaits every independent request without showing stale counts',
       (tester) async {
     final orders = Completer<SellerOrderStats>();
     final products = Completer<ProductStats>();
     var orderCalls = 0, productCalls = 0;
-    await _pump(tester, overrides: [
+    final api = DashboardFixtureApi();
+    await _pump(tester, api: api, overrides: [
       sellerOrderStatsRequestProvider('seller-fixture').overrideWith((_) =>
           ++orderCalls == 1
               ? Future.value(const SellerOrderStats(pending: 8))
@@ -214,9 +227,216 @@ void main() {
     expect(complete, isFalse);
     products.complete(const ProductStats());
     await tester.pump();
+    // The verification request goes through the fixture Dio, which settles
+    // its response on a timer rather than a microtask: elapse a little.
+    for (var i = 0; i < 4 && !complete; i++) {
+      await tester.pump(const Duration(milliseconds: 250));
+    }
     await refresh;
     expect(complete, isTrue);
     expect(orderCalls, 2);
     expect(productCalls, 2);
+    expect(
+        api.requests.where((r) => r.path == '/v1/sellers/verification').length,
+        2,
+        reason: 'the verification source is refreshed with the others');
   });
+
+  testWidgets(
+      'first paint is a shaped skeleton, never a spinner, and never « nothing to do »',
+      (tester) async {
+    final orders = Completer<SellerOrderStats>();
+    await _pump(tester, settle: false, overrides: [
+      sellerOrderStatsRequestProvider('seller-fixture')
+          .overrideWith((_) => orders.future),
+    ]);
+    await tester.pump();
+    expect(find.bySemanticsLabel('Chargement des actions'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
+    expect(find.text('Aucune action requise pour le moment.'), findsNothing);
+    expect(find.text('25'), findsNothing,
+        reason: 'neither the page nor the Commandes badge shows a count yet');
+    orders.complete(const SellerOrderStats(pending: 25));
+    await tester.pumpAndSettle();
+    expect(find.bySemanticsLabel('Chargement des actions'), findsNothing);
+    expect(
+        find.descendant(of: find.byType(ListView), matching: find.text('25')),
+        findsOneWidget);
+  });
+
+  testWidgets(
+      'rejected verification is a task that opens the verification screen; other states are not',
+      (tester) async {
+    final api = DashboardFixtureApi()
+      ..verification = DashboardFixtureApi.verificationBody('REJECTED');
+    final (_, router) = await _pump(tester, api: api);
+    await tester.scrollUntilVisible(find.text('Vérification à refaire'), 200,
+        scrollable: find.byType(Scrollable).first);
+    // Total = 25 + 1 + 1 orders + 1 product + 1 verification.
+    expect(find.text('29'), findsOneWidget);
+    // Fully above the bottom bar, or the tap lands on a tab.
+    await tester.ensureVisible(find.text('Vérification à refaire'));
+    await tester.pump();
+    await tester.tap(find.ancestor(
+        of: find.text('Vérification à refaire'),
+        matching: find.byType(InkWell)));
+    await tester.pumpAndSettle();
+    expect(find.text('Vérification de la boutique'), findsOneWidget,
+        reason: 'the verification screen (outside the shell) is pushed');
+    router.pop();
+    await tester.pumpAndSettle();
+    // Back to the top: the header pill is lazily built by the ListView.
+    await tester.scrollUntilVisible(find.text('Actions requises'), -200,
+        scrollable: find.byType(Scrollable).first);
+    for (final quiet in ['PENDING_REVIEW', 'VERIFIED', 'NOT_SUBMITTED']) {
+      api.verification = DashboardFixtureApi.verificationBody(quiet);
+      // Not awaited directly: the fixture Dio settles on a timer (see the
+      // pull-refresh test), so elapse time instead of blocking fake async.
+      final refresh = tester
+          .widget<RefreshIndicator>(find.byType(RefreshIndicator))
+          .onRefresh();
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
+      await refresh;
+      expect(find.text('Vérification à refaire'), findsNothing,
+          reason: quiet);
+      expect(find.text('28'), findsOneWidget, reason: quiet);
+    }
+  });
+
+  testWidgets(
+      'a failed verification source keeps the order tasks and retries alone',
+      (tester) async {
+    final api = DashboardFixtureApi()..failVerification = true;
+    await _pump(tester, api: api);
+    expect(find.text('25'), findsOneWidget);
+    expect(find.text('Commandes à confirmer'), findsOneWidget);
+    expect(find.text('Vérification indisponible'), findsOneWidget);
+    expect(find.text('Aucune action requise pour le moment.'), findsNothing);
+    // No total while a source is unknown.
+    expect(find.bySemanticsLabel(RegExp(r'actions en attente')), findsNothing);
+    api.failVerification = false;
+    api.verification = DashboardFixtureApi.verificationBody('REJECTED');
+    final before =
+        api.requests.where((r) => r.path.endsWith('/stats')).length;
+    await tester.ensureVisible(find.text('Réessayer'));
+    await tester.pump();
+    await tester.tap(find.text('Réessayer'));
+    await tester.pumpAndSettle();
+    expect(find.text('Vérification indisponible'), findsNothing);
+    expect(find.text('Vérification à refaire'), findsOneWidget);
+    expect(api.requests.where((r) => r.path.endsWith('/stats')).length, before,
+        reason: 'retrying one source does not refetch the others');
+  });
+
+  testWidgets(
+      'Commandes tab carries the one badge, from the same order count',
+      (tester) async {
+    final api = DashboardFixtureApi();
+    final (_, router) = await _pump(tester, api: api);
+    final bar = find.byType(NavigationBar);
+    expect(find.descendant(of: bar, matching: find.text('27')), findsOneWidget,
+        reason: '25 pending + 1 confirmed + 1 processing');
+    expect(find.descendant(of: bar, matching: find.byType(Badge)),
+        findsOneWidget);
+    expect(find.byTooltip('Commandes, 27 à traiter'), findsOneWidget);
+    // Confirm one order from the list: the badge follows the stats.
+    router.go('/orders?status=PENDING');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Commande TK-20260903-pending-0'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Confirmer la commande'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(
+        of: find.byType(AlertDialog),
+        matching:
+            find.widgetWithText(ElevatedButton, 'Confirmer la commande')));
+    await tester.pumpAndSettle();
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(find.descendant(of: bar, matching: find.text('27')), findsOneWidget,
+        reason: 'a confirmed order still needs preparing: same total');
+    // Finishing a preparation hands the order to Teka: one fewer to act on.
+    router.go('/orders?status=PROCESSING');
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Commande TK-20260903-processing'));
+    await tester.pumpAndSettle();
+    final ready =
+        find.widgetWithText(ElevatedButton, 'Marquer prête pour collecte');
+    // Let the previous action's snackbar leave the bottom of the screen.
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(ready);
+    await tester.pump();
+    await tester.tap(ready);
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(
+        of: find.byType(AlertDialog),
+        matching:
+            find.widgetWithText(ElevatedButton, 'Marquer prête pour collecte')));
+    await tester.pumpAndSettle();
+    router.pop();
+    await tester.pumpAndSettle();
+    expect(find.descendant(of: bar, matching: find.text('26')), findsOneWidget);
+    router.go('/');
+    await tester.pumpAndSettle();
+    expect(find.text('Suivi'), findsOneWidget);
+    expect(find.text('Prêtes pour la collecte Teka'), findsOneWidget);
+  });
+
+  testWidgets('orders waiting for Teka are tracked, not asked for',
+      (tester) async {
+    final api = DashboardFixtureApi();
+    api.orders
+      ..clear()
+      ..addAll([
+        for (var i = 0; i < 3; i++)
+          DashboardFixtureApi.orderRow('ready-$i', 'READY_FOR_TEKA_PICKUP'),
+        DashboardFixtureApi.orderRow('shipped', 'SHIPPED'),
+      ]);
+    api.products.clear();
+    final (container, router) = await _pump(tester, api: api);
+    expect(find.text('Aucune action requise pour le moment.'), findsOneWidget);
+    expect(find.text('Suivi'), findsOneWidget);
+    expect(find.text('Prêtes pour la collecte Teka'), findsOneWidget);
+    expect(find.byType(Badge), findsOneWidget,
+        reason: 'no Commandes badge: nothing to act on');
+    await tester.tap(find.text('Prêtes pour la collecte Teka'));
+    await tester.pumpAndSettle();
+    expect(router.routeInformationProvider.value.uri.toString(),
+        '/orders?status=READY_FOR_TEKA_PICKUP');
+    expect(container.read(sellerOrdersProvider).selectedStatus,
+        OrderStatus.readyForTekaPickup);
+  });
+
+  for (final width in [360.0, 412.0]) {
+    testWidgets('dashboard with every task fits $width at text scale 1.3',
+        (tester) async {
+      final api = DashboardFixtureApi()
+        ..verification = DashboardFixtureApi.verificationBody('REJECTED');
+      await _pump(tester, width: width, scale: 1.3, api: api);
+      expect(find.text('Actions requises'), findsOneWidget);
+      expect(find.text('29'), findsOneWidget);
+      await tester.scrollUntilVisible(find.text('Promotions'), 300,
+          scrollable: find.byType(Scrollable).first);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final width in [1024.0, 1280.0]) {
+    testWidgets('tablet $width keeps the Action Center in a readable column',
+        (tester) async {
+      await _pump(tester, width: width);
+      final card = tester.getRect(find
+          .ancestor(
+              of: find.text('Commandes à confirmer'),
+              matching: find.byType(DecoratedBox))
+          .first);
+      expect(card.width, lessThanOrEqualTo(720));
+      expect((card.left - (width - card.width) / 2).abs(), lessThan(1),
+          reason: 'centred');
+      expect(tester.takeException(), isNull);
+    });
+  }
 }

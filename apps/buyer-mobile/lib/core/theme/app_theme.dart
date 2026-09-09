@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../layout/responsive.dart';
 import 'teka_colors.dart';
 
 /// Mobile theme — mirrors the Tailwind v4 `@theme inline` block on the web
@@ -136,7 +137,7 @@ class AppTheme {
         elevation: 0,
         scrolledUnderElevation: 1,
         surfaceTintColor: Colors.transparent,
-        shadowColor: Color(0x14000000),
+        shadowColor: TekaColors.shadowSoft,
         centerTitle: false,
         toolbarHeight: 64,
         titleSpacing: 20,
@@ -281,6 +282,26 @@ class AppTheme {
         color: TekaColors.border,
         thickness: 1,
         space: 1,
+      ),
+      // Tablet phase (2026-09-07): a modal sheet or dialog stretched across a
+      // 1024 pt tablet reads as a broken page. Constraining them here means
+      // every existing call site inherits the panel width — no screen repeats
+      // the number, and a phone is unaffected (the cap is wider than any
+      // phone).
+      // Surfaces are explicit (UX PR D). Material 3 derives
+      // `surfaceContainerHigh` from the seed colour, and Teka's seed is red —
+      // so every dialog and bottom sheet in the app was painted #F6E4E3, a
+      // pink tint, while every card beside it was white. A logout
+      // confirmation reading as a warning is not a decision anyone made.
+      bottomSheetTheme: const BottomSheetThemeData(
+        constraints: kSheetConstraints,
+        backgroundColor: TekaColors.surface,
+        surfaceTintColor: Colors.transparent,
+      ),
+      dialogTheme: const DialogThemeData(
+        constraints: kSheetConstraints,
+        backgroundColor: TekaColors.surface,
+        surfaceTintColor: Colors.transparent,
       ),
       chipTheme: ChipThemeData(
         backgroundColor: TekaColors.surfaceMuted,

@@ -30,7 +30,14 @@ class CacheKeys {
   static const String categoriesTree = 'teka_cache_categories_tree_v1';
 
   /// Current user profile cache (5min TTL). From GET /v1/auth/me.
+  /// Last `/v1/auth/me` answer (id, role, names, avatar, preferredCityId).
+  /// Written on every verified session, read only when the server cannot be
+  /// reached on cold start (A2). Cleared on logout (SessionScope).
   static const String userProfile = 'teka_cache_user_profile_v1';
+
+  /// `GET /v1/cities` snapshot so the stored town can be restored offline
+  /// instead of bouncing the buyer to the town gate (A3). Public data.
+  static const String citiesList = 'teka_cache_cities_v1';
 
   /// Seller-mobile only: orders list cache (1min TTL).
   static const String sellerOrdersList = 'teka_cache_seller_orders_list_v1';

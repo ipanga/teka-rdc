@@ -3,7 +3,7 @@
 Teka RDC uses [PostHog](https://posthog.com) (US Cloud) for product analytics,
 session replay, and feature flags across **all six surfaces**: the API and the
 three Next.js apps + the two Flutter apps. Microsoft Clarity (heatmaps +
-recordings) runs separately on buyer-web + seller-web — see `docs/clarity.md`.
+recordings) runs separately on buyer-web only — see `docs/clarity.md`.
 
 > **One PostHog project.** Every surface sends to the same project with the same
 > publishable `phc_…` key; events are separated by an `environment` property
@@ -17,8 +17,8 @@ recordings) runs separately on buyer-web + seller-web — see `docs/clarity.md`.
 |---|---|---|
 | **api** | `posthog-node` | Authoritative **server-owned** events (auth, orders, payments, admin) |
 | **buyer-web** | `posthog-js` | Pageviews, autocapture, session replay, + **buyer UI-intent events** |
-| **seller-web** | `posthog-js` | Pageviews, autocapture, session replay, identity |
-| **admin-web** | `posthog-js` | Pageviews, autocapture, session replay, identity |
+| **seller-web** | `posthog-js` | Pageviews, autocapture, identity — **no session replay** (D4, `disable_session_recording: true`) |
+| **admin-web** | `posthog-js` | Pageviews, autocapture, identity — **no session replay** (D4, `disable_session_recording: true`) |
 | **buyer-mobile** | `posthog_flutter` | Screen views, app-lifecycle, identity, + client ecommerce events (product/category/search/cart/checkout/wishlist) |
 | **seller-mobile** | `posthog_flutter` | Screen views, app-lifecycle events, identity |
 
@@ -49,7 +49,10 @@ Never emit the same event name from two layers.
   `category_viewed`, `search_performed` (query scrubbed via `scrubAnalyticsText`),
   `add_to_cart`, `remove_from_cart`, `checkout_started`, and the wishlist events
   (`wishlist_added`/`wishlist_removed`/`wishlist_viewed`/
-  `wishlist_item_moved_to_cart`). **seller-mobile** is infra-only.
+  `wishlist_item_moved_to_cart`). **seller-mobile** owns a few UI events beside
+  identity: `seller_account_tab_opened`, `seller_account_menu_item_tapped` {item},
+  `seller_logout_tapped`, and `seller_action_center_tapped` {task, origin} (2026-09-08) —
+  categories and ids only, never a count of money or any PII.
 
 `api_error` and `notification_sent` are **intentionally not** captured —
 `api_error` stays Sentry's job; `notification_sent` is too high-volume.
@@ -126,8 +129,12 @@ ONLY — never phone, email, or names (Rule 13).**
   regexes in sync with the Sentry scrubbers (`sentry-scrub.ts`,
   `instrument.ts`). Mobile identify sends only `role`, so no scrub is needed
   there yet; add one if/when mobile captures free-text properties.
-- **Session replay (web):** `maskAllInputs: true` masks every `<input>`. Add the
-  `ph-no-capture` class to any sensitive non-input element.
+- **Session replay (web):** buyer-web only. `maskAllInputs: true` masks every
+  `<input>`; add the `ph-no-capture` class to any sensitive non-input element.
+  **seller-web and admin-web disable replay in code** (D4, 2026-09-06 —
+  identity, payout and KYC data must never reach a recording, whatever the
+  project-side toggle says). PostHog's own scripts load through the same-origin
+  `/ingest` proxy, so no `posthog.com` host appears in any CSP.
 
 ## Environment strategy
 

@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback, type ReactNode } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { apiFetch } from '@/lib/api-client';
 import { useCityStore } from '@/lib/city-store';
+import { bannerHref } from '@/lib/banner-href';
 import type { Banner } from '@/lib/types';
 
 const AUTO_ADVANCE_MS = 5000;
@@ -12,15 +13,27 @@ const AUTO_ADVANCE_MS = 5000;
 interface BannerCarouselProps {
   /** Fallback content to render when no banners are available (e.g. static hero) */
   fallback?: ReactNode;
+  /**
+   * Banners the server route already fetched (SEO-1). Undefined = unknown
+   * (fetch on mount, render the skeleton meanwhile); an array — even empty —
+   * means "known", so the first HTML holds either the banners or the fallback
+   * hero with its <h1>, instead of a grey skeleton crawlers cannot read.
+   */
+  initialBanners?: Banner[];
+  /**
+   * Page heading to keep when banners replace the hero (SEO-1). Banner titles
+   * are <h2>; without this the homepage had no <h1> at all whenever an admin
+   * banner existed. Rendered visually hidden — same text as the <title>.
+   */
+  srTitle?: string;
 }
 
-export function BannerCarousel({ fallback }: BannerCarouselProps) {
-  const router = useRouter();
+export function BannerCarousel({ fallback, initialBanners, srTitle }: BannerCarouselProps) {
   const selectedCity = useCityStore((s) => s.selectedCity);
 
-  const [banners, setBanners] = useState<Banner[]>([]);
+  const [banners, setBanners] = useState<Banner[]>(initialBanners ?? []);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(initialBanners === undefined);
   const [isPaused, setIsPaused] = useState(false);
   // Banners whose image failed to load (e.g. a stale/broken Cloudinary URL).
   // We drop them so a broken banner gracefully falls back to the hero instead
@@ -30,8 +43,9 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Fetch banners on mount
+  // Fetch banners on mount — unless the server already provided them.
   useEffect(() => {
+    if (initialBanners !== undefined) return;
     apiFetch<Banner[]>('/v1/browse/banners')
       .then((res) => {
         const data = Array.isArray(res.data) ? res.data : [];
@@ -39,7 +53,7 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, [initialBanners]);
 
   // Scroll to the current index
   const scrollToIndex = useCallback((index: number) => {
@@ -94,41 +108,6 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
     };
   }, [banners.length]);
 
-  // Handle banner click navigation
-  function handleBannerClick(banner: Banner) {
-    if (!banner.linkType || !banner.linkTarget) return;
-
-    const citySlug = selectedCity?.slug;
-    switch (banner.linkType) {
-      case 'product':
-        // /<id-or-slug>: the /[ville] dispatcher resolves UUID/shortCode/slug
-        // and 308s to the canonical /{ville}/{slug}-{shortCode}. Admin-stored
-        // UUIDs (legacy) and slugs both work.
-        router.push(`/${banner.linkTarget}`);
-        break;
-      case 'category':
-        // City-scoped category since 2026-06-06. Navigate straight to the
-        // selected city's scoped page when known (avoids the 308 to the
-        // default city); the route resolves UUID or slug.
-        router.push(
-          citySlug
-            ? `/${citySlug}/categorie/${banner.linkTarget}`
-            : `/categorie/${banner.linkTarget}`,
-        );
-        break;
-      case 'url':
-        if (banner.linkTarget) {
-          window.open(banner.linkTarget, '_blank', 'noopener,noreferrer');
-        }
-        break;
-      case 'promotion':
-        // No bare /products route exists — send shoppers to the category index
-        // (was /products, which 404'd).
-        router.push('/categories');
-        break;
-    }
-  }
-
   // Go to a specific dot
   function goToDot(index: number) {
     setCurrentIndex(index);
@@ -150,6 +129,8 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
   }
 
   return (
+    <>
+      {srTitle && <h1 className="sr-only">{srTitle}</h1>}
     <section
       className="relative w-full overflow-hidden"
       onMouseEnter={() => setIsPaused(true)}
@@ -164,24 +145,27 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
         {visibleBanners.map((banner) => {
           const title = banner.title;
           const subtitle = banner.subtitle ?? null;
-          const hasLink = banner.linkType && banner.linkTarget;
+          // A slide with a target is a real link (SEO-2): crawlable href,
+          // native keyboard/middle-click behaviour, no router.push.
+          const link = bannerHref(banner, selectedCity?.slug);
+          const hasLink = link !== null;
+          const slideClass =
+            'relative block w-full flex-shrink-0 snap-start aspect-[4/3] md:aspect-[16/6]';
+          const Slide = ({ children }: { children: ReactNode }) =>
+            !link ? (
+              <div className={slideClass}>{children}</div>
+            ) : link.external ? (
+              <a href={link.href} target="_blank" rel="noopener noreferrer" className={slideClass}>
+                {children}
+              </a>
+            ) : (
+              <Link href={link.href} className={slideClass}>
+                {children}
+              </Link>
+            );
 
           return (
-            <div
-              key={banner.id}
-              className={`relative w-full flex-shrink-0 snap-start aspect-[4/3] md:aspect-[16/6] ${
-                hasLink ? 'cursor-pointer' : ''
-              }`}
-              onClick={() => handleBannerClick(banner)}
-              role={hasLink ? 'link' : undefined}
-              tabIndex={hasLink ? 0 : undefined}
-              onKeyDown={(e) => {
-                if (hasLink && (e.key === 'Enter' || e.key === ' ')) {
-                  e.preventDefault();
-                  handleBannerClick(banner);
-                }
-              }}
-            >
+            <Slide key={banner.id}>
               {/* Banner image */}
               <Image
                 src={banner.imageUrl}
@@ -214,7 +198,7 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
                   </span>
                 )}
               </div>
-            </div>
+            </Slide>
           );
         })}
       </div>
@@ -240,5 +224,6 @@ export function BannerCarousel({ fallback }: BannerCarouselProps) {
         </div>
       )}
     </section>
+    </>
   );
 }

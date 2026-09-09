@@ -172,7 +172,10 @@ class ReviewsRepository {
       data: {
         'rating': rating,
         'title': title,
-        if (text != null && text.isNotEmpty) 'text': text,
+        // Always sent: an empty string CLEARS the comment (the API stores
+        // it as null). Omitting the field kept the previous comment, so a
+        // buyer could never remove one (pre-scale audit, 2026-09-06).
+        'text': text ?? '',
       },
     );
     final responseData = response.data;

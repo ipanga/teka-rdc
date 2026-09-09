@@ -1,4 +1,11 @@
-import { IsEnum, IsNotEmpty, Matches } from 'class-validator';
+import {
+  IsEnum,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 import { PAYOUT_METHODS } from './request-payout.dto';
 
 /**
@@ -17,4 +24,19 @@ export class UpdatePayoutMethodDto {
   })
   @IsNotEmpty({ message: 'Le numéro de téléphone est requis' })
   payoutPhone: string;
+
+  /**
+   * S12: changing where money is sent is a sensitive action — the seller
+   * confirms with their CURRENT password. Verified against the stored hash,
+   * never logged, never persisted, never forwarded to analytics or Sentry.
+   *
+   * Optional at the DTO level only so that a client re-sending the UNCHANGED
+   * destination (the distributed seller-mobile 0.1.9 saves before every
+   * request) is a harmless no-op; the service refuses any actual change
+   * without it (400, French).
+   */
+  @IsOptional()
+  @IsString({ message: 'Mot de passe invalide.' })
+  @MaxLength(72, { message: 'Mot de passe invalide.' })
+  password?: string;
 }

@@ -56,8 +56,8 @@ Authentication is role-specific since 2026-05-15: **sellers + admins use email +
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| POST | `/v1/auth/buyer/otp/request` | Public | Issue 6-digit OTP, deliver via WhatsApp (Gupshup template). sha256-hashed in DB. Rate-limited 3 / 600s. |
-| POST | `/v1/auth/buyer/otp/verify` | Public | Verify OTP → find-or-create User by phone, issue tokens + cookies. Optional `firstName/lastName` on first verify. |
+| POST | `/v1/auth/buyer/otp/request` | Public | Issue 6-digit OTP, deliver via WhatsApp (Gupshup template). sha256-hashed in DB. Rate-limited 3 / 600 s per phone (shared with resend) + 30 s cooldown while an OTP is active (see § Rate limits). **D1:** a phone owned by a SELLER/ADMIN gets the same `{ expiresInSeconds, cooldownSeconds }` but no OTP row and no message. |
+| POST | `/v1/auth/buyer/otp/verify` | Public | Verify OTP → sign into the BUYER owning the phone or create a new BUYER, issue tokens + cookies. Optional `firstName/lastName` on first verify. **D1:** a phone owned by a SELLER/ADMIN → 401 « Code OTP invalide ou expiré » (byte-identical to a wrong code), no token. |
 | POST | `/v1/auth/buyer/otp/resend` | Public | Re-issue OTP. 30s minimum cooldown between resends. Returns `{ expiresInSeconds, cooldownSeconds }`. |
 | POST | `/v1/auth/buyer/claim/request` | Public | Step 1 of email-only legacy claim. Always neutral 200. Emails a 24h magic link if a matching email-only buyer exists. |
 | POST | `/v1/auth/buyer/claim/verify` | Public | Step 2 — verify magic-link JWT + fresh OTP, attach phone to existing User, revoke refresh tokens, issue new ones. |
@@ -171,6 +171,38 @@ POST /v1/auth/refresh
 { "refreshToken": "eyJhbGciOiJIUzI1NiIs..." }
 ```
 Also accepts the refresh token from the per-surface cookie chosen by the `X-Teka-Surface` header — `teka_{admin,seller,buyer}_refresh` (see `docs/session-management.md`).
+
+### Rate limits (D8, 2026-09-06)
+
+Two layers, both answering **`429` with a French `message` and a `Retry-After` header (seconds)**. The
+message never states the threshold or whether the identifier exists (the same copy for a known and an
+unknown email/phone). Clients show `error.message` verbatim — no client-side handling is required.
+
+**1. Identity-keyed limits** — the real defence. Keyed on the identity under attack, never on the IP
+(behind Cloudflare + carrier NAT one IP is thousands of users). Counted atomically in PostgreSQL
+(`auth_rate_limits`: `scope:sha256(identifier)` — no raw phone/email stored; swept hourly), so they hold
+across API containers and restarts. Source of truth: `AUTH_LIMITS` in
+`apps/api/src/common/rate-limit/rate-limit.service.ts` (a unit test pins this table).
+
+| Scope | Key | Limit | Notes |
+|-------|-----|-------|-------|
+| `otpRequest` | phone | 3 / 10 min | `buyer/otp/request` + `resend` share it; plus a 30 s cooldown on both while an OTP is active. Counted for non-buyer phones too (D1 — same response). |
+| `otpVerify` | phone | 10 / 15 min | `buyer/otp/verify`, `buyer/claim/verify`, account-deletion re-auth. Counted before the app-review bypass. Per-code cap of 5 attempts still applies. Cleared on success. |
+| `login` | email (normalised) | 10 failures / 15 min → **15 min lock** | The 10th failure engages the lock; a correct password is refused until it expires. Success clears. Unknown emails counted identically. |
+| `passwordReset` | email | 3 / h | `password-reset/request` — known and unknown addresses alike (still 200 under the limit). |
+| `register` | email | 3 / h | `register/email` — counted before the 409 existence check. |
+| `refresh` | sha256(refresh token) | 60 / 15 min | `refresh` — a looping/stolen token cannot hammer rotation; other sessions on the same NAT unaffected. |
+| `csvExport` | admin user id | 10 / 10 min | The six `/v1/admin/reports/**/csv` routes (full-table scans). JSON reports unaffected. |
+| `upload` | user id | 30 / 10 min | Product-image and avatar uploads (in addition to the 20 / min per-IP cap). |
+| `payoutMethodChange` | seller user id | 5 / 1 h | `PATCH /v1/sellers/payout-method` (S12): every attempt counts, a wrong password also counts in the `login` bucket by email (in addition to a 10 / min per-IP cap). |
+
+**2. Per-IP backstop** — `@nestjs/throttler` (in-memory, per process): global 100 / min, plus loose
+per-route caps on auth (`otp/request|resend` 30 / 15 min, `otp/verify` 60 / 15 min, `login/email`
+60 / 15 min, `register/email` 10 / h, `password-reset/*` 20 / h, `password/change` 10 / 15 min,
+`buyer/claim/request` 10 / h, `buyer/claim/verify` 30 / 15 min, `refresh` 120 / 15 min, `email/verify`
+20 / h), contact 5 / h, broadcasts 10 / min, search suggestions 40 / 10 s, uploads 20 / min. Message:
+« Trop de requêtes. Veuillez patienter avant de réessayer. ». The client IP is the Cloudflare
+`CF-Connecting-IP` restored by nginx (`set_real_ip_from` Cloudflare ranges in `nginx/nginx.prod.conf`).
 
 ---
 
@@ -483,22 +515,21 @@ Full reference + ops runbook: **`docs/payouts.md`**.
 | GET | `/v1/sellers/earnings` | Seller | List earnings history (paginated); each row carries an API-derived `state` (`HELD` \| `AVAILABLE` \| `RESERVED` \| `PAID` \| `REVERSED`) |
 | GET | `/v1/sellers/payouts` | Seller | List payout history (paginated) |
 | GET | `/v1/sellers/payouts/:id` | Seller | One of the seller's own payouts (owner-scoped: a foreign, deleted or malformed id → French 404). Target of payout notifications / deep links |
-| POST | `/v1/sellers/payouts` | Seller | Request a payout (whole available balance) |
-| GET | `/v1/sellers/payout-method` | Seller | Read the saved reusable payout destination |
-| PATCH | `/v1/sellers/payout-method` | Seller | Set/update the payout destination |
+| POST | `/v1/sellers/payouts` | Seller | Request a payout (whole available balance). **S12:** routed to the SAVED destination only — an inline `payoutMethod`/`payoutPhone` is tolerated for old clients solely when identical to the saved one (409 « La destination indiquée ne correspond pas… » otherwise); 409 « …modifiée récemment… à partir du <date> » during the 24 h cooling-off after a destination change |
+| GET | `/v1/sellers/payout-method` | Seller | Read the saved reusable payout destination + `changedAt` / `payoutsAvailableAt` (null = requests open) |
+| PATCH | `/v1/sellers/payout-method` | Seller | Set/update the payout destination. **S12:** a real change requires `password` (current login password; 400 when missing, 403 « Mot de passe invalide. » when wrong — 403 on purpose so clients never refresh/replay), stamps a 24 h cooling-off, writes a `PAYOUT_METHOD_CHANGED` audit row (phones masked) and notifies the seller (feed + push + email). Re-sending the unchanged destination is a password-free no-op |
 
 ### Request Payout
 ```json
 POST /v1/sellers/payouts
-{
-  "payoutMethod": "M_PESA",       // optional — falls back to saved destination
-  "payoutPhone": "+243XXXXXXXXX"  // optional — falls back to saved destination
-}
+{}                                 // S12: the SAVED destination is used and snapshotted
 ```
 
-Requests the **entire available balance**. Guards: balance ≥ 5 000 FC, only one
-open payout (`REQUESTED`/`APPROVED`/`PROCESSING`) at a time (`409`), and a destination must exist
-(body or saved profile) — else `400`. The request runs under a row lock on the seller profile and
+Requests the **entire available balance** to the seller's **saved** destination (`PATCH
+/v1/sellers/payout-method`, password-guarded). Guards: balance ≥ 5 000 FC, only one open payout
+(`REQUESTED`/`APPROVED`/`PROCESSING`) at a time (`409`), a saved destination must exist (`400`), no
+destination change in the last 24 h (`409` naming the reopen time), and an inline
+`payoutMethod`/`payoutPhone` — accepted only from older clients — must equal the saved one (`409`). The request runs under a row lock on the seller profile and
 reserves the exact earnings it read (see `docs/payouts.md`). `payoutMethod` ∈ `M_PESA` | `AIRTEL_MONEY`
 | `ORANGE_MONEY`; `payoutPhone` matches `^\+243\d{9}$`.
 

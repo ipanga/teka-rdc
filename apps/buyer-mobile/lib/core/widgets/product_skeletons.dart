@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../layout/responsive.dart';
 import '../theme/teka_colors.dart';
 
 const double kProductGridSpacing = 12;
@@ -104,10 +105,9 @@ class ProductDetailSkeleton extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const AspectRatio(
-                aspectRatio: kProductDetailGalleryAspectRatio,
-                child: ShimmerBox(height: double.infinity, radius: 0),
-              ),
+              // Same capped frame as the real gallery (tablet phase), so the
+              // page does not jump when the product resolves.
+              const ProductGallerySkeleton(),
               Container(
                 width: double.infinity,
                 color: TekaColors.surface,
@@ -185,35 +185,156 @@ class ProductCardSkeleton extends StatelessWidget {
   }
 }
 
+/// Loading state for the product-detail gallery.
+///
+/// It used to be a bare full-bleed [ShimmerBox]: the largest element on the
+/// page — roughly half a phone screen — read as a flat grey void with nothing
+/// to say an image was coming (UX PR C). The shimmer stays, and a neutral
+/// photo glyph sits on top so the block is recognisably a picture in
+/// progress. The frame is the same [heroImageHeight] the real gallery uses,
+/// so nothing jumps when the product resolves.
+class ProductGallerySkeleton extends StatelessWidget {
+  const ProductGallerySkeleton({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => SizedBox(
+        height: heroImageHeight(
+          constraints.maxWidth,
+          aspectRatio: kProductDetailGalleryAspectRatio,
+        ),
+        child: const Stack(
+          fit: StackFit.expand,
+          children: [
+            ShimmerBox(height: double.infinity, radius: 0),
+            Center(
+              child: Icon(
+                Icons.image_outlined,
+                size: 40,
+                color: TekaColors.borderStrong,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Loading state for a list of cards — orders, notifications, reviews.
+///
+/// Those lists opened on a bare centred spinner on an otherwise empty screen
+/// while every product surface in the app showed a content-shaped skeleton
+/// (UX PR D). On the 2G/3G connections this marketplace is built for, a
+/// spinner says "wait" and a skeleton says "here is what is coming".
+class ListCardSkeleton extends StatelessWidget {
+  final int count;
+  final EdgeInsets padding;
+
+  /// Height of one card. Orders and notifications differ enough that the
+  /// caller sets it rather than the widget guessing.
+  final double cardHeight;
+
+  const ListCardSkeleton({
+    super.key,
+    this.count = 4,
+    this.padding = const EdgeInsets.fromLTRB(16, 12, 16, 12),
+    this.cardHeight = 116,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Scale with the text scaler: a card whose height is fixed while its
+    // content grows is the bug the category strip had.
+    final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
+    return ListView.separated(
+      padding: padding,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: count,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      // A white card with the shimmer inside, not a bare shimmer: the shimmer
+      // tone IS the scaffold background, so on a list with no cards behind it
+      // the skeleton was invisible (caught on the emulator).
+      itemBuilder: (_, __) => Container(
+        height: cardHeight * scale.clamp(1.0, 2.0),
+        decoration: BoxDecoration(
+          color: TekaColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: TekaColors.border),
+        ),
+        padding: const EdgeInsets.all(14),
+        child: const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ShimmerBox(width: 190, height: 14, radius: 5),
+            SizedBox(height: 10),
+            ShimmerBox(width: 120, height: 11, radius: 5),
+            Spacer(),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ShimmerBox(width: 80, height: 11, radius: 5),
+                ShimmerBox(width: 90, height: 14, radius: 5),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// A non-scrolling grid of [ProductCardSkeleton] for a loading product grid
 /// (drop-in where the real GridView renders). Mirrors the shared grid metrics.
 class ProductGridSkeleton extends StatelessWidget {
   final int count;
-  final EdgeInsetsGeometry padding;
-  final double? mainAxisExtent;
+  final EdgeInsets padding;
+
+  /// Row height for one cell width. Given by the screen so the skeleton and
+  /// the real grid that replaces it reserve the same space (the caller knows
+  /// the product-card variant; this core widget must not depend on it).
+  final double Function(double cellWidth)? mainAxisExtentFor;
 
   const ProductGridSkeleton({
     super.key,
     this.count = 6,
     this.padding = const EdgeInsets.symmetric(horizontal: 16),
-    this.mainAxisExtent,
+    this.mainAxisExtentFor,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GridView.builder(
-      padding: padding,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisExtent: mainAxisExtent,
-        childAspectRatio: mainAxisExtent == null ? 0.58 : 1,
-        crossAxisSpacing: kProductGridSpacing,
-        mainAxisSpacing: kProductGridSpacing,
-      ),
-      itemCount: count,
-      itemBuilder: (_, __) => const ProductCardSkeleton(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Same column arithmetic as the real grid (tablet phase): a loading
+        // state that shows two wide columns and then snaps to four is a jump.
+        final available = constraints.maxWidth - padding.horizontal;
+        final columns = gridColumnsFor(
+          available,
+          spacing: kProductGridSpacing,
+        );
+        final cellWidth = gridCellWidth(
+          available,
+          columns: columns,
+          spacing: kProductGridSpacing,
+        );
+        final extent = mainAxisExtentFor?.call(cellWidth);
+        return GridView.builder(
+          padding: padding,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisExtent: extent,
+            childAspectRatio: extent == null ? 0.58 : 1,
+            crossAxisSpacing: kProductGridSpacing,
+            mainAxisSpacing: kProductGridSpacing,
+          ),
+          itemCount: count,
+          itemBuilder: (_, __) => const ProductCardSkeleton(),
+        );
+      },
     );
   }
 }

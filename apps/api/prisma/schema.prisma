@@ -397,6 +397,9 @@ model SellerProfile {
 
   payoutMethod String? // 'M_PESA' | 'AIRTEL_MONEY' | 'ORANGE_MONEY'
   payoutPhone  String? // +243XXXXXXXXX
+  // S12 (2026-09-09): stamped on every destination change; payout requests are
+  // refused for PAYOUT_METHOD_COOLING_OFF_MS after it (docs/payouts.md).
+  payoutMethodChangedAt DateTime?
   // Seller-specific commission override (D3). NULL = no override → the leaf
   // category / global settings apply. 0 is a legitimate 0 % rate.
   commissionRate Decimal? @db.Decimal(5, 4)
@@ -1293,6 +1296,22 @@ model Otp {
   @@index([phone])
   @@index([expiresAt])
   @@map("otps")
+}
+
+/// D8 (2026-09-06) — identifier-keyed authentication throttling, shared by every
+/// API container and durable across restarts. One row per (scope, identifier
+/// hash); `key` never contains a raw phone or email. Fixed window: `count`
+/// resets when `expiresAt` passes; `lockedUntil` is a temporary lock (login).
+/// Swept hourly (RateLimitService). Supersedes OtpRateLimit for OTP issuance.
+model AuthRateLimit {
+  key         String    @id
+  count       Int       @default(1)
+  expiresAt   DateTime
+  lockedUntil DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  @@index([expiresAt])
+  @@map("auth_rate_limits")
 }
 
 model OtpRateLimit {

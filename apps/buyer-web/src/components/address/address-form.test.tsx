@@ -93,6 +93,32 @@ describe('AddressForm — create', () => {
     expect(body).not.toHaveProperty('phone');
   });
 
+  // One phone rule on every surface (PR D2, 2026-09-07): equivalent inputs
+  // are sent canonical; an unreadable one is refused on the field.
+  it('normalises a local recipient phone (099…) to +243… before sending', async () => {
+    const user = userEvent.setup();
+    render(<AddressForm onSaved={() => {}} onCancel={() => {}} />);
+    await screen.findByRole('combobox', { name: /Ville/i });
+    await user.selectOptions(screen.getByRole('combobox', { name: /Ville/i }), 'city-1');
+    await user.selectOptions(await screen.findByRole('combobox', { name: /Commune/i }), 'com-1');
+    await user.type(screen.getByLabelText('Téléphone du destinataire'), '099 000 00 01');
+    await user.click(screen.getByRole('button', { name: /Enregistrer/i }));
+    await waitFor(() => expect(writeCall()).toBeTruthy());
+    expect(sentBody().recipientPhone).toBe('+243990000001');
+  });
+
+  it('refuses an unreadable recipient phone without calling the API', async () => {
+    const user = userEvent.setup();
+    render(<AddressForm onSaved={() => {}} onCancel={() => {}} />);
+    await screen.findByRole('combobox', { name: /Ville/i });
+    await user.selectOptions(screen.getByRole('combobox', { name: /Ville/i }), 'city-1');
+    await user.selectOptions(await screen.findByRole('combobox', { name: /Commune/i }), 'com-1');
+    await user.type(screen.getByLabelText('Téléphone du destinataire'), '12345');
+    await user.click(screen.getByRole('button', { name: /Enregistrer/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Numéro de téléphone invalide');
+    expect(writeCall()).toBeFalsy();
+  });
+
   it('POSTs to /v1/addresses with the taxonomy ids and names', async () => {
     const user = userEvent.setup();
     render(<AddressForm onSaved={() => {}} onCancel={() => {}} />);

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   Prisma,
@@ -125,7 +125,25 @@ export class PaymentsService {
   /**
    * Get all transactions for a specific order.
    */
-  async getOrderTransactions(orderId: string) {
+  async getOrderTransactions(
+    orderId: string,
+    actor: { userId: string; role: string },
+  ) {
+    // Ownership scoping (S4, 2026-09-06). `Order.sellerId` is the seller's
+    // User id, the same key SellerOrdersService checks on every transition.
+    const scope =
+      actor.role === 'ADMIN'
+        ? {}
+        : actor.role === 'SELLER'
+          ? { sellerId: actor.userId }
+          : { buyerId: actor.userId };
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, deletedAt: null, ...scope },
+      select: { id: true },
+    });
+    if (!order) {
+      throw new NotFoundException('Commande non trouvée');
+    }
     return this.prisma.transaction.findMany({
       where: { orderId },
       orderBy: { createdAt: 'desc' },

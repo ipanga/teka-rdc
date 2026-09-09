@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/product_model.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/recently_viewed_store.dart';
 import 'product_card.dart';
 
@@ -15,6 +16,9 @@ class RecentlyViewedSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // A4: the history is wiped on logout / account switch; rebuild on every
+    // session change so the section reflects the disk, not a stale frame.
+    ref.watch(authProvider.select((s) => s.status));
     final List<BrowseProductModel> items = ref
         .read(recentlyViewedStoreProvider)
         .getAll()

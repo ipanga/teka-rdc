@@ -465,10 +465,11 @@ OTP codes and rate limiting are stored in PostgreSQL tables:
 
 | Table | Purpose |
 |-------|---------|
-| `otps` | OTP code + attempt counter, with `expiresAt` for automatic expiry |
-| `otp_rate_limits` | Rate limiting entries (max 3 per 10min window), with `expiresAt` |
+| `otps` | OTP code (sha256) + attempt counter, with `expiresAt` for automatic expiry |
+| `auth_rate_limits` | **D8 (2026-09-06)** — identity-keyed throttle state for every auth surface (OTP issuance/verification per phone, login lock per email, reset/register per email, refresh per token, CSV/upload per user). Key = `scope:sha256(identifier)` — no PII; one atomic `INSERT … ON CONFLICT` per hit; hourly sweep. Shared by all API containers, survives restarts. |
+| `otp_rate_limits` | Legacy OTP issuance counter — **no longer read or written** since D8 (kept for a later drop migration). |
 
-Expired entries are cleaned up on each OTP request. This approach eliminates the need for Redis while maintaining the same security guarantees.
+Expired OTP rows are cleaned up on each OTP request. This approach eliminates the need for Redis while maintaining the same security guarantees.
 
 ## Security Model
 
@@ -487,28 +488,52 @@ Expired entries are cleaned up on each OTP request. This approach eliminates the
 
 ### Rate Limiting
 
+Two layers (D8, 2026-09-06): **identity-keyed limits** in PostgreSQL are the defence; **per-IP** layers only
+cap raw volume, because behind Cloudflare + DRC carrier NAT one IP is many users. Every 429 carries a French
+`message` + `Retry-After`. Full table: `docs/api-reference.md § Rate limits`.
+
 | Layer | Scope | Limit |
 |-------|-------|-------|
-| NGINX | General API per IP | 30 req/s (burst 20) |
-| NGINX | Auth endpoints per IP | 5 req/s (burst 5) |
-| NestJS ThrottlerModule | Per client | 100 req/60s |
-| Application | OTP per phone | Max 3 per 10 minutes |
+| NGINX | General API per real client IP (`CF-Connecting-IP` restored via `set_real_ip_from`) | 30 req/s (burst 20) |
+| NGINX | Auth endpoints per real client IP | 5 req/s (burst 5) |
+| NestJS ThrottlerModule | Per IP, in-memory backstop | 100 req/60s global; per-route on auth (e.g. login 60 / 15 min) |
+| `RateLimitService` (`auth_rate_limits`) | OTP per phone | 3 issuances / 10 min + 30 s cooldown; 10 verifications / 15 min |
+| `RateLimitService` | Login per email | 10 failures / 15 min → 15 min lock (success clears) |
+| `RateLimitService` | Reset / register per email | 3 / h each |
+| `RateLimitService` | Refresh per token · CSV per admin · uploads per user | 60 / 15 min · 10 / 10 min · 30 / 10 min |
 
 ### Input Validation
 - **DTOs**: `class-validator` + `class-transformer` with `whitelist: true` and `forbidNonWhitelisted: true`
 - **Global pipe**: `ValidationPipe` on all endpoints
 - **File uploads**: Max 5MB, validated MIME types, processed through Cloudinary
 
-### Security Headers (Production NGINX)
-- HSTS (2-year max-age, includeSubDomains, preload)
-- X-Frame-Options: SAMEORIGIN
-- X-Content-Type-Options: nosniff
-- X-XSS-Protection: 1; mode=block
-- Content-Security-Policy (restricts script, style, image, font, and connection sources)
-- Referrer-Policy: strict-origin-when-cross-origin
+### Security Headers (D4, 2026-09-06)
+
+**Ownership.** nginx (`nginx/nginx.prod.conf`) emits only `Strict-Transport-Security`
+(`max-age=63072000; includeSubDomains`, no `preload` — not submitted to the browser list). Every
+header a browser evaluates about a *page* is emitted by the app that serves it, so `next dev`,
+`next start` and Docker all behave identically and a test can assert the policy:
+
+| Surface | Where | CSP `script-src` | Notes |
+|---|---|---|---|
+| buyer-web (`teka.cd`) | `next.config.ts headers()` + `src/lib/security-headers.ts` | `'self' 'unsafe-inline'` (+ Clarity hosts only when the id is baked in) | Static policy: SEO pages are prerendered/ISR and cannot carry a per-request nonce. **No `'unsafe-eval'`** in production. `Referrer-Policy: strict-origin-when-cross-origin`. Account pages (`/profil`, `/commandes`, `/paiement`, `/favoris`) are `private, no-store` (middleware). |
+| seller-web, admin-web | `src/middleware.ts` (CSP with a per-request nonce) + `next.config.ts headers()` | `'nonce-…' 'strict-dynamic' 'self'` | No `'unsafe-inline'`, no `'unsafe-eval'`; the root layout reads the request headers so every page renders per request. `Referrer-Policy: same-origin` (signed document URLs never leak). Every HTML response `private, no-store` + `X-Robots-Tag` noindex. Admin `img-src` additionally allows `https://api.cloudinary.com` (signed private-download previews of seller documents). |
+| api | helmet (`src/common/security/http-security.ts`) | n/a — CSP `default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'` | nosniff, `Referrer-Policy: no-referrer`, COOP/CORP `same-origin`, no `X-Powered-By`, **no HSTS from the app**. Any request carrying a session (cookie or bearer) gets `Cache-Control: no-store`. |
+
+Common to the three web apps: `X-Frame-Options: DENY` + CSP `frame-ancestors 'none'` (nothing is
+frameable), `X-Content-Type-Options: nosniff`, `Permissions-Policy` denying camera, microphone,
+geolocation, payment, USB, Bluetooth and motion sensors (`fullscreen=(self)`), `Cross-Origin-Opener-Policy`
+and `Cross-Origin-Resource-Policy: same-origin`, `poweredByHeader: false`. **No
+`Cross-Origin-Embedder-Policy`** (Cloudinary images carry no CORP header). `style-src` keeps
+`'unsafe-inline'` everywhere (React `style` props / next/image sizing are style attributes, which have
+no nonce). Third-party origins are exactly what the browser contacts: the API origin, `res.cloudinary.com`,
+the Sentry ingest origin derived from the public DSN at build time, `clarity.ms` on the buyer only; PostHog
+is proxied through `/ingest` (same origin); fonts are self-hosted by next/font. Static assets (`/_next/static`,
+`public/`) carry the same headers — the old nginx `add_header` in static locations had silently dropped them.
+Full table + rationale: `docs/pre-scale-readiness.md` → PR 4.
 
 ### Additional Protections
-- **Helmet.js**: Applied at NestJS application level
+- **Helmet.js**: Applied at NestJS application level via `applyHttpSecurity()` (shared with the e2e app)
 - **CORS**: Restricted to configured frontend origins
 - **Payment webhooks**: Signature verification + idempotency keys
 - **Sensitive data**: Password hashes, tokens, and internal IDs stripped from API responses

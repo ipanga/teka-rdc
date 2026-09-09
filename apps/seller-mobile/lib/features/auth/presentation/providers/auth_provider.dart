@@ -166,6 +166,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _authRepository.logout();
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
+
+  /// Merge fields the seller just saved (name, email, photo) into the
+  /// session user so the dashboard greeting and the account header follow
+  /// at once, without a relogin. Null values are ignored; the API's answer
+  /// is what gets merged, never the form input.
+  void updateUser(Map<String, dynamic> fields) {
+    final current = state.user;
+    if (current == null) return;
+    final merged = Map<String, dynamic>.from(current);
+    fields.forEach((k, v) {
+      if (v != null) merged[k] = v;
+    });
+    state = state.copyWith(user: merged);
+  }
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {

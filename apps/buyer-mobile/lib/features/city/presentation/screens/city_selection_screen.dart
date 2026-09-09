@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/layout/responsive.dart';
+import '../../../../core/navigation/pending_route.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../data/models/city_model.dart';
 import '../providers/city_provider.dart';
@@ -24,73 +26,76 @@ class _CitySelectionScreenState extends ConsumerState<CitySelectionScreen> {
 
     return Scaffold(
       backgroundColor: TekaColors.surfaceMuted,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            children: [
-              const SizedBox(height: 28),
-              // City icon
-              Container(
-                width: 60,
-                height: 60,
-                decoration: BoxDecoration(
-                  color: TekaColors.tekaRed.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.location_city_rounded,
-                  size: 30,
-                  color: TekaColors.tekaRed,
-                ),
-              ),
-              const SizedBox(height: 16),
-              // Title
-              Text(
-                "Choisissez votre ville",
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: TekaColors.foreground,
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                children: [
+                  const SizedBox(height: 28),
+                  // City icon
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: TekaColors.tekaRed.withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
                     ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              // Description
-              Text(
-                "Pour voir les produits disponibles",
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: TekaColors.mutedForeground,
-                      height: 1.25,
+                    child: const Icon(
+                      Icons.location_city_rounded,
+                      size: 30,
+                      color: TekaColors.tekaRed,
                     ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 20),
-              // Search field
-              TextField(
-                onChanged: (v) => setState(() => _query = v),
-                decoration: InputDecoration(
-                  hintText: "Rechercher une ville…",
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  isDense: true,
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  // Title
+                  Text(
+                    "Choisissez votre ville",
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: TekaColors.foreground,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  // Description
+                  Text(
+                    "Pour voir les produits disponibles",
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: TekaColors.mutedForeground,
+                          height: 1.25,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                  // Search field
+                  TextField(
+                    onChanged: (v) => setState(() => _query = v),
+                    decoration: InputDecoration(
+                      hintText: "Rechercher une ville…",
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // City list
+                  Expanded(
+                    child: _buildCityList(
+                      context,
+                      ref,
+                      cityState,
+                      locale,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
-              // City list
-              Expanded(
-                child: _buildCityList(
-                  context,
-                  ref,
-                  cityState,
-                  locale,
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
       ),
     );
   }
@@ -228,8 +233,15 @@ class _CitySelectionScreenState extends ConsumerState<CitySelectionScreen> {
                   isSelected: cityState.selectedCity?.id == city.id,
                   onTap: () async {
                     await ref.read(cityProvider.notifier).selectCity(city);
-                    if (context.mounted) {
-                      context.go('/');
+                    if (!context.mounted) return;
+                    context.go('/');
+                    // A notification tap or a shared link that arrived before
+                    // the town was chosen (PR D): open it now, on top of home
+                    // so Back returns to the app rather than to nothing.
+                    final pending = ref.read(pendingRouteProvider);
+                    if (pending != null) {
+                      ref.read(pendingRouteProvider.notifier).state = null;
+                      context.push(pending);
                     }
                   },
                 )),

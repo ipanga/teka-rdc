@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { withSentryConfig } from '@sentry/nextjs';
 import type { NextConfig } from 'next';
+import { portalSecurityHeaders } from './src/lib/security-headers';
 
 // Prod-on-subdomain sets NEXT_PUBLIC_BASE_PATH='' so admin.teka.cd serves from
 // the root; local dev keeps the /admin path prefix so all three Next.js apps
@@ -9,6 +10,7 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '/admin';
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  poweredByHeader: false,
   // Required in pnpm workspaces — see buyer-web/next.config.ts for details.
   outputFileTracingRoot: path.join(__dirname, '..', '..'),
   transpilePackages: ['@teka/shared'],
@@ -26,6 +28,11 @@ const nextConfig: NextConfig = {
   // (deploy.yml) so /ingest sits at the admin.teka.cd root, identical to
   // buyer-web. skipTrailingSlashRedirect is required for PostHog's API paths.
   skipTrailingSlashRedirect: true,
+  // D4 (2026-09-06): non-CSP security headers on every response (the CSP is
+  // per-request, see src/middleware.ts + src/lib/security-headers.ts).
+  async headers() {
+    return [{ source: '/:path*', headers: portalSecurityHeaders() }];
+  },
   async rewrites() {
     return [
       { source: '/ingest/static/:path*', destination: 'https://us-assets.i.posthog.com/static/:path*' },

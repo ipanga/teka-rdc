@@ -30,6 +30,12 @@ import { UserNotificationService } from './user-notification.service';
  *     closest existing semantic match. Add a dedicated
  *     `shouldSendReviewUpdates` pref later if sellers ask for it.
  */
+const PAYOUT_METHOD_LABEL: Record<string, string> = {
+  M_PESA: 'M-Pesa',
+  AIRTEL_MONEY: 'Airtel Money',
+  ORANGE_MONEY: 'Orange Money',
+};
+
 @Injectable()
 export class SellerNotificationService {
   private readonly logger = new Logger(SellerNotificationService.name);
@@ -419,6 +425,69 @@ export class SellerNotificationService {
   }
 
   /** The seller is told they were paid only here — never on approval. */
+  /**
+   * S12 security notice: the seller's payout destination changed. Unlike the
+   * lifecycle events this goes to EVERY channel (feed + push + email), not
+   * push-or-email — a seller who did not make the change must hear about it
+   * within the cooling-off window whatever device they hold. The phone is
+   * masked everywhere; the password never reaches this layer.
+   */
+  async notifyPayoutMethodChanged(
+    sellerUserId: string,
+    info: {
+      payoutMethod: string;
+      maskedPhone: string;
+      changedAt: Date;
+      availableAt: Date;
+    },
+  ): Promise<void> {
+    try {
+      const user = await this.loadSellerUser(sellerUserId);
+      if (!user) return;
+      const fmt = new Intl.DateTimeFormat('fr-FR', {
+        dateStyle: 'long',
+        timeStyle: 'short',
+        timeZone: 'Africa/Lubumbashi',
+      });
+      const changedLabel = fmt.format(info.changedAt);
+      const availableLabel = fmt.format(info.availableAt);
+      const title = 'Destination de retrait modifiée';
+      const body = `Votre destination de retrait (${PAYOUT_METHOD_LABEL[info.payoutMethod] ?? info.payoutMethod}, ${info.maskedPhone}) a été modifiée le ${changedLabel}. Si vous n’êtes pas à l’origine de ce changement, contactez le support immédiatement.`;
+      await this.userNotifications.createIfAbsent({
+        userId: user.id,
+        type: 'PAYOUT',
+        title,
+        body,
+        entityType: 'payout_method',
+        entityId: `${user.id}:${info.changedAt.getTime()}`,
+      });
+      this.sendPushToSeller(user.id, {
+        title,
+        body,
+        data: { screen: 'earnings', event: 'payout-method-changed' },
+      });
+      if (user.email) {
+        await this.emailService.sendPayoutMethodChanged(
+          user.email,
+          user.firstName,
+          PAYOUT_METHOD_LABEL[info.payoutMethod] ?? info.payoutMethod,
+          info.maskedPhone,
+          changedLabel,
+          availableLabel,
+        );
+      } else {
+        this.logger.warn(
+          `seller ${user.id} has no email — payout-method change notice sent by feed + push only`,
+        );
+      }
+    } catch (error: any) {
+      this.logger.error(
+        `Échec notification changement de destination de retrait ${sellerUserId}: ${error?.message ?? error}`,
+        error?.stack,
+      );
+    }
+  }
+
   async notifyPayoutPaid(payoutId: string): Promise<void> {
     try {
       const ctx = await this.loadPayoutContext(payoutId);

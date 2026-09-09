@@ -22,7 +22,6 @@ final categoriesProvider = FutureProvider<List<CategoryModel>>((ref) {
 class BrowseProductsParams {
   final String? categoryId;
   final String? search;
-  final String? condition;
   final String? sortBy;
   final String? cityId;
 
@@ -61,7 +60,6 @@ class BrowseProductsParams {
   const BrowseProductsParams({
     this.categoryId,
     this.search,
-    this.condition,
     this.sortBy,
     this.cityId,
     this.minPrice,
@@ -79,7 +77,6 @@ class BrowseProductsParams {
           runtimeType == other.runtimeType &&
           categoryId == other.categoryId &&
           search == other.search &&
-          condition == other.condition &&
           sortBy == other.sortBy &&
           cityId == other.cityId &&
           minPrice == other.minPrice &&
@@ -92,7 +89,6 @@ class BrowseProductsParams {
   int get hashCode =>
       categoryId.hashCode ^
       search.hashCode ^
-      condition.hashCode ^
       sortBy.hashCode ^
       cityId.hashCode ^
       minPrice.hashCode ^
@@ -104,7 +100,6 @@ class BrowseProductsParams {
   BrowseProductsParams copyWith({
     String? categoryId,
     String? search,
-    String? condition,
     String? sortBy,
     String? cityId,
     String? minPrice,
@@ -115,7 +110,6 @@ class BrowseProductsParams {
     String? searchIntent,
     bool clearCategoryId = false,
     bool clearSearch = false,
-    bool clearCondition = false,
     bool clearSortBy = false,
     bool clearCityId = false,
     bool clearPrice = false,
@@ -125,7 +119,6 @@ class BrowseProductsParams {
     return BrowseProductsParams(
       categoryId: clearCategoryId ? null : (categoryId ?? this.categoryId),
       search: clearSearch ? null : (search ?? this.search),
-      condition: clearCondition ? null : (condition ?? this.condition),
       sortBy: clearSortBy ? null : (sortBy ?? this.sortBy),
       cityId: clearCityId ? null : (cityId ?? this.cityId),
       minPrice: clearPrice ? null : (minPrice ?? this.minPrice),
@@ -192,7 +185,6 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
       final result = await _repository.browseProducts(
         categoryId: _params.categoryId,
         search: _params.search,
-        condition: _params.condition,
         sortBy: _params.sortBy,
         cityId: _params.cityId,
         minPrice: _params.minPrice,
@@ -231,7 +223,6 @@ class BrowseProductsNotifier extends StateNotifier<BrowseProductsState> {
       final result = await _repository.browseProducts(
         categoryId: _params.categoryId,
         search: _params.search,
-        condition: _params.condition,
         sortBy: _params.sortBy,
         cityId: _params.cityId,
         minPrice: _params.minPrice,

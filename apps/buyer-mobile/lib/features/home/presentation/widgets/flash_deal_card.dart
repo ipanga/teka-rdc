@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/utils/price_formatter.dart';
 import '../../data/models/flash_deal_model.dart';
+import '../../../../core/widgets/teka_network_image.dart';
 
 class FlashDealCard extends StatefulWidget {
   final FlashDealModel deal;
@@ -84,17 +85,7 @@ class _FlashDealCardState extends State<FlashDealCard> {
                 SizedBox(
                   height: 120,
                   width: double.infinity,
-                  child: imageUrl != null
-                      ? Image.network(
-                          imageUrl,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _imagePlaceholder(),
-                          loadingBuilder: (_, child, progress) {
-                            if (progress == null) return child;
-                            return _imagePlaceholder();
-                          },
-                        )
-                      : _imagePlaceholder(),
+                  child: TekaNetworkImage(url: imageUrl, fallbackIconSize: 26),
                 ),
                 // Discount badge
                 if (deal.discountPercent != null && deal.discountPercent! > 0)
@@ -217,16 +208,4 @@ class _FlashDealCardState extends State<FlashDealCard> {
     );
   }
 
-  Widget _imagePlaceholder() {
-    return Container(
-      color: TekaColors.muted,
-      child: const Center(
-        child: Icon(
-          Icons.image_outlined,
-          size: 32,
-          color: TekaColors.mutedForeground,
-        ),
-      ),
-    );
-  }
 }

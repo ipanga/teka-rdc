@@ -1,6 +1,8 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../deep_link/in_app_link.dart';
 
 import '../theme/teka_colors.dart';
 
@@ -34,12 +36,20 @@ class _MarkdownContentState extends State<MarkdownContent> {
   }
 
   Future<void> _launch(String url) async {
-    final uri = Uri.tryParse(url.trim());
-    if (uri == null) return;
-    try {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    } catch (_) {
-      // Best-effort — a missing handler (e.g. no dialer) shouldn't crash the page.
+    switch (classifyInAppLink(url)) {
+      case InAppRoute(:final route):
+        // Relative CMS links (`/pages/faq`) and teka.cd URLs the app renders
+        // stay in the app (PR D, 2026-09-06); before, `launchUrl` silently
+        // dropped the relative ones.
+        if (mounted) context.push(route);
+      case ExternalLink(:final uri):
+        try {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } catch (_) {
+          // Best-effort — a missing handler (e.g. no dialer) shouldn't crash the page.
+        }
+      case IgnoredLink():
+        break;
     }
   }
 

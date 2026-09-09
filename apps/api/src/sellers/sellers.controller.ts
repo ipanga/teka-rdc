@@ -14,6 +14,7 @@ import { UpdateSellerProfileDto } from './dto/update-seller-profile.dto';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { documentMaxBytesFromEnv } from '../seller-verification/seller-document-storage.service';
+import { multipartFieldNameLimits } from '../common/uploads/image-upload';
 
 @Controller('v1/sellers')
 export class SellersController {
@@ -28,7 +29,12 @@ export class SellersController {
   // above the cap is ever buffered (PR 2 hardening).
   @UseInterceptors(
     FileInterceptor('document', {
-      limits: { fileSize: documentMaxBytesFromEnv(), files: 1, fields: 2 },
+      limits: {
+        fileSize: documentMaxBytesFromEnv(),
+        files: 1,
+        fields: 2,
+        ...multipartFieldNameLimits,
+      },
     }),
   )
   async uploadDocument(@UploadedFile() file: Express.Multer.File) {

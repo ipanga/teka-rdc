@@ -2,14 +2,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
-import 'package:seller_mobile/core/utils/price_formatter.dart';
 import '../../../../core/theme/teka_colors.dart';
+import '../../../../core/theme/teka_spacing.dart';
 import '../../../../core/widgets/seller_filter_bar.dart';
 import '../../../../core/widgets/seller_list_state.dart';
 import '../../data/models/product_model.dart';
+import '../product_status_ui.dart';
 import '../providers/products_provider.dart';
-import '../widgets/status_badge.dart';
+import '../widgets/product_card.dart';
+import '../../../../core/layout/responsive.dart';
 
 class ProductsListScreen extends ConsumerStatefulWidget {
   const ProductsListScreen(
@@ -80,45 +81,48 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
       appBar: AppBar(
         title: Text("Produits"),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         tooltip: 'Nouveau produit',
         onPressed: () => context.push('/products/new'),
         backgroundColor: TekaColors.tekaRed,
         foregroundColor: Colors.white,
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: const Text('Nouveau produit'),
       ),
-      body: SafeArea(
-        top: false,
-        bottom: false,
-        child: Column(
-          children: [
-            const _ProductSearchField(),
-            SellerFilterBar<ProductStatus>(
-              selected: state.statusFilter,
-              onSelected: _selectStatus,
-              options: const [
-                SellerFilterOption(null, 'Tous'),
-                SellerFilterOption(ProductStatus.draft, 'Brouillons'),
-                SellerFilterOption(ProductStatus.pendingReview, 'En attente'),
-                SellerFilterOption(ProductStatus.active, 'Actifs'),
-                SellerFilterOption(ProductStatus.rejected, 'Rejetés'),
-                SellerFilterOption(ProductStatus.archived, 'Archivés'),
-                SellerFilterOption(ProductStatus.suspended, 'Suspendus'),
-              ],
-            ),
-            Expanded(
-              child: state.isLoading
-                  ? const SellerListLoading(label: 'Chargement des produits')
-                  : RefreshIndicator(
-                      onRefresh: ref
-                          .read(sellerProductsProvider.notifier)
-                          .loadProducts,
-                      child: state.products.isEmpty
-                          ? SellerListState(child: _message(state))
-                          : _buildProductsList(context, state),
-                    ),
-            ),
-          ],
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: SafeArea(
+          top: false,
+          bottom: false,
+          child: Column(
+            children: [
+              const _ProductSearchField(),
+              SellerFilterBar<ProductStatus>(
+                selected: state.statusFilter,
+                onSelected: _selectStatus,
+                // Labels and order from ProductStatusUi — the same source
+                // as the chip, the detail strip and the Action Center.
+                options: [
+                  const SellerFilterOption(null, 'Tous'),
+                  for (final status in productFilterOrder)
+                    SellerFilterOption(
+                        status, ProductStatusUi.of(status).filterLabel),
+                ],
+              ),
+              Expanded(
+                child: state.isLoading
+                    ? const SellerListLoading(label: 'Chargement des produits')
+                    : RefreshIndicator(
+                        onRefresh: ref
+                            .read(sellerProductsProvider.notifier)
+                            .loadProducts,
+                        child: state.products.isEmpty
+                            ? SellerListState(child: _message(state))
+                            : _buildProductsList(context, state),
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -135,24 +139,29 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
         onAction: notifier.loadProducts,
       );
     }
-    if (state.search.isNotEmpty || state.statusFilter != null) {
+    if (state.search.isNotEmpty) {
       return SellerListMessage(
         icon: Icons.search_off_outlined,
-        title: 'Aucun produit trouvé',
-        message: 'Essayez une autre recherche ou un autre statut.',
-        actionLabel: state.search.isNotEmpty
-            ? 'Effacer la recherche'
-            : 'Voir tous les produits',
-        onAction: state.search.isNotEmpty
-            ? () => notifier.setSearch('')
-            : () => _selectStatus(null),
+        title: 'Aucun produit pour « ${state.search} »',
+        message: 'Vérifiez l’orthographe ou essayez un autre mot.',
+        actionLabel: 'Effacer la recherche',
+        onAction: () => notifier.setSearch(''),
+      );
+    }
+    final copy = productEmptyCopy(state.statusFilter);
+    if (state.statusFilter != null) {
+      return SellerListMessage(
+        icon: Icons.inventory_2_outlined,
+        title: copy.title,
+        message: copy.message,
+        actionLabel: 'Voir tous les produits',
+        onAction: () => _selectStatus(null),
       );
     }
     return SellerListMessage(
       icon: Icons.inventory_2_outlined,
-      title: 'Votre catalogue commence ici',
-      message:
-          'Ajoutez votre premier produit, puis ses photos avant de le soumettre pour révision.',
+      title: copy.title,
+      message: copy.message,
       actionLabel: 'Nouveau produit',
       onAction: () => context.push('/products/new'),
     );
@@ -162,12 +171,13 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
     return ListView.builder(
       controller: _scrollController,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+      padding: const EdgeInsets.fromLTRB(
+          TekaSpacing.md, TekaSpacing.xs, TekaSpacing.md, 96),
       itemCount: state.products.length +
           (state.isLoadingMore || state.error != null ? 1 : 0),
       itemBuilder: (context, index) {
         if (index < state.products.length) {
-          return _ProductListItem(product: state.products[index]);
+          return ProductCard(product: state.products[index]);
         }
         if (state.error != null) return _message(state);
         return const Padding(
@@ -178,111 +188,6 @@ class _ProductsListScreenState extends ConsumerState<ProductsListScreen> {
           )),
         );
       },
-    );
-  }
-}
-
-class _ProductListItem extends StatelessWidget {
-  final SellerProductModel product;
-
-  const _ProductListItem({required this.product});
-
-  @override
-  Widget build(BuildContext context) {
-    final dateFormat = DateFormat('dd/MM/yyyy', 'fr');
-
-    return Card(
-      color: TekaColors.background,
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: const BorderSide(color: TekaColors.border),
-      ),
-      child: Semantics(
-        button: true,
-        child: InkWell(
-          onTap: () => context.push('/products/${product.id}'),
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: SizedBox(
-                        width: 56,
-                        height: 56,
-                        child: product.coverImageUrl != null
-                            ? Image.network(
-                                product.coverImageUrl!,
-                                fit: BoxFit.cover,
-                                excludeFromSemantics: true,
-                                errorBuilder: (_, __, ___) =>
-                                    _placeholderImage(),
-                                loadingBuilder: (_, child, progress) =>
-                                    progress == null
-                                        ? child
-                                        : _placeholderImage(),
-                              )
-                            : _placeholderImage(),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(product.title,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600, fontSize: 15),
-                              maxLines: 3,
-                              overflow: TextOverflow.ellipsis),
-                          const SizedBox(height: 6),
-                          Text('${formatFcNumber(product.priceCDFDisplay)} FC',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w700, fontSize: 15)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    StatusBadge(status: product.status, compact: true),
-                    if (product.cityName != null)
-                      Text(product.cityName!,
-                          style: const TextStyle(
-                              fontSize: 12, color: TekaColors.mutedForeground)),
-                    Text(dateFormat.format(product.createdAt),
-                        style: const TextStyle(
-                            fontSize: 12, color: TekaColors.mutedForeground)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _placeholderImage() {
-    return Container(
-      color: TekaColors.muted,
-      child: const Icon(
-        Icons.image_outlined,
-        color: TekaColors.mutedForeground,
-        size: 28,
-      ),
     );
   }
 }
@@ -343,7 +248,8 @@ class _ProductSearchFieldState extends ConsumerState<_ProductSearchField> {
       }
     });
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+      padding: const EdgeInsets.fromLTRB(
+          TekaSpacing.md, TekaSpacing.sm, TekaSpacing.md, TekaSpacing.xxs),
       child: TextField(
         controller: _controller,
         onChanged: _onChanged,

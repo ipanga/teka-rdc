@@ -13,7 +13,6 @@ import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import {
-  resolveSurface,
   cookieNamesFor,
   type AuthSurface,
 } from '../auth/surface.util';
@@ -46,14 +45,15 @@ export class AccountDeletionController {
   @HttpCode(HttpStatus.OK)
   async request(
     @CurrentUser('userId') userId: string,
+    @CurrentUser('surface') surface: AuthSurface | null,
     @Body() dto: RequestAccountDeletionDto,
-    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.deletionService.requestDeletion(userId, dto);
     // Sign out on this surface too — the refresh tokens are already revoked
     // server-side; clear the cookies so the browser session ends immediately.
-    this.clearAuthCookies(res, resolveSurface(req));
+    // The surface is the session's own (from the stored role), never a claim.
+    this.clearAuthCookies(res, surface);
     return result;
   }
 
@@ -64,7 +64,8 @@ export class AccountDeletionController {
     return this.deletionService.cancelDeletion(userId);
   }
 
-  private clearAuthCookies(res: Response, surface: AuthSurface) {
+  private clearAuthCookies(res: Response, surface: AuthSurface | null) {
+    if (!surface) return;
     const domain = this.configService.get<string>('COOKIE_DOMAIN') || undefined;
     const names = cookieNamesFor(surface);
     for (const name of [names.access, names.refresh, names.session]) {

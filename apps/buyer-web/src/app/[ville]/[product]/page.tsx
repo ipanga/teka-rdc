@@ -1,8 +1,14 @@
+import { effectiveCentimes } from '@/lib/format';
+import { plainText, truncateForMeta } from '@/lib/seo-text';
+import { isRealBrand } from '@/lib/brand';
 import type { Metadata } from 'next';
 import { notFound, permanentRedirect } from 'next/navigation';
 import ProductDetailPage from '@/components/pages/product-detail-page';
 import { JsonLd } from '@/components/seo/json-ld';
 import { serverFetch } from '@/lib/server-api';
+import { getActiveCities } from '@/lib/server-cities';
+import { deliveryPhrase } from '@/lib/service-area';
+import type { ProductDetail } from '@/lib/types';
 import {
   productHref,
   productTail,
@@ -12,35 +18,19 @@ import {
 
 type Props = { params: Promise<{ ville: string; product: string }> };
 
-interface ProductData {
-  id: string;
-  slug?: string | null;
-  shortCode?: string | null;
-  title: string;
-  description: string;
-  priceCDF: string;
-  priceUSD?: string | null;
-  discountPriceCDF?: string | null;
-  discountPriceUSD?: string | null;
-  avgRating: number;
-  totalReviews: number;
-  quantity: number;
-  condition: string;
+/**
+ * What GET /v1/browse/products/:identifier returns — the client's
+ * `ProductDetail` (the same object is passed to the client component as its
+ * initial state) plus the fields only the server route reads.
+ */
+type ProductData = ProductDetail & {
   updatedAt?: string;
-  images: Array<{ url: string }>;
-  city?: { id: string; slug: string | null; name: string; province: string } | null;
-  seller: {
-    businessName?: string;
-    shopName?: string;
-    sellerProfile?: { businessName?: string };
-  };
-  category?: { id: string; slug?: string | null; name: string };
-  // Full category path (Catégorie → Sous-catégorie → Type), from getProductDetail.
-  breadcrumb?: { id: string; slug: string | null; name: string }[];
+  avgRating?: number;
+  totalReviews?: number;
   brand?: { id: string; name: string; slug?: string | null } | null;
   // Demo retirement (P3c): true for a demo product in a retired category.
   isRetired?: boolean;
-}
+};
 
 function pickStr(field: string | undefined | null) {
   return field ?? '';
@@ -72,8 +62,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   );
 
   if (!product) {
-    const fallbackDesc =
-      'Découvrez les produits sur Teka RDC — supermarché en ligne en RD Congo. Livraison à Lubumbashi, Kolwezi et Likasi.';
+    // Served towns from the active-town API (SEO-2 decision 2).
+    const fallbackDesc = `Découvrez les produits sur Teka RDC — supermarché en ligne en RD Congo. ${deliveryPhrase(await getActiveCities())}`;
     return {
       title: 'Teka RDC',
       description: fallbackDesc,
@@ -90,18 +80,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 
   const title = pickStr(product.title);
-  const desc = pickStr(product.description);
+  // Seller descriptions are markdown; a snippet must be plain text.
+  const desc = plainText(product.description);
   const ogImage = ogImageUrl(product.images?.[0]?.url);
   // Use the effective (discounted) price in the title/description.
-  const effectiveCDF = product.discountPriceCDF ?? product.priceCDF;
+  const effectiveCDF = effectiveCentimes(product);
   const price = (Number(effectiveCDF) / 100).toLocaleString('fr-CD');
   const categoryName = pickStr(product.category?.name);
   const cityName = pickStr(product.city?.name);
-  const sellerName =
-    product.seller?.sellerProfile?.businessName ||
-    product.seller?.businessName ||
-    product.seller?.shopName ||
-    '';
+  const sellerName = product.seller?.businessName || '';
 
   const fullTitle = `${title} - ${price} FC${cityName ? ` à ${cityName}` : ''}`;
 
@@ -111,11 +98,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     `${sellerName ? ` | Vendu par ${sellerName}` : ''}` +
     ' sur Teka RDC.';
   const descBudget = Math.max(40, MAX_DESC - tail.length);
-  const descShort =
-    desc.length > descBudget
-      ? `${desc.substring(0, descBudget - 3).replace(/[\s.,;:]+$/, '')}...`
-      : desc;
-  const truncatedDesc = `${descShort}${tail}`.substring(0, MAX_DESC);
+  const truncatedDesc = `${truncateForMeta(desc, descBudget)}${tail}`.substring(0, MAX_DESC);
 
   // Canonical = the product's true city URL (independent of the requested
   // /{ville}; a mismatched city 308-redirects in the page renderer).
@@ -125,11 +108,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: fullTitle,
     description: truncatedDesc,
     keywords: [title, categoryName, cityName, sellerName, 'Teka RDC', 'acheter en ligne RDC'],
+    // No `type` here: Next's metadata API rejects `og:type=product` (it only
+    // knows the website/article/profile families and throws at render). The
+    // product type and its price tags are hoisted from the page body instead
+    // (see <ProductOpenGraph/>), so the head carries ONE og:type.
     openGraph: {
       title: `${title} | Teka RDC`,
       description: truncatedDesc,
       url: `https://teka.cd${canonicalPath}`,
-      type: 'website',
       siteName: 'Teka RDC',
       locale: 'fr_CD',
       images: [{ url: ogImage, width: 1200, height: 630, alt: title }],
@@ -148,9 +134,10 @@ export default async function Page({ params }: Props) {
   const { ville, product: productParam } = await params;
   const identifier = productIdentifierFromParam(productParam);
 
-  const product = await serverFetch<ProductData>(
-    `/v1/browse/products/${encodeURIComponent(identifier)}`,
-  );
+  const [product, cities] = await Promise.all([
+    serverFetch<ProductData>(`/v1/browse/products/${encodeURIComponent(identifier)}`),
+    getActiveCities(),
+  ]);
   if (!product) notFound();
 
   // Demo retirement (P3c): a retired demo product (its category now has enough
@@ -179,29 +166,30 @@ export default async function Page({ params }: Props) {
     permanentRedirect(canonicalPathFor(product));
   }
 
-  const sellerDisplayName =
-    product.seller?.sellerProfile?.businessName ||
-    product.seller?.businessName ||
-    product.seller?.shopName ||
-    '';
+  const sellerDisplayName = product.seller?.businessName || '';
 
+  const imageUrls = (product.images ?? []).map((i) => i.url).filter(Boolean);
   const productJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
     name: pickStr(product.title),
-    description: pickStr(product.description),
-    image: product.images?.[0]?.url,
+    // Plain text, not markdown (schema.org Text); every image, not only the
+    // first (Google's Product guidance prefers several aspect ratios).
+    description: plainText(product.description),
+    ...(imageUrls.length > 0 && { image: imageUrls.length === 1 ? imageUrls[0] : imageUrls }),
     sku: product.shortCode ?? product.id,
     // Prefer the product's real brand (first-class Brand library); fall back to
     // the seller / platform as the brand-like entity when none is set.
-    brand: product.brand?.name
+    brand: isRealBrand(product.brand)
       ? { '@type': 'Brand', name: product.brand.name }
       : { '@type': 'Organization', name: sellerDisplayName || 'Teka RDC' },
     offers: {
       '@type': 'Offer',
       priceCurrency: 'CDF',
-      // Effective (discounted) price — what the buyer actually pays.
-      price: String(Number(product.discountPriceCDF ?? product.priceCDF) / 100),
+      // Effective (discounted) price — what the buyer actually pays. Same
+      // helper as the cart/checkout so search engines never see a different
+      // figure than the checkout charges (PR B, 2026-09-06).
+      price: String(Number(effectiveCentimes(product)) / 100),
       availability:
         product.quantity > 0
           ? 'https://schema.org/InStock'
@@ -219,7 +207,7 @@ export default async function Page({ params }: Props) {
         shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'CD' },
       },
     },
-    ...(product.totalReviews > 0 && {
+    ...((product.totalReviews ?? 0) > 0 && {
       aggregateRating: {
         '@type': 'AggregateRating',
         ratingValue: product.avgRating,
@@ -262,9 +250,44 @@ export default async function Page({ params }: Props) {
   return (
     <>
       <OgUpdatedTime value={product.updatedAt} />
+      <ProductOpenGraph
+        priceCentimes={effectiveCentimes(product)}
+        availability={product.quantity > 0 ? 'instock' : 'oos'}
+      />
       <JsonLd data={productJsonLd} />
       <JsonLd data={breadcrumbJsonLd} />
-      <ProductDetailPage identifier={identifier} />
+      <ProductDetailPage
+        key={product.id}
+        identifier={identifier}
+        initialProduct={product}
+        initialCities={cities}
+      />
+    </>
+  );
+}
+
+/**
+ * Open Graph product tags (hoisted into <head> by React 19, like
+ * `og:updated_time`). `og:type=product` cannot be expressed through Next's
+ * metadata API (it throws on unknown types), so the page emits it here — and
+ * generateMetadata deliberately sets no `openGraph.type`, so there is exactly
+ * one og:type in the document. Price = the effective (discounted) figure, the
+ * same one the JSON-LD offer and the checkout use.
+ */
+function ProductOpenGraph({
+  priceCentimes,
+  availability,
+}: {
+  priceCentimes: string;
+  availability: 'instock' | 'oos';
+}) {
+  const amount = (Number(priceCentimes) / 100).toFixed(2);
+  return (
+    <>
+      <meta property="og:type" content="product" />
+      <meta property="product:price:amount" content={amount} />
+      <meta property="product:price:currency" content="CDF" />
+      <meta property="og:availability" content={availability} />
     </>
   );
 }

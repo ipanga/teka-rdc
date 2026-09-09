@@ -6,6 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { validateImageUpload } from '../common/uploads/image-upload';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { dedupeSpecificationsByName } from '../common/utils/product-specifications';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -935,35 +936,19 @@ export class ProductsService {
       );
     }
 
-    // Validate file size (5 MB). Clients SHOULD have already compressed to
-    // ≤500 KB, but we keep the 5 MB ceiling as defence-in-depth — leaves
-    // room for an admin uploading a high-quality cover from a desktop tool
-    // while still rejecting accidental 50 MB drops.
-    if (file.size > 5 * 1024 * 1024) {
-      throw new BadRequestException(
-        "La taille de l'image ne doit pas dépasser 5 Mo",
-      );
-    }
-
-    // MIME guard. Header is client-supplied so this is only the first
-    // line of defense — Cloudinary will reject non-image binaries on its
-    // own when we hand it the buffer, but failing fast here saves a
-    // network round-trip to Cloudinary on obvious garbage.
-    const ALLOWED_MIME = new Set([
-      'image/jpeg',
-      'image/jpg',
-      'image/png',
-      'image/webp',
-      'image/gif',
-    ]);
-    if (!ALLOWED_MIME.has(file.mimetype)) {
-      throw new BadRequestException(
+    // Size / content / metadata hardening shared with avatars (S8): multer
+    // already refused anything above 5 MB while it streamed; here the bytes
+    // are identified from their signature (an SVG or HTML declared as PNG can
+    // never pass), the declared type must agree, and EXIF/XMP is stripped
+    // before the image reaches a public Cloudinary URL.
+    const validated = validateImageUpload(file, {
+      allowGif: true,
+      unsupportedMessage:
         "Format d'image non supporté. Formats acceptés : JPEG, PNG, WebP, GIF.",
-      );
-    }
+    });
 
     // Upload to Cloudinary
-    const uploadResult = await this.cloudinary.uploadImage(file.buffer);
+    const uploadResult = await this.cloudinary.uploadImage(validated.buffer);
 
     // Get max display order
     const maxOrderImage = await this.prisma.productImage.findFirst({

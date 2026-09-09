@@ -45,6 +45,7 @@ class _FakeRepo extends WishlistRepository {
 Future<void> _settle() => Future.delayed(Duration.zero);
 
 void main() {
+  _guestTests();
   // No POSTHOG_API_KEY in tests → analytics `capture()` is a no-op (it reads
   // FlavorConfig.instance, which must be initialized first).
   setUpAll(FlavorConfig.initialize);
@@ -95,5 +96,52 @@ void main() {
       expect(n.state.wishlistedIds.contains('dead'), isFalse);
       expect(n.state.count, 5); // unchanged
     });
+  });
+}
+
+// ─── PR D2 (2026-09-07): no private calls for a guest ───────────────────────
+
+class _CountingRepo extends WishlistRepository {
+  _CountingRepo() : super(Dio());
+  int lists = 0, counts = 0, checks = 0;
+  @override
+  Future<PaginatedWishlistResponse> getWishlist({int page = 1, int limit = 20}) async {
+    lists++;
+    return const PaginatedWishlistResponse(data: [], page: 1, limit: 20, total: 0, totalPages: 1);
+  }
+
+  @override
+  Future<int> getCount() async {
+    counts++;
+    return 0;
+  }
+
+  @override
+  Future<Set<String>> checkWishlistIds(List<String> productIds) async {
+    checks++;
+    return {};
+  }
+}
+
+void main2() {}
+
+void _guestTests() {
+  test('a guest never hits the wishlist endpoints (load, count, batch check)', () async {
+    final repo = _CountingRepo();
+    final n = WishlistNotifier(repo, isAuthenticated: () => false);
+    await n.loadWishlistIds(['p1', 'p2']);
+    await Future<void>.delayed(Duration.zero);
+    expect(repo.lists + repo.counts + repo.checks, 0);
+    expect(n.state.wishlistedIds, isEmpty);
+  });
+
+  test('a signed-in buyer loads, counts and batch-checks as before', () async {
+    final repo = _CountingRepo();
+    final n = WishlistNotifier(repo, isAuthenticated: () => true);
+    await n.loadWishlistIds(['p1']);
+    await Future<void>.delayed(Duration.zero);
+    expect(repo.lists, 1);
+    expect(repo.counts, 1);
+    expect(repo.checks, 1);
   });
 }

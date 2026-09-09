@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/connectivity/connectivity_provider.dart';
+import 'core/lifecycle/resume_hooks.dart';
+import 'core/navigation/pending_route.dart';
+import 'core/connectivity/connectivity_status.dart';
 import 'core/analytics/posthog_analytics.dart';
 import 'core/connectivity/connectivity_lifecycle_observer.dart';
 import 'core/connectivity/connectivity_sentry_reporter.dart';
@@ -31,6 +35,12 @@ class TekaApp extends ConsumerWidget {
     // the first frame so the router is mounted.
     ref.read(deepLinkControllerProvider);
 
+    // App resume → refresh the bell badge (one small GET) for a signed-in
+    // buyer; the feed itself reloads when its screen is open (PR D).
+    ref.read(resumeHooksProvider);
+    // Drops a route parked during the town restore once the town is back.
+    ref.read(pendingRouteConsumerProvider);
+
     // Activate the Sentry reporter — subscribes to the connectivity
     // stream + tags every Sentry event with the current state and
     // captures rate-limited events on user-visible degradations.
@@ -43,6 +53,19 @@ class TekaApp extends ConsumerWidget {
     // reset() on logout. Centralized here (one place) the same way the web
     // PostHogProvider keys off the auth store. id + role only, never
     // phone/email (Rule 13). No-op when PostHog isn't initialized.
+    // A2 (2026-09-06): a session accepted while offline is confirmed the
+    // moment the network is back — the server, not the phone, has the last
+    // word on whether the credentials still stand.
+    ref.listen<ConnectivityStatus>(connectivityStatusProvider, (prev, next) {
+      final online = next == ConnectivityStatus.connected ||
+          next == ConnectivityStatus.unstable;
+      final wasOnline = prev == ConnectivityStatus.connected ||
+          prev == ConnectivityStatus.unstable;
+      if (online && !wasOnline) {
+        ref.read(authProvider.notifier).reverifyIfNeeded();
+      }
+    });
+
     ref.listen<AuthState>(authProvider, (prev, next) {
       const analytics = PosthogAnalytics();
       final wasAuthed = prev?.status == AuthStatus.authenticated;

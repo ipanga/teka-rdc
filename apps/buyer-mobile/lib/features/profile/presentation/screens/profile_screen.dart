@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/layout/responsive.dart';
 import '../../../../core/analytics/posthog_analytics.dart';
 import '../../../../core/theme/teka_colors.dart';
 import '../../../../core/widgets/app_states.dart';
@@ -35,9 +36,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final me = await ref.read(profileRepositoryProvider).getMe();
       if (!mounted) return;
       setState(() => _user = me);
+      // Keep the session user (and its offline cache) as fresh as this
+      // screen: every header reads from there.
+      await ref.read(authProvider.notifier).updateUser(me.toJson());
     } catch (_) {
       if (!mounted) return;
-      setState(() => _error = 'Impossible de charger votre compte.');
+      // A2: offline, the session still stands — show the profile the auth
+      // layer restored from the last verified `/me` instead of a dead end.
+      final cached = ref.read(authProvider).user;
+      BuyerProfile? fallback;
+      if (cached != null) {
+        try {
+          fallback = BuyerProfile.fromJson(cached);
+        } catch (_) {
+          fallback = null;
+        }
+      }
+      setState(() {
+        if (fallback != null) {
+          _user = fallback;
+        } else {
+          _error = 'Impossible de charger votre compte.';
+        }
+      });
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -96,7 +117,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
     }
 
-    final user = _user;
+    // The session user is updated by every profile edit (name, email,
+    // photo) through AuthNotifier.updateUser, so the header reflects an edit
+    // the moment the buyer comes back — no reload, no stale name/photo.
+    final sessionUser = ref.watch(authProvider).user;
+    BuyerProfile? user = _user;
+    if (sessionUser != null) {
+      try {
+        user = BuyerProfile.fromJson({...?_user?.toJson(), ...sessionUser});
+      } catch (_) {
+        user = _user;
+      }
+    }
     final fullName = [
       user?.firstName?.trim(),
       user?.lastName?.trim(),
@@ -107,123 +139,136 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     return Scaffold(
       backgroundColor: TekaColors.background,
       appBar: const _AccountAppBar(),
-      body: RefreshIndicator(
-        color: TekaColors.tekaRed,
-        onRefresh: _load,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          children: [
-            _AccountHeader(
-              displayName: displayName,
-              phone: user?.phone,
-              email: user?.email,
-              avatarUrl: user?.avatar,
-              initials: initials,
-              onEditProfile: () =>
-                  _open('/profile/informations', 'personal_info'),
-            ),
-            const SizedBox(height: 16),
-            _MenuSection(
-              title: 'Mon compte Teka',
+      body: ReadableColumn(
+        padding: EdgeInsets.zero,
+        child: RefreshIndicator(
+            color: TekaColors.tekaRed,
+            onRefresh: _load,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               children: [
-                _AccountMenuTile(
-                  icon: Icons.receipt_long_outlined,
-                  title: 'Mes commandes',
-                  subtitle: 'Suivi, annulation et retours',
-                  onTap: () => _open('/orders', 'orders'),
+                _AccountHeader(
+                  displayName: displayName,
+                  phone: user?.phone,
+                  email: user?.email,
+                  avatarUrl: user?.avatar,
+                  initials: initials,
+                  onEditProfile: () =>
+                      _open('/profile/informations', 'personal_info'),
                 ),
-                _AccountMenuTile(
-                  icon: Icons.favorite_border_rounded,
-                  title: 'Mes favoris',
-                  subtitle: 'Produits sauvegardés',
-                  onTap: () => _open('/wishlist', 'wishlist'),
+                // Buyers are created from a phone number only (WhatsApp OTP):
+                // until they add a name, say so once — never a blocker, never a
+                // made-up name.
+                if (user != null && user.isNameless) ...[
+                  const SizedBox(height: 12),
+                  _CompleteProfileNudge(
+                    onAddName: () =>
+                        _open('/profile/informations', 'complete_profile'),
+                  ),
+                ],
+                const SizedBox(height: 16),
+                _MenuSection(
+                  title: 'Mon compte Teka',
+                  children: [
+                    _AccountMenuTile(
+                      icon: Icons.receipt_long_outlined,
+                      title: 'Mes commandes',
+                      subtitle: 'Suivi, annulation et retours',
+                      onTap: () => _open('/orders', 'orders'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.favorite_border_rounded,
+                      title: 'Mes favoris',
+                      subtitle: 'Produits sauvegardés',
+                      onTap: () => _open('/wishlist', 'wishlist'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.notifications_none_rounded,
+                      title: 'Boîte de réception',
+                      subtitle: 'Vos notifications reçues',
+                      onTap: () => _open('/notifications', 'notifications'),
+                    ),
+                  ],
                 ),
-                _AccountMenuTile(
-                  icon: Icons.notifications_none_rounded,
-                  title: 'Boîte de réception',
-                  subtitle: 'Commandes, promotions et annonces',
-                  onTap: () => _open('/notifications', 'notifications'),
+                _MenuSection(
+                  title: 'Paramètres',
+                  children: [
+                    _AccountMenuTile(
+                      icon: Icons.location_on_outlined,
+                      title: 'Mon adresse',
+                      subtitle: 'Votre adresse de livraison',
+                      onTap: () => _open('/profile/addresses', 'addresses'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.badge_outlined,
+                      title: 'Informations personnelles',
+                      subtitle: 'Nom, email, photo et numéro WhatsApp',
+                      onTap: () => _open('/profile/informations', 'personal_info'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.tune_rounded,
+                      title: 'Notifications',
+                      subtitle: 'Choisir ce que vous recevez',
+                      onTap: () =>
+                          _open('/profile/notifications', 'notification_settings'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.verified_user_outlined,
+                      title: 'Gestion du compte',
+                      subtitle: 'Appareils connectés et sécurité',
+                      onTap: () => _open('/profile/security', 'security'),
+                    ),
+                  ],
                 ),
+                _MenuSection(
+                  title: 'Aide',
+                  children: [
+                    _AccountMenuTile(
+                      icon: Icons.help_outline_rounded,
+                      title: "Centre d'aide",
+                      subtitle: 'Aide pour acheter sur Teka RDC',
+                      onTap: () => _open('/pages/help', 'help'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.shopping_bag_outlined,
+                      title: 'Comment acheter',
+                      subtitle: 'Passer une commande étape par étape',
+                      onTap: () => _open('/pages/how-to-buy', 'how_to_buy'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.support_agent_outlined,
+                      title: 'Contacter le support',
+                      subtitle: 'Assistance commandes et compte',
+                      onTap: () => _open('/pages/contact', 'support'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.quiz_outlined,
+                      title: 'FAQ',
+                      subtitle: 'Questions fréquentes',
+                      onTap: () => _open('/pages/faq', 'faq'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.info_outline_rounded,
+                      title: 'À propos',
+                      subtitle: 'En savoir plus sur Teka RDC',
+                      onTap: () => _open('/pages/about', 'about'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.description_outlined,
+                      title: "Conditions d'utilisation",
+                      onTap: () => _open('/pages/terms', 'terms'),
+                    ),
+                    _AccountMenuTile(
+                      icon: Icons.privacy_tip_outlined,
+                      title: 'Politique de confidentialité',
+                      onTap: () => _open('/pages/privacy', 'privacy'),
+                    ),
+                  ],
+                ),
+                _LogoutButton(onPressed: _confirmLogout),
               ],
             ),
-            _MenuSection(
-              title: 'Paramètres',
-              children: [
-                _AccountMenuTile(
-                  icon: Icons.location_on_outlined,
-                  title: 'Mon adresse',
-                  subtitle: 'Votre adresse de livraison',
-                  onTap: () => _open('/profile/addresses', 'addresses'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.badge_outlined,
-                  title: 'Informations personnelles',
-                  subtitle: 'Nom, email, photo et numéro WhatsApp',
-                  onTap: () => _open('/profile/informations', 'personal_info'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.tune_rounded,
-                  title: 'Notifications',
-                  subtitle: 'Commandes, promotions et annonces',
-                  onTap: () =>
-                      _open('/profile/notifications', 'notification_settings'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.verified_user_outlined,
-                  title: 'Gestion du compte',
-                  subtitle: 'Appareils connectés et sécurité',
-                  onTap: () => _open('/profile/security', 'security'),
-                ),
-              ],
-            ),
-            _MenuSection(
-              title: 'Aide',
-              children: [
-                _AccountMenuTile(
-                  icon: Icons.help_outline_rounded,
-                  title: "Centre d'aide",
-                  subtitle: 'Aide pour acheter sur Teka RDC',
-                  onTap: () => _open('/pages/help', 'help'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.shopping_bag_outlined,
-                  title: 'Comment acheter',
-                  subtitle: 'Passer une commande étape par étape',
-                  onTap: () => _open('/pages/how-to-buy', 'how_to_buy'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.support_agent_outlined,
-                  title: 'Contacter le support',
-                  subtitle: 'Assistance commandes et compte',
-                  onTap: () => _open('/pages/contact', 'support'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.quiz_outlined,
-                  title: 'FAQ',
-                  subtitle: 'Questions fréquentes',
-                  onTap: () => _open('/pages/faq', 'faq'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.info_outline_rounded,
-                  title: 'À propos',
-                  subtitle: 'En savoir plus sur Teka RDC',
-                  onTap: () => _open('/pages/about', 'about'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.description_outlined,
-                  title: "Conditions d'utilisation",
-                  onTap: () => _open('/pages/terms', 'terms'),
-                ),
-                _AccountMenuTile(
-                  icon: Icons.privacy_tip_outlined,
-                  title: 'Politique de confidentialité',
-                  onTap: () => _open('/pages/privacy', 'privacy'),
-                ),
-              ],
-            ),
-            _LogoutButton(onPressed: _confirmLogout),
-          ],
-        ),
+          ),
       ),
     );
   }
@@ -253,7 +298,7 @@ class _AccountAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
-class _AccountHeader extends StatelessWidget {
+class _AccountHeader extends StatefulWidget {
   final String displayName;
   final String? phone;
   final String? email;
@@ -271,8 +316,23 @@ class _AccountHeader extends StatelessWidget {
   });
 
   @override
+  State<_AccountHeader> createState() => _AccountHeaderState();
+}
+
+class _AccountHeaderState extends State<_AccountHeader> {
+  /// The URL whose image failed to load (offline cold start): fall back to
+  /// the initials instead of an empty disc. Reset when the URL changes.
+  String? _failedUrl;
+
+  @override
   Widget build(BuildContext context) {
-    final hasAvatar = avatarUrl != null && avatarUrl!.isNotEmpty;
+    final avatarUrl = widget.avatarUrl;
+    final displayName = widget.displayName;
+    final phone = widget.phone;
+    final email = widget.email;
+    final initials = widget.initials;
+    final hasAvatar =
+        avatarUrl != null && avatarUrl.isNotEmpty && _failedUrl != avatarUrl;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -292,7 +352,12 @@ class _AccountHeader extends StatelessWidget {
           CircleAvatar(
             radius: 31,
             backgroundColor: TekaColors.tekaRedSubtle,
-            backgroundImage: hasAvatar ? NetworkImage(avatarUrl!) : null,
+            backgroundImage: hasAvatar ? NetworkImage(avatarUrl) : null,
+            onBackgroundImageError: hasAvatar
+                ? (_, __) {
+                    if (mounted) setState(() => _failedUrl = avatarUrl);
+                  }
+                : null,
             child: hasAvatar
                 ? null
                 : Text(
@@ -321,9 +386,9 @@ class _AccountHeader extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  phone == null || phone!.isEmpty
+                  phone == null || phone.isEmpty
                       ? 'Numéro WhatsApp vérifié'
-                      : phone!,
+                      : phone,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -332,10 +397,10 @@ class _AccountHeader extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (email != null && email!.isNotEmpty) ...[
+                if (email != null && email.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
-                    email!,
+                    email,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -348,7 +413,7 @@ class _AccountHeader extends StatelessWidget {
             ),
           ),
           IconButton.filledTonal(
-            onPressed: onEditProfile,
+            onPressed: widget.onEditProfile,
             tooltip: 'Modifier le profil',
             icon: const Icon(Icons.edit_outlined),
             style: IconButton.styleFrom(
@@ -386,11 +451,15 @@ class _MenuSection extends StatelessWidget {
               ),
             ),
           ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: Colors.white,
+          // Material, not DecoratedBox: ListTile paints its ink on the nearest
+          // Material, so a coloured DecoratedBox above it hid every tap ripple
+          // (and trips a debug assertion).
+          Material(
+            color: Colors.white,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: TekaColors.border),
+              side: const BorderSide(color: TekaColors.border),
             ),
             child: Column(children: _withDividers(children)),
           ),
@@ -484,6 +553,53 @@ class _LogoutButton extends StatelessWidget {
         foregroundColor: TekaColors.destructive,
         side: const BorderSide(color: TekaColors.destructive),
         minimumSize: const Size.fromHeight(48),
+      ),
+    );
+  }
+}
+
+class _CompleteProfileNudge extends StatelessWidget {
+  final VoidCallback onAddName;
+
+  const _CompleteProfileNudge({required this.onAddName});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('complete-profile-nudge'),
+      padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+      decoration: BoxDecoration(
+        color: TekaColors.tekaRedSubtle,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: TekaColors.tekaRed.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.person_add_alt_1_outlined,
+              size: 20, color: TekaColors.tekaRed),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'Ajoutez votre nom : il apparaîtra sur vos avis et vos commandes.',
+              style: TextStyle(
+                fontSize: 13,
+                color: TekaColors.foreground,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onAddName,
+            style: TextButton.styleFrom(
+              foregroundColor: TekaColors.tekaRed,
+              textStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            child: const Text('Ajouter'),
+          ),
+        ],
       ),
     );
   }
