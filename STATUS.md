@@ -1,4 +1,4 @@
-# Status — 2026-09-09 (pre-scale readiness — Buyer Web SEO-1 `6234f0c` + SEO-2 `03035e3` merged, Workstream B COMPLETE; decision checkpoint pending)
+# Status — 2026-09-09 (pre-scale readiness — release-readiness AUDIT complete on `develop` `65aee0f`: READY AFTER SPECIFIC BLOCKERS; one code blocker S12; release PR NOT opened)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
@@ -68,11 +68,21 @@ SUPPORT/FINANCE, S11 audit rows, D2b). **Mobile security hardening remains open*
 PRs #549/#565/#595, no bundler ecosystem). **The Cloudflare origin firewall is a MANUAL pre-release
 action — not applied.**
 
+**Release-readiness audit (2026-09-09, read-only) — `develop` `65aee0f` (#715 merged `65aee0f`; CI 12/12 +
+CodeQL + Dependency Audit green): verdict READY AFTER SPECIFIC BLOCKERS.** One code blocker: **S12 payout
+destination** (inline destination on `POST /v1/sellers/payouts` wins over the profile; `PATCH payout-method`
+has no re-auth/notice/audit/cooling-off) → PR `security/admin-and-financial` first. Manual release-window
+actions: `nginx/nginx.prod.conf` copy + `nginx -t` + reload (deploy does not sync it), Cloudflare origin
+firewall the same day. One additive migration pending (`auth_rate_limits`). No new env vars. No distributed
+mobile build carries the buyer functional fixes or seller UX fixes; iOS/iPad runtime never exercised. Full
+record: `docs/pre-scale-readiness.md` → « Release-readiness audit (2026-09-09) ». **The `develop → main`
+release PR is NOT opened — awaiting the owner's decision on the S12 PR and the release sequence.**
+
 **Dependency security, 2026-09-08/09 — two advisory batches, two sibling PRs.**
 **`security/sharp-0.35.4` MERGED (`2e0454d`, PR #718):** GHSA-rgj7-g3m4-5g8c (`sharp` < 0.35.4, libheif)
 broke the blocking Dependency Audit; fixed by a root `pnpm.overrides` pin to 0.35.4, with the older
 `sharp` ignore entry GHSA-f88m-g3jw-g9cj removed alongside it (two exceptions left: `effect`,
-`deepmerge-ts`). **`security/multer-2.3.0` MERGED (`bd406cb`, PR #719):** four `multer`
+`deepmerge-ts`). **`security/multer-2.3.0` MERGED (`bd406cb`, PR #719); docs checkpoint #715 MERGED (`65aee0f`):** four `multer`
 2.2.0 advisories published the same evening (GHSA-wc9g-mqfw-jrwm, GHSA-qfvm-cv95-jqjf,
 GHSA-535w-7cp7-47q4 high; GHSA-qvfw-j98x-7q72 low; patched in 2.3.0) fail the same gate; fixed by raising
 the root override to `multer@<2.3.0 → ^2.3.0` plus `fieldArrayIndexLimit: 0` on the four multipart
