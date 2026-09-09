@@ -213,3 +213,113 @@ interface FindManyArg {
   select: { sellerProfile: { select: Record<string, boolean> } };
   where: { OR?: OrClause[] };
 }
+
+// ---------------------------------------------------------------------------
+// S11 (2026-09-09) — account status changes are guarded, revoking and audited.
+// ---------------------------------------------------------------------------
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
+
+describe('AdminUsersService.updateUserStatus — S11 self-guard, session revocation, audit', () => {
+  const ADMIN = 'admin-1';
+  const TARGET = 'user-2';
+
+  function makeStatusService(
+    target: { id: string; role: string; status: string } | null = {
+      id: TARGET,
+      role: 'SELLER',
+      status: 'ACTIVE',
+    },
+  ) {
+    const tx = {
+      user: {
+        update: jest.fn().mockImplementation(({ data }: { data: { status: string } }) =>
+          Promise.resolve({
+            id: TARGET,
+            phone: '+243970000001',
+            firstName: 'Marie',
+            lastName: 'K',
+            role: 'SELLER',
+            status: data.status,
+          }),
+        ),
+      },
+      refreshToken: { updateMany: jest.fn().mockResolvedValue({ count: 3 }) },
+      adminAuditLog: { create: jest.fn().mockResolvedValue({}) },
+    };
+    const prisma = {
+      user: { findUnique: jest.fn().mockResolvedValue(target) },
+      $transaction: jest.fn().mockImplementation((cb: (t: typeof tx) => unknown) => cb(tx)),
+    };
+    const audit = {
+      record: jest
+        .fn()
+        .mockImplementation((t: typeof tx, entry: unknown) => t.adminAuditLog.create({ data: entry })),
+    };
+    const service = new AdminUsersService(
+      prisma as never,
+      { capture: jest.fn() } as never,
+      {} as never,
+      {} as never,
+      {} as never,
+      { get: jest.fn() } as never,
+      audit as never,
+    );
+    return { service, prisma, tx, audit };
+  }
+
+  it('refuses an admin changing their OWN status — nothing read, nothing written', async () => {
+    const { service, prisma } = makeStatusService();
+    await expect(
+      service.updateUserStatus(ADMIN, ADMIN, { status: 'SUSPENDED' } as never),
+    ).rejects.toThrow(ForbiddenException);
+    await expect(
+      service.updateUserStatus(ADMIN, ADMIN, { status: 'SUSPENDED' } as never),
+    ).rejects.toThrow(/votre propre compte/);
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('SUSPENDED revokes every live session and audits the actor + reason in the same transaction', async () => {
+    const { service, tx, audit } = makeStatusService();
+    const res = await service.updateUserStatus(TARGET, ADMIN, {
+      status: 'SUSPENDED',
+      reason: 'Fraude signalée',
+    } as never);
+
+    expect(res.status).toBe('SUSPENDED');
+    expect(tx.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: TARGET, revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
+    });
+    const entry = audit.record.mock.calls[0][1];
+    expect(entry).toMatchObject({
+      actorId: ADMIN,
+      action: 'USER_STATUS_CHANGED',
+      entityType: 'user',
+      entityId: TARGET,
+      reason: 'Fraude signalée',
+    });
+    expect(entry.before).toEqual({ status: 'ACTIVE', role: 'SELLER' });
+    expect(entry.after).toEqual({ status: 'SUSPENDED' });
+  });
+
+  it('BANNED also revokes; reactivating to ACTIVE does not revoke but is still audited', async () => {
+    const banned = makeStatusService();
+    await banned.service.updateUserStatus(TARGET, ADMIN, { status: 'BANNED' } as never);
+    expect(banned.tx.refreshToken.updateMany).toHaveBeenCalledTimes(1);
+
+    const active = makeStatusService({ id: TARGET, role: 'SELLER', status: 'SUSPENDED' });
+    await active.service.updateUserStatus(TARGET, ADMIN, { status: 'ACTIVE' } as never);
+    expect(active.tx.refreshToken.updateMany).not.toHaveBeenCalled();
+    expect(active.audit.record).toHaveBeenCalledTimes(1);
+    expect(active.audit.record.mock.calls[0][1].reason).toBeNull();
+  });
+
+  it('an unknown target is a 404 and writes nothing', async () => {
+    const { service, prisma } = makeStatusService(null);
+    await expect(
+      service.updateUserStatus(TARGET, ADMIN, { status: 'SUSPENDED' } as never),
+    ).rejects.toThrow(NotFoundException);
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+});

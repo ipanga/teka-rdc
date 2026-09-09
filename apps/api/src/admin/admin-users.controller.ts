@@ -11,6 +11,7 @@ import { AdminUsersService } from './admin-users.service';
 import { SearchUsersDto } from './dto/search-users.dto';
 import { UpdateUserStatusDto } from './dto/update-user-status.dto';
 import { Roles } from '../common/decorators/roles.decorator';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
 
 @Controller('v1/admin/users')
 @Roles('ADMIN', 'SUPPORT')
@@ -31,8 +32,9 @@ export class AdminUsersController {
   @Roles('ADMIN')
   async updateStatus(
     @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser('userId') adminId: string,
     @Body() dto: UpdateUserStatusDto,
   ) {
-    return this.adminUsersService.updateUserStatus(id, dto);
+    return this.adminUsersService.updateUserStatus(id, adminId, dto);
   }
 }

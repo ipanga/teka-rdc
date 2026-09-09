@@ -477,8 +477,13 @@ export class AuthService {
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub, deletedAt: null },
       });
-      if (!user || user.status === 'BANNED') {
-        throw new UnauthorizedException('Compte non trouvé ou banni');
+      // S11: refuse SUSPENDED here too. Login already refuses both, and
+      // JwtStrategy rejects every request from a suspended account — but the
+      // refresh path only checked BANNED, so a suspended user's refresh token
+      // kept rotating and the session silently resumed the moment the
+      // suspension was lifted (or if the access token was still valid).
+      if (!user || user.status === 'BANNED' || user.status === 'SUSPENDED') {
+        throw new UnauthorizedException('Compte non trouvé ou suspendu');
       }
 
       // Carry forward the prior session's device info if the refresh call

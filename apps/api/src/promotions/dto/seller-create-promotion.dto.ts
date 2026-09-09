@@ -1,4 +1,5 @@
 import {
+  MaxLength,
   IsEnum,
   IsOptional,
   IsInt,
@@ -19,10 +20,12 @@ export class SellerCreatePromotionDto {
 
   @IsString({ message: 'Le titre est requis' })
   @IsNotEmpty({ message: 'Le titre est requis' })
+  @MaxLength(120, { message: 'Le titre ne peut pas dépasser 120 caractères' })
   title: string;
 
   @IsOptional()
   @IsString({ message: 'La description doit être une chaîne' })
+  @MaxLength(2000, { message: 'La description ne peut pas dépasser 2000 caractères' })
   description?: string;
 
   @IsOptional()

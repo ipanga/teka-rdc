@@ -3732,32 +3732,112 @@ approved Cloudflare paths; port 22 deliberately left open for the GitHub-hosted 
 (`PasswordAuthentication`, `PermitRootLogin`, fail2ban), OS patch level, and the certbot renewal
 authenticator recorded on the VPS.
 
+### P1 admin / financial security follow-ups — `security/admin-financial-followups` (2026-09-09, open)
+
+Five items the release-readiness audit classified P1, each re-verified as still open in current code
+before being touched, in one reviewable PR. **No migration, no environment or secret change, no mobile
+change, no API contract break.**
+
+**A — login-email change now requires the current password.** `PATCH /v1/users/profile` wrote `email`
+with no proof of identity, and for sellers and admins that email IS the login identity: a hijacked
+session could point the account at an attacker's address, request a password reset there and own the
+account permanently — the escalation path into the payout destination S12 guards. A real change (case-
+and whitespace-insensitive) now needs the current password: **400** when missing, **403** when wrong
+(403 rather than 401 so no client refreshes and replays; the attempt counts in the shared `login` lock
+by email). Name-only updates and re-sending the same address stay password-free, so existing clients
+keep working. The write, the `emailVerified` reset and a `LOGIN_EMAIL_CHANGED` audit row with **masked**
+addresses commit together; the **previous** address is notified after commit with a new French template,
+because it is the only address a legitimate owner still controls after a takeover. A duplicate address
+is a French **409** saying only that it cannot be used — never that it belongs to someone else. Accounts
+without a password (buyers on WhatsApp OTP) are refused explicitly. seller-web and admin-web show the
+password field only when the email is actually edited, mark it `data-ph-no-capture`, and clear it on
+success and in `finally`; the stale « vous demandera de le re-vérifier » copy is replaced by what
+actually happens.
+
+**B — S13 upload throttling.** `POST /v1/sellers/documents` (open to any authenticated **BUYER**,
+creates a private Cloudinary asset per call, no row, no owner binding) and
+`POST /v1/sellers/verification/documents` had **no throttle at all**, while the product-image and avatar
+routes already had one. Both now carry `@Throttle` 20/min per IP plus `@IdentityThrottle('upload')`
+(`AUTH_LIMITS.upload`, 30 per 10 minutes, keyed on the user id — never a phone or an email). All four
+upload routes are now throttled. Size limits, magic-byte sniffing, declared-type agreement, EXIF
+stripping, the field-name guard, ownership and the multipart retry path are untouched. **Still open**
+(data governance, not abuse): row-first creation with owner binding and an orphan sweep for application
+documents.
+
+**C — S22 banner-link validation.** `linkUrl` and `linkTarget` were `@IsString()` only and buyer-web
+turned them into real anchors, so an admin account could store `javascript:` (which the storefront CSP's
+`script-src 'unsafe-inline'` permits on navigation) or `//evil.example` (an open redirect), surviving the
+session that wrote it. Now validated on write against `linkType`: identifier types take a plain slug,
+short code or UUID; `url` takes a site-relative path (single leading slash, never `//` or `/\\`) or an
+absolute **https** URL; control characters and values over 500 characters are refused; title and subtitle
+bounded. **The destination host is deliberately not restricted** — external campaign links are an
+intentional capability the existing tests document, and the vulnerability was the scheme, not the
+destination; gating on `https:` rejects `javascript:`, `data:`, `file:`, `vbscript:` and `blob:` by
+construction plus `http:` as a downgrade. buyer-web `bannerHref()` applies the same rule at the sink as
+defence in depth. Production carried **zero** banners when this landed, so no historical value was
+invalidated.
+
+**D — S14 request bounds.** Pagination was `@Type(() => Number)` only (a seller could ask for
+`limit=1000000` and pull the whole catalogue with images in one query) and enum filters were free strings
+cast into Prisma filters, answering **500** instead of 400. Bounded to the `PayoutQueryDto` convention:
+`ProductQueryDto` and `SearchUsersDto` get `page >= 1`, `limit 1..100`, `@IsIn` on status/role and
+`search <= 200`; `CreateAddressDto` gets 60/80-character bounds; `SellerCreatePromotionDto` 120/2000.
+`AdminOrderQueryDto` was found **already bounded** and left alone.
+
+**E — the two S11 one-liners.** `PATCH /v1/admin/users/:id/status` had no self-guard (an admin could
+suspend or ban their own account and lock themselves out), discarded `dto.reason`, recorded no actor, and
+left every refresh token of the suspended account valid — and the refresh path refused only `BANNED`, so
+the session resumed the moment the status was lifted. Now a self-change is a French **403** before
+anything is read; the status change, the revocation of every live refresh token (on SUSPENDED/BANNED
+only) and a `USER_STATUS_CHANGED` audit row carrying actor and reason commit in one transaction; and
+`refreshTokens()` refuses SUSPENDED alongside BANNED.
+
+**Tests.** API **880 unit** (+27) and **268 e2e** (+11), buyer-web 187 (+6), seller-web 41, admin-web 60,
+type-check ×5, three production web builds. New suites: `banner-link.validator.spec.ts` (11),
+`update-profile-email.spec.ts` (9), `upload-throttling.e2e-spec.ts` (3), `dto-bounds.e2e-spec.ts` (8),
+plus 4 admin-status and 3 refresh cases.
+
+**Runtime verification** on an isolated API (:5051, this build, dev DB, disposable seller + admin +
+second seller, cookie auth through the D2a Origin binding). Every path confirmed end to end: a name-only
+update and an unchanged email need no password; a change without one is 400; a wrong password is 403 with
+the address **unchanged in the DB** and no echo; a duplicate is 409 with no owner disclosed; the correct
+password changes the address, resets `emailVerified`, and writes an audit row whose before/after are
+masked (`q•••r@…` → `q•••d@…`) with no raw address or password; an admin suspending **themselves** is 403
+with their status still ACTIVE; suspending another account returns 200, takes live refresh tokens from
+**1 to 0**, and audits the actor and reason; refreshing a suspended session is 401 « Compte non trouvé ou
+suspendu »; `limit=100` passes while 101, 1000000, `page=0`, `limit=abc` and `status=NOPE` are 400 with
+no Prisma detail; `javascript:`, `data:`, protocol-relative, `http:` and a URL-as-identifier are all
+refused while `/categories` and an https link are created; and the document upload answers **429 after 20
+calls** with `Retry-After: 60` and no identifier in the body. All QA rows deleted afterwards and verified
+at zero (users, profile, audit, banners, tokens).
+
+**Not changed on purpose:** authentication and authorization semantics, CSRF/origin behaviour, Cloudinary
+lifecycle, session/token rotation beyond the suspend case, mobile clients, and every API response shape
+except the two new refusals.
+
 ## Next exact step
 
-**The pre-scale readiness initiative's PRODUCTION track is CLOSED (2026-09-09):** release `9a89249`
-deployed, both migrations applied, production nginx installed and the origin firewall applied, all
-independently re-verified. No production blocker remains. What follows is non-blocking, and each item
-is its own small PR into `develop` with a merge commit, none started without approval.
+**Production is released and hardened; the P1 admin/financial security follow-ups are implemented and
+awaiting review** (`security/admin-financial-followups`). Remaining, each its own small PR into
+`develop` with a merge commit, none started without approval.
 
-**P1 — before a larger rollout.** (1) `security/admin-and-financial-followups`: login-email change
-without re-authentication (verified still open — `users.service.ts` writes `email` with no password
-check and no `P2002` handling), S13 upload throttle on `POST /v1/sellers/documents` (verified: zero
-throttle decorators), S22 banner `linkTarget` validation (verified: `@IsString()` only) and S14 DTO
-bounds (verified: `page`/`limit` unbounded), plus the two S11 one-liners (admin self-suspend guard —
-verified absent; refuse SUSPENDED on refresh). (2) `security/sentry-request-data`: opt out of the SDK's
-default cookie/header/body capture (verified: `instrument.ts` sets no `requestDataIntegration`).
-(3) `mobile/security-hardening` MS1–MS7 — all verified still open (no `allowBackup`, no `IOSOptions`,
-no scrub tests, no R8/minify) — before the next store builds. (4) Branch-protection required checks.
+**P1.** (1) Merge the admin/financial follow-up PR. (2) `security/sentry-request-data`: opt out of the
+SDK's default cookie/header/body capture in `instrument.ts` and the three `sentry.server.config.ts` —
+verified still open, and the only remaining item where a 5xx could carry an OTP code, a password or a
+session cookie to Sentry. (3) `mobile/security-hardening` MS1–MS7 — all verified still open (no
+`allowBackup`, no `IOSOptions`, no scrub tests, no R8/minify) — **before** the next store builds.
+(4) Branch-protection required checks (a repository setting: the `Protect main` ruleset enforces
+merge-commits but no status checks, and `develop` has no rules).
 
 **P2.** Buyer Web USD price (verified still broken: `priceUSD` typed `number` while the API serialises
-BigInt as a string, so `formatUSD` renders nothing and a stray « ~ » remains); seller-web stale-town
-notice (verified: mobile has it, web does not); D2b admin API boundary; S11 full audit coverage;
-Prometheus/Grafana alerting.
+BigInt as a string); seller-web stale-town notice; D2b admin API boundary; the rest of the S11 audit
+coverage (product hard-delete actor, reviews, settings, broadcasts); row-first + orphan sweep for
+application documents; Prometheus/Grafana alerting.
 
-**P3.** `pendingCDF` vs HELD without `deliveredAt` (verified unchanged; re-count in prod before acting);
-seller-mobile `Image.network` in 3 files; legacy characteristic prefill; golden tests; origin firewall
-drop-instead-of-reject; certbot renewal hook reloading instead of restarting nginx; `esbuild` and the
-stale Dependabot PRs.
+**P3.** `pendingCDF` vs HELD without `deliveredAt`; seller-mobile `Image.network` in 3 files; legacy
+characteristic prefill; golden tests; origin firewall drop-instead-of-reject; the certbot hook reloading
+rather than restarting nginx; `esbuild` and the stale Dependabot PRs.
 
 **Owner decisions still open:** SUPPORT/FINANCE role model (S21); seller-visible buyer PII parity;
-PostHog replay masking on buyer account pages; whether to cut new mobile store builds now.
+PostHog replay masking on buyer account pages; whether MS1–MS7 must precede the next store builds
+(current preference: yes).

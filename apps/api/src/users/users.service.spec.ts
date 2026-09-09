@@ -7,7 +7,13 @@ function makeService() {
     user: { update: jest.fn().mockResolvedValue({}) },
   };
   const cloudinary = {};
-  const service = new UsersService(prisma as never, cloudinary as never);
+  const service = new UsersService(
+    prisma as never,
+    cloudinary as never,
+    { assertNotBlocked: jest.fn(), enforce: jest.fn(), clear: jest.fn() } as never,
+    { record: jest.fn() } as never,
+    { sendLoginEmailChanged: jest.fn().mockResolvedValue(true) } as never,
+  );
   return { service, prisma };
 }
 
@@ -93,7 +99,13 @@ function makeAvatarService(opts: { previous: string | null; persistFails?: boole
       calls.push(`destroy:${id}`);
     }),
   };
-  const service = new UsersService(prisma as never, cloudinary as never);
+  const service = new UsersService(
+    prisma as never,
+    cloudinary as never,
+    { assertNotBlocked: jest.fn(), enforce: jest.fn(), clear: jest.fn() } as never,
+    { record: jest.fn() } as never,
+    { sendLoginEmailChanged: jest.fn().mockResolvedValue(true) } as never,
+  );
   const file = { buffer: Buffer.from('img'), mimetype: 'image/jpeg', size: 3 } as never;
   return { service, prisma, cloudinary, calls, file };
 }

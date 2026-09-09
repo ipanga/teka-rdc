@@ -1,0 +1,116 @@
+import {
+  registerDecorator,
+  ValidationArguments,
+  ValidationOptions,
+} from 'class-validator';
+
+/**
+ * S22 (2026-09-09) — banner links are admin-authored and rendered as real
+ * anchors on the storefront, so they are a stored-XSS and open-redirect sink.
+ *
+ * Before this, `linkUrl` and `linkTarget` were `@IsString()` only: an admin
+ * account (malicious insider, or a transiently compromised session) could
+ * store `javascript:alert(document.cookie)` — which the buyer CSP's
+ * `script-src 'unsafe-inline'` permits on navigation — or `//evil.example`,
+ * which the URL parser resolves to a foreign origin. Either survives the
+ * session that created it and hits every visitor who taps the slide.
+ *
+ * The rules below are deliberately narrow, and production carried **zero**
+ * banners when they were introduced (`/v1/browse/banners` returned an empty
+ * list on 2026-09-09), so no historical value is invalidated.
+ */
+
+/** Slug / short-code / UUID targets for `product`, `category`, `promotion`. */
+const SLUG_TARGET = /^[A-Za-z0-9][A-Za-z0-9._-]{0,119}$/;
+
+/**
+ * External banner links are an intentional marketing capability (a campaign
+ * may point at a partner), so the host is NOT restricted — the vulnerability
+ * was the scheme, not the destination. `https:` only: that rejects
+ * `javascript:`, `data:`, `file:`, `vbscript:` and `blob:` by construction,
+ * and plain `http:` as a downgrade. The storefront already renders external
+ * links with `target="_blank" rel="noopener noreferrer"`.
+ */
+
+/** Anything in this set is a control character or a separator we never accept. */
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS = /[\x00-\x1f\x7f-\x9f\s]/;
+
+/**
+ * A site-relative path: starts with a single `/`, never `//` (protocol
+ * relative, resolves to a foreign origin) and never `/\` (which some parsers
+ * also treat as protocol-relative).
+ */
+function isSafeRelativePath(value: string): boolean {
+  if (!value.startsWith('/')) return false;
+  if (value.startsWith('//') || value.startsWith('/\\')) return false;
+  if (CONTROL_CHARS.test(value)) return false;
+  return value.length <= 500;
+}
+
+/** An absolute https URL (any host). */
+function isSafeAbsoluteUrl(value: string): boolean {
+  if (CONTROL_CHARS.test(value)) return false;
+  if (value.length > 500) return false;
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  // Only https. This rejects javascript:, data:, file:, vbscript:, blob: and
+  // plain http: in one check rather than by blocklist.
+  return url.protocol === 'https:';
+}
+
+/**
+ * The full rule for a banner link value, given the banner's `linkType`.
+ * Exported so the service, the DTO validator and the tests share one source.
+ */
+export function isValidBannerLink(
+  value: unknown,
+  linkType: string | undefined,
+): boolean {
+  if (value === undefined || value === null || value === '') return true;
+  if (typeof value !== 'string') return false;
+
+  switch (linkType) {
+    case 'product':
+    case 'category':
+    case 'promotion':
+      // An identifier the storefront turns into a route — never a URL.
+      return SLUG_TARGET.test(value);
+    case 'url':
+      // Site-relative (the common case: « /categories ») or an absolute
+      // https URL (any host — external campaign links are intentional).
+      return isSafeRelativePath(value) || isSafeAbsoluteUrl(value);
+    default:
+      // No linkType: only a site-relative path is meaningful.
+      return isSafeRelativePath(value);
+  }
+}
+
+/** class-validator decorator; reads `linkType` off the same DTO. */
+export function IsSafeBannerLink(options?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'isSafeBannerLink',
+      target: object.constructor,
+      propertyName,
+      options,
+      validator: {
+        validate(value: unknown, args: ValidationArguments) {
+          const linkType = (args.object as { linkType?: string }).linkType;
+          return isValidBannerLink(value, linkType);
+        },
+        defaultMessage(args: ValidationArguments) {
+          const linkType = (args.object as { linkType?: string }).linkType;
+          if (linkType === 'url') {
+            return "Le lien doit être un chemin interne (« /categories ») ou une URL https://";
+          }
+          return 'La cible du lien doit être un identifiant simple (lettres, chiffres, points, tirets)';
+        },
+      },
+    });
+  };
+}

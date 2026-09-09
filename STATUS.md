@@ -1,4 +1,4 @@
-# Status — 2026-09-09 (**RELEASED AND HARDENED**: `main` `9a89249` deployed (run 34380668330), both migrations applied, production nginx installed and the Cloudflare/Hetzner origin firewall applied — the two manual steps are CLOSED; no production blocker remains)
+# Status — 2026-09-09 (production RELEASED and HARDENED at `main` `9a89249`; the P1 admin/financial security follow-ups are implemented on `security/admin-financial-followups`, PR open awaiting review)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
@@ -77,7 +77,16 @@ serving, storefront rendering products, PDP JSON-LD intact, sitemap now emitting
 (previously 0), seller/admin `noindex`, auth boundary 401. The new app-owned headers are live
 (Permissions-Policy, COOP/CORP present, `X-Powered-By` gone).
 
-**BOTH MANUAL HARDENING STEPS ARE NOW DONE (2026-09-09, operator) — production is fully hardened.**
+**P1 admin/financial security follow-ups implemented, PR open** (`security/admin-financial-followups`,
+not merged, not deployed): login-email change now requires the current password and notifies the
+previous address; the two unthrottled document upload routes are throttled; admin banner links are
+validated on write and at the render sink; pagination, enum filters and buyer/seller free text are
+bounded; and the two S11 one-liners are closed (admin self-suspend guard with session revocation and
+audit, refresh refusing SUSPENDED). No migration, no env change, no mobile change. API 880 unit / 268
+e2e, web 187/41/60, three builds, plus a runtime probe on an isolated API with disposable data since
+deleted. Full record: `docs/pre-scale-readiness.md` → « P1 admin / financial security follow-ups ».
+
+**BOTH MANUAL HARDENING STEPS ARE DONE (2026-09-09, operator) — production is fully hardened.**
 1. **`nginx/nginx.prod.conf` installed on the VPS** (backup `nginx.prod.conf.before-20260909` kept on
    the box, not tracked in git). `nginx -t` passed and nginx was reloaded gracefully; containers stayed
    healthy. **Independently re-verified from outside:** every web host now returns **exactly one**
