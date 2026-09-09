@@ -1,4 +1,4 @@
-# Status — 2026-09-09 (**RELEASED to production**: `main` `9a89249` / PR #723 deployed, run 34380668330; both migrations applied; **nginx copy + Cloudflare/Hetzner origin firewall still OUTSTANDING as manual steps**)
+# Status — 2026-09-09 (**RELEASED AND HARDENED**: `main` `9a89249` deployed (run 34380668330), both migrations applied, production nginx installed and the Cloudflare/Hetzner origin firewall applied — the two manual steps are CLOSED; no production blocker remains)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
@@ -77,14 +77,23 @@ serving, storefront rendering products, PDP JSON-LD intact, sitemap now emitting
 (previously 0), seller/admin `noindex`, auth boundary 401. The new app-owned headers are live
 (Permissions-Policy, COOP/CORP present, `X-Powered-By` gone).
 
-**TWO MANUAL STEPS REMAIN — production is not yet fully hardened:**
-1. **`nginx/nginx.prod.conf` not copied to the VPS.** Every web host therefore serves **two CSP headers**
-   (old nginx + new app). The browser enforces the intersection, which still allows `'self'` and
-   `https://api.teka.cd`, so the apps work; browser-side Sentry and Clarity stay blocked exactly as they
-   were before the release. nginx's own `limit_req` zones still key on Cloudflare edge IPs (pre-existing).
-   The API is unaffected: `trust proxy: 1` + Cloudflare's `X-Forwarded-For` already give it the real client IP.
-2. **Cloudflare/Hetzner origin firewall not applied.** Direct origin access to `178.104.179.42` on 80/443
-   was re-verified as OPEN after the release (teka.cd 200, seller 200, admin 200, api 404, :80 301).
+**BOTH MANUAL HARDENING STEPS ARE NOW DONE (2026-09-09, operator) — production is fully hardened.**
+1. **`nginx/nginx.prod.conf` installed on the VPS** (backup `nginx.prod.conf.before-20260909` kept on
+   the box, not tracked in git). `nginx -t` passed and nginx was reloaded gracefully; containers stayed
+   healthy. **Independently re-verified from outside:** every web host now returns **exactly one**
+   `Content-Security-Policy` — the application-owned one (`frame-ancestors 'none'; form-action 'self'`,
+   Clarity hosts) — plus exactly one nginx-owned `Strict-Transport-Security`. The duplicate CSP is gone.
+   Seller keeps `X-Robots-Tag: noindex, nofollow`, Admin `noindex, nofollow, noarchive`, Buyer Web none.
+   The config carries the Cloudflare `set_real_ip_from` ranges, `real_ip_header CF-Connecting-IP` and
+   `real_ip_recursive on`, so nginx's `limit_req` zones now key on the real client IP instead of the
+   Cloudflare edge address.
+2. **Cloudflare/Hetzner origin firewall applied.** **Independently re-verified from an external network:**
+   a direct request to `178.104.179.42` on 443 and on 80 completes the TCP handshake and is then reset,
+   returning no HTTP response, for all five hostnames — while `https://teka.cd` through Cloudflare answered
+   `200` with `server: cloudflare` at the same moment. The direct-origin bypass is closed. Port 22 was
+   deliberately left open because the deploy SSHes from GitHub-hosted runners (≈7 000 changing ranges);
+   **whether GitHub can still reach 22 was NOT verifiable from this session** — the next deploy is the proof.
+   Residual nuance, not a defect: the ports reject rather than drop, so a scanner still sees a handshake.
 
 **`security/payout-destination-reauth` MERGED (`295e801`, PR #722) — S12, the release-readiness audit's
 only code blocker, is CLOSED and now LIVE in production.** A stolen seller session could redirect the whole balance: `POST
@@ -107,8 +116,8 @@ profile; `PATCH payout-method` had no re-auth/notice/audit/cooling-off) — **is
 actions: `nginx/nginx.prod.conf` copy + `nginx -t` + reload (deploy does not sync it), Cloudflare origin
 firewall the same day. One additive migration pending (`auth_rate_limits`). No new env vars. No distributed
 mobile build carries the buyer functional fixes or seller UX fixes; iOS/iPad runtime never exercised. Full
-record: `docs/pre-scale-readiness.md` → « Release-readiness audit (2026-09-09) ». **S12 has since been fixed and merged (`295e801`, PR #722) — no code blocker remains. The
-`develop → main` release PR is NOT opened — awaiting the owner's approval.**
+record: `docs/pre-scale-readiness.md` → « Release-readiness audit (2026-09-09) ». **S12 was fixed and merged (`295e801`, PR #722) and the release shipped as `9a89249`; both manual
+hardening steps are now closed too. Nothing in that audit remains a production blocker.**
 
 **Dependency security, 2026-09-08/09 — two advisory batches, two sibling PRs.**
 **`security/sharp-0.35.4` MERGED (`2e0454d`, PR #718):** GHSA-rgj7-g3m4-5g8c (`sharp` < 0.35.4, libheif)
