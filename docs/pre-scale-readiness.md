@@ -3369,7 +3369,208 @@ English 400s (« Too many files », « Multipart: Boundary not found », « Unex
 401 / 403 bodies are Nest's defaults — the same on 2.2.0; a French pass over those is a separate,
 non-security item.
 
-### S12 — `security/payout-destination-reauth` (payout destination, 2026-09-09 — open, awaiting merge approval)
+### Release-readiness audit (2026-09-09, `develop` `65aee0f` — read-only, no application change)
+
+**Baseline.** #715 merged `65aee0f` after #718 (`2e0454d`, sharp 0.35.4) and #719 (`bd406cb`, multer 2.3.0).
+`develop` `65aee0f` == `origin/develop`; CI 12/12 + CodeQL green; blocking Dependency Audit green (2 documented
+exceptions left: `effect`, `deepmerge-ts` — both only inside `@prisma/config`, CLI-time; low `joi` ×2; dev-only
+Vitest moderate + `esbuild` low). `main` `78c6ef9` (2026-09-06); **133 commits / 36 merges / 410 files
+(+34 861 / −9 615)** ahead: buyer-mobile 126 files, seller-mobile 119, api 70, buyer-web 49, .github 11,
+seller-web 10, admin-web 8, docs 10, nginx 1, packages/shared 1 (`phone.ts`), root package.json + lockfile.
+**Migrations pending: one** — `2026-09-06_auth_rate_limits.sql` (new empty table + index, `IF NOT EXISTS`,
+on `auto-apply.list`, no data touched, old code never reads it; rollback not required). **Env: no new
+API variable** (`env.validation.ts` diff empty); build-arg/secret `NEXT_PUBLIC_CLARITY_PROJECT_ID_SELLER_WEB`
+became unused (Clarity removed from seller-web); mobile flavors unchanged. **Nginx: `nginx/nginx.prod.conf`
++73/−34 pending and NOT deployed by `deploy.yml`** (only `docker-compose.prod.yml` is scp'd): the D8
+Cloudflare `set_real_ip_from` + `CF-Connecting-IP` block and the D4 header ownership (nginx keeps HSTS only,
+apps own CSP/XFO/XCTO/Referrer/Permissions/COOP/CORP). Live production today: old nginx (HSTS `preload`,
+nginx-owned CSP, `x-powered-by` still present) and the API already emits duplicate HSTS/Referrer/XCTO —
+shipping the new images without the nginx copy makes the web duplicates appear too.
+
+**Cloudflare (probed).** All four hosts resolve to Cloudflare (nameservers, A/AAAA, `server: cloudflare`,
+`cf-ray`). `docker-compose.prod.yml` publishes 80 and 443 to the world; the origin address lives only in
+the `DEPLOY_HOST` secret, so direct-to-origin reachability could not be probed from this session and must
+be assumed reachable (as `docs/deployment.md § Cloudflare origin firewall` records). No Authenticated Origin
+Pulls (`ssl_verify_client` absent). SSL mode and the orange-cloud state are dashboard facts to confirm by
+hand. What depends on Cloudflare being upstream: WAF/DDoS, and nginx's three per-IP `limit_req` zones
+(`api_limit` 30 r/s, `auth_limit` 5 r/s, `webhook_limit`) which, with the new conf, key on
+`CF-Connecting-IP` only when the connecting address is a Cloudflare range — a direct connection cannot spoof
+it (bypass problem, not spoofing). The D8 identity-keyed limits in the API are unaffected by the path.
+
+**Admin / financial security (code-verified).**
+- **S12 — BLOCKER → RESOLVED by PR #722 (`295e801`, `security/payout-destination-reauth`, merged
+  2026-09-09); the finding as audited was:** `POST /v1/sellers/payouts` accepts an inline `payoutMethod`/`payoutPhone` that wins
+  over the saved profile (`payouts.service.ts` `dto.payoutMethod ?? sellerProfile.payoutMethod`), and
+  `PATCH /v1/sellers/payout-method` is one update with no password, no notice, no audit row, no cooling-off;
+  no `@Throttle`/`@IdentityThrottle` anywhere in `payouts/`. One stolen seller session → the whole
+  available balance requested to an attacker's mobile-money number, invisible to the seller and to the
+  admin (nothing marks a destination change). Fix (~150 lines, own PR): password re-auth on
+  `updatePayoutMethod` (reuse `account-deletion.service.ts` `reauthenticate`), `payoutMethodChangedAt`
+  (additive migration) + 24 h cooling-off on request, drop the inline destination from
+  `RequestPayoutDto`, audit row + push/email notice, throttle both routes, seller-web/mobile password field.
+- **S13 — RECOMMENDED.** `POST /v1/sellers/documents` (BUYER+SELLER) has no throttle, no row, no owner
+  binding, no sweep: any OTP-registered account can create unbounded private Cloudinary assets (~500 MB/min
+  per IP under the global backstop). Cost/availability, not data. Immediate: `@Throttle 10/min` +
+  `@IdentityThrottle('upload')`; then route through `SellerDocumentStorageService` with an
+  `APPLICATION` type and the daily sweep.
+- **S22 — RECOMMENDED.** Banner `linkTarget` is `@IsString()` only; buyer-web `banner-href.ts` emits a
+  `url`-type target verbatim (`javascript:` → stored XSS under the storefront's `'unsafe-inline'` CSP;
+  `//evil` → open redirect). Precondition: an admin account. Fix ~30 lines (DTO validator per `linkType` +
+  protocol/host guard in `banner-href.ts` + tests); bundle S14.
+- **Login-email change (users `PATCH /profile`) — RECOMMENDED**, same PR as S12: no re-auth, no notice to the
+  old address, nothing sent for "re-verification", and a duplicate email answers a 500 (no `P2002` handling).
+  It is the escalation path from a hijacked session to a permanent takeover + payout redirect.
+- S14 DTO bounds — SAFE TO DEFER (self-scoped heavy query, 100 KB junk strings; bundle with S22).
+- S11 audit rows / self-suspend guard / refresh refusing SUSPENDED — SAFE TO DEFER, except the two
+  one-liners (self-guard, `SUSPENDED` on refresh) which fit any pre-release PR.
+- S21 SUPPORT/FINANCE — NEEDS OWNER DECISION (no exposure: FINANCE has no grant, SUPPORT is read-only via API,
+  admin-web bounces both; nothing creates these roles).
+- **D2b — SAFE TO DEFER, explicitly not mandatory:** D2a (Origin → cookie namespace, stored role → namespace,
+  `SameSite=Strict`, HttpOnly, 18 e2e cases) closes every cross-surface path; the residual is cookie
+  planting across `.teka.cd`, which needs an existing admin credential and gains nothing. Cheap interim:
+  CORS `methods` + `maxAge`.
+- Privileged-operation inventory: every money-moving path (payout transitions, commission, earning reversal
+  on cancel/return) is audited or actor-stamped; unattributed: product hard-delete (actor not passed), user
+  status change (reason discarded), reviews, settings, broadcasts, banners/content/promotions. No admin
+  step-up re-auth exists anywhere (only account deletion and password change).
+
+**Functional findings (code-verified, none block the COD chain).** RECOMMENDED: buyer-web never renders the
+USD price — `priceUSD` arrives as a cents *string* (BigInt serialisation) while `formatUSD(number)` expects a
+number → empty, plus a stray « ~ » on PDPs with a USD price; a naive `Number()` fix would show cents as
+dollars (100×) — fix with /100 + a `format.ts` test (buyer-mobile is correct). SAFE TO DEFER: `pendingCDF`
+excludes a HELD earning whose DELIVERED order lacks `deliveredAt` (and such a row can never become AVAILABLE) —
+no live path creates one, prod counted 0 on 2026-09-03 → **re-count in the release checklist**; seller-web
+stale-town notice; legacy characteristic prefill; seller-mobile `Image.network` (full-size cover on the list
+— one-line `thumbnailUrl` win); order-number wrap at 1.5×; registration-screen spacing; avatar orphans; cart
+total not refetched on tab focus; no avatar-removal endpoint; ~15 s offline failure on cold start. ALREADY
+RESOLVED: notification prompt (by decision), success-screen raw status, guest 401s, address phone
+normalisation, order-detail spinner. NEEDS OWNER DECISION: seller order detail shows name + town only
+(seller-mobile) while seller-web still shows the full buyer address — confirm the PII policy, then align.
+
+**Buyer Mobile.** 501 tests, 6 info-level analyzer hits (documented). Every area verified on the Android
+phone AVD per PR (auth/OTP with the mock provider, offline cold start, session isolation, cart + A1 promo
+totals, COD checkout idempotency, single address, orders, reviews, avatar, real FCM, App Links from
+`teka.cd`, search, categories, PDP, wishlist), tablet 1280×800 both orientations, 1.3×/1.5×. Deep-link
+parser is a superset of `urls.ts` (no drift; a bare `/{ville}` link opens the browser by design).
+**iOS/iPad runtime: NOT VERIFIED** (only `flutter build ios` + TestFlight uploads 0.1.6/0.1.7; no tester
+feedback recorded). Gaps: real Gupshup OTP on a store build, App Links on a Play-signed install (Play App
+Signing fingerprint still an operator step), Sentry/PostHog receipt from a production build, no
+TalkBack/VoiceOver pass, no golden tests, MS1–MS7 unshipped.
+
+**Seller Mobile.** 461 tests, analyzer clean. Auth, dashboard, Action Center, orders (the four seller
+transitions match `ORDER_STATUS_TRANSITIONS` exactly; conflicts reload; refusal restores stock; READY hands
+off to Teka), products lifecycle incl. hard-delete asset purge, multipart 401-refresh retry (byte-identical
+`core/network` across apps), taxonomy/attributes, verification incl. rejection → resubmission with real FCM,
+profile, commune, earnings, payouts (409 verbatim), tablet, 1.3×/1.5× — all DEVICE on the Pixel 8 Pro AVD.
+**Nothing blocks a seller from fulfilling a COD order.** iOS/iPad NOT VERIFIED; same MS gaps; no seller App
+Links (deferred by design).
+
+**Store-build delta (provable).** No tags, no GitHub releases; identity lives in workflow runs + PROGRESS.
+Buyer: latest TestFlight `f113778` (0.1.7, 2026-09-04, build 1788505790), latest AAB artifact `3564c16`
+(0.1.6+8) — **26 commits / 134 files of buyer-mobile since**, i.e. every functional fix (A1 cart totals,
+offline logout, iOS foreground notifications, slug deep links, avatar retry…), tablet and UX A–D are in
+**no** distributed build. Seller: latest `78c6ef9` (0.1.9+11, TestFlight 1788689147 + AAB artifact) —
+**14 commits / 119 files since**: UX A–F incl. the conflict-reload, form-validation, earnings-refresh and
+header-refresh fixes and the splash fix are undistributed. pubspec versions unchanged since `main`
+(buyer `0.1.7+9`, seller `0.1.9+11`): iOS build numbers are CI epoch stamps (strictly increasing), but
+Android `versionCode` must exceed whatever Play holds — **which the repository cannot prove** (the AAB
+workflow only stores an artifact; PROGRESS records the Play upload as manual/pending for 0.1.8/0.1.9 and
+nothing for 0.1.5/0.1.6). Safe next values: buyer `0.1.8+10`, seller `0.1.10+12`; confirm in Play Console.
+
+**Buyer Web SEO (production build of `65aee0f`'s web sources, served HTML).** Home, `/lubumbashi`,
+`/kolwezi`, `/categories`, 374 town × category pages, 296 product pages (`/{ville}/{code}`, self-canonical,
+Product JSON-LD; the root `/{code}` form 308s to it), static pages; Organization/WebSite/BreadcrumbList;
+683-URL sitemap with `lastmod` on products and no Likasi; `/likasi` 404; search `noindex, follow`;
+`/panier`, `/connexion` `noindex`; `/commandes`, `/favoris` 307 to login; unknown paths 404 with no stack;
+robots.txt disallows `/profil/ /panier/ /paiement/ /favoris/ /commandes/` with the social-crawler empty
+`Disallow:` pattern; seller/admin `X-Robots-Tag` + meta `noindex` on every response. Two dev-only
+artefacts, not defects: `/a-propos` 404s on the dev DB (prod 200 — the `about` content row exists there);
+a legacy dev product without `shortCode` declares a canonical that 404s (prod sample: 0 such rows; the
+sitemap excludes them). Known deferred: 404 page carries both `index, follow` and `noindex` metas (Google
+takes the restrictive one); header mega-menu SSR, `keywords`, `ItemList`, `/promotions` SSR, `og-default.png`.
+**Technical SEO is release-ready; rankings depend on off-page work after launch (real catalogue depth,
+backlinks, Search Console submission of the sitemap, Business Profile) — no claim is made about them.**
+
+**Web / API security regression (production builds + isolated API `:5051`).** CSP (buyer `'self'
+'unsafe-inline'` documented; seller/admin nonce), `X-Frame-Options: DENY`, `nosniff`, Referrer-Policy,
+Permissions-Policy, COOP/CORP, `private, no-store` on logins, no `X-Powered-By`, no source maps in
+`.next/static`. API: helmet headers, CORS echoes only allow-listed origins (evil origin gets no
+`Access-Control-Allow-Origin`; `methods` list still absent — P2), 401 boundary, error envelope with no stack,
+bad password → French 401, per-IP throttle 100/min → French 429 with `Retry-After: 60`, multer boundary
+(14 e2e + runtime probe, #719). Sentry: **API and web SSR rely on Sentry's server-side scrubber for request
+bodies/cookies/headers** — `@sentry/core` `requestDataIntegration` defaults include cookies/headers/data and
+`httpServerIntegration` captures bodies ≤ 'medium'; so a 5xx on `otp/verify` or `login/email` can ship
+the OTP code / password / session cookies unless the Sentry project scrubs them (pre-existing; ~10-line fix:
+`requestDataIntegration({ include: { cookies:false, headers:false, data:false } })` in `instrument.ts` and a
+`beforeSend` dropping `cookie`/`authorization` in the three `sentry.server.config.ts`). Mobile scrub covers
+message + breadcrumbs only (no live leak; MS6). Logs: `buyer-otp.service.ts:319` logs a raw phone on
+delivery failure; `whatsapp.module.ts` *warns* instead of refusing a mock provider in prod (Rule 14 says
+refuses) — both pre-existing, cheap. PostHog: no event carries PII; buyer-web replay masks inputs only
+(rendered text on `/profil` `/commandes` `/paiement` is recordable — policy decision). Clarity: buyer-web
+only, gated on env; masking is a dashboard setting (verify « Strict »); seller-web tag removed.
+
+**CI/CD.** 12 CI jobs + CodeQL (default setup) on PRs and pushes to develop/main; `pr-validation.yml`
+(type-check + 4 Docker builds) only on PRs into `main`; deploy = build/push `:latest` + `:<sha>` → scp
+compose → EXPAND migrations from the new image (`set -eu`, aborts before any swap) → `docker rollout` per
+service with compose health gates → `nginx -t` + reload (reloads on every deploy, comment says "if changed").
+Manifest guard (`check-manifest.sh`) in `Release Config`: 10 entries OK. **Branch protection (read):**
+ruleset « Protect main » enforces merge-commit-only, no deletion/force-push, **but no required status checks**;
+`develop` has no rules. Recommended: require the 13 CI/CodeQL check names on both, plus the four
+`docker-build-check` legs on `main`; disable squash/rebase repo-wide.
+
+**Data safety.** Only intentional mutation: the new empty `auth_rate_limits` table (+ its hourly sweep of its
+own rows). Crons unchanged: KYC retention purge (destroys expired private assets by design), account-deletion
+anonymisation (orders/financials retained). `RETIRE_DEMO_CATALOG` is a dormant setting. **`run-prod-seed`
+is far heavier than "foundational"**: it deactivates/re-slugs every category, remaps real products by
+category name, soft-deletes demo products, and upserts cities *including `isActive`/`slug`* — keep it off
+the release path (its `RUN` gate is the only guard). Nothing in the release deletes products, users,
+orders, payouts, reviews or product/avatar assets, or alters order snapshots, town assignments or balances.
+
+**Classification.**
+- **A. MUST FIX BEFORE RELEASE: none outstanding.** The single entry, S12 payout destination, was
+  **fixed and merged as `295e801` (PR #722)** — see « S12 » below: the saved destination is now the only
+  routing authority (an inline one is accepted only when identical, 409 otherwise), a real change needs
+  the current password (400 missing / 403 wrong, counted in the login lock), stamps a 24 h cooling-off
+  (payout requests 409 with the reopen date), writes a masked `PAYOUT_METHOD_CHANGED` audit row in the
+  same transaction under the same row lock as the request, notifies the seller on feed + push + email,
+  and is throttled 5/h per seller. Payout snapshots stay immutable; the distributed seller-mobile
+  0.1.9 build keeps working, so no store release is forced.
+- **B. MANUAL RELEASE-WINDOW ACTIONS:** copy `nginx/nginx.prod.conf` → VPS (`.bak`, `nginx -t`, reload;
+  rollback = restore `.bak` + reload); Cloudflare origin firewall the same day (allow 443 [+80 per the
+  HTTP-01 caveat] from Cloudflare ranges only, keep 22 reachable for the deploy runner, out-of-band console
+  open, verify direct-IP fails and `teka.cd` still 200s; confirm SSL Full (strict) + orange cloud); pre-merge:
+  diff review, migration prediction (1 applied / 9 skipped), rollback SHA + GHCR tag present, DB backup age
+  known, the prod `DELIVERED AND deliveredAt IS NULL` count; post-deploy: health ×3, containers, one CSP per
+  host, Sentry release, the 36-check smoke matrix, release record.
+- **C. RECOMMENDED AFTER RELEASE / BEFORE LARGE-SCALE ROLLOUT:** login-email re-auth (bundle with S12 if the
+  PR is opened anyway), S13 throttle + row-first, S22 banner link validation (+S14), Sentry request-data
+  opt-out ×4, buyer-web USD price fix, MS1–MS7 before the next store builds, branch-protection required
+  checks, S11 one-liners, Clarity « Strict » confirmation, CORS `methods`, the raw-phone log line and the
+  mock-provider prod refusal, iOS/iPad runtime session, Play App Signing fingerprint in `assetlinks.json`.
+- **D. SAFE TO DEFER:** D2b, S11 full audit coverage, admin step-up re-auth, S14 alone, the functional
+  cosmetics above, golden tests, PostHog replay text masking (policy), `esbuild`/Dependabot chores, doc
+  drifts (`docs/sentry.md` client file name, deploy nginx-reload comment).
+- **NEEDS OWNER DECISION:** S21 role model; seller-visible buyer PII policy (web vs mobile parity);
+  PostHog replay masking on buyer account pages; whether the S12 PR precedes the release PR (recommended) or
+  the release ships with an interim admin control (compare each payout's destination with the profile and
+  phone the seller before marking paid) until it lands.
+
+**Verdict at the time of the audit: READY AFTER SPECIFIC BLOCKERS** — one code blocker (S12), then the
+manual release-window actions. **Superseded 2026-09-09: S12 merged as `295e801` (PR #722), so no code
+blocker remains — `develop` is READY FOR A CONTROLLED RELEASE subject to the manual release-window
+actions (nginx copy + reload, Cloudflare/Hetzner origin firewall).** The original recommended sequence
+follows, for the record.
+Recommended sequence: (1) `security/admin-and-financial` PR — S12 (+ login-email re-auth, S13 throttle, S22,
+S14, the two S11 one-liners, Sentry request-data opt-out; small, all in the same threat model) → full CI →
+approval → merge; (2) re-run this audit's automated gates on the new `develop`; (3) `develop → main` release
+PR (merge commit) with the checklist in `docs/deployment.md`; (4) release window: nginx copy + reload
+(before or right after the deploy; either order is safe because `set_real_ip_from` only narrows trust),
+Cloudflare firewall the same day; (5) deploy runs the one migration in EXPAND; (6) post-deploy smoke matrix;
+(7) bump pubspec versions, `release-mobile-aab`/`ipa` for both apps, manual Play internal-testing uploads
+(confirm the Play `versionCode` first), TestFlight distribution; (8) 24–48 h Sentry/PostHog/error-rate watch,
+then the P1 follow-ups (MS1–MS7, branch protection, D2b).
+
+### S12 — `security/payout-destination-reauth` (payout destination, 2026-09-09 — **merged `295e801`, PR #722**)
 
 **Root cause.** Two independent holes let a stolen seller session move money. (1) `POST
 /v1/sellers/payouts` took an OPTIONAL inline destination that **won over the saved profile**
@@ -3487,10 +3688,10 @@ S13/S14/S22 and D2b remain as classified in the 2026-09-09 audit.
 
 ## Next exact step
 
-**S12 fixed on `security/payout-destination-reauth` (open, awaiting merge approval)** — the one code
-blocker from the 2026-09-09 release-readiness audit. Order, each its own PR into `develop` with a merge
-commit, none started without approval: (1) **`security/payout-destination-reauth`** — merge once CI is
-green; (2) **`develop → main` release PR** with the `docs/deployment.md` checklist — nginx copy +
+**S12 merged (`295e801`, PR #722) — the 2026-09-09 release-readiness audit's only code blocker is
+closed and `develop` carries no known code blocker.** Order, each its own PR into `develop` with a merge
+commit, none started without approval: (1) ~~`security/payout-destination-reauth`~~ — **done**;
+(2) **`develop → main` release PR** with the `docs/deployment.md` checklist — nginx copy +
 reload and the Cloudflare origin firewall in the same window, **two** EXPAND migrations now
 (`auth_rate_limits`, `payout_method_changed_at`), smoke matrix, release record; (3) mobile store builds
 (bump buyer `0.1.8+10`, seller `0.1.10+12` after confirming Play's `versionCode`) — the seller build now
