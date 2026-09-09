@@ -53,6 +53,9 @@ const MAX_DEPTH = 8;
 /** Total node budget per event. Once spent, remaining values are dropped. */
 const MAX_NODES = 5000;
 
+/** Per-string ceiling. Longer strings are truncated before any regex runs. */
+const MAX_STRING_LENGTH = 8192;
+
 /**
  * Header names never sent, in any casing. `referer` is not here: it is
  * URL-sanitised instead, because the referring route is useful.
@@ -139,16 +142,24 @@ const URL_LIKE_KEY = /^(url|uri|href|from|to|location|referer|referrer|endpoint|
 const PHONE_REGEX = /\+?243[\s.-]?\d{2}[\s.-]?\d{3}[\s.-]?\d{4}\b/g;
 
 /** Any email address. Never needed to debug a French error string. */
-const EMAIL_REGEX = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+const EMAIL_REGEX = /[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,253}\.[A-Za-z]{2,24}/g;
 
 /** A JWT, wherever it is embedded. */
-const JWT_REGEX = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g;
+const JWT_REGEX = /\beyJ[A-Za-z0-9_-]{8,512}\.[A-Za-z0-9_-]{8,512}\.[A-Za-z0-9_-]{8,512}/g;
 
 /** `Bearer <token>` inside a free-text string. */
-const BEARER_REGEX = /\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/gi;
+const BEARER_REGEX = /\bBearer\s[A-Za-z0-9._~+/=-]{8,512}/gi;
 
-/** A Cloudinary signed/private delivery URL (identity documents). */
-const CLOUDINARY_REGEX = /https?:\/\/[^\s"'<>]*cloudinary\.com[^\s"'<>]*/gi;
+/**
+ * A Cloudinary signed/private delivery URL (identity documents).
+ *
+ * The host part excludes `/` so the prefix can only ever match the authority
+ * and never scans forward across a whole path, and the tail is length-bounded.
+ * Both matter: an unbounded `[^\s"'<>]*` on either side is polynomial on a long
+ * non-matching string (CodeQL js/polynomial-redos), and this runs inside
+ * `beforeSend` on data an attacker can influence.
+ */
+const CLOUDINARY_REGEX = /https?:\/\/[^\s"'<>/]{0,253}cloudinary\.com[^\s"'<>]{0,512}/gi;
 
 /**
  * `key=value` / `key: value` written inline in a free-text string.
@@ -168,7 +179,7 @@ const INLINE_SECRET_REGEX = new RegExp(
     // pass through both `beforeBreadcrumb` and `beforeSend`, so scrubString
     // runs twice over the same string.
     '(?!\\[Filtered\\])' +
-    '("[^"]*"|\'[^\']*\'|[^\\s,;&)}\\]]+)',
+    '("[^"]{0,512}"|\'[^\']{0,512}\'|[^\\s,;&)}\\]]{1,512})',
   'gi',
 );
 
@@ -178,7 +189,10 @@ const INLINE_SECRET_REGEX = new RegExp(
  */
 export function scrubString(input: string): string {
   if (!input) return input;
-  let out = input;
+  // Hard ceiling before any regex runs. Sentry truncates long strings anyway,
+  // and this keeps the total work per string bounded regardless of input.
+  let out =
+    input.length > MAX_STRING_LENGTH ? input.slice(0, MAX_STRING_LENGTH) : input;
   // Order is load-bearing. JWT and Bearer run BEFORE the inline `key=value`
   // rule: otherwise `Authorization: Bearer <token>` matches the inline rule,
   // which consumes only the word `Bearer` and leaves the token in place.

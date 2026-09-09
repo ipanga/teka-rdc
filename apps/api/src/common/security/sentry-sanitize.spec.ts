@@ -239,6 +239,34 @@ describe('scrubString', () => {
   });
 });
 
+describe('bounded work — CodeQL js/polynomial-redos', () => {
+  // The Cloudinary pattern originally had an unbounded `[^\s"'<>]*` on both
+  // sides of the literal, which is polynomial on a long non-matching string.
+  // scrubString runs inside beforeSend on data an attacker can influence.
+  it('handles a long non-matching URL promptly', () => {
+    const hostile = `https://${'a'.repeat(60_000)}`;
+    const started = Date.now();
+    expect(typeof scrubString(hostile)).toBe('string');
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+
+  it('handles a query string with very many parameters promptly', () => {
+    const started = Date.now();
+    expect(typeof sanitizeUrl(`/x?${'a=b&'.repeat(20_000)}`)).toBe('string');
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+
+  it('truncates a string past the ceiling instead of scanning all of it', () => {
+    expect(scrubString('x'.repeat(20_000)).length).toBeLessThanOrEqual(8192);
+  });
+
+  it('still redacts a real Cloudinary document URL after the bounds', () => {
+    expect(scrubString('https://res.cloudinary.com/teka/image/private/x.jpg')).toBe(
+      '[document-link]',
+    );
+  });
+});
+
 describe('sanitizeUrl', () => {
   it('keeps the path and parameter names', () => {
     expect(sanitizeUrl('/compte/reset?token=abc&ville=kolwezi')).toBe(

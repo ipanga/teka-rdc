@@ -3864,7 +3864,15 @@ has **not** been verified — no Sentry auth token is available in this environm
 was inspected. The `global-error.tsx` files in all three web apps still never call `captureException`;
 that is a missing feature, not a leak, and belongs in its own change.
 
-**Verification.** API 904 unit (+24) / 268 e2e; buyer-web 190, seller-web 44, admin-web 63 (+3 each);
+**Third finding, from CodeQL on the PR itself.** The first draft of the sanitiser tripped
+`js/polynomial-redos` (high) on the Cloudinary pattern: an unbounded `[^\s"'<>]*` either side of the
+literal is polynomial on a long non-matching string, and this code runs inside `beforeSend` on data an
+attacker can influence. Correct finding, fixed rather than dismissed — the host part now excludes `/`
+so it cannot scan forward across a path, every quantifier is length-bounded, and a `MAX_STRING_LENGTH`
+ceiling is applied before any regex runs. A 60 kB non-matching URL costs about 2 ms; four regression
+tests cover it.
+
+**Verification.** API 908 unit (+28) / 268 e2e; buyer-web 190, seller-web 44, admin-web 63 (+3 each);
 type-check ×5; three production `next build`s. No migration, no environment or secret change, no
 workflow change, no mobile change.
 

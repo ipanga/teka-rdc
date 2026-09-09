@@ -109,8 +109,13 @@ not switching observability off.
 
 ### Safety properties
 
-Synchronous, cycle-safe, depth-capped (`MAX_DEPTH = 8`) and node-capped
-(`MAX_NODES = 5000`). Never throws into the SDK: on an internal error it fails
+Synchronous, cycle-safe, depth-capped (`MAX_DEPTH = 8`), node-capped
+(`MAX_NODES = 5000`) and string-capped (`MAX_STRING_LENGTH = 8192`, applied
+before any regex runs). Every quantifier is length-bounded and the Cloudinary
+host pattern excludes `/` so it can never scan forward across a path: CodeQL
+flagged the first draft with `js/polynomial-redos` (high), correctly — the
+sanitiser runs inside `beforeSend` on data an attacker can influence. A 60 kB
+non-matching URL now costs about 2 ms. Never throws into the SDK: on an internal error it fails
 **closed**, dropping `request`, `extra`, `contexts`, `breadcrumbs` and `user`
 rather than sending them unsanitised. Scrubbing is idempotent, because a
 breadcrumb passes through both `beforeBreadcrumb` and `beforeSend`.
