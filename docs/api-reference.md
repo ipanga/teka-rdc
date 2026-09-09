@@ -194,6 +194,7 @@ across API containers and restarts. Source of truth: `AUTH_LIMITS` in
 | `refresh` | sha256(refresh token) | 60 / 15 min | `refresh` — a looping/stolen token cannot hammer rotation; other sessions on the same NAT unaffected. |
 | `csvExport` | admin user id | 10 / 10 min | The six `/v1/admin/reports/**/csv` routes (full-table scans). JSON reports unaffected. |
 | `upload` | user id | 30 / 10 min | Product-image and avatar uploads (in addition to the 20 / min per-IP cap). |
+| `payoutMethodChange` | seller user id | 5 / 1 h | `PATCH /v1/sellers/payout-method` (S12): every attempt counts, a wrong password also counts in the `login` bucket by email (in addition to a 10 / min per-IP cap). |
 
 **2. Per-IP backstop** — `@nestjs/throttler` (in-memory, per process): global 100 / min, plus loose
 per-route caps on auth (`otp/request|resend` 30 / 15 min, `otp/verify` 60 / 15 min, `login/email`
@@ -514,22 +515,21 @@ Full reference + ops runbook: **`docs/payouts.md`**.
 | GET | `/v1/sellers/earnings` | Seller | List earnings history (paginated); each row carries an API-derived `state` (`HELD` \| `AVAILABLE` \| `RESERVED` \| `PAID` \| `REVERSED`) |
 | GET | `/v1/sellers/payouts` | Seller | List payout history (paginated) |
 | GET | `/v1/sellers/payouts/:id` | Seller | One of the seller's own payouts (owner-scoped: a foreign, deleted or malformed id → French 404). Target of payout notifications / deep links |
-| POST | `/v1/sellers/payouts` | Seller | Request a payout (whole available balance) |
-| GET | `/v1/sellers/payout-method` | Seller | Read the saved reusable payout destination |
-| PATCH | `/v1/sellers/payout-method` | Seller | Set/update the payout destination |
+| POST | `/v1/sellers/payouts` | Seller | Request a payout (whole available balance). **S12:** routed to the SAVED destination only — an inline `payoutMethod`/`payoutPhone` is tolerated for old clients solely when identical to the saved one (409 « La destination indiquée ne correspond pas… » otherwise); 409 « …modifiée récemment… à partir du <date> » during the 24 h cooling-off after a destination change |
+| GET | `/v1/sellers/payout-method` | Seller | Read the saved reusable payout destination + `changedAt` / `payoutsAvailableAt` (null = requests open) |
+| PATCH | `/v1/sellers/payout-method` | Seller | Set/update the payout destination. **S12:** a real change requires `password` (current login password; 400 when missing, 403 « Mot de passe invalide. » when wrong — 403 on purpose so clients never refresh/replay), stamps a 24 h cooling-off, writes a `PAYOUT_METHOD_CHANGED` audit row (phones masked) and notifies the seller (feed + push + email). Re-sending the unchanged destination is a password-free no-op |
 
 ### Request Payout
 ```json
 POST /v1/sellers/payouts
-{
-  "payoutMethod": "M_PESA",       // optional — falls back to saved destination
-  "payoutPhone": "+243XXXXXXXXX"  // optional — falls back to saved destination
-}
+{}                                 // S12: the SAVED destination is used and snapshotted
 ```
 
-Requests the **entire available balance**. Guards: balance ≥ 5 000 FC, only one
-open payout (`REQUESTED`/`APPROVED`/`PROCESSING`) at a time (`409`), and a destination must exist
-(body or saved profile) — else `400`. The request runs under a row lock on the seller profile and
+Requests the **entire available balance** to the seller's **saved** destination (`PATCH
+/v1/sellers/payout-method`, password-guarded). Guards: balance ≥ 5 000 FC, only one open payout
+(`REQUESTED`/`APPROVED`/`PROCESSING`) at a time (`409`), a saved destination must exist (`400`), no
+destination change in the last 24 h (`409` naming the reopen time), and an inline
+`payoutMethod`/`payoutPhone` — accepted only from older clients — must equal the saved one (`409`). The request runs under a row lock on the seller profile and
 reserves the exact earnings it read (see `docs/payouts.md`). `payoutMethod` ∈ `M_PESA` | `AIRTEL_MONEY`
 | `ORANGE_MONEY`; `payoutPhone` matches `^\+243\d{9}$`.
 

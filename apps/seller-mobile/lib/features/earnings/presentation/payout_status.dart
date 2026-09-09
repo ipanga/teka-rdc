@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../../core/theme/teka_colors.dart';
 import '../data/models/earning_model.dart';
 
@@ -97,6 +98,11 @@ String maskPhone(String phone) {
   final tail = local.substring(local.length - 3);
   return '$country $head• ••• $tail';
 }
+
+/// « 10 septembre 2026 à 14:05 » — when payouts are accepted again after a
+/// destination change (S12 cooling-off), in the seller's local time.
+String payoutAvailabilityLabel(DateTime at) =>
+    DateFormat("d MMMM yyyy 'à' HH:mm", 'fr').format(at.toLocal());
 
 /// Seller-facing earning state vocabulary (mirrors seller-web `lib/earnings.ts`).
 /// Tones: warning while held, success when withdrawable, info while committed

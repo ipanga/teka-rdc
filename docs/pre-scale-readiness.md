@@ -3369,19 +3369,136 @@ English 400s (« Too many files », « Multipart: Boundary not found », « Unex
 401 / 403 bodies are Nest's defaults — the same on 2.2.0; a French pass over those is a separate,
 non-security item.
 
+### S12 — `security/payout-destination-reauth` (payout destination, 2026-09-09 — open, awaiting merge approval)
+
+**Root cause.** Two independent holes let a stolen seller session move money. (1) `POST
+/v1/sellers/payouts` took an OPTIONAL inline destination that **won over the saved profile**
+(`payouts.service.ts`: `dto.payoutMethod ?? sellerProfile.payoutMethod`) and snapshotted it on the
+payout — so a single request could route the whole balance to any number the caller typed. (2)
+`PATCH /v1/sellers/payout-method` was one `sellerProfile.update` with **no re-authentication, no
+audit row, no notice, no cooling-off and no throttle** — only a `logger.log`. Threat model: an
+attacker holding a seller cookie (shared device, phishing, XSS) cashes out silently; the seller
+learns nothing and the admin who pays out has no signal the destination ever changed.
+
+**New rule — the saved destination is the only routing authority.** `POST /v1/sellers/payouts`
+accepts `{}` and snapshots `SellerProfile.payoutMethod`/`payoutPhone`. An inline destination is
+tolerated **only when identical** to the saved one (backward compatibility, see below); any mismatch
+is a French 409 « La destination indiquée ne correspond pas à celle enregistrée sur votre profil… ».
+No saved destination → 400 asking the seller to save one first.
+
+**Re-authentication.** A *real* change to `PATCH /v1/sellers/payout-method` requires the seller's
+current `password` in the body, verified with `verifyPassword` against `User.passwordHash` (the same
+primitive as login and account deletion). Missing → 400 « Le mot de passe est requis pour modifier la
+destination de retrait. »; wrong → **403** « Mot de passe invalide. » — 403 deliberately, **not** 401,
+because every Teka client treats a 401 as an expired session and would refresh + replay, doubling the
+attempt and rotating the refresh token for nothing. A wrong password also counts in the shared
+`login` bucket (by email), so brute force through this route hits the same 10-failure / 15-minute
+lock as the login form. The password is never logged, never persisted, never returned, and never
+reaches analytics or Sentry (asserted in unit + e2e).
+
+**Cooling-off — 24 h** (`PAYOUT_METHOD_COOLING_OFF_MS`). A successful change stamps
+`SellerProfile.payoutMethodChangedAt`; for 24 h afterwards `POST /v1/sellers/payouts` answers 409
+naming the reopen time in French/Lubumbashi time. `GET /v1/sellers/payout-method` now returns
+`{ payoutMethod, payoutPhone, changedAt, payoutsAvailableAt }` so both clients can disable the button
+with the date instead of provoking the 409. 24 h was chosen as the smallest window that still spans a
+night: the seller is told on three channels at the moment of the change, and the attacker cannot cash
+out before the seller can react.
+
+**Snapshot semantics (unchanged history).** `Payout.payoutMethod`/`payoutPhone` stay exactly as
+written at request time for every status — REQUESTED, APPROVED, PROCESSING, COMPLETED, REJECTED. A
+later profile change never rewrites them, and admin approve/process/complete/reject are untouched
+(they never accepted a destination; admin-web already labels the value « Destination (figée à la
+demande) » and has no control that could substitute one). Regression-tested in the runtime probe: an
+in-flight REQUESTED payout kept `AIRTEL_MONEY/+243990000002` after the profile was changed back to
+`M_PESA/+243970000001`.
+
+**Concurrency.** The change runs inside `$transaction` with the **same** `SELECT … FOR UPDATE` row
+lock `requestPayout` takes, and re-reads the row under the lock: a request racing a change sees
+either the old destination or the new one plus its cooling-off, never a mix, and two concurrent
+changes serialise (the second sees the first's row and no-ops if identical). The audit row is written
+in the same transaction — a rolled-back change leaves no audit, a committed one can never lack it.
+The notice is fired after commit, fire-and-forget: a failed push/email never rolls back the security
+change.
+
+**Audit + notice.** `admin_audit_logs` gains `PAYOUT_METHOD_CHANGED` (`entityType: 'seller_profile'`,
+**actorId = the seller's own user id**, before/after with the phone **masked** `+243•••••01` via
+`maskPayoutPhone`; no raw number, no password). The seller is notified on **every** channel, not
+push-or-email: a `UserNotification` feed row (`PAYOUT` / `payout_method`), a push, and the new
+« Destination de retrait modifiée » Resend email naming the masked destination, the change time, the
+reopen time and « contactez le support » if they did not make the change.
+
+**Rate limiting.** New identity-keyed scope `payoutMethodChange` = **5 / hour per seller user id**
+(`AUTH_LIMITS`, DB-backed `auth_rate_limits`, French 429 + `Retry-After`), counting every attempt
+including wrong passwords, plus a `@Throttle` 10/min per IP. Conservative on purpose: a legitimate
+seller correcting a typo has room, a support case is unaffected, and scripted enumeration is not.
+
+**Schema.** One additive nullable column `SellerProfile.payoutMethodChangedAt`, migration
+`prisma/migrations/manual/2026-09-09_payout_method_changed_at.sql` (`ADD COLUMN IF NOT EXISTS`, on
+`auto-apply.list`, manifest gate green at 11 entries). **NULL for every existing seller on purpose** —
+a destination saved before this release is treated as settled, so nobody is retro-blocked and no
+historical change timestamp is fabricated. Old code never reads the column, so it is a clean EXPAND
+step.
+
+**Backward compatibility with the DISTRIBUTED seller-mobile 0.1.9+11 (checked, mandatory gate).** That
+build PATCHes the *prefilled* (therefore unchanged) destination before every payout request and then
+POSTs it inline. Both keep working: an unchanged destination is a **password-free no-op** (nothing
+written, no audit, no notice, no cooling-off armed) and an inline destination equal to the saved one is
+accepted. The only degraded path is a seller who *edits* the destination in the old app: the API
+answers 400 with the French « Le mot de passe est requis… », which that build surfaces verbatim from
+`error.message` — a clear instruction, not a crash or a silent failure. **No forced mobile release is
+required before this API ships**, and the new build (this PR) adds the password field.
+
+**Clients.** *seller-web* `/dashboard/earnings`: the request modal now shows the saved destination
+read-only with a « Modifier » action; the editor carries operator + number + a
+`type="password" autoComplete="current-password"` field marked `data-ph-no-capture`, the French
+security explanation, and only sends `password` when the destination actually changed; the request
+button is disabled with the cooling-off line and the request body is `{}`. Pure logic extracted to
+`lib/payout-destination.ts` (+14 tests). *seller-mobile* `request_payout_screen`: same shape —
+read-only destination, « Modifier la destination », obscured password field with a visibility toggle
+and `AutofillHints.password`, cooling-off as a fourth blocker, empty POST body, password cleared on
+save/cancel/dispose and never held in provider state or recorded by the test fixture (which stores only
+*whether* a password was present). A real UI defect was found and fixed while testing: the Save button
+was gated on controller text with nothing listening, so it stayed disabled while the seller typed —
+controller listeners added. *admin-web*: **unchanged** (already read-only and explicitly labelled).
+
+**Evidence.** API unit **853** (+12), e2e **257** (+10, all through the real guards/DTO/service/filter),
+type-check ×5, seller-web **41** (+5 files → +14 cases), buyer-web 181, admin-web 60, seller-mobile
+**472** (+11), buyer-mobile 501, `flutter analyze` clean of warnings (5 pre-existing infos in untouched
+files), seller-web and API production builds green. **Runtime probe** on the isolated API (:5051, this
+build, dev DB, a disposable seller with a real password + one eligible earning, cookie auth through the
+D2a Origin binding): GET returns exactly the four fields; unchanged PATCH without a password → 200
+no-op with **0 audit rows**; change without a password → 400; wrong password → 403 with the destination
+**unchanged in the DB** and no echo of the password; `POST {}` → 201 snapshotting M_PESA; inline
+mismatch → 409 with **0 payouts created**; identical inline → 201; correct password → 200 with the DB
+destination changed, the cooling-off stamped, `payoutsAvailableAt` exactly +24 h, an audit row with
+masked phones and `actorId` = the seller, and a feed row whose body carries `+243•••••02`; a request
+during the window → 409 naming the reopen time with 0 payouts created; after the window → 201 with the
+**new** destination; the in-flight payout kept its old snapshot after a further change; the throttle
+answered 429 with `Retry-After` once the 5/h bucket was spent (the last two also hit the 10/min per-IP
+cap); no session → 401. Every fixture removed afterwards and verified: 0 users, profiles, orders,
+payouts, earnings, audit rows or feed rows left.
+
+**Remaining risks / not in this PR.** The 24 h window is only as good as the seller reading one of the
+three notices — a seller with no push token and no email would see only the in-app feed (the code warns
+in that case). An attacker who also owns the seller's password (not just a session) is unaffected by
+re-auth; that is the login-email-change follow-up (RECOMMENDED, S12-adjacent) and password-reset
+hardening, deliberately out of scope here. Admin step-up re-auth for `complete`, S11 audit coverage,
+S13/S14/S22 and D2b remain as classified in the 2026-09-09 audit.
+
 ## Next exact step
 
-**Seller Mobile UX/UI series A–F complete (`f2b8d49`); the checkpoint and the release-readiness
-documentation are merged/open as docs-only PRs.** Remaining order, each its own PR into `develop`
-with a merge commit, none started without approval: (1) **`develop → main` release PR** (security +
-everything since `78c6ef9`) — run the release checklist in `docs/deployment.md`, copy
-`nginx/nginx.prod.conf` to the VPS during the window, apply the Cloudflare origin firewall the same
-day — **the owner chose to complete the Buyer Web SEO workstream first**; (2) `buyer-web/seo-1`
-— **merged `6234f0c`**; `buyer-web/seo-2` — **merged `03035e3`** (decisions 5 and 7 approved and
-implemented; Workstream B complete, no SEO-3 planned); (3) `security/admin-and-financial` (S12 payout re-auth, S13 application
-uploads, S14/S22 DTO bounds); (4) `mobile/security-hardening` (MS1–MS7);
-(6) Dependabot follow-ups (`esbuild`, stale PRs, bundler — `sharp` done 2026-09-09); (7) D2b / S11 / S16 / iOS runtime
-session. Still open and preserved: API `pendingCDF` vs HELD/`deliveredAt`; login-email change without
-re-auth; seller-web stale-town notice; notification pre-prompt; golden tests; legacy characteristic
-prefill; `Image.network`; branch protection unenforced; CSP has no reporting endpoint; CORS sets no
-`methods` allow-list.
+**S12 fixed on `security/payout-destination-reauth` (open, awaiting merge approval)** — the one code
+blocker from the 2026-09-09 release-readiness audit. Order, each its own PR into `develop` with a merge
+commit, none started without approval: (1) **`security/payout-destination-reauth`** — merge once CI is
+green; (2) **`develop → main` release PR** with the `docs/deployment.md` checklist — nginx copy +
+reload and the Cloudflare origin firewall in the same window, **two** EXPAND migrations now
+(`auth_rate_limits`, `payout_method_changed_at`), smoke matrix, release record; (3) mobile store builds
+(bump buyer `0.1.8+10`, seller `0.1.10+12` after confirming Play's `versionCode`) — the seller build now
+also carries the password field, though the API does **not** require a new build; (4) the RECOMMENDED
+follow-ups as one PR (login-email re-auth, S13 upload throttle + row-first, S22 banner links, S14 bounds,
+the two S11 one-liners, Sentry request-data opt-out); (5) `mobile/security-hardening` (MS1–MS7);
+(6) branch-protection required checks; (7) D2b / S11 full / S16 / iOS runtime session / Dependabot chores.
+Owner decisions pending: S21 role model; seller-visible buyer PII policy; PostHog replay masking on buyer
+account pages. Still open and preserved: API `pendingCDF` vs HELD/`deliveredAt` (re-count in prod at
+release); seller-web stale-town notice; golden tests; legacy characteristic prefill; `Image.network` on
+seller-mobile; CSP has no reporting endpoint; CORS sets no `methods` allow-list.

@@ -40,10 +40,15 @@ export interface Payout {
   createdAt: string;
 }
 
-/** Seller's saved reusable payout destination (B1). */
+/**
+ * Seller's saved reusable payout destination (B1). S12: `payoutsAvailableAt`
+ * is set for 24 h after a change — payout requests are refused until then.
+ */
 export interface SellerPayoutMethod {
   payoutMethod: string | null;
   payoutPhone: string | null;
+  changedAt: string | null;
+  payoutsAvailableAt: string | null;
 }
 
 export interface Review {

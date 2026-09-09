@@ -4,6 +4,13 @@ import { formatFC } from '@teka/shared';
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { apiFetch, ApiError } from '@/lib/api-client';
+import {
+  coolingOffNotice,
+  destinationChanged,
+  formatAvailableAt,
+  hasSavedDestination,
+  validateDestinationDraft,
+} from '@/lib/payout-destination';
 import type {
   SellerWallet,
   SellerEarning,
@@ -107,11 +114,21 @@ export default function EarningsPage() {
 
   // Payout request flow (re-enabled, Initiative #3 / C1).
   const [showRequestModal, setShowRequestModal] = useState(false);
-  const [requestMethod, setRequestMethod] = useState('');
-  const [requestPhone, setRequestPhone] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [requestError, setRequestError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+
+  // S12 — saved destination (server-owned) + its password-guarded editor.
+  // The request never sends a destination: the API snapshots the saved one.
+  const [savedDestination, setSavedDestination] =
+    useState<SellerPayoutMethod | null>(null);
+  const [editingDestination, setEditingDestination] = useState(false);
+  const [destMethod, setDestMethod] = useState('');
+  const [destPhone, setDestPhone] = useState('');
+  const [destPassword, setDestPassword] = useState('');
+  const [savingDestination, setSavingDestination] = useState(false);
+  const [destinationError, setDestinationError] = useState('');
+  const [destinationNotice, setDestinationNotice] = useState('');
 
   // Error
   const [error, setError] = useState('');
@@ -185,16 +202,21 @@ export default function EarningsPage() {
     }
   }, [payoutsPage]);
 
-  // Saved payout destination (B1) — prefill the request form.
+  // Saved payout destination (B1 / S12) — shown read-only on the request
+  // form; the editor opens by itself when nothing is saved yet.
   const loadPayoutMethod = useCallback(async () => {
     try {
       const res = await apiFetch<SellerPayoutMethod>(
         '/v1/sellers/payout-method',
       );
-      if (res.data?.payoutMethod) setRequestMethod(res.data.payoutMethod);
-      if (res.data?.payoutPhone) setRequestPhone(res.data.payoutPhone);
+      const saved = res.data ?? null;
+      setSavedDestination(saved);
+      setDestMethod(saved?.payoutMethod ?? '');
+      setDestPhone(saved?.payoutPhone ?? '');
+      setEditingDestination(!hasSavedDestination(saved));
     } catch {
-      // Non-fatal: the form just starts empty.
+      // Non-fatal: the editor opens empty.
+      setEditingDestination(true);
     }
   }, []);
 
@@ -227,35 +249,90 @@ export default function EarningsPage() {
 
   const openRequestModal = () => {
     setRequestError('');
+    setDestinationError('');
+    setDestinationNotice('');
+    setDestPassword('');
     setShowRequestModal(true);
   };
 
-  const submitPayoutRequest = async () => {
-    setRequestError('');
-    if (!PAYOUT_METHODS.includes(requestMethod as never)) {
-      setRequestError("Opérateur Mobile Money");
+  const closeRequestModal = () => {
+    setDestPassword('');
+    setShowRequestModal(false);
+  };
+
+  const openDestinationEditor = () => {
+    setDestinationError('');
+    setDestinationNotice('');
+    setDestMethod(savedDestination?.payoutMethod ?? '');
+    setDestPhone(savedDestination?.payoutPhone ?? '');
+    setDestPassword('');
+    setEditingDestination(true);
+  };
+
+  const cancelDestinationEditor = () => {
+    setDestPassword('');
+    setDestinationError('');
+    setEditingDestination(false);
+  };
+
+  // S12 — PATCH the saved destination. A real change carries the current
+  // password (verified server-side, 403 « Mot de passe invalide. » when
+  // wrong) and re-arms the 24 h cooling-off; an unchanged one is a no-op.
+  const saveDestination = async () => {
+    setDestinationError('');
+    const draft = { payoutMethod: destMethod, payoutPhone: destPhone };
+    const invalid = validateDestinationDraft(savedDestination, draft, destPassword);
+    if (invalid) {
+      setDestinationError(invalid);
       return;
     }
-    if (!/^\+243[0-9]{9}$/.test(requestPhone)) {
-      setRequestError("+243...");
+    const changed = destinationChanged(savedDestination, draft);
+    setSavingDestination(true);
+    try {
+      const res = await apiFetch<SellerPayoutMethod>(
+        '/v1/sellers/payout-method',
+        {
+          method: 'PATCH',
+          body: JSON.stringify(
+            changed ? { ...draft, password: destPassword } : draft,
+          ),
+        },
+      );
+      const saved = res.data ?? null;
+      setSavedDestination(saved);
+      setEditingDestination(false);
+      setDestinationNotice(
+        changed && saved?.payoutsAvailableAt
+          ? `Destination enregistrée. Un e-mail de confirmation vous a été envoyé ; les retraits seront possibles à partir du ${formatAvailableAt(saved.payoutsAvailableAt)}.`
+          : 'Destination enregistrée.',
+      );
+    } catch (err) {
+      setDestinationError(
+        err instanceof ApiError ? err.message : 'Une erreur est survenue.',
+      );
+    } finally {
+      // The password never outlives the attempt.
+      setDestPassword('');
+      setSavingDestination(false);
+    }
+  };
+
+  const requestBlocker = !hasSavedDestination(savedDestination)
+    ? 'Enregistrez d’abord votre destination de retrait.'
+    : coolingOffNotice(savedDestination?.payoutsAvailableAt);
+
+  const submitPayoutRequest = async () => {
+    setRequestError('');
+    if (requestBlocker) {
+      setRequestError(requestBlocker);
       return;
     }
     setSubmitting(true);
     try {
-      // Persist the destination (so it prefills next time), then request.
-      await apiFetch('/v1/sellers/payout-method', {
-        method: 'PATCH',
-        body: JSON.stringify({
-          payoutMethod: requestMethod,
-          payoutPhone: requestPhone,
-        }),
-      });
+      // S12: no destination in the body — the API snapshots the saved one.
       await apiFetch('/v1/sellers/payouts', {
         method: 'POST',
-        body: JSON.stringify({
-          payoutMethod: requestMethod,
-          payoutPhone: requestPhone,
-        }),
+        body: JSON.stringify({}),
       });
       setShowRequestModal(false);
       setSuccessMessage("Demande de virement envoyée avec succès");
@@ -658,44 +735,140 @@ export default function EarningsPage() {
               </div>
             )}
 
+            {/* S12 — saved destination (server-owned) + password-guarded editor */}
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Opérateur Mobile Money
-                </label>
-                <select
-                  value={requestMethod}
-                  onChange={(e) => setRequestMethod(e.target.value)}
-                  className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">—</option>
-                  {PAYOUT_METHODS.map((m) => (
-                    <option key={m} value={m}>
-                      {getPayoutMethodLabel(m)}
-                    </option>
-                  ))}
-                </select>
+              {destinationNotice && (
+                <div className="p-3 rounded-lg bg-success/10 text-success text-sm">
+                  {destinationNotice}
+                </div>
+              )}
+              <div className="rounded-lg border border-border p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Destination du virement
+                    </p>
+                    {hasSavedDestination(savedDestination) ? (
+                      <p className="mt-1 text-sm text-foreground">
+                        {getPayoutMethodLabel(savedDestination?.payoutMethod ?? '')}
+                        {' · '}
+                        <span className="font-mono">{savedDestination?.payoutPhone}</span>
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Aucune destination enregistrée.
+                      </p>
+                    )}
+                  </div>
+                  {!editingDestination && (
+                    <button
+                      type="button"
+                      onClick={openDestinationEditor}
+                      disabled={submitting}
+                      className="text-sm font-medium text-primary hover:underline disabled:opacity-50"
+                    >
+                      Modifier
+                    </button>
+                  )}
+                </div>
+
+                {editingDestination && (
+                  <div className="mt-3 space-y-3 border-t border-border pt-3">
+                    <p className="text-xs text-muted-foreground">
+                      Par sécurité, modifier la destination demande votre mot de passe et
+                      bloque les retraits pendant 24 heures. Un e-mail de confirmation vous sera
+                      envoyé. Les retraits déjà demandés conservent leur destination.
+                    </p>
+                    {destinationError && (
+                      <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                        {destinationError}
+                      </div>
+                    )}
+                    <div>
+                      <label htmlFor="dest-method" className="block text-sm font-medium text-foreground mb-1">
+                        Opérateur Mobile Money
+                      </label>
+                      <select
+                        id="dest-method"
+                        value={destMethod}
+                        onChange={(e) => setDestMethod(e.target.value)}
+                        disabled={savingDestination}
+                        className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      >
+                        <option value="">—</option>
+                        {PAYOUT_METHODS.map((m) => (
+                          <option key={m} value={m}>
+                            {getPayoutMethodLabel(m)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="dest-phone" className="block text-sm font-medium text-foreground mb-1">
+                        Numéro de réception
+                      </label>
+                      <input
+                        id="dest-phone"
+                        type="tel"
+                        value={destPhone}
+                        onChange={(e) => setDestPhone(e.target.value)}
+                        placeholder="+243..."
+                        disabled={savingDestination}
+                        className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="dest-password" className="block text-sm font-medium text-foreground mb-1">
+                        Votre mot de passe
+                      </label>
+                      <input
+                        id="dest-password"
+                        type="password"
+                        autoComplete="current-password"
+                        value={destPassword}
+                        onChange={(e) => setDestPassword(e.target.value)}
+                        disabled={savingDestination}
+                        data-ph-no-capture="true"
+                        className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      {hasSavedDestination(savedDestination) && (
+                        <button
+                          type="button"
+                          onClick={cancelDestinationEditor}
+                          disabled={savingDestination}
+                          className="flex-1 py-2 px-4 border border-border text-foreground rounded-lg text-sm font-medium hover:bg-muted disabled:opacity-50 transition-colors"
+                        >
+                          Annuler
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={saveDestination}
+                        disabled={savingDestination}
+                        className="flex-1 py-2 px-4 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                      >
+                        {savingDestination ? 'Enregistrement...' : 'Enregistrer la destination'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-1">
-                  Numéro de réception
-                </label>
-                <input
-                  type="tel"
-                  value={requestPhone}
-                  onChange={(e) => setRequestPhone(e.target.value)}
-                  placeholder="+243..."
-                  className="w-full px-3 py-2 border border-input rounded-lg bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Cet opérateur et ce numéro seront enregistrés pour vos prochaines demandes.
-              </p>
+
+              {requestBlocker && !editingDestination && (
+                <p className="text-xs text-warning">{requestBlocker}</p>
+              )}
+              {!requestBlocker && !editingDestination && (
+                <p className="text-xs text-muted-foreground">
+                  Le virement sera envoyé à la destination ci-dessus.
+                </p>
+              )}
             </div>
 
             <div className="flex gap-2 mt-6">
               <button
-                onClick={() => setShowRequestModal(false)}
+                onClick={closeRequestModal}
                 disabled={submitting}
                 className="flex-1 py-2 px-4 border border-border text-foreground rounded-lg text-sm font-medium hover:bg-muted disabled:opacity-50 transition-colors"
               >
@@ -703,7 +876,7 @@ export default function EarningsPage() {
               </button>
               <button
                 onClick={submitPayoutRequest}
-                disabled={submitting}
+                disabled={submitting || editingDestination || Boolean(requestBlocker)}
                 className="flex-1 py-2 px-4 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors"
               >
                 {submitting ? 'Envoi en cours...' : 'Envoyer la demande'}

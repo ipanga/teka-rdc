@@ -26,6 +26,7 @@ import {
 import { payoutApprovedTemplate } from './templates/payout-approved.template';
 import { payoutPaidTemplate } from './templates/payout-paid.template';
 import { payoutRejectedTemplate } from './templates/payout-rejected.template';
+import { payoutMethodChangedTemplate } from './templates/payout-method-changed.template';
 import { productApprovedTemplate } from './templates/product-approved.template';
 import { productRejectedTemplate } from './templates/product-rejected.template';
 
@@ -201,6 +202,34 @@ export class EmailService {
       firstName,
       amountLabel,
       reference,
+      dashboardUrl,
+    );
+    return this.sendEmail(email, subject, html);
+  }
+
+  /**
+   * S12 security notice — always sent (not a push fallback): the seller's
+   * payout destination changed. Carries a masked phone only.
+   */
+  async sendPayoutMethodChanged(
+    email: string,
+    firstName: string | null,
+    methodLabel: string,
+    maskedPhone: string,
+    changedLabel: string,
+    availableLabel: string,
+  ): Promise<boolean> {
+    const dashboardUrl = this.configService.get<string>(
+      'SELLER_WEB_URL',
+      'https://seller.teka.cd',
+    );
+    const subject = 'Destination de retrait modifiée — Teka RDC';
+    const html = payoutMethodChangedTemplate(
+      firstName,
+      methodLabel,
+      maskedPhone,
+      changedLabel,
+      availableLabel,
       dashboardUrl,
     );
     return this.sendEmail(email, subject, html);
