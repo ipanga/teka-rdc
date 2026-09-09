@@ -11,6 +11,10 @@ export type AdminAuditAction =
   // S12: the seller changed their own payout destination (actorId = the
   // seller's user id; phones are masked in before/after).
   | 'PAYOUT_METHOD_CHANGED'
+  // S11: account status changes (suspend / ban / reactivate) by an admin.
+  | 'USER_STATUS_CHANGED'
+  // Login-identity change (seller/admin email) — actorId = the account itself.
+  | 'LOGIN_EMAIL_CHANGED'
   | 'COMMISSION_SETTING_UPSERTED'
   | 'COMMISSION_SETTING_REMOVED'
   | 'SELLER_COMMISSION_OVERRIDE_SET'
@@ -28,7 +32,7 @@ export type AdminAuditAction =
 export interface AdminAuditEntry {
   actorId: string;
   action: AdminAuditAction;
-  entityType: 'payout' | 'commission_setting' | 'seller_profile';
+  entityType: 'payout' | 'commission_setting' | 'seller_profile' | 'user';
   entityId: string;
   before?: Record<string, unknown> | null;
   after?: Record<string, unknown> | null;
