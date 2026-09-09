@@ -32,19 +32,137 @@ Each project receives only its own events — strict separation, no shared dumpi
 | 2× Flutter | `PlatformDispatcher.onError` (zone-uncaught async errors) | auto via Sentry's appRunner Zone |
 | 2× Flutter | Native Android crashes (libapp.so, libflutter.so) | via `sentry-android` JNI |
 
-Every API event carries: `method`, `url` (extra), `user.id` (JWT `sub` or `anonymous`). Web + mobile events carry the user agent + URL or route automatically.
+Every API event carries: `method`, `url` (extra, query-sanitised), `user.id` (JWT `sub` or `anonymous`). Web + mobile events carry the user agent + URL or route automatically. Request bodies and cookies are never attached — see *Request-data minimisation*.
 
-## PII scrubbing — phone numbers
+## Request-data minimisation (2026-09-09)
 
-Buyer phone numbers (`+243XXXXXXXXX`) are auth identifiers (CLAUDE.md Rule 13). All 6 surfaces run a `beforeSend` scrubber that replaces matches with `[phone]` before send. Coverage:
+### What the SDK collected before
 
-| Surface | Location | Scope |
-|---|---|---|
-| API | `apps/api/src/instrument.ts:scrubPhones` | Entire event payload (recursive) |
-| 3× Next.js | `apps/<app>-web/sentry-scrub.ts:scrubPhones` | Entire event payload (recursive) |
-| 2× Flutter | `apps/<app>-mobile/lib/core/config/sentry_scrub.dart:scrubBeforeSend` | Event message + breadcrumbs (the realistic leak vectors) |
+`@sentry/node` 10.x enables `requestDataIntegration` **by default**, and its
+`DEFAULT_INCLUDE` is `{ cookies: true, data: true, headers: true, query_string:
+true, url: true }`. `httpIntegration` defaults `maxIncomingRequestBodySize` to
+`'medium'`, so the SDK patched every incoming request and buffered up to 10 kB
+of body. **`sendDefaultPii` gates only the client IP** — it does not gate
+cookies, headers or the body, so leaving it at `false` protected none of them.
 
-Sentry's built-in scrubbers handle auth tokens + credit-card patterns; phone numbers aren't in the default list, hence the custom hook.
+Measured locally against the then-shipping configuration, with a stub transport
+and a fake DSN, a single 500 on `POST /v1/auth/login/email` produced an event
+containing:
+
+| Field | Content |
+|---|---|
+| `request.data` | the whole JSON body — plaintext `password`, `otp` |
+| `request.headers.authorization` | `Bearer <token>` |
+| `request.headers.cookie` + `request.cookies` | both session cookies |
+| `request.query_string` + `request.url` | any `?token=` |
+
+The only control in place was a `+243` phone regex, so everything above except
+the phone number was sent verbatim.
+
+### What happens now — two layers
+
+**Layer 1, do not collect.** The API and the three Next.js *server* configs
+pass:
+
+```ts
+integrations: [
+  Sentry.httpIntegration({ maxIncomingRequestBodySize: 'none' }),
+  Sentry.requestDataIntegration({
+    include: { cookies: false, data: false, headers: true,
+               query_string: true, url: true, ip: false },
+  }),
+],
+sendDefaultPii: false,
+```
+
+A user-supplied integration replaces the default of the same name (see
+`filterDuplicates` in `@sentry/core`), so these override rather than duplicate.
+The body is never buffered and cookies never enter the event. The edge and
+browser runtimes have no Node HTTP server, so they get layer 2 only.
+
+**Layer 2, sanitise what remains.** `packages/shared/src/security/sentry-sanitize.ts`
+is the single implementation for all four JavaScript surfaces, wired as
+`beforeSend` + `beforeBreadcrumb`. It:
+
+- redacts sensitive headers by name (`authorization`, `cookie`, `set-cookie`,
+  `x-api-key`, …) and keeps the rest;
+- deletes `request.cookies` and redacts `request.data` if anything ever
+  repopulates them;
+- rewrites URLs and query strings to keep the **route and the parameter names**
+  while replacing sensitive values — `/compte/reset?token=[Filtered]&ville=kolwezi`;
+- redacts sensitive **keys** anywhere in body, extra, tags, contexts and
+  breadcrumb data (`password`, `otp`, `token`, `payoutPhone`, `api_key`, …),
+  while deliberately keeping `statusCode`, `errorCode` and `postalCode`;
+- scrubs sensitive **values** anywhere: DRC phones, emails, JWTs, `Bearer`
+  tokens and Cloudinary document URLs;
+- redacts inline `key=value` written into free text. This one matters because
+  `consoleIntegration` is a Sentry default, so **every Nest `Logger` line
+  becomes a breadcrumb**, and this codebase logs in exactly that style;
+- keeps `user.id` (opaque UUID) and drops `email`, `username` and `ip_address`.
+
+### What is deliberately kept
+
+Stack traces and frames, exception type and message, route/path, HTTP method,
+response status, `User-Agent`, `Content-Type`, `X-Teka-Surface`, the opaque
+internal user id, tags, `release` and `environment`. This is data minimisation,
+not switching observability off.
+
+### Safety properties
+
+Synchronous, cycle-safe, depth-capped (`MAX_DEPTH = 8`) and node-capped
+(`MAX_NODES = 5000`). Never throws into the SDK: on an internal error it fails
+**closed**, dropping `request`, `extra`, `contexts`, `breadcrumbs` and `user`
+rather than sending them unsanitised. Scrubbing is idempotent, because a
+breadcrumb passes through both `beforeBreadcrumb` and `beforeSend`.
+
+### Coverage
+
+| Surface | Location | Layer 1 | Layer 2 |
+|---|---|---|---|
+| API | `apps/api/src/instrument.ts` | yes | yes |
+| 3× Next.js server | `apps/<app>-web/sentry.server.config.ts` | yes | yes |
+| 3× Next.js edge | `apps/<app>-web/sentry.edge.config.ts` | n/a | yes |
+| 3× Next.js client | `apps/<app>-web/instrumentation-client.ts` | n/a | yes |
+| 2× Flutter | `apps/<app>-mobile/lib/core/config/sentry_scrub.dart` | n/a | phones only — see below |
+
+Tests: `apps/api/src/common/security/sentry-sanitize.spec.ts` (24 cases, the
+rule set) and `apps/<app>-web/src/lib/sentry-scrub.test.ts` (3 cases each, the
+wiring). Sentry's own server-side scrubbing remains recommended as defence in
+depth; it has **not** been verified in the Sentry dashboard.
+
+### Mobile — audited, deliberately unchanged
+
+Both Flutter apps were audited in the same pass and left alone, because they do
+not exhibit the problem: there is no `sentry_dio` / `SentryHttpClient`
+integration, so **no request body, cookie or auth header ever enters a mobile
+event**. `SentryFlutter.init` sets only `dsn`, `environment`,
+`tracesSampleRate: 0` and `beforeSend`; `Sentry.setUser` carries only `id` and
+`role`.
+
+Residual mobile findings, none of which send credentials, recorded for the
+mobile hardening initiative rather than fixed here:
+
+- `beforeSend` walks only `message` + `breadcrumbs`; `exceptions`, `contexts`,
+  `tags` and `user` are not walked, and `contexts.connectivity_event.path` +
+  the `endpoint` tag carry request paths.
+- The regex is `\+243\d{9}` only, so `243…`, `0…` and spaced forms are missed.
+- `retry_interceptor.dart` claims query params are stripped; no code does it.
+  The invariant holds only while callers use Dio's `queryParameters`.
+- seller-mobile never calls `_applySentryUser(null)`, so the Sentry user is not
+  cleared on logout. buyer-mobile clears it correctly.
+- `sendDefaultPii` is not pinned in either app.
+- Neither app has a test for the scrubber.
+- `SENTRY_DSN` is empty in both `flavors/production.json`, so mobile Sentry is
+  currently a no-op unless the DSN is injected at build time.
+
+### Related logging finding
+
+`apps/api/src/whatsapp/whatsapp.service.ts` and the mock provider log the OTP
+code, but only under `NODE_ENV=development` / the mock provider, which the
+factory refuses to select in production. `buyer-otp.service.ts` logs a raw
+phone number on delivery failure in production; that line now reaches Sentry
+scrubbed as `[phone]`, but it is still written to the container log. Left as
+is — changing it is a logging decision, not a Sentry one.
 
 ## Required GitHub Secrets
 
@@ -214,15 +332,18 @@ Step warns + skips cleanly when `SENTRY_AUTH_TOKEN` is unset. Otherwise plugin f
 
 ## Code references
 
-- `apps/api/src/instrument.ts` — API SDK init + phone scrubber.
+- `apps/api/src/instrument.ts` — API SDK init, request-data minimisation (layer 1) + sanitiser wiring.
+- `packages/shared/src/security/sentry-sanitize.ts` — **the** payload sanitiser, shared by the API and all three web apps.
+- `apps/api/src/common/security/sentry-sanitize.spec.ts` — the 24-case rule suite.
 - `apps/api/src/common/filters/http-exception.filter.ts` — `captureException` call sites for 5xx + unhandled.
 - `apps/api/src/health/health.controller.ts` (`sentry-test` endpoint) — verification trigger (admin auth required).
-- `apps/<buyer|seller|admin>-web/sentry.{client,server,edge}.config.ts` — per-runtime SDK init.
-- `apps/<buyer|seller|admin>-web/sentry-scrub.ts` — phone scrubber (mirrors API).
+- `apps/<buyer|seller|admin>-web/{instrumentation-client,sentry.server.config,sentry.edge.config}.ts` — per-runtime SDK init.
+- `apps/<buyer|seller|admin>-web/sentry-scrub.ts` — re-export of the shared sanitiser.
+- `apps/<buyer|seller|admin>-web/src/lib/sentry-scrub.test.ts` — wiring guard.
 - `apps/<buyer|seller|admin>-web/instrumentation.ts` — Next.js 15 hook for server + edge runtimes.
 - `apps/<buyer|seller|admin>-web/next.config.ts` — `withSentryConfig` wrap.
 - `apps/<buyer|seller>-mobile/lib/main.dart` — `SentryFlutter.init` wrapping `appRunner`.
-- `apps/<buyer|seller>-mobile/lib/core/config/sentry_scrub.dart` — phone scrubber (mirrors API + web).
+- `apps/<buyer|seller>-mobile/lib/core/config/sentry_scrub.dart` — phone scrubber (mobile; audited 2026-09-09, unchanged).
 - `apps/<buyer|seller>-mobile/sentry.properties` — plugin config (org/project/upload flags).
 - `.github/workflows/deploy.yml` (`Compute build args` step) — per-web build-arg expansion.
 - `.github/workflows/build-mobile-{apk,ipa}.yml` + `release-mobile-{aab,ipa}.yml` (`Resolve per-app Sentry DSN` + `Upload Sentry debug symbols` steps — Android `.so` + iOS dSYM).

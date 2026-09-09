@@ -3815,19 +3815,72 @@ at zero (users, profile, audit, banners, tokens).
 lifecycle, session/token rotation beyond the suspend case, mobile clients, and every API response shape
 except the two new refusals.
 
+### Sentry request-data minimisation — `security/sentry-request-data-minimization` (2026-09-09, open)
+
+The P1 item, re-audited before implementation rather than taken on trust — and the audit found the
+risk **understated**, not overstated.
+
+**Root cause.** `@sentry/node` 10.53.1 enables `requestDataIntegration` by default with
+`DEFAULT_INCLUDE = { cookies: true, data: true, headers: true, query_string: true, url: true }`, and
+`httpIntegration` defaults `maxIncomingRequestBodySize` to `'medium'`, patching every incoming request
+to buffer up to 10 kB of body. `sendDefaultPii` gates **only the client IP**, so it was never the
+control anyone assumed it was. Verified by reading the installed SDK, not the docs: the option is
+`maxIncomingRequestBodySize` on this version, not the `maxRequestBodySize` the docs show for
+`httpServerIntegration`.
+
+**Demonstrated, not inferred.** With a stub transport and a fake DSN against the then-shipping
+`instrument.ts`, one 500 on `POST /v1/auth/login/email` produced an event containing the plaintext
+password, the `Authorization` header, both session cookies, the OTP code, the `?token=` query value
+and the email address. Only the phone number was scrubbed. The same probe after the fix reports all
+eight secrets clean while retaining method, user-agent, content-type, surface, exception type and
+message, ten stack frames, tags and environment.
+
+**Fix, two layers.** Prevent collection (`maxIncomingRequestBodySize: 'none'`, `include: { cookies:
+false, data: false }`, `sendDefaultPii: false` pinned) on the API and the three Next.js server
+runtimes; then sanitise what remains via one shared implementation,
+`packages/shared/src/security/sentry-sanitize.ts`, wired as `beforeSend` + `beforeBreadcrumb` on all
+four JavaScript surfaces and all nine web runtime configs. It is deliberately shared rather than
+copied four times: `@teka/shared` already ships in every client bundle, so it costs nothing, and a
+security rule set that exists in four places drifts.
+
+**Second finding, from the logging cross-check.** `consoleIntegration` is a Sentry default, so every
+Nest `Logger` line becomes a breadcrumb — and this codebase logs in `key=value` style. Key-based
+redaction never sees those, because there is no object key. An inline `key=value` rule was added and
+proved against real log lines from `buyer-otp.service.ts` and the mock WhatsApp provider. Ordering is
+load-bearing: JWT and `Bearer` must run before the inline rule, or `Authorization: Bearer <token>`
+matches inline, consumes only the word `Bearer` and leaves the token intact. That regression was
+caught by the probe and fixed.
+
+**Mobile audited, deliberately unchanged.** Neither Flutter app has `sentry_dio` or `SentryHttpClient`,
+so no request body, cookie or auth header can enter a mobile event; `setUser` carries only `id` and
+`role`. Residual findings recorded in `docs/sentry.md` for the mobile hardening initiative: `beforeSend`
+does not walk `exceptions`/`contexts`/`tags`/`user`, the `\+243\d{9}` regex misses local and spaced
+forms, `retry_interceptor.dart` documents a query-strip that no code performs, seller-mobile never
+clears the Sentry user on logout, `sendDefaultPii` is unpinned, there are no scrubber tests, and
+`SENTRY_DSN` is empty in both production flavor files so mobile Sentry is currently a no-op.
+
+**Not done, on purpose.** Sentry dashboard-side scrubbing is still recommended as defence in depth and
+has **not** been verified — no Sentry auth token is available in this environment and no remote event
+was inspected. The `global-error.tsx` files in all three web apps still never call `captureException`;
+that is a missing feature, not a leak, and belongs in its own change.
+
+**Verification.** API 904 unit (+24) / 268 e2e; buyer-web 190, seller-web 44, admin-web 63 (+3 each);
+type-check ×5; three production `next build`s. No migration, no environment or secret change, no
+workflow change, no mobile change.
+
 ## Next exact step
 
-**Production is released and hardened; the P1 admin/financial security follow-ups are implemented and
-awaiting review** (`security/admin-financial-followups`). Remaining, each its own small PR into
-`develop` with a merge commit, none started without approval.
+**Production is released and hardened; the P1 admin/financial security follow-ups are MERGED**
+(PR #725, `f9a9b34`) **and the Sentry request-data minimisation is implemented and awaiting review**
+(`security/sentry-request-data-minimization`). Remaining, each its own small PR into `develop` with a
+merge commit, none started without approval.
 
-**P1.** (1) Merge the admin/financial follow-up PR. (2) `security/sentry-request-data`: opt out of the
-SDK's default cookie/header/body capture in `instrument.ts` and the three `sentry.server.config.ts` —
-verified still open, and the only remaining item where a 5xx could carry an OTP code, a password or a
-session cookie to Sentry. (3) `mobile/security-hardening` MS1–MS7 — all verified still open (no
-`allowBackup`, no `IOSOptions`, no scrub tests, no R8/minify) — **before** the next store builds.
-(4) Branch-protection required checks (a repository setting: the `Protect main` ruleset enforces
-merge-commits but no status checks, and `develop` has no rules).
+**P1.** (1) ~~Merge the admin/financial follow-up PR~~ — MERGED as `f9a9b34` (PR #725).
+(2) ~~Sentry request-data opt-out~~ — IMPLEMENTED on `security/sentry-request-data-minimization`,
+open and awaiting review; see the record above. (3) `mobile/security-hardening` MS1–MS7 — all
+verified still open (no `allowBackup`, no `IOSOptions`, no scrub tests, no R8/minify) — **before**
+the next store builds. (4) Branch-protection required checks (a repository setting: the `Protect
+main` ruleset enforces merge-commits but no status checks, and `develop` has no rules).
 
 **P2.** Buyer Web USD price (verified still broken: `priceUSD` typed `number` while the API serialises
 BigInt as a string); seller-web stale-town notice; D2b admin API boundary; the rest of the S11 audit
