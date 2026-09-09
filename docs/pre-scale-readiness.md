@@ -10,8 +10,10 @@
 ## Current phase
 
 **Phase 0 audit complete (PR #671). Implementation started 2026-09-06 with D1 (`security/otp-buyer-only`).
-Buyer Web SEO-1 merged 2026-09-08 (`6234f0c`, PR #713); SEO-2 implemented (`buyer-web/seo-2`, open —
-see « SEO-2 » under PR records).**
+Buyer Web SEO-1 merged 2026-09-08 (`6234f0c`, PR #713) and SEO-2 merged 2026-09-09 (`03035e3`, PR #714)
+— Workstream B COMPLETE; Buyer Web SEO is no longer a release blocker. No SEO-3 is planned or started;
+the deferred findings are listed in the « SEO-2 » record (B/C/E). Next: the owner's decision checkpoint
+before any further initiative.**
 
 ## Baseline (verified first-hand, 2026-09-06)
 
@@ -2742,8 +2744,8 @@ metadata/JSON-LD/redirect tests.
 | Payout destination re-auth / cooling-off (decision 9) | Open | **Yes (P1)** — session theft = redirected payouts; small API change |
 | Search-term analytics privacy (decision 10) | Kept (phones scrubbed) | No (P3: add email scrub) |
 | Avatar deterministic cleanup (decision 11) | Done (D11, derive from URL); 4 legacy orphans await a prod reference check | No (P3) |
-| Empty town/category SEO (decision 5) | Open; needed by SEO-2 | Yes for organic acquisition (P1 with SEO-2) |
-| Likasi metadata (decision 7) | Open; 5 strings | Yes, trivial (P1 with SEO-1) |
+| Empty town/category SEO (decision 5) | DONE — approved and implemented in SEO-2 (`03035e3`): town-scoped `noindex, follow` + sitemap exclusion | Closed |
+| Likasi metadata (decision 7) | DONE — implemented in SEO-2 (`03035e3`): service-area copy, navigation and metadata derive from the active-town API | Closed |
 | Cloudflare AI-crawler policy (decision 6) | Open; managed rule outside the repo | No (P3: document it) |
 
 ### I. CI/CD and supply chain
@@ -2789,8 +2791,10 @@ broad cleanup.
    the release (rate limits and WAF are bypassable direct-to-origin until then).
 
 **P1 — should fix before large-scale deployment**
-3. SEO-1 + SEO-2 (Workstream B, zero products in the sitemap, no rankable HTML) — the organic-acquisition
-   objective is unmet; decisions 5 and 7 needed.
+3. ~~SEO-1 + SEO-2 (Workstream B)~~ — **DONE** (SEO-1 `6234f0c`, SEO-2 `03035e3`, unreleased with the
+   rest of develop). No longer a blocker. Deferred, non-blocking SEO leftovers (header mega-menu SSR,
+   `keywords`, `ItemList`, `/promotions` SSR, 404 double robots meta — B; `og-default.png` design and
+   PostHog deferral — E) are recorded in the « SEO-2 » record; no SEO-3 is planned.
 4. Payout destination re-auth + notice + cooling-off (S12, decision 9).
 5. Seller application document upload: row-first + owner binding + throttle + sweep (S13) — unbounded
    private-asset creation by any authenticated account.
@@ -2915,7 +2919,7 @@ first-deploy section told the operator to `docker compose build` on the VPS and 
 runs `apply-auto.sh`. The `NEXT_PUBLIC_GOOGLE_CLIENT_ID` build-arg note went with it (Google OAuth was
 removed in Apr 2026 and the variable exists nowhere in the code).
 
-### SEO-1 — `buyer-web/seo-1` (Buyer Web SEO, 2026-09-08 — open, awaiting merge approval)
+### SEO-1 — `buyer-web/seo-1` (Buyer Web SEO, 2026-09-08 — MERGED `6234f0c`, PR #713)
 
 Buyer Web only, plus one additive API field. No change to Seller Web, Admin Web, either mobile app,
 business rules, auth, checkout, orders, payments or infrastructure. Every item below was re-audited
@@ -3115,7 +3119,7 @@ brand in JSON-LD; no BreadcrumbList/LocalBusiness on town pages, no `ItemList`; 
 server-rendered initial data + tests, `252f0d0` homepage `<h1>` with banners + shortCode guard),
 plus the docs commit and `sitemap: force-dynamic` (the CI fix, with its own docs update).
 
-### SEO-2 — `buyer-web/seo-2` (Buyer Web SEO, decisions 5 + 7 approved, 2026-09-08 — open, awaiting merge approval)
+### SEO-2 — `buyer-web/seo-2` (Buyer Web SEO, decisions 5 + 7 approved, 2026-09-08 — MERGED `03035e3`, PR #714, 2026-09-09)
 
 SEO-1 merged as `6234f0c` (PR #713; develop CI 15/15 + CodeQL green). SEO-2 implements the two
 policies the owner approved, then classifies and partly fixes the SEO-1 leftovers. Buyer Web plus
@@ -3298,7 +3302,7 @@ are reachable on the API's live upload path (`@nestjs/platform-express`). The ex
 `"multer@<2.2.0": "^2.2.0"` pin is the natural mechanism; a separate decision — taken the same day
 as the sibling PR `security/multer-2.3.0` (#719), recorded below.
 
-### multer 2.3.0 — `security/multer-2.3.0` (dependency security, 2026-09-09 — open, awaiting merge approval)
+### multer 2.3.0 — `security/multer-2.3.0` (dependency security, 2026-09-09 — **merged `bd406cb`, PR #719**)
 
 **Trigger.** Four `multer` advisories published 2026-09-08 21:28–21:30 UTC, minutes after the `sharp` one
 (`security/sharp-0.35.4`): **GHSA-wc9g-mqfw-jrwm** (high 7.5 — two crafted text-field names crash the
@@ -3373,8 +3377,8 @@ with a merge commit, none started without approval: (1) **`develop → main` rel
 everything since `78c6ef9`) — run the release checklist in `docs/deployment.md`, copy
 `nginx/nginx.prod.conf` to the VPS during the window, apply the Cloudflare origin firewall the same
 day — **the owner chose to complete the Buyer Web SEO workstream first**; (2) `buyer-web/seo-1`
-— **merged `6234f0c`**; `buyer-web/seo-2` — **implemented, PR open, awaiting merge approval**
-(decisions 5 and 7 approved and implemented); (3) `security/admin-and-financial` (S12 payout re-auth, S13 application
+— **merged `6234f0c`**; `buyer-web/seo-2` — **merged `03035e3`** (decisions 5 and 7 approved and
+implemented; Workstream B complete, no SEO-3 planned); (3) `security/admin-and-financial` (S12 payout re-auth, S13 application
 uploads, S14/S22 DTO bounds); (4) `mobile/security-hardening` (MS1–MS7);
 (6) Dependabot follow-ups (`esbuild`, stale PRs, bundler — `sharp` done 2026-09-09); (7) D2b / S11 / S16 / iOS runtime
 session. Still open and preserved: API `pendingCDF` vs HELD/`deliveredAt`; login-email change without

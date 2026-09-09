@@ -1,4 +1,4 @@
-# Status — 2026-09-08 (pre-scale readiness — Buyer Web SEO-1 merged `6234f0c`; SEO-2 implemented, PR open awaiting merge approval)
+# Status — 2026-09-09 (pre-scale readiness — Buyer Web SEO-1 `6234f0c` + SEO-2 `03035e3` merged, Workstream B COMPLETE; decision checkpoint pending)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
@@ -51,8 +51,8 @@ phase: COMPLETE (A–D). Seller Mobile functional readiness: COMPLETE, with debt
 `deliveredAt`, notification-permission pre-prompt). Seller Mobile UX/UI A–F: COMPLETE. Android phone
 and tablet (portrait + landscape) runtime verification: PERFORMED for both apps. **iOS/iPad runtime:
 still a validation gap** (uploads and `--no-codesign` builds only, no simulator input tooling).
-**Buyer Web SEO: SEO-1 merged (`6234f0c`, PR #713); SEO-2 implemented on `buyer-web/seo-2` (PR open,
-awaiting merge approval — nothing merged yet).** SEO-2 implements the two approved decisions: an empty
+**Buyer Web SEO: COMPLETE — SEO-1 merged (`6234f0c`, PR #713), SEO-2 merged (`03035e3`, PR #714,
+2026-09-09); no longer a release blocker; no SEO-3 planned or started.** SEO-2 implemented the two approved decisions: an empty
 town × category page (zero eligible products IN THAT TOWN — `publicProductWhere`: ACTIVE, not deleted,
 in the town, not a retired demo; new optional `?cityId=` on the category endpoints, one grouped query
 per tree) is `noindex, follow`, self-canonical, reachable and out of the sitemap, and flips back by
@@ -72,12 +72,13 @@ action — not applied.**
 **`security/sharp-0.35.4` MERGED (`2e0454d`, PR #718):** GHSA-rgj7-g3m4-5g8c (`sharp` < 0.35.4, libheif)
 broke the blocking Dependency Audit; fixed by a root `pnpm.overrides` pin to 0.35.4, with the older
 `sharp` ignore entry GHSA-f88m-g3jw-g9cj removed alongside it (two exceptions left: `effect`,
-`deepmerge-ts`). **`security/multer-2.3.0` open, awaiting merge approval (PR #719):** four `multer`
+`deepmerge-ts`). **`security/multer-2.3.0` MERGED (`bd406cb`, PR #719):** four `multer`
 2.2.0 advisories published the same evening (GHSA-wc9g-mqfw-jrwm, GHSA-qfvm-cv95-jqjf,
 GHSA-535w-7cp7-47q4 high; GHSA-qvfw-j98x-7q72 low; patched in 2.3.0) fail the same gate; fixed by raising
 the root override to `multer@<2.3.0 → ^2.3.0` plus `fieldArrayIndexLimit: 0` on the four multipart
 endpoints (the array-index guard is opt-in in 2.3.0) and a French 400 for multer's new error codes.
-The audit is green only once BOTH are on `develop`.
+**With both on `develop` the blocking Dependency Audit is green again** — only the two documented
+exceptions (`effect`, `deepmerge-ts`) and two low `joi` rows remain.
 
 **Production still runs `main` `78c6ef9` (2026-09-06):** every PR since #670 — the five security PRs,
 the CI gates, the Buyer Mobile functional fixes, tablet and both UX series — is on `develop` only.
