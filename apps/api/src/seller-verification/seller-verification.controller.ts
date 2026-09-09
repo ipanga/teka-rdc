@@ -13,6 +13,8 @@ import { SellerVerificationService } from './seller-verification.service';
 import { UploadSellerDocumentDto } from './dto/upload-seller-document.dto';
 import { documentMaxBytesFromEnv } from './seller-document-storage.service';
 import { multipartFieldNameLimits } from '../common/uploads/image-upload';
+import { Throttle } from '@nestjs/throttler';
+import { IdentityThrottle } from '../common/rate-limit/identity-throttle.decorator';
 
 /**
  * Seller-side verification API (D8): a seller reads and uploads evidence for
@@ -31,6 +33,10 @@ export class SellerVerificationController {
     return this.verification.getOwnStatus(userId);
   }
 
+  // S13 (2026-09-09): bounded by supersession (one live document per type)
+  // but previously unthrottled — a seller could still churn private assets.
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @IdentityThrottle('upload')
   @Post('documents')
   @UseInterceptors(
     FileInterceptor('document', {
