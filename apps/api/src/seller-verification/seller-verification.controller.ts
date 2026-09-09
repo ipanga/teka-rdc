@@ -12,6 +12,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { SellerVerificationService } from './seller-verification.service';
 import { UploadSellerDocumentDto } from './dto/upload-seller-document.dto';
 import { documentMaxBytesFromEnv } from './seller-document-storage.service';
+import { multipartFieldNameLimits } from '../common/uploads/image-upload';
 
 /**
  * Seller-side verification API (D8): a seller reads and uploads evidence for
@@ -33,7 +34,12 @@ export class SellerVerificationController {
   @Post('documents')
   @UseInterceptors(
     FileInterceptor('document', {
-      limits: { fileSize: documentMaxBytesFromEnv(), files: 1, fields: 4 },
+      limits: {
+        fileSize: documentMaxBytesFromEnv(),
+        files: 1,
+        fields: 4,
+        ...multipartFieldNameLimits,
+      },
     }),
   )
   async uploadDocument(

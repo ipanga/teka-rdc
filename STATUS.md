@@ -64,9 +64,21 @@ to lower-case, the « Autre » placeholder never becomes a schema.org Brand, the
 says « Mobile Money ». Deferred with a written classification: header mega-menu SSR, `og-default.png`
 (design), PostHog deferral (analytics), town-page structured data (semantics not met), `keywords`. **Admin/Finance security decisions remain open** (S12 payout re-auth, S21
 SUPPORT/FINANCE, S11 audit rows, D2b). **Mobile security hardening remains open** (MS1–MS7).
-**Dependabot follow-ups remain open** (`sharp`/`esbuild` security jobs failing on the pinned
-exceptions, stale PRs #549/#565/#595, no bundler ecosystem). **The Cloudflare origin firewall is a
-MANUAL pre-release action — not applied.**
+**Dependabot follow-ups remain open** (`esbuild` security job failing on the pinned exception, stale
+PRs #549/#565/#595, no bundler ecosystem). **The Cloudflare origin firewall is a MANUAL pre-release
+action — not applied.**
+
+**Dependency security, 2026-09-08/09 — two advisory batches, two sibling PRs.**
+**`security/sharp-0.35.4` MERGED (`2e0454d`, PR #718):** GHSA-rgj7-g3m4-5g8c (`sharp` < 0.35.4, libheif)
+broke the blocking Dependency Audit; fixed by a root `pnpm.overrides` pin to 0.35.4, with the older
+`sharp` ignore entry GHSA-f88m-g3jw-g9cj removed alongside it (two exceptions left: `effect`,
+`deepmerge-ts`). **`security/multer-2.3.0` MERGED (`bd406cb`, PR #719):** four `multer`
+2.2.0 advisories published the same evening (GHSA-wc9g-mqfw-jrwm, GHSA-qfvm-cv95-jqjf,
+GHSA-535w-7cp7-47q4 high; GHSA-qvfw-j98x-7q72 low; patched in 2.3.0) fail the same gate; fixed by raising
+the root override to `multer@<2.3.0 → ^2.3.0` plus `fieldArrayIndexLimit: 0` on the four multipart
+endpoints (the array-index guard is opt-in in 2.3.0) and a French 400 for multer's new error codes.
+**With both on `develop` the blocking Dependency Audit is green again** — only the two documented
+exceptions (`effect`, `deepmerge-ts`) and two low `joi` rows remain.
 
 **Production still runs `main` `78c6ef9` (2026-09-06):** every PR since #670 — the five security PRs,
 the CI gates, the Buyer Mobile functional fixes, tablet and both UX series — is on `develop` only.

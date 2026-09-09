@@ -2,6 +2,7 @@ import { BadRequestException } from '@nestjs/common';
 import {
   IMAGE_UPLOAD_MAX_BYTES,
   imageUploadLimits,
+  multipartFieldNameLimits,
   validateImageUpload,
 } from './image-upload';
 
@@ -24,6 +25,13 @@ describe('validateImageUpload', () => {
   it('exposes streaming multer limits at the 5 MB ceiling, one file', () => {
     expect(imageUploadLimits.fileSize).toBe(IMAGE_UPLOAD_MAX_BYTES);
     expect(imageUploadLimits.files).toBe(1);
+  });
+
+  it('caps bracketed field-name indexes at 0 on every multipart endpoint (GHSA-535w-7cp7-47q4)', () => {
+    // multer ≥ 2.3.0 only guards the sparse-array DoS when the limit is set;
+    // no Teka client sends bracketed field names, so the minimum is 0.
+    expect(multipartFieldNameLimits.fieldArrayIndexLimit).toBe(0);
+    expect(imageUploadLimits.fieldArrayIndexLimit).toBe(0);
   });
 
   it('rejects an SVG declared as PNG (bytes, not the declared type, decide)', () => {
