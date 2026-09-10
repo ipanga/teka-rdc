@@ -187,6 +187,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user = data['user'] as Map<String, dynamic>?;
       if (user?['role']?.toString() == 'SELLER') {
         await _authRepository.logout();
+        // MS5: this branch returns before the clearPrivateState() below, so
+        // it used to clear tokens and leave the PREVIOUS buyer's cart,
+        // profile, history and searches on disk. Nothing of the seller is
+        // written here, but the person who was signed in before still had
+        // their data sitting on a device that is now signed out.
+        await _scope?.clearPrivateState();
+        _applySentryUser(null);
         state = const AuthState(status: AuthStatus.unauthenticated);
         throw SellerAccountException();
       }

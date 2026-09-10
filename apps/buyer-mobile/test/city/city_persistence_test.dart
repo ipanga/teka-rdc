@@ -43,6 +43,15 @@ class _FakeRepository implements CityRepository {
     return _cities;
   }
 
+  /// MS5: the session-boundary clear must NOT push a null preference to the
+  /// server, so the test needs to see whether this was called.
+  int setPreferredCityCalls = 0;
+
+  @override
+  Future<void> setPreferredCity(String? cityId) async {
+    setPreferredCityCalls++;
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => null;
 }
@@ -220,7 +229,11 @@ void main() {
       notifier.dispose();
     });
 
-    test('clearCity removes the persisted id (logout path)', () async {
+    // NB: this used to be titled "(logout path)". It was not — nothing in
+    // lib/ called clearCity(), so the title implied a guarantee the app did
+    // not make, and MS5's town gap survived behind it. clearCity() is the
+    // buyer deliberately unsetting their town from the UI.
+    test('clearCity removes the persisted id (explicit user action)', () async {
       final storage = _FakeStorage({_cityIdKey: _lubumbashiId});
       final notifier = CityNotifier(_FakeRepository(cities), storage);
       await _settle();
@@ -228,6 +241,49 @@ void main() {
       await notifier.clearCity();
       expect(notifier.state.selectedCity, isNull);
       expect(await storage.read(key: _cityIdKey), isNull);
+      notifier.dispose();
+    });
+
+    // MS5 — the town is private state and must not cross a session boundary.
+    test('clearLocalCity drops the town without syncing null to the profile',
+        () async {
+      final storage = _FakeStorage({_cityIdKey: _lubumbashiId});
+      final repo = _FakeRepository(cities);
+      final notifier = CityNotifier(repo, storage);
+      notifier.isAuthenticated = true;
+      await _settle();
+      expect(notifier.state.selectedCity, isNotNull,
+          reason: 'precondition: a town is held');
+
+      await notifier.clearLocalCity();
+
+      expect(notifier.state.selectedCity, isNull);
+      expect(await storage.read(key: _cityIdKey), isNull);
+      expect(repo.setPreferredCityCalls, 0,
+          reason:
+              'a session boundary must not wipe the outgoing account\'s saved '
+              'preference, and there is no valid session to call with');
+      notifier.dispose();
+    });
+
+    // The concrete symptom the gap produced: B inherits A's town, and because
+    // hydrateFromProfile bails on `if (state.hasCity) return`, B's own
+    // server-side preferredCityId is silently ignored.
+    test('after clearLocalCity the next account gets its OWN profile town',
+        () async {
+      final storage = _FakeStorage({_cityIdKey: _lubumbashiId});
+      final notifier = CityNotifier(_FakeRepository(cities), storage);
+      await _settle();
+
+      // A's town is held; B's profile says Kolwezi.
+      await notifier.hydrateFromProfile(_kolweziId);
+      expect(notifier.state.selectedCity?.id, _lubumbashiId,
+          reason: 'without a clear, A\'s local choice wins — the bug');
+
+      await notifier.clearLocalCity();
+      await notifier.hydrateFromProfile(_kolweziId);
+      expect(notifier.state.selectedCity?.id, _kolweziId);
+      expect(await storage.read(key: _cityIdKey), _kolweziId);
       notifier.dispose();
     });
   });
