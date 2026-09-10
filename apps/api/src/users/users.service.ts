@@ -88,7 +88,13 @@ export class UsersService {
    *
    * Rules:
    *  - name-only updates, and re-sending the SAME email, need no password;
-   *  - a real email change requires the current password, verified against
+   *  - the password is required only when the address is actually a login
+   *    CREDENTIAL, i.e. the account has a `passwordHash`. An OTP buyer has
+   *    none, their phone is the login identity (Rule 13), and their address is
+   *    optional contact information — requiring a password there made the
+   *    field permanently unchangeable for every distributed buyer build;
+   *  - a real change to a credential address requires the current password,
+   *    verified against
    *    the stored hash (never logged, stored or returned). A wrong password
    *    answers 403 — not 401, because every Teka client treats a 401 as an
    *    expired session and would refresh and replay — and counts in the same
@@ -112,22 +118,32 @@ export class UsersService {
     const changingEmail =
       normalisedEmail !== undefined && normalisedEmail !== user.email;
 
-    if (changingEmail) {
+    // Is this address actually a login credential?
+    //
+    // The condition is the presence of a password, NOT the role. `loginWithEmail`
+    // does not filter by role: it accepts any account that has an email and a
+    // `passwordHash`. So the legacy 2026-05-12..05-15 cohort — BUYERs created
+    // with EMAIL_PASSWORD — can still sign in with email + password, and their
+    // address has to stay guarded exactly like a seller's. A `role === 'BUYER'`
+    // check would hand that cohort's address to anyone holding a stolen session.
+    //
+    // Conversely an OTP buyer has no password by construction (Rule 12: the
+    // reset flow refuses BUYER, so one can never be minted for them), and their
+    // phone is the login identity (Rule 13). For them the address is optional
+    // contact information — the field is even labelled « Optionnel » in the app
+    // — so demanding a password made it permanently unchangeable.
+    const credentialHash = user.passwordHash;
+    const emailIsLoginCredential = credentialHash !== null;
+
+    if (changingEmail && credentialHash !== null) {
       if (!dto.password) {
         throw new BadRequestException(
           "Le mot de passe est requis pour modifier l'adresse de connexion.",
         );
       }
-      if (!user.passwordHash) {
-        // Buyers authenticate by WhatsApp OTP and have no password: they have
-        // no login email to change either.
-        throw new BadRequestException(
-          'Aucun mot de passe défini sur le compte.',
-        );
-      }
       const loginKey = user.email ?? user.id;
       await this.rateLimit.assertNotBlocked('login', loginKey);
-      const ok = await verifyPassword(dto.password, user.passwordHash);
+      const ok = await verifyPassword(dto.password, credentialHash);
       if (!ok) {
         await this.rateLimit.enforce('login', loginKey);
         throw new ForbiddenException('Mot de passe invalide.');
@@ -148,7 +164,10 @@ export class UsersService {
             }),
           },
         });
-        if (changingEmail) {
+        // Only a credential change is audited. For an OTP buyer this is an
+        // ordinary profile field, in the same class as firstName, which is
+        // not audited either — and `LOGIN_EMAIL_CHANGED` would be a lie.
+        if (changingEmail && emailIsLoginCredential) {
           await this.audit.record(tx, {
             actorId: userId,
             action: 'LOGIN_EMAIL_CHANGED',
@@ -175,7 +194,10 @@ export class UsersService {
       throw err;
     }
 
-    if (changingEmail && user.email) {
+    // The notice says « vos connexions se feront avec … », which is only true
+    // when the address is the login identity. An OTP buyer signs in with their
+    // phone, so sending it to them would be false.
+    if (changingEmail && emailIsLoginCredential && user.email) {
       const previous = user.email;
       const changedLabel = new Intl.DateTimeFormat('fr-FR', {
         dateStyle: 'long',
