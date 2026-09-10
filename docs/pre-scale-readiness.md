@@ -4003,9 +4003,10 @@ does not populate because the simulator cannot reach the dev API host; that is e
 failure. **Not exercised on physical iOS hardware.**
 
 **Correction to an earlier note.** `SENTRY_DSN` and `POSTHOG_API_KEY` are empty in
-`flavors/production.json`, but `release-mobile-aab.yml` injects both via `--dart-define` from repository
-secrets, so mobile Sentry is NOT a no-op in a real release build. The earlier statement that it was
-applies only to a local build from the checked-in flavor file.
+`flavors/production.json`, but **both** release workflows inject them via `--dart-define` from repository
+secrets — `release-mobile-aab.yml` for Android and `release-mobile-ipa.yml` for iOS. Mobile Sentry and
+PostHog are therefore live in a real release build on both platforms. The earlier statement that Sentry
+was a no-op applies only to a local build from the checked-in flavor file, never to a CI release.
 
 **Store readiness — blocked on one external fact.** Both apps take `versionCode` and `versionName`
 straight from `pubspec.yaml` (`flutter.versionCode` / `flutter.versionName`), and the AAB workflow does
