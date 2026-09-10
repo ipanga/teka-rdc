@@ -3969,6 +3969,60 @@ unchanged at 6 and 5 pre-existing infos. Runtime verification of the R8 builds i
 **Not claimed.** No iOS runtime was exercised. A `flutter build ios` was started but had to be abandoned:
 it reads the working tree, and branch switching during the run made its result meaningless.
 
+### MS1-MS7 close-out — all three PRs merged (2026-09-10)
+
+`develop` `310d718`. Merge order was #727 (`2814d1d`), #728 (`fd97ca9`), #729 (`310d718`), each a real
+merge commit. The tracker conflict predicted between #727 and #729 occurred exactly as described and was
+resolved keep-both, PR A's record first.
+
+**Every item re-verified against merged `develop`, not against notes:** `allowBackup="false"` in both
+manifests with data-extraction rules present (MS1); `_uuidOrNull` in the buyer push router (MS2); the
+host allow-list applied to every scheme in the deep-link parser (MS3); `first_unlock_this_device` in both
+secure-storage providers (MS4); `clearLocalCity` wired and four seller notifier resets (MS5); whole-event
+scrub plus `sendDefaultPii` pinned in both apps (MS6); `isMinifyEnabled = true` with keep rules in both
+Gradle files (MS7). **MS1-MS7 code work is complete.**
+
+**Integrated regression on merged `develop`:** buyer-mobile **520** tests, seller-mobile **487**,
+`flutter analyze` unchanged at 6 and 5 pre-existing infos, workspace `pnpm type-check` clean across all
+five packages.
+
+**Android:** both production AABs rebuilt from merged `develop` with R8 8.11.18 and mapping files
+produced. Inspected inside the bundles — production application ids `com.tootiye.teka` and
+`com.tootiye.tekaseller` with no `.dev` suffix, not debuggable, `allowBackup false` present in the
+built manifest, and no dev endpoint string anywhere in the bundle. Minified development-flavour release
+APKs were then installed on a Pixel 8 Pro emulator; both launched with no ClassNotFound, NoSuchMethod or
+MissingPlugin failures, Firebase initialised, `flutter_secure_storage` opened its encrypted store, and
+the buyer app loaded live towns, categories, images and promotions.
+
+**iOS — now actually verified, unlike the previous attempt.** Device builds succeed for both apps
+(`flutter build ios --no-codesign`, 35.9 MB and 37.0 MB). The new `NSPhotoLibraryUsageDescription` is
+present in the built `Runner.app/Info.plist`, and there is still no `NSAppTransportSecurity` override, so
+ATS stays strict. Simulator builds were installed and launched on an iPhone 17 Pro simulator: buyer
+renders its home screen and town selector, seller renders its login screen, both stay running. Content
+does not populate because the simulator cannot reach the dev API host; that is environmental, not a code
+failure. **Not exercised on physical iOS hardware.**
+
+**Correction to an earlier note.** `SENTRY_DSN` and `POSTHOG_API_KEY` are empty in
+`flavors/production.json`, but `release-mobile-aab.yml` injects both via `--dart-define` from repository
+secrets, so mobile Sentry is NOT a no-op in a real release build. The earlier statement that it was
+applies only to a local build from the checked-in flavor file.
+
+**Store readiness — blocked on one external fact.** Both apps take `versionCode` and `versionName`
+straight from `pubspec.yaml` (`flutter.versionCode` / `flutter.versionName`), and the AAB workflow does
+not override them. iOS is different: `release-mobile-ipa.yml` sets `--build-number=$(date -u +%s)`, so
+`CFBundleVersion` is always unique and monotonic and never needs a manual bump; only the marketing
+version comes from pubspec. Neither workflow uploads to a store, so the repository cannot know the
+highest `versionCode` already accepted by Google Play. **No version was bumped.**
+
+**Branch protection, read-only audit.** `main` carries the ruleset "Protect main" (active) with rules
+`deletion`, `non_fast_forward` and `pull_request`; `allowed_merge_methods` is `["merge"]` only, which is
+what keeps squashes out. It has **no** `required_status_checks` rule and requires **zero** approving
+reviews, and there are no bypass actors. `develop` has no ruleset and no legacy protection at all. The 14
+individual check names now available are: API Tests, Analyze (actions), Analyze (javascript-typescript),
+Dependency Audit, Flutter Analysis (buyer-mobile), Flutter Analysis (seller-mobile), Flutter Tests
+(buyer-mobile), Flutter Tests (seller-mobile), Lint & Type Check, Release Config, Web Build (admin-web),
+Web Build (buyer-web), Web Build (seller-web), Web Tests. Nothing was changed.
+
 ## Next exact step
 
 **Production is released and hardened; the P1 admin/financial security follow-ups are MERGED**
@@ -3976,12 +4030,11 @@ it reads the working tree, and branch switching during the run made its result m
 (`security/sentry-request-data-minimization`). Remaining, each its own small PR into `develop` with a
 merge commit, none started without approval.
 
-**P1.** (1) ~~Merge the admin/financial follow-up PR~~ — MERGED as `f9a9b34` (PR #725).
-(2) ~~Sentry request-data opt-out~~ — IMPLEMENTED on `security/sentry-request-data-minimization`,
-open and awaiting review; see the record above. (3) `mobile/security-hardening` MS1–MS7 — all
-verified still open (no `allowBackup`, no `IOSOptions`, no scrub tests, no R8/minify) — **before**
-the next store builds. (4) Branch-protection required checks (a repository setting: the `Protect
-main` ruleset enforces merge-commits but no status checks, and `develop` has no rules).
+**P1.** (1) ~~Admin/financial follow-ups~~ — MERGED `f9a9b34` (#725). (2) ~~Sentry request-data
+minimisation~~ — MERGED `babd4bd` (#726). (3) ~~Mobile hardening MS1-MS7~~ — MERGED `2814d1d` (#727),
+`fd97ca9` (#728), `310d718` (#729); code work complete, see the close-out above. (4) Branch-protection
+required checks — still the only open P1, and now unblocked. **Next in sequence:** confirm the highest
+Google Play `versionCode` per app, bump versions, then the store builds.
 
 **P2.** Buyer Web USD price (verified still broken: `priceUSD` typed `number` while the API serialises
 BigInt as a string); seller-web stale-town notice; D2b admin API boundary; the rest of the S11 audit
