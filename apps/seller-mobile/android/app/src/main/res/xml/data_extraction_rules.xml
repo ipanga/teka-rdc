@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MS1 — keep account data off Google's servers and off a transferred device.
+
+  `android:allowBackup` defaults to TRUE. Without this, Auto Backup copied
+  `shared_prefs` off-device: the cart snapshot, recently-viewed products and
+  recent searches. Tokens are Keystore-wrapped so they do not restore usable,
+  but the browsing history did.
+
+  `allowBackup="false"` covers cloud backup on every API level. From API 31
+  `dataExtractionRules` governs cloud backup AND device-to-device transfer
+  separately, so both sections are declared: neither channel may take anything.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="external" />
+        <exclude domain="root" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="external" />
+        <exclude domain="root" />
+    </device-transfer>
+</data-extraction-rules>
