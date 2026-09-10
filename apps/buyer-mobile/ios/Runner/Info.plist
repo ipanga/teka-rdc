@@ -30,6 +30,14 @@
 		<string>$(FLUTTER_BUILD_NUMBER)</string>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
+		<!-- Required: personal_info_screen.dart picks a gallery image for the
+		     avatar. iOS TERMINATES the app when a privacy-sensitive API is
+		     called with no usage string, so without this the avatar picker
+		     crashed on device and the binary would fail App Review.
+		     Gallery only: the buyer app never opens the camera, so
+		     NSCameraUsageDescription is deliberately absent. -->
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Teka accède à vos photos pour choisir votre photo de profil.</string>
 		<key>UIApplicationSceneManifest</key>
 		<dict>
 			<key>UIApplicationSupportsMultipleScenes</key>
