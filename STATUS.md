@@ -1,4 +1,4 @@
-# Status — 2026-09-10 (production at `main` `9a89249`; `develop` `3b099db`. MS1-MS7 mobile hardening COMPLETE and merged (#727, #728, #729, docs #730). Branch protection APPLIED to both `main` and `develop` with 13 required checks, verified. Nothing deployed, no version bumped, no store build created. **Only remaining blocker: the highest Google Play versionCode per app, which the owner must read from Play Console.**)
+# Status — 2026-09-10 (production `main` `eace209`; `develop` `315040b`. iOS keychain P1 **CLOSED** — Seller build 1789043831 verified on a physical iPhone. Taxonomy PR #740 open: ordinary milk, alcohol branch, deodorant dedup, 2 product moves. No migration executed, nothing deployed, no version bumped.)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 

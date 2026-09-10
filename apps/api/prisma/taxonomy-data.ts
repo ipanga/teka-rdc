@@ -131,6 +131,25 @@ const DEODORANT: AttrTpl[] = [
   { fr: 'Parfum', type: TEXT },
 ];
 
+// Alcohol. « Marque » is deliberately absent: Brand is the first-class Brand
+// entity (see the Rules at the top of this file), not an attribute, so adding
+// it here would duplicate it in the seller form.
+const ALCOHOL_DEGREE: AttrTpl = { fr: "Degré d'alcool", type: TEXT };
+const ORIGIN: AttrTpl = { fr: "Pays d'origine", type: TEXT };
+const BEER: AttrTpl[] = [VOLUME, ALCOHOL_DEGREE];
+const WINE: AttrTpl[] = [
+  { fr: 'Type', type: SELECT, options: ['Rouge', 'Blanc', 'Rosé', 'Pétillant'] },
+  VOLUME,
+  ALCOHOL_DEGREE,
+  ORIGIN,
+];
+const SPIRIT: AttrTpl[] = [
+  { fr: 'Type', type: SELECT, options: ['Whisky', 'Vodka', 'Rhum', 'Gin', 'Cognac', 'Liqueur'] },
+  VOLUME,
+  ALCOHOL_DEGREE,
+  ORIGIN,
+];
+
 const DIAPER: AttrTpl[] = [{ fr: 'Taille', type: TEXT }, WEIGHT];
 const MAKEUP: AttrTpl[] = [{ fr: 'Teinte', type: TEXT }, EXPIRY];
 const SKINCARE: AttrTpl[] = [{ fr: 'Type de peau', type: SELECT, options: ['Normale', 'Sèche', 'Grasse', 'Mixte', 'Sensible'] }, VOLUME, EXPIRY];
@@ -169,6 +188,13 @@ export const STRICT_CATEGORIES: CategoryDef[] = [
       // of Alimentation because the tree is exactly three levels deep.
       // Infant formula deliberately stays under Bébé: different product family.
       { n: 106, fr: 'Lait & Produits Laitiers', types: [t(10601, 'Lait en poudre', MILK), t(10602, 'Lait liquide / UHT', MILK), t(10603, 'Lait concentré / évaporé', MILK)] },
+      // Alcohol (2026-09-10). The tree had NO alcohol leaf at all, so the one
+      // whisky in production sat directly on the intermediate « Boissons »
+      // node — which the model does not allow for a product. Kept out of
+      // « Boissons » so a shopper (and a delivery rider) can tell alcoholic
+      // from non-alcoholic at a glance. Three leaves only: what Lubumbashi and
+      // Kolwezi retail actually carries, not a speculative drinks cellar.
+      { n: 107, fr: 'Boissons Alcoolisées', types: [t(10701, 'Bières', BEER), t(10702, 'Vins', WINE), t(10703, 'Spiritueux', SPIRIT)] },
     ],
   },
   {
@@ -288,4 +314,11 @@ export const STRICT_BRANDS: BrandDef[] = [
   { n: 47, fr: 'Nestlé', types: [10503, 10204, 10105, 10601, 10602] },
   { n: 48, fr: 'Pampers', types: [10501, 10502] },
   { n: 49, fr: 'Huggies', types: [10501, 10502] },
+  // Alcohol brands (2026-09-10). Deliberately few: only what is actually on
+  // the shelf in Lubumbashi and Kolwezi. `Autre` (n:1) links to every leaf, so
+  // a seller carrying anything else is never blocked.
+  { n: 50, fr: 'Johnnie Walker', types: [10703] },
+  { n: 51, fr: 'Primus', types: [10701] },
+  { n: 52, fr: 'Simba', types: [10701] },
+  { n: 53, fr: 'Heineken', types: [10701] },
 ];

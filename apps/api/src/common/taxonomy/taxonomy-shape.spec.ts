@@ -96,6 +96,49 @@ describe('taxonomy — deodorants are no longer duplicated', () => {
   });
 });
 
+describe('taxonomy — alcohol', () => {
+  const alcohol = SUPERMARCHE.subs.find((s) => s.n === 107);
+
+  it('an alcohol branch exists, so a spirit no longer has to sit on an intermediate node', () => {
+    expect(alcohol).toBeDefined();
+    expect(alcohol!.fr).toBe('Boissons Alcoolisées');
+    expect(alcohol!.types.map((t) => t.fr)).toEqual(['Bières', 'Vins', 'Spiritueux']);
+  });
+
+  it('alcohol is separate from the non-alcoholic Boissons subcategory', () => {
+    const boissons = SUPERMARCHE.subs.find((s) => s.n === 102)!;
+    expect(boissons.types.map((t) => t.fr)).toEqual([
+      'Eau', 'Jus', 'Sodas', 'Café', 'Thé', 'Boissons énergétiques',
+    ]);
+    expect(boissons.types.some((t) => /bière|vin|spiritueux/i.test(t.fr))).toBe(false);
+  });
+
+  it('Spiritueux carries the attributes a buyer actually chooses on', () => {
+    const spirit = alcohol!.types.find((t) => t.fr === 'Spiritueux')!;
+    const names = (spirit.attrs ?? []).map((a) => a.fr);
+    expect(names).toEqual(['Type', 'Volume', "Degré d'alcool", "Pays d'origine"]);
+  });
+
+  it('« Marque » is NEVER an attribute — Brand is the first-class entity', () => {
+    for (const l of leaves) {
+      for (const a of l.attrs ?? []) {
+        expect(a.fr).not.toMatch(/^Marque$/i);
+      }
+    }
+  });
+
+  it('Johnnie Walker is offered on Spiritueux, and only there', () => {
+    const jw = STRICT_BRANDS.find((b) => b.fr === 'Johnnie Walker');
+    expect(jw).toBeDefined();
+    expect(jw!.types).toEqual([10703]);
+  });
+
+  it('the catch-all brand still links everywhere, so no seller is blocked', () => {
+    const autre = STRICT_BRANDS.find((b) => b.fr === 'Autre')!;
+    expect(autre.types).toEqual([]);
+  });
+});
+
 describe('taxonomy — nothing else moved', () => {
   it('every numeric key stays unique', () => {
     const keys = leaves.map((l) => l.n);
