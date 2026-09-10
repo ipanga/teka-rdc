@@ -1,4 +1,4 @@
-# Status — 2026-09-10 (production RELEASED and HARDENED at `main` `9a89249`; P1 admin/financial follow-ups MERGED `f9a9b34` #725; Sentry request-data minimisation MERGED `babd4bd` #726; mobile hardening MS1-MS7 — PR A MERGED `2814d1d` #727, PR B MERGED `fd97ca9` #728, PR C #729 open. Nothing deployed, no store build created.)
+# Status — 2026-09-10 (production RELEASED and HARDENED at `main` `9a89249`; `develop` `310d718`. MS1-MS7 mobile hardening COMPLETE and merged — #727 `2814d1d`, #728 `fd97ca9`, #729 `310d718`. Android and iOS builds validated, Android and iOS simulator runtime exercised. Nothing deployed, no version bumped, no store build created. Remaining P1: branch-protection required checks.)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
