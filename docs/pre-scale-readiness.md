@@ -4125,6 +4125,50 @@ by the gate as non-destructive and idempotent. It inserts two subcategories and 
 re-run is a no-op, and deactivates the duplicate leaf guarded on it still being empty. Nothing is
 deleted. Rollback is written into the file. **Not executed.**
 
+## P2 follow-up — the missing product characteristics (2026-09-10)
+
+`2026-09-10_taxonomy_milk_alcohol_deodorant.sql` shipped and was applied to production. It did what it
+said: eight category rows, two product moves, one leaf retired. What it did **not** do — and what no
+review caught — was create the `product_attributes` rows for the leaves it introduced.
+
+**Confirmed in production, read-only, after the release:**
+
+| Leaf | Attributes in production | Should be |
+|---|---|---|
+| Lait en poudre / Lait liquide UHT / Lait concentré | *none* | Forme, Type, Poids / Volume, Date d'expiration |
+| Bières | *none* | Volume, Degré d'alcool |
+| Vins / Spiritueux | *none* | Type, Volume, Degré d'alcool, Pays d'origine |
+| Déodorants (60202, canonical) | Volume, Date d'expiration | Format, Volume, Anti-transpirant, Parfum |
+
+So a seller listing a milk or an alcohol got an **empty** characteristics form
+(`GET /v1/browse/categories/:id/attributes` → `[]`), and a deodorant was asked for an expiry date
+instead of its format and scent. No data was lost and nothing was broken for buyers — the products
+themselves were filed correctly — but the leaves were unusable for structured listing.
+
+**Why it happened (the architectural finding).** `taxonomy-data.ts` is the source of truth for both the
+tree *and* the attribute templates, but only `seed.ts` reads it. `seed.ts` cannot be pointed at
+production for a targeted change — it deactivates every category and rewrites the whole brand library
+first — so taxonomy edits ship as hand-written SQL. The tree half of that SQL was written; the attribute
+half was silently forgotten, because the two definitions had no mechanical link.
+
+**The fix.** `prisma/scripts/taxonomy-attribute-sql.ts` **generates** the attribute SQL from
+`taxonomy-data.ts`. `2026-09-10_taxonomy_attribute_backfill.sql` carries that output verbatim between
+`GENERATED BLOCK BEGIN/END` markers, and `taxonomy-attribute-sql.spec.ts` re-renders it on every CI run.
+The last of its twelve tests is the structural guard: for **every** product-type leaf inserted by **any**
+manual migration, the union of manual migrations must insert that leaf's full attribute set. Injecting a
+new leaf without characteristics makes it fail and names the missing rows.
+
+26 rows: 24 pure inserts on ids unused in production, plus the two canonical-deodorant rows corrected in
+place. That correction is safe because **zero** `product_specifications` reference either row, so no
+seller-entered value is rewritten or orphaned. Verified by applying the file to the development database
+three times: identical state after each, row counts unchanged, no orphaned specifications.
+**Not executed against production.**
+
+**Recommended future improvement (not done here — it is a seed refactor, not a migration fix):** give
+`seed.ts` a scoped `--only=taxonomy` mode that upserts the tree and attributes without the
+deactivate-everything preamble, so dev and prod share one code path and manual taxonomy SQL becomes
+unnecessary.
+
 ## Next exact step
 
 **Production is released and hardened; the P1 admin/financial security follow-ups are MERGED**
