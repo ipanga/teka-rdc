@@ -125,18 +125,107 @@ describe('UsersService.updateProfile — login-email change requires re-auth', (
     expect(audit.record).not.toHaveBeenCalled();
   });
 
-  it('an account with no password (buyer, WhatsApp OTP) cannot change a login email', async () => {
+  /**
+   * Buyer compatibility (2026-09-10).
+   *
+   * The first version of this guard required a password for ANY email change.
+   * Buyers sign in with a phone and a WhatsApp OTP (Rule 13) and have no
+   * password by construction, so their optional contact email — the field is
+   * labelled « Optionnel » in the app — became permanently unchangeable, and
+   * every distributed buyer build got a French 400 telling them to supply a
+   * password they can never have. These tests pin the corrected rule.
+   */
+  const OTP_BUYER = {
+    id: USER,
+    email: CURRENT,
+    firstName: 'Marie',
+    lastName: 'K',
+    passwordHash: null,
+    deletedAt: null,
+  };
+
+  it('an OTP buyer changes their optional email with NO password', async () => {
+    const { service, tx } = makeService(OTP_BUYER);
+    const res = await service.updateProfile(USER, { email: NEXT });
+    expect(tx.user.update.mock.calls[0][0].data).toMatchObject({
+      email: NEXT,
+      emailVerified: false,
+    });
+    expect(res.email).toBe(NEXT);
+  });
+
+  it('an OTP buyer email change is not audited and sends no login notice', async () => {
+    const { service, audit, emailService, rateLimit } = makeService(OTP_BUYER);
+    await service.updateProfile(USER, { email: NEXT });
+    await flush();
+    // `LOGIN_EMAIL_CHANGED` would be a lie, and the notice says « vos
+    // connexions se feront avec … », which is false for a phone login.
+    expect(audit.record).not.toHaveBeenCalled();
+    expect(emailService.sendLoginEmailChanged).not.toHaveBeenCalled();
+    // No credential was checked, so nothing may touch the login lock.
+    expect(rateLimit.assertNotBlocked).not.toHaveBeenCalled();
+    expect(rateLimit.enforce).not.toHaveBeenCalled();
+  });
+
+  it('an OTP buyer keeps the existing validation: unchanged email is a no-op', async () => {
+    const { service, tx } = makeService(OTP_BUYER);
+    await service.updateProfile(USER, { email: CURRENT });
+    expect(tx.user.update.mock.calls[0][0].data).not.toHaveProperty('email');
+  });
+
+  it('an OTP buyer still gets the French 409 on a duplicate address', async () => {
+    const { service } = makeService(OTP_BUYER, {
+      updateError: new Prisma.PrismaClientKnownRequestError('dup', {
+        code: 'P2002',
+        clientVersion: 'x',
+      }),
+    });
+    const err = await service
+      .updateProfile(USER, { email: NEXT })
+      .catch((e) => e);
+    expect(err).toBeInstanceOf(ConflictException);
+    expect(JSON.stringify(err.getResponse())).toMatch(/ne peut pas être utilisée/);
+  });
+
+  it('a buyer who DOES hold a password is still guarded — the rule is the credential, not the role', async () => {
+    // The legacy 2026-05-12..05-15 cohort: BUYERs created with EMAIL_PASSWORD.
+    // `loginWithEmail` does not filter by role, so their address is a working
+    // login credential. A `role === 'BUYER'` shortcut would hand it to anyone
+    // holding a stolen session.
+    const { service, prisma } = makeService({
+      id: USER,
+      email: CURRENT,
+      firstName: 'Marie',
+      lastName: 'K',
+      passwordHash: HASH,
+      deletedAt: null,
+    });
+    await expect(service.updateProfile(USER, { email: NEXT })).rejects.toThrow(
+      BadRequestException,
+    );
+    await expect(service.updateProfile(USER, { email: NEXT })).rejects.toThrow(
+      /mot de passe est requis/i,
+    );
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('a buyer with a password still needs the CORRECT one', async () => {
     const { service } = makeService({
       id: USER,
       email: CURRENT,
-      firstName: null,
-      lastName: null,
-      passwordHash: null,
+      firstName: 'Marie',
+      lastName: 'K',
+      passwordHash: HASH,
       deletedAt: null,
     });
     await expect(
-      service.updateProfile(USER, { email: NEXT, password: 'x' }),
-    ).rejects.toThrow(/Aucun mot de passe/i);
+      service.updateProfile(USER, { email: NEXT, password: 'wrong' }),
+    ).rejects.toThrow(ForbiddenException);
+    const ok = await service.updateProfile(USER, {
+      email: NEXT,
+      password: PASSWORD,
+    });
+    expect(ok.email).toBe(NEXT);
   });
 
   it('the correct password changes the email, resets verification, audits with MASKED addresses and notifies the PREVIOUS one — the password appears nowhere', async () => {
