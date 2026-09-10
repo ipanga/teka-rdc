@@ -70,6 +70,7 @@ base64 -w0 teka-buyer-upload.jks
 | `SELLER_KEYSTORE_PASSWORD` | seller store password |
 | `SELLER_KEY_PASSWORD` | seller key password |
 | `SELLER_KEY_ALIAS` | `teka-seller` |
+| `PLAY_SERVICE_ACCOUNT_JSON_B64` | base64 of the Play service-account JSON — **shared by both apps**, powers the automated upload (**§6**) |
 
 Already present (FCM): `BUYER_GOOGLE_SERVICES_JSON_B64`,
 `SELLER_GOOGLE_SERVICES_JSON_B64`. The **production** `google-services.json`
@@ -156,6 +157,10 @@ workspace. The trap only bites when opening the project by hand in Xcode.
 
 ## 4. Build the AAB
 
+> Since 2026-09-10 the same workflow can also **upload to Play for you**, behind
+> an approval gate — see **§6 Android Play upload (automated CI)**. The manual
+> artifact download below still works and remains the fallback.
+
 **CI (recommended):** Actions → **"Release mobile AAB"** → Run workflow → pick
 `buyer` / `seller` / `both`. It signs with the upload key, builds the production
 release bundle, verifies it's **not** debug-signed, and uploads
@@ -220,6 +225,135 @@ flutter build appbundle --release --flavor production \
 - [ ] Confirm Sentry receives events from the production build (symbol upload runs
       when `SENTRY_AUTH_TOKEN` is set).
 - [ ] Confirm FCM push delivery on a real installed build.
+
+## 6. Android Play upload (automated CI)
+
+The Android mirror of the iOS TestFlight pipeline. `Release mobile AAB` builds the
+bundle, then — **after a human approves the `android-play` environment** — uploads
+it to a Play **testing** track via Fastlane `supply`.
+
+### Flow
+
+```
+build job      keystore → flutter build appbundle → Sentry symbols
+               → .aab artifact + mapping.txt artifact
+   ↓
+[approval]     the `play` job is bound to the protected `android-play`
+               environment — a reviewer must approve before it starts
+   ↓
+play job       download artifacts → fastlane android upload_play
+```
+
+### Running it
+
+Actions → **Release mobile AAB** → Run workflow:
+
+| Input | Default | Notes |
+|---|---|---|
+| `app` | `buyer` | `buyer` \| `seller` \| `both` |
+| `track` | `internal` | `internal` \| `alpha`. **`production` is not offered.** |
+| `dry_run` | `false` | Validates against Play and publishes nothing |
+| `skip_upload` | `false` | Build the artifact only — the `play` job never runs |
+
+Approve the pending deployment when GitHub prompts, and the build appears in
+Play Console → Internal testing within a couple of minutes. No Google review.
+
+> **First run: use `dry_run = true`.** It exercises the credential, the package
+> mapping and the bundle end to end while Google discards the edit.
+
+### Production is not automated — two independent locks
+
+1. The `track` input offers no production option, and `resolve_play_track` in
+   `fastlane/Fastfile` refuses `production` by name with an explicit error.
+2. The Play service account is granted **"Release apps to testing tracks"** only.
+
+Both apps are already live. An automated production push reaches every existing
+user on auto-update and Play has no "unrelease". **Promotion from a testing track
+to Production stays a manual Play Console action.**
+
+> ⚠️ `upload_to_play_store`'s `track` parameter **defaults to `production`**
+> (verified against the installed Fastlane via `Supply::Options`). Omitting it
+> does not fall back to something harmless. `fastlane/play_tracks_test.rb` asserts
+> it is always passed from the resolver.
+
+### The store listing is never touched
+
+`supply` uploads metadata, images, screenshots and changelogs **by default** —
+all four flags default to `false`. There is no `fastlane/metadata/android`
+directory in this repo, so an unpinned release would push emptiness over two
+live, human-written French listings. The lane pins all four:
+
+```ruby
+skip_upload_metadata:    true,
+skip_upload_images:      true,
+skip_upload_screenshots: true,
+skip_upload_changelogs:  true,
+```
+
+These are not tidiness flags. `play_tracks_test.rb` fails the build if any is
+removed. Store-listing edits stay in the Play Console.
+
+### Operator one-time setup (cannot be automated)
+
+Completed 2026-09-10. Recorded here so it can be rebuilt or audited.
+
+1. **Google Cloud** — project `teka-play-publisher`, Google Play Android Developer
+   API enabled, service account
+   `teka-play-publisher@teka-play-publisher.iam.gserviceaccount.com`, JSON key
+   downloaded. **No Google Cloud IAM roles** — Play permissions are granted in
+   Play Console, not GCP.
+2. **Play Console → Users and permissions** — invite the service-account email,
+   grant access to **both** apps, permissions limited to **View app information**
+   + **Release apps to testing tracks**. Production deliberately withheld.
+3. **GitHub secret** `PLAY_SERVICE_ACCOUNT_JSON_B64` = `base64 -i key.json`.
+   **One secret, shared by both apps** — unlike the per-app keystores and the
+   per-app App Store Connect keys. A leak reaches both listings.
+4. **GitHub environment** `android-play` with **required reviewers**.
+
+> Play permission changes can take **up to 24 hours** to propagate. A `403` on a
+> first run is usually this, not a broken key.
+
+### Crash deobfuscation (R8)
+
+R8 minification is on for both apps (`isMinifyEnabled = true`). The build job
+uploads `mapping.txt` as its own artifact and the lane passes it to Play via
+`mapping_paths`, so Play crash reports and ANRs are readable. A missing mapping
+is a **warning, not a failure** — the release still ships, but its crash reports
+stay obfuscated.
+
+### Credential handling
+
+The service-account JSON is passed as `json_key_data:` (in-memory), never
+`json_key:` (a file path). It is never written to disk, logged, echoed by the
+workflow, or placed in the job summary. `play_tracks_test.rb` asserts all of
+this. The workflow's fail-fast step tests only `-z` on the variable.
+
+### Troubleshooting
+
+| Symptom | Cause / fix |
+|---|---|
+| `403 The caller does not have permission` | Permission not propagated yet (up to 24 h), or the service account was not granted access to *that* app. Check both apps are listed under its Play Console user entry. |
+| `403` mentioning the track | You asked for a track the account cannot publish to. Only `internal` and `alpha` are granted. |
+| `APK specifies a version code that has already been used` | `versionCode` must be **strictly greater than any previously uploaded on any track**, including builds you later removed. Bump `version:` in `pubspec.yaml`. |
+| `Package not found: com.tootiye.…` | The service account cannot see the app, or the package id is wrong. `play_tracks_test.rb` checks the id against `build.gradle.kts`. |
+| `PLAY_SERVICE_ACCOUNT_JSON_B64 did not decode to JSON` | Re-encode with `base64 -i key.json`; some tools wrap lines or add a trailing newline. |
+| Job never starts | It is waiting on the `android-play` approval — Actions → the run → **Review pending deployments**. |
+| Uploaded, but no tester sees it | Testers are added **per track in Play Console**. Uploading alone shows nobody anything — the same trap the iOS pipeline hit in Aug 2026. |
+| Store listing looks wrong after a release | Should be impossible (four skip flags + CI guard). If it happens, Play Console → Store listing keeps a version history to restore from. |
+
+### Recovery — a bad build reached a testing track
+
+Play cannot delete a released bundle. To stop a bad build reaching testers:
+
+1. Play Console → the track → **Releases** → halt / remove the release from the
+   track. Existing installs are unaffected.
+2. Build a **higher** `versionCode` with the fix and release it to the same
+   track. A higher code always wins; you cannot re-release a lower one.
+3. If it only reached `internal`, no public user was affected — the track is
+   limited to the testers you listed.
+
+Since production is never automated, the worst case is a bad build in front of
+your own testers, not your users.
 
 ## iOS — TestFlight / App Store (automated CI)
 

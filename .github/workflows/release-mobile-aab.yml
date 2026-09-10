@@ -1,13 +1,30 @@
-# Mobile release build — signed production App Bundle (AAB) for the Play Store.
+# Mobile release build — signed production App Bundle (AAB) → Google Play
+# testing track (Android mirror of "Release mobile IPA").
 #
 # Triggered manually from the Actions tab → "Release mobile AAB" → Run workflow.
-# Produces a release-signed, production-flavor `.aab` you upload to Google Play
-# (Play Console → Production / a testing track). Unlike "Build mobile APK"
-# (debug-signed APKs for internal install), this signs with the real upload
-# keystore and outputs an App Bundle — the Play Store's required format.
+# Produces a release-signed, production-flavor `.aab`, then (after a human
+# approves the `android-play` environment) uploads it to a Play TESTING track.
+# Unlike "Build mobile APK" (debug-signed APKs for internal install), this signs
+# with the real upload keystore and outputs an App Bundle.
 #
 # Inputs:
-#   app = buyer | seller | both   (default: buyer)
+#   app      = buyer | seller | both   (default: buyer)
+#   track    = internal | alpha        (default: internal) — NEVER production
+#   dry_run  = validate against Play and publish nothing (default: false)
+#   skip_upload = build the artifact only, no Play job at all (default: false)
+#
+# Flow (per app):
+#   build job      → keystore → flutter build appbundle → dSYM/symbols → Sentry
+#                    → .aab artifact (+ mapping.txt artifact)
+#   [approval gate]  the `play` job is bound to the protected `android-play`
+#                    GitHub Environment; a reviewer must approve before it runs.
+#   play job       → download .aab + mapping.txt → fastlane android upload_play
+#
+# PRODUCTION IS NOT AUTOMATED, by two independent locks: the `track` input has
+# no production option and the Fastfile refuses it, and the Play service account
+# is granted testing-track permission only. Both apps are already live; an
+# automated production push reaches every user on auto-update and cannot be
+# recalled. Promote from a testing track in the Play Console, by hand.
 #
 # Always builds the `production` flavor in `release` mode — there is no reason
 # to upload a dev/staging or debug bundle to Play.
@@ -20,6 +37,13 @@
 #   <APP>_GOOGLE_SERVICES_JSON_B64 base64 of android/app/google-services.json
 # Optional: POSTHOG_API_KEY (shared publishable phc_ key → mobile analytics;
 #           empty → PostHog no-op), SENTRY_DSN_<APP>_MOBILE, SENTRY_AUTH_TOKEN (symbol upload).
+#
+# Required for the Play upload job (ONE secret, shared by both apps — unlike the
+# per-app keystores and the per-app App Store Connect keys):
+#   PLAY_SERVICE_ACCOUNT_JSON_B64  base64 of the Google Play service-account JSON
+#
+# One-time operator setup (service account, Play Console permissions, the
+# android-play environment + reviewers): see docs/mobile-release.md.
 #
 # Generate the keystore + populate the secrets per docs/mobile-release.md.
 # When the signing secrets are absent the build would fall back to debug
@@ -36,6 +60,22 @@ on:
         type: choice
         default: buyer
         options: [buyer, seller, both]
+      track:
+        description: 'Play testing track (production is never offered)'
+        required: true
+        type: choice
+        default: internal
+        options: [internal, alpha]
+      dry_run:
+        description: 'Validate against Play without publishing anything'
+        required: false
+        type: boolean
+        default: false
+      skip_upload:
+        description: 'Build the AAB only — do not run the Play upload job'
+        required: false
+        type: boolean
+        default: false
 
 # Least privilege (PR 5): the workflow token can only read the repo; jobs that
 # need more declare it themselves.
@@ -156,3 +196,98 @@ jobs:
           name: ${{ matrix.app }}-mobile-production-release-aab
           path: apps/${{ matrix.app }}-mobile/build/app/outputs/bundle/productionRelease/app-production-release.aab
           retention-days: 30
+
+      # R8 minification is ON for both apps' release builds
+      # (android/app/build.gradle.kts → isMinifyEnabled = true). Without this
+      # file every Play crash report and ANR is an unreadable stack of
+      # obfuscated symbols. Kept as its OWN artifact so the existing
+      # `*-production-release-aab` artifact keeps exactly the shape operators
+      # already download by hand.
+      - name: Check for the R8 mapping file
+        id: mapping
+        working-directory: apps/${{ matrix.app }}-mobile
+        run: |
+          map="build/app/outputs/mapping/productionRelease/mapping.txt"
+          if [ -s "$map" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "✓ mapping.txt present ($(wc -c < "$map") bytes)"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::mapping.txt not found at $map — Play crash reports for this build will stay obfuscated"
+          fi
+
+      - name: Upload R8 mapping artifact
+        if: steps.mapping.outputs.found == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ${{ matrix.app }}-mobile-production-release-mapping
+          path: apps/${{ matrix.app }}-mobile/build/app/outputs/mapping/productionRelease/mapping.txt
+          retention-days: 30
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Play upload — gated on a human approving the `android-play` environment.
+  # The build above has already run; only the publish waits.
+  # ──────────────────────────────────────────────────────────────────────────
+  play:
+    needs: build
+    if: ${{ !inputs.skip_upload }}
+    runs-on: ubuntu-latest
+    # Protected environment — a reviewer must approve before this job starts.
+    environment: android-play
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ inputs.app == 'both' && fromJSON('["buyer","seller"]') || fromJSON(format('["{0}"]', inputs.app)) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Set up Ruby + Fastlane
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1.321.0
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+
+      - name: Fail fast if the Play credential is missing
+        env:
+          PLAY_JSON_B64: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON_B64 }}
+        run: |
+          # -z only; the value itself is never echoed, compared in a command
+          # line, or written to a file.
+          if [ -z "${PLAY_JSON_B64}" ]; then
+            echo "::error::PLAY_SERVICE_ACCOUNT_JSON_B64 is not set — see docs/mobile-release.md § Android Play upload."
+            exit 1
+          fi
+          echo "✓ Play service-account secret present"
+
+      - name: Download AAB artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ matrix.app }}-mobile-production-release-aab
+          path: aab
+
+      # The build job skips this artifact when R8 produced no mapping, so the
+      # download must tolerate its absence rather than fail the release.
+      - name: Download R8 mapping artifact
+        continue-on-error: true
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ matrix.app }}-mobile-production-release-mapping
+          path: mapping
+
+      - name: Upload to Google Play
+        env:
+          TEKA_APP: ${{ matrix.app }}
+          # The Fastfile picks the package id by TEKA_APP, so the workflow never
+          # chooses which listing a bundle lands on.
+          PLAY_JSON_B64: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON_B64 }}
+          PLAY_TRACK: ${{ inputs.track }}
+          PLAY_VALIDATE_ONLY: ${{ inputs.dry_run }}
+        run: |
+          AAB_PATH=$(ls "${GITHUB_WORKSPACE}"/aab/*.aab | head -1)
+          export AAB_PATH
+          MAPPING_PATH="${GITHUB_WORKSPACE}/mapping/mapping.txt"
+          [ -s "${MAPPING_PATH}" ] || MAPPING_PATH=""
+          export MAPPING_PATH
+          echo "Uploading ${AAB_PATH} for ${TEKA_APP} → track ${PLAY_TRACK}"
+          bundle exec fastlane android upload_play
