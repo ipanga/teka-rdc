@@ -202,7 +202,15 @@ void main() {
       (tester) async {
     final repo = FixtureEarningsRepository(
         wallet: wallet(availableFc: 63000), saved: _savedAirtel);
-    repo.now = () => DateTime(2026, 9, 9, 14, 5);
+    // The widget reads the REAL clock for the cooling-off check
+    // (request_payout_screen.dart:267), so a hard-coded fixture date made this
+    // test flip from pass to fail the moment wall-clock time passed it — it
+    // began failing in CI on 2026-09-10 at 14:05 UTC. Anchor the fixture to
+    // `now` instead, the pattern the rest of this file already uses, so the
+    // cooling-off is always genuinely in force while the test runs.
+    final changedAt = DateTime.now();
+    final availableAt = changedAt.add(const Duration(hours: 24));
+    repo.now = () => changedAt;
     await _pump(tester, repo);
     await _openEditor(tester);
 
@@ -220,7 +228,8 @@ void main() {
     expect(repo.savedDestinations.single.values, isNot(contains('Secret123')));
     expect(
         find.text(
-            'Destination enregistrée. Les retraits seront possibles à partir du 10 septembre 2026 à 14:05'),
+            'Destination enregistrée. Les retraits seront possibles à partir du '
+            '${payoutAvailabilityLabel(availableAt)}'),
         findsOneWidget);
     // Editor collapsed onto the new destination; nothing was requested.
     expect(find.byType(TextFormField), findsNothing);
@@ -231,7 +240,8 @@ void main() {
     expect(_submitButton(tester).enabled, isFalse);
     expect(
         find.text(
-            'Destination modifiée récemment : retraits possibles à partir du 10 septembre 2026 à 14:05'),
+            'Destination modifiée récemment : retraits possibles à partir du '
+            '${payoutAvailabilityLabel(availableAt)}'),
         findsOneWidget);
     // Reopening shows an EMPTY password field.
     await _openEditor(tester);

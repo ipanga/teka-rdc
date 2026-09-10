@@ -112,6 +112,44 @@ const JEWELRY: AttrTpl[] = [{ fr: 'Matière', type: SELECT, options: ['Or', 'Arg
 const FOOD: AttrTpl[] = [WEIGHT, EXPIRY];
 const BEVERAGE: AttrTpl[] = [VOLUME, EXPIRY];
 const CONSUMABLE: AttrTpl[] = [VOLUME, EXPIRY];
+// Ordinary household milk. Deliberately NOT the FOOD template: a shopper picks
+// milk by form and size, and « lait infantile » keeps its own weight+expiry
+// shape (infant formula is a different product family — see Bébé).
+const MILK: AttrTpl[] = [
+  { fr: 'Forme', type: SELECT, options: ['Poudre', 'Liquide', 'Concentré'] },
+  { fr: 'Type', type: SELECT, options: ['Entier', 'Demi-écrémé', 'Écrémé'] },
+  { fr: 'Poids / Volume', type: TEXT },
+  EXPIRY,
+];
+
+// Deodorant. The generic CONSUMABLE (volume + expiry) told a buyer nothing
+// about the one thing they actually choose on: the applicator.
+const DEODORANT: AttrTpl[] = [
+  { fr: 'Format', type: SELECT, options: ['Spray', 'Roll-on', 'Stick', 'Crème'] },
+  VOLUME,
+  { fr: 'Anti-transpirant', type: BOOLEAN },
+  { fr: 'Parfum', type: TEXT },
+];
+
+// Alcohol. « Marque » is deliberately absent: Brand is the first-class Brand
+// entity (see the Rules at the top of this file), not an attribute, so adding
+// it here would duplicate it in the seller form.
+const ALCOHOL_DEGREE: AttrTpl = { fr: "Degré d'alcool", type: TEXT };
+const ORIGIN: AttrTpl = { fr: "Pays d'origine", type: TEXT };
+const BEER: AttrTpl[] = [VOLUME, ALCOHOL_DEGREE];
+const WINE: AttrTpl[] = [
+  { fr: 'Type', type: SELECT, options: ['Rouge', 'Blanc', 'Rosé', 'Pétillant'] },
+  VOLUME,
+  ALCOHOL_DEGREE,
+  ORIGIN,
+];
+const SPIRIT: AttrTpl[] = [
+  { fr: 'Type', type: SELECT, options: ['Whisky', 'Vodka', 'Rhum', 'Gin', 'Cognac', 'Liqueur'] },
+  VOLUME,
+  ALCOHOL_DEGREE,
+  ORIGIN,
+];
+
 const DIAPER: AttrTpl[] = [{ fr: 'Taille', type: TEXT }, WEIGHT];
 const MAKEUP: AttrTpl[] = [{ fr: 'Teinte', type: TEXT }, EXPIRY];
 const SKINCARE: AttrTpl[] = [{ fr: 'Type de peau', type: SELECT, options: ['Normale', 'Sèche', 'Grasse', 'Mixte', 'Sensible'] }, VOLUME, EXPIRY];
@@ -133,9 +171,30 @@ export const STRICT_CATEGORIES: CategoryDef[] = [
     n: 1, emoji: '🛒', fr: 'Supermarché', subs: [
       { n: 101, fr: 'Alimentation', types: [t(10101, 'Riz', FOOD), t(10102, 'Farine', FOOD), t(10103, 'Sucre', FOOD), t(10104, 'Pâtes', FOOD), t(10105, 'Céréales', FOOD), t(10106, 'Conserves', FOOD), t(10107, 'Huiles', BEVERAGE), t(10108, 'Condiments', FOOD), t(10109, 'Biscuits', FOOD), t(10110, 'Snacks', FOOD)] },
       { n: 102, fr: 'Boissons', types: [t(10201, 'Eau', BEVERAGE), t(10202, 'Jus', BEVERAGE), t(10203, 'Sodas', BEVERAGE), t(10204, 'Café', FOOD), t(10205, 'Thé', FOOD), t(10206, 'Boissons énergétiques', BEVERAGE)] },
-      { n: 103, fr: 'Hygiène Personnelle', types: [t(10301, 'Savons', CONSUMABLE), t(10302, 'Shampoings', CONSUMABLE), t(10303, 'Dentifrices', CONSUMABLE), t(10304, 'Déodorants', CONSUMABLE)] },
+      // 10304 « Déodorants » retired 2026-09-10: it duplicated 60202 under
+      // Beauté & Santé > Soins Personnels. Both held zero products; the
+      // surviving leaf is the one brands actually point at (Nivea, Dove),
+      // while this one had no brand link at all and only a generic
+      // volume+expiry template. Removing it from this array leaves the row
+      // deactivated with a null slug (seed.ts deactivates every category
+      // before rebuilding the strict tree) — retired, never hard-deleted.
+      { n: 103, fr: 'Hygiène Personnelle', types: [t(10301, 'Savons', CONSUMABLE), t(10302, 'Shampoings', CONSUMABLE), t(10303, 'Dentifrices', CONSUMABLE)] },
       { n: 104, fr: 'Entretien Maison', types: [t(10401, 'Lessive', CONSUMABLE), t(10402, 'Détergents', CONSUMABLE), t(10403, 'Javel', CONSUMABLE), t(10404, 'Nettoyants', CONSUMABLE), t(10405, 'Désinfectants', CONSUMABLE)] },
       { n: 105, fr: 'Bébé', types: [t(10501, 'Couches', DIAPER), t(10502, 'Lingettes', CONSUMABLE), t(10503, 'Lait infantile', FOOD), t(10504, 'Biberons', [COLOR])] },
+      // Ordinary household milk (2026-09-10). Before this the ONLY dairy node
+      // in the whole tree was « Lait infantile » under Bébé, so everyday milk
+      // had nowhere to go — the one real milk product in production had been
+      // filed under Boissons > Café. A sibling subcategory rather than a child
+      // of Alimentation because the tree is exactly three levels deep.
+      // Infant formula deliberately stays under Bébé: different product family.
+      { n: 106, fr: 'Lait & Produits Laitiers', types: [t(10601, 'Lait en poudre', MILK), t(10602, 'Lait liquide / UHT', MILK), t(10603, 'Lait concentré / évaporé', MILK)] },
+      // Alcohol (2026-09-10). The tree had NO alcohol leaf at all, so the one
+      // whisky in production sat directly on the intermediate « Boissons »
+      // node — which the model does not allow for a product. Kept out of
+      // « Boissons » so a shopper (and a delivery rider) can tell alcoholic
+      // from non-alcoholic at a glance. Three leaves only: what Lubumbashi and
+      // Kolwezi retail actually carries, not a speculative drinks cellar.
+      { n: 107, fr: 'Boissons Alcoolisées', types: [t(10701, 'Bières', BEER), t(10702, 'Vins', WINE), t(10703, 'Spiritueux', SPIRIT)] },
     ],
   },
   {
@@ -177,7 +236,7 @@ export const STRICT_CATEGORIES: CategoryDef[] = [
   {
     n: 6, emoji: '💄', fr: 'Beauté & Santé', subs: [
       { n: 601, fr: 'Beauté', types: [t(60101, 'Maquillage', MAKEUP), t(60102, 'Soins du visage', SKINCARE), t(60103, 'Soins capillaires', CONSUMABLE), t(60104, 'Vernis & Ongles', MAKEUP)] },
-      { n: 602, fr: 'Soins Personnels', types: [t(60201, 'Gels douche & Savons', CONSUMABLE), t(60202, 'Déodorants', CONSUMABLE), t(60203, 'Soins du corps', SKINCARE), t(60204, 'Rasage & Épilation', [VOLUME])] },
+      { n: 602, fr: 'Soins Personnels', types: [t(60201, 'Gels douche & Savons', CONSUMABLE), t(60202, 'Déodorants', DEODORANT), t(60203, 'Soins du corps', SKINCARE), t(60204, 'Rasage & Épilation', [VOLUME])] },
       { n: 603, fr: 'Parfums', types: [t(60301, 'Parfums Homme', PERFUME), t(60302, 'Parfums Femme', PERFUME), t(60303, 'Coffrets parfums', PERFUME)] },
       { n: 604, fr: 'Santé', types: [t(60401, 'Premiers secours', [EXPIRY]), t(60402, 'Vitamines & Compléments', [EXPIRY]), t(60403, 'Matériel médical', [WARRANTY])] },
       { n: 605, fr: 'Bien-être', types: [t(60501, 'Massage & Relaxation', [WARRANTY]), t(60502, 'Soins minceur', [VOLUME, EXPIRY])] },
@@ -252,7 +311,14 @@ export const STRICT_BRANDS: BrandDef[] = [
   // Supermarket
   { n: 45, fr: 'Omo', types: [10401] },
   { n: 46, fr: 'Ariel', types: [10401, 10402] },
-  { n: 47, fr: 'Nestlé', types: [10503, 10204, 10105] },
+  { n: 47, fr: 'Nestlé', types: [10503, 10204, 10105, 10601, 10602] },
   { n: 48, fr: 'Pampers', types: [10501, 10502] },
   { n: 49, fr: 'Huggies', types: [10501, 10502] },
+  // Alcohol brands (2026-09-10). Deliberately few: only what is actually on
+  // the shelf in Lubumbashi and Kolwezi. `Autre` (n:1) links to every leaf, so
+  // a seller carrying anything else is never blocked.
+  { n: 50, fr: 'Johnnie Walker', types: [10703] },
+  { n: 51, fr: 'Primus', types: [10701] },
+  { n: 52, fr: 'Simba', types: [10701] },
+  { n: 53, fr: 'Heineken', types: [10701] },
 ];
