@@ -167,3 +167,66 @@ describe('BrandsService.softDelete', () => {
     );
   });
 });
+
+/**
+ * Brand lookup for the 2026-09-10 taxonomy leaves (2026-09-11).
+ *
+ * The leaves shipped with ZERO `brand_categories` rows, so
+ * `GET /v1/brands?categoryId=<leaf>` returned an empty list and the seller's
+ * brand dropdown had no options at all — not even « Autre ». The data fix is
+ * `2026-09-11_taxonomy_brand_links.sql`; these pin the QUERY that reads it, in
+ * particular that the retired `__old__…` rows can never surface.
+ */
+describe('BrandsService.getActiveBrands — the new taxonomy leaves', () => {
+  const SPIRITUEUX = '16000000-0000-0000-0000-000000010703';
+  const BIERES = '16000000-0000-0000-0000-000000010701';
+  const LAIT_INFANTILE = '16000000-0000-0000-0000-000000010503';
+
+  it('scopes the lookup to brands linked to the requested leaf', async () => {
+    const { service, prisma } = makeService();
+    prisma.brand.findMany.mockResolvedValueOnce([
+      { id: 'b54', name: 'Johnnie Walker', slug: 'johnnie-walker', logoUrl: null },
+      { id: 'b1', name: 'Autre', slug: 'autre', logoUrl: null },
+    ]);
+    const res = await service.getActiveBrands(SPIRITUEUX);
+    expect(res.map((b) => b.name)).toEqual(['Johnnie Walker', 'Autre']);
+    expect(prisma.brand.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          categories: { some: { categoryId: SPIRITUEUX } },
+        }),
+      }),
+    );
+  });
+
+  it('never returns an inactive or soft-deleted brand', async () => {
+    // The two `__old__…` rows occupying ids 50 and 51 in production are exactly
+    // this: isActive=false + deletedAt set. Both filters must stay on the query,
+    // or a retired Castrol row could appear in a seller's dropdown.
+    const { service, prisma } = makeService();
+    await service.getActiveBrands(BIERES);
+    const where = prisma.brand.findMany.mock.calls[0][0].where;
+    expect(where.isActive).toBe(true);
+    expect(where.deletedAt).toBeNull();
+  });
+
+  it('an unrelated leaf is queried the same way, with its own id', async () => {
+    // Lait infantile keeps whatever it had; nothing about the milk/alcohol fix
+    // widens or narrows another category's lookup.
+    const { service, prisma } = makeService();
+    await service.getActiveBrands(LAIT_INFANTILE);
+    expect(prisma.brand.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          categories: { some: { categoryId: LAIT_INFANTILE } },
+        }),
+      }),
+    );
+  });
+
+  it('omitting categoryId does not add a category filter', async () => {
+    const { service, prisma } = makeService();
+    await service.getActiveBrands();
+    expect(prisma.brand.findMany.mock.calls[0][0].where).not.toHaveProperty('categories');
+  });
+});

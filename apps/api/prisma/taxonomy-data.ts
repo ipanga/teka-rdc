@@ -317,8 +317,17 @@ export const STRICT_BRANDS: BrandDef[] = [
   // Alcohol brands (2026-09-10). Deliberately few: only what is actually on
   // the shelf in Lubumbashi and Kolwezi. `Autre` (n:1) links to every leaf, so
   // a seller carrying anything else is never blocked.
-  { n: 50, fr: 'Johnnie Walker', types: [10703] },
-  { n: 51, fr: 'Primus', types: [10701] },
+  // Slots 50 and 51 are DELIBERATELY SKIPPED. Both were already occupied in
+  // production by rows from the pre-2026-06-24 brand library, renamed to
+  // `__old__…` and soft-deleted by the seed's rename preamble rather than
+  // removed. Id 50 was Castrol: two soft-deleted demo products still point at
+  // it and one of them appears in a real order. Because `seed.ts` upserts a
+  // brand BY ID with `update: { name, deletedAt: null }`, declaring Johnnie
+  // Walker as n=50 would rename Castrol to « Johnnie Walker » and un-delete it
+  // the next time the seed ran — silently relabelling a product that is part of
+  // order history. Free slots cost nothing; historical rows are not reusable.
   { n: 52, fr: 'Simba', types: [10701] },
   { n: 53, fr: 'Heineken', types: [10701] },
+  { n: 54, fr: 'Johnnie Walker', types: [10703] },
+  { n: 55, fr: 'Primus', types: [10701] },
 ];

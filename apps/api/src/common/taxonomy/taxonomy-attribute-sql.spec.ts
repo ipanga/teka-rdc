@@ -2,13 +2,18 @@ import { readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { AttributeType } from '@prisma/client';
 import {
+  allLeafKeys,
   attributeIdFor,
   attributeRowsFor,
+  brandLinksFor,
+  brandsFor,
   renderAttributeSql,
+  renderBrandSql,
   strictAttrId,
+  strictBrandId,
   strictTypeId,
 } from '../../../prisma/scripts/taxonomy-attribute-sql';
-import { STRICT_CATEGORIES } from '../../../prisma/taxonomy-data';
+import { STRICT_BRANDS, STRICT_CATEGORIES } from '../../../prisma/taxonomy-data';
 
 /**
  * Product-characteristic materialisation guards (2026-09-10, P2 follow-up).
@@ -26,6 +31,7 @@ import { STRICT_CATEGORIES } from '../../../prisma/taxonomy-data';
  */
 const MANUAL_DIR = join(__dirname, '../../../prisma/migrations/manual');
 const BACKFILL = '2026-09-10_taxonomy_attribute_backfill.sql';
+const BRAND_LINKS = '2026-09-11_taxonomy_brand_links.sql';
 const CATEGORY_MIGRATION = '2026-09-10_taxonomy_milk_alcohol_deodorant.sql';
 
 /** The leaves the 2026-09-10 release added, plus the deodorant leaf it deduplicated. */
@@ -220,6 +226,215 @@ describe('a future migration cannot add a leaf without its characteristics', () 
           missing.push(`${leaf!.dept} > ${leaf!.sub} > ${leaf!.fr} — « ${attr.fr} » (${id})`);
         }
       });
+    }
+    expect(missing).toEqual([]);
+  });
+});
+
+
+/**
+ * Brand↔leaf links (2026-09-11, P2 follow-up 2).
+ *
+ * The same gap again: the 2026-09-10 migration created six leaves, and neither
+ * it nor the attribute backfill created the brand relationships
+ * `taxonomy-data.ts` declares for them. Production had ZERO `brand_categories`
+ * rows on all six — including the « Autre » catch-all — so a seller listing a
+ * beer could not pick any brand at all, not even "other".
+ */
+const NEW_LEAVES = [10601, 10602, 10603, 10701, 10702, 10703];
+/** Brands verified absent from production, so the migration may create them. */
+const NEW_BRANDS = [52, 53, 54, 55];
+const brandSql = read(BRAND_LINKS);
+const linksFor = (leaf: number) =>
+  brandLinksFor([leaf]).map((l) => l.brandName);
+
+describe('brand links are derived from taxonomy-data.ts too', () => {
+  it('13. the committed brand migration matches a fresh render', () => {
+    expect(generatedBlock(brandSql)).toBe(renderBrandSql(NEW_LEAVES, NEW_BRANDS).trim());
+  });
+
+  it('14. Nestlé links to exactly the milk leaves the source declares — and no others', () => {
+    const nestle = STRICT_BRANDS.find((b) => b.n === 47)!;
+    expect(nestle.fr).toBe('Nestlé');
+    // Declared: infant formula, coffee, cereal + the two new milk leaves.
+    expect(nestle.types).toEqual([10503, 10204, 10105, 10601, 10602]);
+    // Not powdered-vs-liquid only: « Lait concentré » is deliberately absent.
+    expect(nestle.types).not.toContain(10603);
+    expect(linksFor(10601)).toContain('Nestlé');
+    expect(linksFor(10602)).toContain('Nestlé');
+    expect(linksFor(10603)).not.toContain('Nestlé');
+  });
+
+  it('15. beer brands resolve for Bières', () => {
+    const beer = linksFor(10701);
+    expect(beer).toEqual(expect.arrayContaining(['Primus', 'Simba', 'Heineken']));
+    // and they are beer-only — a lager is not a whisky
+    expect(linksFor(10703)).not.toContain('Primus');
+    expect(linksFor(10703)).not.toContain('Simba');
+  });
+
+  it('16. spirit brands resolve for Spiritueux', () => {
+    expect(linksFor(10703)).toContain('Johnnie Walker');
+    expect(linksFor(10701)).not.toContain('Johnnie Walker');
+  });
+
+  it('17. Vins gets the catch-all only — no brand is invented for it', () => {
+    // The source declares no wine brand. Inventing one would be a data opinion,
+    // not a migration.
+    expect(linksFor(10702)).toEqual(['Autre']);
+  });
+
+  it('18. « Autre » reaches every one of the six leaves', () => {
+    // An empty `types` list means "all leaves". Missing it is what left the
+    // dropdown completely empty rather than merely short.
+    const autre = STRICT_BRANDS.find((b) => b.fr === 'Autre')!;
+    expect(autre.types).toEqual([]);
+    for (const leaf of NEW_LEAVES) {
+      expect(linksFor(leaf)).toContain('Autre');
+    }
+    expect(allLeafKeys()).toEqual(expect.arrayContaining(NEW_LEAVES));
+  });
+
+  it('19. no duplicate brand rows and no duplicate links are emitted', () => {
+    const rows = brandsFor(NEW_LEAVES);
+    expect(new Set(rows.map((b) => b.id)).size).toBe(rows.length);
+    expect(new Set(rows.map((b) => b.name)).size).toBe(rows.length);
+    expect(new Set(rows.map((b) => b.slug)).size).toBe(rows.length);
+
+    const links = brandLinksFor(NEW_LEAVES);
+    const keys = links.map((l) => `${l.brandId}|${l.categoryId}`);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('20. re-running is a no-op — both statements are ON CONFLICT DO NOTHING', () => {
+    const stmt = generatedBlock(brandSql);
+    expect(stmt).toMatch(/INSERT INTO "brands"[\s\S]*ON CONFLICT \("id"\) DO NOTHING;/);
+    expect(stmt).toMatch(
+      /INSERT INTO "brand_categories"[\s\S]*ON CONFLICT \("brandId", "categoryId"\) DO NOTHING;/,
+    );
+    // DO NOTHING, never DO UPDATE: an existing brand keeps its live name, logo
+    // and sortOrder. This migration adds links, it does not restyle the library.
+    expect(stmt).not.toMatch(/DO UPDATE/);
+  });
+
+  it('21. it is additive — no executable DELETE/UPDATE/DROP, and only the two brand tables', () => {
+    const executable = brandSql
+      .split('\n')
+      .filter((l) => !l.trimStart().startsWith('--'))
+      .join('\n');
+    expect(executable).not.toMatch(/\b(DELETE|UPDATE|DROP|TRUNCATE|ALTER)\b/i);
+    expect(executable.match(/INSERT INTO "(\w+)"/g)).toEqual([
+      'INSERT INTO "brands"',
+      'INSERT INTO "brand_categories"',
+    ]);
+    // nothing touches products — the Johnnie Walker product keeps its identity
+    expect(executable).not.toMatch(/"products"/);
+  });
+
+  it('22. it never reuses the occupied historical brand slots 50 and 51', () => {
+    // Id 50 is the retired Castrol row: two soft-deleted demo products point at
+    // it and one appears in a real order. `seed.ts` upserts brands BY ID with
+    // `update: { name, deletedAt: null }`, so declaring a brand at n=50 would
+    // rename and resurrect it on the next seed run.
+    expect(STRICT_BRANDS.find((b) => b.n === 50)).toBeUndefined();
+    expect(STRICT_BRANDS.find((b) => b.n === 51)).toBeUndefined();
+    expect(STRICT_BRANDS.find((b) => b.fr === 'Johnnie Walker')!.n).toBe(54);
+    expect(STRICT_BRANDS.find((b) => b.fr === 'Primus')!.n).toBe(55);
+
+    const executable = brandSql
+      .split('\n')
+      .filter((l) => !l.trimStart().startsWith('--'))
+      .join('\n');
+    expect(executable).not.toContain(strictBrandId(50));
+    expect(executable).not.toContain(strictBrandId(51));
+  });
+
+  it('23. only brands absent from production are inserted — existing rows are untouched', () => {
+    const executable = brandSql
+      .split('\n')
+      .filter((l) => !l.trimStart().startsWith('--'))
+      .join('\n');
+    const brandInsert = executable.match(/INSERT INTO "brands"[\s\S]*?;/)![0];
+    // Autre (1) and Nestlé (47) already exist: they get LINKS, not a row.
+    expect(brandInsert).not.toContain(strictBrandId(1));
+    expect(brandInsert).not.toContain(strictBrandId(47));
+    for (const n of NEW_BRANDS) expect(brandInsert).toContain(strictBrandId(n));
+  });
+
+  it('24. unrelated leaves gain nothing — the render is scoped to the six', () => {
+    const links = brandLinksFor(NEW_LEAVES);
+    const leaves = new Set(links.map((l) => l.leafKey));
+    expect([...leaves].sort()).toEqual([...NEW_LEAVES].sort());
+    // e.g. Lait infantile keeps exactly what it had
+    expect(links.some((l) => l.leafKey === 10503)).toBe(false);
+    expect(generatedBlock(brandSql)).not.toContain(strictTypeId(10503));
+    expect(generatedBlock(brandSql)).not.toContain(strictTypeId(10304));
+  });
+
+  it('25. the migration is registered in auto-apply.list after the leaves exist', () => {
+    const list = read('auto-apply.list')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith('#'));
+    expect(list).toContain(BRAND_LINKS);
+    expect(list.indexOf(BRAND_LINKS)).toBeGreaterThan(list.indexOf(CATEGORY_MIGRATION));
+  });
+});
+
+describe('a future migration cannot add a leaf without its brand links either', () => {
+  /**
+   * The brand twin of test 12. Every product-type leaf that a manual migration
+   * inserts must also have the brand links `taxonomy-data.ts` declares for it
+   * inserted by some manual migration — the catch-all « Autre » included.
+   */
+  const files = readdirSync(MANUAL_DIR).filter((f) => f.endsWith('.sql'));
+  const allSql = files.map((f) => read(f));
+
+  function idsInInsert(sql: string, table: string, prefix: string): string[] {
+    const found = new Set<string>();
+    const re = new RegExp(`INSERT INTO "${table}"[\\s\\S]*?;`, 'g');
+    for (const stmt of sql.match(re) ?? []) {
+      const body = stmt
+        .split('\n')
+        .filter((l) => !l.trimStart().startsWith('--'))
+        .join('\n');
+      for (const id of body.match(new RegExp(`${prefix}-[0-9a-f-]{4,}`, 'g')) ?? []) {
+        found.add(id.replace(/'/g, ''));
+      }
+    }
+    return [...found];
+  }
+
+  /** Link pairs actually written, as `brandId|categoryId`. */
+  function insertedLinkPairs(sql: string): string[] {
+    const pairs: string[] = [];
+    const re = /INSERT INTO "brand_categories"[\s\S]*?;/g;
+    for (const stmt of sql.match(re) ?? []) {
+      for (const m of stmt.matchAll(
+        /\('(15000000-[0-9a-f-]+)',\s*'(16000000-[0-9a-f-]+)'\)/g,
+      )) {
+        pairs.push(`${m[1]}|${m[2]}`);
+      }
+    }
+    return pairs;
+  }
+
+  const insertedLeafIds = new Set(
+    allSql.flatMap((sql) => idsInInsert(sql, 'categories', '16000000')),
+  );
+  const insertedPairs = new Set(allSql.flatMap(insertedLinkPairs));
+
+  it('26. every leaf inserted by a manual migration has its declared brand links inserted too', () => {
+    expect(insertedLeafIds.size).toBeGreaterThan(0);
+
+    const missing: string[] = [];
+    for (const leafId of insertedLeafIds) {
+      const key = Number(leafId.split('-').pop());
+      for (const link of brandLinksFor([key])) {
+        if (!insertedPairs.has(`${link.brandId}|${link.categoryId}`)) {
+          missing.push(`leaf ${key} — « ${link.brandName} » (${link.brandId})`);
+        }
+      }
     }
     expect(missing).toEqual([]);
   });

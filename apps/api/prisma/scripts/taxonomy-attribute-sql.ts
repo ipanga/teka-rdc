@@ -18,13 +18,15 @@
  * Pure data → string. No Prisma client, no DB, no filesystem writes.
  */
 import { AttributeType } from '@prisma/client';
-import { STRICT_CATEGORIES, type AttrTpl } from '../taxonomy-data';
+import { STRICT_BRANDS, STRICT_CATEGORIES, type AttrTpl } from '../taxonomy-data';
 
 /** Deterministic id ranges — identical to `seed.ts`. */
 export const strictTypeId = (n: number) =>
   `16000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
 export const strictAttrId = (n: number) =>
   `14000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
+export const strictBrandId = (n: number) =>
+  `15000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
 
 /** `seed.ts`: `strictAttrId(type.n * 100 + slot + 1)`, slot being 0-based. */
 export const attributeIdFor = (typeKey: number, slotZeroBased: number) =>
@@ -124,4 +126,127 @@ export function renderAttributeSql(typeKeys: number[]): string {
     '      "sortOrder"  = EXCLUDED."sortOrder",',
     '      "updatedAt"  = NOW();',
   ].join('\n');
+}
+
+
+// ────────────────────────────────────────────────────────────────────────────
+// BRAND LIBRARY + BRAND↔LEAF LINKS
+//
+// The same gap that left the 2026-09-10 leaves without characteristics also
+// left them without brands: `taxonomy-data.ts` declares which brands belong to
+// which leaf, and only `seed.ts` reads it. A seller listing a beer got an empty
+// brand dropdown. Rendered here so a migration can never again ship a leaf
+// without the relationships the source of truth declares for it.
+// ────────────────────────────────────────────────────────────────────────────
+
+export interface BrandRow {
+  id: string;
+  n: number;
+  name: string;
+  slug: string;
+  sortOrder: number;
+}
+export interface BrandLinkRow {
+  brandId: string;
+  brandName: string;
+  categoryId: string;
+  leafKey: number;
+}
+
+/** Mirrors `frSlugify` for the plain ASCII brand names in the library. */
+const brandSlug = (name: string) =>
+  name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+
+/** Every leaf key declared anywhere in the tree, in seed order. */
+export const allLeafKeys = (): number[] =>
+  STRICT_CATEGORIES.flatMap((c) => c.subs.flatMap((s) => s.types.map((t) => t.n)));
+
+/**
+ * The brand↔leaf links `seed.ts` would write for `leafKeys`.
+ *
+ * A brand with an EMPTY `types` list is a catch-all (« Autre ») and seed links
+ * it to every leaf in the tree — so it must be linked to these leaves too.
+ * Getting that wrong is what leaves a seller with no brand option at all.
+ */
+export function brandLinksFor(leafKeys: number[]): BrandLinkRow[] {
+  const wanted = new Set(leafKeys);
+  const links: BrandLinkRow[] = [];
+  for (const brand of STRICT_BRANDS) {
+    const targets = brand.types.length > 0 ? brand.types : allLeafKeys();
+    for (const leaf of targets) {
+      if (!wanted.has(leaf)) continue;
+      links.push({
+        brandId: strictBrandId(brand.n),
+        brandName: brand.fr,
+        categoryId: strictTypeId(leaf),
+        leafKey: leaf,
+      });
+    }
+  }
+  return links;
+}
+
+/** The brand rows those links need, deduplicated, in seed order. */
+export function brandsFor(leafKeys: number[]): BrandRow[] {
+  const needed = new Set(brandLinksFor(leafKeys).map((l) => l.brandId));
+  return STRICT_BRANDS.filter((b) => needed.has(strictBrandId(b.n))).map((b) => ({
+    id: strictBrandId(b.n),
+    n: b.n,
+    name: b.fr,
+    slug: brandSlug(b.fr),
+    sortOrder: b.n,
+  }));
+}
+
+/**
+ * Idempotent SQL for the brand rows and their links.
+ *
+ * `onlyBrands` narrows the BRAND upsert to the brands that do not yet exist in
+ * production — an existing brand like « Nestlé » must keep its live name, logo
+ * and sortOrder, so the migration adds its missing LINKS without rewriting the
+ * row itself. Links are always emitted for every brand the leaves declare.
+ */
+export function renderBrandSql(leafKeys: number[], onlyBrands: number[]): string {
+  const brands = brandsFor(leafKeys).filter((b) => onlyBrands.includes(b.n));
+  const links = brandLinksFor(leafKeys);
+  if (links.length === 0) return '';
+
+  const parts: string[] = [];
+
+  if (brands.length > 0) {
+    parts.push(
+      'INSERT INTO "brands" ("id", "name", "slug", "isActive", "sortOrder", "createdAt", "updatedAt")',
+      'VALUES',
+      brands
+        .map(
+          (b) =>
+            `  (${lit(b.id)}, ${lit(b.name)}, ${lit(b.slug)}, TRUE, ${b.sortOrder}, NOW(), NOW())`,
+        )
+        .join(',\n'),
+      'ON CONFLICT ("id") DO NOTHING;',
+      '',
+    );
+  }
+
+  parts.push(
+    'INSERT INTO "brand_categories" ("brandId", "categoryId")',
+    'VALUES',
+    // The separating comma must come BEFORE the inline comment — after it the
+    // `--` swallows the comma and the statement no longer parses.
+    links
+      .map(
+        (l, i) =>
+          `  (${lit(l.brandId)}, ${lit(l.categoryId)})${i < links.length - 1 ? ',' : ''}` +
+          `  -- ${l.brandName} → ${l.leafKey}`,
+      )
+      .join('\n'),
+    'ON CONFLICT ("brandId", "categoryId") DO NOTHING;',
+  );
+
+  return parts.join('\n');
 }
