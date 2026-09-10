@@ -4024,6 +4024,56 @@ Dependency Audit, Flutter Analysis (buyer-mobile), Flutter Analysis (seller-mobi
 (buyer-mobile), Flutter Tests (seller-mobile), Lint & Type Check, Release Config, Web Build (admin-web),
 Web Build (buyer-web), Web Build (seller-web), Web Tests. Nothing was changed.
 
+### Branch protection applied — the last P1 (2026-09-10)
+
+`develop` `3b099db` after PR #730 merged (`3b099db`, docs-only close-out of MS1-MS7).
+
+**Before.** `main` carried the ruleset "Protect main" (active) with `deletion`, `non_fast_forward` and
+`pull_request` (merge commits only, zero approvals, no bypass actors) but **no required status checks**.
+`develop` had **no ruleset and no legacy protection at all** — anyone with write access could push
+straight to the integration branch.
+
+**Which checks are required, and why those.** Thirteen, chosen from what actually runs rather than from
+documentation. `ci.yml` triggers on `pull_request: branches: [main, develop]` with **no path filters**, so
+all twelve of its checks run on every PR into either branch — confirmed on PR #730, a documentation-only
+change, where all fifteen checks ran and passed. That is the case that would otherwise deadlock a
+required check, and it does not.
+
+| Check | Decision |
+|---|---|
+| Lint & Type Check, API Tests, Web Tests, Dependency Audit, Release Config | REQUIRE — `ci.yml`, no path filter |
+| Web Build ×3, Flutter Tests ×2, Flutter Analysis ×2 | REQUIRE — `ci.yml` matrix, stable names |
+| CodeQL | REQUIRE — the aggregate code-scanning result; it is what failed on PR #726 when a new high-severity alert appeared |
+| Analyze (actions), Analyze (javascript-typescript) | OPTIONAL — GitHub-managed default-setup job names that could be regrouped; the CodeQL aggregate already gates them, and requiring a name GitHub owns is the deadlock risk |
+| `pr-validation.yml` (`lint-typecheck-test`, `docker-build-check` ×4) | DO NOT REQUIRE — triggers on `pull_request: branches: [main]` only, so it never runs on a `develop` PR; requiring it there would deadlock every PR. Its lint step is also explicitly non-blocking |
+| apply-migration, deploy, build-mobile-{apk,ipa}, release-mobile-{aab,ipa}, run-prod-seed, run-prod-backfill | DO NOT REQUIRE — all `workflow_dispatch` only; they never produce a PR check |
+
+Each required check is pinned to the app that reports it: integration `15368` (GitHub Actions) for the
+twelve, `57789` (GitHub Advanced Security) for CodeQL, so an unrelated app cannot satisfy a context.
+
+**After.** Both branches now carry identical protection: `deletion`, `non_fast_forward`, `pull_request`
+(merge commits only, zero approvals) and the thirteen required checks. No bypass actors on either —
+matching `main`'s existing posture rather than weakening it. `main` kept every rule it already had; only
+the new one was appended.
+
+`strict_required_status_checks_policy` is **false** deliberately. Requiring a branch to be up to date
+before merging would force a sync on every parallel PR each time the base moved — with the three
+hardening PRs open at once that would have meant repeated churn for a single maintainer — and `ci.yml`
+re-runs on `push` to both branches anyway, so a bad interaction still surfaces immediately after the
+merge.
+
+**Verified, not assumed.** The rules were read back from the API after applying, then exercised with a
+disposable PR into `develop` (#731, closed unmerged, branch deleted): merge was refused while checks were
+pending (`BLOCKED`, "the base branch policy prohibits the merge"), became available once all thirteen
+passed (`CLEAN`), and both `--squash` and `--rebase` were refused outright. The previous `main` ruleset
+was exported to JSON before the change so it can be restored.
+
+**Remaining.** No P0. The only P1 left is obtaining the highest Google Play `versionCode` per app, which
+the repository cannot determine: both apps take `versionCode` and `versionName` straight from
+`pubspec.yaml`, `release-mobile-aab.yml` does not override them, and no workflow uploads to Play. iOS
+needs no equivalent — `release-mobile-ipa.yml` sets `--build-number=$(date -u +%s)`, so `CFBundleVersion`
+is unique and monotonic on every upload and only the marketing version comes from pubspec.
+
 ## Next exact step
 
 **Production is released and hardened; the P1 admin/financial security follow-ups are MERGED**
@@ -4033,9 +4083,9 @@ merge commit, none started without approval.
 
 **P1.** (1) ~~Admin/financial follow-ups~~ — MERGED `f9a9b34` (#725). (2) ~~Sentry request-data
 minimisation~~ — MERGED `babd4bd` (#726). (3) ~~Mobile hardening MS1-MS7~~ — MERGED `2814d1d` (#727),
-`fd97ca9` (#728), `310d718` (#729); code work complete, see the close-out above. (4) Branch-protection
-required checks — still the only open P1, and now unblocked. **Next in sequence:** confirm the highest
-Google Play `versionCode` per app, bump versions, then the store builds.
+`fd97ca9` (#728), `310d718` (#729); code work complete, see the close-out above. (4) ~~Branch-protection required checks~~ — APPLIED to both `main` and `develop`, verified with a
+disposable PR; see the record above. **Next in sequence:** confirm the highest Google Play `versionCode`
+per app, bump versions, then the store builds.
 
 **P2.** Buyer Web USD price (verified still broken: `priceUSD` typed `number` while the API serialises
 BigInt as a string); seller-web stale-town notice; D2b admin API boundary; the rest of the S11 audit
