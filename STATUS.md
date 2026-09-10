@@ -1,4 +1,4 @@
-# Status — 2026-09-10 (production `main` `eace209`; `develop` `315040b`. iOS keychain P1 **CLOSED** — Seller build 1789043831 verified on a physical iPhone. Taxonomy PR #740 open: ordinary milk, alcohol branch, deodorant dedup, 2 product moves. No migration executed, nothing deployed, no version bumped.)
+# Status — 2026-09-10 (production `main` `0552550`; `develop` `a727e4d`. Taxonomy release #742 is LIVE. **P2 open: `fix/taxonomy-attribute-backfill`** — the applied taxonomy migration created eight category rows and no `product_attributes`, so the six new leaves have empty characteristic forms in production and `Déodorants` still carries the old consumable template. Additive/idempotent backfill migration GENERATED from `taxonomy-data.ts` + 12 tests incl. a structural guard. Verified on the development database only — **no production migration executed, nothing deployed, no version bumped.**)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
