@@ -73,11 +73,20 @@ class DeepLinkParser {
   /// Returns an internal route target, or null = the caller should open the URL
   /// in the system browser (foreign host, unrecognised, or private path).
   static DeepLinkTarget? parse(Uri uri) {
-    final isHttps =
-        (uri.scheme == 'https' || uri.scheme == 'http') &&
-            allowedHosts.contains(uri.host);
-    final isCustomScheme = uri.scheme == 'teka';
-    if (!isHttps && !isCustomScheme) return null;
+    // MS3 — the host allow-list applies to EVERY scheme.
+    //
+    // `teka://` used to skip it entirely, so any installed app could fire
+    // `teka://anything/...` and force in-app navigation. The route and slug
+    // regexes below bounded the damage, but the allow-list is the check that
+    // is supposed to decide whether a link is ours at all, and a custom
+    // scheme is the easiest one for another app to send.
+    //
+    // A custom-scheme link therefore has to name an allowed host too, exactly
+    // like an https one: `teka://teka.cd/promotions`, not `teka://promotions`
+    // (in which `promotions` parses as the HOST, not a path segment).
+    final schemeAllowed =
+        uri.scheme == 'https' || uri.scheme == 'http' || uri.scheme == 'teka';
+    if (!schemeAllowed || !allowedHosts.contains(uri.host)) return null;
 
     final segs = uri.pathSegments.where((s) => s.isNotEmpty).toList();
 

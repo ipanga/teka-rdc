@@ -1,4 +1,4 @@
-# Status — 2026-09-09 (pre-scale readiness — release-readiness audit complete; its only code blocker, S12 payout destination, is FIXED and MERGED (`295e801`, PR #722); no code blocker remains; the `develop → main` release PR is NOT opened)
+# Status — 2026-09-10 (production at `main` `9a89249`; `develop` `3b099db`. MS1-MS7 mobile hardening COMPLETE and merged (#727, #728, #729, docs #730). Branch protection APPLIED to both `main` and `develop` with 13 required checks, verified. Nothing deployed, no version bumped, no store build created. **Only remaining blocker: the highest Google Play versionCode per app, which the owner must read from Play Console.**)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
@@ -68,8 +68,44 @@ SUPPORT/FINANCE, S11 audit rows, D2b). **Mobile security hardening remains open*
 PRs #549/#565/#595, no bundler ecosystem). **The Cloudflare origin firewall is a MANUAL pre-release
 action — not applied.**
 
+**PRODUCTION RELEASE DONE (2026-09-09).** PR #723 (`develop → main`) merged as **`9a89249`**; deploy run
+**34380668330** succeeded in ~6 min (17:04:28 → 17:10:45 UTC). EXPAND applied exactly the two expected
+migrations (`2026-09-06_auth_rate_limits.sql`, `2026-09-09_payout_method_changed_at.sql`) and skipped the
+nine already recorded in `_manual_migrations`, before the rolling swap. Post-deploy: API health/ready/live
+200 with `database: ok` and monotonic uptime, all five hostnames answering, catalogue and cities APIs
+serving, storefront rendering products, PDP JSON-LD intact, sitemap now emitting **20 product URLs**
+(previously 0), seller/admin `noindex`, auth boundary 401. The new app-owned headers are live
+(Permissions-Policy, COOP/CORP present, `X-Powered-By` gone).
+
+**P1 admin/financial security follow-ups implemented, PR open** (`security/admin-financial-followups`,
+not merged, not deployed): login-email change now requires the current password and notifies the
+previous address; the two unthrottled document upload routes are throttled; admin banner links are
+validated on write and at the render sink; pagination, enum filters and buyer/seller free text are
+bounded; and the two S11 one-liners are closed (admin self-suspend guard with session revocation and
+audit, refresh refusing SUSPENDED). No migration, no env change, no mobile change. API 880 unit / 268
+e2e, web 187/41/60, three builds, plus a runtime probe on an isolated API with disposable data since
+deleted. Full record: `docs/pre-scale-readiness.md` → « P1 admin / financial security follow-ups ».
+
+**BOTH MANUAL HARDENING STEPS ARE DONE (2026-09-09, operator) — production is fully hardened.**
+1. **`nginx/nginx.prod.conf` installed on the VPS** (backup `nginx.prod.conf.before-20260909` kept on
+   the box, not tracked in git). `nginx -t` passed and nginx was reloaded gracefully; containers stayed
+   healthy. **Independently re-verified from outside:** every web host now returns **exactly one**
+   `Content-Security-Policy` — the application-owned one (`frame-ancestors 'none'; form-action 'self'`,
+   Clarity hosts) — plus exactly one nginx-owned `Strict-Transport-Security`. The duplicate CSP is gone.
+   Seller keeps `X-Robots-Tag: noindex, nofollow`, Admin `noindex, nofollow, noarchive`, Buyer Web none.
+   The config carries the Cloudflare `set_real_ip_from` ranges, `real_ip_header CF-Connecting-IP` and
+   `real_ip_recursive on`, so nginx's `limit_req` zones now key on the real client IP instead of the
+   Cloudflare edge address.
+2. **Cloudflare/Hetzner origin firewall applied.** **Independently re-verified from an external network:**
+   a direct request to `178.104.179.42` on 443 and on 80 completes the TCP handshake and is then reset,
+   returning no HTTP response, for all five hostnames — while `https://teka.cd` through Cloudflare answered
+   `200` with `server: cloudflare` at the same moment. The direct-origin bypass is closed. Port 22 was
+   deliberately left open because the deploy SSHes from GitHub-hosted runners (≈7 000 changing ranges);
+   **whether GitHub can still reach 22 was NOT verifiable from this session** — the next deploy is the proof.
+   Residual nuance, not a defect: the ports reject rather than drop, so a scanner still sees a handshake.
+
 **`security/payout-destination-reauth` MERGED (`295e801`, PR #722) — S12, the release-readiness audit's
-only code blocker, is CLOSED.** A stolen seller session could redirect the whole balance: `POST
+only code blocker, is CLOSED and now LIVE in production.** A stolen seller session could redirect the whole balance: `POST
 /v1/sellers/payouts` let an inline destination win over the saved profile, and `PATCH
 /v1/sellers/payout-method` had no re-auth, audit, notice, cooling-off or throttle. Now: the SAVED
 destination is the only routing authority (an inline one is accepted only when identical — 409
@@ -89,8 +125,8 @@ profile; `PATCH payout-method` had no re-auth/notice/audit/cooling-off) — **is
 actions: `nginx/nginx.prod.conf` copy + `nginx -t` + reload (deploy does not sync it), Cloudflare origin
 firewall the same day. One additive migration pending (`auth_rate_limits`). No new env vars. No distributed
 mobile build carries the buyer functional fixes or seller UX fixes; iOS/iPad runtime never exercised. Full
-record: `docs/pre-scale-readiness.md` → « Release-readiness audit (2026-09-09) ». **S12 has since been fixed and merged (`295e801`, PR #722) — no code blocker remains. The
-`develop → main` release PR is NOT opened — awaiting the owner's approval.**
+record: `docs/pre-scale-readiness.md` → « Release-readiness audit (2026-09-09) ». **S12 was fixed and merged (`295e801`, PR #722) and the release shipped as `9a89249`; both manual
+hardening steps are now closed too. Nothing in that audit remains a production blocker.**
 
 **Dependency security, 2026-09-08/09 — two advisory batches, two sibling PRs.**
 **`security/sharp-0.35.4` MERGED (`2e0454d`, PR #718):** GHSA-rgj7-g3m4-5g8c (`sharp` < 0.35.4, libheif)

@@ -166,6 +166,17 @@ class NotificationsNotifier extends StateNotifier<NotificationsState> {
       // Non-critical — the next load() reconciles.
     }
   }
+
+  /// MS5 — drop this seller's data when the session ends.
+  ///
+  /// The notifier is not keyed on the seller id, so without this the previous
+  /// seller's list stayed readable in memory after logout until the process
+  /// died. Back to the initial loading state, exactly as on a cold start, so
+  /// the next sign-in re-fetches rather than showing a stale list.
+  void reset() {
+    state = const NotificationsState(isLoading: true);
+  }
+
 }
 
 final notificationsProvider =
@@ -177,6 +188,10 @@ final notificationsProvider =
   // feed fetched during an unauthenticated startup and cached an empty/error
   // result that never refreshed.
   ref.listen<AuthStatus>(authProvider.select((s) => s.status), (prev, next) {
+    // MS5: clear on the way out, load on the way in.
+    if (next != AuthStatus.authenticated && prev == AuthStatus.authenticated) {
+      notifier.reset();
+    }
     if (next == AuthStatus.authenticated && prev != AuthStatus.authenticated) {
       notifier.load();
     }

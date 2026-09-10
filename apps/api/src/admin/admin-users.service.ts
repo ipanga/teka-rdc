@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   BadRequestException,
   Injectable,
   Logger,
@@ -179,27 +180,79 @@ export class AdminUsersService {
     return rest;
   }
 
-  async updateUserStatus(userId: string, dto: UpdateUserStatusDto) {
+  /**
+   * Suspend / ban / reactivate an account (S11, 2026-09-09).
+   *
+   * Three things the previous one-line update did not do:
+   *  - **self-guard**: an admin could suspend or ban their OWN account and
+   *    lock themselves out, recoverable only from the database;
+   *  - **session revocation**: the row changed but every refresh token stayed
+   *    valid, so a suspended account resumed the moment the status was lifted
+   *    (the refresh path now also refuses SUSPENDED — see AuthService);
+   *  - **attribution**: `dto.reason` was accepted and silently discarded, and
+   *    nothing recorded which admin acted.
+   *
+   * The status change, the token revocation and the audit row commit together:
+   * a rolled-back suspension leaves no half-revoked session and no audit row.
+   */
+  async updateUserStatus(
+    userId: string,
+    adminId: string,
+    dto: UpdateUserStatusDto,
+  ) {
+    if (userId === adminId) {
+      throw new ForbiddenException(
+        'Vous ne pouvez pas modifier le statut de votre propre compte.',
+      );
+    }
+
     const user = await this.prisma.user.findUnique({
       where: { id: userId, deletedAt: null },
+      select: { id: true, role: true, status: true },
     });
 
     if (!user) {
       throw new NotFoundException('Utilisateur non trouvé');
     }
 
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: { status: dto.status as any },
-      select: {
-        id: true,
-        phone: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        status: true,
-      },
+    const revoking = dto.status === 'SUSPENDED' || dto.status === 'BANNED';
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.user.update({
+        where: { id: userId },
+        data: { status: dto.status as any },
+        select: {
+          id: true,
+          phone: true,
+          firstName: true,
+          lastName: true,
+          role: true,
+          status: true,
+        },
+      });
+      if (revoking) {
+        // Kill every live session so the suspension takes effect now.
+        await tx.refreshToken.updateMany({
+          where: { userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+      }
+      await this.audit.record(tx, {
+        actorId: adminId,
+        action: 'USER_STATUS_CHANGED',
+        entityType: 'user',
+        entityId: userId,
+        before: { status: user.status, role: user.role },
+        after: { status: row.status },
+        reason: dto.reason?.trim() || null,
+      });
+      return row;
     });
+
+    this.logger.log(
+      `User status changed: user=${userId}, ${user.status} → ${dto.status}, admin=${adminId}, sessionsRevoked=${revoking}`,
+    );
+    return updated;
   }
 
   // Seller application management

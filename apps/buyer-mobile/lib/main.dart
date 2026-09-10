@@ -29,6 +29,11 @@ void main() async {
         // Errors-only — match apps/api/src/instrument.ts. Revisit when
         // there's a specific question about app-start / network perf.
         options.tracesSampleRate = 0.0;
+        // MS6 — pinned, not left to the SDK default. `sendDefaultPii` false
+        // is today's default, but nothing tested it, so an SDK bump or a
+        // copy-paste could have turned on IP and device-identifier capture
+        // without anyone noticing.
+        options.sendDefaultPii = false;
         options.beforeSend = scrubBeforeSend;
       },
       appRunner: _bootstrap,

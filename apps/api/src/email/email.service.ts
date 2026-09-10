@@ -27,6 +27,7 @@ import { payoutApprovedTemplate } from './templates/payout-approved.template';
 import { payoutPaidTemplate } from './templates/payout-paid.template';
 import { payoutRejectedTemplate } from './templates/payout-rejected.template';
 import { payoutMethodChangedTemplate } from './templates/payout-method-changed.template';
+import { loginEmailChangedTemplate } from './templates/login-email-changed.template';
 import { productApprovedTemplate } from './templates/product-approved.template';
 import { productRejectedTemplate } from './templates/product-rejected.template';
 
@@ -205,6 +206,31 @@ export class EmailService {
       dashboardUrl,
     );
     return this.sendEmail(email, subject, html);
+  }
+
+  /**
+   * Security notice to the PREVIOUS address when the login email changes —
+   * the old address is the only one a legitimate owner still controls after a
+   * takeover. Carries a masked new address only.
+   */
+  async sendLoginEmailChanged(
+    previousEmail: string,
+    firstName: string | null,
+    maskedNewEmail: string,
+    changedLabel: string,
+  ): Promise<boolean> {
+    const supportUrl = `${this.configService.get<string>(
+      'BUYER_WEB_URL',
+      'https://teka.cd',
+    )}/contact`;
+    const subject = 'Adresse de connexion modifiée — Teka RDC';
+    const html = loginEmailChangedTemplate(
+      firstName,
+      maskedNewEmail,
+      changedLabel,
+      supportUrl,
+    );
+    return this.sendEmail(previousEmail, subject, html);
   }
 
   /**

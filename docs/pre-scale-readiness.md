@@ -3535,7 +3535,10 @@ orders, payouts, reviews or product/avatar assets, or alters order snapshots, to
   same transaction under the same row lock as the request, notifies the seller on feed + push + email,
   and is throttled 5/h per seller. Payout snapshots stay immutable; the distributed seller-mobile
   0.1.9 build keeps working, so no store release is forced.
-- **B. MANUAL RELEASE-WINDOW ACTIONS:** copy `nginx/nginx.prod.conf` → VPS (`.bak`, `nginx -t`, reload;
+- **B. MANUAL RELEASE-WINDOW ACTIONS — ALL DONE 2026-09-09** (release `9a89249`, deploy run
+  34380668330; nginx installed + reloaded and the Cloudflare/Hetzner origin firewall applied, both
+  independently re-verified — see « Production hardening close-out (2026-09-09) » below). As planned:
+  copy `nginx/nginx.prod.conf` → VPS (`.bak`, `nginx -t`, reload;
   rollback = restore `.bak` + reload); Cloudflare origin firewall the same day (allow 443 [+80 per the
   HTTP-01 caveat] from Cloudflare ranges only, keep 22 reachable for the deploy runner, out-of-band console
   open, verify direct-IP fails and `teka.cd` still 200s; confirm SSL Full (strict) + orange cloud); pre-merge:
@@ -3556,10 +3559,10 @@ orders, payouts, reviews or product/avatar assets, or alters order snapshots, to
   phone the seller before marking paid) until it lands.
 
 **Verdict at the time of the audit: READY AFTER SPECIFIC BLOCKERS** — one code blocker (S12), then the
-manual release-window actions. **Superseded 2026-09-09: S12 merged as `295e801` (PR #722), so no code
-blocker remains — `develop` is READY FOR A CONTROLLED RELEASE subject to the manual release-window
-actions (nginx copy + reload, Cloudflare/Hetzner origin firewall).** The original recommended sequence
-follows, for the record.
+manual release-window actions. **Superseded 2026-09-09 (twice): S12 merged as `295e801` (PR #722), the release shipped as `9a89249`,
+and BOTH manual release-window actions (nginx copy + reload, Cloudflare/Hetzner origin firewall) were
+applied and independently re-verified the same day. No production blocker remains — see « Production
+hardening close-out (2026-09-09) » below.** The original recommended sequence follows, for the record.
 Recommended sequence: (1) `security/admin-and-financial` PR — S12 (+ login-email re-auth, S13 throttle, S22,
 S14, the two S11 one-liners, Sentry request-data opt-out; small, all in the same threat model) → full CI →
 approval → merge; (2) re-run this audit's automated gates on the new `develop`; (3) `develop → main` release
@@ -3686,20 +3689,413 @@ re-auth; that is the login-email-change follow-up (RECOMMENDED, S12-adjacent) an
 hardening, deliberately out of scope here. Admin step-up re-auth for `complete`, S11 audit coverage,
 S13/S14/S22 and D2b remain as classified in the 2026-09-09 audit.
 
+### Production hardening close-out (2026-09-09 — release `9a89249` + both manual steps)
+
+**Release.** PR #723 (`develop → main`) merged as **`9a89249`**; deploy run **34380668330** succeeded
+17:04:28 → 17:10:45 UTC. EXPAND applied exactly `2026-09-06_auth_rate_limits.sql` then
+`2026-09-09_payout_method_changed_at.sql` and skipped the nine already in `_manual_migrations`, before
+the rolling swap; `set -eu` + `ON_ERROR_STOP=1` confirmed active.
+
+**Manual step 1 — production nginx (operator).** The released `nginx/nginx.prod.conf` was installed on
+the VPS (backup `nginx.prod.conf.before-20260909` kept on the box, **not** tracked in git),
+`nginx -t` passed, and nginx was reloaded gracefully with all containers staying healthy. The operator
+verified locally against `127.0.0.1` that teka.cd / seller / admin each answer 200 with one
+application-owned CSP, one nginx-owned HSTS, seller `noindex, nofollow`, admin
+`noindex, nofollow, noarchive`, buyer indexable, and that the API health/ready/live endpoints answer
+through nginx with `database: ok`.
+
+**Manual step 2 — Cloudflare/Hetzner origin firewall (operator).** Ports 80 and 443 restricted to the
+approved Cloudflare paths; port 22 deliberately left open for the GitHub-hosted deploy runners.
+
+**Independent re-verification from this session (read-only, external network, 2026-09-09).**
+- Through Cloudflare: `teka.cd`, `seller.teka.cd`, `admin.teka.cd` each return **exactly one**
+  `Content-Security-Policy` — the app-owned one — and **one** `Strict-Transport-Security`. **The
+  duplicate CSP recorded immediately after the deploy is gone.** `X-Robots-Tag` unchanged on
+  seller/admin; buyer carries none.
+- Direct to the origin `178.104.179.42`: on 443 and on 80 the TCP handshake completes and the peer then
+  **resets** (`errno 54`), returning no HTTP response, for all five hostnames — while
+  `https://teka.cd` through Cloudflare answered `200` with `server: cloudflare` at the same moment.
+  **The direct-origin bypass is closed.** Before the firewall the same probes returned 200/200/200/404
+  and a 301 on :80, so the change is demonstrable rather than assumed.
+- Certificate unchanged: Let's Encrypt, all five hostnames as SANs, 26 Aug → 24 Nov 2026 (75 days), and
+  the ACME path still answers 404 through Cloudflare, so HTTP-01 renewal is unaffected.
+
+**Two honest caveats.**
+1. **GitHub → VPS SSH was not verifiable from this session.** My network cannot read an SSH banner from
+   anywhere (the `github.com:22` control returned nothing either), so the port-22 probe proves nothing.
+   The operator intended to leave 22 open and the firewall rule reflects that; **the next deploy is the
+   proof**. If it ever fails at the SSH step, recover from the Hetzner Console — it is not an outage.
+2. **Ports reject rather than drop.** A scanner still completes a handshake before the reset. Optional
+   hardening (P3), not a defect.
+
+**Not verified in this session and not claimed:** Sentry (no token or CLI available), VPS SSH posture
+(`PasswordAuthentication`, `PermitRootLogin`, fail2ban), OS patch level, and the certbot renewal
+authenticator recorded on the VPS.
+
+### P1 admin / financial security follow-ups — `security/admin-financial-followups` (2026-09-09, open)
+
+Five items the release-readiness audit classified P1, each re-verified as still open in current code
+before being touched, in one reviewable PR. **No migration, no environment or secret change, no mobile
+change, no API contract break.**
+
+**A — login-email change now requires the current password.** `PATCH /v1/users/profile` wrote `email`
+with no proof of identity, and for sellers and admins that email IS the login identity: a hijacked
+session could point the account at an attacker's address, request a password reset there and own the
+account permanently — the escalation path into the payout destination S12 guards. A real change (case-
+and whitespace-insensitive) now needs the current password: **400** when missing, **403** when wrong
+(403 rather than 401 so no client refreshes and replays; the attempt counts in the shared `login` lock
+by email). Name-only updates and re-sending the same address stay password-free, so existing clients
+keep working. The write, the `emailVerified` reset and a `LOGIN_EMAIL_CHANGED` audit row with **masked**
+addresses commit together; the **previous** address is notified after commit with a new French template,
+because it is the only address a legitimate owner still controls after a takeover. A duplicate address
+is a French **409** saying only that it cannot be used — never that it belongs to someone else. Accounts
+without a password (buyers on WhatsApp OTP) are refused explicitly. seller-web and admin-web show the
+password field only when the email is actually edited, mark it `data-ph-no-capture`, and clear it on
+success and in `finally`; the stale « vous demandera de le re-vérifier » copy is replaced by what
+actually happens.
+
+**B — S13 upload throttling.** `POST /v1/sellers/documents` (open to any authenticated **BUYER**,
+creates a private Cloudinary asset per call, no row, no owner binding) and
+`POST /v1/sellers/verification/documents` had **no throttle at all**, while the product-image and avatar
+routes already had one. Both now carry `@Throttle` 20/min per IP plus `@IdentityThrottle('upload')`
+(`AUTH_LIMITS.upload`, 30 per 10 minutes, keyed on the user id — never a phone or an email). All four
+upload routes are now throttled. Size limits, magic-byte sniffing, declared-type agreement, EXIF
+stripping, the field-name guard, ownership and the multipart retry path are untouched. **Still open**
+(data governance, not abuse): row-first creation with owner binding and an orphan sweep for application
+documents.
+
+**C — S22 banner-link validation.** `linkUrl` and `linkTarget` were `@IsString()` only and buyer-web
+turned them into real anchors, so an admin account could store `javascript:` (which the storefront CSP's
+`script-src 'unsafe-inline'` permits on navigation) or `//evil.example` (an open redirect), surviving the
+session that wrote it. Now validated on write against `linkType`: identifier types take a plain slug,
+short code or UUID; `url` takes a site-relative path (single leading slash, never `//` or `/\\`) or an
+absolute **https** URL; control characters and values over 500 characters are refused; title and subtitle
+bounded. **The destination host is deliberately not restricted** — external campaign links are an
+intentional capability the existing tests document, and the vulnerability was the scheme, not the
+destination; gating on `https:` rejects `javascript:`, `data:`, `file:`, `vbscript:` and `blob:` by
+construction plus `http:` as a downgrade. buyer-web `bannerHref()` applies the same rule at the sink as
+defence in depth. Production carried **zero** banners when this landed, so no historical value was
+invalidated.
+
+**D — S14 request bounds.** Pagination was `@Type(() => Number)` only (a seller could ask for
+`limit=1000000` and pull the whole catalogue with images in one query) and enum filters were free strings
+cast into Prisma filters, answering **500** instead of 400. Bounded to the `PayoutQueryDto` convention:
+`ProductQueryDto` and `SearchUsersDto` get `page >= 1`, `limit 1..100`, `@IsIn` on status/role and
+`search <= 200`; `CreateAddressDto` gets 60/80-character bounds; `SellerCreatePromotionDto` 120/2000.
+`AdminOrderQueryDto` was found **already bounded** and left alone.
+
+**E — the two S11 one-liners.** `PATCH /v1/admin/users/:id/status` had no self-guard (an admin could
+suspend or ban their own account and lock themselves out), discarded `dto.reason`, recorded no actor, and
+left every refresh token of the suspended account valid — and the refresh path refused only `BANNED`, so
+the session resumed the moment the status was lifted. Now a self-change is a French **403** before
+anything is read; the status change, the revocation of every live refresh token (on SUSPENDED/BANNED
+only) and a `USER_STATUS_CHANGED` audit row carrying actor and reason commit in one transaction; and
+`refreshTokens()` refuses SUSPENDED alongside BANNED.
+
+**Tests.** API **880 unit** (+27) and **268 e2e** (+11), buyer-web 187 (+6), seller-web 41, admin-web 60,
+type-check ×5, three production web builds. New suites: `banner-link.validator.spec.ts` (11),
+`update-profile-email.spec.ts` (9), `upload-throttling.e2e-spec.ts` (3), `dto-bounds.e2e-spec.ts` (8),
+plus 4 admin-status and 3 refresh cases.
+
+**Runtime verification** on an isolated API (:5051, this build, dev DB, disposable seller + admin +
+second seller, cookie auth through the D2a Origin binding). Every path confirmed end to end: a name-only
+update and an unchanged email need no password; a change without one is 400; a wrong password is 403 with
+the address **unchanged in the DB** and no echo; a duplicate is 409 with no owner disclosed; the correct
+password changes the address, resets `emailVerified`, and writes an audit row whose before/after are
+masked (`q•••r@…` → `q•••d@…`) with no raw address or password; an admin suspending **themselves** is 403
+with their status still ACTIVE; suspending another account returns 200, takes live refresh tokens from
+**1 to 0**, and audits the actor and reason; refreshing a suspended session is 401 « Compte non trouvé ou
+suspendu »; `limit=100` passes while 101, 1000000, `page=0`, `limit=abc` and `status=NOPE` are 400 with
+no Prisma detail; `javascript:`, `data:`, protocol-relative, `http:` and a URL-as-identifier are all
+refused while `/categories` and an https link are created; and the document upload answers **429 after 20
+calls** with `Retry-After: 60` and no identifier in the body. All QA rows deleted afterwards and verified
+at zero (users, profile, audit, banners, tokens).
+
+**Not changed on purpose:** authentication and authorization semantics, CSRF/origin behaviour, Cloudinary
+lifecycle, session/token rotation beyond the suspend case, mobile clients, and every API response shape
+except the two new refusals.
+
+### Sentry request-data minimisation — `security/sentry-request-data-minimization` (2026-09-09, open)
+
+The P1 item, re-audited before implementation rather than taken on trust — and the audit found the
+risk **understated**, not overstated.
+
+**Root cause.** `@sentry/node` 10.53.1 enables `requestDataIntegration` by default with
+`DEFAULT_INCLUDE = { cookies: true, data: true, headers: true, query_string: true, url: true }`, and
+`httpIntegration` defaults `maxIncomingRequestBodySize` to `'medium'`, patching every incoming request
+to buffer up to 10 kB of body. `sendDefaultPii` gates **only the client IP**, so it was never the
+control anyone assumed it was. Verified by reading the installed SDK, not the docs: the option is
+`maxIncomingRequestBodySize` on this version, not the `maxRequestBodySize` the docs show for
+`httpServerIntegration`.
+
+**Demonstrated, not inferred.** With a stub transport and a fake DSN against the then-shipping
+`instrument.ts`, one 500 on `POST /v1/auth/login/email` produced an event containing the plaintext
+password, the `Authorization` header, both session cookies, the OTP code, the `?token=` query value
+and the email address. Only the phone number was scrubbed. The same probe after the fix reports all
+eight secrets clean while retaining method, user-agent, content-type, surface, exception type and
+message, ten stack frames, tags and environment.
+
+**Fix, two layers.** Prevent collection (`maxIncomingRequestBodySize: 'none'`, `include: { cookies:
+false, data: false }`, `sendDefaultPii: false` pinned) on the API and the three Next.js server
+runtimes; then sanitise what remains via one shared implementation,
+`packages/shared/src/security/sentry-sanitize.ts`, wired as `beforeSend` + `beforeBreadcrumb` on all
+four JavaScript surfaces and all nine web runtime configs. It is deliberately shared rather than
+copied four times: `@teka/shared` already ships in every client bundle, so it costs nothing, and a
+security rule set that exists in four places drifts.
+
+**Second finding, from the logging cross-check.** `consoleIntegration` is a Sentry default, so every
+Nest `Logger` line becomes a breadcrumb — and this codebase logs in `key=value` style. Key-based
+redaction never sees those, because there is no object key. An inline `key=value` rule was added and
+proved against real log lines from `buyer-otp.service.ts` and the mock WhatsApp provider. Ordering is
+load-bearing: JWT and `Bearer` must run before the inline rule, or `Authorization: Bearer <token>`
+matches inline, consumes only the word `Bearer` and leaves the token intact. That regression was
+caught by the probe and fixed.
+
+**Mobile audited, deliberately unchanged.** Neither Flutter app has `sentry_dio` or `SentryHttpClient`,
+so no request body, cookie or auth header can enter a mobile event; `setUser` carries only `id` and
+`role`. Residual findings recorded in `docs/sentry.md` for the mobile hardening initiative: `beforeSend`
+does not walk `exceptions`/`contexts`/`tags`/`user`, the `\+243\d{9}` regex misses local and spaced
+forms, `retry_interceptor.dart` documents a query-strip that no code performs, seller-mobile never
+clears the Sentry user on logout, `sendDefaultPii` is unpinned, there are no scrubber tests, and
+`SENTRY_DSN` is empty in both production flavor files so mobile Sentry is currently a no-op.
+
+**Not done, on purpose.** Sentry dashboard-side scrubbing is still recommended as defence in depth and
+has **not** been verified — no Sentry auth token is available in this environment and no remote event
+was inspected. The `global-error.tsx` files in all three web apps still never call `captureException`;
+that is a missing feature, not a leak, and belongs in its own change.
+
+**Third finding, from CodeQL on the PR itself.** The first draft of the sanitiser tripped
+`js/polynomial-redos` (high) on the Cloudinary pattern: an unbounded `[^\s"'<>]*` either side of the
+literal is polynomial on a long non-matching string, and this code runs inside `beforeSend` on data an
+attacker can influence. Correct finding, fixed rather than dismissed — the host part now excludes `/`
+so it cannot scan forward across a path, every quantifier is length-bounded, and a `MAX_STRING_LENGTH`
+ceiling is applied before any regex runs. A 60 kB non-matching URL costs about 2 ms; four regression
+tests cover it.
+
+**Verification.** API 908 unit (+28) / 268 e2e; buyer-web 190, seller-web 44, admin-web 63 (+3 each);
+type-check ×5; three production `next build`s. No migration, no environment or secret change, no
+workflow change, no mobile change.
+
+### Mobile security hardening — MS1-MS7 — PR A (2026-09-09, merged `2814d1d`, PR #727)
+
+Re-audited against current code before any change. Two corrections to the tracker.
+
+**MS5 is largely already done.** A4 (`f0b034a`, PR #686) introduced `SessionScope` and already evicts the
+cart snapshot, the cached profile, recently-viewed and recent searches on logout, on session rejection and
+on both account-switch paths, with tests in `test/session/account_isolation_test.dart` and
+`test/auth/offline_cold_start_test.dart`. Those four are **not** reimplemented. What remains is the town
+(`teka_selected_city_id`), which has a real symptom: `clearCity()` exists but nothing calls it, and because
+`hydrateFromProfile` bails on `if (state.hasCity) return`, buyer B inherits buyer A's town **and B's own
+server-side `preferredCityId` is silently ignored**. `city_persistence_test.dart:223` is titled "logout
+path" and covers a path production never takes, which is why the gap survived. Also open: the
+`SellerAccountException` branch returns before `clearPrivateState()`, and the `cached_network_image` disk
+cache is never cleared.
+
+**MS5 as written does not apply to seller-mobile.** It has no cart, no recently-viewed, no searches, no city
+and no image cache; `TypedCache`/`CacheKeys` are dead code never read by any feature, and the only
+persisted state is the two tokens, which logout clears. The real seller gap is in memory: the notifications,
+earnings, promotions and reviews notifiers have no reset on logout.
+
+**New finding outside MS1-MS7.** buyer-mobile calls `ImageSource.gallery` for the avatar while its iOS
+`Info.plist` declared no `NSPhotoLibraryUsageDescription`. iOS terminates an app that touches a
+privacy-sensitive API with no usage string, so the avatar picker crashed on device and App Review would
+reject the binary. Fixed in PR A; gallery only, since the buyer app never opens the camera.
+
+**PR A — platform/storage/config (`mobile/hardening-platform-config`).** MS1 `allowBackup="false"` plus
+cloud-backup and device-transfer exclusion rules; MS4 `IOSOptions(first_unlock_this_device)`, closing the
+iOS half of a gap Android already covered with `encryptedSharedPreferences`; MS7 R8 shrink + obfuscation
+with keep rules for the Flutter embedding, Firebase/GMS, `androidx.security` and Flutter's unused Play Core
+references; and the iOS usage string.
+
+MS7 was validated by running minified builds, not by the build succeeding, because R8 fails at runtime:
+production AABs for both apps (R8 8.11.18, mapping files produced), then minified development-flavour
+release APKs installed on a Pixel 8 Pro emulator. Both launched clean, with no ClassNotFound, NoSuchMethod
+or MissingPlugin failures; Firebase initialised, `flutter_secure_storage` opened its encrypted store, and
+the buyer app loaded live towns, categories, images and promotions from the dev API.
+
+Baselines held: buyer 501 tests, seller 472, `flutter analyze` at 6 and 5 pre-existing infos.
+
+**Still to come:** PR B (MS2 buyer router UUIDs, MS3 `teka://` host check, MS5 remainder) and PR C (MS6
+scrubber breadth + tests, `sendDefaultPii` pinned, seller Sentry user cleared on logout).
+
+**Note for whoever runs an iOS build:** `flutter build ios` rewrites
+`ios/Runner.xcodeproj/.../Package.resolved`, bumping SwiftPM pins (app-check 11.3.0 → 11.3.1,
+firebase-ios-sdk). That drift is incidental and was reverted out of PR A rather than shipped inside a
+security change.
+### Mobile security hardening — PR B and PR C (2026-09-09; B merged `fd97ca9` PR #728, C PR #729)
+
+Continues the MS1-MS7 work recorded with PR A above. These two were recorded together because PR A
+inserts at the same anchor; the predicted conflict occurred on merge and was resolved keep-both.
+
+**PR B — routing/session isolation (`mobile/hardening-routing-session`, #728).** MS2: the buyer push
+router accepted any string as an entity id and interpolated it into a `GoRouter` path, so anyone able to
+deliver a push could steer in-app navigation; ported seller-mobile's `_uuidOrNull`. The existing test
+asserted `'abc'` routed — the behaviour being closed — so it was rewritten around real UUIDs with
+traversal and query-string rejection cases. MS3: `teka://` skipped the host allow-list entirely; the
+allow-list now applies to every scheme, so `teka://teka.cd/promotions` still works while
+`teka://evil.example/...` and bare `teka://promotions` do not. MS5: **most of it was already done by A4** —
+cart snapshot, cached profile, recently-viewed and recent searches are already evicted, and were not
+reimplemented. The town was the one thing left, with a real symptom: `hydrateFromProfile` bails on
+`if (state.hasCity) return`, so buyer B inherited buyer A's town **and B's own server-side
+`preferredCityId` was silently ignored**. Clearing is keyed on the account IDENTITY, not on "became
+unauthenticated", because an OTP verify goes straight from A to B. `clearLocalCity()` is separate from
+`clearCity()` so a session boundary never syncs a null preference to the outgoing account. The
+`SellerAccountException` branch, which returned before `clearPrivateState()`, is closed. On the seller
+side the four unkeyed notifiers gained a reset wired into the auth listener, and the Sentry user is
+cleared on logout and on a rejected stored session. `test/session/` did not previously exist in
+seller-mobile.
+
+**PR C — telemetry/privacy (`mobile/hardening-telemetry`).** MS6: the scrubber walked `message` and
+breadcrumbs only, with one `\+243\d{9}` regex, and had **no test in either app** despite its doc comment
+saying "keep all four in sync". `exceptions`, `contexts`, `tags` and `user` were never walked, and
+`retry_interceptor.dart` and `dio_error_messages.dart` write request paths into contexts and an
+`endpoint` tag. The walk is now whole-event, bounded on depth, node count and string length, and covers
+emails, JWTs, Bearer tokens, Cloudinary document URLs and inline `key=value` secrets, matching the shared
+JavaScript sanitiser. Ordering is load-bearing: JWT and Bearer must precede the inline rule or
+`Authorization: Bearer <token>` matches inline, consumes only the word Bearer, and leaves the token. The
+phone pattern ends in a greedy `\d+` rather than a right-anchored boundary — the boundary version looked
+safer and was worse, refusing to match an over-long run at all and leaving the whole number in the
+payload. `sendDefaultPii` is pinned in both apps. 13 tests each, mirrored per Rule 15.
+
+**Deliberately unchanged, with reasons.** `auth_interceptor.dart` clears tokens on a 401 without touching
+the disk; the next cold start hits `SessionRejected` and clears it, and reaching into feature state from
+the network layer would disturb connectivity handling that was built deliberately. The
+`cached_network_image` disk cache is still never cleared. `event.extra` is not scrubbed because both apps
+use named contexts and never call `setExtra`, and the field is deprecated in the SDK.
+
+**Verification.** buyer-mobile 514 tests (from 501), seller-mobile 485 (from 472), `flutter analyze`
+unchanged at 6 and 5 pre-existing infos. Runtime verification of the R8 builds is recorded with PR A.
+
+**Not claimed.** No iOS runtime was exercised. A `flutter build ios` was started but had to be abandoned:
+it reads the working tree, and branch switching during the run made its result meaningless.
+
+### MS1-MS7 close-out — all three PRs merged (2026-09-10)
+
+`develop` `310d718`. Merge order was #727 (`2814d1d`), #728 (`fd97ca9`), #729 (`310d718`), each a real
+merge commit. The tracker conflict predicted between #727 and #729 occurred exactly as described and was
+resolved keep-both, PR A's record first.
+
+**Every item re-verified against merged `develop`, not against notes:** `allowBackup="false"` in both
+manifests with data-extraction rules present (MS1); `_uuidOrNull` in the buyer push router (MS2); the
+host allow-list applied to every scheme in the deep-link parser (MS3); `first_unlock_this_device` in both
+secure-storage providers (MS4); `clearLocalCity` wired and four seller notifier resets (MS5); whole-event
+scrub plus `sendDefaultPii` pinned in both apps (MS6); `isMinifyEnabled = true` with keep rules in both
+Gradle files (MS7). **MS1-MS7 code work is complete.**
+
+**Integrated regression on merged `develop`:** buyer-mobile **520** tests, seller-mobile **487**,
+`flutter analyze` unchanged at 6 and 5 pre-existing infos, workspace `pnpm type-check` clean across all
+five packages.
+
+**Android:** both production AABs rebuilt from merged `develop` with R8 8.11.18 and mapping files
+produced. Inspected inside the bundles — production application ids `com.tootiye.teka` and
+`com.tootiye.tekaseller` with no `.dev` suffix, not debuggable, `allowBackup false` present in the
+built manifest, and no dev endpoint string anywhere in the bundle. Minified development-flavour release
+APKs were then installed on a Pixel 8 Pro emulator; both launched with no ClassNotFound, NoSuchMethod or
+MissingPlugin failures, Firebase initialised, `flutter_secure_storage` opened its encrypted store, and
+the buyer app loaded live towns, categories, images and promotions.
+
+**iOS — now actually verified, unlike the previous attempt.** Device builds succeed for both apps
+(`flutter build ios --no-codesign`, 35.9 MB and 37.0 MB). The new `NSPhotoLibraryUsageDescription` is
+present in the built `Runner.app/Info.plist`, and there is still no `NSAppTransportSecurity` override, so
+ATS stays strict. Simulator builds were installed and launched on an iPhone 17 Pro simulator: buyer
+renders its home screen and town selector, seller renders its login screen, both stay running. Content
+does not populate because the simulator cannot reach the dev API host; that is environmental, not a code
+failure. **Not exercised on physical iOS hardware.**
+
+**Correction to an earlier note.** `SENTRY_DSN` and `POSTHOG_API_KEY` are empty in
+`flavors/production.json`, but **both** release workflows inject them via `--dart-define` from repository
+secrets — `release-mobile-aab.yml` for Android and `release-mobile-ipa.yml` for iOS. Mobile Sentry and
+PostHog are therefore live in a real release build on both platforms. The earlier statement that Sentry
+was a no-op applies only to a local build from the checked-in flavor file, never to a CI release.
+
+**Store readiness — blocked on one external fact.** Both apps take `versionCode` and `versionName`
+straight from `pubspec.yaml` (`flutter.versionCode` / `flutter.versionName`), and the AAB workflow does
+not override them. iOS is different: `release-mobile-ipa.yml` sets `--build-number=$(date -u +%s)`, so
+`CFBundleVersion` is always unique and monotonic and never needs a manual bump; only the marketing
+version comes from pubspec. Neither workflow uploads to a store, so the repository cannot know the
+highest `versionCode` already accepted by Google Play. **No version was bumped.**
+
+**Branch protection, read-only audit.** `main` carries the ruleset "Protect main" (active) with rules
+`deletion`, `non_fast_forward` and `pull_request`; `allowed_merge_methods` is `["merge"]` only, which is
+what keeps squashes out. It has **no** `required_status_checks` rule and requires **zero** approving
+reviews, and there are no bypass actors. `develop` has no ruleset and no legacy protection at all. The 14
+individual check names now available are: API Tests, Analyze (actions), Analyze (javascript-typescript),
+Dependency Audit, Flutter Analysis (buyer-mobile), Flutter Analysis (seller-mobile), Flutter Tests
+(buyer-mobile), Flutter Tests (seller-mobile), Lint & Type Check, Release Config, Web Build (admin-web),
+Web Build (buyer-web), Web Build (seller-web), Web Tests. Nothing was changed.
+
+### Branch protection applied — the last P1 (2026-09-10)
+
+`develop` `3b099db` after PR #730 merged (`3b099db`, docs-only close-out of MS1-MS7).
+
+**Before.** `main` carried the ruleset "Protect main" (active) with `deletion`, `non_fast_forward` and
+`pull_request` (merge commits only, zero approvals, no bypass actors) but **no required status checks**.
+`develop` had **no ruleset and no legacy protection at all** — anyone with write access could push
+straight to the integration branch.
+
+**Which checks are required, and why those.** Thirteen, chosen from what actually runs rather than from
+documentation. `ci.yml` triggers on `pull_request: branches: [main, develop]` with **no path filters**, so
+all twelve of its checks run on every PR into either branch — confirmed on PR #730, a documentation-only
+change, where all fifteen checks ran and passed. That is the case that would otherwise deadlock a
+required check, and it does not.
+
+| Check | Decision |
+|---|---|
+| Lint & Type Check, API Tests, Web Tests, Dependency Audit, Release Config | REQUIRE — `ci.yml`, no path filter |
+| Web Build ×3, Flutter Tests ×2, Flutter Analysis ×2 | REQUIRE — `ci.yml` matrix, stable names |
+| CodeQL | REQUIRE — the aggregate code-scanning result; it is what failed on PR #726 when a new high-severity alert appeared |
+| Analyze (actions), Analyze (javascript-typescript) | OPTIONAL — GitHub-managed default-setup job names that could be regrouped; the CodeQL aggregate already gates them, and requiring a name GitHub owns is the deadlock risk |
+| `pr-validation.yml` (`lint-typecheck-test`, `docker-build-check` ×4) | DO NOT REQUIRE — triggers on `pull_request: branches: [main]` only, so it never runs on a `develop` PR; requiring it there would deadlock every PR. Its lint step is also explicitly non-blocking |
+| apply-migration, deploy, build-mobile-{apk,ipa}, release-mobile-{aab,ipa}, run-prod-seed, run-prod-backfill | DO NOT REQUIRE — all `workflow_dispatch` only; they never produce a PR check |
+
+Each required check is pinned to the app that reports it: integration `15368` (GitHub Actions) for the
+twelve, `57789` (GitHub Advanced Security) for CodeQL, so an unrelated app cannot satisfy a context.
+
+**After.** Both branches now carry identical protection: `deletion`, `non_fast_forward`, `pull_request`
+(merge commits only, zero approvals) and the thirteen required checks. No bypass actors on either —
+matching `main`'s existing posture rather than weakening it. `main` kept every rule it already had; only
+the new one was appended.
+
+`strict_required_status_checks_policy` is **false** deliberately. Requiring a branch to be up to date
+before merging would force a sync on every parallel PR each time the base moved — with the three
+hardening PRs open at once that would have meant repeated churn for a single maintainer — and `ci.yml`
+re-runs on `push` to both branches anyway, so a bad interaction still surfaces immediately after the
+merge.
+
+**Verified, not assumed.** The rules were read back from the API after applying, then exercised with a
+disposable PR into `develop` (#731, closed unmerged, branch deleted): merge was refused while checks were
+pending (`BLOCKED`, "the base branch policy prohibits the merge"), became available once all thirteen
+passed (`CLEAN`), and both `--squash` and `--rebase` were refused outright. The previous `main` ruleset
+was exported to JSON before the change so it can be restored.
+
+**Remaining.** No P0. The only P1 left is obtaining the highest Google Play `versionCode` per app, which
+the repository cannot determine: both apps take `versionCode` and `versionName` straight from
+`pubspec.yaml`, `release-mobile-aab.yml` does not override them, and no workflow uploads to Play. iOS
+needs no equivalent — `release-mobile-ipa.yml` sets `--build-number=$(date -u +%s)`, so `CFBundleVersion`
+is unique and monotonic on every upload and only the marketing version comes from pubspec.
+
 ## Next exact step
 
-**S12 merged (`295e801`, PR #722) — the 2026-09-09 release-readiness audit's only code blocker is
-closed and `develop` carries no known code blocker.** Order, each its own PR into `develop` with a merge
-commit, none started without approval: (1) ~~`security/payout-destination-reauth`~~ — **done**;
-(2) **`develop → main` release PR** with the `docs/deployment.md` checklist — nginx copy +
-reload and the Cloudflare origin firewall in the same window, **two** EXPAND migrations now
-(`auth_rate_limits`, `payout_method_changed_at`), smoke matrix, release record; (3) mobile store builds
-(bump buyer `0.1.8+10`, seller `0.1.10+12` after confirming Play's `versionCode`) — the seller build now
-also carries the password field, though the API does **not** require a new build; (4) the RECOMMENDED
-follow-ups as one PR (login-email re-auth, S13 upload throttle + row-first, S22 banner links, S14 bounds,
-the two S11 one-liners, Sentry request-data opt-out); (5) `mobile/security-hardening` (MS1–MS7);
-(6) branch-protection required checks; (7) D2b / S11 full / S16 / iOS runtime session / Dependabot chores.
-Owner decisions pending: S21 role model; seller-visible buyer PII policy; PostHog replay masking on buyer
-account pages. Still open and preserved: API `pendingCDF` vs HELD/`deliveredAt` (re-count in prod at
-release); seller-web stale-town notice; golden tests; legacy characteristic prefill; `Image.network` on
-seller-mobile; CSP has no reporting endpoint; CORS sets no `methods` allow-list.
+**Production is released and hardened; the P1 admin/financial security follow-ups are MERGED**
+(PR #725, `f9a9b34`) **and the Sentry request-data minimisation is implemented and awaiting review**
+(`security/sentry-request-data-minimization`). Remaining, each its own small PR into `develop` with a
+merge commit, none started without approval.
+
+**P1.** (1) ~~Admin/financial follow-ups~~ — MERGED `f9a9b34` (#725). (2) ~~Sentry request-data
+minimisation~~ — MERGED `babd4bd` (#726). (3) ~~Mobile hardening MS1-MS7~~ — MERGED `2814d1d` (#727),
+`fd97ca9` (#728), `310d718` (#729); code work complete, see the close-out above. (4) ~~Branch-protection required checks~~ — APPLIED to both `main` and `develop`, verified with a
+disposable PR; see the record above. **Next in sequence:** confirm the highest Google Play `versionCode`
+per app, bump versions, then the store builds.
+
+**P2.** Buyer Web USD price (verified still broken: `priceUSD` typed `number` while the API serialises
+BigInt as a string); seller-web stale-town notice; D2b admin API boundary; the rest of the S11 audit
+coverage (product hard-delete actor, reviews, settings, broadcasts); row-first + orphan sweep for
+application documents; Prometheus/Grafana alerting.
+
+**P3.** `pendingCDF` vs HELD without `deliveredAt`; seller-mobile `Image.network` in 3 files; legacy
+characteristic prefill; golden tests; origin firewall drop-instead-of-reject; the certbot hook reloading
+rather than restarting nginx; `esbuild` and the stale Dependabot PRs.
+
+**Owner decisions still open:** SUPPORT/FINANCE role model (S21); seller-visible buyer PII parity;
+PostHog replay masking on buyer account pages; whether MS1–MS7 must precede the next store builds
+(current preference: yes).

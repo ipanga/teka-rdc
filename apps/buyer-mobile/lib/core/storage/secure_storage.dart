@@ -1,9 +1,24 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+/// MS4 — keychain accessibility.
+///
+/// Without `iOptions` the plugin defaults to `kSecAttrAccessibleWhenUnlocked`,
+/// which is included in an encrypted iTunes/Finder backup and therefore
+/// restorable onto a DIFFERENT device. `first_unlock_this_device` keeps the
+/// same runtime behaviour — the item is readable after the first unlock
+/// following a boot, so background refresh still works — while marking it
+/// `ThisDeviceOnly`, so it is excluded from every backup and never leaves the
+/// hardware it was written on.
+///
+/// Android already pins `encryptedSharedPreferences`, which wraps the value in
+/// a Keystore key that is itself non-exportable.
 final secureStorageProvider = Provider<FlutterSecureStorage>((ref) {
   return const FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock_this_device,
+    ),
   );
 });
 

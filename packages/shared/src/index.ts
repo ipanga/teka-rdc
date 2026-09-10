@@ -55,3 +55,6 @@ export * from './validators/messaging.validator';
 export * from './types/platform';
 export * from './constants/platform';
 export * from './validators/platform.validator';
+
+// Security — Sentry payload sanitisation (shared by api + the three web apps)
+export * from './security/sentry-sanitize';

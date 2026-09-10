@@ -24,6 +24,11 @@ void main() async {
         options.dsn = dsn;
         options.environment = FlavorConfig.instance.envName;
         options.tracesSampleRate = 0.0;
+        // MS6 — pinned, not left to the SDK default. `sendDefaultPii` false
+        // is today's default, but nothing tested it, so an SDK bump or a
+        // copy-paste could have turned on IP and device-identifier capture
+        // without anyone noticing.
+        options.sendDefaultPii = false;
         options.beforeSend = scrubBeforeSend;
       },
       appRunner: _bootstrap,

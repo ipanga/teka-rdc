@@ -282,3 +282,52 @@ describe('AuthService — D8 per-identity budgets on reset / register / refresh'
   });
 });
 
+
+// ---------------------------------------------------------------------------
+// S11 (2026-09-09) — the refresh path refuses SUSPENDED, not only BANNED.
+// Before this, a suspended account's refresh token kept rotating, so the
+// session resumed silently the moment the suspension was lifted.
+// ---------------------------------------------------------------------------
+describe('AuthService.refreshTokens — suspended and banned accounts', () => {
+  beforeEach(() => {
+    mockedBcrypt.compare.mockResolvedValue(true as never);
+    mockedBcrypt.hash.mockResolvedValue('new-hash' as never);
+  });
+
+  const live = { id: 't1', userId: 'u1', tokenHash: 'stored-hash', revokedAt: null };
+
+  it('refuses a SUSPENDED account and issues no tokens', async () => {
+    const prisma = makePrisma();
+    prisma.refreshToken.findUnique.mockResolvedValue(live);
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'u1',
+      role: 'SELLER',
+      phone: null,
+      status: 'SUSPENDED',
+    });
+    await expect(
+      makeService(prisma, makeJwt()).refreshTokens('raw'),
+    ).rejects.toThrow(/suspendu/i);
+  });
+
+  it('still refuses a BANNED account', async () => {
+    const prisma = makePrisma();
+    prisma.refreshToken.findUnique.mockResolvedValue(live);
+    prisma.user.findUnique.mockResolvedValue({
+      id: 'u1',
+      role: 'SELLER',
+      phone: null,
+      status: 'BANNED',
+    });
+    await expect(
+      makeService(prisma, makeJwt()).refreshTokens('raw'),
+    ).rejects.toThrow();
+  });
+
+  it('an ACTIVE account still refreshes normally', async () => {
+    const prisma = makePrisma();
+    prisma.refreshToken.findUnique.mockResolvedValue(live);
+    const tokens = await makeService(prisma, makeJwt()).refreshTokens('raw');
+    expect(tokens.accessToken).toBeDefined();
+  });
+});

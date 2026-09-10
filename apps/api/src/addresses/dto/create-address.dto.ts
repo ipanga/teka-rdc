@@ -1,4 +1,5 @@
 import {
+  MaxLength,
   IsString,
   IsNotEmpty,
   IsOptional,
@@ -27,18 +28,22 @@ export function normalizeRecipientPhone(value: unknown): string | null | undefin
 export class CreateAddressDto {
   @IsOptional()
   @IsString()
+  @MaxLength(60, { message: 'Le libellé ne peut pas dépasser 60 caractères' })
   label?: string;
 
   @IsString()
   @IsNotEmpty({ message: 'La province est requise' })
+  @MaxLength(80, { message: 'La province ne peut pas dépasser 80 caractères' })
   province: string;
 
   @IsString()
   @IsNotEmpty({ message: 'La ville est requise' })
+  @MaxLength(80, { message: 'La ville ne peut pas dépasser 80 caractères' })
   town: string;
 
   @IsString()
   @IsNotEmpty({ message: 'Le quartier/commune est requis' })
+  @MaxLength(80, { message: 'Le quartier/commune ne peut pas dépasser 80 caractères' })
   neighborhood: string;
 
   @IsOptional()

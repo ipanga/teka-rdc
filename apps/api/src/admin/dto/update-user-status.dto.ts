@@ -1,4 +1,4 @@
-import { IsString, IsIn, IsOptional } from 'class-validator';
+import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class UpdateUserStatusDto {
   @IsString()
@@ -7,5 +7,6 @@ export class UpdateUserStatusDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(500, { message: 'La raison ne peut pas dépasser 500 caractères' })
   reason?: string;
 }

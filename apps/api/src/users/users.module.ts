@@ -11,6 +11,7 @@ import { SellerDocumentsModule } from '../seller-verification/seller-documents.m
 import { AuthModule } from '../auth/auth.module';
 import { PushModule } from '../push/push.module';
 import { EmailModule } from '../email/email.module';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { EmailModule } from '../email/email.module';
     AuthModule,
     PushModule,
     EmailModule,
+    AuditModule,
     SellerDocumentsModule,
   ],
   controllers: [UsersController, AccountDeletionController],

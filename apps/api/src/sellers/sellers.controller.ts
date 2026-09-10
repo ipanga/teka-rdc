@@ -15,6 +15,8 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { documentMaxBytesFromEnv } from '../seller-verification/seller-document-storage.service';
 import { multipartFieldNameLimits } from '../common/uploads/image-upload';
+import { Throttle } from '@nestjs/throttler';
+import { IdentityThrottle } from '../common/rate-limit/identity-throttle.decorator';
 
 @Controller('v1/sellers')
 export class SellersController {
@@ -25,6 +27,14 @@ export class SellersController {
   // apply body. Same role set as apply (fresh registrations are role SELLER).
   @Post('documents')
   @Roles('BUYER', 'SELLER')
+  // S13 (2026-09-09): this route creates a PRIVATE Cloudinary asset per call
+  // and is open to any authenticated BUYER, with no row and no owner binding —
+  // so without a throttle a single account could mint unbounded private
+  // storage. Same budget as the other upload routes (AUTH_LIMITS.upload,
+  // 30 / 10 min per user) plus a per-IP cap; a legitimate applicant uploads
+  // one or two documents.
+  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @IdentityThrottle('upload')
   // multer `limits` reject an oversized body while it streams — nothing
   // above the cap is ever buffered (PR 2 hardening).
   @UseInterceptors(

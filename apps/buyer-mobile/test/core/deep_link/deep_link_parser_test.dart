@@ -143,5 +143,26 @@ void main() {
       expect(parse('mailto:foo@bar.com'), isNull);
       expect(parse('javascript:alert(1)'), isNull);
     });
+
+    // MS3 — the custom scheme used to skip the host allow-list entirely, so
+    // any installed app could fire teka://<anything> and steer in-app
+    // navigation.
+    test('teka:// must name an allowed host, like https does', () {
+      // Still works: an allowed host on the custom scheme.
+      expect(parse('teka://teka.cd/promotions')?.route, '/promotions');
+      expect(parse('teka://www.teka.cd/promotions')?.route, '/promotions');
+
+      // Refused: a foreign host, or no host at all.
+      expect(parse('teka://evil.example/promotions'), isNull);
+      expect(parse('teka://teka.cd.evil.example/promotions'), isNull);
+      // `promotions` parses as the HOST here, not a path segment.
+      expect(parse('teka://promotions'), isNull);
+      expect(parse('teka://notifications'), isNull);
+    });
+
+    test('the https host allow-list is unchanged', () {
+      expect(parse('https://teka.cd/promotions')?.route, '/promotions');
+      expect(parse('https://evil.example/promotions'), isNull);
+    });
   });
 }

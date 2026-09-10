@@ -105,6 +105,22 @@ android {
 
     buildTypes {
         release {
+            // MS7 — shrink, optimise and obfuscate the Java/Kotlin side.
+            // Dart code is AOT-compiled into libapp.so and is unaffected;
+            // `--obfuscate --split-debug-info` covers that half and is applied
+            // by the release workflows, not here.
+            //
+            // `proguard-android-optimize.txt` is AGP's own baseline; our
+            // additions live in proguard-rules.pro. Release builds are
+            // validated end to end before shipping — R8 breaking a plugin is
+            // the standard failure mode here, so this is never merged without
+            // a real release build.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             // Real upload key when key.properties is present (CI / a configured
             // dev machine); debug otherwise so `flutter run --release` and the
             // internal-testing APK builds still work without the keystore.

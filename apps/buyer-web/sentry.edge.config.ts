@@ -3,7 +3,10 @@
 // Reads SENTRY_DSN_BUYER_WEB from runtime env. When unset, init is skipped.
 // Loaded by instrumentation.ts.
 import * as Sentry from '@sentry/nextjs';
-import { scrubPhones } from './sentry-scrub';
+import {
+  sanitizeSentryEvent,
+  sanitizeSentryBreadcrumb,
+} from './sentry-scrub';
 
 if (process.env.SENTRY_DSN_BUYER_WEB) {
   Sentry.init({
@@ -13,11 +16,14 @@ if (process.env.SENTRY_DSN_BUYER_WEB) {
     release: process.env.SENTRY_RELEASE,
     tracesSampleRate: 0,
     sampleRate: 1.0,
+    // Never attach the client IP. SDK default; pinned so a future
+    // default change or a copy-paste cannot silently enable it.
+    sendDefaultPii: false,
     beforeSend(event) {
-      return scrubPhones(event);
+      return sanitizeSentryEvent(event);
     },
     beforeBreadcrumb(breadcrumb) {
-      return scrubPhones(breadcrumb);
+      return sanitizeSentryBreadcrumb(breadcrumb);
     },
   });
 }

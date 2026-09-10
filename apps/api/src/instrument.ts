@@ -14,37 +14,37 @@
  * - We deliberately set `tracesSampleRate: 0` — only errors are captured
  *   for now. Add perf tracing in a separate PR once we have signal on
  *   what to watch.
- * - `beforeSend` scrubs `+243XXXXXXXXX` phone numbers from event payloads
- *   before send. Phones are auth identifiers for buyers (Rule 13 in
- *   CLAUDE.md) and shouldn't end up in Sentry breadcrumbs / URLs / extras.
+ *
+ * ## Request-data minimisation (2026-09-09)
+ *
+ * `@sentry/node` 10.x turns `requestDataIntegration` on by default with
+ * `DEFAULT_INCLUDE = { cookies: true, data: true, headers: true,
+ * query_string: true, url: true }`, and `httpIntegration` defaults
+ * `maxRequestBodySize` to `'medium'`, buffering up to 10 kB of every
+ * incoming body. `sendDefaultPii` gates only the client IP; it does NOT
+ * gate cookies, headers or the body.
+ *
+ * Measured against the previous configuration of this file, one 500 on
+ * `POST /v1/auth/login/email` sent Sentry the plaintext password, the
+ * `Authorization` header, both session cookies, the OTP code and any
+ * `?token=` in the query string. The only control was a `+243` regex.
+ *
+ * Two layers now:
+ *   1. do not collect — `maxRequestBodySize: 'none'` so the body is never
+ *      buffered, and `include: { cookies: false, data: false }` so neither
+ *      can be attached even if something upstream populates it;
+ *   2. sanitise what remains — `sanitizeSentryEvent` scrubs headers, URLs,
+ *      query strings, breadcrumbs, tags, extras, contexts and the user.
+ *
+ * Kept on purpose: stack traces, exception type and message, route, HTTP
+ * method, status, `User-Agent`, `Content-Type`, `X-Teka-Surface`, the
+ * opaque internal user id, release and environment.
  */
 import * as Sentry from '@sentry/node';
-
-const PHONE_REGEX = /\+243\d{9}/g;
-
-/**
- * Recursive scrubber: walk the event payload and replace any DRC phone
- * number with `[phone]`. Targets strings inside breadcrumbs, request URLs,
- * extras, tags — everywhere the SDK might serialize user input. Object
- * keys are left alone (Sentry's structure), only string VALUES are
- * touched.
- */
-function scrubPhones<T>(value: T): T {
-  if (typeof value === 'string') {
-    return value.replace(PHONE_REGEX, '[phone]') as T;
-  }
-  if (Array.isArray(value)) {
-    return value.map(scrubPhones) as T;
-  }
-  if (value && typeof value === 'object') {
-    const out: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-      out[k] = scrubPhones(v);
-    }
-    return out as T;
-  }
-  return value;
-}
+import {
+  sanitizeSentryEvent,
+  sanitizeSentryBreadcrumb,
+} from '@teka/shared';
 
 if (process.env.SENTRY_DSN) {
   Sentry.init({
@@ -61,11 +61,23 @@ if (process.env.SENTRY_DSN) {
     // this is fine and we don't want to lose signal to client-side
     // sampling. Revisit if/when error volume grows.
     sampleRate: 1.0,
+    // Never attach the client IP. This is the SDK default; pinned so a
+    // future default change or a copy-paste cannot silently enable it.
+    sendDefaultPii: false,
+    integrations: [
+      // A user-supplied integration replaces the default of the same name
+      // (see `filterDuplicates` in @sentry/core), so these override rather
+      // than duplicate the defaults.
+      Sentry.httpIntegration({ maxIncomingRequestBodySize: 'none' }),
+      Sentry.requestDataIntegration({
+        include: { cookies: false, data: false, headers: true, query_string: true, url: true, ip: false },
+      }),
+    ],
     beforeSend(event) {
-      return scrubPhones(event);
+      return sanitizeSentryEvent(event);
     },
     beforeBreadcrumb(breadcrumb) {
-      return scrubPhones(breadcrumb);
+      return sanitizeSentryBreadcrumb(breadcrumb);
     },
   });
 }

@@ -193,6 +193,18 @@ class CityNotifier extends StateNotifier<CityState> {
     _syncPreferredCity(null);
   }
 
+  /// MS5 — drop the town this device is holding WITHOUT touching the server.
+  ///
+  /// Used when the signed-in account changes. [clearCity] is the buyer
+  /// deliberately unsetting their town and therefore syncs `null` to the
+  /// profile; at a session boundary that would be wrong twice over: the
+  /// outgoing account's saved preference would be wiped, and the request
+  /// would be made with no valid session anyway.
+  Future<void> clearLocalCity() async {
+    state = state.copyWith(clearSelectedCity: true);
+    await _storage.delete(key: _cityIdKey);
+  }
+
   /// Adopt the town saved on the user's profile (preferredCityId) after login,
   /// but only when the buyer has no local selection — the on-device choice wins.
   /// Lets the town set on the web (or another device) carry over. Does NOT
@@ -233,16 +245,43 @@ final cityProvider = StateNotifierProvider<CityNotifier, CityState>((ref) {
   // profile (preferredCityId from /v1/auth/me) if the buyer has no local
   // choice — so the town follows the user across devices (and the post-login
   // city gate is skipped when a profile town exists).
+  //
+  // MS5 (2026-09-09): the town is also PRIVATE state. It was the one thing
+  // A4 left on disk at a session boundary, and because `hydrateFromProfile`
+  // bails on `if (state.hasCity) return`, buyer B on a shared phone inherited
+  // buyer A's town AND B's own server-side `preferredCityId` was silently
+  // ignored. Clearing is keyed on the account IDENTITY rather than on
+  // "became unauthenticated", because an OTP verify can move straight from
+  // account A to account B without ever passing through unauthenticated.
+  String? previousUserId;
   ref.listen<AuthState>(authProvider, (_, next) {
     // Gate the profile-sync so guests never call the auth-only preferred-city
     // endpoint.
     notifier.isAuthenticated = next.status == AuthStatus.authenticated;
-    if (next.status == AuthStatus.authenticated) {
-      final preferredCityId = next.user?['preferredCityId'] as String?;
+
+    final nextUserId = next.status == AuthStatus.authenticated
+        ? (next.user?['id'] as String?)
+        : null;
+    final identityChanged =
+        previousUserId != null && previousUserId != nextUserId;
+    previousUserId = nextUserId;
+
+    final preferredCityId = next.status == AuthStatus.authenticated
+        ? (next.user?['preferredCityId'] as String?)
+        : null;
+
+    // The clear must complete before hydration, or `state.hasCity` is still
+    // true and the incoming account's own town is skipped.
+    Future<void> apply() async {
+      if (identityChanged) await notifier.clearLocalCity();
       if (preferredCityId != null) {
-        notifier.hydrateFromProfile(preferredCityId);
+        await notifier.hydrateFromProfile(preferredCityId);
       }
     }
+
+    // ignore: avoid-ignoring-return-values — fire-and-forget, matches the
+    // previous shape; failures must never block the session transition.
+    apply();
   }, fireImmediately: true);
   return notifier;
 });

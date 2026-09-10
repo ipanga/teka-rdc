@@ -95,6 +95,9 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
     } else {
       await _tokenStorage.clearTokens();
+      // Same reason as logout(): a rejected stored session must not leave the
+      // previous seller attached to the Sentry scope.
+      _applySentryUser(null);
       state = state.copyWith(
         status: AuthStatus.unauthenticated,
         isLoading: false,
@@ -164,6 +167,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     await _authRepository.logout();
+    // The Sentry scope outlives the session. Without this the previous
+    // seller's id and role stayed attached, so every event raised afterwards
+    // — while signed out, or by whoever signs in next on a shared phone —
+    // was attributed to them. buyer-mobile already cleared it here.
+    _applySentryUser(null);
     state = const AuthState(status: AuthStatus.unauthenticated);
   }
 
