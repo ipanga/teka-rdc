@@ -4074,6 +4074,57 @@ the repository cannot determine: both apps take `versionCode` and `versionName` 
 needs no equivalent — `release-mobile-ipa.yml` sets `--build-number=$(date -u +%s)`, so `CFBundleVersion`
 is unique and monotonic on every upload and only the marketing version comes from pubspec.
 
+### iOS keychain P1 CLOSED + taxonomy data quality (2026-09-10)
+
+**P1 CLOSED.** The owner installed Seller TestFlight build **1789043831** (0.1.10) on a **physical
+iPhone** and signed in successfully with the credentials that previously failed. That closes the
+`errSecDuplicateItem (-25299)` regression, fixed in PR #739 (`315040b`).
+
+Three states are worth keeping distinct, because they diverged on this release:
+
+| | Buyer 1789043823 | Seller 1789043831 |
+|---|---|---|
+| Automated group read-back | confirmed | warned "not listed yet" |
+| Actual TestFlight availability | yes | **yes** (owner installed it) |
+| Physical login | not reported | **SUCCESS** |
+
+The seller read-back warning is App Store Connect propagation lag, not a distribution failure: the
+helper hard-fails when the group is missing or automatic distribution is off, and it did neither. A
+warning there is not a blocker once the build is demonstrably installable.
+
+**Taxonomy (PR #740).** Three defects, all confirmed against production with the repository's own
+read-only audit script rather than inferred from the seed.
+
+1. **Ordinary milk had no home.** The entire 187-node tree held one dairy node, `Lait infantile`
+   under Bébé. Consequence, live on the storefront: the only real milk product, *Lato Milk, lait
+   entier en poudre 400 g*, was filed under **Boissons > Café**. Added `Lait & Produits Laitiers`
+   as a SUBCATEGORY of Supermarché — the tree is exactly three levels, so nesting it inside
+   Alimentation as first sketched would have needed a fourth.
+2. **`Déodorants` existed twice**, under Supermarché and under Beauté & Santé, both with zero
+   products. Kept the Beauté leaf, the one brands point at; retired the other by deactivation.
+   Neither slug is in the sitemap, so no redirect is needed.
+3. **No alcohol leaf existed at all**, so the one whisky sat directly on the intermediate
+   `Boissons` node. Added `Boissons Alcoolisées` with Bières, Vins, Spiritueux, kept separate from
+   non-alcoholic Boissons.
+
+`Marque` is deliberately NOT an attribute on any new leaf: Brand is the first-class entity per this
+file's own rules, and duplicating it would double it in the seller form.
+
+**Integrity sweep.** Exactly **one** live product was attached to an intermediate category, the
+whisky. The other 84 rows in that state are already soft-deleted. No scope expansion was needed.
+
+**Left alone deliberately.** The whisky's two legacy specifications (`Type = Bière` on a whisky,
+`Volume = 1L`) belong to a soft-deleted category. `Type = Bière` is wrong data rather than a wrong
+category, and cleaning it is a separate decision. Also excluded: 117 unreferenced attribute rows, 49
+attributes on live intermediate categories, the photo-flow wording, and the time-dependent
+`request_payout_screen_test.dart`.
+
+**Migration.** `2026-09-10_taxonomy_milk_alcohol_deodorant.sql`, in the auto-apply manifest, accepted
+by the gate as non-destructive and idempotent. It inserts two subcategories and six leaves with
+`ON CONFLICT DO UPDATE`, moves two products guarded by unique identifier AND current parent so a
+re-run is a no-op, and deactivates the duplicate leaf guarded on it still being empty. Nothing is
+deleted. Rollback is written into the file. **Not executed.**
+
 ## Next exact step
 
 **Production is released and hardened; the P1 admin/financial security follow-ups are MERGED**
