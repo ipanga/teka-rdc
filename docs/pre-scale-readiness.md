@@ -4049,3 +4049,5 @@ rather than restarting nginx; `esbuild` and the stale Dependabot PRs.
 **Owner decisions still open:** SUPPORT/FINANCE role model (S21); seller-visible buyer PII parity;
 PostHog replay masking on buyer account pages; whether MS1–MS7 must precede the next store builds
 (current preference: yes).
+
+<!-- branch-protection verification probe; this branch is deleted after the check -->
