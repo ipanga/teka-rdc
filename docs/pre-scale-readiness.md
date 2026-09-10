@@ -3876,10 +3876,56 @@ tests cover it.
 type-check ×5; three production `next build`s. No migration, no environment or secret change, no
 workflow change, no mobile change.
 
-### Mobile security hardening — PR B and PR C (2026-09-09, open)
+### Mobile security hardening — MS1-MS7 — PR A (2026-09-09, merged `2814d1d`, PR #727)
 
-Continues the MS1-MS7 work recorded with PR A. PR A's own entry lands with that branch; these two are
-recorded together to avoid a conflict at the same anchor.
+Re-audited against current code before any change. Two corrections to the tracker.
+
+**MS5 is largely already done.** A4 (`f0b034a`, PR #686) introduced `SessionScope` and already evicts the
+cart snapshot, the cached profile, recently-viewed and recent searches on logout, on session rejection and
+on both account-switch paths, with tests in `test/session/account_isolation_test.dart` and
+`test/auth/offline_cold_start_test.dart`. Those four are **not** reimplemented. What remains is the town
+(`teka_selected_city_id`), which has a real symptom: `clearCity()` exists but nothing calls it, and because
+`hydrateFromProfile` bails on `if (state.hasCity) return`, buyer B inherits buyer A's town **and B's own
+server-side `preferredCityId` is silently ignored**. `city_persistence_test.dart:223` is titled "logout
+path" and covers a path production never takes, which is why the gap survived. Also open: the
+`SellerAccountException` branch returns before `clearPrivateState()`, and the `cached_network_image` disk
+cache is never cleared.
+
+**MS5 as written does not apply to seller-mobile.** It has no cart, no recently-viewed, no searches, no city
+and no image cache; `TypedCache`/`CacheKeys` are dead code never read by any feature, and the only
+persisted state is the two tokens, which logout clears. The real seller gap is in memory: the notifications,
+earnings, promotions and reviews notifiers have no reset on logout.
+
+**New finding outside MS1-MS7.** buyer-mobile calls `ImageSource.gallery` for the avatar while its iOS
+`Info.plist` declared no `NSPhotoLibraryUsageDescription`. iOS terminates an app that touches a
+privacy-sensitive API with no usage string, so the avatar picker crashed on device and App Review would
+reject the binary. Fixed in PR A; gallery only, since the buyer app never opens the camera.
+
+**PR A — platform/storage/config (`mobile/hardening-platform-config`).** MS1 `allowBackup="false"` plus
+cloud-backup and device-transfer exclusion rules; MS4 `IOSOptions(first_unlock_this_device)`, closing the
+iOS half of a gap Android already covered with `encryptedSharedPreferences`; MS7 R8 shrink + obfuscation
+with keep rules for the Flutter embedding, Firebase/GMS, `androidx.security` and Flutter's unused Play Core
+references; and the iOS usage string.
+
+MS7 was validated by running minified builds, not by the build succeeding, because R8 fails at runtime:
+production AABs for both apps (R8 8.11.18, mapping files produced), then minified development-flavour
+release APKs installed on a Pixel 8 Pro emulator. Both launched clean, with no ClassNotFound, NoSuchMethod
+or MissingPlugin failures; Firebase initialised, `flutter_secure_storage` opened its encrypted store, and
+the buyer app loaded live towns, categories, images and promotions from the dev API.
+
+Baselines held: buyer 501 tests, seller 472, `flutter analyze` at 6 and 5 pre-existing infos.
+
+**Still to come:** PR B (MS2 buyer router UUIDs, MS3 `teka://` host check, MS5 remainder) and PR C (MS6
+scrubber breadth + tests, `sendDefaultPii` pinned, seller Sentry user cleared on logout).
+
+**Note for whoever runs an iOS build:** `flutter build ios` rewrites
+`ios/Runner.xcodeproj/.../Package.resolved`, bumping SwiftPM pins (app-check 11.3.0 → 11.3.1,
+firebase-ios-sdk). That drift is incidental and was reverted out of PR A rather than shipped inside a
+security change.
+### Mobile security hardening — PR B and PR C (2026-09-09; B merged `fd97ca9` PR #728, C PR #729)
+
+Continues the MS1-MS7 work recorded with PR A above. These two were recorded together because PR A
+inserts at the same anchor; the predicted conflict occurred on merge and was resolved keep-both.
 
 **PR B — routing/session isolation (`mobile/hardening-routing-session`, #728).** MS2: the buyer push
 router accepted any string as an entity id and interpolated it into a `GoRouter` path, so anyone able to

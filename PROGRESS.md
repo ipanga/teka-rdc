@@ -1,9 +1,9 @@
 # Teka RDC — Development Progress
 
-## Current Phase: Production released and hardened (`main` `9a89249`); P1 admin/financial follow-ups MERGED (`f9a9b34`, #725); Sentry request-data minimisation MERGED (`babd4bd`, #726); mobile hardening MS1-MS7 implemented across three open PRs (#727, #728, telemetry) — none merged, nothing deployed, no store build created.
+## Current Phase: Production released and hardened (`main` `9a89249`); P1 admin/financial follow-ups MERGED (`f9a9b34`, #725); Sentry request-data minimisation MERGED (`babd4bd`, #726); mobile hardening MS1-MS7 — PR A MERGED (`2814d1d`, #727), PR B MERGED (`fd97ca9`, #728), PR C (#729) open. Nothing deployed, no store build created, no version bumped.
 ## Last completed: Mobile security hardening MS1-MS7 — re-audited, found MS5 largely already done and MS5 inapplicable to seller-mobile, found an iOS crash outside the MS list, and split the work into three reviewable PRs.
 ## Status: production healthy after the verification release (api uptime monotonic, all sites 200, 401 boundary intact); seller-mobile and buyer-mobile store releases outstanding.
-## Last Updated: 2026-09-09
+## Last Updated: 2026-09-10
 
 ## Post-phase chronology — condensed index (moved out of CLAUDE.md §8 on 2026-06-03)
 
