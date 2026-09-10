@@ -1,4 +1,4 @@
-# Fastlane — iOS release toolchain for Teka's two mobile apps.
+# Fastlane — mobile release toolchain for Teka's two apps (iOS + Android).
 #
 # ONE Fastfile drives BOTH apps (buyer + seller). The app is selected per-run
 # via the `TEKA_APP` env var (buyer|seller); everything app-specific lives in
@@ -12,9 +12,15 @@
 #   fastlane ios upload_testflight — push a built .ipa to TestFlight via the
 #                                    App Store Connect API key.
 #
-# The actual `flutter build ipa` happens in the workflow (not `gym`) so the
-# Flutter `--dart-define`s (flavor config + Sentry DSN/release) are preserved.
-# Fastlane's role is narrow: signing assets in, TestFlight out.
+# Lane (called from .github/workflows/release-mobile-aab.yml):
+#   fastlane android upload_play   — push a built .aab to a Play TESTING track
+#                                    via the Play service account. Never
+#                                    production.
+#
+# The actual `flutter build ipa` / `flutter build appbundle` happens in the
+# workflow (not `gym`/`gradle`) so the Flutter `--dart-define`s (flavor config +
+# Sentry DSN/release) are preserved. Fastlane's role is narrow: signing assets
+# in, store out.
 
 # Per-app configuration. bundle_id/team_id/scheme are non-secret (team ids live
 # in the pbxproj too). Production flavor only — TestFlight ships production.
@@ -24,10 +30,18 @@
 # and stopped, so every build landed in App Store Connect with an EMPTY Groups
 # column — no invite email, invisible in the TestFlight app. See
 # `upload_testflight` below for why both `skip_*` flags had to change too.
+#
+# `package_id` is the ANDROID applicationId — the Play Store's identity for the
+# app. It currently equals `bundle_id` for both apps, but they are different
+# identifiers in different stores that merely coincide, so it is stated
+# separately rather than reused. `play_tracks_test.rb` asserts each one still
+# matches the `applicationId` in that app's `android/app/build.gradle.kts`, so
+# a Gradle-side rename cannot silently point a release at the wrong listing.
 APPS = {
   "buyer" => {
     app_dir:       "apps/buyer-mobile",
     bundle_id:     "com.tootiye.teka",
+    package_id:    "com.tootiye.teka",
     team_id:       "YK6Z393A4D",
     group_env:     "TESTFLIGHT_BUYER_GROUP",
     default_group: "Teka Buyer test team",
@@ -35,6 +49,7 @@ APPS = {
   "seller" => {
     app_dir:       "apps/seller-mobile",
     bundle_id:     "com.tootiye.tekaseller",
+    package_id:    "com.tootiye.tekaseller",
     team_id:       "YK6Z393A4D",
     group_env:     "TESTFLIGHT_SELLER_GROUP",
     default_group: "Testers Teka RDC",
@@ -112,6 +127,8 @@ def load_asc_api_key
     in_house:    false,
   )
 end
+
+require "base64"
 
 platform :ios do
   # Install signing assets and switch the production Release config to Manual
@@ -280,5 +297,142 @@ platform :ios do
   rescue StandardError => e
     UI.important("Could not verify group availability (#{e.class}): #{e.message}")
     false
+  end
+end
+
+# ────────────────────────────────────────────────────────────────────────────
+# ANDROID — Google Play
+# ────────────────────────────────────────────────────────────────────────────
+
+# Tracks this lane is allowed to publish to. `production` is deliberately
+# ABSENT, and `resolve_play_track` refuses it explicitly.
+#
+# Both apps are ALREADY LIVE in Play production. An automated push to that
+# track reaches every existing user on auto-update and cannot be recalled —
+# Play has no "unrelease". Promotion out of testing stays a deliberate human
+# action in the Play Console. The service account is also not granted the
+# production permission, so this is the second of two independent locks.
+PLAY_TRACKS = %w[internal alpha].freeze
+DEFAULT_PLAY_TRACK = "internal".freeze
+
+# Resolve the Play track for this run: PLAY_TRACK, defaulting to internal.
+def resolve_play_track
+  track = ENV["PLAY_TRACK"].to_s.strip
+  track = DEFAULT_PLAY_TRACK if track.empty?
+
+  if track == "production"
+    UI.user_error!(
+      "Refusing to publish to the 'production' track. Both apps are live; an " \
+      "automated production release reaches every user on auto-update and " \
+      "cannot be undone. Promote from a testing track in the Play Console."
+    )
+  end
+
+  unless PLAY_TRACKS.include?(track)
+    UI.user_error!("PLAY_TRACK must be one of #{PLAY_TRACKS.join(', ')} (got: #{track.inspect})")
+  end
+
+  track
+end
+
+# Decode the Play service-account JSON from PLAY_JSON_B64.
+#
+# Returned as a String and handed straight to `json_key_data:`. It is never
+# written to disk, never logged, never put in the job summary, and never
+# interpolated into a message — a service-account key can publish to both apps.
+def load_play_json_key
+  raw = ENV["PLAY_JSON_B64"].to_s.strip
+  UI.user_error!("PLAY_JSON_B64 is not set — cannot authenticate to Google Play") if raw.empty?
+
+  decoded = Base64.decode64(raw)
+  if decoded.empty? || !decoded.lstrip.start_with?("{")
+    # Says what is wrong without echoing any part of the value.
+    UI.user_error!("PLAY_JSON_B64 did not decode to JSON — re-encode the service-account key with `base64 -i key.json`")
+  end
+
+  decoded
+end
+
+platform :android do
+  # Upload an already-built .aab (path in AAB_PATH) to a Play TESTING track.
+  # No build here — the workflow's `flutter build appbundle` produced the
+  # upload-key-signed bundle, and Play App Signing re-signs it on Google's side.
+  lane :upload_play do
+    cfg   = app_config
+    key   = app_key
+    aab   = ENV.fetch("AAB_PATH")
+    UI.user_error!("AAB not found at #{aab}") unless File.exist?(aab)
+
+    track    = resolve_play_track
+    validate = ENV["PLAY_VALIDATE_ONLY"].to_s == "true"
+
+    # R8 minification is ON for both apps' release builds
+    # (android/app/build.gradle.kts → isMinifyEnabled = true), so without the
+    # mapping file every Play crash report and ANR is an unreadable stack of
+    # obfuscated symbols. Optional rather than fatal: a missing mapping is
+    # worth a warning, not a failed release.
+    mapping = ENV["MAPPING_PATH"].to_s
+    mapping = nil if mapping.empty? || !File.exist?(mapping)
+    UI.important("No mapping.txt — Play crash reports for this build will stay obfuscated") if mapping.nil?
+
+    UI.message("#{key}: #{cfg[:package_id]} → Play track '#{track}'#{validate ? ' (VALIDATE ONLY)' : ''}")
+
+    upload_to_play_store(
+      package_name:   cfg[:package_id],
+      aab:            aab,
+      track:          track,
+      release_status: "completed",
+      mapping_paths:  mapping ? [mapping] : nil,
+      json_key_data:  load_play_json_key,
+
+      # Dry run: Google validates the edit and discards it. Nothing reaches a
+      # tester. Used for the first credential check.
+      validate_only:  validate,
+
+      # ── DO NOT REMOVE ANY OF THESE FOUR ────────────────────────────────────
+      # `supply` uploads store metadata, images, screenshots and changelogs by
+      # DEFAULT, reading them from fastlane/metadata/android. This repo has no
+      # such directory — and both apps have real, live, human-written Play
+      # listings. Left unpinned, a release would push empty local metadata over
+      # the live listing for a production app. These are not tidiness flags;
+      # they are the difference between a release and an incident.
+      skip_upload_metadata:    true,
+      skip_upload_images:      true,
+      skip_upload_screenshots: true,
+      skip_upload_changelogs:  true,
+    )
+
+    version_name, version_code = play_version(cfg)
+
+    summary("### Android Play — #{key}")
+    summary("")
+    summary("| | |")
+    summary("|---|---|")
+    summary("| Application | `#{cfg[:package_id]}` (#{key}) |")
+    summary("| Version | #{version_name || '(unread)'} (versionCode #{version_code || '?'}) |")
+    summary("| Track | #{track} (testing) |")
+    summary("| Release status | #{validate ? 'validate-only — nothing published' : 'completed'} |")
+    summary("| Store listing | untouched (metadata/images/screenshots/changelogs skipped) |")
+    summary("| Mapping file | #{mapping ? '✅ uploaded' : '⚠️ absent — crash reports obfuscated'} |")
+    summary("")
+
+    if validate
+      UI.success("#{key}: validated against Google Play — nothing was published")
+    else
+      UI.success("#{key}: #{cfg[:package_id]} uploaded to '#{track}'")
+    end
+  end
+
+  # versionName + versionCode for the job summary, read from the pubspec the
+  # bundle was built from in this same workflow run. No gem, no unzip, nothing
+  # that can fail a good release — `flutter build appbundle` derives the
+  # Gradle `versionCode`/`versionName` from exactly this line.
+  def play_version(cfg)
+    pubspec = File.join(cfg[:app_dir], "pubspec.yaml")
+    line = File.readlines(pubspec).find { |l| l.start_with?("version:") }
+    name, code = line.to_s.sub("version:", "").strip.split("+")
+    [name, code]
+  rescue StandardError
+    [nil, nil]
   end
 end

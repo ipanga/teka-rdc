@@ -246,6 +246,14 @@ jobs:
       # network, no App Store Connect credentials.
       - name: TestFlight distribution config
         run: ruby fastlane/testflight_groups_test.rb
+
+      # Guards the app → Play listing mapping, the track allow-list (production
+      # is never publishable from CI), the four `supply` skip flags that keep
+      # two LIVE store listings from being overwritten, and the fact that the
+      # upload sits behind the protected `android-play` environment. Pure
+      # source parsing — no fastlane, no network, no Play credentials.
+      - name: Play release config
+        run: ruby fastlane/play_tracks_test.rb
       # Deploy runs the auto-apply manifest before the rolling swap; catch a
       # missing file, a duplicate entry, a destructive statement or a
       # non-idempotent CREATE here instead of mid-deploy.
