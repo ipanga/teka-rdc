@@ -439,3 +439,118 @@ describe('a future migration cannot add a leaf without its brand links either', 
     expect(missing).toEqual([]);
   });
 });
+
+/**
+ * Taxonomy id reuse (2026-09-11, P3 PR 1).
+ *
+ * The 2026-06-24 refactor reused category ids with NEW meanings while legacy
+ * attributes and product specifications still referenced them. That is why a
+ * whisky's « Type » points at an attribute now owned by « Lait & Produits
+ * Laitiers »: id …010601 used to mean « Boissons ». The 2026-09-10 migration
+ * repeated the pattern by upserting subcategory ids 106 and 107, inheriting
+ * their legacy attribute rows.
+ *
+ * A canonical id must not silently acquire a different meaning.
+ */
+describe('a canonical taxonomy id keeps one meaning', () => {
+  const files = readdirSync(MANUAL_DIR).filter((f) => f.endsWith('.sql'));
+
+  /** Every (id, name) pair a manual migration writes into "categories". */
+  function categoryNamesInMigrations(): Map<string, Set<string>> {
+    const map = new Map<string, Set<string>>();
+    for (const file of files) {
+      const sql = read(file);
+      for (const stmt of sql.match(/INSERT INTO "categories"[\s\S]*?;/g) ?? []) {
+        const body = stmt
+          .split('\n')
+          .filter((l) => !l.trimStart().startsWith('--'))
+          .join('\n');
+        // ('<uuid>', '<slug>', '<name>', …)
+        for (const m of body.matchAll(
+          /\('((?:13|16)000000-[0-9a-f-]+)',\s*'[^']*',\s*'((?:[^']|'')*)'/g,
+        )) {
+          const [, id, name] = m;
+          map.set(id, (map.get(id) ?? new Set()).add(name.replace(/''/g, "'")));
+        }
+      }
+    }
+    return map;
+  }
+
+  it('27. no category id is written with two different names across manual migrations', () => {
+    const conflicts: string[] = [];
+    for (const [id, names] of categoryNamesInMigrations()) {
+      if (names.size > 1) {
+        conflicts.push(`${id} is written as ${[...names].map((n) => `« ${n} »`).join(' AND ')}`);
+      }
+    }
+    expect(conflicts).toEqual([]);
+  });
+
+  it('28. the ids taxonomy-data.ts derives are internally unique', () => {
+    // Two leaves sharing a numeric key, or two attributes colliding on
+    // typeKey*100+slot, would silently overwrite each other at seed time.
+    const leafKeys = allLeaves.map((l) => l.n);
+    expect(new Set(leafKeys).size).toBe(leafKeys.length);
+
+    const attrIds = allLeaves.flatMap((l) =>
+      (l.attrs ?? []).map((_, slot) => attributeIdFor(l.n, slot)),
+    );
+    expect(new Set(attrIds).size).toBe(attrIds.length);
+
+    const brandIds = STRICT_BRANDS.map((b) => strictBrandId(b.n));
+    expect(new Set(brandIds).size).toBe(brandIds.length);
+  });
+});
+
+/**
+ * The one-off correction of the 18 foreign specification rows found in
+ * production. Guards the SHAPE of the migration, not the taxonomy.
+ */
+describe('the foreign-specification correction migration', () => {
+  const FOREIGN = '2026-09-11_foreign_product_specifications.sql';
+  const sql = read(FOREIGN);
+  const executable = sql
+    .split('\n')
+    .filter((l) => !l.trimStart().startsWith('--'))
+    .join('\n');
+
+  it('29. touches only product_specifications', () => {
+    expect(executable).not.toMatch(/"(products|orders|order_items|categories|brands|product_attributes)"/);
+    expect(executable).toMatch(/"product_specifications"/);
+  });
+
+  it('30. every statement is keyed on an exact specification id AND its current attributeId', () => {
+    // Without the attributeId guard a row already corrected by a seller — or by
+    // a re-run — would be mutated a second time into the wrong state.
+    const updates = executable.match(/UPDATE "product_specifications"[\s\S]*?;/g) ?? [];
+    expect(updates).toHaveLength(9);
+    for (const u of updates) {
+      expect(u).toMatch(/s\."id" = '[0-9a-f-]{36}'/);
+      expect(u).toMatch(/s\."attributeId" = '14000000-[0-9a-f-]+'/);
+      // and never lands on an attribute the product already holds
+      expect(u).toMatch(/NOT EXISTS \(SELECT 1 FROM "product_specifications" x/);
+    }
+
+    const deletes = executable.match(/DELETE FROM "product_specifications"[\s\S]*?;/g) ?? [];
+    expect(deletes).toHaveLength(1);
+    const deleteStmt = deletes[0]!;
+    // 3 (id, attributeId) pairs — never a category- or name-based predicate
+    expect(deleteStmt.match(/\('[0-9a-f-]{36}', '14000000-[0-9a-f-]+'\)/g)).toHaveLength(3);
+    expect(deleteStmt).not.toMatch(/categoryId|LIKE|IN \(SELECT/);
+  });
+
+  it('31. carries a rollback for every row it changes', () => {
+    const rollback = sql.slice(sql.indexOf('-- ROLLBACK'));
+    expect(rollback.match(/^-- UPDATE "product_specifications"/gm)).toHaveLength(9);
+    expect(rollback.match(/^-- INSERT INTO "product_specifications"/gm)).toHaveLength(3);
+  });
+
+  it('32. is NOT auto-applied — a one-off data correction is reviewed, not replayed', () => {
+    const list = read('auto-apply.list')
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith('#'));
+    expect(list).not.toContain(FOREIGN);
+  });
+});
