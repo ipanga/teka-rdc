@@ -1,4 +1,4 @@
-# Status — 2026-09-10 (production RELEASED and HARDENED at `main` `9a89249`; `develop` `310d718`. MS1-MS7 mobile hardening COMPLETE and merged — #727 `2814d1d`, #728 `fd97ca9`, #729 `310d718`. Android and iOS builds validated, Android and iOS simulator runtime exercised. Nothing deployed, no version bumped, no store build created. Remaining P1: branch-protection required checks.)
+# Status — 2026-09-10 (production at `main` `9a89249`; `develop` `3b099db`. MS1-MS7 mobile hardening COMPLETE and merged (#727, #728, #729, docs #730). Branch protection APPLIED to both `main` and `develop` with 13 required checks, verified. Nothing deployed, no version bumped, no store build created. **Only remaining blocker: the highest Google Play versionCode per app, which the owner must read from Play Console.**)
 
 > **What this file is.** A single, hand-edited snapshot of *what is in-flight RIGHT NOW*. Read it first on every resume — before `CLAUDE.md`, before `PROGRESS.md`. When `## Active initiative
 
