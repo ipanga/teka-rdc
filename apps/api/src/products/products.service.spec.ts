@@ -138,12 +138,26 @@ describe('ProductsService.update — edit-after-publish + discount', () => {
         findUnique: jest.fn().mockResolvedValue(product),
         update: updateMock,
       },
-      productSpecification: { deleteMany: jest.fn() },
+      productSpecification: {
+        deleteMany: jest.fn(),
+        // 2026-09-11: update() now reconciles foreign specifications first.
+        // Empty = no foreign rows, so these cases behave exactly as before.
+        findMany: jest.fn().mockResolvedValue([]),
+        update: jest.fn(),
+        delete: jest.fn(),
+      },
       productStatusLog: { create: jest.fn() },
       $transaction: jest.fn(async (cb: (tx: unknown) => unknown) =>
         cb({
           product: { update: updateMock },
-          productSpecification: { deleteMany: jest.fn() },
+          productSpecification: {
+        deleteMany: jest.fn(),
+        // 2026-09-11: update() now reconciles foreign specifications first.
+        // Empty = no foreign rows, so these cases behave exactly as before.
+        findMany: jest.fn().mockResolvedValue([]),
+        update: jest.fn(),
+        delete: jest.fn(),
+      },
         }),
       ),
     };
@@ -375,7 +389,12 @@ function makeUpdateService(over: Record<string, any> = {}) {
   const deleteMany = jest.fn().mockResolvedValue({ count: 0 });
   const productUpdate = jest.fn().mockResolvedValue({ id: 'p1', specifications: [] });
   const tx = {
-    productSpecification: { deleteMany },
+    productSpecification: {
+      deleteMany,
+      findMany: jest.fn().mockResolvedValue([]),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
     product: { update: productUpdate },
     productStatusLog: { create: jest.fn().mockResolvedValue({}) },
   };
@@ -402,7 +421,12 @@ function makeUpdateService(over: Record<string, any> = {}) {
       count: jest.fn().mockResolvedValue(8), // intermediate
     },
     productAttribute: { findMany: jest.fn().mockResolvedValue([]) },
-    productSpecification: { deleteMany },
+    productSpecification: {
+      deleteMany,
+      findMany: jest.fn().mockResolvedValue([]),
+      update: jest.fn(),
+      delete: jest.fn(),
+    },
     $transaction: jest.fn().mockImplementation(async (cb: any) => cb(tx)),
     ...over,
   };
