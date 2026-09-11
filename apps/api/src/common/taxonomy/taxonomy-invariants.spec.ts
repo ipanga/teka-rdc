@@ -159,11 +159,12 @@ describe('INVARIANT 2 — no foreign characteristic on an ACTIVE product', () =>
     expect(found.map((v) => v.specificationId)).toEqual(['s-new']);
   });
 
-  it('the P3 allowlist is minimal and documented — 5 known residual rows', () => {
-    // Must only ever SHRINK. 9 → 6 on 2026-09-11 when P3-2 removed the three
-    // shirt duplicates; 6 → 5 when P3-4a repointed the Galaxy A14 storage row
-    // onto the canonical « Stockage » of its own leaf — no longer foreign.
-    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.size).toBe(5);
+  it('the P3 allowlist is minimal and documented — 4 known residual rows', () => {
+    // Must only ever SHRINK. 9 → 6 (P3-2 shirt duplicates), 6 → 5 (P3-4a Galaxy
+    // A14 storage), 5 → 4 (P3-4c iron « Type »). Each row stopped being foreign
+    // rather than being excused.
+    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.size).toBe(4);
+    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.has('7476a834-8ca6-423d-94b6-f1e9e6bc3f4b')).toBe(false);
   });
 });
 
@@ -544,7 +545,7 @@ describe('the duplicate-specification removal migration', () => {
   });
 
   it('the P3 allowlist now holds 5 — shirt duplicates gone (P3-2), Galaxy A14 canonicalised (P3-4a)', () => {
-    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.size).toBe(5);
+    expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.size).toBe(4);
     // foyug0's storage row is no longer foreign: it points at its own leaf.
     expect(P3_FOREIGN_SPECIFICATION_ALLOWLIST.has('600d7c1c-c1cd-4c8d-ba15-e6502620fc4e')).toBe(false);
   });
@@ -1055,5 +1056,197 @@ describe('the canonical iron « Type » (P3-4c)', () => {
     const list = readFileSync(join(MANUAL_DIR, 'auto-apply.list'), 'utf8')
       .split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
     expect(list).not.toContain(FILE);
+  });
+});
+
+/**
+ * P3-4d — the canonical « Type » for « Huiles ». Last of the P3 series.
+ *
+ * pocc99's « Type » = "Huile végétale" hung off « Supermarché > Boissons »: buyers
+ * saw it, the seller form never offered it. The legacy option list also carried
+ * Vinaigre / Sel / Épices / Sauce — product families, not oil types, and Teka
+ * already has a « Condiments » leaf beside « Huiles ». The canonical attribute
+ * therefore carries THREE oil types only.
+ *
+ * THE ARCHITECTURAL RISK: « Type » must NOT be appended to BEVERAGE, which FIVE
+ * leaves share — that would offer bottled water « Huile de palme ».
+ */
+describe('the canonical oil « Type » (P3-4d)', () => {
+  const FILE = '2026-09-11_canonical_oil_type.sql';
+  const raw = readFileSync(join(MANUAL_DIR, FILE), 'utf8');
+  const executable = raw.split('\n').filter((l) => !l.trimStart().startsWith('--')).join('\n');
+
+  const OIL_LEAF = 10107;                 // Alimentation > Huiles
+  const BEVERAGE_LEAVES = [10201, 10202, 10203, 10206]; // Eau, Jus, Sodas, Boissons énergétiques
+  const CONDIMENTS = 10108;
+  const LEGACY = '14000000-0000-0000-0000-000000010202';
+  const OPTIONS = ['Huile végétale', "Huile d'olive", 'Huile de palme'];
+  const EXCLUDED = ['Vinaigre', 'Sel', 'Épices', 'Sauce'];
+
+  it('the source declares « Type » on the oil leaf with exactly the three approved options', () => {
+    const type = attributeRowsFor([OIL_LEAF]).find((a) => a.name === 'Type');
+    expect(type).toBeDefined();
+    expect(type!.options).toEqual(OPTIONS);
+    expect(type!.type).toBe('SELECT');
+  });
+
+  it('the excluded condiment values are NOT canonical oil options', () => {
+    const type = attributeRowsFor([OIL_LEAF]).find((a) => a.name === 'Type')!;
+    for (const bad of EXCLUDED) expect(type.options).not.toContain(bad);
+    // …and « Condiments » exists as their real home, which is why they are dropped.
+    expect(attributeRowsFor([CONDIMENTS]).length).toBeGreaterThan(0);
+  });
+
+  it('« Type » is appended LAST so no existing id is renumbered', () => {
+    const rows = attributeRowsFor([OIL_LEAF]);
+    expect(rows.map((a) => a.name)).toEqual(['Volume', "Date d'expiration", 'Type']);
+    expect(rows[0]!.id).toBe('14000000-0000-0000-0000-000001010701');
+    expect(rows[1]!.id).toBe('14000000-0000-0000-0000-000001010702');
+    expect(rows[2]!.id).toBe(attributeIdFor(OIL_LEAF, 2));
+    expect(rows[2]!.id).toBe('14000000-0000-0000-0000-000001010703');
+  });
+
+  it('NO BEVERAGE LEAF RECEIVES « Type » — the shared-template trap', () => {
+    for (const leaf of BEVERAGE_LEAVES) {
+      const rows = attributeRowsFor([leaf]);
+      expect(rows.map((a) => a.name)).toEqual(['Volume', "Date d'expiration"]);
+      expect(rows.some((a) => a.name === 'Type')).toBe(false);
+    }
+    // Eau keeps its own ids untouched.
+    expect(attributeRowsFor([10201])[0]!.id).toBe('14000000-0000-0000-0000-000001020101');
+  });
+
+  it('every canonical id is still unique across the whole taxonomy', () => {
+    const seen = new Set<string>();
+    for (const key of allLeafKeys()) {
+      for (const a of attributeRowsFor([key])) {
+        expect(seen.has(a.id)).toBe(false);
+        seen.add(a.id);
+      }
+    }
+  });
+
+  it('the migration targets the id the SOURCE declares', () => {
+    const type = attributeRowsFor([OIL_LEAF]).find((a) => a.name === 'Type')!;
+    expect(executable).toContain(type.id);
+  });
+
+  it('DELETES NOTHING', () => {
+    expect(executable).not.toMatch(/\bDELETE\s+FROM\b/i);
+    expect(executable).not.toMatch(/\bTRUNCATE\b/i);
+    expect(executable).not.toMatch(/\bDROP\b/i);
+  });
+
+  it('touches only product_attributes and product_specifications', () => {
+    const writes = new Set(
+      (executable.match(/(?:INSERT INTO|UPDATE)\s+"(\w+)"/g) ?? []).map((m) => m.replace(/.*"(\w+)"/, '$1')),
+    );
+    expect([...writes].sort()).toEqual(['product_attributes', 'product_specifications']);
+    expect(executable).not.toMatch(/INSERT INTO "categories"/);
+  });
+
+  it('repoints exactly ONE specification, keyed on id AND productId AND attributeId AND value', () => {
+    const updates = executable.match(/UPDATE "product_specifications"[\s\S]*?;/g) ?? [];
+    expect(updates).toHaveLength(1);
+    const u = updates[0]!;
+    const where = u.slice(u.indexOf('WHERE'));
+    expect(where).toMatch(/"id" = v_spec/);
+    expect(where).toMatch(/"productId" = v_product/);
+    expect(where).toMatch(/"attributeId" = v_old_attr/);
+    expect(where).toMatch(/"value" = v_value/);
+    const set = u.slice(u.indexOf('SET'), u.indexOf('WHERE'));
+    expect(set.match(/"(\w+)"\s*=/g)?.sort()).toEqual(['"attributeId" =', '"updatedAt" =']);
+  });
+
+  it('the product is pinned by UUID, not resolved by a lookup', () => {
+    expect(executable).toMatch(/v_product\s+CONSTANT uuid := '[0-9a-f-]{36}'/);
+    expect(executable).not.toMatch(/v_product[\s\S]{0,80}SELECT "id" FROM "products"/);
+  });
+
+  it('REFUSES unless exactly 1 live and 4 historical references exist, 2 of them « Sel »', () => {
+    expect(executable).toMatch(/IF v_live_refs <> 1 THEN/);
+    expect(executable).toMatch(/IF v_hist_refs <> 4 THEN/);
+    expect(executable).toMatch(/IF v_hist_sel <> 2 THEN/);
+  });
+
+  it('NEVER repoints or rewrites a historical row', () => {
+    // The only specification write is the single live repoint above, and its
+    // WHERE pins the live value. Nothing addresses « Sel » as a write target.
+    const writes = executable.match(/UPDATE "product_specifications"[\s\S]*?;/g) ?? [];
+    expect(writes).toHaveLength(1);
+    for (const w of writes) expect(w).not.toContain("'Sel'");
+  });
+
+  it('asserts the historical rows survive, INCLUDING both « Sel »', () => {
+    expect(executable).toMatch(/WHERE "attributeId" = v_old_attr\) <> 4/);
+    expect(executable).toMatch(/"value" = 'Sel'\) <> 2/);
+    expect(executable).toMatch(/must remain on the legacy attribute, unchanged/);
+  });
+
+  it('asserts NO beverage leaf gained a characteristic', () => {
+    expect(executable).toMatch(/v_bev_before/);
+    expect(executable).toMatch(/= ANY\(v_beverages\)\) <> v_bev_before/);
+    expect(executable).toMatch(/EXISTS \(SELECT 1 FROM "product_attributes" WHERE "categoryId" = ANY\(v_beverages\) AND "name" = 'Type'\)/);
+    expect(executable).toMatch(/must never reach Eau, Jus, Sodas, Café, Thé or Boissons énergétiques/);
+  });
+
+  it('refuses a pre-existing canonical row in an incompatible form', () => {
+    expect(executable).toMatch(/already exists in an incompatible form/);
+    expect(executable).toMatch(/v_existing IS NOT NULL/);
+  });
+
+  it('refuses a destination that is missing, inactive or no longer a leaf', () => {
+    expect(executable).toMatch(/IF v_leaf_ok <> 1 THEN/);
+    expect(executable).toMatch(/no longer a leaf/);
+  });
+
+  it('is refusal-first and idempotent', () => {
+    expect((executable.match(/RAISE EXCEPTION 'P3-4d REFUSED/g) ?? []).length).toBeGreaterThanOrEqual(8);
+    expect(executable).toMatch(/v_points_new = 1 AND v_attr_home = v_holding/);
+    expect(executable).toMatch(/RAISE NOTICE 'P3-4d already applied/);
+    expect(executable).toMatch(/ON CONFLICT \("id"\) DO NOTHING/);
+  });
+
+  it('asserts its own end state', () => {
+    expect((executable.match(/RAISE EXCEPTION 'P3-4d ABORTED/g) ?? []).length).toBeGreaterThanOrEqual(9);
+  });
+
+  it('runs as ONE atomic block', () => {
+    expect(executable.match(/DO \$\$/g)).toHaveLength(1);
+    expect(executable).toMatch(/END \$\$;/);
+  });
+
+  it('no WRITE statement targets rows by characteristic NAME', () => {
+    const writes = executable.match(/(?:UPDATE|INSERT INTO) "\w+"[\s\S]*?;/g) ?? [];
+    for (const w of writes) {
+      const where = w.includes('WHERE') ? w.slice(w.indexOf('WHERE')) : '';
+      expect(where).not.toMatch(/"name"\s*(?:=|<>|!=|~|IN\b|LIKE|ILIKE)/);
+    }
+  });
+
+  it('documents the three rollback levels and refuses a naive DELETE', () => {
+    const rb = raw.slice(raw.indexOf('-- ── ROLLBACK'));
+    expect(rb).toContain('5bf39dfd-925b-461e-8a4c-07028a2a183d');
+    expect(rb).toContain(LEGACY);
+    expect(rb).toMatch(/A\. DATABASE MIGRATION ROLLBACK/);
+    expect(rb).toMatch(/B\. CODE \/ DECLARATION ROLLBACK/);
+    expect(rb).toMatch(/C\. FULL RELEASE ROLLBACK/);
+    expect(rb).toMatch(/DO NOT DELETE the created attribute while the declaration stands/);
+  });
+
+  it('is NOT auto-applied', () => {
+    const list = readFileSync(join(MANUAL_DIR, 'auto-apply.list'), 'utf8')
+      .split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
+    expect(list).not.toContain(FILE);
+  });
+
+  it('leaves the earlier P3-4 corrections alone', () => {
+    for (const attr of [
+      '14000000-0000-0000-0000-000000020102', // P3-4a Mémoire interne
+      '14000000-0000-0000-0000-000000040101', // P3-4b Taille
+      '14000000-0000-0000-0000-000000030501', // P3-4c iron Type
+    ]) {
+      expect(executable).not.toContain(attr);
+    }
   });
 });

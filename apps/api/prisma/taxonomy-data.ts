@@ -125,6 +125,26 @@ const WATCH: AttrTpl[] = [COLOR, { fr: 'Matière du bracelet', type: TEXT }, WAR
 const JEWELRY: AttrTpl[] = [{ fr: 'Matière', type: SELECT, options: ['Or', 'Argent', 'Plaqué or', 'Acier', 'Fantaisie'] }, COLOR];
 const FOOD: AttrTpl[] = [WEIGHT, EXPIRY];
 const BEVERAGE: AttrTpl[] = [VOLUME, EXPIRY];
+// Cooking oils. NOT BEVERAGE + « Type »: that template is SHARED with « Eau »,
+// « Jus », « Sodas » and « Boissons énergétiques », so appending there would
+// offer bottled water « Huile de palme ». A dedicated template is the same
+// shape IRON, PRINTER, FRIDGE, WASHER and FAN already use.
+//
+// « Type » is appended LAST on purpose. Attribute ids are positional, so
+// putting it first would renumber the live « Volume » …1010701 and
+// « Date d'expiration » …1010702 rows. Appended, it takes the free …1010703.
+//
+// OPTIONS ARE DELIBERATELY OIL-ONLY. The legacy attribute this replaces also
+// carried « Vinaigre », « Sel », « Épices » and « Sauce » — those are separate
+// product families, and Teka already has a « Condiments » leaf beside this one,
+// so they are product categories mis-encoded as characteristic values. They are
+// NOT carried forward. The two historical « Sel » specifications stay attached
+// to the retired legacy attribute as evidence of the previous catalogue state.
+const OIL: AttrTpl[] = [
+  VOLUME,
+  EXPIRY,
+  { fr: 'Type', type: SELECT, options: ['Huile végétale', "Huile d'olive", 'Huile de palme'] },
+];
 const CONSUMABLE: AttrTpl[] = [VOLUME, EXPIRY];
 // Ordinary household milk. Deliberately NOT the FOOD template: a shopper picks
 // milk by form and size, and « lait infantile » keeps its own weight+expiry
@@ -183,7 +203,7 @@ const t = (n: number, fr: string, attrs?: AttrTpl[]): ProductTypeDef => ({ n, fr
 export const STRICT_CATEGORIES: CategoryDef[] = [
   {
     n: 1, emoji: '🛒', fr: 'Supermarché', subs: [
-      { n: 101, fr: 'Alimentation', types: [t(10101, 'Riz', FOOD), t(10102, 'Farine', FOOD), t(10103, 'Sucre', FOOD), t(10104, 'Pâtes', FOOD), t(10105, 'Céréales', FOOD), t(10106, 'Conserves', FOOD), t(10107, 'Huiles', BEVERAGE), t(10108, 'Condiments', FOOD), t(10109, 'Biscuits', FOOD), t(10110, 'Snacks', FOOD)] },
+      { n: 101, fr: 'Alimentation', types: [t(10101, 'Riz', FOOD), t(10102, 'Farine', FOOD), t(10103, 'Sucre', FOOD), t(10104, 'Pâtes', FOOD), t(10105, 'Céréales', FOOD), t(10106, 'Conserves', FOOD), t(10107, 'Huiles', OIL), t(10108, 'Condiments', FOOD), t(10109, 'Biscuits', FOOD), t(10110, 'Snacks', FOOD)] },
       { n: 102, fr: 'Boissons', types: [t(10201, 'Eau', BEVERAGE), t(10202, 'Jus', BEVERAGE), t(10203, 'Sodas', BEVERAGE), t(10204, 'Café', FOOD), t(10205, 'Thé', FOOD), t(10206, 'Boissons énergétiques', BEVERAGE)] },
       // 10304 « Déodorants » retired 2026-09-10: it duplicated 60202 under
       // Beauté & Santé > Soins Personnels. Both held zero products; the
