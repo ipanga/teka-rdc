@@ -228,6 +228,78 @@ export function findUnmaterialisedDeclarations(
   return out;
 }
 
+export interface BrandNode {
+  id: string;
+  name: string;
+  slug: string;
+  isActive: boolean;
+  deletedAt: Date | string | null;
+}
+
+/** Lowercase + strip accents + collapse whitespace — the comparison a human makes. */
+export function normalizeBrandName(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * INVARIANT 5 — one brand, one identity.
+ *
+ * Two rows for « Nestle » and « Nestlé », or « Coca Cola » and « Coca-Cola »,
+ * split a seller's dropdown and a buyer's facet in half without ever looking
+ * wrong in a list. The database's unique constraints are exact-match only, so
+ * they do not catch spelling, accent or case variants.
+ *
+ * Retired rows are ignored: the `__old__…` placeholders left by the seed's
+ * rename preamble are deliberately parked, not duplicates.
+ */
+export function findDuplicateBrandIdentities(
+  brands: BrandNode[],
+): { kind: 'name' | 'slug'; value: string; names: string[] }[] {
+  const live = brands.filter((b) => b.isActive && !b.deletedAt);
+  const out: { kind: 'name' | 'slug'; value: string; names: string[] }[] = [];
+
+  const byName = new Map<string, string[]>();
+  const bySlug = new Map<string, string[]>();
+  for (const b of live) {
+    const n = normalizeBrandName(b.name);
+    byName.set(n, [...(byName.get(n) ?? []), b.name]);
+    bySlug.set(b.slug, [...(bySlug.get(b.slug) ?? []), b.name]);
+  }
+  for (const [value, names] of byName) if (names.length > 1) out.push({ kind: 'name', value, names });
+  for (const [value, names] of bySlug) if (names.length > 1) out.push({ kind: 'slug', value, names });
+  return out;
+}
+
+/**
+ * INVARIANT 6 — every live leaf keeps « Autre ».
+ *
+ * A seller listing something off-brand, handmade, or from a maker Teka does not
+ * stock must always have an option. A leaf that loses « Autre » silently forces
+ * a wrong brand or an abandoned listing.
+ */
+export function findLeavesMissingCatchAll(
+  categories: CategoryNode[],
+  brands: BrandNode[],
+  links: { brandId: string; categoryId: string }[],
+  catchAllName = 'Autre',
+): { categoryId: string; categoryName: string }[] {
+  const liveChildren = buildLiveChildIndex(categories);
+  const catchAll = brands.find(
+    (b) => normalizeBrandName(b.name) === normalizeBrandName(catchAllName) && b.isActive && !b.deletedAt,
+  );
+  if (!catchAll) return categories.filter((c) => isLiveLeaf(c, liveChildren)).map((c) => ({ categoryId: c.id, categoryName: c.name }));
+
+  const linked = new Set(links.filter((l) => l.brandId === catchAll.id).map((l) => l.categoryId));
+  return categories
+    .filter((c) => isLiveLeaf(c, liveChildren) && !linked.has(c.id))
+    .map((c) => ({ categoryId: c.id, categoryName: c.name }));
+}
+
 /**
  * The ONLY specifications currently excused from invariant 2.
  *

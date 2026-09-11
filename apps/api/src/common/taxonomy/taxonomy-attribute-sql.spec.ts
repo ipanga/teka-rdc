@@ -244,13 +244,20 @@ describe('a future migration cannot add a leaf without its characteristics', () 
 const NEW_LEAVES = [10601, 10602, 10603, 10701, 10702, 10703];
 /** Brands verified absent from production, so the migration may create them. */
 const NEW_BRANDS = [52, 53, 54, 55];
+/**
+ * The brands that migration was ABOUT. A shipped migration is immutable while
+ * `taxonomy-data.ts` keeps growing — the 2026-09-11 beverage brands added more
+ * links to « Bières » — so the drift check is pinned to this set rather than
+ * relaxed into a subset comparison.
+ */
+const LINK_BRANDS = [1, 47, 52, 53, 54, 55];
 const brandSql = read(BRAND_LINKS);
 const linksFor = (leaf: number) =>
   brandLinksFor([leaf]).map((l) => l.brandName);
 
 describe('brand links are derived from taxonomy-data.ts too', () => {
   it('13. the committed brand migration matches a fresh render', () => {
-    expect(generatedBlock(brandSql)).toBe(renderBrandSql(NEW_LEAVES, NEW_BRANDS).trim());
+    expect(generatedBlock(brandSql)).toBe(renderBrandSql(NEW_LEAVES, NEW_BRANDS, LINK_BRANDS).trim());
   });
 
   it('14. Nestlé links to exactly the milk leaves the source declares — and no others', () => {
