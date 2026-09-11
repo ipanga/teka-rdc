@@ -617,6 +617,31 @@ The catalog is a **3-level taxonomy** — **Category → Subcategory → Product
 
   The invariant is guarded by `src/common/taxonomy/taxonomy-invariants.ts` (pure structural checks, unit-tested in CI) plus `prisma/scripts/audit-taxonomy-invariants.ts`, which runs the same functions read-only against a real database. Three further invariants live beside it: **one category id carries one semantic identity** across manual migrations; an **ACTIVE product carries no characteristic owned by another category**; and a **migration that creates a leaf also materialises the characteristics and brand links the source declares for it**.
 
+- **Taxonomy reconciliation — `taxonomy:diff` / `taxonomy:apply`** (2026-09-11). `taxonomy-data.ts` declares three things per leaf — the category, its characteristics, its brand links — but only `seed.ts` reads all three, and `seed.ts` cannot be aimed at production. Three September incidents came from that gap. These commands close it:
+
+  ```
+  pnpm --filter api taxonomy:diff          # development, read-only
+  pnpm --filter api taxonomy:diff:prod     # production,  READ-ONLY
+  pnpm --filter api taxonomy:apply         # writes a .sql FILE, never a database
+  ```
+
+  **Neither command writes to a database.** `diff` reads and reports; `apply` emits a reviewable migration under `prisma/migrations/manual/`, does not execute it, and does not add it to `auto-apply.list`. Production reconciliation stays: review the generated file in a PR → merge → dispatch the **Apply prod migration** Action. That gate is not bypassable from a laptop.
+
+  **Findings are classified, because a database difference is not automatically corruption:**
+
+  | Severity | Meaning | Can `apply` act on it? |
+  |---|---|---|
+  | `DRIFT_ADDITIVE` | missing category, characteristic, brand, link or « Autre » | **yes** — additive SQL only |
+  | `JUDGEMENT` | rename, re-parent, deactivation, misplaced or intermediate characteristic, duplicate brand, id reuse | **no** — `apply` refuses the whole run |
+  | `ADMIN` | rows created through the Admin Dashboard | no — reported for visibility |
+  | `HISTORICAL` | retired rows referenced by specifications | no — deleting them orphans real history |
+
+  **The canonical/Admin boundary is the ID RANGE**, which is unambiguous: `13000000-`/`16000000-`/`14000000-`/`15000000-` are seeded and the source is authoritative for their EXISTENCE; anything with an RFC4122 uuid was created in the Admin Dashboard and the source says nothing about it. Even on canonical rows the source is authoritative for existence **only** — a renamed or deactivated canonical category is reported as `JUDGEMENT` and never auto-corrected, because an admin renaming « Sodas » is legitimate and silently reverting it would make the tool the incident.
+
+  `apply` **refuses entirely** when any `JUDGEMENT` finding exists. Emitting only the easy half would report success while leaving the real problem in place.
+
+  **`db:push`, `prisma db seed` and `db:reset-catalog` are NOT reconciliation mechanisms**: the first ignores the canonical source, and the last two begin by deactivating every category and rewriting the entire brand library.
+
 - **Why legacy taxonomy rows are kept rather than deleted** — the 2026-06-24 refactor reused every `13000000-` subcategory id with a new meaning while the previous attributes stayed attached, which is how « Type de peau » ended up on men's clothing and « Pointure » on air conditioning (25 live intermediate categories, 52 attributes; audited 2026-09-11). Those rows are **deactivated, not dropped**: 188 `ProductSpecification` rows on soft-deleted products still reference them, and deleting the attribute would orphan real historical records. The same reasoning applies to soft-deleted categories — a retired product keeps a faithful snapshot of the taxonomy it was listed under.
 - **Taxonomy changes in production are SQL, not a seed run — and the attribute rows are generated** — `seed.ts` is the only consumer of `taxonomy-data.ts`, but it cannot be used to make a targeted production change: it opens by deactivating **every** category and nulling every slug, then renames and soft-deletes the **entire** brand library before reclaiming it. So a live taxonomy edit ships as manual SQL under `prisma/migrations/manual/`. That split is what let `2026-09-10_taxonomy_milk_alcohol_deodorant.sql` create six product-type leaves with **zero** `product_attributes` rows — the categories were hand-written, the templates were not, and nothing connected them. The fix is a generator: **`prisma/scripts/taxonomy-attribute-sql.ts` renders the attribute SQL from `taxonomy-data.ts`**, the migration carries that output between `GENERATED BLOCK BEGIN/END` markers, and `src/common/taxonomy/taxonomy-attribute-sql.spec.ts` re-renders it in CI plus asserts that **every leaf any manual migration inserts has its full attribute set inserted too**. When adding a leaf: edit `taxonomy-data.ts` first, then regenerate — never hand-write attribute rows. (Longer-term improvement, deliberately not done here: give `seed.ts` a scoped `--only=taxonomy` mode so one code path serves dev and prod. That is a seed refactor, not a migration fix.)
 - **Ids note** — seeded ids are non-RFC4122 (`13000000-…`), so brand/category endpoints use plain-string params validated by DB lookup, not `@IsUUID`. `ParseUUIDPipe` happens to accept them; the product/browse DTOs use a hex regex (not `@IsUUID`).
